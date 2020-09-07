@@ -145,7 +145,7 @@ def create_array_y(symbol_table):
     '''
     array_symbol = DataSymbol("y", ArrayType(REAL_TYPE, [10, 10]))
     symbol_table.add(array_symbol)
-    return Array.create(array_symbol, [Reference(symbol_table.lookup("n")[0]),
+    return Array.create(array_symbol, [Reference(symbol_table.lookup("n")),
                                        create_range(array_symbol, 2)])
 
 
@@ -190,7 +190,7 @@ def create_array_z(symbol_table):
     array_symbol = DataSymbol("z", ArrayType(REAL_TYPE, [20, 10, 10]))
     symbol_table.add(array_symbol)
     return Array.create(array_symbol, [create_range(array_symbol, 1),
-                                       Reference(symbol_table.lookup("n")[0]),
+                                       Reference(symbol_table.lookup("n")),
                                        create_range(array_symbol, 3)])
 
 
@@ -213,7 +213,7 @@ def create_array_y_slice_subset(symbol_table):
     '''
     array_symbol = DataSymbol("y3", ArrayType(REAL_TYPE, [10, 10]))
     symbol_table.add(array_symbol)
-    symbol_n, _ = symbol_table.lookup("n")
+    symbol_n = symbol_table.lookup("n")
     return Array.create(array_symbol, [Reference(symbol_n),
                                        create_stepped_range(symbol_n)])
 
@@ -236,7 +236,7 @@ def create_expr(symbol_table):
     '''
     array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
     symbol_table.add(array_symbol)
-    symbol_n, _ = symbol_table.lookup("n")
+    symbol_n = symbol_table.lookup("n")
     array_x = Array.create(array_symbol, [create_stepped_range(symbol_n)])
     array_symbol = DataSymbol("z", ArrayType(REAL_TYPE, [10, 10]))
     symbol_table.add(array_symbol)

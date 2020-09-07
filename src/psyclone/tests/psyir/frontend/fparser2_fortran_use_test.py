@@ -61,19 +61,19 @@ def test_use_stmt():
     symtab = fake_parent.symbol_table
 
     for module_name in ["my_mod", "this_mod", "other_mod"]:
-        container, _ = symtab.lookup(module_name)
+        container = symtab.lookup(module_name)
         assert isinstance(container, ContainerSymbol)
         assert container.name == module_name
         # Container reference is not updated until explicitly requested
         assert not container._reference
 
     for var in ["some_var", "var1", "var2"]:
-        assert symtab.lookup(var)[0].name == var
+        assert symtab.lookup(var).name == var
 
-    assert symtab.lookup("some_var")[0].interface.container_symbol \
-        == symtab.lookup("my_mod")[0]
-    assert symtab.lookup("var2")[0].interface.container_symbol \
-        == symtab.lookup("other_mod")[0]
+    assert symtab.lookup("some_var").interface.container_symbol \
+        == symtab.lookup("my_mod")
+    assert symtab.lookup("var2").interface.container_symbol \
+        == symtab.lookup("other_mod")
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -110,14 +110,14 @@ def test_multi_use_stmt():
     csymbols = symtab.containersymbols
     # Although there are 4 use statements, there are only 2 modules
     assert len(csymbols) == 2
-    my_mod, _ = symtab.lookup("my_mod")
+    my_mod = symtab.lookup("my_mod")
     assert not my_mod.wildcard_import
     # Check that we have accumulated all imports
     import_list = symtab.imported_symbols(my_mod)
     assert len(import_list) == 3
     names = [sym.name for sym in import_list]
     assert sorted(names) == ["some_var", "var1", "var2"]
-    this_mod, _ = symtab.lookup("this_mod")
+    this_mod = symtab.lookup("this_mod")
     assert this_mod.wildcard_import
     names = [sym.name for sym in symtab.imported_symbols(this_mod)]
     assert names == ["var3"]
@@ -148,7 +148,7 @@ def test_use_no_only_list():
                                  "use some_mod, only:\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
-    some_mod, _ = fake_parent.symbol_table.lookup("some_mod")
+    some_mod = fake_parent.symbol_table.lookup("some_mod")
     assert not some_mod.wildcard_import
     assert fake_parent.symbol_table.imported_symbols(some_mod) == []
 
@@ -182,14 +182,14 @@ def test_redundant_empty_only_list():
                                  "use mod1\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
-    csym, _ = fake_parent.symbol_table.lookup("mod1")
+    csym = fake_parent.symbol_table.lookup("mod1")
     assert csym.wildcard_import
     # Wildcard import followed by empty only-list
     reader = FortranStringReader("use mod2\n"
                                  "use mod2, only:\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
-    csym, _ = fake_parent.symbol_table.lookup("mod2")
+    csym = fake_parent.symbol_table.lookup("mod2")
     assert csym.wildcard_import
     # Empty only-list followed by named import
     reader = FortranStringReader("use mod3, only:\n"
@@ -197,7 +197,7 @@ def test_redundant_empty_only_list():
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym_table = fake_parent.symbol_table
-    csym, _ = sym_table.lookup("mod3")
+    csym = sym_table.lookup("mod3")
     assert not csym.wildcard_import
     assert sym_table.imported_symbols(csym)[0].name == "fred"
     # Named import followed by empty only-list
@@ -205,12 +205,12 @@ def test_redundant_empty_only_list():
                                  "use mod4, only:\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
-    csym, _ = sym_table.lookup("mod4")
+    csym = sym_table.lookup("mod4")
     assert not csym.wildcard_import
     assert sym_table.imported_symbols(csym)[0].name == "bob"
 
 
-def test_use_same_symbol(parser):
+def test_use_same_symbol():
     ''' Check that we handle the case where the same symbol is imported from
     different modules.
     #TODO #11 Once logging is added, check that we log an appropriate
@@ -218,15 +218,13 @@ def test_use_same_symbol(parser):
     '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
-    reader = FortranStringReader("module my_mod\n"
-                                 "use mod2, only: fred\n"
-                                 "use mod3, only: fred\n"
-                                 "end module my_mod\n")
-    fparser2spec = parser(reader)
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    csym, _ = fake_parent.symbol_table.lookup("mod2")
+    reader = FortranStringReader("use mod2, only: fred\n"
+                                 "use mod3, only: fred\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    csym = fake_parent.symbol_table.lookup("mod2")
     assert fake_parent.symbol_table.imported_symbols(csym)[0].name == "fred"
-    csym, _ = fake_parent.symbol_table.lookup("mod3")
+    csym = fake_parent.symbol_table.lookup("mod3")
     # mod3 will have an empty list of symbols as 'fred' is already imported
     # from mod2.
     assert not fake_parent.symbol_table.imported_symbols(csym)

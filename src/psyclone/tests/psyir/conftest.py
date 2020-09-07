@@ -53,5 +53,5 @@ def disable_declaration_check(monkeypatch):
     '''
     monkeypatch.setattr(
         Node, "find_or_create_symbol",
-        lambda _1, name, _2=None: (DataSymbol(name,
-                                              INTEGER_TYPE), None))
+        lambda _1, name, _2=None: DataSymbol(name,
+                                             INTEGER_TYPE))

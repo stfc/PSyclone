@@ -312,5 +312,5 @@ def test_unknown_type():
 
 def test_structure_type():
     ''' Check that we can create a StructureType object. '''
-    stype = StructureType('some_type')
-    assert str(stype) == "Structure<some_type>"
+    stype = StructureType()
+    assert str(stype) == "Structure<>"

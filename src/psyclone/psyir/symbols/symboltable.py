@@ -124,29 +124,18 @@ class SymbolTable(object):
         them (the one from the closest ancestor including self).
 
         :returns: ordered dictionary of symbols indexed by symbol name.
-        :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`, \
-                                :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        all_symbols = self._all_local_symbols
+        all_symbols = OrderedDict(self._symbols)
         current = self
         while current.parent:
             current = current.parent
             for symbol_name in current.symbols_dict:
                 if symbol_name not in all_symbols:
-                    all_symbols[symbol_name] = (
-                        current.symbols_dict[symbol_name], current)
+                    all_symbols[symbol_name] = current.symbols_dict[
+                        symbol_name]
         return all_symbols
-
-    @property
-    def _all_local_symbols(self):
-        '''
-        TODO
-        '''
-        symbols = OrderedDict()
-        for name, sym in self._symbols.items():
-            symbols[name] = (sym, self)
-        return symbols
 
     @property
     def _all_tags(self):
@@ -156,8 +145,7 @@ class SymbolTable(object):
         one from the closest ancestor including self).
 
         :returns: ordered dictionary of symbols indexed by tag.
-        :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`,\
-                                :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         all_tags = OrderedDict(self._tags)
@@ -230,8 +218,7 @@ class SymbolTable(object):
         if check_ancestors:
             symbols = self._all_symbols
         else:
-            symbols = self._all_local_symbols
-            #symbols = self._symbols
+            symbols = self._symbols
 
         if root_name is not None and not isinstance(root_name, str):
             raise TypeError(
@@ -269,7 +256,7 @@ class SymbolTable(object):
         if check_ancestors:
             symbols = self._all_symbols
         else:
-            symbols = self._all_local_symbols
+            symbols = self._symbols
 
         if not isinstance(new_symbol, Symbol):
             raise InternalError("Symbol '{0}' is not a symbol, but '{1}'.'"
@@ -385,10 +372,10 @@ class SymbolTable(object):
         if check_ancestors:
             symbols = self._all_symbols
         else:
-            symbols = self._all_local_symbols
+            symbols = self._symbols
 
         try:
-            symbol, table = symbols[self._normalize(name)]
+            symbol = symbols[self._normalize(name)]
             if visibility:
                 if not isinstance(visibility, list):
                     vis_list = [visibility]
@@ -412,7 +399,7 @@ class SymbolTable(object):
                         "visibility '{1}' which does not match with the "
                         "requested visibility: {2}".format(
                             name, symbol.visibility.name, vis_names))
-            return symbol, table
+            return symbol
         except KeyError:
             raise KeyError("Could not find '{0}' in the Symbol Table."
                            "".format(name))
@@ -529,7 +516,7 @@ class SymbolTable(object):
                 "object of type '{0}'".format(type(csymbol).__name__))
         # self.lookup(name) will raise a KeyError if there is no symbol with
         # that name in the table.
-        if self.lookup(csymbol.name)[0] is not csymbol:
+        if self.lookup(csymbol.name) is not csymbol:
             raise KeyError("The '{0}' entry in this SymbolTable is not the "
                            "supplied ContainerSymbol.".format(csymbol.name))
 
@@ -809,7 +796,7 @@ class SymbolTable(object):
         # create one and add it.
         if external_container_name not in self:
             self.add(ContainerSymbol(external_container_name))
-        container_ref, _ = self.lookup(external_container_name)
+        container_ref = self.lookup(external_container_name)
 
         # Copy the variable into the SymbolTable with the appropriate interface
         if globalvar.name not in self:
@@ -820,7 +807,7 @@ class SymbolTable(object):
         else:
             # If it already exists it must refer to the same Container and have
             # the same tag.
-            local_instance, _ = self.lookup(globalvar.name)
+            local_instance = self.lookup(globalvar.name)
             if not (local_instance.is_global and
                     local_instance.interface.container_symbol.name ==
                     external_container_name):
@@ -835,10 +822,10 @@ class SymbolTable(object):
                 except KeyError:
                     # If the tag was not used, it will now be attached
                     # to the symbol.
-                    self._tags[tag] = self.lookup(globalvar.name)[0]
+                    self._tags[tag] = self.lookup(globalvar.name)
 
                 # The tag should not refer to a different symbol
-                if self.lookup(globalvar.name)[0] != self.lookup_with_tag(tag):
+                if self.lookup(globalvar.name) != self.lookup_with_tag(tag):
                     raise KeyError(
                         "Couldn't copy '{0}' into the SymbolTable. The"
                         " tag '{1}' is already used by another symbol."

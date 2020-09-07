@@ -212,11 +212,11 @@ def test_where_symbol_clash(parser):
     fparser2spec = parser(reader)
     processor = Fparser2Reader()
     sched = processor.generate_schedule("widx_array", fparser2spec)
-    var, _ = sched.symbol_table.lookup("widx1")
+    var = sched.symbol_table.lookup("widx1")
     assert isinstance(var, DataSymbol)
     assert var.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     # Check that we have a new symbol for the loop variable
-    loop_var, _ = sched.symbol_table.lookup("widx1_1")
+    loop_var = sched.symbol_table.lookup("widx1_1")
     assert loop_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
 
 

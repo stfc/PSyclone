@@ -1212,7 +1212,7 @@ class Node(object):
                 try:
                     # If the reference matches a Symbol of the correct type
                     # in this SymbolTable then return the Symbol.
-                    sym, _ = symbol_table.lookup(name, check_ancestors=False)
+                    sym = symbol_table.lookup(name, check_ancestors=False)
                     if type(sym) == Symbol or isinstance(sym, symbol_type):
                         return sym, symbol_table
                     raise SymbolError(
