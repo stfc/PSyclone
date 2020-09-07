@@ -44,9 +44,9 @@ module testkern_orientation2_mod
 
   type, extends(kernel_type) :: testkern_orientation2_type
     type(arg_type) :: meta_args(3) = (/                                  &
-         arg_type(GH_FIELD,   GH_REAL, GH_INC,   W1),                    &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W2),                    &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  W0)                     &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W1),                     &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2),                     &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)                      &
          /)
     type(func_type) :: meta_funcs(3) = (/                                &
          func_type(W1, GH_BASIS),                                        &

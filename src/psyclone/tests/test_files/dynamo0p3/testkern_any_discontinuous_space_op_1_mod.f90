@@ -54,9 +54,9 @@ module testkern_any_discontinuous_space_op_1_mod
     type(arg_type) :: meta_args(5) = (/                                           &
          arg_type(GH_FIELD*3,  GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &
          arg_type(GH_FIELD,    GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_OPERATOR,          GH_READ,      ANY_DISCONTINUOUS_SPACE_1,  &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1,  &
                                                       ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_OPERATOR,          GH_WRITE,     ANY_DISCONTINUOUS_SPACE_3,  &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_3,  &
                                                       ANY_DISCONTINUOUS_SPACE_7), &
          arg_type(GH_SCALAR,   GH_REAL, GH_READ)                                  &
          /)
