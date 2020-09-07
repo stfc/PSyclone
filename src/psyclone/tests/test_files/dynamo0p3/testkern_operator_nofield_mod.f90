@@ -42,13 +42,13 @@ module testkern_operator_nofield_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_operator_nofield_type
-     type(arg_type), dimension(2) :: meta_args =      &
-          (/ arg_type(gh_operator, gh_write, w2, w2), &
-             arg_type(gh_field*3,  gh_read,  w0)      &
+     type(arg_type), dimension(2) :: meta_args =               &
+          (/ arg_type(gh_operator, gh_real, gh_write, w2, w2), &
+             arg_type(gh_field*3,  gh_real, gh_read,  w0)      &
           /)
-     type(func_type) :: meta_funcs(2) =               &
-          (/ func_type(w2, gh_basis),                 &
-             func_type(w0, gh_diff_basis)             &
+     type(func_type) :: meta_funcs(2) =                        &
+          (/ func_type(w2, gh_basis),                          &
+             func_type(w0, gh_diff_basis)                      &
           /)
      integer :: iterates_over = cells
      integer :: gh_shape = gh_quadrature_XYoZ

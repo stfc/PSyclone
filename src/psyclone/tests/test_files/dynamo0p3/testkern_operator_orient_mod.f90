@@ -42,13 +42,13 @@ module testkern_operator_orient_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_operator_orient_type
-     type(arg_type), dimension(2) :: meta_args =      &
-          (/ arg_type(gh_operator, gh_write, w1, w1), &
-             arg_type(gh_field*3,  gh_read,  w0)      &
+     type(arg_type), dimension(2) :: meta_args =               &
+          (/ arg_type(gh_operator, gh_real, gh_write, w1, w1), &
+             arg_type(gh_field*3,  gh_real, gh_read,  w0)      &
           /)
-     type(func_type) :: meta_funcs(2) =               &
-          (/ func_type(w0, gh_diff_basis),            &
-             func_type(W1, gh_basis, gh_orientation)  &
+     type(func_type) :: meta_funcs(2) =                        &
+          (/ func_type(w0, gh_diff_basis),                     &
+             func_type(W1, gh_basis, gh_orientation)           &
           /)
      integer :: iterates_over = cells
      integer :: gh_shape = gh_quadrature_XYoZ
