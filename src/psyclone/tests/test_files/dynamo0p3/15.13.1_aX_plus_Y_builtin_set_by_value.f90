@@ -38,7 +38,8 @@ program single_invoke
 
   ! Description: single point-wise operation specified in an invoke call
   ! with scalar passed by value which includes explicit kind param.
-  use field_mod, only: field_type
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
 
   implicit none
 

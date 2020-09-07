@@ -60,13 +60,13 @@ module dynamo0p3_builtins_mod
   end type aX_plus_Y
 
   !> An invalid built-in that updates two fields where one is gh_sum
-  !! and the other is gh_inc
+  !! and the other is gh_readwrite
   type, public, extends(kernel_type) :: inc_aX_plus_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_SCALAR, GH_REAL, GH_SUM              ),         &
-          arg_type(GH_FIELD,           GH_INC,  ANY_SPACE_1),         &
-          arg_type(GH_FIELD,           GH_READ, ANY_SPACE_1)          &
+          arg_type(GH_SCALAR, GH_REAL, GH_SUM                   ),    &
+          arg_type(GH_FIELD,           GH_READWRITE, ANY_SPACE_1),    &
+          arg_type(GH_FIELD,           GH_READ,      ANY_SPACE_1)     &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -89,14 +89,14 @@ module dynamo0p3_builtins_mod
   end type aX_plus_bY
 
   !> An invalid built-in that writes to two different
-  !! args but with different access types - one is gh_write, one is gh_inc.
+  !! args but with different access types - one is gh_write, one is gh_readwrite.
   type, public, extends(kernel_type) :: inc_aX_plus_bY
      private
      type(arg_type) :: meta_args(4) = (/                              &
-          arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,           GH_INC,   ANY_SPACE_1),        &
-          arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,           GH_WRITE, ANY_SPACE_1)         &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ                  ),    &
+          arg_type(GH_FIELD,           GH_READWRITE, ANY_SPACE_1),    &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ                  ),    &
+          arg_type(GH_FIELD,           GH_WRITE,     ANY_SPACE_1)     &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -132,8 +132,8 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: inc_X_divideby_Y
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD,  GH_INC,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_2)                   &
+          arg_type(GH_FIELD,  GH_READWRITE, ANY_SPACE_1),             &
+          arg_type(GH_FIELD,  GH_READ,      ANY_SPACE_2)              &
           /)
      integer :: iterates_over = DOFS
    contains
