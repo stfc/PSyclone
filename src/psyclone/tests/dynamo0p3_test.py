@@ -236,7 +236,8 @@ def test_ad_scalar_init_wrong_data_type(monkeypatch):
         target=LFRicArgDescriptor, name="VALID_ARG_DATA_TYPES",
         value=LFRicArgDescriptor.VALID_ARG_DATA_TYPES + ["gh_double"])
     with pytest.raises(InternalError) as excinfo:
-        LFRicArgDescriptor(scalar_arg)._init_scalar(scalar_arg)
+        LFRicArgDescriptor(
+            scalar_arg, metadata.iterates_over)._init_scalar(scalar_arg)
     assert ("LFRicArgDescriptor._init_scalar(): Expected one of {0} "
             "as the data type but got 'gh_double'.".
             format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES) in

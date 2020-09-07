@@ -88,7 +88,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: aX_plus_bY_code
   end type aX_plus_bY
 
-  !> An invalid built-in that writes to two different arguments
+  !> An invalid built-in that writes to two field arguments
   !! but with different access types - one is gh_write, one is gh_readwrite.
   type, public, extends(kernel_type) :: inc_aX_plus_bY
      private
