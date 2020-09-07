@@ -42,8 +42,8 @@ module testkern_vector_2_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_vector_2_type
-     type(arg_type), dimension(1) :: meta_args = &
-          (/ arg_type(gh_field*3, gh_inc, w0)    &
+     type(arg_type), dimension(1) :: meta_args =       &
+          (/ arg_type(gh_field*3, gh_real, gh_inc, w0) &
            /)
      integer :: iterates_over = cells
    contains
