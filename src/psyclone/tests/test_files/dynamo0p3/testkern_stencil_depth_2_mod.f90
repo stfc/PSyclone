@@ -43,11 +43,11 @@ module testkern_stencil_depth_2_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_stencil_depth_2_type
-     type(arg_type), dimension(4) :: meta_args =              &
-          (/ arg_type(gh_field, gh_inc,  w0),                 &
-             arg_type(gh_field, gh_read, w1, stencil(cross)), &
-             arg_type(gh_field, gh_read, w2, stencil(cross)), &
-             arg_type(gh_field, gh_read, w3, stencil(cross))  &
+     type(arg_type), dimension(4) :: meta_args =                       &
+          (/ arg_type(gh_field, gh_real, gh_inc,  w0),                 &
+             arg_type(gh_field, gh_real, gh_read, w1, stencil(cross)), &
+             arg_type(gh_field, gh_real, gh_read, w2, stencil(cross)), &
+             arg_type(gh_field, gh_real, gh_read, w3, stencil(cross))  &
            /)
      integer :: iterates_over = cells
    contains

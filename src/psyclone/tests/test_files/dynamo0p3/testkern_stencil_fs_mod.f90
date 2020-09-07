@@ -45,24 +45,24 @@ module testkern_stencil_fs_mod
 
   ! Example of stencils on all supported function space identifiers
   type, extends(kernel_type) :: testkern_stencil_fs_type
-     type(arg_type), dimension(16) :: meta_args = (/                &
-          arg_type(gh_field, gh_inc,  w1),                          &
-          arg_type(gh_field, gh_read, w0,          stencil(cross)), &
-          arg_type(gh_field, gh_read, w1,          stencil(cross)), &
-          arg_type(gh_field, gh_read, w2,          stencil(cross)), &
-          arg_type(gh_field, gh_read, w3,          stencil(cross)), &
-          arg_type(gh_field, gh_read, wtheta,      stencil(cross)), &
-          arg_type(gh_field, gh_read, w2h,         stencil(cross)), &
-          arg_type(gh_field, gh_read, w2v,         stencil(cross)), &
-          arg_type(gh_field, gh_read, w2broken,    stencil(cross)), &
-          arg_type(gh_field, gh_read, w2trace,     stencil(cross)), &
-          arg_type(gh_field, gh_read, w2htrace,    stencil(cross)), &
-          arg_type(gh_field, gh_read, w2vtrace,    stencil(cross)), &
-          arg_type(gh_field, gh_read, wchi,        stencil(cross)), &
-          arg_type(gh_field, gh_read, any_w2,      stencil(cross)), &
-          arg_type(gh_field, gh_read, any_space_9, stencil(cross)), &
-          arg_type(gh_field, gh_read, any_discontinuous_space_1,    &
-                                      stencil(cross))               &
+     type(arg_type), dimension(16) :: meta_args = (/                         &
+          arg_type(gh_field, gh_real, gh_inc,  w1),                          &
+          arg_type(gh_field, gh_real, gh_read, w0,          stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w1,          stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w2,          stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w3,          stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, wtheta,      stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w2h,         stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w2v,         stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w2broken,    stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w2trace,     stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w2htrace,    stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w2vtrace,    stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, wchi,        stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, any_w2,      stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, any_space_9, stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_1,    &
+                                               stencil(cross))               &
            /)
      integer :: iterates_over = cells
    contains
