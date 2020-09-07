@@ -47,7 +47,7 @@ module restrict_kernel_mod
 use constants_mod,           only: i_def, r_def
 use kernel_mod,              only: kernel_type
 use argument_mod,            only: arg_type,                     &
-                                   GH_FIELD,                     &
+                                   GH_FIELD, GH_REAL,            &
                                    GH_READ, GH_READWRITE, CELLS, &
                                    ANY_DISCONTINUOUS_SPACE_1,    &
                                    ANY_DISCONTINUOUS_SPACE_2,    &
@@ -59,9 +59,11 @@ private
 
 type, public, extends(kernel_type) :: restrict_kernel_type
    private
-   type(arg_type) :: meta_args(2) = (/                                                   &
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, mesh_arg=GH_COARSE), &
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, mesh_arg=GH_FINE   ) &
+   type(arg_type) :: meta_args(2) = (/                                       &
+        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, &
+                                                  mesh_arg=GH_COARSE),       &
+        arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, &
+                                                  mesh_arg=GH_FINE  )        &
         /)
   integer :: iterates_over = CELLS
 contains

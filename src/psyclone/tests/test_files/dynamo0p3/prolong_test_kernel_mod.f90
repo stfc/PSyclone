@@ -48,9 +48,9 @@ module prolong_test_kernel_mod
 
   type, public, extends(kernel_type) :: prolong_test_kernel_type
      private
-     type(arg_type), dimension(2) :: meta_args = (/           &
-          arg_type(GH_FIELD, GH_INC,  W1, mesh_arg=GH_FINE),  &
-          arg_type(GH_FIELD, GH_READ, W2, mesh_arg=GH_COARSE) &
+     type(arg_type), dimension(2) :: meta_args = (/                    &
+          arg_type(GH_FIELD, GH_REAL, GH_INC,  W1, mesh_arg=GH_FINE),  &
+          arg_type(GH_FIELD, GH_REAL, GH_READ, W2, mesh_arg=GH_COARSE) &
           /)
      integer :: iterates_over = CELLS
    contains

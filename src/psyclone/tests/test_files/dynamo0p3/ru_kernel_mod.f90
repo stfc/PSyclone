@@ -54,12 +54,12 @@ module ru_kernel_mod
   type, public, extends(kernel_type) :: ru_kernel_type
     private
     type(arg_type) :: meta_args(6) = (/                                  &
-         arg_type(GH_FIELD,   GH_INC,  W2),                              &
-         arg_type(GH_FIELD,   GH_READ, W3),                              &
-         arg_type(GH_INTEGER, GH_READ),                                  &
-         arg_type(GH_REAL,    GH_READ),                                  &
-         arg_type(GH_FIELD,   GH_READ, W0),                              &
-         arg_type(GH_FIELD*3, GH_READ, W0)                               &
+         arg_type(GH_FIELD,   GH_REAL,    GH_INC,  W2),                  &
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ, W3),                  &
+         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                      &
+         arg_type(GH_SCALAR,  GH_REAL,    GH_READ),                      &
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ, W0),                  &
+         arg_type(GH_FIELD*3, GH_REAL,    GH_READ, W0)                   &
          /)
     type(func_type) :: meta_funcs(3) = (/                                &
          func_type(W2, GH_BASIS, GH_DIFF_BASIS),                         &
@@ -72,7 +72,7 @@ module ru_kernel_mod
     procedure, nopass :: ru_code
   end type
 
-  public ru_code
+  public :: ru_code
 
 contains
 
