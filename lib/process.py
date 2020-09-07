@@ -13,15 +13,17 @@ from jinja2 import Environment
 
 parser = argparse.ArgumentParser(
     description='Process a jinja template for PSyData.')
-parser.add_argument('template_name', help="Name of the template to process.")
+parser.add_argument('template_name',
+                    help="Name of the template file to process.")
 parser.add_argument('-types', help="Comma-separated list of types, "
-                                   "e.g. real,int,double.",
+                                   "e.g. real,int,double (no spaces).",
                     default="real,int,double")
 parser.add_argument("-dims", help="Comma-separated list of dimensions, "
-                                  "e.g. 1,2,4.",
+                                  "e.g. 1,2,4 (no spaces)",
                     default="1,2,3,4")
 
-parser.add_argument("-prefix", help="Prefix for PSyData functions.",
+parser.add_argument("-prefix", help="Prefix to add to the generated PSyData "
+                                    "function names",
                     default="")
 
 args = parser.parse_args()

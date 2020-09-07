@@ -558,26 +558,26 @@ PSyData Base Class
 PSyclone provides a base class for all PSyData wrapper libraries. The
 base class is independent of the API, but it can provide implementations for
 scalars and arrays for all native Fortran types that are required by the
-API-specific implementation. The base class needs not to be used, but it
+API-specific implementation. The base class does not have to be used, but it
 provides useful functionality:
 
 Verbosity:
     It will check the ``PSYDATA_VERBOSE`` environment flag. If it exists, it
     must have a value of either 0 (no messages), 1 (some messages, typically
     only ``PSyDataStart`` and ``PSyDataEnd``), or 2 (detailed messages,
-    depending on wrapper library). All other values will return in a warning
-    message to be printed (and verbosity will be disabled). The verbosity level
+    depending on wrapper library). All other values will result in a warning
+    message being printed (and verbosity will be disabled). The verbosity level
     is available as ``this%verbosity``.
 
 Module- and Region-Name Handling:
-    The modules stores the module name in ``this%module_name``, and the region
+    The module stores the module name in ``this%module_name``, and the region
     name as ``this%region_name``.
 
 Variable Index:
     It automatically sets ``this%next_var_index`` to 1 in ``PSyDataPreStart``
     ``PSyDataPreEndDeclaration`` and ``PostStart``. This variable will also
     be increased by one for each call to a Declare- or Provide-subroutine.
-    This variable can be used to have a reproducible index for declaring and
+    This variable can be used to provide a reproducible index for declaring and
     providing a variable (and it also counts the number of declared variables,
     which can be used in e.g. ``PSyDataPreEndDeclaration`` to allocate arrays).
 
@@ -602,9 +602,9 @@ Jinja Support:
 
 Jinja Support in the Base Class
 +++++++++++++++++++++++++++++++
-The base class is contained in ``lib/psy_data_base.jinja``. It is processed
-with the script ``process.py``, which will print the processed file to
-stdout. The ``Makefile`` will automatically create the file
+The base class ``PSyDataBaseType`` is contained in ``lib/psy_data_base.jinja``.
+It is processed with the script ``process.py``, which will print the processed
+file to stdout. The ``Makefile`` will automatically create the file
 ``psy_data_base.f90`` from the jinja template and compile it. For convenience
 if jinja is not installed on a system, a processed version of
 ``psy_data_base.f90`` is included in ``lib``. If you use the base class in
@@ -615,7 +615,7 @@ takes the following parameters:
 
 -types:
     A comma-separated list of Fortran basic types (no spaces allowed).
-    Supported are the type names:
+    The following type names are supported:
 
     ``real``:
         32-bit floating point value
@@ -629,7 +629,7 @@ takes the following parameters:
     Default value is ``real,double,int``.
 
 -dims:
-    A comma-separated list of dimensions (no spaced allowed). Default
+    A comma-separated list of dimensions (no spaces allowed). Default
     value is ``1,2,3,4``.
 
 -prefix:
@@ -643,7 +643,7 @@ scalar parameters. For array parameters, the functions
 ``DeclareArray{{dim}}d{{type}}`` and ``ProvideArray{{dim}}d{{type}}``
 will be created for each type and each specified number of dimensions.
 
-Below an example of using the ``process.py`` script in a Makefile for a read-only
+Below is an example of using the ``process.py`` script in a Makefile for a read-only
 verification library (taken from ``lib/read_only/lfric/Makefile``):
 
 .. code-block:: Makefile
@@ -656,7 +656,7 @@ verification library (taken from ``lib/read_only/lfric/Makefile``):
 
 This will create the processed file ``psy_data_base.f90`` in the directory
 of the library (which has the advantage that you will be using consistent
-compiler settings in your library, and consistent parameter specifying
+compiler settings in your library, and consistent parameters specifying
 the required types and dimensions). You still need to declare all these
 automatic functions in your generic interface for the various functions.
 It is recommended to use a jinja template as well.
@@ -670,8 +670,9 @@ bits for the data type. While number of bits is not used in the base class,
 the read-only-verification base class (see
 :ref:`psydata_read_only_base_class`) uses it. If more types are required,
 they can be defined in ``process.py``. If the additional types need
-different number of bits and are required in a read-only library, the
-read-only-verification base class needs to be adjusted as well.
+different numbers of bits and are required in a read-only library, the
+read-only-verification base class (``lib/read_only/read_only_base.jinja``)
+needs to be adjusted as well.
 
 .. code-block:: jinja
 
@@ -743,10 +744,10 @@ coded in the library, the rest is taken from the base class:
         ProvideFieldVectorDouble, &
         {{all_provides|join(", &\n"+indent) }}
 
-.. note:
-    Using ``or ""`` in the jinja statements avoids that ``None`` is
+.. note::
+    Using ``or ""`` in the jinja statements avoids having ``None``
     added to the files (which would be the output of e.g. the append
-    instruction). The ``-`` before the closing ``}}`` prevents this
+    instruction). The ``-`` before the closing ``}}`` also prevents this
     line from creating any white-spaces. As a result of this the
     processed file will not have unusual empty lines or indentation.
 
@@ -778,11 +779,11 @@ base class function like this::
     subroutine profile_PSyDataStart()
       use psydata_base_mod, only : base_PSyDataStart => profile_PSyDataStart
       ! Do something
-      call basePSyDataStart()
+      call base_PSyDataStart()
       ! Do something else
     end subroutine profile_PSyDataStart
 
-.. note:
+.. note::
     The ``PSyDataBase`` class will use the prefix that you have specified
     in jinja for naming the static functions. So alternatively you could
     also specify a different prefix when processing the base jinja file,
@@ -793,17 +794,20 @@ base class function like this::
 PSyData Read-Only-Verification Base Class
 -----------------------------------------
 The ReadOnlyVerification transformation uses the PSyData API
-to compute and store a checksum of each read-only parameter
-to a subroutine before the call, and verify that this checksum
+to verify that read-only arguments to a subroutine call are not changed.
+It does this by computing and storing a checksum of each read-only parameter
+to a subroutine before the call, and verifying that this checksum
 is not changed after the subroutine call. Since the API-specific
 instances share a significant part of code (all functions for
 the non API-specific Fortran types, e.g. scalar values and plain
 Fortran arrays), a common base class is implemented for these,
 based on the PSyData Base class (see :ref:`psydata_base_class`).
-This base class is provided as a jinja template as well (see
-:ref:`jinja`), taking the same parameters, which makes it easy
-to make sure the PSyDataBaseClass and ReadOnly base classes are
-created with the same settings.
+The ``ReadOnlyBaseType`` is provided as a jinja template as well (see
+:ref:`jinja`), see ``lib/read_only/read_only_base.jinja``. It 
+takes the same parameters as the ``PSyDataBaseType``, which makes it
+easy to make sure the PSyDataBaseClass and ReadOnly base classes are
+created with the same settings (like supported Fortran types
+and number of dimensions).
 
 This Read-Only-Verification base class uses the PSyData base
 class. It uses the Declaration functions to count how many variables
@@ -812,13 +816,13 @@ allocated.
 
 .. note::
     The ``PreStart`` function gets the number of variables as
-    parameters. The decision not to use this value for allocating
+    a parameter. The decision not to use this value for allocating
     the array is that the LFRic read-only implementation stores
-    several checksum for one variable of a certain type (VectorField).
+    several checksums for one variable of a certain type (VectorField).
     The ``DeclareVariable`` functions for VectorFields counts the
     right number of checksums required.
 
-This base class uses the information about the number of bits for
+The ReadOnlyBase baseclass uses the information about the number of bits for
 the data types to implement the checksum functions. One complication
 is that the Fortran ``transfer`` function results in undefined bits
 when transferring e.g. a 32-bit value into a 64-bit variable.
@@ -826,10 +830,10 @@ Therefore any 32-bit value is first transferred to a 32-bit integer value,
 which is then assigned to the 64-bit integer value, which is added to
 the overall checksum value.
 
-The two API-specific ReadOnlyVerification libraries are both based
-on this base class. They only implement the checksum functions
-for the API-specific types - Field and VectorFields in LFRic, and
-Field in GOcean.
+The two API-specific ReadOnlyVerification libraries are both based on
+this base class. Therefore they need only implement the checksum functions
+for the API-specific types - ``Field`` and ``VectorFields`` in LFRic, and
+``Field`` in GOcean.
 
 .. _profiling:
 
