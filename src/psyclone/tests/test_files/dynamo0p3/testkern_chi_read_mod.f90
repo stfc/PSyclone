@@ -40,9 +40,9 @@ module testkern_chi_read_mod
   use constants_mod
 
   type, extends(kernel_type) :: testkern_chi_read_type
-     type(arg_type), dimension(2) :: meta_args =  &
-          (/ arg_type(gh_field,   gh_inc,  w0),   &
-             arg_type(gh_field*3, gh_read, wchi)  &
+     type(arg_type), dimension(2) :: meta_args =           &
+          (/ arg_type(gh_field,   gh_real, gh_inc,  w0),   &
+             arg_type(gh_field*3, gh_real, gh_read, wchi)  &
            /)
      integer :: iterates_over = cells
    contains

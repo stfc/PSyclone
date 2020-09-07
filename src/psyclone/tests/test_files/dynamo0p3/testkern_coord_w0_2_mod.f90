@@ -44,9 +44,9 @@ module testkern_coord_w0_2_mod
   implicit none
   
   type, extends(kernel_type) :: testkern_coord_w0_2_type
-     type(arg_type), dimension(2) :: meta_args = &
-          (/ arg_type(gh_field*3, gh_inc, w0),   &
-             arg_type(gh_field,   gh_inc, w0)    &
+     type(arg_type), dimension(2) :: meta_args =        &
+          (/ arg_type(gh_field*3, gh_real, gh_inc, w0), &
+             arg_type(gh_field,   gh_real, gh_inc, w0)  &
           /)
      integer :: iterates_over = cells
    contains
@@ -55,7 +55,7 @@ module testkern_coord_w0_2_mod
 
 contains
 
-  subroutine testkern_coord_w0_2_code(nlayers, field1_v1, &
+  subroutine testkern_coord_w0_2_code(nlayers, field1_v1,   &
                                       field1_v2, field1_v3, &
                                       field2, ndf_w0, undf_w0, map_w0)
 
