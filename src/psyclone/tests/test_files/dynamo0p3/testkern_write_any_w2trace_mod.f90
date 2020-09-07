@@ -47,15 +47,15 @@ module testkern_write_any_w2trace_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_write_any_w2trace_type
-     type(arg_type), dimension(8) :: meta_args = (/ &
-          arg_type(gh_field, gh_inc,  any_space_1), &
-          arg_type(gh_field, gh_read, w0),          &
-          arg_type(gh_field, gh_read, w1),          &
-          arg_type(gh_field, gh_inc,  w2trace),     &
-          arg_type(gh_field, gh_read, wtheta),      &
-          arg_type(gh_field, gh_read, w2h),         &
-          arg_type(gh_field, gh_read, w2v),         &
-          arg_type(gh_field, gh_read, w2htrace)     &
+     type(arg_type), dimension(8) :: meta_args = (/          &
+          arg_type(gh_field, gh_real, gh_inc,  any_space_1), &
+          arg_type(gh_field, gh_real, gh_read, w0),          &
+          arg_type(gh_field, gh_real, gh_read, w1),          &
+          arg_type(gh_field, gh_real, gh_inc,  w2trace),     &
+          arg_type(gh_field, gh_real, gh_read, wtheta),      &
+          arg_type(gh_field, gh_real, gh_read, w2h),         &
+          arg_type(gh_field, gh_real, gh_read, w2v),         &
+          arg_type(gh_field, gh_real, gh_read, w2htrace)     &
           /)
      integer :: iterates_over = cells
    contains
