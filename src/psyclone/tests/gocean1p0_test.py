@@ -104,11 +104,10 @@ def test_field(tmpdir, dist_mem):
         "  END MODULE psy_single_invoke_test")
 
     if dist_mem:
-        # Fields that are read insert a halo exchange
+        # Fields that read and have a stencil access insert a halo exchange,
+        # in this case p_fld is a stencil but u_fld is pointwise.
         halo_exchange_code = (
             "      CALL p_fld%halo_exchange(depth=1)\n"
-            "      !\n"
-            "      CALL u_fld%halo_exchange(depth=1)\n"
             "      !\n")
         expected_output = before_kernel + halo_exchange_code + remaining_code
     else:
@@ -161,20 +160,13 @@ def test_two_kernels(tmpdir, dist_mem):
         "    END SUBROUTINE invoke_0\n"
         "  END MODULE psy_single_invoke_two_kernels")
     if dist_mem:
-        # Fields that are read insert a halo exchange
+        # In this case the second kernel just has pointwise accesses, so it
+        # doesn't add any halo exchange.
         halos_first_kernel = (
             "      CALL p_fld%halo_exchange(depth=1)\n"
-            "      !\n"
-            "      CALL u_fld%halo_exchange(depth=1)\n"
-            "      !\n")
-
-        halos_second_kernel = (
-            "      CALL unew_fld%halo_exchange(depth=1)\n"
-            "      !\n"
-            "      CALL uold_fld%halo_exchange(depth=1)\n"
             "      !\n")
         expected_output = before_kernels + halos_first_kernel + first_kernel \
-            + halos_second_kernel + second_kernel
+            + second_kernel
     else:
         expected_output = before_kernels + first_kernel + second_kernel
 
@@ -223,15 +215,12 @@ def test_grid_property(tmpdir, dist_mem):
         "    END SUBROUTINE invoke_0\n"
         "  END MODULE psy_single_invoke_with_grid_props_test")
     if dist_mem:
-        # Grid properties do not insert halo exchanges
+        # Grid properties do not insert halo exchanges, in this case
+        # only the u_fld and d_fld have read stencil accesses.
         halos_first_kernel = (
-            "      CALL cu_fld%halo_exchange(depth=1)\n"
-            "      !\n"
             "      CALL u_fld%halo_exchange(depth=1)\n"
             "      !\n")
         halos_second_kernel = (
-            "      CALL du_fld%halo_exchange(depth=1)\n"
-            "      !\n"
             "      CALL d_fld%halo_exchange(depth=1)\n"
             "      !\n")
         expected_output = before_kernels + halos_first_kernel + first_kernel \
@@ -276,14 +265,11 @@ def test_scalar_int_arg(tmpdir, dist_mem):
         "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_ssh\n"
         "  END MODULE psy_single_invoke_scalar_int_test")
-    if dist_mem:
-        # Scalar arguments do not insert halo exchanges
-        halos_first_kernel = (
-            "      CALL ssh_fld%halo_exchange(depth=1)\n"
-            "      !\n")
-        expected_output = before_kernels + halos_first_kernel + first_kernel
-    else:
-        expected_output = before_kernels + first_kernel
+
+    # Scalar arguments do not insert halo exchanges in the distributed memory,
+    # in this case, since the only field has pointwise access, there are no
+    # halo exchanges.
+    expected_output = before_kernels + first_kernel
 
     assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
@@ -322,14 +308,11 @@ def test_scalar_float_arg(tmpdir, dist_mem):
         "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_ssh\n"
         "  END MODULE psy_single_invoke_scalar_float_test")
-    if dist_mem:
-        # Scalar arguments do not insert halo exchanges
-        halos_first_kernel = (
-            "      CALL ssh_fld%halo_exchange(depth=1)\n"
-            "      !\n")
-        expected_output = before_kernel + halos_first_kernel + first_kernel
-    else:
-        expected_output = before_kernel + first_kernel
+
+    # Scalar arguments do not insert halo exchanges in the distributed memory,
+    # in this case, since the only field has pointwise access, there are no
+    # halo exchanges.
+    expected_output = before_kernel + first_kernel
 
     assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
@@ -992,6 +975,7 @@ def test_goschedule_view(capsys, dist_mem):
 
     if dist_mem:
         # View without constant loop bounds and with distributed memory
+        # where the p field has a stencil access.
         invoke.schedule.view()
 
         # The view method writes to stdout and this is captured by py.test
@@ -1002,9 +986,7 @@ def test_goschedule_view(capsys, dist_mem):
             isched + "[invoke='invoke_0', Constant loop bounds=False]\n"
             "    0: " + haloex + "[field='p_fld', type='None', depth=None, "
             "check_dirty=False]\n"
-            "    1: " + haloex + "[field='u_fld', type='None', depth=None, "
-            "check_dirty=False]\n"
-            "    2: " + loop + "[type='outer', field_space='go_cu', "
+            "    1: " + loop + "[type='outer', field_space='go_cu', "
             "it_space='go_internal_pts']\n"
             "        " + lit + "[value:'cu_fld%internal%ystart', "
             "Scalar<INTEGER, UNDEFINED>]\n"
@@ -1024,11 +1006,7 @@ def test_goschedule_view(capsys, dist_mem):
             "                    0: " + call +
             " compute_cu_code(cu_fld,p_fld,u_fld) "
             "[module_inline=False]\n"
-            "    3: " + haloex + "[field='unew_fld', type='None', depth=None, "
-            "check_dirty=False]\n"
-            "    4: " + haloex + "[field='uold_fld', type='None', depth=None, "
-            "check_dirty=False]\n" +
-            "    5: " + loop + "[type='outer', field_space='go_every', "
+            "    2: " + loop + "[type='outer', field_space='go_every', "
             "it_space='go_internal_pts']\n"
             "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "        " + bop + "[operator:'SIZE']\n"
@@ -1119,13 +1097,12 @@ def test_goschedule_str(dist_mem):
 
     if dist_mem:
         # str without constant loop bounds and with distributed memory
+        # where the p field has a stencil access
         sched_str = str(schedule)
         expected_sched = (
             "GOInvokeSchedule[invoke='invoke_0', Constant loop "
             "bounds=False]:\n"
             "HaloExchange[field='p_fld', type='None', depth=None, "
-            "check_dirty=False]\n"
-            "HaloExchange[field='u_fld', type='None', depth=None, "
             "check_dirty=False]\n"
             "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
             "Literal[value:'cu_fld%internal%ystart', Scalar<INTEGER, "
@@ -1146,10 +1123,6 @@ def test_goschedule_str(dist_mem):
             "End GOLoop\n"
             "End Schedule\n"
             "End GOLoop\n"
-            "HaloExchange[field='unew_fld', type='None', depth=None, "
-            "check_dirty=False]\n"
-            "HaloExchange[field='uold_fld', type='None', depth=None, "
-            "check_dirty=False]\n"
             "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
             "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "BinaryOperation[operator:'SIZE']\n"

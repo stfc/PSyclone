@@ -479,8 +479,9 @@ class GOLoop(Loop):
         :rtype: bool
 
         '''
-        return arg.argument_type == 'field' and arg.access in \
-            [AccessType.READ, AccessType.READWRITE, AccessType.INC]
+        return arg.argument_type == 'field' and arg.stencil.has_stencil and \
+            arg.access in [AccessType.READ, AccessType.READWRITE,
+                           AccessType.INC]
 
     def create_halo_exchanges(self):
         '''Add halo exchanges before this loop as required by fields within

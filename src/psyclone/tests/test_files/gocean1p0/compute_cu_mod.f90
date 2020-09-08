@@ -17,7 +17,7 @@ module compute_cu_mod
   type, extends(kernel_type) :: compute_cu
      type(go_arg), dimension(3) :: meta_args =    &
           (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),        & ! cu
-             go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
+             go_arg(GO_READ,  GO_CT,  GO_STENCIL(000,110,000)),        & ! p
              go_arg(GO_READ,  GO_CU, GO_POINTWISE)         & ! u
            /)
      integer :: ITERATES_OVER = GO_INTERNAL_PTS
