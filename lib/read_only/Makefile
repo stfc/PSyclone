@@ -35,6 +35,8 @@
 F90 ?= gfortran
 F90FLAGS ?= 
 
+# The read-only verification library is implemented for int, real and
+# double scalars and 2-dimension arrays
 PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
 		       -dims=2
 

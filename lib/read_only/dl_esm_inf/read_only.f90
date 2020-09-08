@@ -35,7 +35,9 @@
 
 !> This module implements a verification that read-only fields (in the
 !! dl_esm_inf infrastructure) are not overwritten (due to memory overwrites etc).
-!! 
+!! It is based on the ReadOnlyBaseType (from which it inherits the handling
+!! of the basic Fortran data types and 2d-arrays, as specified in the Makefile).
+!! It adds the support for the dl_esm_inf-specific field type.
 
 module read_only_verify_psy_data_mod
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &

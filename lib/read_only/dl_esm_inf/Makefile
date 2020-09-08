@@ -51,7 +51,7 @@ LIB_NAME = lib_read_only.a
 OBJS = read_only.o psy_data_base.o read_only_base.o
 
 # The arguments for the jinja templates. GOcean only needs
-# 2 dimensional arrays.
+# 2-dimensional arrays, and int, real- and double basic Fortran types
 PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
 		       -dims=2
 
@@ -60,16 +60,28 @@ default: $(LIB_NAME)
 $(LIB_NAME):	$(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $(OBJS)
 
-# Compilation of read_only needs the .mod file from dl_esm_inf
-read_only.o: $(INF_LIB) psy_data_base.o read_only_base.o
 
+# Dependencies:
+# -------------
+# Compilation of read_only needs the .mod file from dl_esm_inf,
+# the base class read_only_base (which in turn needs psy_data_base).
+read_only.o: $(INF_LIB) read_only.f90 read_only_base.o
+
+read_only_base.o: psy_data_base.o
+
+
+# Rules for file creation
+# -----------------------
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
-psy_data_base.f90: ../../psy_data_base.jinja
+# The dl_esm_inf ReadOnly library is built on the psy-data base library
+# and the read-only base library. So add the rules to process
+# these files to get the plain Fortran files:
+psy_data_base.f90: ../../psy_data_base.jinja Makefile
 	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
 
-read_only_base.f90: ../read_only_base.jinja
+read_only_base.f90: ../read_only_base.jinja Makefile
 	../../process.py $(PROCESS_ARGS) $< > read_only_base.f90
 
 clean:
