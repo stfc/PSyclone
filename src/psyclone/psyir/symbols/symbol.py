@@ -258,20 +258,47 @@ class Symbol(object):
 
         :returns: A symbol object with the same properties as this \
                   symbol object.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        '''
+        return self._base_copy([], {}, interface=interface,
+                               visibility=visibility)
+
+    def _base_copy(self, args, kwargs, interface=None, visibility=None):
+        '''Create and return a copy of this object. Any references to the
+        original will not be affected so the copy will not be referred
+        to by any other object. This method is intended to be called from
+        the public `copy()` method of any subclass of Symbol.
+
+        :param args: list of positional arguments that must be provided to \
+                the constructor after the 'name' argument.
+        :type args: list of obj
+        :param kwargs: optional arguments to provide to the constructor.
+        :type kwargs: dict of keyword-value pairs.
+        :param interface: optional value with which to override this object's \
+                interface in the new object.
+        :type interface: :py:class:`psyclone.psyir.symbols.SymbolInterface`
+        :param visibility: optional value with which to override this object's\
+                visibility in the new object.
+        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+
+        :returns: A symbol object with the same properties as this \
+                  symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         if interface:
-            new_interface = interface
+            kwargs["interface"] = interface
         else:
-            new_interface = self.interface
+            kwargs["interface"] = self.interface
         if visibility:
-            new_visibility = visibility
+            kwargs["visibility"] = visibility
         else:
-            new_visibility = self.visibility
-        return Symbol(self.name,
-                      visibility=new_visibility,
-                      interface=new_interface)
+            kwargs["visibility"] = self.visibility
+        # The constructors for all Symbol-based classes have 'name' as the
+        # first positional argument.
+        return type(self)(self.name, *args, **kwargs)
+
 
     def resolve_deferred(self):
         '''

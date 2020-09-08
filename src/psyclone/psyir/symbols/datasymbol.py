@@ -295,18 +295,11 @@ class DataSymbol(Symbol):
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        if interface:
-            new_interface = interface
-        else:
-            new_interface = self.interface
-        if visibility:
-            new_visibility = visibility
-        else:
-            new_visibility = self.visibility
-        return DataSymbol(self.name, self.datatype,
-                          constant_value=self.constant_value,
-                          visibility=new_visibility,
-                          interface=new_interface)
+        # The DataSymbol constructor has datatype as an additional, positional
+        # argument and constant_value as an optional argument.
+        return self._base_copy([self.datatype],
+                               {"constant_value": self.constant_value},
+                               visibility=visibility, interface=interface)
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
