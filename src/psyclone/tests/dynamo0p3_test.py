@@ -165,6 +165,38 @@ def test_arg_descriptor_vector():
     assert field_descriptor.vector_size == 3
 
 
+def test_ad_scalar_old_metadata():
+    ''' Test that the LFRicArgDescriptor argument representation supports
+    old-style scalar arguments' names GH_REAL and GH_INTEGER.
+    NOTE: This support and the test will be removed in #874.
+
+    '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    code = CODE.replace("gh_scalar, ", "")
+    ast = fpapi.parse(code, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+
+    # Check representation of a real scalar
+    real_scalar_descriptor = metadata.arg_descriptors[0]
+    result = str(real_scalar_descriptor)
+    expected_output = (
+        "LFRicArgDescriptor object\n"
+        "  argument_type[0]='gh_real'\n"
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_read'\n")
+    assert expected_output in result
+
+    # Check representation of an integer scalar
+    int_scalar_descriptor = metadata.arg_descriptors[5]
+    result = str(int_scalar_descriptor)
+    expected_output = (
+        "LFRicArgDescriptor object\n"
+        "  argument_type[0]='gh_integer'\n"
+        "  data_type[1]='gh_integer'\n"
+        "  access_descriptor[2]='gh_read'\n")
+    assert expected_output in result
+
+
 def test_ad_scalar_init_wrong_argument_type():
     ''' Test that an error is raised if something other than a scalar
     is passed to the LFRicArgDescriptor._init_scalar() method. '''
