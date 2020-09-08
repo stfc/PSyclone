@@ -246,6 +246,14 @@ class Symbol(object):
 
     def resolve_deferred(self):
         '''
+        Search for the Fortran module in which this Symbol is defined and
+        create and return a symbol of the correct class and type. If this
+        symbol does not have a 'global' interface then we just return
+        this symbol.
+
+        :returns: a new symbol object.
+        :rtype: subclass of :py:class:`psyclone.psyir.symbols.Symbol`
+
         '''
         if self.is_global:
             # Copy all the symbol properties but the interface and
@@ -354,6 +362,28 @@ class Symbol(object):
 
         '''
         return isinstance(self._interface, UnresolvedInterface)
+
+    def find_symbol_table(self, node):
+        '''
+        Searches back up the PSyIR tree for the SymbolTable that contains
+        this Symbol.
+
+        :param node: the PSyIR node from which to search.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: the SymbolTable containing this Symbol or None.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
+
+        '''
+        current = node.scope.symbol_table
+        while current:
+            if self.name in current:
+                return current
+            if current.node.parent:
+                current = current.node.parent.scope.symbol_table
+            else:
+                break
+        return None
 
     def __str__(self):
         return self.name

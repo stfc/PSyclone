@@ -436,10 +436,11 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
                 "symbol '{0}'.".format(precision_name))
         # Lookup the precision symbol
         try:
-            symbol, table = symbol_table.lookup(precision_name)
+            symbol = symbol_table.lookup(precision_name)
             if type(symbol) == Symbol:
                 # It exists but is only a generic Symbol so we replace it with
                 # a DataSymbol.
+                table = symbol.find_symbol_table(psyir_literal_parent)
                 new_symbol = DataSymbol(precision_name, DeferredType(),
                                         visibility=symbol.visibility,
                                         interface=symbol.interface)
@@ -909,7 +910,7 @@ class Fparser2Reader(object):
                     # scope).
                     dim_name = dim.items[1].string.lower()
                     try:
-                        sym, _ = symbol_table.lookup(dim_name)
+                        sym = symbol_table.lookup(dim_name)
                         if isinstance(sym.datatype, (UnknownType,
                                                      DeferredType)):
                             # Allow symbols of Unknown/DeferredType.
@@ -1082,7 +1083,7 @@ class Fparser2Reader(object):
                 parent.symbol_table.add(container, check_ancestors=False)
             else:
                 new_container = False
-                container, _ = parent.symbol_table.lookup(mod_name)
+                container = parent.symbol_table.lookup(mod_name)
                 if not isinstance(container, ContainerSymbol):
                     raise SymbolError(
                         "Found a USE of module '{0}' but the symbol table "
@@ -1108,7 +1109,7 @@ class Fparser2Reader(object):
                                    interface=GlobalInterface(container)))
                     else:
                         # There's already a symbol with this name
-                        existing_symbol, _ = parent.symbol_table.lookup(
+                        existing_symbol = parent.symbol_table.lookup(
                             sym_name)
                         if not existing_symbol.is_global:
                             raise SymbolError(
@@ -1395,7 +1396,7 @@ class Fparser2Reader(object):
             else:
                 # The symbol table already contains an entry with this name
                 # so update its interface information.
-                sym, _ = parent.symbol_table.lookup(sym_name)
+                sym = parent.symbol_table.lookup(sym_name)
                 if not sym.is_unresolved:
                     raise SymbolError(
                         "Symbol '{0}' already present in SymbolTable with "
@@ -1497,7 +1498,7 @@ class Fparser2Reader(object):
             arg_symbols = []
             # Ensure each associated symbol has the correct interface info.
             for arg_name in [x.string.lower() for x in arg_list]:
-                symbol, _ = parent.symbol_table.lookup(arg_name)
+                symbol = parent.symbol_table.lookup(arg_name)
                 if symbol.is_local:
                     # We didn't previously know that this Symbol was an
                     # argument (as it had no 'intent' qualifier). Mark
@@ -1522,7 +1523,7 @@ class Fparser2Reader(object):
         for stmtfn in walk(nodes, Fortran2003.Stmt_Function_Stmt):
             (fn_name, arg_list, scalar_expr) = stmtfn.items
             try:
-                symbol, _ = parent.symbol_table.lookup(fn_name.string.lower())
+                symbol = parent.symbol_table.lookup(fn_name.string.lower())
                 if symbol.is_array:
                     # This is an array assignment wrongly categorized as a
                     # statement_function by fparser2.
@@ -1621,10 +1622,10 @@ class Fparser2Reader(object):
                 "Failed to find valid Name in Fortran Kind "
                 "Selector: '{0}'".format(str(kind_selector)))
         return Fparser2Reader._kind_symbol_from_name(str(kind_names[0]),
-                                                     symbol_table)
+                                                     symbol_table,psyir_parent)
 
     @staticmethod
-    def _kind_symbol_from_name(name, symbol_table):
+    def _kind_symbol_from_name(name, symbol_table, psyir_node):
         '''
         Utility method that returns a Symbol representing the named KIND
         parameter. If the supplied Symbol Table does not contain an appropriate
@@ -1646,10 +1647,11 @@ class Fparser2Reader(object):
         '''
         lower_name = name.lower()
         try:
-            kind_symbol, table = symbol_table.lookup(lower_name)
+            kind_symbol = symbol_table.lookup(lower_name)
             if type(kind_symbol) == Symbol:
                 # There is an existing entry but it's only a generic Symbol
                 # so we need to replace it with a DataSymbol of integer type.
+                table = kind_symbol.find_symbol_table(psyir_node)
                 new_symbol = DataSymbol(lower_name,
                                         default_integer_type(),
                                         visibility=kind_symbol.visibility,

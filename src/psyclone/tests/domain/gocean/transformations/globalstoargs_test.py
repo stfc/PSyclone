@@ -353,11 +353,13 @@ def test_globalstoargumentstrans_clash_symboltable(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monkeypatch resolve_deferred to avoid module searching and importing
-    # in this test. In this case we assume it is a REAL
-    def set_to_real(variable):
-        variable._datatype = REAL_TYPE
-    monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_real)
+    # Monkeypatch Symbol.resolve_deferred to avoid module searching and
+    # importing in this test. In this case we assume the symbol is a
+    # DataSymbol of REAL type.
+    def create_real(variable):
+        return DataSymbol(variable.name, REAL_TYPE,
+                          interface=variable.interface)
+    monkeypatch.setattr(Symbol, "resolve_deferred", create_real)
 
     # Add 'rdt' into the symbol table
     kernel.root.symbol_table.add(DataSymbol("rdt", REAL_TYPE))

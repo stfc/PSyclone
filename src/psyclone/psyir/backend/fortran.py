@@ -360,7 +360,7 @@ class FortranWriter(PSyIRVisitor):
             raise VisitorError("gen_use() - the supplied symbol ('{0}') is not"
                                " in the supplied SymbolTable.".format(
                                    symbol.name))
-        if symbol_table.lookup(symbol.name)[0] is not symbol:
+        if symbol_table.lookup(symbol.name) is not symbol:
             raise VisitorError(
                 "gen_use() - the supplied symbol ('{0}') is not the same "
                 "object as the entry with that name in the supplied "
