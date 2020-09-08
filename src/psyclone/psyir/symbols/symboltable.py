@@ -116,28 +116,15 @@ class SymbolTable(object):
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        all_symbols = self._all_local_symbols
+        all_symbols = OrderedDict(self._symbols)
         current = self
         while current.parent:
             current = current.parent
             for symbol_name in current.symbols_dict:
                 if symbol_name not in all_symbols:
-                    all_symbols[symbol_name] = \
-                        current.symbols_dict[symbol_name]
+                    all_symbols[symbol_name] = current.symbols_dict[
+                        symbol_name]
         return all_symbols
-
-    @property
-    def _all_local_symbols(self):
-        '''
-        TODO
-        :returns: ordered dictionary of symbols indexed by symbol name.
-        :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`, \
-                                :py:class:`psyclone.psyir.symbols.SymbolTable`
-        '''
-        symbols = OrderedDict()
-        for name, sym in self._symbols.items():
-            symbols[name] = sym
-        return symbols
 
     @property
     def _all_tags(self):
@@ -147,8 +134,7 @@ class SymbolTable(object):
         one from the closest ancestor including self).
 
         :returns: ordered dictionary of symbols indexed by tag.
-        :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`,\
-                                :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         all_tags = OrderedDict(self._tags)
@@ -220,7 +206,7 @@ class SymbolTable(object):
         if check_ancestors:
             symbols = self._all_symbols
         else:
-            symbols = self._all_local_symbols
+            symbols = self._symbols
 
         if root_name is not None and not isinstance(root_name, str):
             raise TypeError(
@@ -258,7 +244,7 @@ class SymbolTable(object):
         if check_ancestors:
             symbols = self._all_symbols
         else:
-            symbols = self._all_local_symbols
+            symbols = self._symbols
 
         if not isinstance(new_symbol, Symbol):
             raise InternalError("Symbol '{0}' is not a symbol, but '{1}'.'"
@@ -355,8 +341,7 @@ class SymbolTable(object):
             table (False) or in this and all ancestor symbol tables \
             (True). Defaults to True.
 
-        :returns: the symbol with the given name (and, if specified, \
-            visibility).
+        :returns: the symbol with the given name and, if specified, visibility.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if the name argument is not a string.
@@ -375,7 +360,7 @@ class SymbolTable(object):
         if check_ancestors:
             symbols = self._all_symbols
         else:
-            symbols = self._all_local_symbols
+            symbols = self._symbols
 
         try:
             symbol = symbols[self._normalize(name)]
