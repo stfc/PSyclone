@@ -59,20 +59,27 @@ module read_only_verify_psy_data_mod
         procedure :: DeclareFieldDouble, ProvideFieldDouble
         procedure :: Abort
 
-        !> The generic interface for declaring a variable:
+        !> The generic interface for declaring a variable. The ReadOnlyBase
+        !! type will actually create additional methods like DeclareArray2dInt
+        !! but since they are not used in GOcean they do not need to be
+        !! declared here
         generic, public :: PreDeclareVariable => DeclareScalarInt,    &
                                                  DeclareScalarReal,   &
                                                  DeclareScalarDouble, &
+                                                 DeclareArray2dDouble,&
                                                  DeclareFieldDouble
 
         !> The generic interface for providing the value of variables,
         !! which in this case is the checksum computation (before
         !! the kernel), and checksum verification after the kernel. The
-        !! same functions are used, it uses verify_checksums to change
-        !! the state from checksum computation to verication.
+        !! same functions are used, they use the variable verify_checksums
+        !! to change the state from checksum computation to verification.
+        !! And again the base class provides additional, unused methods
+        !! like ProvideArray2dInt, which are not needed
         generic, public :: ProvideVariable => ProvideScalarInt,    &
                                               ProvideScalarReal,   &
                                               ProvideScalarDouble, &
+                                              ProvideArray2dDouble,&
                                               ProvideFieldDouble
 
     end type read_only_verify_PSyDataType
