@@ -1621,18 +1621,23 @@ class Fparser2Reader(object):
             raise NotImplementedError(
                 "Failed to find valid Name in Fortran Kind "
                 "Selector: '{0}'".format(str(kind_selector)))
-        return Fparser2Reader._kind_symbol_from_name(str(kind_names[0]),
-                                                     symbol_table,psyir_parent)
+
+        return Fparser2Reader._kind_symbol_from_name(
+            str(kind_names[0]), symbol_table)
 
     @staticmethod
-    def _kind_symbol_from_name(name, symbol_table, psyir_node):
+    def _kind_symbol_from_name(name, symbol_table):
         '''
         Utility method that returns a Symbol representing the named KIND
-        parameter. If the supplied Symbol Table does not contain an appropriate
-        entry then one is created. If it does contain a matching entry then
-        its datatype must be 'integer' or 'deferred'. If the latter then the
-        fact that we now know that this Symbol represents a KIND parameter
-        means that we can change the datatype to be 'integer'.
+        parameter. If the supplied Symbol Table (or one of its ancestors)
+        does not contain an appropriate entry then one is created. If it does
+        contain a matching entry then it must be either a Symbol or a
+        DataSymbol. If it is a DataSymbol then it must have a datatype of
+        'integer' or 'deferred'. If the latter then the fact that we now know
+        that this Symbol represents a KIND
+        parameter means that we can change the datatype to be 'integer'.
+        If the existing symbol is a generic Symbol then it is replaced with
+        a new DataSymbol of type 'integer'.
 
         :param str name: the name of the variable holding the KIND value.
         :param symbol_table: the Symbol Table associated with the code being\
@@ -1642,8 +1647,11 @@ class Fparser2Reader(object):
         :returns: the Symbol representing the KIND parameter.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-        :raises TypeError: if the Symbol Table already contains an entry for \
-                       `name` and its datatype is not 'integer' or 'deferred'.
+        :raises TypeError: if the symbol table already contains an entry for \
+                `name` but it is not an instance of Symbol or DataSymbol.
+        :raises TypeError: if the symbol table already contains a DataSymbol \
+                for `name` and its datatype is not 'integer' or 'deferred'.
+
         '''
         lower_name = name.lower()
         try:
@@ -1651,7 +1659,10 @@ class Fparser2Reader(object):
             if type(kind_symbol) == Symbol:
                 # There is an existing entry but it's only a generic Symbol
                 # so we need to replace it with a DataSymbol of integer type.
-                table = kind_symbol.find_symbol_table(psyir_node)
+                # Since the lookup() above looks through *all* ancestor symbol
+                # tables, we have to find precisely which table the existing
+                # Symbol is in.
+                table = kind_symbol.find_symbol_table(symbol_table.node)
                 new_symbol = DataSymbol(lower_name,
                                         default_integer_type(),
                                         visibility=kind_symbol.visibility,
@@ -1659,14 +1670,15 @@ class Fparser2Reader(object):
                 table.remove(kind_symbol)
                 table.add(new_symbol)
                 kind_symbol = new_symbol
-            else:
+            elif isinstance(kind_symbol, DataSymbol):
+
                 if not (isinstance(kind_symbol.datatype,
                                    (UnknownType, DeferredType)) or
                         (isinstance(kind_symbol.datatype, ScalarType) and
                          kind_symbol.datatype.intrinsic ==
                          ScalarType.Intrinsic.INTEGER)):
                     raise TypeError(
-                        "SymbolTable already contains an entry for "
+                        "SymbolTable already contains a DataSymbol for "
                         "variable '{0}' used as a kind parameter but it is not"
                         "a 'deferred', 'unknown' or 'scalar integer' type.".
                         format(lower_name))
@@ -1674,6 +1686,12 @@ class Fparser2Reader(object):
                 # (in case it was previously 'deferred'). We don't know
                 # what precision this is so set it to the default.
                 kind_symbol.datatype = default_integer_type()
+            else:
+                raise TypeError(
+                    "A symbol representing a kind parameter must be an "
+                    "instance of either a Symbol or a DataSymbol. However, "
+                    "found an entry of type '{0}' for variable '{1}'.".format(
+                        type(kind_symbol).__name__, lower_name))
         except KeyError:
             # The SymbolTable does not contain an entry for this kind parameter
             # so create one. We specify an UnresolvedInterface as we don't

@@ -1353,13 +1353,27 @@ def test_process_declarations_kind_use():
 @pytest.mark.usefixtures("f2008_parser")
 def test_wrong_type_kind_param():
     ''' Check that we raise the expected error if a variable used as a KIND
-    specifier has already been declared with non-integer type.
+    specifier is not a DataSymbol or has already been declared with non-integer
+    type.
 
     '''
+    from psyclone.psyir.symbols import RoutineSymbol
+    fake_parent, _ = process_declarations("integer :: r_def\n"
+                                          "real(kind=r_def) :: var2")
+    r_def = fake_parent.symbol_table.lookup("r_def")
+    # Monkeypatch this DataSymbol so that it appears to be a RoutineSymbol
+    r_def.__class__ = RoutineSymbol
+    with pytest.raises(TypeError) as err:
+        Fparser2Reader._kind_symbol_from_name("r_def",
+                                              fake_parent.symbol_table)
+    assert ("found an entry of type 'RoutineSymbol' for variable 'r_def'" in
+            str(err.value))
+    # Repeat but declare r_def as real
     with pytest.raises(TypeError) as err:
         process_declarations("real :: r_def\n"
                              "real(kind=r_def) :: var2")
-    assert "already contains an entry for variable 'r_def'" in str(err.value)
+    assert ("already contains a DataSymbol for variable 'r_def'" in
+            str(err.value))
 
 
 @pytest.mark.parametrize("vartype, kind, precision",
