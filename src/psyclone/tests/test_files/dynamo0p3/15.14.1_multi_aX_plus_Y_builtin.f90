@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,10 +38,13 @@ program single_invoke
 
   ! Description: multi aX_plus_Y point-wise operations
   ! specified in an invoke call.
-  use inf,      only: field_type
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
+
   implicit none
+
   type(field_type) :: f1, f2(7), f3
-  real(r_def) :: a
+  real(r_def)      :: a
 
   a = 0.5
 

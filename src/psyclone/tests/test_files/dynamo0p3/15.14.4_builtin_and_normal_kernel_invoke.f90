@@ -48,7 +48,7 @@ program single_invoke
   
   call invoke(                                &
        testkern_type(ginger, f1, f2, m1, m2), &
-       setval_c(f1, 0.0)                      &
+       setval_c(f1, 0.0_r_def)                &
           )
 
 end program single_invoke
