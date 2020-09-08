@@ -495,7 +495,10 @@ class GOLoop(Loop):
                 # field has no previous dependence so create new halo
                 # exchange(s) as we don't know the state of the fields
                 # halo on entry to the invoke
-                # TODO 856: Request is_dirty flag for this HaloEx
+                # TODO 856: If dl_es_inf supported an is_dirty flag, we could
+                # be more selective on which HaloEx are needed. This
+                # function then will be the same as in LFRic and therefore
+                # the code can maybe be generalised.
                 self._add_halo_exchange(halo_field)
             else:
                 prev_node = prev_arg_list[0].call
@@ -2270,36 +2273,34 @@ class GOHaloExchange(HaloExchange):
     '''GOcean specific halo exchange class which can be added to and
     manipulated in a schedule.
 
-    :param field: the field that this halo exchange will act on
+    :param field: the field that this halo exchange will act on.
     :type field: :py:class:`psyclone.gocean1p0.GOKernelArgument`
-    :param check_dirty: optional argument default False (contrary to its \
-        generic class - revisit in #856) indicating whether this halo \
+    :param bool check_dirty: optional argument default False (contrary to \
+        its generic class - revisit in #856) indicating whether this halo \
         exchange should be subject to a run-time check for clean/dirty halos.
-    :type check_dirty: bool
-    :param parent: optional PSyIR parent node (default None) of this \
-        object
-    :type parent: :py:class:`psyclone.psyGen.node`
+    :param parent: optional PSyIR parent node (default None) of this object.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
     '''
     def __init__(self, field, check_dirty=False, parent=None):
         super(GOHaloExchange, self).__init__(field, check_dirty=check_dirty,
                                              parent=parent)
 
-        # Name of the HaloExchange method in the infrastructure.
+        # Name of the HaloExchange method in the GOcean infrastructure.
         self._halo_exchange_name = "halo_exchange"
 
     def gen_code(self, parent):
         '''GOcean specific code generation for this class.
 
         :param parent: an f2pygen object that will be the parent of \
-        f2pygen objects created in this method
+            f2pygen objects created in this method.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
         from psyclone.f2pygen import CallGen, CommentGen
         # TODO 856: Wrap Halo call with an is_dirty flag when necessary.
 
-        # Currently only stencils of depth 1 are accepted by this API,
-        # so the HaloExchange can also be hardcoded to depth 1.
+        # TODO 886: Currently only stencils of depth 1 are accepted by this
+        # API, so the HaloExchange is hardcoded to depth 1.
         parent.add(
             CallGen(
                 parent, name=self._field.name +
