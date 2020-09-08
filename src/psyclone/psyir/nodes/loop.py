@@ -486,7 +486,12 @@ class Loop(Statement):
 
     def unique_fields_with_halo_reads(self):
         ''' Returns all fields in this loop that require at least some
-        of their halo to be clean to work correctly. '''
+        of their halo to be clean to work correctly.
+
+        :returns: fields in this loop that require at least some of their \
+            halo to be clean to work correctly.
+        :rtype: list of :py:class:`psyclone.psyGen.Argument`
+        '''
 
         unique_fields = []
         unique_field_names = []
@@ -570,3 +575,21 @@ class Loop(Statement):
             my_decl = DeclGen(parent, datatype="integer",
                               entity_decls=[self.variable.name])
             parent.add(my_decl)
+
+    def _halo_read_access(self, arg):
+        '''Determines whether the supplied argument has (or might have) its
+        halo data read within this loop. Returns True if it does, or if
+        it might and False if it definitely does not.
+
+        :param arg: an argument contained within this loop.
+        :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
+
+        :return: True if the argument reads, or might read from the \
+                 halo and False otherwise.
+        :rtype: bool
+
+        :raises NotImplementedError: This is an abstract method.
+
+        '''
+        raise NotImplementedError("This method needs to be implemented by the "
+                                  "APIs that support distributed memory.")
