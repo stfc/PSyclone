@@ -3396,7 +3396,7 @@ class DataAccess(object):
             return
 
         if isinstance(arg.call, HaloExchange) and \
-           self._arg.vector_size > 1:
+           (hasattr(self._arg, 'vector_size') and self._arg.vector_size > 1):
             # The supplied argument is a vector field coming from a
             # halo exchange and therefore only accesses one of the
             # vectors
@@ -3488,8 +3488,6 @@ class Argument(object):
                 self._name = self._call.root.symbol_table.name_from_tag(
                     tag, self._orig_name)
 
-        self._vector_size = 1
-
     def __str__(self):
         return self._name
 
@@ -3512,10 +3510,6 @@ class Argument(object):
     @property
     def access(self):
         return self._access
-
-    @property
-    def vector_size(self):
-        return self._vector_size
 
     @access.setter
     def access(self, value):
