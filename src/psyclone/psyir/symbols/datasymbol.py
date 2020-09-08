@@ -278,19 +278,35 @@ class DataSymbol(Symbol):
             ret += ", constant_value={0}".format(self.constant_value)
         return ret + ">"
 
-    def copy(self):
+    def copy(self, interface=None, visibility=None):
         '''Create and return a copy of this object. Any references to the
         original will not be affected so the copy will not be referred
         to by any other object.
+
+        :param interface: optional value with which to override this object's \
+                interface in the new object.
+        :type interface: :py:class:`psyclone.psyir.symbols.SymbolInterface`
+        :param visibility: optional value with which to override this object's\
+                visibility in the new object.
+        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
         :returns: A symbol object with the same properties as this \
                   symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
+        if interface:
+            new_interface = interface
+        else:
+            new_interface = self.interface
+        if visibility:
+            new_visibility = visibility
+        else:
+            new_visibility = self.visibility
         return DataSymbol(self.name, self.datatype,
                           constant_value=self.constant_value,
-                          interface=self.interface)
+                          visibility=new_visibility,
+                          interface=new_interface)
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from

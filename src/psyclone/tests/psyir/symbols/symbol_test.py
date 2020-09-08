@@ -46,9 +46,13 @@ is not tested here.
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import Symbol, LocalInterface, GlobalInterface, \
-    ArgumentInterface, UnresolvedInterface, ContainerSymbol
+from psyclone.psyir.symbols import (Symbol, LocalInterface, GlobalInterface,
+                                    ArgumentInterface, UnresolvedInterface,
+                                    ContainerSymbol, DataSymbol, SymbolError,
+                                    SymbolTable, INTEGER_SINGLE_TYPE)
 from psyclone.psyir.symbols.symbol import SymbolInterface
+from psyclone.psyir.nodes import Container, Literal
+from psyclone.psyGen import KernelSchedule
 
 
 def test_symbol_initialisation():
@@ -219,3 +223,90 @@ def test_argumentinterface_str():
 
     argument_interface = ArgumentInterface()
     assert str(argument_interface) == "Argument(pass-by-value=False)"
+
+
+def test_find_symbol_table():
+    ''' Test the find_symbol_table() method. '''
+    sym = Symbol("a_var")
+    with pytest.raises(TypeError) as err:
+        sym.find_symbol_table("3")
+    assert ("expected to be passed an instance of psyir.nodes.Node but got "
+            "'str'" in str(err.value))
+    # Search for a SymbolTable with only one level of hierarchy
+    sched = KernelSchedule("dummy")
+    table = sched.symbol_table
+    table.add(sym)
+    assert sym.find_symbol_table(sched) is table
+    # Create a Container so that we have two levels of hierarchy
+    ctable = SymbolTable()
+    sym2 = Symbol("b_var")
+    ctable.add(sym2)
+    _ = Container.create("test", ctable, [sched])
+    assert sym2.find_symbol_table(sched) is ctable
+    # A Symbol that isn't in any table
+    sym3 = Symbol("missing")
+    assert sym3.find_symbol_table(sched) is None
+    # When there is no SymbolTable associated with the PSyIR node
+    orphan = Literal("1", INTEGER_SINGLE_TYPE)
+    assert sym3.find_symbol_table(orphan) is None
+
+
+def test_symbol_copy():
+    '''
+    Test the Symbol.copy() method.
+    '''
+    csym = ContainerSymbol("some_mod")
+    asym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
+                  interface=GlobalInterface(csym))
+    # 1. Keep all properties unchanged
+    new_sym = asym.copy()
+    assert new_sym is not asym
+    assert new_sym.name == asym.name
+    assert new_sym.interface == asym.interface
+    assert new_sym.visibility == asym.visibility
+    # 2. Override the visibility of the new symbol
+    new_sym2 = asym.copy(visibility=Symbol.Visibility.PUBLIC)
+    assert new_sym2.visibility == Symbol.Visibility.PUBLIC
+    assert new_sym2.interface == asym.interface
+    # 3. Override the interface of the new symbol
+    new_sym3 = asym.copy(interface=LocalInterface())
+    assert new_sym3.visibility == asym.visibility
+    assert isinstance(new_sym3.interface, LocalInterface)
+
+
+def test_symbol_resolve_deferred():
+    ''' Test the resolve_deferred method. '''
+    # resolve_deferred() for a local symbol has nothing to do so should
+    # just return itself.
+    asym = Symbol("a")
+    assert asym.resolve_deferred() is asym
+    # Create a Container that imports another Container
+    other_container = ContainerSymbol("some_mod")
+    ctable = SymbolTable()
+    ctable.add(other_container)
+    # Create a Symbol that is imported from the "some_mod" Container
+    bsym = Symbol("b", interface=GlobalInterface(other_container))
+    ctable.add(bsym)
+    sched = KernelSchedule("dummy")
+    _ = Container.create("test", ctable, [sched])
+    # We should be unable to find the "some_mod" module
+    with pytest.raises(SymbolError) as err:
+        bsym.resolve_deferred()
+    assert ("trying to resolve the properties of symbol 'b' in module "
+            "'some_mod'" in str(err.value))
+    sched2 = KernelSchedule("dummy2")
+    # To avoid this test searching for "some_mod", create a Container for it
+    # and attach this to the ContainerSymbol
+    ctable2 = SymbolTable()
+    some_mod = Container.create("some_mod", ctable2, [sched2])
+    other_container._reference = some_mod
+    # At this point, that Container doesn't contain a definition of 'b'
+    with pytest.raises(SymbolError) as err:
+        bsym.resolve_deferred()
+    assert ("interface points to module 'some_mod' but could not find the "
+            "definition of 'b'" in str(err.value))
+    # Finally, add a symbol for 'b' to the container
+    ctable2.add(DataSymbol("b", INTEGER_SINGLE_TYPE))
+    new_sym = bsym.resolve_deferred()
+    assert new_sym is not bsym
+    assert new_sym.datatype == INTEGER_SINGLE_TYPE

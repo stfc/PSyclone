@@ -244,9 +244,38 @@ class Symbol(object):
             # Use the setter as it checks the variables validity
             self.interface = interface
 
+    def copy(self, interface=None, visibility=None):
+        '''Create and return a copy of this object. Any references to the
+        original will not be affected so the copy will not be referred
+        to by any other object.
+
+        :param interface: optional value with which to override this object's \
+                interface in the new object.
+        :type interface: :py:class:`psyclone.psyir.symbols.SymbolInterface`
+        :param visibility: optional value with which to override this object's\
+                visibility in the new object.
+        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+
+        :returns: A symbol object with the same properties as this \
+                  symbol object.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        '''
+        if interface:
+            new_interface = interface
+        else:
+            new_interface = self.interface
+        if visibility:
+            new_visibility = visibility
+        else:
+            new_visibility = self.visibility
+        return Symbol(self.name,
+                      visibility=new_visibility,
+                      interface=new_interface)
+
     def resolve_deferred(self):
         '''
-        Search for the Fortran module in which this Symbol is defined and
+        Search for the Container in which this Symbol is defined and
         create and return a symbol of the correct class and type. If this
         symbol does not have a 'global' interface then we just return
         this symbol.
@@ -256,13 +285,11 @@ class Symbol(object):
 
         '''
         if self.is_global:
-            # Copy all the symbol properties but the interface and
-            # visibility (the latter is determined by the current
-            # scoping unit)
-            tmp = self.interface
+            # Find/create the Container that the symbol
+            # is imported from.
             module = self.interface.container_symbol
             try:
-                extern_symbol, _ = module.container.symbol_table.lookup(
+                extern_symbol = module.container.symbol_table.lookup(
                     self.name, visibility=Symbol.Visibility.PUBLIC)
             except KeyError:
                 raise SymbolError(
@@ -276,12 +303,10 @@ class Symbol(object):
                     "'{0}' in module '{1}': {2}".format(
                         self.name, module.name, str(err.value)))
             # Create a new symbol object of the same class as the one
-            # we've just looked up.
-            new_symbol = type(extern_symbol)(self.name,
-                                             interface=self.interface)
-            new_symbol.copy_properties(extern_symbol)
-            new_symbol.interface = tmp
-            return new_symbol
+            # we've just looked up but with the interface and visibility
+            # of the current symbol.
+            return extern_symbol.copy(interface=self.interface,
+                                      visibility=self.visibility)
         return self
 
     @property
@@ -374,16 +399,28 @@ class Symbol(object):
         :returns: the SymbolTable containing this Symbol or None.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
 
+        :raises TypeError: if the supplied `node` argument is not a PSyIR Node.
+
         '''
-        current = node.scope.symbol_table
-        while current:
-            if self.name in current:
-                return current
-            if current.node.parent:
-                current = current.node.parent.scope.symbol_table
-            else:
-                break
-        return None
+        from psyclone.psyir.nodes import Node
+        if not isinstance(node, Node):
+            raise TypeError(
+                "find_symbol_table: expected to be passed an instance of "
+                "psyir.nodes.Node but got '{0}'".format(type(node).__name__))
+
+        try:
+            current = node.scope.symbol_table
+            while current:
+                if self.name in current:
+                    return current
+                if current.node.parent:
+                    current = current.node.parent.scope.symbol_table
+                else:
+                    # We can't go any further up the hierarchy and we haven't
+                    # found a SymbolTable that contains this symbol.
+                    return None
+        except SymbolError:
+            return None
 
     def __str__(self):
         return self.name
