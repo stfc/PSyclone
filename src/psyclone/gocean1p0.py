@@ -503,10 +503,9 @@ class GOLoop(Loop):
             else:
                 prev_node = prev_arg_list[0].call
                 if not isinstance(prev_node, HaloExchange):
-                    # previous dependence is not a halo exchange so
-                    # call the add halo exchange logic which
-                    # determines whether a halo exchange is required
-                    # or not
+                    # Previous dependence is not a halo exchange so one needs
+                    # to be added to satisfy the dependency in distributed
+                    # memory.
                     self._add_halo_exchange(halo_field)
 
     def _add_halo_exchange(self, halo_field):
