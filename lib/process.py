@@ -41,9 +41,9 @@ TYPE_DATA = {"real": ("Real", "real(kind=real32)", 32),
 types = [type.lower() for type in args.types.split(",")]
 for my_type in types:
     if my_type not in TYPE_DATA:
-        print("Type '{0}' is not supported.".format(my_type))
+        print("Type '{0}' is not supported.".format(my_type), file=sys.stderr)
         print("Use one or more of {0}"
-              .format(",".join(list(TYPE_DATA.keys()))))
+              .format(",".join(list(TYPE_DATA.keys()))), file=sys.stderr)
         sys.exit(-1)
 all_types = [TYPE_DATA[my_type] for my_type in types]
 
@@ -54,10 +54,12 @@ for dim in dims:
     try:
         int_dim = int(dim)
     except ValueError:
-        print("Dimension value '{0}' is not valid.".format(dim))
+        print("Dimension value '{0}' is not valid.".format(dim),
+              file=sys.stderr)
         sys.exit(-1)
     if int_dim < 1 or int_dim > 7:
-        print("Dimension value '{0}' is not between 1 and 7.".format(dim))
+        print("Dimension value '{0}' is not between 1 and 7.".format(dim),
+              file=sys.stderr)
         sys.exit(-1)
 
 dims = [int(dim) for dim in dims]
