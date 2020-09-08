@@ -44,16 +44,21 @@ import os
 import re
 import pytest
 from psyclone.configuration import Config
-from psyclone.parse.algorithm import parse
+from psyclone.parse.algorithm import parse, Arg
+from psyclone.parse.kernel import Descriptor
+from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import PSyFactory
-from psyclone.parse.utils import ParseError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule, \
-    GOKernelArgument, GOKernelArguments
+    GOKernelArgument, GOKernelArguments, GOKernelGridArgument, \
+    GOBuiltInCallFactory, GOSymbolTable
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
-from psyclone.psyir.symbols import SymbolTable, DeferredType
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.symbols import SymbolTable, DeferredType, \
+    ContainerSymbol, DataSymbol, GlobalInterface, REAL_TYPE, INTEGER_TYPE, \
+    ArgumentInterface
+from psyclone.psyir.nodes import Schedule, Node
+from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -77,51 +82,37 @@ def test_field(tmpdir, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
 
+    before_kernel = (
+        "  MODULE psy_single_invoke_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_compute_cu(cu_fld, p_fld, u_fld)\n"
+        "      USE compute_cu_mod, ONLY: compute_cu_code\n"
+        "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n")
+    remaining_code = (
+        "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
+        "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
+        "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
+        "u_fld%data)\n"
+        "        END DO\n"
+        "      END DO\n"
+        "    END SUBROUTINE invoke_0_compute_cu\n"
+        "  END MODULE psy_single_invoke_test")
+
     if dist_mem:
         # Fields that are read insert a halo exchange
-        expected_output = (
-            "  MODULE psy_single_invoke_test\n"
-            "    USE field_mod\n"
-            "    USE kind_params_mod\n"
-            "    IMPLICIT NONE\n"
-            "    CONTAINS\n"
-            "    SUBROUTINE invoke_0_compute_cu(cu_fld, p_fld, u_fld)\n"
-            "      USE compute_cu_mod, ONLY: compute_cu_code\n"
-            "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld\n"
-            "      INTEGER j\n"
-            "      INTEGER i\n"
+        halo_exchange_code = (
             "      CALL p_fld%halo_exchange(depth=1)\n"
             "      !\n"
             "      CALL u_fld%halo_exchange(depth=1)\n"
-            "      !\n"
-            "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
-            "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
-            "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
-            "u_fld%data)\n"
-            "        END DO\n"
-            "      END DO\n"
-            "    END SUBROUTINE invoke_0_compute_cu\n"
-            "  END MODULE psy_single_invoke_test")
+            "      !\n")
+        expected_output = before_kernel + halo_exchange_code + remaining_code
     else:
-        expected_output = (
-            "  MODULE psy_single_invoke_test\n"
-            "    USE field_mod\n"
-            "    USE kind_params_mod\n"
-            "    IMPLICIT NONE\n"
-            "    CONTAINS\n"
-            "    SUBROUTINE invoke_0_compute_cu(cu_fld, p_fld, u_fld)\n"
-            "      USE compute_cu_mod, ONLY: compute_cu_code\n"
-            "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld\n"
-            "      INTEGER j\n"
-            "      INTEGER i\n"
-            "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
-            "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
-            "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
-            "u_fld%data)\n"
-            "        END DO\n"
-            "      END DO\n"
-            "    END SUBROUTINE invoke_0_compute_cu\n"
-            "  END MODULE psy_single_invoke_test")
+        expected_output = before_kernel + remaining_code
 
     assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
@@ -139,73 +130,53 @@ def test_two_kernels(tmpdir, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     generated_code = psy.gen
 
+    before_kernels = (
+        "  MODULE psy_single_invoke_two_kernels\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, unew_fld, "
+        "uold_fld)\n"
+        "      USE time_smooth_mod, ONLY: time_smooth_code\n"
+        "      USE compute_cu_mod, ONLY: compute_cu_code\n"
+        "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, "
+        "unew_fld, uold_fld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n")
+    first_kernel = (
+        "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
+        "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
+        "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
+        "u_fld%data)\n"
+        "        END DO\n"
+        "      END DO\n")
+    second_kernel = (
+        "      DO j=1,SIZE(uold_fld%data, 2)\n"
+        "        DO i=1,SIZE(uold_fld%data, 1)\n"
+        "          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, "
+        "uold_fld%data)\n"
+        "        END DO\n"
+        "      END DO\n"
+        "    END SUBROUTINE invoke_0\n"
+        "  END MODULE psy_single_invoke_two_kernels")
     if dist_mem:
         # Fields that are read insert a halo exchange
-        expected_output = (
-            "  MODULE psy_single_invoke_two_kernels\n"
-            "    USE field_mod\n"
-            "    USE kind_params_mod\n"
-            "    IMPLICIT NONE\n"
-            "    CONTAINS\n"
-            "    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, unew_fld, "
-            "uold_fld)\n"
-            "      USE time_smooth_mod, ONLY: time_smooth_code\n"
-            "      USE compute_cu_mod, ONLY: compute_cu_code\n"
-            "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, "
-            "unew_fld, uold_fld\n"
-            "      INTEGER j\n"
-            "      INTEGER i\n"
+        halos_first_kernel = (
             "      CALL p_fld%halo_exchange(depth=1)\n"
             "      !\n"
             "      CALL u_fld%halo_exchange(depth=1)\n"
-            "      !\n"
-            "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
-            "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
-            "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
-            "u_fld%data)\n"
-            "        END DO\n"
-            "      END DO\n"
+            "      !\n")
+
+        halos_second_kernel = (
             "      CALL unew_fld%halo_exchange(depth=1)\n"
             "      !\n"
             "      CALL uold_fld%halo_exchange(depth=1)\n"
-            "      !\n"
-            "      DO j=1,SIZE(uold_fld%data, 2)\n"
-            "        DO i=1,SIZE(uold_fld%data, 1)\n"
-            "          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, "
-            "uold_fld%data)\n"
-            "        END DO\n"
-            "      END DO\n"
-            "    END SUBROUTINE invoke_0\n"
-            "  END MODULE psy_single_invoke_two_kernels")
+            "      !\n")
+        expected_output = before_kernels + halos_first_kernel + first_kernel \
+            + halos_second_kernel + second_kernel
     else:
-        expected_output = (
-            "  MODULE psy_single_invoke_two_kernels\n"
-            "    USE field_mod\n"
-            "    USE kind_params_mod\n"
-            "    IMPLICIT NONE\n"
-            "    CONTAINS\n"
-            "    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, unew_fld, "
-            "uold_fld)\n"
-            "      USE time_smooth_mod, ONLY: time_smooth_code\n"
-            "      USE compute_cu_mod, ONLY: compute_cu_code\n"
-            "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, "
-            "unew_fld, uold_fld\n"
-            "      INTEGER j\n"
-            "      INTEGER i\n"
-            "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
-            "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
-            "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
-            "u_fld%data)\n"
-            "        END DO\n"
-            "      END DO\n"
-            "      DO j=1,SIZE(uold_fld%data, 2)\n"
-            "        DO i=1,SIZE(uold_fld%data, 1)\n"
-            "          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, "
-            "uold_fld%data)\n"
-            "        END DO\n"
-            "      END DO\n"
-            "    END SUBROUTINE invoke_0\n"
-            "  END MODULE psy_single_invoke_two_kernels")
+        expected_output = before_kernels + first_kernel + second_kernel
 
     assert str(generated_code) == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
@@ -223,69 +194,50 @@ def test_grid_property(tmpdir, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
 
+    before_kernels = (
+        "  MODULE psy_single_invoke_with_grid_props_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0(cu_fld, u_fld, du_fld, d_fld)\n"
+        "      USE kernel_requires_grid_props, ONLY: next_sshu_code\n"
+        "      TYPE(r2d_field), intent(inout) :: cu_fld, u_fld, du_fld, "
+        "d_fld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n")
+    first_kernel = (
+        "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
+        "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
+        "          CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, "
+        "u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)\n"
+        "        END DO\n"
+        "      END DO\n")
+    second_kernel = (
+        "      DO j=du_fld%internal%ystart,du_fld%internal%ystop\n"
+        "        DO i=du_fld%internal%xstart,du_fld%internal%xstop\n"
+        "          CALL next_sshu_code(i, j, du_fld%data, d_fld%data, "
+        "d_fld%grid%tmask, d_fld%grid%area_t, d_fld%grid%area_u)\n"
+        "        END DO\n"
+        "      END DO\n"
+        "    END SUBROUTINE invoke_0\n"
+        "  END MODULE psy_single_invoke_with_grid_props_test")
     if dist_mem:
         # Grid properties do not insert halo exchanges
-        expected_output = (
-            "  MODULE psy_single_invoke_with_grid_props_test\n"
-            "    USE field_mod\n"
-            "    USE kind_params_mod\n"
-            "    IMPLICIT NONE\n"
-            "    CONTAINS\n"
-            "    SUBROUTINE invoke_0(cu_fld, u_fld, du_fld, d_fld)\n"
-            "      USE kernel_requires_grid_props, ONLY: next_sshu_code\n"
-            "      TYPE(r2d_field), intent(inout) :: cu_fld, u_fld, du_fld, "
-            "d_fld\n"
-            "      INTEGER j\n"
-            "      INTEGER i\n"
+        halos_first_kernel = (
             "      CALL cu_fld%halo_exchange(depth=1)\n"
             "      !\n"
             "      CALL u_fld%halo_exchange(depth=1)\n"
-            "      !\n"
-            "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
-            "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
-            "          CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, "
-            "u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)\n"
-            "        END DO\n"
-            "      END DO\n"
+            "      !\n")
+        halos_second_kernel = (
             "      CALL du_fld%halo_exchange(depth=1)\n"
             "      !\n"
             "      CALL d_fld%halo_exchange(depth=1)\n"
-            "      !\n"
-            "      DO j=du_fld%internal%ystart,du_fld%internal%ystop\n"
-            "        DO i=du_fld%internal%xstart,du_fld%internal%xstop\n"
-            "          CALL next_sshu_code(i, j, du_fld%data, d_fld%data, "
-            "d_fld%grid%tmask, d_fld%grid%area_t, d_fld%grid%area_u)\n"
-            "        END DO\n"
-            "      END DO\n"
-            "    END SUBROUTINE invoke_0\n"
-            "  END MODULE psy_single_invoke_with_grid_props_test")
+            "      !\n")
+        expected_output = before_kernels + halos_first_kernel + first_kernel \
+            + halos_second_kernel + second_kernel
     else:
-        expected_output = (
-            "  MODULE psy_single_invoke_with_grid_props_test\n"
-            "    USE field_mod\n"
-            "    USE kind_params_mod\n"
-            "    IMPLICIT NONE\n"
-            "    CONTAINS\n"
-            "    SUBROUTINE invoke_0(cu_fld, u_fld, du_fld, d_fld)\n"
-            "      USE kernel_requires_grid_props, ONLY: next_sshu_code\n"
-            "      TYPE(r2d_field), intent(inout) :: cu_fld, u_fld, du_fld, "
-            "d_fld\n"
-            "      INTEGER j\n"
-            "      INTEGER i\n"
-            "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
-            "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
-            "          CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, "
-            "u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)\n"
-            "        END DO\n"
-            "      END DO\n"
-            "      DO j=du_fld%internal%ystart,du_fld%internal%ystop\n"
-            "        DO i=du_fld%internal%xstart,du_fld%internal%xstop\n"
-            "          CALL next_sshu_code(i, j, du_fld%data, d_fld%data, "
-            "d_fld%grid%tmask, d_fld%grid%area_t, d_fld%grid%area_u)\n"
-            "        END DO\n"
-            "      END DO\n"
-            "    END SUBROUTINE invoke_0\n"
-            "  END MODULE psy_single_invoke_with_grid_props_test")
+        expected_output = before_kernels + first_kernel + second_kernel
 
     assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
@@ -303,51 +255,36 @@ def test_scalar_int_arg(tmpdir, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
 
+    before_kernels = (
+        "  MODULE psy_single_invoke_scalar_int_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_bc_ssh(ncycle, ssh_fld)\n"
+        "      USE kernel_scalar_int, ONLY: bc_ssh_code\n"
+        "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
+        "      INTEGER, intent(inout) :: ncycle\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n")
+    first_kernel = (
+        "      DO j=ssh_fld%whole%ystart,ssh_fld%whole%ystop\n"
+        "        DO i=ssh_fld%whole%xstart,ssh_fld%whole%xstop\n"
+        "          CALL bc_ssh_code(i, j, ncycle, ssh_fld%data, "
+        "ssh_fld%grid%tmask)\n"
+        "        END DO\n"
+        "      END DO\n"
+        "    END SUBROUTINE invoke_0_bc_ssh\n"
+        "  END MODULE psy_single_invoke_scalar_int_test")
     if dist_mem:
         # Scalar arguments do not insert halo exchanges
-        expected_output = (
-            "  MODULE psy_single_invoke_scalar_int_test\n"
-            "    USE field_mod\n"
-            "    USE kind_params_mod\n"
-            "    IMPLICIT NONE\n"
-            "    CONTAINS\n"
-            "    SUBROUTINE invoke_0_bc_ssh(ncycle, ssh_fld)\n"
-            "      USE kernel_scalar_int, ONLY: bc_ssh_code\n"
-            "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
-            "      INTEGER, intent(inout) :: ncycle\n"
-            "      INTEGER j\n"
-            "      INTEGER i\n"
+        halos_first_kernel = (
             "      CALL ssh_fld%halo_exchange(depth=1)\n"
-            "      !\n"
-            "      DO j=ssh_fld%whole%ystart,ssh_fld%whole%ystop\n"
-            "        DO i=ssh_fld%whole%xstart,ssh_fld%whole%xstop\n"
-            "          CALL bc_ssh_code(i, j, ncycle, ssh_fld%data, "
-            "ssh_fld%grid%tmask)\n"
-            "        END DO\n"
-            "      END DO\n"
-            "    END SUBROUTINE invoke_0_bc_ssh\n"
-            "  END MODULE psy_single_invoke_scalar_int_test")
+            "      !\n")
+        expected_output = before_kernels + halos_first_kernel + first_kernel
     else:
-        expected_output = (
-            "  MODULE psy_single_invoke_scalar_int_test\n"
-            "    USE field_mod\n"
-            "    USE kind_params_mod\n"
-            "    IMPLICIT NONE\n"
-            "    CONTAINS\n"
-            "    SUBROUTINE invoke_0_bc_ssh(ncycle, ssh_fld)\n"
-            "      USE kernel_scalar_int, ONLY: bc_ssh_code\n"
-            "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
-            "      INTEGER, intent(inout) :: ncycle\n"
-            "      INTEGER j\n"
-            "      INTEGER i\n"
-            "      DO j=ssh_fld%whole%ystart,ssh_fld%whole%ystop\n"
-            "        DO i=ssh_fld%whole%xstart,ssh_fld%whole%xstop\n"
-            "          CALL bc_ssh_code(i, j, ncycle, ssh_fld%data, "
-            "ssh_fld%grid%tmask)\n"
-            "        END DO\n"
-            "      END DO\n"
-            "    END SUBROUTINE invoke_0_bc_ssh\n"
-            "  END MODULE psy_single_invoke_scalar_int_test")
+        expected_output = before_kernels + first_kernel
+
     assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
@@ -364,51 +301,36 @@ def test_scalar_float_arg(tmpdir, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
 
+    before_kernel = (
+        "  MODULE psy_single_invoke_scalar_float_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_bc_ssh(a_scalar, ssh_fld)\n"
+        "      USE kernel_scalar_float, ONLY: bc_ssh_code\n"
+        "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
+        "      REAL(KIND=go_wp), intent(inout) :: a_scalar\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n")
+    first_kernel = (
+        "      DO j=ssh_fld%whole%ystart,ssh_fld%whole%ystop\n"
+        "        DO i=ssh_fld%whole%xstart,ssh_fld%whole%xstop\n"
+        "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
+        "ssh_fld%grid%subdomain%internal%xstop, ssh_fld%grid%tmask)\n"
+        "        END DO\n"
+        "      END DO\n"
+        "    END SUBROUTINE invoke_0_bc_ssh\n"
+        "  END MODULE psy_single_invoke_scalar_float_test")
     if dist_mem:
         # Scalar arguments do not insert halo exchanges
-        expected_output = (
-            "  MODULE psy_single_invoke_scalar_float_test\n"
-            "    USE field_mod\n"
-            "    USE kind_params_mod\n"
-            "    IMPLICIT NONE\n"
-            "    CONTAINS\n"
-            "    SUBROUTINE invoke_0_bc_ssh(a_scalar, ssh_fld)\n"
-            "      USE kernel_scalar_float, ONLY: bc_ssh_code\n"
-            "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
-            "      REAL(KIND=go_wp), intent(inout) :: a_scalar\n"
-            "      INTEGER j\n"
-            "      INTEGER i\n"
+        halos_first_kernel = (
             "      CALL ssh_fld%halo_exchange(depth=1)\n"
-            "      !\n"
-            "      DO j=ssh_fld%whole%ystart,ssh_fld%whole%ystop\n"
-            "        DO i=ssh_fld%whole%xstart,ssh_fld%whole%xstop\n"
-            "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
-            "ssh_fld%grid%subdomain%internal%xstop, ssh_fld%grid%tmask)\n"
-            "        END DO\n"
-            "      END DO\n"
-            "    END SUBROUTINE invoke_0_bc_ssh\n"
-            "  END MODULE psy_single_invoke_scalar_float_test")
+            "      !\n")
+        expected_output = before_kernel + halos_first_kernel + first_kernel
     else:
-        expected_output = (
-            "  MODULE psy_single_invoke_scalar_float_test\n"
-            "    USE field_mod\n"
-            "    USE kind_params_mod\n"
-            "    IMPLICIT NONE\n"
-            "    CONTAINS\n"
-            "    SUBROUTINE invoke_0_bc_ssh(a_scalar, ssh_fld)\n"
-            "      USE kernel_scalar_float, ONLY: bc_ssh_code\n"
-            "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
-            "      REAL(KIND=go_wp), intent(inout) :: a_scalar\n"
-            "      INTEGER j\n"
-            "      INTEGER i\n"
-            "      DO j=ssh_fld%whole%ystart,ssh_fld%whole%ystop\n"
-            "        DO i=ssh_fld%whole%xstart,ssh_fld%whole%xstop\n"
-            "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
-            "ssh_fld%grid%subdomain%internal%xstop, ssh_fld%grid%tmask)\n"
-            "        END DO\n"
-            "      END DO\n"
-            "    END SUBROUTINE invoke_0_bc_ssh\n"
-            "  END MODULE psy_single_invoke_scalar_float_test")
+        expected_output = before_kernel + first_kernel
+
     assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
@@ -416,8 +338,6 @@ def test_scalar_float_arg(tmpdir, dist_mem):
 def test_scalar_float_arg_from_module():
     ''' Tests that an invoke containing a kernel call requiring a real, scalar
     argument imported from a module produces correct code '''
-    from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
-        GlobalInterface, REAL_TYPE
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
                                                 abspath(__file__)),
@@ -1052,7 +972,6 @@ def test_offset_any_all_points(tmpdir):
 
 def test_goschedule_view(capsys, dist_mem):
     ''' Test that the GOInvokeSchedule::view() method works as expected '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
                                                 abspath(__file__)),
@@ -1756,7 +1675,6 @@ def test08_kernel_invalid_grid_property():
             self.access = "read"
             self.grid_prop = "does not exist"
     descriptor = DummyDescriptor()
-    from psyclone.gocean1p0 import GOKernelGridArgument
     with pytest.raises(GenerationError) as err:
         GOKernelGridArgument(descriptor)
     assert re.search("Unrecognised grid property specified. Expected one "
@@ -1811,7 +1729,6 @@ def test13_kernel_invalid_fortran():
 def test14_no_builtins():
     ''' Check that we raise an error if we attempt to create a
     built-in '''
-    from psyclone.gocean1p0 import GOBuiltInCallFactory
     with pytest.raises(GenerationError) as excinfo:
         GOBuiltInCallFactory.create()
     assert "Built-ins are not supported for the GOcean" in str(excinfo.value)
@@ -1856,9 +1773,6 @@ def test_gokernelarguments_append():
 
 def test_gokernelargument_type(monkeypatch):
     ''' Check the type property of the GOKernelArgument'''
-    from psyclone.parse.algorithm import Arg
-    from psyclone.parse.kernel import Descriptor
-    from psyclone.psyir.nodes import Node
 
     # Create a dummy node with the symbol_table property
     dummy_node = Node()
@@ -1884,9 +1798,6 @@ def test_gosymboltable_conformity_check():
     the first two kernel arguments are nor scalar integers.
 
     '''
-    from psyclone.gocean1p0 import GOSymbolTable
-    from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, \
-        ArgumentInterface
     symbol_table = GOSymbolTable()
     i_var = DataSymbol("i", INTEGER_TYPE,
                        interface=ArgumentInterface(
