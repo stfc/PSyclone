@@ -210,7 +210,7 @@ def test_redundant_empty_only_list():
     assert sym_table.imported_symbols(csym)[0].name == "bob"
 
 
-def test_use_same_symbol(parser):
+def test_use_same_symbol():
     ''' Check that we handle the case where the same symbol is imported from
     different modules.
     #TODO #11 Once logging is added, check that we log an appropriate
@@ -218,12 +218,10 @@ def test_use_same_symbol(parser):
     '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
-    reader = FortranStringReader("module my_mod\n"
-                                 "use mod2, only: fred\n"
-                                 "use mod3, only: fred\n"
-                                 "end module my_mod\n")
-    fparser2spec = parser(reader)
-    processor.process_declarations(fake_parent, [fparser2spec], [])
+    reader = FortranStringReader("use mod2, only: fred\n"
+                                 "use mod3, only: fred\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
     csym = fake_parent.symbol_table.lookup("mod2")
     assert fake_parent.symbol_table.imported_symbols(csym)[0].name == "fred"
     csym = fake_parent.symbol_table.lookup("mod3")
