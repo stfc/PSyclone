@@ -660,9 +660,9 @@ def test_scope():
     assert container.scope is container
 
     anode = Literal("x", INTEGER_TYPE)
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(SymbolError) as excinfo:
         _ = anode.scope
-    assert ("PSyclone internal error: Unable to find the scope of node "
+    assert ("Unable to find the scope of node "
             "'Literal[value:'x', Scalar<INTEGER, UNDEFINED>]' as "
             "none of its ancestors are Container or Schedule nodes."
             in str(excinfo.value))

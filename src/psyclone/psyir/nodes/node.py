@@ -1119,17 +1119,14 @@ class Node(object):
         :returns: the closest ancestor Schedule or Container node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
-        :raises InternalError: if there is no Schedule or Container \
-            ancestor.
+        :raises SymbolError: if there is no Schedule or Container ancestor.
 
         '''
         from psyclone.psyir.nodes import Schedule, Container
-        current = self
-        while current:
-            if isinstance(current, (Container, Schedule)):
-                return current
-            current = current.parent
-        raise InternalError(
+        node = self.ancestor((Container, Schedule), include_self=True)
+        if node:
+            return node
+        raise SymbolError(
             "Unable to find the scope of node '{0}' as none of its ancestors "
             "are Container or Schedule nodes.".format(self))
 
