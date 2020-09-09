@@ -482,11 +482,11 @@ class FortranWriter(PSyIRVisitor):
                             str(symbol.visibility), symbol.name))
         result = "\n"
         if public_routines:
-            result += ("{0}public :: ".format(self._nindent) +
-                       ", ".join(public_routines) + "\n")
+            result += "{0}public :: {1}\n".format(self._nindent,
+                                                  ", ".join(public_routines))
         if private_routines:
-            result += ("{0}private :: ".format(self._nindent) +
-                       ", ".join(private_routines) + "\n")
+            result += "{0}private :: {1}\n".format(self._nindent,
+                                                   ", ".join(private_routines))
         if len(result) > 1:
             return result
         return ""

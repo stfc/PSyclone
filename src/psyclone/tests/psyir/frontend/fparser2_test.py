@@ -672,6 +672,35 @@ def test_process_declarations():
             "interface" in str(error.value))
 
 
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_accessibility():
+    ''' Check that process_declarations handles accessibility statements if
+    no mapping is provided. '''
+    sched = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("private :: x\n"
+                                 "real :: x\n")
+    fparser2spec = Specification_Part(reader).content
+    processor.process_declarations(sched, fparser2spec, [])
+    xsym = sched.symbol_table.lookup("x")
+    assert xsym.visibility == Symbol.Visibility.PRIVATE
+    # Repeat but provide a default visibility argument
+    reader = FortranStringReader("real :: y\n")
+    fparser2spec = Specification_Part(reader).content
+    processor.process_declarations(
+        sched, fparser2spec, [], default_visibility=Symbol.Visibility.PRIVATE)
+    ysym = sched.symbol_table.lookup("y")
+    assert ysym.visibility == Symbol.Visibility.PRIVATE
+    # Repeat but provide a visibility mapping
+    reader = FortranStringReader("real :: z\n")
+    fparser2spec = Specification_Part(reader).content
+    processor.process_declarations(
+        sched, fparser2spec, [],
+        visibility_map={"z": Symbol.Visibility.PRIVATE})
+    zsym = sched.symbol_table.lookup("z")
+    assert zsym.visibility == Symbol.Visibility.PRIVATE
+
+
 def test_process_unsupported_declarations(f2008_parser):
     ''' Check that the frontend handles unsupported declarations by
     creating symbols of UnknownType. '''

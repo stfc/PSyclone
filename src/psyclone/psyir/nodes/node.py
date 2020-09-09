@@ -39,8 +39,8 @@
 ''' This module contains the abstract Node implementation.'''
 
 import abc
-from psyclone.psyir.symbols import (SymbolError, Symbol, DataSymbol,
-                                    UnresolvedInterface, DeferredType)
+from psyclone.psyir.symbols import SymbolError, Symbol, DataSymbol, \
+    UnresolvedInterface, DeferredType
 from psyclone.errors import GenerationError, InternalError
 
 # Colour map to use when writing Invoke schedule to terminal. (Requires
@@ -1141,9 +1141,9 @@ class Node(object):
         is not found and there are no ContainerSymbols with wildcard imports
         then an exception is raised. However, if there are one or more
         ContainerSymbols with wildcard imports (which could therefore be
-        bringing the symbol into scope) then a new DataSymbol with specified
-        visibility but of unknown type and interface is created and inserted
-        in the most local SymbolTable that has such an import.
+        bringing the symbol into scope) then a new DataSymbol with the
+        specified visibility but of unknown type and interface is created and
+        inserted in the most local SymbolTable that has such an import.
         The scope_limit variable further limits the symbol table search so
         that the search through ancestor nodes stops when the scope_limit node
         is reached i.e. ancestors of the scope_limit node are not searched.

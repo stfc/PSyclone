@@ -39,6 +39,7 @@
     to transform each node into the equivalent PSyIR representation.'''
 
 from __future__ import absolute_import
+import six
 from collections import OrderedDict
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
@@ -1075,7 +1076,7 @@ class Fparser2Reader(object):
             visibility_map[name] = Symbol.Visibility.PUBLIC
         for name in explicit_private:
             visibility_map[name] = Symbol.Visibility.PRIVATE
-        
+
         return (default_visibility, visibility_map)
 
     @staticmethod
@@ -1190,8 +1191,7 @@ class Fparser2Reader(object):
                 raise NotImplementedError("Found unsupported USE statement: "
                                           "'{0}'".format(str(decl)))
 
-    def _process_decln(self, parent, decl,
-                       default_visibility=Symbol.Visibility.PUBLIC,
+    def _process_decln(self, parent, decl, default_visibility,
                        visibility_map=None):
         '''
         Process the supplied fparser2 parse tree for a declaration. For each
@@ -1451,11 +1451,15 @@ class Fparser2Reader(object):
                 sym.interface = interface
 
     def process_declarations(self, parent, nodes, arg_list,
-                             default_visibility=Symbol.DEFAULT_VISIBILITY,
+                             default_visibility=None,
                              visibility_map=None):
         '''
         Transform the variable declarations in the fparser2 parse tree into
-        symbols in the symbol table of the PSyIR parent node.
+        symbols in the symbol table of the PSyIR parent node. If
+        `default_visibility` and `visibility_map` are not supplied then
+        _parse_access_statements() is called on the provided parse tree.
+        If `visibility_map` is supplied and `default_visibility` omitted then
+        it defaults to PUBLIC (the Fortran default).
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
@@ -1482,6 +1486,17 @@ class Fparser2Reader(object):
                                or invalid fparser or Fortran expression.
 
         '''
+        if default_visibility is None:
+            if visibility_map is None:
+                # If no default visibility or visibility mapping is supplied,
+                # check for any access statements.
+                default_visibility, visibility_map = \
+                    self._parse_access_statements(nodes)
+            else:
+                # In case the caller has provided a visibility map but
+                # omitted the default visibility, we use the Fortran default.
+                default_visibility = Symbol.Visibility.PUBLIC
+
         # Look at any USE statements
         self._process_use_stmts(parent, nodes)
 
@@ -1531,15 +1546,14 @@ class Fparser2Reader(object):
                     # imported. This will be wrong if the symbol is actually
                     # the name of a routine.
                     try:
-                        sym = parent.find_or_create_symbol(name,
-                                                           visibility=vis)
-                    except SymbolError:
+                        parent.find_or_create_symbol(name, visibility=vis)
+                    except SymbolError as err:
                         # Improve the error message with context-specific info
-                        raise SymbolError(
+                        six.raise_from(SymbolError(
                             "'{0}' is listed in an accessibility statement as "
                             "being '{1}' but failed to find a declaration or "
                             "possible import (use) of this symbol.".format(
-                                name, vis))
+                                name, vis)), err)
         try:
             arg_symbols = []
             # Ensure each associated symbol has the correct interface info.
@@ -1573,7 +1587,6 @@ class Fparser2Reader(object):
                 if symbol.is_array:
                     # This is an array assignment wrongly categorized as a
                     # statement_function by fparser2.
-                    array_name = fn_name
                     array_subscript = arg_list.items
 
                     assignment_rhs = scalar_expr
