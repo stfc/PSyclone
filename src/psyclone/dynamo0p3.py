@@ -54,6 +54,7 @@ from psyclone.parse.utils import ParseError
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
+from psyclone.dynamo0p3_builtins import BUILTIN_ITERATION_SPACES
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor)
@@ -135,9 +136,14 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
                            + HALO_ACCESS_LOOP_BOUNDS)
 
 
-# Valid Dynamo0.3 loop types. The default is "" which is over cells (in the
+# Valid LFRic loop types. The default is "" which is over cells (in the
 # horizontal plane).
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
+
+# Valid LFRic iteration spaces for user-supplied kernels and built-in kernels
+USER_KERNEL_ITERATION_SPACES = ["cells"]
+VALID_ITERATION_SPACES = USER_KERNEL_ITERATION_SPACES + \
+    BUILTIN_ITERATION_SPACES
 
 # ---------- psyGen mappings ------------------------------------------------ #
 # Mappings used by non-API-Specific code in psyGen.
@@ -459,7 +465,8 @@ class DynKernMetadata(KernelType):
         # parse the arg_type metadata
         self._arg_descriptors = []
         for arg_type in self._inits:
-            self._arg_descriptors.append(LFRicArgDescriptor(arg_type))
+            self._arg_descriptors.append(
+                LFRicArgDescriptor(arg_type, self.iterates_over))
 
         # Get a list of the Type declarations in the metadata
         type_declns = [cline for cline in self._ktype.content if
@@ -7139,9 +7146,21 @@ class DynKern(CodedKern):
         Create the fparser1 AST for a kernel stub.
 
         :returns: root of fparser1 AST for the stub routine.
-        :rtype: :py:class:`fparser.one.XXXX`
+        :rtype: :py:class:`fparser.one.block_statements.Module`
+
+        :raises InternalError: if a kernel stub does not have a supported \
+                               iteration space (currently only "cells").
 
         '''
+        # Check iteration space before generating code
+        if self.iterates_over not in USER_KERNEL_ITERATION_SPACES:
+            raise InternalError(
+                "DynKern.gen_stub(): Expected one of {0} as iteration "
+                "space but found '{1}' in kernel '{2}'.".
+                format(USER_KERNEL_ITERATION_SPACES, self.iterates_over,
+                       self.name))
+
+        # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Create an empty PSy layer module
@@ -7175,12 +7194,16 @@ class DynKern(CodedKern):
         return psy_module.root
 
     def gen_code(self, parent):
-        '''Generates dynamo version 0.3 specific psy code for a call to
-           the dynamo kernel instance.
+        '''
+        Generates LFRic (Dynamo 0.3) specific PSy layer code for a call
+        to this user-supplied LFRic kernel.
 
         :param parent: an f2pygen object that will be the parent of \
                        f2pygen objects created in this method.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        :raises GenerationError: if this kernel does not have a supported \
+                                 iteration space (currently only "cells").
         :raises GenerationError: if the loop goes beyond the level 1 \
                                  halo and an operator is accessed.
         :raises GenerationError: if a kernel in the loop has an inc access \
@@ -7188,6 +7211,16 @@ class DynKern(CodedKern):
                                  an OpenMP parallel region.
 
         '''
+        # Check iteration space before generating code
+        if self.iterates_over not in USER_KERNEL_ITERATION_SPACES:
+            raise GenerationError(
+                "The LFRic API supports calls to user-supplied kernels "
+                "that have one of {0} as iteration space, but kernel '{1}' "
+                "has an iteration space of '{2}'.".
+                format(USER_KERNEL_ITERATION_SPACES, self.name,
+                       self.iterates_over))
+
+        # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")
 
         parent.add(DeclGen(parent, datatype="integer",

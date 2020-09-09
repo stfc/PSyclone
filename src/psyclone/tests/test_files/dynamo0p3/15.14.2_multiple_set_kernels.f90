@@ -49,10 +49,10 @@ program single_invoke
   fred = 20.1_r_def
   ginger = 40.5_r_def
   
-  call invoke(              &
-       setval_c(f1, fred),  &
-       setval_c(f2, 3.0),   &
-       setval_c(f3, ginger) &
+  call invoke(                  &
+       setval_c(f1, fred),      &
+       setval_c(f2, 3.0_r_def), &
+       setval_c(f3, ginger)     &
           )
 
 end program single_invoke
