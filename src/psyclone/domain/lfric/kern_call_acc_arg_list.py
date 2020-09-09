@@ -113,6 +113,60 @@ class KernCallAccArgList(KernCallArgList):
         var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
         self.append(var_name, var_accesses)
 
+    def stencil_2d(self, arg, var_accesses=None):
+        '''Add general stencil information associated with the argument 'arg'
+        to the argument list. OpenACC requires the full dofmap to be
+        specified. If supplied it also stores this access in var_accesses.
+
+        :param arg: the meta-data description of the kernel \
+            argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        from psyclone.dynamo0p3 import DynStencils
+        var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
+        self.append(var_name, var_accesses)
+
+    def stencil_unknown_extent(self, arg, var_accesses=None):
+        '''Add stencil information to the argument list associated with the
+        argument 'arg' if the extent is unknown. If supplied it also stores
+        this access in var_accesses.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        # The extent is not specified in the metadata so pass the value in
+        from psyclone.dynamo0p3 import DynStencils
+        name = DynStencils.dofmap_size_name(self._kern.root.symbol_table, arg)
+        self.append(name, var_accesses)
+
+    def stencil_2d_unknown_extent(self, arg, var_accesses=None):
+        '''Add stencil information to the argument list associated with the
+        argument 'arg' if the extent is unknown. If supplied it also stores
+        this access in var_accesses.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        # The extent is not specified in the metadata so pass the value in
+        from psyclone.dynamo0p3 import DynStencils
+        name = DynStencils.dofmap_size_name(self._kern.root.symbol_table, arg)
+        self.append(name, var_accesses)
+
     def operator(self, arg, var_accesses=None):
         '''Add the operator arguments if they have not already been
         added. OpenACC requires the derived type and the dereferenced

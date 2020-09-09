@@ -241,7 +241,7 @@ class KernCallArgList(ArgOrdering):
                                                 arg)
         name = "{0}({1})".format(var_name,
                                      self._cell_ref_name(var_accesses))
-        self.append(name, var_accesses, var_access_name=var_name)
+        self.append(name, var_accesses)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -262,7 +262,7 @@ class KernCallArgList(ArgOrdering):
                                                 arg)
         name = "{0}(:,{1})".format(var_name,
                                      self._cell_ref_name(var_accesses))
-        self.append(name, var_accesses, var_access_name=var_name)
+        self.append(name, var_accesses)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
