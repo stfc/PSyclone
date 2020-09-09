@@ -7278,67 +7278,80 @@ class DynKern(CodedKern):
         if self._kern_schedule is None:
             # Get the PSyIR Kernel Schedule
             psyir_schedule = super(DynKern, self).get_kernel_schedule()
-            # Step 1 will replace the PSyIR data symbols with LFRic
-            # data symbols where they are known. We will eventually
-            # have a function or class to do the translation, but for
-            # the moment we do it inline here.
 
-            # For each data symbol that is a kernel argument we
-            # replace it with the LFRic version.
-            symbol_table = psyir_schedule.symbol_table
-            arguments = symbol_table.argument_list
-            for argument in arguments:
-                print (argument)
-            # Find what type each argument should be according to the
-            # PSyclone metadata ...
-            from psyclone.domain.lfric import KernelInterface
-            interface_info = KernelInterface(self)
-            interface_info.generate()
-            interface_args = interface_info.arglist
-            # Validate that the number of arguments match
-            if not len(interface_args) == len(arguments):
+            # Check the validity of the kernel arguments
+            self.validate_kernel_code_args()
+
+            # TODO NEXT replace the PSyIR argument data symbols with LFRic
+            # data symbols.
+
+    def validate_kernel_code_args(self):
+        '''Check that the arguments in the kernel code match the expected
+        arguments as defined by the kernel metadata and the LFRic
+        API.
+
+        '''
+        # Get the kernel code arguments
+        psyir_schedule = super(DynKern, self).get_kernel_schedule()
+        symbol_table = psyir_schedule.symbol_table
+        kern_code_args = symbol_table.argument_list
+
+        # Get the properties of the kernel code interface
+        # according to the kernel metadata and LFRic API
+        from psyclone.domain.lfric import KernelInterface
+        interface_info = KernelInterface(self)
+        interface_info.generate()
+        interface_args = interface_info.arglist
+
+        for arg in interface_args:
+            print (arg)
+        exit(1)
+        # 1: Check the the number of arguments match
+        if len(interface_args) != len(kern_code_args):
+            raise GenerationError(
+                "The number of arguments expected by the psy-layer kernel "
+                "call '{0}' does not match the actual number of kernel "
+                "arguments '{1}'.".format(
+                    len(interface_args), len(kern_code_args)))
+
+        # 2: Check that the properties of each argument matches
+        for idx, kern_code_arg in enumerate(kern_code_args):
+            interface_arg = interface_args[idx]
+            print ("Checking arg {0} {1}".format(idx, interface_arg))
+            
+            # 2a: datatype
+            if kern_code_arg.datatype.intrinsic != \
+               interface_arg.intrinsic:
                 raise GenerationError(
-                    "The number of arguments expected by the psy-layer kernel "
-                    "call '{0}' does not match the actual number of kernel "
-                    "arguments '{1}'.".format(
-                        len(interface_args), len(arguments)))
-            # Validate that the types of arguments match
-            for idx, kern_argument in enumerate(arguments):
-                interface_arg = interface_args[idx]
-                print ("Checking arg {0} {1}".format(idx, interface_arg))
-                # datatype
-                if kern_argument.datatype.intrinsic != \
-                   interface_arg.intrinsic:
-                    raise GenerationError(
-                        "Kernel argument '{0}' has datatype '{1}' "
-                        "but the LFRic API expects '{2}'."
-                        "".format(
-                            idx, kern_argument.datatype.intrinsic,
-                            check_info.intrinsic))
+                    "Kernel argument '{0}' has datatype '{1}' "
+                    "but the LFRic API expects '{2}'."
+                    "".format(
+                        idx, kern_code_arg.datatype.intrinsic,
+                        check_info.intrinsic))
                 # precision
-                precision = kern_argument.datatype.precision
+                precision = kern_code_arg.datatype.precision
                 if not precision.name == interface_arg.precision:
                     raise GenerationError(
                         "Kernel argument '{0}' has precision '{1}' "
                         "but the LFRic API expects '{2}'."
-                        "".format(kern_argument.name, precision.name,
+                        "".format(kern_code_arg.name, precision.name,
                                   interface_arg.precision))
                     raise GenerationError("precision does not match")
                 # intent
                 from psyclone.psyir.backend.fortran import gen_intent
-                arg_intent = gen_intent(kern_argument)
+                arg_intent = gen_intent(kern_code_arg)
                 if arg_intent != interface_arg.intent:
                     raise GenerationError(
                         "Kernel argument '{0}' has intent '{1}' "
                         "but the LFRic API expects intent '{2}'."
-                        "".format(kern_argument.name, arg_intent,
+                        "".format(kern_code_arg.name, arg_intent,
                                   interface_arg.intent))
                 # scalar or array
                 if interface_arg.form == "scalar":
-                    if not kern_argument.is_scalar:
+                    if not kern_code_arg.is_scalar:
                         raise GenerationError("Expecting a scalar")
                 elif interface_arg.form == "array":
-                    if not kern_argument.is_array:
+                    if not kern_code_arg.is_array:
                         raise GenerationError("Expecting an array")
                     # TODO Check arguments - we need the interface information to link arguments together to do this (I think)
                     
