@@ -15,9 +15,9 @@ module compute_vnew_mod
      TYPE(go_arg), DIMENSION(7) :: meta_args =    &
           (/ go_arg(GO_WRITE, GO_CV, GO_POINTWISE),        & ! vnew
              go_arg(GO_READ,  GO_CV, GO_POINTWISE),        & ! vold
-             go_arg(GO_READ,  GO_CF, GO_POINTWISE),        & ! z
-             go_arg(GO_READ,  GO_CU, GO_POINTWISE),        & ! cu
-             go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! h
+             go_arg(GO_READ,  GO_CF, GO_STENCIL(000,110,000)),        & ! z
+             go_arg(GO_READ,  GO_CU, GO_STENCIL(000,110,110)),        & ! cu
+             go_arg(GO_READ,  GO_CT, GO_STENCIL(000,010,010)),        & ! h
              go_arg(GO_READ,  GO_R_SCALAR, GO_POINTWISE),  & ! tdt
              go_arg(GO_READ,  GO_GRID_DY_CONST)         & ! dy
            /)
