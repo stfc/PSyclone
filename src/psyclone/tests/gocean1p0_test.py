@@ -174,6 +174,69 @@ def test_two_kernels(tmpdir, dist_mem):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
+def test_two_kernels_with_dependencies(tmpdir, dist_mem):
+    ''' Tests that an invoke containing two kernel calls with dependencies
+    between them produces correct code '''
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_two_identical_kernels.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    generated_code = psy.gen
+
+    before_kernels = (
+        "  MODULE psy_single_invoke_two_kernels\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld)\n"
+        "      USE compute_cu_mod, ONLY: compute_cu_code\n"
+        "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n")
+    first_kernel = (
+        "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
+        "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
+        "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
+        "u_fld%data)\n"
+        "        END DO\n"
+        "      END DO\n")
+    second_kernel = (
+        "      DO j=p_fld%internal%ystart,p_fld%internal%ystop\n"
+        "        DO i=p_fld%internal%xstart,p_fld%internal%xstop\n"
+        "          CALL compute_cu_code(i, j, p_fld%data, cu_fld%data,"
+        " u_fld%data)\n"
+        "        END DO\n"
+        "      END DO\n"
+        "    END SUBROUTINE invoke_0\n"
+        "  END MODULE psy_single_invoke_two_kernels")
+
+
+
+    if dist_mem:
+        print(str(generated_code))
+        # In this case the second kernel just has a RaW dependency on the
+        # cu_fld of the first kernel, so a halo exchange should be inserted
+        # bewteen the kernels in addition to the initial p_fld halo exchange.
+        halos_first_kernel = (
+            "      CALL p_fld%halo_exchange(depth=1)\n"
+            "      !\n")
+        halos_second_kernel = (
+            "      CALL cu_fld%halo_exchange(depth=1)\n"
+            "      !\n")
+        expected_output = before_kernels + halos_first_kernel + first_kernel \
+            + halos_second_kernel + second_kernel
+    else:
+        expected_output = before_kernels + first_kernel + second_kernel
+
+    assert str(generated_code) == expected_output
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+
+
+
 def test_grid_property(tmpdir, dist_mem):
     ''' Tests that an invoke containing a kernel call requiring
     a property of the grid produces correct code '''
