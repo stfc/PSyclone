@@ -299,7 +299,6 @@ class Symbol(object):
         # first positional argument.
         return type(self)(self.name, *args, **kwargs)
 
-
     def resolve_deferred(self):
         '''
         Search for the Container in which this Symbol is defined and

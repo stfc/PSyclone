@@ -3685,8 +3685,7 @@ class KernelGlobalsToArguments(Transformation):
             if (type(globalvar) == Symbol or
                     isinstance(globalvar.datatype, DeferredType)):
                 updated_sym = globalvar.resolve_deferred()
-                # TODO I could pass the symbol_table to resolve_deferred()
-                # and have it do this step.
+                # If we have a new symbol then we must update the symbol table
                 if updated_sym is not globalvar:
                     kernel.symbol_table.remove(globalvar)
                     kernel.symbol_table.add(updated_sym)
