@@ -96,7 +96,8 @@ class SymbolTable(object):
     @property
     def parent(self):
         '''
-        :returns: the parent SymbolTable of the current SymbolTable.
+        :returns: the 'parent' SymbolTable of the current SymbolTable (i.e.
+                  the one that encloses this one in the PSyIR hierarchy).
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
         '''
         # We use the Node with which this table is associated in order to

@@ -46,10 +46,10 @@ is not tested here.
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import (Symbol, LocalInterface, GlobalInterface,
-                                    ArgumentInterface, UnresolvedInterface,
-                                    ContainerSymbol, DataSymbol, SymbolError,
-                                    SymbolTable, INTEGER_SINGLE_TYPE)
+from psyclone.psyir.symbols import Symbol, LocalInterface, GlobalInterface, \
+                                   ArgumentInterface, UnresolvedInterface, \
+                                   ContainerSymbol, DataSymbol, SymbolError, \
+                                   SymbolTable, INTEGER_SINGLE_TYPE
 from psyclone.psyir.symbols.symbol import SymbolInterface
 from psyclone.psyir.nodes import Container, Literal
 from psyclone.psyGen import KernelSchedule

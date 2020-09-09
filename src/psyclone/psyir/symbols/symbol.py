@@ -284,7 +284,7 @@ class Symbol(object):
 
         :returns: A symbol object with the same properties as this \
                   symbol object.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol` or subclass
 
         '''
         if interface:
@@ -306,7 +306,8 @@ class Symbol(object):
         symbol does not have a 'global' interface then we just return
         this symbol.
 
-        :returns: a new symbol object.
+        :returns: a symbol object with the class and type determined by \
+                  examining the Container from which it is imported.
         :rtype: subclass of :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
@@ -317,17 +318,17 @@ class Symbol(object):
             try:
                 extern_symbol = module.container.symbol_table.lookup(
                     self.name, visibility=Symbol.Visibility.PUBLIC)
-            except KeyError:
-                raise SymbolError(
+            except KeyError as kerr:
+                six.raise_from(SymbolError(
                     "Error trying to resolve the properties of symbol "
                     "'{0}'. The interface points to module '{1}' but "
                     "could not find the definition of '{0}' in that "
-                    "module.".format(self.name, module.name))
+                    "module.".format(self.name, module.name)), kerr)
             except SymbolError as err:
-                raise SymbolError(
+                six.raise_from(SymbolError(
                     "Error trying to resolve the properties of symbol "
                     "'{0}' in module '{1}': {2}".format(
-                        self.name, module.name, str(err.value)))
+                        self.name, module.name, str(err.value))), err)
             # Create a new symbol object of the same class as the one
             # we've just looked up but with the interface and visibility
             # of the current symbol.
@@ -446,6 +447,7 @@ class Symbol(object):
                     # found a SymbolTable that contains this symbol.
                     return None
         except SymbolError:
+            # Failed to find any enclosing symbol table
             return None
 
     def __str__(self):
