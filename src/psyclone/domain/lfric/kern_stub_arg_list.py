@@ -196,6 +196,23 @@ class KernStubArgList(ArgOrdering):
         name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
         self.append(name, var_accesses)
 
+    def stencil_2d_unknown_extent(self, arg, var_accesses=None):
+        '''Add stencil information to the argument list associated with the
+        argument 'arg' if the extent is unknown. If supplied it also stores
+        this access in var_accesses.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        from psyclone.dynamo0p3 import DynStencils
+        name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
+        self.append(name, var_accesses)
+
     def stencil_unknown_direction(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
         argument 'arg' if the direction is unknown. If supplied it also stores
@@ -214,6 +231,24 @@ class KernStubArgList(ArgOrdering):
         self.append(name, var_accesses)
 
     def stencil(self, arg, var_accesses=None):
+        '''Add general stencil information associated with the argument 'arg'
+        to the argument list. If supplied it also stores this access in
+        var_accesses.
+
+        :param arg: the meta-data description of the kernel \
+            argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        from psyclone.dynamo0p3 import DynStencils
+        var_name = DynStencils.dofmap_name(self._stub_symtab, arg)
+        self.append(var_name, var_accesses)
+
+    def stencil_2d(self, arg, var_accesses=None):
         '''Add general stencil information associated with the argument 'arg'
         to the argument list. If supplied it also stores this access in
         var_accesses.

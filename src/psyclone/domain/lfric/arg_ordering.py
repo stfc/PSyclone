@@ -210,17 +210,26 @@ class ArgOrdering(object):
                     self.field(arg, var_accesses=var_accesses)
                 if arg.descriptor.stencil:
                     if not arg.descriptor.stencil['extent']:
-                        # stencil extent is not provided in the
-                        # metadata so must be passed
-                        self.stencil_unknown_extent(arg,
-                                                    var_accesses=var_accesses)
+                        if arg.descriptor.stencil['type'] == "cross2d":
+                            # stencil extent is not provided in the
+                            # metadata so must be passed
+                            self.stencil_2d_unknown_extent \
+                                (arg, var_accesses=var_accesses)
+                        else:
+                            # stencil extent is not provided in the
+                            # metadata so must be passed
+                            self.stencil_unknown_extent \
+                                (arg, var_accesses=var_accesses)
                     if arg.descriptor.stencil['type'] == "xory1d":
                         # if "xory1d is specified then the actual
                         # direction must be passed
                         self.stencil_unknown_direction(arg,
                                                        var_accesses)
                     # stencil information that is always passed
-                    self.stencil(arg, var_accesses=var_accesses)
+                    if arg.descriptor.stencil['type'] == "cross2d":
+                        self.stencil_2d(arg, var_accesses=var_accesses)
+                    else:
+                        self.stencil(arg, var_accesses=var_accesses)
             elif arg.argument_type == "gh_operator":
                 self.operator(arg, var_accesses=var_accesses)
             elif arg.argument_type == "gh_columnwise_operator":
@@ -424,6 +433,21 @@ class ArgOrdering(object):
         '''
 
     @abc.abstractmethod
+    def stencil_2d_unknown_extent(self, arg, var_accesses=None):
+        '''Add stencil information to the argument list associated with the
+        argument 'arg' if the extent is unknown. If supplied it also stores
+        this access in var_accesses.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+
+    @abc.abstractmethod
     def stencil_unknown_direction(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
         argument 'arg' if the direction is unknown (i.e. it's being supplied
@@ -441,6 +465,22 @@ class ArgOrdering(object):
 
     @abc.abstractmethod
     def stencil(self, arg, var_accesses=None):
+        '''Add general stencil information associated with the argument 'arg'
+        to the argument list. If supplied it also stores this access in
+        var_accesses.
+
+        :param arg: the meta-data description of the kernel \
+            argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+
+    @abc.abstractmethod
+    def stencil_2d(self, arg, var_accesses=None):
         '''Add general stencil information associated with the argument 'arg'
         to the argument list. If supplied it also stores this access in
         var_accesses.

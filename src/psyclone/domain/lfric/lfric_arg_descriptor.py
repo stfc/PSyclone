@@ -89,7 +89,7 @@ class LFRicArgDescriptor(Descriptor):
     VALID_ARG_DATA_TYPES = ["gh_real", "gh_integer"]
 
     # Supported LFRic API stencil types and directions
-    VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
+    VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region", "cross2d"]
     # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
     # file as it causes failures with py.test 2.8.7. Therefore some parts
     # of the code do not use the VALID_STENCIL_DIRECTIONS variable.
@@ -100,7 +100,7 @@ class LFRicArgDescriptor(Descriptor):
     # an option in stencil_dofmap_mod.F90 so it is not included in
     # STENCIL_MAPPING (TODO #194: Add support for region stencils).
     STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
-                       "cross": "STENCIL_CROSS"}
+                       "cross": "STENCIL_CROSS", "cross2d": "STENCIL_2D_CROSS"}
 
     # Supported LFRic API mesh types that may be specified for a field
     # using the mesh_arg=... meta-data element (for inter-grid kernels that

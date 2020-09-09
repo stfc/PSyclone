@@ -1283,7 +1283,7 @@ class DynStencils(DynCollection):
         :returns: a Fortran variable name for the stencil size.
         :rtype: str
         '''
-        root_name = arg.name + "_stencil_size"
+        root_name = arg.name + "_stencil_sizes"
         unique = DynStencils.stencil_unique_str(arg, "size")
         return symtab.name_from_tag(unique, root=root_name)
 
@@ -1451,6 +1451,17 @@ class DynStencils(DynCollection):
                                 "STENCIL_1D" + direction.upper() +
                                 ","+self.extent_value(arg)+")"))
                         parent.add(if_then)
+                elif stencil_type == "cross2d":
+                    # raise GenerationError(
+                    #     "Test error for stencil type '{0}'".
+                    #     format(arg.descriptor.stencil['type'],
+                    #     str(LFRicArgDescriptor.STENCIL_MAPPING)))
+                    parent.add(
+                        AssignGen(parent, pointer=True, lhs=map_name,
+                                  rhs=arg.proxy_name_indexed +
+                                  "%vspace%get_stencil_2D_dofmap(" +
+                                  "STENCIL_2D_CROSS" + "," +
+                                  self.extent_value(arg) + ")"))
                 else:
                     try:
                         stencil_name = \
@@ -1474,9 +1485,9 @@ class DynStencils(DynCollection):
                                      rhs=map_name + "%get_whole_dofmap()"))
 
                 # Add declaration and look-up of stencil size
-                parent.add(AssignGen(parent,
+                parent.add(AssignGen(parent, pointer=True,
                                      lhs=self.dofmap_size_name(symtab, arg),
-                                     rhs=map_name + "%get_size()"))
+                                     rhs=map_name + "%get_stencil_sizes()"))
 
     def _declare_maps_invoke(self, parent):
         '''
@@ -1493,9 +1504,6 @@ class DynStencils(DynCollection):
         if not self._kern_args:
             return
 
-        parent.add(UseGen(parent, name="stencil_dofmap_mod", only=True,
-                          funcnames=["stencil_dofmap_type"]))
-
         symtab = self._symbol_table
         stencil_map_names = []
         for arg in self._kern_args:
@@ -1505,21 +1513,42 @@ class DynStencils(DynCollection):
                 continue
 
             stencil_map_names.append(map_name)
-
-            parent.add(TypeDeclGen(parent, pointer=True,
-                                   datatype="stencil_dofmap_type",
-                                   entity_decls=[map_name+" => null()"]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True,
-                               entity_decls=[self.dofmap_name(symtab, arg) +
-                                             "(:,:,:) => null()"]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=[self.dofmap_size_name(symtab,
-                                                                   arg)]))
-
             stencil_type = arg.descriptor.stencil['type']
+            if stencil_type == "cross2d":
+                parent.add(UseGen(parent, name="stencil_2D_dofmap_mod", only=True,
+                                  funcnames=["stencil_2D_dofmap_type"]))
+                parent.add(TypeDeclGen(parent, pointer=True,
+                                       datatype="stencil_2D_dofmap_type",
+                                       entity_decls=[map_name + " => null()"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   pointer=True,
+                                   entity_decls=[self.dofmap_name(symtab, arg) +
+                                                 "(:,:,:,:) => null()"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   pointer=True,
+                                   entity_decls=[self.dofmap_size_name(symtab,
+                                                                       arg) +
+                                                 "(:,:) => null()"]))
+            else:
+                parent.add(UseGen(parent, name="stencil_dofmap_mod", only=True,
+                                  funcnames=["stencil_dofmap_type"]))
+                parent.add(TypeDeclGen(parent, pointer=True,
+                                       datatype="stencil_dofmap_type",
+                                       entity_decls=[map_name+" => null()"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   pointer=True,
+                                   entity_decls=[self.dofmap_name(symtab, arg) +
+                                                 "(:,:,:) => null()"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   pointer=True,
+                                   entity_decls=[self.dofmap_size_name(symtab,
+                                                                       arg) +
+                                                 "(:) => null()"]))
+
             if stencil_type == "xory1d":
                 parent.add(UseGen(parent, name="flux_direction_mod",
                                   only=True, funcnames=["x_direction",
@@ -1527,6 +1556,9 @@ class DynStencils(DynCollection):
                 parent.add(UseGen(parent, name="stencil_dofmap_mod",
                                   only=True, funcnames=["STENCIL_1DX",
                                                         "STENCIL_1DY"]))
+            elif stencil_type == "cross2d":
+                parent.add(UseGen(parent, name="stencil_2D_dofmap_mod",
+                                  only=True, funcnames=["STENCIL_2D_CROSS"]))
             else:
                 try:
                     stencil_name = \
