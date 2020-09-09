@@ -33,27 +33,19 @@
 ! Author R. W. Ford, STFC Daresbury Lab
 ! Modified I. Kavcic, Met Office
 
-program single_stencil
-  ! Description: single stencil with an xory1d stencil specified in
-  ! the metadata which therefore requires a direction argument. Check
-  ! that name clashes are avoided for extent and direction arguments.
-  use constants_mod,               only: i_def
-  use field_mod,                   only: field_type
-  use flux_direction_mod,          only: x_direction
-  use testkern_stencil_xory1d_mod, only: testkern_stencil_xory1d_type
+program single_stencil_cross2d
+  ! Description: single stencil specified in an invoke call
+  use constants_mod,                only: i_def
+  use field_mod,                    only: field_type
+  use testkern_stencil_cross2d_mod, only: testkern_stencil_cross2d_type
 
   implicit none
 
   type(field_type) :: f1, f2, f3, f4
-  integer(i_def)   :: f2_stencil_sizes = 1
-  integer(i_def)   :: nlayers = x_direction
+  integer(i_def)   :: f2_extent=1
 
-  ! Rename "f2_extent" to "f2_stencil_size" as this is an internally
-  ! generated name in the PSy-layer. Similarly, rename "f2_direction" to
-  ! "nlayers" as this is an internally generated name in the PSy-layer.
-
-  call invoke(                                                                &
-       testkern_stencil_xory1d_type(f1, f2, f2_stencil_sizes, nlayers, f3, f4) &
+  call invoke(                                          &
+       testkern_stencil_cross2d_type(f1, f2, f2_extent, f3, f4) &
        )
 
-end program single_stencil
+end program single_stencil_cross2d
