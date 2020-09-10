@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified I. Kavcic Met Office
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 !> @brief Broken meta-data for the Dynamo 0.3 built-in operations.
 !> @details This meta-data is purely to provide psyclone with a
@@ -59,13 +60,13 @@ module dynamo0p3_builtins_mod
   end type aX_plus_Y
 
   !> An invalid built-in that updates two fields where one is gh_sum
-  !! and the other is gh_inc
+  !! and the other is gh_readwrite
   type, public, extends(kernel_type) :: inc_aX_plus_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_REAL,  GH_SUM              ),                   &
-          arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1),                   &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
+          arg_type(GH_REAL,  GH_SUM                   ),              &
+          arg_type(GH_FIELD, GH_READWRITE, ANY_SPACE_1),              &
+          arg_type(GH_FIELD, GH_READ,      ANY_SPACE_1)               &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -88,14 +89,14 @@ module dynamo0p3_builtins_mod
   end type aX_plus_bY
 
   !> An invalid built-in that writes to two different
-  !! args but with different access types - one is gh_write, one is gh_inc.
+  !! args but with different access types - one is gh_write, one is gh_readwrite.
   type, public, extends(kernel_type) :: inc_aX_plus_bY
      private
      type(arg_type) :: meta_args(4) = (/                              &
-          arg_type(GH_REAL,  GH_READ              ),                  &
-          arg_type(GH_FIELD, GH_INC,   ANY_SPACE_1),                  &
-          arg_type(GH_REAL,  GH_READ              ),                  &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
+          arg_type(GH_REAL,  GH_READ                  ),              &
+          arg_type(GH_FIELD, GH_READWRITE, ANY_SPACE_1),              &
+          arg_type(GH_REAL,  GH_READ                  ),              &
+          arg_type(GH_FIELD, GH_WRITE,     ANY_SPACE_1)               &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -131,8 +132,8 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: inc_X_divideby_Y
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD,  GH_INC,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_2)                   &
+          arg_type(GH_FIELD,  GH_READWRITE, ANY_SPACE_1),             &
+          arg_type(GH_FIELD,  GH_READ,      ANY_SPACE_2)              &
           /)
      integer :: iterates_over = DOFS
    contains
