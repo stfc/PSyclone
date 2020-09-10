@@ -5,6 +5,23 @@
 {{ "! DO NOT MODIFY DIRECTLY                            " }}
 {{ "! ==================================================" }}
 
+{# This jinja template file creates a base class for a ReadOnly
+   verification library. It produces the required ProvideVariable()
+   functions for the specified Fortran basic types. Any library
+   using this base class can provide the required Fortran basic
+   types (see ALL_TYPES below) and the list of array dimensions
+   (see ALL_DIMS) that need to be supported when processing this
+   template. This template will also provide checksum computing
+   functions for any combination of dimension and basic type.
+   These function can be used in any derived type to do the
+   actual checksum computation.
+
+   This ReadOnly base class depends on the PSyData base
+   class, which will provide the other Fortran-type-specific
+   functions for PreDeclarVariable(). Any function can obviously
+   be overwritten by a derived class.
+#}
+
 {% if ALL_DIMS is not defined %}
    {# Support 1 to 4 dimensional arrays if not specified #}
    {% set ALL_DIMS = [1, 2, 3, 4] %}
