@@ -52,9 +52,9 @@ from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, SymbolTable, \
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE, \
     REAL_TYPE, UnknownType, DeferredType, Symbol, UnresolvedInterface
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
-    _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
+    _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
-    default_integer_type, default_real_type
+    default_integer_type, default_real_type, _kind_symbol_from_name
 
 
 def process_declarations(code):
@@ -1364,8 +1364,7 @@ def test_wrong_type_kind_param():
     # Monkeypatch this DataSymbol so that it appears to be a RoutineSymbol
     r_def.__class__ = RoutineSymbol
     with pytest.raises(TypeError) as err:
-        Fparser2Reader._kind_symbol_from_name("r_def",
-                                              fake_parent.symbol_table)
+        _kind_symbol_from_name("r_def", fake_parent.symbol_table)
     assert ("found an entry of type 'RoutineSymbol' for variable 'r_def'" in
             str(err.value))
     # Repeat but declare r_def as real
@@ -2823,38 +2822,6 @@ def test_nodes_to_code_block_4():
         _ = Fparser2Reader.nodes_to_code_block(Directive(), "hello")
     assert ("A CodeBlock with a Directive as parent is not yet supported."
             in str(excinfo.value))
-
-
-def test_get_symbol_table():
-    '''Test that the utility function _get_symbol_table() works and fails
-    as expected. '''
-    # invalid argument
-    with pytest.raises(TypeError) as excinfo:
-        _ = _get_symbol_table("invalid")
-    assert ("node argument to _get_symbol_table() should be of type Node, "
-            "but found 'str'." in str(excinfo.value))
-
-    # no symbol table
-    lhs = Reference(DataSymbol("x", REAL_TYPE))
-    rhs = Literal("1.0", REAL_TYPE)
-    assignment = Assignment.create(lhs, rhs)
-    for node in [lhs, rhs, assignment]:
-        assert not _get_symbol_table(node)
-
-    # symbol table
-    symbol_table = SymbolTable()
-    kernel_schedule = KernelSchedule.create("test", symbol_table, [assignment])
-    for node in [lhs, rhs, assignment, kernel_schedule]:
-        assert _get_symbol_table(node) is symbol_table
-
-    # expected symbol table
-    symbol_table2 = SymbolTable()
-    container = Container.create("test_container", symbol_table2,
-                                 [kernel_schedule])
-    assert symbol_table is not symbol_table2
-    for node in [lhs, rhs, assignment, kernel_schedule]:
-        assert _get_symbol_table(node) is symbol_table
-    assert _get_symbol_table(container) is symbol_table2
 
 
 def test_loop_var_exception(parser):

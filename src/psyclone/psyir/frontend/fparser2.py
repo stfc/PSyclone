@@ -39,6 +39,7 @@
     to transform each node into the equivalent PSyIR representation.'''
 
 from __future__ import absolute_import
+import six
 from collections import OrderedDict
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
@@ -69,34 +70,6 @@ CONSTANT_TYPE_MAP = {
     Fortran2003.Logical_Literal_Constant: ScalarType.Intrinsic.BOOLEAN,
     Fortran2003.Char_Literal_Constant: ScalarType.Intrinsic.CHARACTER,
     Fortran2003.Int_Literal_Constant: ScalarType.Intrinsic.INTEGER}
-
-
-def _get_symbol_table(node):
-    '''Find a symbol table associated with an ancestor of Node 'node' (or
-    the node itself). If there is more than one symbol table, then the
-    symbol table closest in ancestory to 'node' is returned. If no
-    symbol table is found then None is returned.
-
-    :param node: a PSyIR Node.
-    :type node: :py:class:`psyclone.psyir.nodes.Node`
-
-    :returns: a symbol table associated with node or one of its \
-        ancestors or None if one is not found.
-    :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
-
-    :raises TypeError: if the node argument is not a Node.
-
-    '''
-    if not isinstance(node, Node):
-        raise TypeError(
-            "node argument to _get_symbol_table() should be of type Node, but "
-            "found '{0}'.".format(type(node).__name__))
-    current = node
-    while current:
-        if hasattr(current, "symbol_table"):
-            return current.symbol_table
-        current = current.parent
-    return None
 
 
 def _check_args(array, dim):
@@ -315,6 +288,82 @@ def _is_range_full_extent(my_range):
     return is_lower and is_upper and is_step
 
 
+def _kind_symbol_from_name(name, symbol_table):
+    '''
+    Utility method that returns a Symbol representing the named KIND
+    parameter. If the supplied Symbol Table (or one of its ancestors)
+    does not contain an appropriate entry then one is created. If it does
+    contain a matching entry then it must be either a Symbol or a
+    DataSymbol. If it is a DataSymbol then it must have a datatype of
+    'integer' or 'deferred'. If the latter then the fact that we now know
+    that this Symbol represents a KIND
+    parameter means that we can change the datatype to be 'integer'.
+    If the existing symbol is a generic Symbol then it is replaced with
+    a new DataSymbol of type 'integer'.
+
+    :param str name: the name of the variable holding the KIND value.
+    :param symbol_table: the Symbol Table associated with the code being\
+                         processed.
+    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+    :returns: the Symbol representing the KIND parameter.
+    :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :raises TypeError: if the symbol table already contains an entry for \
+            `name` but it is not an instance of Symbol or DataSymbol.
+    :raises TypeError: if the symbol table already contains a DataSymbol \
+            for `name` and its datatype is not 'integer' or 'deferred'.
+
+    '''
+    lower_name = name.lower()
+    try:
+        kind_symbol = symbol_table.lookup(lower_name)
+        if type(kind_symbol) == Symbol:
+            # There is an existing entry but it's only a generic Symbol
+            # so we need to replace it with a DataSymbol of integer type.
+            # Since the lookup() above looks through *all* ancestor symbol
+            # tables, we have to find precisely which table the existing
+            # Symbol is in.
+            table = kind_symbol.find_symbol_table(symbol_table.node)
+            new_symbol = DataSymbol(lower_name,
+                                    default_integer_type(),
+                                    visibility=kind_symbol.visibility,
+                                    interface=kind_symbol.interface)
+            table.remove(kind_symbol)
+            table.add(new_symbol)
+            kind_symbol = new_symbol
+        elif isinstance(kind_symbol, DataSymbol):
+
+            if not (isinstance(kind_symbol.datatype,
+                               (UnknownType, DeferredType)) or
+                    (isinstance(kind_symbol.datatype, ScalarType) and
+                     kind_symbol.datatype.intrinsic ==
+                     ScalarType.Intrinsic.INTEGER)):
+                raise TypeError(
+                    "SymbolTable already contains a DataSymbol for "
+                    "variable '{0}' used as a kind parameter but it is not"
+                    "a 'deferred', 'unknown' or 'scalar integer' type.".
+                    format(lower_name))
+            # A KIND parameter must be of type integer so set it here
+            # (in case it was previously 'deferred'). We don't know
+            # what precision this is so set it to the default.
+            kind_symbol.datatype = default_integer_type()
+        else:
+            raise TypeError(
+                "A symbol representing a kind parameter must be an "
+                "instance of either a Symbol or a DataSymbol. However, "
+                "found an entry of type '{0}' for variable '{1}'.".format(
+                    type(kind_symbol).__name__, lower_name))
+    except KeyError:
+        # The SymbolTable does not contain an entry for this kind parameter
+        # so create one. We specify an UnresolvedInterface as we don't
+        # currently know how this symbol is brought into scope.
+        kind_symbol = DataSymbol(lower_name, default_integer_type(),
+                                 interface=UnresolvedInterface())
+        symbol_table.add(kind_symbol)
+    return kind_symbol
+
+
 def default_precision(_):
     '''Returns the default precision specified by the front end. This is
     currently always set to undefined irrespective of the datatype but
@@ -426,35 +475,16 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         # PSyIR stores names as lower case.
         precision_name = precision_name.lower()
         # Find the closest symbol table
-        symbol_table = _get_symbol_table(psyir_literal_parent)
-        if not symbol_table:
+        try:
+            symbol_table = psyir_literal_parent.scope.symbol_table
+        except SymbolError as err:
             # No symbol table found. This should never happen in
             # normal usage but could occur if a test constructs a
             # PSyIR without a Schedule.
-            raise InternalError(
+            six.raise_from(InternalError(
                 "Failed to find a symbol table to which to add the kind "
-                "symbol '{0}'.".format(precision_name))
-        # Lookup the precision symbol
-        try:
-            symbol = symbol_table.lookup(precision_name)
-            if type(symbol) == Symbol:
-                # It exists but is only a generic Symbol so we replace it with
-                # a DataSymbol.
-                table = symbol.find_symbol_table(psyir_literal_parent)
-                new_symbol = DataSymbol(precision_name, DeferredType(),
-                                        visibility=symbol.visibility,
-                                        interface=symbol.interface)
-                table.remove(symbol)
-                table.add(new_symbol)
-                symbol = new_symbol
-        except KeyError:
-            # The symbol is not found so create a data
-            # symbol with deferred type and add it to the
-            # symbol table then return the symbol.
-            symbol = DataSymbol(precision_name, DeferredType(),
-                                interface=UnresolvedInterface())
-            symbol_table.add(symbol)
-        return symbol
+                "symbol '{0}'.".format(precision_name)), err)
+        return _kind_symbol_from_name(precision_name, symbol_table)
 
 
 class Fparser2Reader(object):
@@ -1579,7 +1609,7 @@ class Fparser2Reader(object):
             a valid variable name.
 
         '''
-        symbol_table = _get_symbol_table(psyir_parent)
+        symbol_table = psyir_parent.scope.symbol_table
 
         if not isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
             # No precision is specified
@@ -1622,84 +1652,7 @@ class Fparser2Reader(object):
                 "Failed to find valid Name in Fortran Kind "
                 "Selector: '{0}'".format(str(kind_selector)))
 
-        return Fparser2Reader._kind_symbol_from_name(
-            str(kind_names[0]), symbol_table)
-
-    @staticmethod
-    def _kind_symbol_from_name(name, symbol_table):
-        '''
-        Utility method that returns a Symbol representing the named KIND
-        parameter. If the supplied Symbol Table (or one of its ancestors)
-        does not contain an appropriate entry then one is created. If it does
-        contain a matching entry then it must be either a Symbol or a
-        DataSymbol. If it is a DataSymbol then it must have a datatype of
-        'integer' or 'deferred'. If the latter then the fact that we now know
-        that this Symbol represents a KIND
-        parameter means that we can change the datatype to be 'integer'.
-        If the existing symbol is a generic Symbol then it is replaced with
-        a new DataSymbol of type 'integer'.
-
-        :param str name: the name of the variable holding the KIND value.
-        :param symbol_table: the Symbol Table associated with the code being\
-                             processed.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-        :returns: the Symbol representing the KIND parameter.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-        :raises TypeError: if the symbol table already contains an entry for \
-                `name` but it is not an instance of Symbol or DataSymbol.
-        :raises TypeError: if the symbol table already contains a DataSymbol \
-                for `name` and its datatype is not 'integer' or 'deferred'.
-
-        '''
-        lower_name = name.lower()
-        try:
-            kind_symbol = symbol_table.lookup(lower_name)
-            if type(kind_symbol) == Symbol:
-                # There is an existing entry but it's only a generic Symbol
-                # so we need to replace it with a DataSymbol of integer type.
-                # Since the lookup() above looks through *all* ancestor symbol
-                # tables, we have to find precisely which table the existing
-                # Symbol is in.
-                table = kind_symbol.find_symbol_table(symbol_table.node)
-                new_symbol = DataSymbol(lower_name,
-                                        default_integer_type(),
-                                        visibility=kind_symbol.visibility,
-                                        interface=kind_symbol.interface)
-                table.remove(kind_symbol)
-                table.add(new_symbol)
-                kind_symbol = new_symbol
-            elif isinstance(kind_symbol, DataSymbol):
-
-                if not (isinstance(kind_symbol.datatype,
-                                   (UnknownType, DeferredType)) or
-                        (isinstance(kind_symbol.datatype, ScalarType) and
-                         kind_symbol.datatype.intrinsic ==
-                         ScalarType.Intrinsic.INTEGER)):
-                    raise TypeError(
-                        "SymbolTable already contains a DataSymbol for "
-                        "variable '{0}' used as a kind parameter but it is not"
-                        "a 'deferred', 'unknown' or 'scalar integer' type.".
-                        format(lower_name))
-                # A KIND parameter must be of type integer so set it here
-                # (in case it was previously 'deferred'). We don't know
-                # what precision this is so set it to the default.
-                kind_symbol.datatype = default_integer_type()
-            else:
-                raise TypeError(
-                    "A symbol representing a kind parameter must be an "
-                    "instance of either a Symbol or a DataSymbol. However, "
-                    "found an entry of type '{0}' for variable '{1}'.".format(
-                        type(kind_symbol).__name__, lower_name))
-        except KeyError:
-            # The SymbolTable does not contain an entry for this kind parameter
-            # so create one. We specify an UnresolvedInterface as we don't
-            # currently know how this symbol is brought into scope.
-            kind_symbol = DataSymbol(lower_name, default_integer_type(),
-                                     interface=UnresolvedInterface())
-            symbol_table.add(kind_symbol)
-        return kind_symbol
+        return _kind_symbol_from_name(str(kind_names[0]), symbol_table)
 
     def process_nodes(self, parent, nodes):
         '''
