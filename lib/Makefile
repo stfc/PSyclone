@@ -44,13 +44,14 @@ F90FLAGS ?=
 default: psy_data_base.o
 process: psy_data_base.f90
 
+.PHONY: default process clean
+
 %.f90:	%.jinja process.py
 	./process.py $< > $*.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
-.PHONY: default process clean
 
 clean:
 	rm -f psy_data_base.f90

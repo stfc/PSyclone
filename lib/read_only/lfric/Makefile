@@ -65,6 +65,8 @@ LIB_NAME = lib_read_only.a
 OBJS = read_only.o psy_data_base.o read_only_base.o
 
 default: $(LIB_NAME)
+.PHONY: default clean
+
 
 $(LIB_NAME): $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^

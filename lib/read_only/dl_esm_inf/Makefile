@@ -63,6 +63,9 @@ PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
 
 default: $(LIB_NAME)
 
+.PHONY: default clean
+
+
 $(LIB_NAME):	$(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $(OBJS)
 
