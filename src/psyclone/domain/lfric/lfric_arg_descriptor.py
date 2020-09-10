@@ -63,6 +63,9 @@ class LFRicArgDescriptor(Descriptor):
                      field or operator).
     :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
                     :py:class:`psyclone.expression.BinaryOperator`
+    :param iterates_over: iteration space from the parsed kernel metadata \
+                          (used for validation).
+    :type iterates_over: str
 
     :raises ParseError: if a 'meta_arg' entry is not of 'arg_type' type.
     :raises ParseError: if a 'meta_arg' entry has fewer than 2 args.
@@ -70,6 +73,8 @@ class LFRicArgDescriptor(Descriptor):
                         valid argument types.
     :raises ParseError: if the second 'meta_arg' entry is not a valid \
                         access descriptor.
+    :raises InternalError: if the iteration space from the parsed kernel \
+                           metadata is not over 'cells' or 'dofs'.
     :raises InternalError: if all the metadata checks fail to catch an \
                            invalid argument type.
 
@@ -108,7 +113,7 @@ class LFRicArgDescriptor(Descriptor):
     VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
     # ----------------------------------------------------------------------- #
 
-    def __init__(self, arg_type):
+    def __init__(self, arg_type, iterates_over):
         self._arg_type = arg_type
         # Initialise properties
         self._argument_type = None
@@ -185,10 +190,19 @@ class LFRicArgDescriptor(Descriptor):
                 "'{1}' in '{2}'.".format(valid_names,
                                          arg_type.args[1].name, arg_type))
 
+        # Check for the allowed iteration spaces from the parsed kernel
+        # metadata
+        from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
+        if iterates_over not in VALID_ITERATION_SPACES:
+            raise InternalError(
+                "LFRicArgDescriptor.__init__(): Expected one of {0} "
+                "iteration spaces in the kernel metadata but got "
+                "'{1}'.".format(VALID_ITERATION_SPACES, iterates_over))
+
         # FIELD, OPERATOR and SCALAR argument type descriptors and checks
         if self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
             # Validate field arguments
-            self._init_field(arg_type)
+            self._init_field(arg_type, iterates_over)
 
         elif self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
             # Validate operator arguments
@@ -268,13 +282,16 @@ class LFRicArgDescriptor(Descriptor):
                 format(LFRicArgDescriptor.VALID_FIELD_NAMES,
                        arg_type.args[0]))
 
-    def _init_field(self, arg_type):
+    def _init_field(self, arg_type, iterates_over):
         '''
         Validates metadata descriptors for field arguments and
         initialises field argument properties accordingly.
 
         :param arg_type: LFRic API field (vector) argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
+        :param iterates_over: iteration space from the parsed kernel \
+                              metadata (used for validation).
+        :type iterates_over: str
 
         :raises InternalError: if argument type other than a field is \
                                passed in.
@@ -284,19 +301,24 @@ class LFRicArgDescriptor(Descriptor):
         :raises ParseError: if the optional 4th argument is not a stencil \
                             specification or a mesh identifier (for \
                             inter-grid kernels).
+        :raises ParseError: if a field passed to a kernel that iterates \
+                            over DoFs does not have a valid access \
+                            (one of [READ, WRITE, READWRITE]).
         :raises ParseError: if a field on a discontinuous function space \
-                            has 'gh_inc' access.
-        :raises ParseError: if a field on a continuous function space has \
-                            'gh_readwrite' access.
-        :raises ParseError: if a field on 'any_space' function space has \
-                            'gh_readwrite' access.
-        :raises ParseError: if a field with a stencil access is not read only.
+                            passed to a kernel that iterates over cells \
+                            does not have a valid access (one of \
+                            [READ, WRITE, READWRITE]).
+        :raises ParseError: if a field on a continuous function space \
+                            passed to a kernel that iterates over cells \
+                            does not have a valid access (one of [READ, INC]).
+        :raises InternalError: if an invalid iteration space is passed in.
+        :raises ParseError: if a field with a stencil access is not read-only.
 
         '''
         # Check whether something other than a field is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_FIELD_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._init_field(): expecting a field "
+                "LFRicArgDescriptor._init_field(): Expected a field "
                 "argument but got an argument of type '{0}'.".
                 format(arg_type.args[0]))
 
@@ -358,60 +380,60 @@ class LFRicArgDescriptor(Descriptor):
         field_disc_accesses = [AccessType.READ, AccessType.WRITE,
                                AccessType.READWRITE]
         field_cont_accesses = [AccessType.READ, AccessType.INC]
-        # TODO in issue #471: Kernels that loop over DoFs update each
-        # DoF independently, irrespective of whether the associated
-        # field is continuous or not. Therefore their allowed accesses
-        # are read, write and readwrite (which is the same as
-        # discontinuous fields that are accessed by kernels that
-        # iterate over cells). The logic associated with
-        # field_cont_accesses_tmp and fld_cont_acc_msg_tmp should be
-        # removed as part of #471.
-        field_cont_accesses_tmp = field_cont_accesses + [AccessType.WRITE]
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
         rev_access_mapping = api_config.get_reverse_access_mapping()
-
-        # Check fields on discontinuous function spaces
+        # Create a list of allowed accesses for use in error messages
         fld_disc_acc_msg = [rev_access_mapping[acc] for acc in
                             field_disc_accesses]
-        if self._function_space1.lower() in \
-           FunctionSpace.VALID_DISCONTINUOUS_NAMES \
-           and self._access_type not in field_disc_accesses:
-            raise ParseError(
-                "In the LFRic API, allowed accesses for a field on a "
-                "discontinuous function space '{0}' are {1}, but found "
-                "'{2}' in '{3}'.".
-                format(self._function_space1.lower(), fld_disc_acc_msg,
-                       rev_access_mapping[self._access_type], arg_type))
-
-        # Check fields on continuous function spaces
         fld_cont_acc_msg = [rev_access_mapping[acc] for acc in
                             field_cont_accesses]
-        # Remove fld_cont_acc_msg_tmp as part of #471
-        fld_cont_acc_msg_tmp = [rev_access_mapping[acc] for acc in
-                                field_cont_accesses_tmp]
-        if self._function_space1.lower() in \
-           FunctionSpace.CONTINUOUS_FUNCTION_SPACES \
-           and self._access_type not in field_cont_accesses:
-            raise ParseError(
-                "In the LFRic API, allowed accesses for a field on a "
-                "continuous function space '{0}' are {1}, but found "
-                "'{2}' in '{3}'.".
-                format(self._function_space1.lower(), fld_cont_acc_msg,
-                       rev_access_mapping[self._access_type], arg_type))
-        # As said above, the allowed accesses for fields on ANY_SPACE
-        # depend on the type of looping. This will be refined in #471,
-        # however for now we use the temporary variables
-        # field_cont_accesses_tmp and fld_cont_acc_msg_tmp for
-        # continuous spaces.
-        if self._function_space1.lower() in \
-           FunctionSpace.VALID_ANY_SPACE_NAMES \
-           and self._access_type not in field_cont_accesses_tmp:
-            raise ParseError(
-                "In the LFRic API, allowed accesses for a field on "
-                "'any_space' are {0}, but found '{1}' in '{2}'.".
-                format(fld_cont_acc_msg_tmp,
-                       rev_access_mapping[self._access_type], arg_type))
+        # Joint lists of valid function spaces for continuous fields
+        fld_cont_spaces = (FunctionSpace.CONTINUOUS_FUNCTION_SPACES +
+                           FunctionSpace.VALID_ANY_SPACE_NAMES)
+
+        # Check accesses for kernels that iterate over DoFs
+        if iterates_over == "dofs":
+            if self._access_type not in field_disc_accesses:
+                raise ParseError(
+                    "In the LFRic API, allowed field accesses for a "
+                    "kernel that iterates over DoFs are {0}, but found "
+                    "'{1}' for '{2}' in '{3}'.".
+                    format(fld_disc_acc_msg,
+                           rev_access_mapping[self._access_type],
+                           self._function_space1.lower(), arg_type))
+        # Check accesses for kernels that iterate over cells
+        elif iterates_over == "cells":
+            # Fields on discontinuous function spaces
+            if (self._function_space1.lower() in
+                    FunctionSpace.VALID_DISCONTINUOUS_NAMES and
+                    self._access_type not in field_disc_accesses):
+                raise ParseError(
+                    "In the LFRic API, allowed accesses for fields on "
+                    "discontinuous function spaces that are arguments to "
+                    "kernels that iterate over cells are {0}, but found "
+                    "'{1}' for '{2}' in '{3}'.".
+                    format(fld_disc_acc_msg,
+                           rev_access_mapping[self._access_type],
+                           self._function_space1.lower(), arg_type))
+            # Fields on continuous function spaces
+            if (self._function_space1.lower() in fld_cont_spaces and
+                    self._access_type not in field_cont_accesses):
+                raise ParseError(
+                    "In the LFRic API, allowed accesses for fields on "
+                    "continuous function spaces that are arguments to "
+                    "kernels that iterate over cells are {0}, but found "
+                    "'{1}' for '{2}' in '{3}'.".
+                    format(fld_cont_acc_msg,
+                           rev_access_mapping[self._access_type],
+                           self._function_space1.lower(), arg_type))
+        # Raise an InternalError for an invalid iteration space
+        else:
+            from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
+            raise InternalError(
+                "LFRicArgDescriptor._init_field(): Invalid iteration "
+                "space '{0}' in the kernel metadata (expected one of {1}).".
+                format(iterates_over, VALID_ITERATION_SPACES))
 
         # Test allowed accesses for fields that have stencil specification
         if self._stencil and self._access_type != AccessType.READ:

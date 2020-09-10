@@ -42,8 +42,15 @@
 # This directory points to an external, compiled version of the LFRic,
 # which is required to find the module files when compiling this library:
 LFRIC_DIR ?= ../../../../../lfric/work/trunk/miniapps/gravity_wave/working/field
+
+# The LFRic ReadOnly library needs the PreDeclareVariable() and
+# ProvideVariable() routines for the basic Fortran types real, int,
+# and double, and for 1-, 2-, 3-, and 4-dimensional arrays. These arguments
+# are used for # both base classes: PSyDataBase and ReadOnlyBase to ensure
+# consistent code creation.
 PROCESS_ARGS = -prefix=read_only_verify_ -types=real,int,double \
 		       -dims=1,2,3,4
+
 F90 ?= gfortran
 F90FLAGS ?= -O0 -g
 F90FLAGS += -I$(LFRIC_DIR)
@@ -56,26 +63,36 @@ default: $(LIB_NAME)
 $(LIB_NAME): $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
+
 # Give a useful error message if field_mod cannot be found
 $(LFRIC_DIR)/field_mod.mod:
-	$(error "Can not find field_mod.mod in $(LFRIC_DIR).")
+	$(error "Cannot find field_mod.mod in $(LFRIC_DIR).")
 
-read_only.o: $(LFRIC_DIR)/field_mod.mod read_only.f90 \
-	psy_data_base.o read_only_base.f90
+# Add all dependencies. The LFRic ReadOnly library extends the
+# ReadOnlyBase type, which in turn extends the PSyDataBase type.
+# --------------------------------------------------------------
+read_only.o: 	  $(LFRIC_DIR)/field_mod.mod read_only.f90 \
+			 	  read_only_base.o
 
-read_only.o: read_only_base.o
+read_only_base.o: psy_data_base.o
 
-%.f90:	%.jinja
-	../../process.py $(PROCESS_ARGS) $< > $*.f90
+
+# Rules for file creation:
+# ------------------------
+read_only.f90:	read_only.jinja Makefile
+	../../process.py $(PROCESS_ARGS) read_only.jinja > read_only.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
-psy_data_base.f90: ../../psy_data_base.jinja
+# The LFRic ReadOnly library is built on the psy-data base library
+# and the read-only base library. So add the rules to process
+# these files to get the plain Fortran files:
+psy_data_base.f90: ../../psy_data_base.jinja Makefile
 	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
 
-read_only_base.f90: ../read_only_base.jinja
+read_only_base.f90: ../read_only_base.jinja Makefile
 	../../process.py $(PROCESS_ARGS) $< > read_only_base.f90
 
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.*
+	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.* read_only.f90

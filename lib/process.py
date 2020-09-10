@@ -1,8 +1,15 @@
 #!/usr/bin/env python
 
 '''This modules reads a jinja template file, processes it
-and renders the result to stdout.
+and renders the result to stdout. It provides the three variables
+ALL_TYPES, DIMENSIONS, and PREFIX to the template, based on
+command line parameters. Typically, these options are then used
+by the template to provide functions for each scalar type listed in
+ALL_TYPES, and for arrays with any number of dimension specified
+in DIMENSIONS and each type listed in ALL_TYPES. PREFIX can be
+used to add a prefix to static functions defined in the template.
 '''
+
 
 import argparse
 import sys
@@ -13,15 +20,17 @@ from jinja2 import Environment
 
 parser = argparse.ArgumentParser(
     description='Process a jinja template for PSyData.')
-parser.add_argument('template_name', help="Name of the template to process.")
+parser.add_argument('template_name',
+                    help="Name of the template file to process.")
 parser.add_argument('-types', help="Comma-separated list of types, "
-                                   "e.g. real,int,double.",
+                                   "e.g. real,int,double (no spaces).",
                     default="real,int,double")
 parser.add_argument("-dims", help="Comma-separated list of dimensions, "
-                                  "e.g. 1,2,4.",
+                                  "e.g. 1,2,4 (no spaces)",
                     default="1,2,3,4")
 
-parser.add_argument("-prefix", help="Prefix for PSyData functions.",
+parser.add_argument("-prefix", help="Prefix to add to the generated PSyData "
+                                    "function names",
                     default="")
 
 args = parser.parse_args()
@@ -45,9 +54,9 @@ if types == ['']:
 
 for my_type in types:
     if my_type not in TYPE_DATA:
-        print("Type '{0}' is not supported.".format(my_type))
+        print("Type '{0}' is not supported.".format(my_type), file=sys.stderr)
         print("Use one or more of {0}"
-              .format(",".join(list(TYPE_DATA.keys()))))
+              .format(",".join(list(TYPE_DATA.keys()))), file=sys.stderr)
         sys.exit(-1)
 all_types = [TYPE_DATA[my_type] for my_type in types]
 
@@ -63,10 +72,12 @@ for dim in dims:
     try:
         int_dim = int(dim)
     except ValueError:
-        print("Dimension value '{0}' is not valid.".format(dim))
+        print("Dimension value '{0}' is not valid.".format(dim),
+              file=sys.stderr)
         sys.exit(-1)
     if int_dim < 1 or int_dim > 7:
-        print("Dimension value '{0}' is not between 1 and 7.".format(dim))
+        print("Dimension value '{0}' is not between 1 and 7.".format(dim),
+              file=sys.stderr)
         sys.exit(-1)
 
 dims = [int(dim) for dim in dims]

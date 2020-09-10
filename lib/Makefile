@@ -27,9 +27,9 @@
 #------------------------------------------------------------------------------
 # Authors: J. Henrichs, Australian Bureau of Meteorology
 
-# This Makefile just creates the Fortran base class from the
-# jinja template. The compile functionality it offers is only
-# meant for testing, each library should compile its own version
+# This Makefile just creates the Fortran base class for the PSyData library
+# from the jinja template psy_data_base.jinja. The compile functionality it
+# offers is only meant for testing, each library should compile its own version
 # of the base class (with therefore consistent compiler settings).
 
 F90 ?= gfortran
@@ -43,6 +43,8 @@ process: psy_data_base.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
+
+.PHONY: default process clean
 
 clean:
 	rm -f psy_data_base.f90

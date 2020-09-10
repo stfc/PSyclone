@@ -35,7 +35,9 @@
 
 !> This module implements a verification that read-only fields (in the
 !! dl_esm_inf infrastructure) are not overwritten (due to memory overwrites etc).
-!! 
+!! It is based on the ReadOnlyBaseType (from which it inherits the handling
+!! of the basic Fortran data types and 2d-arrays, as specified in the Makefile).
+!! It adds the support for the dl_esm_inf-specific field type.
 
 module read_only_verify_psy_data_mod
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -57,20 +59,27 @@ module read_only_verify_psy_data_mod
         procedure :: DeclareFieldDouble, ProvideFieldDouble
         procedure :: Abort
 
-        !> The generic interface for declaring a variable:
+        !> The generic interface for declaring a variable. The ReadOnlyBase
+        !! type will actually create additional methods like DeclareArray2dInt
+        !! but since they are not used in GOcean they do not need to be
+        !! declared here
         generic, public :: PreDeclareVariable => DeclareScalarInt,    &
                                                  DeclareScalarReal,   &
                                                  DeclareScalarDouble, &
+                                                 DeclareArray2dDouble,&
                                                  DeclareFieldDouble
 
         !> The generic interface for providing the value of variables,
         !! which in this case is the checksum computation (before
         !! the kernel), and checksum verification after the kernel. The
-        !! same functions are used, it uses verify_checksums to change
-        !! the state from checksum computation to verication.
+        !! same functions are used, they use the variable verify_checksums
+        !! to change the state from checksum computation to verification.
+        !! And again the base class provides additional, unused methods
+        !! like ProvideArray2dInt, which are not needed
         generic, public :: ProvideVariable => ProvideScalarInt,    &
                                               ProvideScalarReal,   &
                                               ProvideScalarDouble, &
+                                              ProvideArray2dDouble,&
                                               ProvideFieldDouble
 
     end type read_only_verify_PSyDataType
