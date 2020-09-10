@@ -89,32 +89,54 @@ VERSION = __VERSION__  # pylint:disable=undefined-variable
 
 if __name__ == '__main__':
 
-    # We have all of the example files listed in MANIFEST.in but unless we
-    # specify them in the data_files argument of setup() they don't
-    # seem to get installed.
+    def get_files(directory, install_path, valid_suffixes):
+        '''Utility routine that creates a list of 2-tuples, each consisting of
+        the target installation directory and a list of files
+        (specified relative to the project root directory).
+
+        :param str directory: the directory containing the required files.
+        :param str install_path: the location where the files will be placed.
+        :param valid_suffixes: the suffixes of the required files.
+        :type valid_suffixes: [str]
+
+        :returns: a list of 2-tuples, each consisting of the target \
+            installation directory and a list of files (specified relative \
+            to the project root directory).
+        :rtype: [(str, [str])]
+
+        '''
+        examples = []
+        for dirpath, _, filenames in os.walk(directory):
+            if ("__" not in dirpath) and filenames:
+                rel_path = os.path.relpath(dirpath, directory)
+                files = []
+                for filename in filenames:
+                    if any([filename.endswith(suffix) for
+                            suffix in valid_suffixes]):
+                        files.append(
+                            os.path.join(os.path.basename(install_path),
+                                         rel_path, filename))
+                if files:
+                    examples.append((os.path.join(install_path, rel_path),
+                                     files))
+        return examples
+
+    # We have all of the example and tutorial files listed in
+    # MANIFEST.in but unless we specify them in the data_files
+    # argument of setup() they don't seem to get installed.
     # Since the data_files argument doesn't accept wildcards we have to
     # explicitly list every file we want.
+    # INSTALL_PATH controls where the files will be installed.
+    # VALID_SUFFIXES controls the type of files to include.
     EGS_DIR = os.path.join(BASE_PATH, "examples")
-    # Examples will be installed under share/psyclone/examples
     INSTALL_PATH = os.path.join("share", "psyclone", "examples")
-    # The suffixes of files we will install from under examples/
     VALID_SUFFIXES = ["90", "py", "md", ".c", ".cl", "Makefile", ".mk"]
-    # We create a list of 2-tuples, each consisting of the target installation
-    # directory and a list of files (specified relative to the project root
-    # directory).
-    EXAMPLES = []
-    for dirpath, _, filenames in os.walk(EGS_DIR):
-        if ("__" not in dirpath) and filenames:
-            rel_path = os.path.relpath(dirpath, EGS_DIR)
-            eg_files = []
-            for filename in filenames:
-                if any([filename.endswith(suffix) for
-                        suffix in VALID_SUFFIXES]):
-                    eg_files.append(os.path.join("examples", rel_path,
-                                                 filename))
-            if eg_files:
-                EXAMPLES.append((os.path.join(INSTALL_PATH, rel_path),
-                                 eg_files))
+    EXAMPLES = get_files(EGS_DIR, INSTALL_PATH, VALID_SUFFIXES)
+
+    TUTORIAL_DIR = os.path.join(BASE_PATH, "tutorial")
+    INSTALL_PATH = os.path.join("share", "psyclone", "tutorial")
+    VALID_SUFFIXES = [".ipynb"]
+    TUTORIAL = get_files(TUTORIAL_DIR, INSTALL_PATH, VALID_SUFFIXES)
 
     setup(
         name=NAME,
@@ -133,11 +155,10 @@ if __name__ == '__main__':
         extras_require={
             'dag': ["graphviz"],
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_rtd_theme"],
-            'test': ["pep8", "pylint==1.6.5", "pytest-cov",
-                     "pytest-pep8", "pytest-pylint", "pytest-flakes",
-                     "pytest-pep257"],
+            'test': ["pep8", "pylint", "pytest-cov", "pytest-pep8",
+                     "pytest-pylint", "pytest-flakes", "pytest-pep257"],
         },
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/genkernelstub'],
-        data_files=[('share/psyclone', ['config/psyclone.cfg'])]+EXAMPLES,
-    )
+        data_files=[
+            ('share/psyclone', ['config/psyclone.cfg'])]+EXAMPLES+TUTORIAL,)

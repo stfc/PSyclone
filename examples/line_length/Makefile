@@ -36,7 +36,7 @@
 include ../common.mk
 
 transform:
-	${PSYCLONE} -l longlines.f90
+	${PSYCLONE} -l all longlines.f90
 
 compile:
 	@echo "No compilation supported for line-length example"

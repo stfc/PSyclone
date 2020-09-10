@@ -103,15 +103,17 @@ def test_cma_mdata_assembly():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
-        "  access_descriptor[1]='gh_write'\n"
-        "  function_space_to[2]='any_space_1'\n"
-        "  function_space_from[3]='any_space_2'\n")
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_write'\n"
+        "  function_space_to[3]='any_space_1'\n"
+        "  function_space_from[4]='any_space_2'\n")
 
     assert expected in cma_op_desc_str
     assert dkm._cma_operation == "assembly"
 
     # Check LFRicArgDescriptor argument properties
-    assert cma_op_desc.type == "gh_columnwise_operator"
+    assert cma_op_desc.argument_type == "gh_columnwise_operator"
+    assert cma_op_desc.data_type == "gh_real"
     assert cma_op_desc.function_space_to == "any_space_1"
     assert cma_op_desc.function_space_from == "any_space_2"
     assert cma_op_desc.function_space == "any_space_2"
@@ -122,17 +124,18 @@ def test_cma_mdata_assembly():
     assert cma_op_desc.vector_size == 1
 
 
-def test_cma_mdata_validate_wrong_type():
+def test_cma_mdata_init_wrong_type():
     ''' Test that an error is raised if something other than an operator
-    is passed to the LFRicArgDescriptor._validate_operator() method. '''
+    is passed to the LFRicArgDescriptor._init_operator() method. '''
     ast = fpapi.parse(CMA_ASSEMBLE, ignore_comments=False)
     name = "testkern_cma_type"
     metadata = DynKernMetadata(ast, name=name)
     # Get an argument which is not an operator
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
-        LFRicArgDescriptor(wrong_arg)._validate_operator(wrong_arg)
-    assert ("LFRicArgDescriptor._validate_operator(): expecting an operator "
+        LFRicArgDescriptor(
+            wrong_arg, metadata.iterates_over)._init_operator(wrong_arg)
+    assert ("LFRicArgDescriptor._init_operator(): expecting an operator "
             "argument but got an argument of type 'gh_real'." in
             str(excinfo.value))
 
@@ -249,9 +252,10 @@ def test_cma_mdata_assembly_diff_spaces():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_operator'\n"
-        "  access_descriptor[1]='gh_read'\n"
-        "  function_space_to[2]='any_space_3'\n"
-        "  function_space_from[3]='any_space_2'\n")
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_read'\n"
+        "  function_space_to[3]='any_space_3'\n"
+        "  function_space_from[4]='any_space_2'\n")
     assert expected in dkm_str
     assert dkm._cma_operation == "assembly"
 
@@ -332,17 +336,19 @@ def test_cma_mdata_apply():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'\n"
-        "  access_descriptor[1]='gh_read'\n"
-        "  function_space[2]='any_space_2'\n")
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_read'\n"
+        "  function_space[3]='any_space_2'\n")
 
     assert expected in dkm_str
     dkm_str = str(dkm.arg_descriptors[2])
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
-        "  access_descriptor[1]='gh_read'\n"
-        "  function_space_to[2]='any_space_1'\n"
-        "  function_space_from[3]='any_space_2'\n")
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_read'\n"
+        "  function_space_to[3]='any_space_1'\n"
+        "  function_space_from[4]='any_space_2'\n")
     assert expected in dkm_str
     assert dkm._cma_operation == "apply"
 
@@ -388,12 +394,12 @@ def test_cma_mdata_apply_too_many_flds():
 
 def test_cma_mdata_apply_no_read_fld():
     ''' Check that we raise the expected error if there is no read-only
-    field arg to a kernel that applies a CMA operator '''
+    field arg to a kernel that applies a CMA operator.'''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    # Make the read-only field gh_write instead
+    # Make the read-only field gh_inc instead
     code = CMA_APPLY.replace(
         "arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2), ",
-        "arg_type(GH_FIELD,    GH_WRITE, ANY_SPACE_2), ", 1)
+        "arg_type(GH_FIELD,    GH_INC, ANY_SPACE_2), ", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
@@ -521,9 +527,10 @@ def test_cma_mdata_matrix_prod():
     expected = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
-        "  access_descriptor[1]='gh_read'\n"
-        "  function_space_to[2]='any_space_1'\n"
-        "  function_space_from[3]='any_space_2'\n")
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_read'\n"
+        "  function_space_to[3]='any_space_1'\n"
+        "  function_space_from[4]='any_space_2'\n")
 
     assert expected in dkm_str
     assert dkm._cma_operation == "matrix-matrix"
@@ -677,7 +684,7 @@ def test_cma_asm_cbanded_dofmap_error():
     # to trigger the error. So, we set the type of all the arguments
     # in the kernel cal to be CMA operators...
     for arg in calls[0].arguments.args:
-        arg._type = 'gh_columnwise_operator'
+        arg._argument_type = 'gh_columnwise_operator'
     with pytest.raises(GenerationError) as excinfo:
         invoke.dofmaps.__init__(invoke)
     assert ("Internal error: there should only be one CMA operator argument "
@@ -861,7 +868,7 @@ def test_cma_apply_indirection_dofmap_error():
     # to trigger the error. So, we set the type of all the arguments
     # in the kernel cal to be CMA operators...
     for arg in calls[0].arguments.args:
-        arg._type = 'gh_columnwise_operator'
+        arg._argument_type = 'gh_columnwise_operator'
     with pytest.raises(GenerationError) as excinfo:
         invoke.dofmaps.__init__(invoke)
     assert ("Internal error: there should only be one CMA "
