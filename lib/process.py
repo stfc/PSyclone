@@ -1,8 +1,15 @@
 #!/usr/bin/env python
 
 '''This modules reads a jinja template file, processes it
-and renders the result to stdout.
+and renders the result to stdout. It provides the three variables
+ALL_TYPES, DIMENSIONS, and PREFIX to the template, based on
+command line parameters. Typically, these options are then used
+by the template to provide functions for each scalar type listed in
+ALL_TYPES, and for arrays with any number of dimension specified
+in DIMENSIONS and each type listed in ALL_TYPES. PREFIX can be
+used to add a prefix to static functions defined in the template.
 '''
+
 
 import argparse
 import sys

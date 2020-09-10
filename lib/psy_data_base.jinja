@@ -293,7 +293,7 @@ contains
 
     {# Now create the declarations of all array implementations #}
     {% for dim in ALL_DIMS %}
-        {# Create the '(:,:...)' string - DIM-times
+        {# Create the ':,:...' string - DIM-times
            We repeat the list [":"] DIM-times, which is then joined #}
         {% set DIMENSION=([":"]*dim)|join(",") %}
     ! ---------------------------------------------------------------------
