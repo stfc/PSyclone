@@ -75,6 +75,7 @@ def test_generate_container(parser):
     assert container.symbol_table.lookup("var1")
     assert container.symbol_table.lookup("mod1")
     assert container.symbol_table.lookup("mod2")
+    assert container.symbol_table.lookup("dummy_code")
 
 
 def test_generate_container_two_modules(parser):

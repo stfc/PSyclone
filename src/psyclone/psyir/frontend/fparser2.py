@@ -39,8 +39,8 @@
     to transform each node into the equivalent PSyIR representation.'''
 
 from __future__ import absolute_import
-import six
 from collections import OrderedDict
+import six
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
@@ -785,9 +785,9 @@ class Fparser2Reader(object):
                                               [], default_visibility,
                                               visibility_map)
                 except SymbolError as err:
-                    raise SymbolError(
+                    six.raise_from(SymbolError(
                         "Error when generating Container for module '{0}': "
-                        "{1}".format(mod_name, err.args[0]))
+                        "{1}".format(mod_name, err.args[0])), err)
                 break
 
         return new_container
@@ -1002,8 +1002,13 @@ class Fparser2Reader(object):
         :rtype: 2-tuple of (:py:class:`psyclone.symbols.Symbol.Visibility`, \
                 dict)
 
+        :raises InternalError: if an accessibility attribute which is not \
+            'public' or 'private' is encountered.
+        :raises GenerationError: if the parse tree is found to contain more \
+            than one bare accessibility statement (i.e. 'PUBLIC' or 'PRIVATE')
         :raises GenerationError: if a symbol is explicitly declared as being \
-                                 both public and private.
+            both public and private.
+
         '''
         default_visibility = None
         # Sets holding the names of those symbols whose access is specified
@@ -1206,12 +1211,10 @@ class Fparser2Reader(object):
                                    current declaration section.
         :type default_visibility: \
             :py:class:`psyclone.symbols.Symbol.Visibility`
-        :param public_symbols: list of names of symbols that are known to \
-                               have public visibility.
-        :type public_symbols: list of str
-        :param private_symbols: list of names of symbols that are known to \
-                                have private visibility.
-        :type private_symbols: list of str
+        :param visibility_map: mapping of symbol name to visibility (for \
+            those symbols listed in an accessibility statement).
+        :type visibility_map: dict with str keys and \
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility` values
 
         :raises NotImplementedError: if an unsupported intrinsic type is found.
         :raises NotImplementedError: if the declaration is not of an \
