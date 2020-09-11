@@ -139,7 +139,7 @@ tools to get access to testing and formatting tools.
     It appears that the 1.7 series of ``pylint`` has a bug (at least up to 1.7.2)
     and does not work properly with PSyclone - it aborts with a
     "maximum recursion depth exceeded" error message. It is therefore
-    recommended to use version 1.6.5, as specified in the above ``pip`` command.
+    recommended to avoid pylint 1.7.
 
 
 You can now run the PSyclone python tests::
