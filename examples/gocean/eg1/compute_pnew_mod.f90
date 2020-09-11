@@ -15,7 +15,7 @@ module compute_pnew_mod
      type(go_arg), dimension(7) :: meta_args =    &
           (/ go_arg(GO_WRITE, GO_CT, GO_POINTWISE),            & ! pnew
              go_arg(GO_READ,  GO_CT, GO_POINTWISE),            & ! pold
-             go_arg(GO_READ,  GO_CU, GO_STENCIL(000,110,000)), & ! cu
+             go_arg(GO_READ,  GO_CU, GO_STENCIL(000,011,000)), & ! cu
              go_arg(GO_READ,  GO_CV, GO_STENCIL(010,010,000)), & ! cv
              go_arg(GO_READ,  GO_R_SCALAR, GO_POINTWISE),  & ! tdt
              go_arg(GO_READ,  GO_GRID_DX_CONST),        & ! dx

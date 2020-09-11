@@ -15,7 +15,7 @@ module compute_h_mod
      type(go_arg), dimension(4) :: meta_args =    &
           (/ go_arg(GO_WRITE, GO_CT, GO_POINTWISE),            & ! h
              go_arg(GO_READ,  GO_CT, GO_POINTWISE),            & ! p
-             go_arg(GO_READ,  GO_CU, GO_STENCIL(000,110,000)), & ! u
+             go_arg(GO_READ,  GO_CU, GO_STENCIL(000,011,000)), & ! u
              go_arg(GO_READ,  GO_CV, GO_STENCIL(010,010,000))  & ! v
            /)
      !> This kernel writes only to internal points of the

@@ -11,7 +11,7 @@ module kernel_requires_grid_props
   type, extends(kernel_type) :: next_sshu
      type(go_arg), dimension(5) :: meta_args =  &
           (/ go_arg(GO_READWRITE, GO_CU, GO_POINTWISE),   &
-             go_arg(GO_READ,      GO_CU, GO_STENCIL(000,110,000)),   &
+             go_arg(GO_READ,      GO_CU, GO_STENCIL(000,011,000)),   &
              go_arg(GO_READ,             GO_GRID_MASK_T), &
              go_arg(GO_READ,             GO_GRID_AREA_T), &
              go_arg(GO_READ,             GO_GRID_AREA_U)  &

@@ -16,8 +16,8 @@ module compute_unew_mod
           (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),        & ! unew
              go_arg(GO_READ,  GO_CU, GO_POINTWISE),        & ! uold
              go_arg(GO_READ,  GO_CF, GO_STENCIL(010,010,000)),        & ! z
-             go_arg(GO_READ,  GO_CV, GO_STENCIL(011,011,000)),        & ! cv
-             go_arg(GO_READ,  GO_CT, GO_STENCIL(000,011,000)),        & ! h
+             go_arg(GO_READ,  GO_CV, GO_STENCIL(110,110,000)),        & ! cv
+             go_arg(GO_READ,  GO_CT, GO_STENCIL(000,110,000)),        & ! h
              go_arg(GO_READ,  GO_R_SCALAR, GO_POINTWISE),  & ! tdt
              go_arg(GO_READ,  GO_GRID_DY_CONST)            & ! dy
            /)
