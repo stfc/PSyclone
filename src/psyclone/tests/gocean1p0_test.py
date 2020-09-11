@@ -217,7 +217,6 @@ def test_two_kernels_with_dependencies(tmpdir, dist_mem):
 
 
     if dist_mem:
-        print(str(generated_code))
         # In this case the second kernel just has a RaW dependency on the
         # cu_fld of the first kernel, so a halo exchange should be inserted
         # bewteen the kernels in addition to the initial p_fld halo exchange.

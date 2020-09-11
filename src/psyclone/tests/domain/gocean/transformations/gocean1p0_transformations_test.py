@@ -1807,7 +1807,7 @@ def test_accloop(tmpdir):
                              dist_mem=False)
     schedule = invoke.schedule
     # This test expects constant loop bounds
-    newsched, _ = cbtrans.apply(schedule, {"const_bounds": True})
+    _, _ = cbtrans.apply(schedule, {"const_bounds": True})
 
     with pytest.raises(TransformationError) as err:
         _ = acclpt.apply(schedule)
@@ -1864,7 +1864,7 @@ def test_acc_collapse(tmpdir):
                              name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
     # This test expects constant loop bounds
-    newsched, _ = cbtrans.apply(schedule, {"const_bounds": True})
+    _, _ = cbtrans.apply(schedule, {"const_bounds": True})
     child = schedule.children[0]
 
     # Check that we reject non-integer collapse arguments

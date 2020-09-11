@@ -582,7 +582,7 @@ class Loop(Statement):
         it might and False if it definitely does not.
 
         :param arg: an argument contained within this loop.
-        :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
+        :type arg: :py:class:`psyclone.psyGen.KernelArgument`
 
         :return: True if the argument reads, or might read from the \
                  halo and False otherwise.
