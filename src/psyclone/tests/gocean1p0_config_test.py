@@ -294,7 +294,9 @@ def test_valid_config_files():
 
     Config.get().load(config_file)
 
-    psy, _ = get_invoke("new_iteration_space.f90", "gocean1.0", idx=0)
+    psy, invoke = get_invoke("new_iteration_space.f90", "gocean1.0", idx=0)
+    # This test expects constant loop bounds
+    invoke.schedule._const_loop_bounds = True
 
     gen = str(psy.gen)
     new_loop1 = '''      DO j=1,2
