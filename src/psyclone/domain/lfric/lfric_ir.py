@@ -46,7 +46,7 @@ modules = [{"name": "constants_mod", "vars": ["i_def", "r_def"]}]
 scalar_datatypes = [
     {"name": "lfric integer scalar", "intrinsic": "integer",
      "precision": "i_def"},
-    {"name": "lfric real scalar", "intrinsic": "integer",
+    {"name": "lfric real scalar", "intrinsic": "real",
      "precision": "r_def", "short_name": "real_scalar"},
     {"name": "cell position", "intrinsic": "integer",
      "precision": "i_def", "short_name": "nlayers"},
@@ -72,10 +72,12 @@ array_datatypes = [
 # Generate LFRic module symbols from definitions
 for module in modules:
     module_name = module["name"]
-    exec("{0} = ContainerSymbol('{0}')\n".format(module_name))
+    exec("{0} = ContainerSymbol('{1}')\n".format(
+        module_name.upper(), module_name))
     for module_var in module["vars"]:
-        exec("{0} = DataSymbol('{0}', DeferredType(), interface="
-             "GlobalInterface({1}))".format(module_var, module_name))
+        exec("{0} = DataSymbol('{1}', DeferredType(), interface="
+             "GlobalInterface({2}))".format(
+                 module_var.upper(), module_var, module_name.upper()))
 
 # Generate LFRic scalar datatypes and symbols from definitions
 for scalar_type in scalar_datatypes:
@@ -87,32 +89,32 @@ class {0}DataType(ScalarType):
     def __init__(self):
         super({0}DataType, self).__init__(
             ScalarType.Intrinsic.{1}, {2})
-'''.format(name, intrinsic, precision))
+'''.format(name, intrinsic, precision.upper()))
     exec('''
 class {0}DataSymbol(DataSymbol):
-    def __init__(self, name):
+    def __init__(self, name, interface=None):
         super({0}DataSymbol, self).__init__(
-            name, {0}DataType())
+            name, {0}DataType(), interface=interface)
 '''.format(name))
 
 # Generate LFRic array datatypes and symbols from definitions
 for array_type in array_datatypes:
     name = "".join(array_type["name"].title().split())
-    dims = array_type["dims"],
+    dims = array_type["dims"]
     scalar_type = "".join(array_type["scalar_type"].title().split())
     exec('''
 class {0}DataType(ArrayType):
     def __init__(self, dims):
-        assert (len(dims) == {1}), 'Error, ...'
+        assert (len(dims) == {1}), 'Error, expected {1} dimension(s) but got {{0}}'.format(len(dims))
         # TBD check type of dims ...
         super({0}DataType, self).__init__(
             {2}DataType(), dims)
 '''.format(name, len(dims), scalar_type))
     exec('''
 class {0}DataSymbol(DataSymbol):
-    def __init__(self, name, dims):
+    def __init__(self, name, dims, interface=None):
         super({0}DataSymbol, self).__init__(
-            name, {0}DataType(dims))
+            name, {0}DataType(dims), interface=interface)
 '''.format(name))
 
 # TODO SYmbols that are arguments (the assumption here is local)

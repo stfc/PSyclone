@@ -42,7 +42,7 @@ from psyclone.psyir.symbols import ScalarType, ContainerSymbol, DataSymbol, Defe
 from psyclone.psyir.nodes import Reference
 from psyclone.configuration import Config
 
-from psyclone.domain.lfric.lfric_ir import i_def, r_def, CellPositionDataType, MeshHeightDataType, OperatorSizeDataType, NumberOfDofsDataType, DofMapDataType, NumberOfUniqueDofsDataType
+from psyclone.domain.lfric.lfric_ir import I_DEF, R_DEF, CellPositionDataType, MeshHeightDataType, OperatorSizeDataType, NumberOfDofsDataType, DofMapDataType, NumberOfUniqueDofsDataType
 
 
 class KernelInterface(ArgOrdering):
@@ -244,8 +244,8 @@ class ArrayArgInfo():
     intrinsic_mapping = {"real": ScalarType.Intrinsic.REAL,
                          "integer": ScalarType.Intrinsic.INTEGER,
                          "logical": ScalarType.Intrinsic.BOOLEAN}
-    precision_mapping = {"i_def": i_def,
-                         "r_def": r_def}
+    precision_mapping = {"i_def": I_DEF,
+                         "r_def": R_DEF}
 
     def __init__(self, index, intent):
         self.index = index

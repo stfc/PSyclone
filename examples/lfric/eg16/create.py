@@ -41,38 +41,56 @@ Once you have psyclone installed, this script may be run by doing:
 
 >>> python create.py
 
-This should output a Fortran representation of the LFRic-PSyIR and
-part of a C representation of the LFRic-PSyIR.
+This should output a Fortran representation of the LFRic-PSyIR.
 
 '''
+# pylint: disable=no-name-in-module
 from __future__ import print_function
 from psyclone.psyGen import KernelSchedule
 from psyclone.psyir.nodes import Call, Reference, Container
-from psyclone.psyir.symbols import RoutineSymbol, SymbolTable
-from psyclone.domain.lfric.lfric_ir import constants_mod, \
-    NumberOfDofsDataSymbol, FieldDataDataSymbol, i_def, r_def
+from psyclone.psyir.symbols import RoutineSymbol, SymbolTable, \
+    ArgumentInterface
+from psyclone.domain.lfric.lfric_ir import CONSTANTS_MOD, \
+    NumberOfDofsDataSymbol, FieldDataDataSymbol, I_DEF, R_DEF, \
+    OperatorSizeDataSymbol, OperatorDataSymbol, NumberOfUniqueDofsDataSymbol
 
 from psyclone.psyir.backend.fortran import FortranWriter
 
-# Add an LFRic module to the symbol table
+# Add LFRic precision symbols and the module in which they are
+# contained to the symbol table
 SYMBOL_TABLE = SymbolTable()
-SYMBOL_TABLE.add(i_def)
-SYMBOL_TABLE.add(r_def)
-SYMBOL_TABLE.add(constants_mod)
-# Create and add an LFRic ndofs symbol to the symbol table
-ndf_w3 = NumberOfDofsDataSymbol("ndf_w3")
-SYMBOL_TABLE.add(ndf_w3)
-# Create and add LFRic field data to the symbol table
-field1 = FieldDataDataSymbol("field1", [ndf_w3])
-SYMBOL_TABLE.add(field1)
+SYMBOL_TABLE.add(I_DEF)
+SYMBOL_TABLE.add(R_DEF)
+SYMBOL_TABLE.add(CONSTANTS_MOD)
 
-# TBD symbols as arguments - just have an optional arg.
+# Create LFRic ndf and undf symbols and add them to the symbol table
+NDF_W3 = NumberOfDofsDataSymbol("ndf_w3")
+SYMBOL_TABLE.add(NDF_W3)
+UNDF_W3 = NumberOfUniqueDofsDataSymbol("undf_w3")
+SYMBOL_TABLE.add(UNDF_W3)
 
-# Symbol table and LFRic symbols and scalar datatypes
+# Create LFRic field data symbols and add them to the symbol table
+FIELD1 = FieldDataDataSymbol("field1", [UNDF_W3])
+SYMBOL_TABLE.add(FIELD1)
+FIELD2 = FieldDataDataSymbol(
+    "field2", [NDF_W3],
+    interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
+SYMBOL_TABLE.add(FIELD2)
+SYMBOL_TABLE.specify_argument_list([FIELD2])
+
+# Create an LFRic operator and it to the symbol table
+NCELL_3D = OperatorSizeDataSymbol("ncell_3d")
+SYMBOL_TABLE.add(NCELL_3D)
+OPERATOR = OperatorDataSymbol("oper1", [NDF_W3, NDF_W3, NCELL_3D])
+SYMBOL_TABLE.add(OPERATOR)
+
+# Routine symbol
 ROUTINE_SYMBOL = RoutineSymbol("my_sub")
+SYMBOL_TABLE.add(ROUTINE_SYMBOL)
 
 # Call
-CALL = Call.create(ROUTINE_SYMBOL, [Reference(field1)])
+CALL = Call.create(ROUTINE_SYMBOL,
+                   [Reference(FIELD1), Reference(FIELD2), Reference(OPERATOR)])
 
 # KernelSchedule
 KERNEL_SCHEDULE = KernelSchedule.create(
@@ -87,5 +105,3 @@ CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
 WRITER = FortranWriter()
 RESULT = WRITER(CONTAINER)
 print(RESULT)
-
-# Not yet supported in C

@@ -284,6 +284,15 @@ psyclone -s ./matvec_opt.py \
 -oalg /dev/null -opsy /dev/null
 ```
 
+## Example 16: Generate LFRic code using LFRic PSyIR
+
+This example shows how LFRic-specific PSyIR can be used to create
+LFRic code. To run:
+```sh
+cd eg16/
+python create.py
+```
+
 ## Code
 
 Location of LFRic algorithm and kernel code that is used by two or
