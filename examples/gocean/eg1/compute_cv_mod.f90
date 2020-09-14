@@ -16,9 +16,9 @@ module compute_cv_mod
 
   type, extends(kernel_type) :: compute_cv
      type(go_arg), dimension(3) :: meta_args =    &
-          (/ go_arg(GO_WRITE, GO_CV, GO_POINTWISE),        & ! cv
-             go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
-             go_arg(GO_READ,  GO_CV, GO_POINTWISE)         & ! v
+          (/ go_arg(GO_WRITE, GO_CV, GO_POINTWISE),            & ! cv
+             go_arg(GO_READ,  GO_CT, GO_STENCIL(000,010,010)), & ! p
+             go_arg(GO_READ,  GO_CV, GO_POINTWISE)             & ! v
            /)
      !> This kernel writes only to internal points of the
      !! simulation domain.

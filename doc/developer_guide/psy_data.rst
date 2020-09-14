@@ -862,7 +862,7 @@ allocated.
     The ``DeclareVariable`` functions for VectorFields counts the
     right number of checksums required.
 
-The ReadOnlyBase baseclass uses the information about the number of bits for
+The ReadOnlyBase base class uses the information about the number of bits for
 the data types to implement the checksum functions. One complication
 is that the Fortran ``transfer`` function results in undefined bits
 when transferring e.g. a 32-bit value into a 64-bit variable.
