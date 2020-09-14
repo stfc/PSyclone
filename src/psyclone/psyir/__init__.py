@@ -37,4 +37,8 @@
 tools and basic transformations (in subdirectories).
 '''
 
-__all__ = []
+from psyclone.psyir.creator import Creator
+from psyclone.psyir.fortran_creator import FortranCreator
+
+__all__ = ["Creator",
+           "FortranCreator"]

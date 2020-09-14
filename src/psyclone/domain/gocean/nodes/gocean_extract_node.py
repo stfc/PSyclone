@@ -152,6 +152,38 @@ class GOceanExtractNode(ExtractNode):
         :type output_list: list or str
         '''
 
+        from psyclone.psyir import FortranCreator
+
+        module_name, region_name = self.region_identifier
+
+        fc = FortranCreator()
+        new_module = fc.create_module(module_name)
+        subroutine = fc.create_subroutine(new_module, module_name+"_code", [])
+        psydata_mod_name = self.add_psydata_class_prefix("psy_data_mod")
+        psydata_type_name = self.add_psydata_class_prefix("PSyDataType")
+        psydata_variable_name = self.add_psydata_class_prefix("psy_data")
+
+        # Add the use statement for the PSyDataType:
+        fc.add_use(subroutine, psydata_mod_name, [psydata_type_name])
+        # Declare the psy_data variable
+        # ==============================
+        # TODO: we can't declare this to be 'type(...)' atm
+        fc.declare_scalar(subroutine, psydata_variable_name, "real*8")
+
+        fc.add_call(subroutine, "{0}%OpenRead".format(psydata_type_name),
+                    [module_name, region_name])
+
+
+        from psyclone.psyir.nodes import Container, Call, Literal
+        from psyclone.psyir.backend.fortran import FortranWriter
+        from psyclone.psyir.symbols import (SymbolTable, ContainerSymbol,
+                                            DataSymbol, DeferredType,
+                                            GlobalInterface, REAL8_TYPE,
+                                            RoutineSymbol, ScalarType,
+                                            ArrayType, ArgumentInterface)
+
+
+
         from psyclone.f2pygen import AllocateGen, AssignGen, CallGen,\
             CommentGen, DeclGen, ModuleGen, SubroutineGen, UseGen, \
             TypeDeclGen
@@ -226,6 +258,12 @@ class GOceanExtractNode(ExtractNode):
             rename_variable[local_name] = unique_local_name
             sym_table.add(Symbol(unique_local_name))
             local_name = unique_local_name
+            # ------ JH -------
+            var_sym = fc.declare_array(subroutine, local_name,
+                                       "double precision",[":",":"])
+            unique_name = var_sym.name
+            # ------ JH -------
+
 
             # TODO: #644 - we need to identify arrays!!
             # Any variable used needs to be defined. We also need
@@ -364,3 +402,7 @@ class GOceanExtractNode(ExtractNode):
         with open("driver-{0}-{1}.f90".
                   format(module_name, region_name), "w") as out:
             out.write(code)
+
+        fw = FortranWriter()
+        out = fw(new_module)
+        print(out)
