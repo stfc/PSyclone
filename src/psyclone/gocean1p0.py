@@ -1362,12 +1362,65 @@ class GOKern(CodedKern):
                     ifthen.add(AssignGen(
                         ifthen, lhs="{0}%data_on_device".format(arg.name),
                         rhs=".true."))
+                    # fields also have a 'read_from_device_f' function pointer
+                    # to specify how to read the data back from the device
+                    try:
+                        read_fp = symtab.lookup_with_tag("ocl_read_func").name
+                    except KeyError:
+                        # If the subroutines does not exist, it needs to be
+                        # generated first.
+                        read_fp = self.gen_ocl_read_from_device_function(
+                                parent.parent)
+
+                    ifthen.add(AssignGen(
+                        ifthen, lhs="{0}%read_from_device_f".format(arg.name),
+                        rhs=read_fp, pointer=True))
 
                 # Ensure data copies have finished
                 ifthen.add(CommentGen(
                     ifthen, " Block until data copies have finished"))
                 ifthen.add(AssignGen(ifthen, lhs=flag,
                                      rhs="clFinish(" + qlist + "(1))"))
+
+    def gen_ocl_read_from_device_function(self, f2pygen_module):
+        '''
+        Insert a f2pygen subroutine to retrieve the data back from an
+        OpenCL device using FortCL in the given f2pygen module and return
+        its name.
+
+        :param f2pygen_module: the module where the new function will be \
+                               inserted into.
+        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        :returns: the name of the generated subroutine.
+        :rtype: str
+
+        '''
+        from psyclone.f2pygen import SubroutineGen, UseGen, CallGen, DeclGen
+
+        subroutine_name = self.root.symbol_table.new_symbol_name(
+            "read_from_device")
+        subroutine_symbol = Symbol(subroutine_name)
+        self.root.symbol_table.add(subroutine_symbol, tag="ocl_read_func")
+        args = ["from", "to", "nx", "ny", "width"]
+        sub = SubroutineGen(f2pygen_module, name=subroutine_name, args=args)
+        f2pygen_module.add(sub)
+        sub.add(UseGen(sub, name="fortcl", only=True,
+                       funcnames=["read_buffer"]))
+        sub.add(UseGen(sub, name="iso_c_binding", only=True,
+                       funcnames=["c_intptr_t"]))
+
+        sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
+                        intent="in", entity_decls=["from"]))
+        sub.add(DeclGen(sub, datatype="real", kind="go_wp", intent="inout",
+                dimension=":,:", entity_decls=["to"]))
+        sub.add(DeclGen(sub, datatype="integer", intent="in",
+                        entity_decls=["nx", "ny", "width"]))
+        sub.add(
+            CallGen(
+                sub, name="read_buffer",
+                args=["from", "to", "int(width*ny, kind=8)"]))
+        return subroutine_name
 
     def get_kernel_schedule(self):
         '''
