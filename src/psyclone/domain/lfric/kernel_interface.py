@@ -44,10 +44,13 @@ from psyclone.configuration import Config
 
 from psyclone.domain.lfric.lfric_ir import I_DEF, R_DEF, CellPositionDataType, MeshHeightDataType, OperatorSizeDataType, NumberOfDofsDataType, DofMapDataType, NumberOfUniqueDofsDataType
 
+from psyclone.domain.lfric.lfric_ir import CellPositionDataSymbol, MeshHeightDataSymbol, OperatorSizeDataSymbol, NumberOfDofsDataSymbol, NumberOfUniqueDofsDataSymbol, DofMapDataSymbol, FieldDataDataSymbol, OperatorDataSymbol
+from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 
 class KernelInterface(ArgOrdering):
     '''Create the list of actual argument types that a kernel has'''
     def __init__(self, kern):
+        # RF TBD: TURN THIS INTO A KERNEL STUB GENERATOR WHICH USES LFRic PSYIR
         ArgOrdering.__init__(self, kern)
         self._index = 0
         self._ndofs_map = {}
@@ -57,6 +60,15 @@ class KernelInterface(ArgOrdering):
         self._fields_list = []
         self._operators_list = []
 
+        self._symbol_table = SymbolTable()
+        self._arglist2 = []
+        self._dofmaps_list2 = [] 
+        self._ndofs_map2 = {}
+        self._fields_list2 = []
+        self._undfs_map2 = {}
+        self._operators_list2 = []
+        self._operator_dims_map2 = {}
+       
     def generate(self):
         '''Call the generate base class then call the connect method after it
         has completed.'''
@@ -70,11 +82,33 @@ class KernelInterface(ArgOrdering):
         created.
 
         '''
-        
+
         # TODO: Array dimensions and their order are specified here,
         # so what if they change (particularly operators as they are
         # multi-dimensional).
         
+        # dofmaps are dimensioned by ndofs
+        for dofmap in self._dofmaps_list2:
+            fs = dofmap.fs
+            ndofs = self._ndofs_map2[fs]
+            dofmap.datatype._shape = [ndofs]
+
+        # fields are dimensioned by undf
+        for field in self._fields_list2:
+            fs = field.fs
+            undf = self._undfs_map2[fs]
+            field.datatype._shape = [undf]
+
+        # operators are dimensioned by 2*ndf + ncell_3d
+        for operator in self._operators_list2:
+            fs_from = operator.fs_from
+            fs_to = operator.fs_to
+            ndf_from = self._ndofs_map2[fs_from]
+            ndf_to = self._ndofs_map2[fs_to]
+            op_dim = self._operator_dims_map2[operator]
+            operator.datatype._shape = [ndf_from, ndf_to, op_dim]
+
+
         # dofmaps are dimensioned by ndofs
         for dofmap in self._dofmaps_list:
             fs = dofmap.function_space
@@ -96,16 +130,26 @@ class KernelInterface(ArgOrdering):
 
     def cell_position(self, var_accesses=None):
         ''' Create an LFRic cell position object '''
-        #self._arglist.append(CellPositionDescription())
         self._arglist.append(
             CellPositionArgInfo(self._index, "in"))
         self._index += 1
+
+        arg = CellPositionDataSymbol(
+            "cell", interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        self._symbol_table.add(arg)
+        self._arglist2.append(arg)
         
     def mesh_height(self, var_accesses=None):
         ''' Create an LFRic mesh height object '''
         self._arglist.append(
             MeshHeightArgInfo(self._index, "in"))
         self._index += 1
+
+        arg = MeshHeightDataSymbol(
+            "nlayers", interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        self._symbol_table.add(arg)
+        self._arglist2.append(arg)
+
 
     def mesh_ncell2d(self, var_accesses=None):
         ''' Not implemented '''
@@ -119,12 +163,23 @@ class KernelInterface(ArgOrdering):
         ''' Not implemented '''
         raise NotImplementedError("field_vector not implemented")
 
-    def field(self, arg, var_accesses=None):
+    def field(self, field_node, var_accesses=None):
         ''' Create an LFRic field data object '''
-        field_data_info = FieldDataArgInfo(self._index, arg)
+        field_data_info = FieldDataArgInfo(self._index, field_node)
         self._fields_list.append(field_data_info)
         self._arglist.append(field_data_info)
         self._index += 1
+
+        #intrinsic_mapping = {"real": ScalarType.Intrinsic.REAL,
+        #                     "integer": ScalarType.Intrinsic.INTEGER,
+        #                     "logical": ScalarType.Intrinsic.BOOLEAN}
+        intent_mapping = {"in": ArgumentInterface.Access.READ,
+                          "out": ArgumentInterface.Access.WRITE,
+                          "inout": ArgumentInterface.Access.READWRITE}
+        arg = FieldDataDataSymbol(field_node.name, [1], field_node.function_space.orig_name, interface=ArgumentInterface(intent_mapping[field_node.intent]))
+        self._symbol_table.add(arg)
+        self._arglist2.append(arg)
+        self._fields_list2.append(arg)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         ''' Not implemented '''
@@ -138,15 +193,29 @@ class KernelInterface(ArgOrdering):
         ''' Not implemented '''
         raise NotImplementedError("stencil not implemented")
 
-    def operator(self, arg, var_accesses=None):
+    def operator(self, operator_node, var_accesses=None):
         ''' Create LFRic size and operator data objects '''
         operator_size = OperatorSizeArgInfo(self._index, "in")
         self._index += 1
-        operator_data = OperatorDataArgInfo(self._index, arg)
+        operator_data = OperatorDataArgInfo(self._index, operator_node)
         self._operators_list.append(operator_data)
         self._index += 1
         self._operator_dims_map[operator_data] = operator_size
         self._arglist.extend([operator_size, operator_data])
+
+        op_size = OperatorSizeDataSymbol(
+            "ncell_3d", interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        self._symbol_table.add(op_size)
+        self._arglist2.append(op_size)
+
+        intent_mapping = {"in": ArgumentInterface.Access.READ,
+                          "out": ArgumentInterface.Access.WRITE,
+                          "inout": ArgumentInterface.Access.READWRITE}
+        arg = OperatorDataSymbol(operator_node.name, [1, 1, 1], operator_node.function_space_from.orig_name, operator_node.function_space_to.orig_name, interface=ArgumentInterface(intent_mapping[operator_node.intent]))
+        self._symbol_table.add(arg)
+        self._arglist2.append(arg)
+        self._operators_list2.append(arg)
+        self._operator_dims_map2[arg] = op_size
 
     def cma_operator(self, arg, var_accesses=None):
         ''' Not implemented '''
@@ -163,6 +232,14 @@ class KernelInterface(ArgOrdering):
         self._arglist.append(ndofs_info)
         self._index += 1
 
+        fs_name = fs.orig_name
+        arg = NumberOfDofsDataSymbol(
+            "ndf_{0}".format(fs_name), fs_name,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        self._symbol_table.add(arg)
+        self._arglist2.append(arg)
+        self._ndofs_map2[fs_name] = arg
+
     def fs_intergrid(self, fs, var_accesses=None):
         ''' Not implemented '''
         raise NotImplementedError("fs_integrated not implemented")
@@ -177,6 +254,23 @@ class KernelInterface(ArgOrdering):
         self._dofmaps_list.append(dofmap_info)
         self._arglist.append(dofmap_info)
         self._index += 1
+
+        fs_name = fs.orig_name
+        arg = NumberOfUniqueDofsDataSymbol(
+            "undf_{0}".format(fs_name), fs_name,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        self._symbol_table.add(arg)
+        self._arglist2.append(arg)
+        self._undfs_map2[fs_name] = arg
+
+        # The dimension argument may not have been declared yet so use
+        # an integer as a placeholder.
+        arg = DofMapDataSymbol(
+            "dofmap_{0}".format(fs_name), [1], fs_name,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        self._symbol_table.add(arg)
+        self._arglist2.append(arg)
+        self._dofmaps_list2.append(arg)
 
     def banded_dofmap(self, fs, var_accesses=None):
         ''' Not implemented '''

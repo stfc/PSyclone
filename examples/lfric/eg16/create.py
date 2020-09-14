@@ -64,16 +64,16 @@ SYMBOL_TABLE.add(R_DEF)
 SYMBOL_TABLE.add(CONSTANTS_MOD)
 
 # Create LFRic ndf and undf symbols and add them to the symbol table
-NDF_W3 = NumberOfDofsDataSymbol("ndf_w3")
+NDF_W3 = NumberOfDofsDataSymbol("ndf_w3", "w3")
 SYMBOL_TABLE.add(NDF_W3)
-UNDF_W3 = NumberOfUniqueDofsDataSymbol("undf_w3")
+UNDF_W3 = NumberOfUniqueDofsDataSymbol("undf_w3", "w3")
 SYMBOL_TABLE.add(UNDF_W3)
 
 # Create LFRic field data symbols and add them to the symbol table
-FIELD1 = FieldDataDataSymbol("field1", [UNDF_W3])
+FIELD1 = FieldDataDataSymbol("field1", [UNDF_W3], "w3")
 SYMBOL_TABLE.add(FIELD1)
 FIELD2 = FieldDataDataSymbol(
-    "field2", [NDF_W3],
+    "field2", [UNDF_W3], "w3",
     interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
 SYMBOL_TABLE.add(FIELD2)
 SYMBOL_TABLE.specify_argument_list([FIELD2])
@@ -81,12 +81,11 @@ SYMBOL_TABLE.specify_argument_list([FIELD2])
 # Create an LFRic operator and it to the symbol table
 NCELL_3D = OperatorSizeDataSymbol("ncell_3d")
 SYMBOL_TABLE.add(NCELL_3D)
-OPERATOR = OperatorDataSymbol("oper1", [NDF_W3, NDF_W3, NCELL_3D])
+OPERATOR = OperatorDataSymbol("oper1", [NDF_W3, NDF_W3, NCELL_3D], "w3")
 SYMBOL_TABLE.add(OPERATOR)
 
 # Routine symbol
 ROUTINE_SYMBOL = RoutineSymbol("my_sub")
-SYMBOL_TABLE.add(ROUTINE_SYMBOL)
 
 # Call
 CALL = Call.create(ROUTINE_SYMBOL,

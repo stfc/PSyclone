@@ -7305,6 +7305,7 @@ class DynKern(CodedKern):
 
         for arg in interface_args:
             print (arg)
+        interface_info._symbol_table.view()
         exit(1)
         # 1: Check the the number of arguments match
         if len(interface_args) != len(kern_code_args):
