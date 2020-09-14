@@ -81,7 +81,7 @@ def test_read_only_basic(capsys):
     '''Check basic functionality: node names, schedule view.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0)
+                           "gocean1.0", idx=0, dist_mem=False)
     read_only = ReadOnlyVerifyTrans()
     new_sched, _ = read_only.apply(invoke.schedule[0].loop_body[0])
     new_sched.view()
@@ -106,7 +106,7 @@ def test_read_only_options():
     the use of the newly defined names.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0)
+                           "gocean1.0", idx=0, dist_mem=False)
     read_only = ReadOnlyVerifyTrans()
     _, _ = read_only.apply(invoke.schedule[0].loop_body[0],
                            options={"region_name": ("a", "b")})
