@@ -294,7 +294,8 @@ def test_ad_field_init_wrong_iteration_space():
                 field_arg, "ncolours")
     assert ("LFRicArgDescriptor._init_field(): Invalid iteration "
             "space 'ncolours' in the kernel metadata (expected "
-            "one of ['cells', 'dofs'])." in str(excinfo.value))
+            "one of ['cells', 'cell_column', 'dofs', 'dof'])." in
+            str(excinfo.value))
 
 
 def test_ad_field_type_too_few_args():
@@ -399,8 +400,8 @@ def test_ad_invalid_iteration_space():
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, "colours")
     assert ("LFRicArgDescriptor.__init__(): Expected one of "
-            "['cells', 'dofs'] iteration spaces in the kernel "
-            "metadata but got 'colours'." in str(excinfo.value))
+            "['cells', 'cell_column', 'dofs', 'dof'] iteration spaces in "
+            "the kernel metadata but got 'colours'." in str(excinfo.value))
 
 
 def test_arg_descriptor_invalid_fs1():
@@ -595,8 +596,8 @@ def test_kernel_call_invalid_iteration_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("The LFRic API supports calls to user-supplied kernels that "
-            "have one of ['cells'] as iteration space, but kernel "
-            "'testkern_dofs_code' has an iteration space of 'dofs'."
+            "have one of ['cells', 'cell_column'] as iteration space, but "
+            "kernel 'testkern_dofs_code' has an iteration space of 'dofs'."
             in str(excinfo.value))
 
 

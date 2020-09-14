@@ -57,7 +57,8 @@ VALID_BUILTIN_ARG_TYPES = LFRicArgDescriptor.VALID_FIELD_NAMES + \
     LFRicArgDescriptor.VALID_SCALAR_NAMES
 
 # Valid LFRic iteration spaces for built-in kernels
-BUILTIN_ITERATION_SPACES = ["dofs"]
+# TODO #870 rm 'dofs' from list below.
+BUILTIN_ITERATION_SPACES = ["dofs", "dof"]
 
 
 # Function to return the built-in operations that we support for this API.
