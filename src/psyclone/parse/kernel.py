@@ -814,16 +814,24 @@ class KernelType(object):
         self._name = name
         self._ast = ast
         self._ktype = get_kernel_metadata(name, ast)
-        self._operates_on = self.get_integer_variable("operates_on")
+        operates_on = self.get_integer_variable("operates_on")
         # The GOcean API still uses the 'iterates_over' metadata entry
         # although this is deprecated in the LFRic API.
         # Validation is left to the API-specific code in either dynamo0p3.py
         # or gocean1p0.py.
-        self._iterates_over = self.get_integer_variable("iterates_over")
+        iterates_over = self.get_integer_variable("iterates_over")
+        if operates_on:
+            self._iterates_over = operates_on
+        elif iterates_over:
+            self._iterates_over = iterates_over
+        else:
+            # We don't raise an error here - we leave it to the API-specific
+            # validation code.
+            self._iterates_over = None
         # Although validation of the value given to operates_on or
         # iterates_over is API-specifc, we can check that the metadata doesn't
         # specify both of them because that doesn't make sense.
-        if self._operates_on and self._iterates_over:
+        if operates_on and iterates_over:
             raise ParseError("The metadata for kernel '{0}' contains both "
                              "'operates_on' and 'iterates_over'. Only one of "
                              "these is permitted.".format(name))
@@ -839,16 +847,6 @@ class KernelType(object):
 
         '''
         return self._name
-
-    @property
-    def operates_on(self):
-        '''
-        :returns: the unit of data that this kernel operates on (e.g. column \
-                  of cells)
-        :rtype: str
-
-        '''
-        return self._operates_on
 
     @property
     def iterates_over(self):
@@ -889,14 +887,7 @@ class KernelType(object):
         return self._arg_descriptors
 
     def __repr__(self):
-        if self.operates_on:
-            return 'KernelType(%s, %s)' % (self.name, self.operates_on)
-        elif self.iterates_over:
-            return 'KernelType(%s, %s)' % (self.name, self.iterates_over)
-        else:
-            raise InternalError(
-                "KernelType must have one of operates_on or iterates_over but "
-                "neither are set for kernel '{0}'".format(self.name))
+        return 'KernelType(%s, %s)' % (self.name, self.iterates_over)
 
     def get_integer_variable(self, name):
         ''' Parse the kernel meta-data and find the value of the

@@ -506,13 +506,6 @@ def test_kerneltype_repr():
     tmp = KernelType(parse_tree)
     assert repr(tmp) == "KernelType(test_type, cells)"
 
-    # Break the KernelType so that it has neither set
-    tmp._iterates_over = None
-    with pytest.raises(InternalError) as err:
-        repr(tmp)
-    assert ("KernelType must have one of operates_on or iterates_over but "
-            "neither are set for kernel 'test_type'" in str(err.value))
-
 
 @pytest.mark.parametrize('operates', ["cell_column", "dof"])
 def test_kerneltype_operates_on(operates):

@@ -276,9 +276,11 @@ def test_ad_field_init_wrong_type():
 
 
 def test_ad_field_init_wrong_iteration_space():
-    ''' Test that an error is raised if a wrong iteration
-    space (other than ['cells', 'dofs']) is passed to the
+    ''' Test that an error is raised if a wrong iteration space
+    (other than ['cells', 'dofs']) is passed to the
     LFRicArgDescriptor._init_field() method.
+
+    TODO #870 update this test.
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
