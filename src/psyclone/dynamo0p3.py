@@ -7303,10 +7303,6 @@ class DynKern(CodedKern):
         interface_info.generate()
         interface_args = interface_info.arglist
 
-        for arg in interface_args:
-            print (arg)
-        interface_info._symbol_table.view()
-        exit(1)
         # 1: Check the the number of arguments match
         if len(interface_args) != len(kern_code_args):
             raise GenerationError(
@@ -7322,57 +7318,60 @@ class DynKern(CodedKern):
             
             # 2a: datatype
             if kern_code_arg.datatype.intrinsic != \
-               interface_arg.intrinsic:
+               interface_arg.datatype.intrinsic:
                 raise GenerationError(
                     "Kernel argument '{0}' has datatype '{1}' "
                     "but the LFRic API expects '{2}'."
                     "".format(
                         idx, kern_code_arg.datatype.intrinsic,
-                        check_info.intrinsic))
+                        interface_arg.datatype.intrinsic))
                 # precision
                 precision = kern_code_arg.datatype.precision
-                if not precision.name == interface_arg.precision:
+                if precision.name != interface_arg.datatype.precision.name:
                     raise GenerationError(
                         "Kernel argument '{0}' has precision '{1}' "
                         "but the LFRic API expects '{2}'."
                         "".format(kern_code_arg.name, precision.name,
-                                  interface_arg.precision))
+                                  interface_arg.precision.name))
                     raise GenerationError("precision does not match")
                 # intent
-                from psyclone.psyir.backend.fortran import gen_intent
-                arg_intent = gen_intent(kern_code_arg)
-                if arg_intent != interface_arg.intent:
+                #from psyclone.psyir.backend.fortran import gen_intent
+                #arg_intent = gen_intent(kern_code_arg)
+                #if arg_intent != interface_arg.intent:
+                if kern_code_arg.intent != interface_arg.intent:
                     raise GenerationError(
                         "Kernel argument '{0}' has intent '{1}' "
                         "but the LFRic API expects intent '{2}'."
-                        "".format(kern_code_arg.name, arg_intent,
+                        "".format(kern_code_arg.name, kern_code_arg.intent,
                                   interface_arg.intent))
+
                 # scalar or array
-                if interface_arg.form == "scalar":
-                    if not kern_code_arg.is_scalar:
-                        raise GenerationError("Expecting a scalar")
-                elif interface_arg.form == "array":
-                    if not kern_code_arg.is_array:
-                        raise GenerationError("Expecting an array")
-                    # TODO Check arguments - we need the interface information to link arguments together to do this (I think)
-                    
-                    pass
-                else:
-                    raise InternalError(
-                        "unexpected interface argument form found")
-                
-            exit(1)
-            for call_arg in call_args.arglist:
-                print (call_arg)
-            #call_args = KernStubArgList(self)
-            #call_args.generate()
-            #for call_arg in call_args.arglist:
-            #    print (call_arg)
-            exit(1)
-            #symbol_table = psyir_schedule.
+                #if interface_arg.form == "scalar":
+                #    if not kern_code_arg.is_scalar:
+                #        raise GenerationError("Expecting a scalar")
+                #elif interface_arg.form == "array":
+                #    if not kern_code_arg.is_array:
+                #        raise GenerationError("Expecting an array")
+                #    # TODO Check arguments - we need the interface information to link arguments together to do this (I think)
+                #    
+                #    pass
+                #else:
+                #    raise InternalError(
+                #        "unexpected interface argument form found")
+        #for arg in interface_args:
+        #    print (arg)                
+        exit(1)
+        for call_arg in call_args.arglist:
+            print (call_arg)
+        #call_args = KernStubArgList(self)
+        #call_args.generate()
+        #for call_arg in call_args.arglist:
+        #    print (call_arg)
+        exit(1)
+        #symbol_table = psyir_schedule.
             
-            # For the moment we simply return the unmodified PSyIR schedule
-            self._kern_schedule = psyir_schedule
+        # For the moment we simply return the unmodified PSyIR schedule
+        self._kern_schedule = psyir_schedule
         return self._kern_schedule
 
 

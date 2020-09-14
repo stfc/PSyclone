@@ -52,22 +52,14 @@ class KernelInterface(ArgOrdering):
     def __init__(self, kern):
         # RF TBD: TURN THIS INTO A KERNEL STUB GENERATOR WHICH USES LFRic PSYIR
         ArgOrdering.__init__(self, kern)
-        self._index = 0
-        self._ndofs_map = {}
-        self._undfs_map = {}
-        self._operator_dims_map = {}
-        self._dofmaps_list = []
-        self._fields_list = []
-        self._operators_list = []
-
         self._symbol_table = SymbolTable()
-        self._arglist2 = []
-        self._dofmaps_list2 = [] 
-        self._ndofs_map2 = {}
-        self._fields_list2 = []
-        self._undfs_map2 = {}
-        self._operators_list2 = []
-        self._operator_dims_map2 = {}
+        self._arglist = []
+        self._dofmaps_list = [] 
+        self._ndofs_map = {}
+        self._fields_list = []
+        self._undfs_map = {}
+        self._operators_list = []
+        self._operator_dims_map = {}
        
     def generate(self):
         '''Call the generate base class then call the connect method after it
@@ -82,73 +74,47 @@ class KernelInterface(ArgOrdering):
         created.
 
         '''
-
         # TODO: Array dimensions and their order are specified here,
         # so what if they change (particularly operators as they are
         # multi-dimensional).
         
         # dofmaps are dimensioned by ndofs
-        for dofmap in self._dofmaps_list2:
+        for dofmap in self._dofmaps_list:
             fs = dofmap.fs
-            ndofs = self._ndofs_map2[fs]
+            ndofs = self._ndofs_map[fs]
             dofmap.datatype._shape = [ndofs]
 
         # fields are dimensioned by undf
-        for field in self._fields_list2:
+        for field in self._fields_list:
             fs = field.fs
-            undf = self._undfs_map2[fs]
+            undf = self._undfs_map[fs]
             field.datatype._shape = [undf]
 
         # operators are dimensioned by 2*ndf + ncell_3d
-        for operator in self._operators_list2:
+        for operator in self._operators_list:
             fs_from = operator.fs_from
             fs_to = operator.fs_to
-            ndf_from = self._ndofs_map2[fs_from]
-            ndf_to = self._ndofs_map2[fs_to]
-            op_dim = self._operator_dims_map2[operator]
+            ndf_from = self._ndofs_map[fs_from]
+            ndf_to = self._ndofs_map[fs_to]
+            op_dim = self._operator_dims_map[operator]
             operator.datatype._shape = [ndf_from, ndf_to, op_dim]
 
 
-        # dofmaps are dimensioned by ndofs
-        for dofmap in self._dofmaps_list:
-            fs = dofmap.function_space
-            ndofs = self._ndofs_map[fs]
-            dofmap.dims = [ndofs]
-        # fields are dimensioned by undf
-        for field in self._fields_list:
-            fs = field.function_space
-            undf = self._undfs_map[fs]
-            field.dims = [undf]
-        # operators have 
-        for operator in self._operators_list:
-            fs_from = operator.function_space_from
-            ndofs_from = self._ndofs_map[fs_from]
-            fs_to = operator.function_space_to
-            ndofs_to = self._ndofs_map[fs_to]
-            op_dim = self._operator_dims_map[operator]
-            operator.dims = [ndofs_from, ndofs_to, op_dim]
-
     def cell_position(self, var_accesses=None):
         ''' Create an LFRic cell position object '''
-        self._arglist.append(
-            CellPositionArgInfo(self._index, "in"))
-        self._index += 1
 
         arg = CellPositionDataSymbol(
             "cell", interface=ArgumentInterface(ArgumentInterface.Access.READ))
         self._symbol_table.add(arg)
-        self._arglist2.append(arg)
+        self._arglist.append(arg)
         
     def mesh_height(self, var_accesses=None):
         ''' Create an LFRic mesh height object '''
-        self._arglist.append(
-            MeshHeightArgInfo(self._index, "in"))
-        self._index += 1
 
         arg = MeshHeightDataSymbol(
             "nlayers", interface=ArgumentInterface(ArgumentInterface.Access.READ))
         self._symbol_table.add(arg)
-        self._arglist2.append(arg)
+        self._arglist.append(arg)
 
 
     def mesh_ncell2d(self, var_accesses=None):
@@ -165,10 +131,6 @@ class KernelInterface(ArgOrdering):
 
     def field(self, field_node, var_accesses=None):
         ''' Create an LFRic field data object '''
-        field_data_info = FieldDataArgInfo(self._index, field_node)
-        self._fields_list.append(field_data_info)
-        self._arglist.append(field_data_info)
-        self._index += 1
 
         #intrinsic_mapping = {"real": ScalarType.Intrinsic.REAL,
         #                     "integer": ScalarType.Intrinsic.INTEGER,
@@ -178,8 +140,8 @@ class KernelInterface(ArgOrdering):
                           "inout": ArgumentInterface.Access.READWRITE}
         arg = FieldDataDataSymbol(field_node.name, [1], field_node.function_space.orig_name, interface=ArgumentInterface(intent_mapping[field_node.intent]))
         self._symbol_table.add(arg)
-        self._arglist2.append(arg)
-        self._fields_list2.append(arg)
+        self._arglist.append(arg)
+        self._fields_list.append(arg)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         ''' Not implemented '''
@@ -195,27 +157,20 @@ class KernelInterface(ArgOrdering):
 
     def operator(self, operator_node, var_accesses=None):
         ''' Create LFRic size and operator data objects '''
-        operator_size = OperatorSizeArgInfo(self._index, "in")
-        self._index += 1
-        operator_data = OperatorDataArgInfo(self._index, operator_node)
-        self._operators_list.append(operator_data)
-        self._index += 1
-        self._operator_dims_map[operator_data] = operator_size
-        self._arglist.extend([operator_size, operator_data])
 
         op_size = OperatorSizeDataSymbol(
             "ncell_3d", interface=ArgumentInterface(ArgumentInterface.Access.READ))
         self._symbol_table.add(op_size)
-        self._arglist2.append(op_size)
+        self._arglist.append(op_size)
 
         intent_mapping = {"in": ArgumentInterface.Access.READ,
                           "out": ArgumentInterface.Access.WRITE,
                           "inout": ArgumentInterface.Access.READWRITE}
         arg = OperatorDataSymbol(operator_node.name, [1, 1, 1], operator_node.function_space_from.orig_name, operator_node.function_space_to.orig_name, interface=ArgumentInterface(intent_mapping[operator_node.intent]))
         self._symbol_table.add(arg)
-        self._arglist2.append(arg)
-        self._operators_list2.append(arg)
-        self._operator_dims_map2[arg] = op_size
+        self._arglist.append(arg)
+        self._operators_list.append(arg)
+        self._operator_dims_map[arg] = op_size
 
     def cma_operator(self, arg, var_accesses=None):
         ''' Not implemented '''
@@ -227,18 +182,14 @@ class KernelInterface(ArgOrdering):
 
     def fs_common(self, fs, var_accesses=None):
         ''' Create LFRic Number of Dofs object '''
-        ndofs_info = NumberOfDofsArgInfo(self._index, "in", fs)
-        self._ndofs_map[ndofs_info.function_space] = ndofs_info
-        self._arglist.append(ndofs_info)
-        self._index += 1
 
         fs_name = fs.orig_name
         arg = NumberOfDofsDataSymbol(
             "ndf_{0}".format(fs_name), fs_name,
             interface=ArgumentInterface(ArgumentInterface.Access.READ))
         self._symbol_table.add(arg)
-        self._arglist2.append(arg)
-        self._ndofs_map2[fs_name] = arg
+        self._arglist.append(arg)
+        self._ndofs_map[fs_name] = arg
 
     def fs_intergrid(self, fs, var_accesses=None):
         ''' Not implemented '''
@@ -246,22 +197,14 @@ class KernelInterface(ArgOrdering):
 
     def fs_compulsory_field(self, fs, var_accesses=None):
         '''Create LFRic Number of Unique dofs and dofmap objects'''
-        undf_info = NumberOfUniqueDofsArgInfo(self._index, "in", fs)
-        self._undfs_map[undf_info.function_space] = undf_info
-        self._arglist.append(undf_info)
-        self._index += 1
-        dofmap_info = DofMapArgInfo(self._index, "in", fs)
-        self._dofmaps_list.append(dofmap_info)
-        self._arglist.append(dofmap_info)
-        self._index += 1
 
         fs_name = fs.orig_name
         arg = NumberOfUniqueDofsDataSymbol(
             "undf_{0}".format(fs_name), fs_name,
             interface=ArgumentInterface(ArgumentInterface.Access.READ))
         self._symbol_table.add(arg)
-        self._arglist2.append(arg)
-        self._undfs_map2[fs_name] = arg
+        self._arglist.append(arg)
+        self._undfs_map[fs_name] = arg
 
         # The dimension argument may not have been declared yet so use
         # an integer as a placeholder.
@@ -269,8 +212,8 @@ class KernelInterface(ArgOrdering):
             "dofmap_{0}".format(fs_name), [1], fs_name,
             interface=ArgumentInterface(ArgumentInterface.Access.READ))
         self._symbol_table.add(arg)
-        self._arglist2.append(arg)
-        self._dofmaps_list2.append(arg)
+        self._arglist.append(arg)
+        self._dofmaps_list.append(arg)
 
     def banded_dofmap(self, fs, var_accesses=None):
         ''' Not implemented '''
@@ -313,165 +256,3 @@ class KernelInterface(ArgOrdering):
     def quad_rule(self, var_accesses=None):
         ''' Not implemented '''
         raise NotImplementedError("quad_rule not implemented")
-
-''' These classes capture the structure of LFRic datatypes. The
-structure can be used by PSyclone to create new code, i.e. declare and
-use a particular variable. PSyclone can also use this to check the
-validity of existing kernel code and to transform a PSyIR
-representation into an LFRicIR representation.'''
-
-
-class ScalarArgInfo():
-    ''' xxx '''
-    def __init__(self, index, intent):
-        self.index = index
-        self.intent = intent
-        self.name = None
-        self.datatype = None
-    def __str__(self):
-        return ("[{0}] {1} [type='{3}', precision='{4}', intent='{5}']".format(self.index, self.name, self.description, self.datatype.intrinsic.name.lower(), self.datatype.precision.name, self.intent))
-
-
-class ArrayArgInfo():
-    ''' xxx '''
-
-    intrinsic_mapping = {"real": ScalarType.Intrinsic.REAL,
-                         "integer": ScalarType.Intrinsic.INTEGER,
-                         "logical": ScalarType.Intrinsic.BOOLEAN}
-    precision_mapping = {"i_def": I_DEF,
-                         "r_def": R_DEF}
-
-    def __init__(self, index, intent):
-        self.index = index
-        self.intent = intent
-        self.dims = None
-        self.name = None
-        self.description = None
-        self.datatype = None
-        self.array_type = None
-    def __str__(self):
-        array_indices = [str(dim.name) for dim in self.dims]
-        text = ""
-        if self.array_type:
-            text = self.array_type + " "
-        return ("[{0}] {7}{1}({6}) [type='{3}', precision='{4}', intent='{5}']".format(self.index, self.name, self.description, self.datatype.intrinsic.name.lower(), self.datatype.precision.name, self.intent, ",".join(array_indices), text))
-
-
-class CellPositionArgInfo(ScalarArgInfo):
-    '''xxx'''
-    def __init__(self, index, intent):
-        super(CellPositionArgInfo, self).__init__(index, intent)
-        self.datatype = CellPositionDataType()
-        self.name = "cell"
-        self.description = "cell position"
-
-
-class MeshHeightArgInfo(ScalarArgInfo):
-    '''xxx'''
-    def __init__(self, index, intent):
-        super(MeshHeightArgInfo, self).__init__(index, intent)
-        self.datatype = MeshHeightDataType()
-        self.name = "nlayers"
-        self.description = "number of cells in a column"
-
-
-class FieldDataArgInfo(ArrayArgInfo):
-    '''xxx'''
-    def __init__(self, index, field):
-        super(FieldDataArgInfo, self).__init__(index, field.intent)
-        self.ndims = 1
-        intrinsic = FieldDataArgInfo.intrinsic_mapping[field.intrinsic_type]
-        api_config = Config.get().api_conf("dynamo0.3")
-        precision_str = api_config.default_kind[field.intrinsic_type]
-        precision_kind = FieldDataArgInfo.precision_mapping[precision_str]
-        scalar_type = ScalarType(intrinsic, precision_kind)
-        self.datatype = ArrayType(scalar_type, [1]*self.ndims)
-        self.description = "field data"
-        self.name = field.name
-        self.function_space = field.function_space.orig_name
-        self.array_type = "field data"
-
-
-class OperatorSizeArgInfo(ScalarArgInfo):
-    '''xxx'''
-    def __init__(self, index, intent):
-        super(OperatorSizeArgInfo, self).__init__(index, intent)
-        self.datatype = OperatorSizeDataType()
-        self.name = "ncell_3d"
-        self.description = "operator data size"
-
-
-class OperatorDataArgInfo(ArrayArgInfo):
-    '''xxx'''
-    def __init__(self, index, operator):
-        super(OperatorDataArgInfo, self).__init__(index, operator.intent)
-        self.ndims = 3
-        intrinsic = OperatorDataArgInfo.intrinsic_mapping[operator.intrinsic_type]
-        api_config = Config.get().api_conf("dynamo0.3")
-        precision_str = api_config.default_kind[operator.intrinsic_type]
-        precision_kind = OperatorDataArgInfo.precision_mapping[precision_str]
-        scalar_type = ScalarType(intrinsic, precision_kind)
-        self.datatype = ArrayType(scalar_type, [1]*self.ndims)
-        self.description = "operator data"
-        self.name = operator.name
-        self.function_space_from = operator.function_space_from.orig_name
-        self.function_space_to = operator.function_space_to.orig_name
-        self.array_type = "operator"
-
-
-class OperatorData():
-    ''' operator data '''
-
-    mapping = {"real": ScalarType.Intrinsic.REAL,
-               "integer": ScalarType.Intrinsic.INTEGER,
-               "logical": ScalarType.Intrinsic.BOOLEAN}
-
-    def __init__(self, arg, operator_size):
-        self.form = "array"
-        self.ndims = 3
-        self.dims = [None, None, operator_size]
-        # TODO: link the first dimension to the ndf1, the second to
-        # ndf2 and the third to OperatorSize arguments
-        self.intrinsic = OperatorData.mapping[arg.intrinsic_type]
-        api_config = Config.get().api_conf("dynamo0.3")
-        self.precision = api_config.default_kind[arg.intrinsic_type]
-        self.intent = arg.intent
-        self.default_name = arg.name
-    def __str__(self):
-        return ("operator data [name='{0}', type='{1}', precision='{2}',"
-                " intent='{3}']".format(self.default_name, self.intrinsic,
-                                        self.precision, self.intent))
-
-
-class NumberOfDofsArgInfo(ScalarArgInfo):
-    '''xxx'''
-    def __init__(self, index, intent, fs):
-        super(NumberOfDofsArgInfo, self).__init__(index, intent)
-        self.datatype = NumberOfDofsDataType()
-        self.name = "ndf"
-        self.description = "number of dofs in a cell"
-        self.function_space = fs.orig_name
-
-
-class NumberOfUniqueDofsArgInfo(ScalarArgInfo):
-    '''xxx'''
-    def __init__(self, index, intent, fs):
-        super(NumberOfUniqueDofsArgInfo, self).__init__(index, intent)
-        self.datatype = NumberOfUniqueDofsDataType()
-        self.description = "number of unique dofs in a column"
-        self.name = "undf"
-        self.function_space = fs.orig_name
-
-
-class DofMapArgInfo(ArrayArgInfo):
-    '''xxx'''
-    def __init__(self, index, intent, fs):
-        super(DofMapArgInfo, self).__init__(index, intent)
-        # Make each array index size 1 as we don't care about the
-        # sizes here
-        self.ndims = 1
-        self.datatype = DofMapDataType([1]*self.ndims)
-        self.description = "dof ids for the column base cell"
-        self.name = "dofmap"
-        self.function_space = fs.orig_name
-        self.array_type = ""
