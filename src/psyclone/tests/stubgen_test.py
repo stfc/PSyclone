@@ -116,6 +116,6 @@ def test_failures(monkeypatch, capsys):
     with pytest.raises(GenerationError) as excinfo:
         generate(kern_file, api="dynamo0.3")
     assert ("The LFRic API kernel stub generator supports kernels that "
-            "have one of ['cells', 'cell_column'] as iteration space, but "
-            "found 'dofs' in kernel 'testkern_dofs_code'." in
+            "operate on one of ['cells', 'cell_column'], but "
+            "found 'dof' in kernel 'testkern_dofs_code'." in
             str(excinfo.value))

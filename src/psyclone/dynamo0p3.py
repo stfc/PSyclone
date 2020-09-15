@@ -7207,8 +7207,8 @@ class DynKern(CodedKern):
         if self.iterates_over not in USER_KERNEL_ITERATION_SPACES:
             raise GenerationError(
                 "The LFRic API supports calls to user-supplied kernels "
-                "that have one of {0} as iteration space, but kernel '{1}' "
-                "has an iteration space of '{2}'.".
+                "that operate on one of {0}, but kernel '{1}' "
+                "operates on '{2}'.".
                 format(USER_KERNEL_ITERATION_SPACES, self.name,
                        self.iterates_over))
 

@@ -3600,7 +3600,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3613,7 +3613,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='nannexed']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3625,7 +3625,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3643,7 +3643,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3655,7 +3655,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3667,7 +3667,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +

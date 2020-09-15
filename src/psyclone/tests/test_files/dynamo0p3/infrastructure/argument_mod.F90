@@ -104,8 +104,10 @@ module argument_mod
   integer, public, parameter :: GH_COLUMN_INDIRECTION_DOFMAP = 305
 
   ! Kernel iterator
-  integer, public, parameter :: CELLS     = 401
-  integer, public, parameter :: ALL_DOFS  = 402
+  integer, public, parameter :: CELLS       = 401
+  integer, public, parameter :: CELL_COLUMN = 402
+  integer, public, parameter :: ALL_DOFS    = 403
+  integer, public, parameter :: DOF         = 404
 
   ! Quadrature metadata
   integer, public, parameter :: QUADRATURE_XYZ      = 501
