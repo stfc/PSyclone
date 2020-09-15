@@ -100,10 +100,10 @@ module testkern_qr
              arg_type(gh_field, gh_read, w3),         &
              arg_type(gh_scalar, gh_integer, gh_read) &
            /)
-     type(func_type), dimension(3) :: meta_funcs =    &
-          (/ func_type(w1, gh_basis),                 &
-             func_type(w2, gh_diff_basis),            &
-             func_type(w3, gh_basis, gh_diff_basis)   &
+     type(func_type), dimension(3) :: meta_funcs =  &
+          (/ func_type(w1, gh_basis),               &
+             func_type(w2, gh_diff_basis),          &
+             func_type(w3, gh_basis, gh_diff_basis) &
            /)
      integer :: iterates_over = cells
      integer :: gh_shape = gh_quadrature_XYoZ
@@ -168,7 +168,7 @@ def test_arg_descriptor_vector():
 def test_ad_scalar_old_metadata():
     ''' Test that the LFRicArgDescriptor argument representation supports
     old-style scalar arguments' names GH_REAL and GH_INTEGER.
-    NOTE: This support and the test will be removed in #874.
+    TODO: This support and the test will be removed in #874.
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -176,22 +176,24 @@ def test_ad_scalar_old_metadata():
     ast = fpapi.parse(code, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
 
-    # Check representation of a real scalar
+    # Check representation of a real scalar (note: "gh_real"
+    # argument type is translated to "gh_scalar")
     real_scalar_descriptor = metadata.arg_descriptors[0]
     result = str(real_scalar_descriptor)
     expected_output = (
         "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_real'\n"
+        "  argument_type[0]='gh_scalar'\n"
         "  data_type[1]='gh_real'\n"
         "  access_descriptor[2]='gh_read'\n")
     assert expected_output in result
 
-    # Check representation of an integer scalar
+    # Check representation of an integer scalar (note: "gh_integer"
+    # argument type is translated to "gh_scalar")
     int_scalar_descriptor = metadata.arg_descriptors[5]
     result = str(int_scalar_descriptor)
     expected_output = (
         "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_integer'\n"
+        "  argument_type[0]='gh_scalar'\n"
         "  data_type[1]='gh_integer'\n"
         "  access_descriptor[2]='gh_read'\n")
     assert expected_output in result
@@ -208,7 +210,7 @@ def test_ad_scalar_init_wrong_argument_type():
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
             wrong_arg, metadata.iterates_over)._init_scalar(wrong_arg)
-    assert ("LFRicArgDescriptor._init_scalar(): Expected a scalar "
+    assert ("LFRicArgDescriptor._init_scalar(): expected a scalar "
             "argument but got an argument of type 'gh_operator'." in
             str(excinfo.value))
 
@@ -229,8 +231,9 @@ def test_ad_scalar_type_too_few_args():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
-        assert ("In the LFRic API each 'meta_arg' entry must have at "
-                "least 3 args, but found 2." in str(excinfo.value))
+        assert ("In the LFRic API each 'meta_arg' entry must have at least "
+                "3 args, but found 2 in 'arg_type(gh_scalar, gh_real)'."
+                in str(excinfo.value))
 
 
 def test_ad_scalar_type_too_many_args():
@@ -270,7 +273,7 @@ def test_ad_scalar_init_wrong_data_type(monkeypatch):
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
             scalar_arg, metadata.iterates_over)._init_scalar(scalar_arg)
-    assert ("LFRicArgDescriptor._init_scalar(): Expected one of {0} "
+    assert ("LFRicArgDescriptor._init_scalar(): expected one of {0} "
             "as the data type but got 'gh_double'.".
             format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES) in
             str(excinfo.value))
@@ -324,7 +327,7 @@ def test_ad_int_scalar_type_no_sum():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("reduction access 'gh_sum' is only valid with a real scalar "
-            "argument, but scalar 'gh_scalar' with 'gh_integer' data type "
+            "argument, but a scalar argument with 'gh_integer' data type "
             in str(excinfo.value))
 
 
@@ -340,7 +343,7 @@ def test_ad_field_init_wrong_type():
         LFRicArgDescriptor(
             wrong_arg, metadata.iterates_over)._init_field(
                 wrong_arg, metadata.iterates_over)
-    assert ("LFRicArgDescriptor._init_field(): Expected a field "
+    assert ("LFRicArgDescriptor._init_field(): expected a field "
             "argument but got an argument of type 'gh_scalar'" in
             str(excinfo.value))
 
@@ -449,7 +452,7 @@ def test_ad_invalid_access_type():
     valid_access_names = api_config.get_valid_accesses_api()
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("3nd/rd argument of a 'meta_arg' entry must be a valid "
+    assert ("argument 3 of a 'meta_arg' entry must be a valid "
             "access descriptor (one of {0}), but found 'gh_ead'".
             format(valid_access_names) in str(excinfo.value))
 
@@ -467,7 +470,7 @@ def test_ad_invalid_iteration_space():
     arg_type = field_descriptor._arg_type
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, "colours")
-    assert ("LFRicArgDescriptor.__init__(): Expected one of "
+    assert ("LFRicArgDescriptor.__init__(): expected one of "
             "['cells', 'dofs'] iteration spaces in the kernel "
             "metadata but got 'colours'." in str(excinfo.value))
 
@@ -569,12 +572,12 @@ def test_missing_shape_basis_only():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Alter meta-data so only requires gh_basis
     code1 = CODE.replace(
-        "     type(func_type), dimension(3) :: meta_funcs =    &\n"
-        "          (/ func_type(w1, gh_basis),                 &\n"
-        "             func_type(w2, gh_diff_basis),            &\n"
-        "             func_type(w3, gh_basis, gh_diff_basis)   &\n",
-        "     type(func_type), dimension(1) :: meta_funcs =    &\n"
-        "          (/ func_type(w1, gh_basis)                  &\n", 1)
+        "     type(func_type), dimension(3) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis),               &\n"
+        "             func_type(w2, gh_diff_basis),          &\n"
+        "             func_type(w3, gh_basis, gh_diff_basis) &\n",
+        "     type(func_type), dimension(1) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis)                &\n", 1)
     # Remove the line specifying the shape of the evaluator
     code = code1.replace(
         "     integer :: gh_shape = gh_quadrature_XYoZ\n",
@@ -594,12 +597,12 @@ def test_missing_eval_shape_diff_basis_only():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Alter meta-data so only requires gh_diff_basis
     code1 = CODE.replace(
-        "     type(func_type), dimension(3) :: meta_funcs =    &\n"
-        "          (/ func_type(w1, gh_basis),                 &\n"
-        "             func_type(w2, gh_diff_basis),            &\n"
-        "             func_type(w3, gh_basis, gh_diff_basis)   &\n",
-        "     type(func_type), dimension(1) :: meta_funcs =    &\n"
-        "          (/ func_type(w1, gh_diff_basis)             &\n", 1)
+        "     type(func_type), dimension(3) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis),               &\n"
+        "             func_type(w2, gh_diff_basis),          &\n"
+        "             func_type(w3, gh_basis, gh_diff_basis) &\n",
+        "     type(func_type), dimension(1) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_diff_basis)           &\n", 1)
     # Remove the line specifying the shape of the evaluator
     code = code1.replace(
         "     integer :: gh_shape = gh_quadrature_XYoZ\n",
@@ -637,10 +640,10 @@ def test_unnecessary_shape():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Remove the need for basis or diff-basis functions
     code = CODE.replace(
-        "     type(func_type), dimension(3) :: meta_funcs =    &\n"
-        "          (/ func_type(w1, gh_basis),                 &\n"
-        "             func_type(w2, gh_diff_basis),            &\n"
-        "             func_type(w3, gh_basis, gh_diff_basis)   &\n"
+        "     type(func_type), dimension(3) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis),               &\n"
+        "             func_type(w2, gh_diff_basis),          &\n"
+        "             func_type(w3, gh_basis, gh_diff_basis) &\n"
         "           /)\n",
         "", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -1589,7 +1592,7 @@ def test_no_vector_scalar():
     for argname in [LFRicArgDescriptor.VALID_SCALAR_NAMES[0]]:
         vectname = argname + " * 3"
         code = CODE.replace("arg_type(" + argname + ", gh_real, gh_read)",
-                            "arg_type(" + argname + "*3, gh_real, gh_read)", 1)
+                            "arg_type(" + vectname + ", gh_real, gh_read)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
@@ -1613,7 +1616,7 @@ def test_scalar_kernel_load_meta_err():
     scalar_arg._data_type = "gh_triple"
     with pytest.raises(InternalError) as err:
         kernel.load_meta(metadata)
-    assert ("DynKern.load_meta(): Expected one of {0} data types for "
+    assert ("DynKern.load_meta(): expected one of {0} data types for "
             "a scalar argument but found 'gh_triple'.".
             format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES) in
             str(err.value))
@@ -3214,16 +3217,14 @@ def test_arg_desc_func_space_tofrom_err():
     field_descriptor = metadata.arg_descriptors[0]
     with pytest.raises(InternalError) as excinfo:
         _ = field_descriptor.function_space_to
-    assert ("LFRicArgDescriptor.function_space_to(): In the LFRic API "
-            "'function_space_to' only makes sense for one of "
-            "['gh_operator', 'gh_columnwise_operator'], but this is "
-            "a 'gh_scalar'") in str(excinfo.value)
+    assert ("In the LFRic API 'function_space_to' only makes sense "
+            "for one of ['gh_operator', 'gh_columnwise_operator'], but "
+            "this is a 'gh_scalar'") in str(excinfo.value)
     with pytest.raises(InternalError) as excinfo:
         _ = field_descriptor.function_space_from
-    assert ("LFRicArgDescriptor.function_space_from(): In the LFRic API "
-            "'function_space_from' only makes sense for one of "
-            "['gh_operator', 'gh_columnwise_operator'], but this is "
-            "a 'gh_scalar'") in str(excinfo.value)
+    assert ("In the LFRic API 'function_space_from' only makes sense "
+            "for one of ['gh_operator', 'gh_columnwise_operator'], but "
+            "this is a 'gh_scalar'") in str(excinfo.value)
 
 
 def test_unrecognised_fspace_error():
@@ -3365,7 +3366,7 @@ def test_arg_descriptor_init_error(monkeypatch):
     arg_type.args[0].name = "GH_INVALID"
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, metadata.iterates_over)
-    assert ("LFRicArgDescriptor.__init__(): Failed argument validation for "
+    assert ("LFRicArgDescriptor.__init__(): failed argument validation for "
             "the 'meta_arg' entry 'arg_type(GH_INVALID, gh_real, gh_read)', "
             "should not get to here." in str(excinfo.value))
 
@@ -5861,8 +5862,8 @@ def test_multiple_updated_scalar_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("A user-supplied LFRic kernel must not write/update a scalar "
-            "argument but kernel 'testkern_qr_type' has argument type "
-            "'gh_scalar' with 'gh_sum' access." in str(excinfo.value))
+            "argument but kernel 'testkern_qr_type' has a scalar "
+            "argument with 'gh_sum' access." in str(excinfo.value))
 
 
 def test_itn_space_write_w2broken_w1(dist_mem, tmpdir):

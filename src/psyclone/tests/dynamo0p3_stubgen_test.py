@@ -206,8 +206,8 @@ def test_stub_generate_with_scalar_sums():
             api=TEST_API)
     assert (
         "A user-supplied LFRic kernel must not write/update a scalar "
-        "argument but kernel 'simple_with_reduction_type' has argument "
-        "type 'gh_scalar' with 'gh_sum' access." in str(err.value))
+        "argument but kernel 'simple_with_reduction_type' has a scalar "
+        "argument with 'gh_sum' access." in str(err.value))
 
 
 # Fields : intent
