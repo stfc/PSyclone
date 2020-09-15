@@ -256,6 +256,22 @@ def test_ad_scalar_type_too_many_args():
                 str(excinfo.value))
 
 
+def test_ad_scalar_invalid_data_type():
+    ''' Tests that an error is raised when the argument descriptor
+    metadata for a scalar has an invalid data type. '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    name = "testkern_qr_type"
+    code = CODE.replace("arg_type(gh_scalar, gh_real, gh_read)",
+                        "arg_type(gh_scalar, gh_read)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("In the LFRic API the 2nd argument of a 'meta_arg' "
+            "scalar entry should be a valid data type (one of "
+            "['gh_real', 'gh_integer']), but found 'gh_read' in "
+            "'gh_scalar'." in str(excinfo.value))
+
+
 def test_ad_scalar_init_wrong_data_type(monkeypatch):
     ''' Test that an error is raised if an invalid data type
     is passed to the LFRicArgDescriptor._init_scalar() method. '''

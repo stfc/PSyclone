@@ -167,8 +167,8 @@ class LFRicArgDescriptor(Descriptor):
         else:
             raise ParseError(
                 "In the LFRic API the 1st argument of a 'meta_arg' "
-                "entry should be a valid argument type (one of {0}), but "
-                "found '{1}' in '{2}'.".
+                "entry should be a valid argument type (one of {0}), "
+                "but found '{1}' in '{2}'.".
                 format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
                        argtype, arg_type))
 
@@ -178,17 +178,24 @@ class LFRicArgDescriptor(Descriptor):
             self._validate_vector_size(separator, arg_type)
 
         # The 2nd arg for scalars (1st for the old-style scalar metadata)
-        # is the Fortran primitive type of their data (issue #817 will
-        # introduce this for fields and operators, too).
+        # is the Fortran primitive type of their data.
+        # TODO in issue #817: introduce data type for fields and operators,
+        # too, and modify the ParseError accordingly.
         # Note: Here we also set internal "offset" argument required to
         #       support the old and the current argument metadata style.
-        # TODO in #874: Remove support for the old-style metadata and
-        #               raise a ParseError if the 2nd argument is not
-        #               a valid data type.
-        if arg_type.args[1].name in \
-           LFRicArgDescriptor.VALID_ARG_DATA_TYPES:
-            self._data_type = arg_type.args[1].name
-            self._offset = 1
+        # TODO in #874: Remove support for the old-style metadata.
+        if self._argument_type == "gh_scalar":
+            dtype = arg_type.args[1].name
+            if dtype in LFRicArgDescriptor.VALID_ARG_DATA_TYPES:
+                self._data_type = dtype
+                self._offset = 1
+            else:
+                raise ParseError(
+                    "In the LFRic API the 2nd argument of a 'meta_arg' "
+                    "scalar entry should be a valid data type (one of {0}), "
+                    "but found '{1}' in '{2}'.".
+                    format(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
+                           dtype, self._argument_type))
 
         # Check number of args (in general and also for scalar arguments).
         # We require at least three (two for old-style metadata).
