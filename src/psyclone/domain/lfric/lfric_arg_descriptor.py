@@ -199,6 +199,13 @@ class LFRicArgDescriptor(Descriptor):
                 "iteration spaces in the kernel metadata but got "
                 "'{1}'.".format(VALID_ITERATION_SPACES, iterates_over))
 
+        # Map from old iterates_over values to new operates_on values.
+        # TODO #870 remove this code!
+        if iterates_over == "cells":
+            iterates_over = "cell_column"
+        if iterates_over == "dofs":
+            iterates_over = "dof"
+
         # FIELD, OPERATOR and SCALAR argument type descriptors and checks
         if self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
             # Validate field arguments
@@ -393,7 +400,7 @@ class LFRicArgDescriptor(Descriptor):
                            FunctionSpace.VALID_ANY_SPACE_NAMES)
 
         # Check accesses for kernels that iterate over DoFs
-        if iterates_over == "dofs":
+        if iterates_over == "dof":
             if self._access_type not in field_disc_accesses:
                 raise ParseError(
                     "In the LFRic API, allowed field accesses for a "
@@ -403,7 +410,7 @@ class LFRicArgDescriptor(Descriptor):
                            rev_access_mapping[self._access_type],
                            self._function_space1.lower(), arg_type))
         # Check accesses for kernels that iterate over cells
-        elif iterates_over == "cells":
+        elif iterates_over == "cell_column":
             # Fields on discontinuous function spaces
             if (self._function_space1.lower() in
                     FunctionSpace.VALID_DISCONTINUOUS_NAMES and

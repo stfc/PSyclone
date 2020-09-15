@@ -198,7 +198,7 @@ class DynBuiltIn(BuiltIn):
         # Check that our assumption that we're looping over DoFs is valid
         if self.iterates_over not in BUILTIN_ITERATION_SPACES:
             raise ParseError(
-                "In the LFRic API built-in calls must iterate over "
+                "In the LFRic API built-in calls must operate on "
                 "DoFs but found '{0}' for {1}.".
                 format(self.iterates_over, str(self)))
         # Check write count, field arguments and spaces

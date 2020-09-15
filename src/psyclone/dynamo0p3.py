@@ -439,6 +439,12 @@ class DynKernMetadata(KernelType):
 
         KernelType.__init__(self, ast, name=name)
 
+        # TODO #870 remove this mapping from old values to new values
+        if self.iterates_over == "cells":
+            self._iterates_over = "cell_column"
+        if self.iterates_over == "dofs":
+            self._iterates_over = "dof"
+
         # The type of CMA operation this kernel performs (or None if
         # no CMA operators are involved)
         self._cma_operation = None
@@ -2123,8 +2129,8 @@ class DynDofmaps(DynCollection):
         self._unique_indirection_maps = OrderedDict()
 
         for call in self._calls:
-            # We only need a dofmap if the kernel iterates over cells
-            if call.iterates_over == "cells":
+            # We only need a dofmap if the kernel iterates over cell_column
+            if call.iterates_over == "cell_column":
                 for unique_fs in call.arguments.unique_fss:
                     # We only need a dofmap if there is a *field* on this
                     # function space. If there is then we use it to look
@@ -4816,7 +4822,7 @@ class DynInvoke(Invoke):
         :rtype: bool
         '''
         for kern_call in self.schedule.kernels():
-            if kern_call.iterates_over.lower() != "dofs":
+            if kern_call.iterates_over.lower() != "dof":
                 return False
         return True
 
@@ -5840,7 +5846,7 @@ class HaloWriteAccess(HaloDepth):
         # over cells
         self._dirty_outer = (
             not field.discontinuous and
-            loop.iteration_space == "cells" and
+            loop.iteration_space == "cell_column" and
             loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS)
         depth = 0
         max_depth = False
@@ -7141,8 +7147,8 @@ class DynKern(CodedKern):
         # Check iteration space before generating code
         if self.iterates_over not in USER_KERNEL_ITERATION_SPACES:
             raise InternalError(
-                "DynKern.gen_stub(): Expected one of {0} as iteration "
-                "space but found '{1}' in kernel '{2}'.".
+                "DynKern.gen_stub(): Expected the kernel to operate on one of "
+                "{0} but found '{1}' in kernel '{2}'.".
                 format(USER_KERNEL_ITERATION_SPACES, self.iterates_over,
                        self.name))
 
@@ -7189,7 +7195,7 @@ class DynKern(CodedKern):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         :raises GenerationError: if this kernel does not have a supported \
-                                 iteration space (currently only "cells").
+                                 iteration space (currently only "cell_column").
         :raises GenerationError: if the loop goes beyond the level 1 \
                                  halo and an operator is accessed.
         :raises GenerationError: if a kernel in the loop has an inc access \

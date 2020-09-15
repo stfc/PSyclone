@@ -99,8 +99,8 @@ def test_dynbuiltin_not_over_dofs():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("built-in calls must iterate over DoFs but found 'cells' for "
-            "Built-in: Set field " in str(excinfo.value))
+    assert ("built-in calls must operate on DoFs but found 'cell_column' "
+            "for Built-in: Set field " in str(excinfo.value))
 
 
 def test_builtin_multiple_writes():
