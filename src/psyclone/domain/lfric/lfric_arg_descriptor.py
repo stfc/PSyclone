@@ -199,13 +199,6 @@ class LFRicArgDescriptor(Descriptor):
                 "iteration spaces in the kernel metadata but got "
                 "'{1}'.".format(VALID_ITERATION_SPACES, iterates_over))
 
-        # Map from old iterates_over values to new operates_on values.
-        # TODO #870 remove this code!
-        if iterates_over == "cells":
-            iterates_over = "cell_column"
-        if iterates_over == "dofs":
-            iterates_over = "dof"
-
         # FIELD, OPERATOR and SCALAR argument type descriptors and checks
         if self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
             # Validate field arguments
