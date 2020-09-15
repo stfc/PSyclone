@@ -606,15 +606,15 @@ Code written for a PSyData library is often very repetitive. For example, an
 implementation of ``PreDeclareVariable`` must be provided for each data type.
 For LFRic that can easily result in over 10 very similar subroutines (3 basic
 types integer, 4- and 8-byte reals; and 4- and 8-byte arrays of one to four
-dimensions). In order to simplify the creation of these subroutine the templating
-language Jinja is being used. Jinja allows to create code based on an template,
+dimensions). In order to simplify the creation of these subroutines the templating
+language Jinja is being used. Jinja creates code based on an template,
 which makes it possible to maintain just one template implementation of a subroutine,
 from which the various Fortran-type specific implementation will be generated.
 
 Jinja is used in the generic base class ``PSyDataBase``, and the base class for all
 ``ReadOnly`` libraries. It is not required that any library using one of these base
-classes uses itself Jinja. For example, the ReadOnly library for
-dl_esm_inf is not using Jinja (except for processing the base class templates
+classes itself uses Jinja. For example, the ReadOnly library for
+dl_esm_inf does not use Jinja (except for processing the base class templates
 of course), while the ReadOnly library for LFRic does. In case of dl_esm_inf,
 there were only 5 data types that need to be supported, so it was easy to just
 list these 5 functions in a generic interface. LFRic on the other hand uses
@@ -695,7 +695,7 @@ needs to be adjusted as well.
 
 Below is a short excerpt that shows how these variables are defined by
 default, and how they are used to create subroutines and declare their
-parameters in ``lib//read_only_base.jinja``:
+parameters in ``lib/read_only_base.jinja``:
 
 .. code-block:: jinja
 
@@ -735,11 +735,11 @@ parameters in ``lib//read_only_base.jinja``:
     {% endfor %}
 
 
-Since the PSyData relies on a generic interface to automatically call the
+Since the PSyData API relies on a generic interface to automatically call the
 right subroutine depending on type, a library must declare these automatically
-created subroutine (together with additional, library-specific versions)
+created subroutines (together with additional, library-specific versions)
 as one generic interface. This can either be done by explicitly listing the
-subroutines (which is for example done in ``lib/read_only/dl_esm_inf/read_onlyf90``,
+subroutines (which is for example done in ``lib/read_only/dl_esm_inf/read_only.f90``,
 since it uses only 5 different data types), or using Jinja as well.
 The code below shows how the base class and Jinja are used in
 ``lib/read_only/lfric/read_only.f90``. The ``FieldDouble`` and ``FieldVectorDouble``

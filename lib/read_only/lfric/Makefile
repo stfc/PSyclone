@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Australian Bureau of Meteorology
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ LFRIC_DIR ?= ../../../../../lfric/work/trunk/miniapps/gravity_wave/working/field
 # The LFRic ReadOnly library needs the PreDeclareVariable() and
 # ProvideVariable() routines for the basic Fortran types real, int,
 # and double, and for 1-, 2-, 3-, and 4-dimensional arrays. These arguments
-# are used for # both base classes: PSyDataBase and ReadOnlyBase to ensure
+# are used for both base classes: PSyDataBase and ReadOnlyBase to ensure
 # consistent code creation.
 PROCESS_ARGS = -prefix=read_only_verify_ -types=real,int,double \
 		       -dims=1,2,3,4
