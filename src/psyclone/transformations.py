@@ -554,9 +554,9 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                        node2.upper_bound_halo_depth))
 
         # 5) Check for reductions
-        from psyclone.psyGen import MAPPING_SCALARS
+        from psyclone.psyGen import VALID_SCALAR_NAMES
         from psyclone.core.access_type import AccessType
-        arg_types = MAPPING_SCALARS
+        arg_types = VALID_SCALAR_NAMES
         all_reductions = AccessType.get_valid_reduction_modes()
         node1_red_args = node1.args_filter(arg_types=arg_types,
                                            arg_accesses=all_reductions)

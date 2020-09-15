@@ -148,7 +148,7 @@ VALID_ITERATION_SPACES = USER_KERNEL_ITERATION_SPACES + \
 # ---------- psyGen mappings ------------------------------------------------ #
 # Mappings used by non-API-specific code in psyGen.
 # psyGen ["rscalar", "iscalar"] translate to LFRic scalar names.
-psyGen.MAPPING_SCALARS = LFRicArgDescriptor.VALID_SCALAR_NAMES
+psyGen.VALID_SCALAR_NAMES = LFRicArgDescriptor.VALID_SCALAR_NAMES
 
 # psyGen argument types translate to LFRic argument types.
 psyGen.VALID_ARG_TYPE_NAMES = LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
@@ -593,11 +593,9 @@ class DynKernMetadata(KernelType):
                    arg.argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
                     raise ParseError(
                         "A user-supplied LFRic kernel must not write/update "
-                        "a scalar argument but kernel '{0}' has argument "
-                        "type '{1}' with '{2}' access."
-                        .format(self.name,
-                                arg.argument_type,
-                                arg.access.api_specific_name()))
+                        "a scalar argument but kernel '{0}' has a scalar "
+                        "argument with '{1}' access."
+                        .format(self.name, arg.access.api_specific_name()))
         if write_count == 0:
             raise ParseError("A Dynamo 0.3 kernel must have at least one "
                              "argument that is updated (written to) but "
@@ -6819,8 +6817,8 @@ class DynKern(CodedKern):
         :type ktype: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
 
         :raises InternalError: for an invalid data type of a scalar argument.
-        :raises GenerationError: if an invalid descriptor argument type is \
-                                 found in the kernel.
+        :raises GenerationError: if an invalid argument type is found \
+                                 in the kernel.
 
         '''
         # Create a name for each argument
@@ -6842,7 +6840,7 @@ class DynKern(CodedKern):
                     pre = "iscalar_"
                 else:
                     raise InternalError(
-                        "DynKern.load_meta(): Expected one of {0} data types "
+                        "DynKern.load_meta(): expected one of {0} data types "
                         "for a scalar argument but found '{1}'.".
                         format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES,
                                descriptor.data_type))

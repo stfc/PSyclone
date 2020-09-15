@@ -641,15 +641,15 @@ fourth is an operator. The third entry is a field vector of size 3.
        arg_type(GH_OPERATOR, ...)                                      &
        /)
 
-The second argument-metadata entry for :ref:`scalar arguments
-<dynamo0.3-scalar>` describes what is the Fortran primitive (intrinsic)
+The second item in a metadata entry for a :ref:`scalar argument
+<dynamo0.3-scalar>` describes the Fortran primitive (intrinsic)
 type of the data of a kernel argument. The currently supported values
 are ``GH_REAL`` and ``GH_INTEGER`` for ``real`` and ``integer``
 data, respectively. Valid data types for each Dynamo0.3 API argument
 type are specified later in this section (see
 :ref:`dynamo0.3-kernel-valid-data-type`).
 
-The third entry to argument metadata for scalars and the second for
+The third component of argument metadata for scalars and the second for
 all other argument types describes how the Kernel makes use of
 the data being passed into it (the way it is accessed within a
 Kernel). This information is mandatory. There are currently 5 possible
@@ -698,7 +698,7 @@ For example::
           scalars (``GH_SCALAR, GH_REAL``) as the LFRic infrastructure
           does not yet support integer reductions.
 
-For a scalar the argument metadata contains only these tree entries.
+For a scalar the argument metadata contains only these three entries.
 However, fields and operators require further entries specifying
 function-space information.
 The meaning of these further entries differs depending on whether a
@@ -806,7 +806,7 @@ Valid Access Modes
 
 As mentioned earlier, not all combinations of metadata are
 valid. Valid combinations for each argument type in
-user-defined Kernels are summarised here. All types of arguments
+user-defined Kernels are summarised here. All argument types
 (``GH_SCALAR``, ``GH_FIELD``, ``GH_OPERATOR`` and
 ``GH_COLUMNWISE_OPERATOR``) may be read within a Kernel and this
 is specified in metadata using ``GH_READ``. At least one kernel
@@ -814,7 +814,7 @@ argument must be listed as being modified. When argument data is
 *modified* in a user-supplied Kernel (i.e. a Kernel that has
 ``CELLS`` as its iteration space, see :ref:`iteration space metadata
 <dynamo0.3-user-kernel-iterates-over>`) then the permitted access
-modes depend on the type it is and the function space it is on:
+modes depend upon the argument type and the function space it is on:
 
 .. tabularcolumns:: |l|l|l|
 
