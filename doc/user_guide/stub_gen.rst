@@ -429,8 +429,8 @@ appropriate errors. Two examples are below:
     Error: 'Parse Error: Kernel type testkern_type does not exist'
 
 ``testkern_dofs_mod.f90`` is an example with an unsupported feature, as the
-``iterates_over`` metadata specifies ``dofs``. Currently only kernels with
-``iterates_over=CELLS`` are supported by the stub generator.
+``operates_on`` metadata specifies ``dof``. Currently only kernels with
+``operates_on=CELL_COLUMN`` are supported by the stub generator.
 
 Generic function space metadata ``any_space`` and ``any_discontinuous_space``
 (see Section :ref:`Supported Function Spaces <dynamo0.3-function-space>`

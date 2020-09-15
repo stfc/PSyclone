@@ -418,8 +418,10 @@ types.
 
 1) A Kernel must have at least one argument that is a field, field
    vector, or operator. This rule reflects the fact that a Kernel
-   iterates over a space and therefore must have some representation
-   over that space.
+   operates on some sub-set of the whole domain (e.g. a cell column)
+   and is therefore designed to be called from within a loop that
+   iterates over those sub-sets of the domain. It must therefore have
+   an argument that exists throughout the domain.
 
 2) The continuity of the iteration space of the Kernel is determined
    from the function space of the modified argument (see Section
@@ -1902,10 +1904,10 @@ following rules:
 
 1) They must have one and only one modified (i.e. written to) argument.
 
-2) The iteration space must be over DoFs (``iterates_over = DOFS`` metadata).
+2) They must operate on a DoF (``operates_on = DOF`` metadata).
 
 3) There must be at least one field in the argument list. This is so
-   that we know the number of DoFs to iterate over.
+   that we know the number of DoFs to iterate over in the PSy layer.
 
 4) Kernel arguments must be either fields or scalars.
 
@@ -1933,7 +1935,7 @@ Metadata
 ++++++++
 
 The code below outlines the elements of the LFRic API Built-in
-metadata, 1) 'meta_args', 2) 'iterates_over' and 3) 'procedure'::
+metadata, 1) 'meta_args', 2) 'operates_on' and 3) 'procedure'::
 
   type, public, extends(kernel_type) :: aX_plus_bY
      private
@@ -1944,14 +1946,14 @@ metadata, 1) 'meta_args', 2) 'iterates_over' and 3) 'procedure'::
           arg_type(GH_REAL,  GH_READ              ),                  &
           arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1)                   &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: aX_plus_bY_code
   end type aX_plus_bY
 
 As can be seen, the metadata for a Built-in kernel is a subset of that
 for a :ref:`user-defined Kernel <dynamo0.3-api-kernel-metadata>` with the
-exception that the iteration space is ``DOFS`` instead of ``CELLS``.
+exception that ``operates_on`` must be ``DOF`` instead of ``CELL_COLUMN``.
 
 .. _dynamo0.3-built-ins-valid-access:
 

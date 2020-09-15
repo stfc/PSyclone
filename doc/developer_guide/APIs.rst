@@ -190,13 +190,13 @@ Existing APIs
 
 .. _dynamo0.3-developers:
 
-Dynamo0.3
-=========
+LFRic (Dynamo0.3)
+=================
 
 Mesh
 ----
 
-The Dynamo0.3 API supports meshes that are unstructured in the
+The LFRic API supports meshes that are unstructured in the
 horizontal and structured in the vertical. This is often thought of as
 a horizontal 2D unstructured mesh which is extruded into the
 vertical. The LFRic infrastructure represents this mesh as a list of
@@ -206,10 +206,11 @@ vertical "column".
 Cells
 -----
 
-The Dynamo0.3 API currently assumes that all kernels which support
-iterating over cells work internally on a column of cells. This means
+In the LFRic API, kernels which have metadata which specifies
+``operates_on = CELL_COLUMN`` work
+internally on a column of cells. This means
 that PSyclone need only be concerned with iterating over cell-columns
-in the horizontal. As a result the LFRic infrastructure presents the
+in the horizontal. As a result, the LFRic infrastructure presents the
 mesh information to PSyclone as if the mesh were 2-dimensional. From
 now on this 2D view will be assumed i.e. a cell will actually be a
 column of cells. The LFRic infrastracture provides a global 2D cell
