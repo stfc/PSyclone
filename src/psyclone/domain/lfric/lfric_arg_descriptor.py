@@ -63,9 +63,9 @@ class LFRicArgDescriptor(Descriptor):
                      field or operator).
     :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
                     :py:class:`psyclone.expression.BinaryOperator`
-    :param iterates_over: iteration space from the parsed kernel metadata \
-                          (used for validation).
-    :type iterates_over: str
+    :param operates_on: value of operates_on from the parsed kernel metadata \
+                        (used for validation).
+    :type operates_on: str
 
     :raises ParseError: if a 'meta_arg' entry is not of 'arg_type' type.
     :raises ParseError: if a 'meta_arg' entry has fewer than 2 args.
@@ -73,8 +73,8 @@ class LFRicArgDescriptor(Descriptor):
                         valid argument types.
     :raises ParseError: if the second 'meta_arg' entry is not a valid \
                         access descriptor.
-    :raises InternalError: if the iteration space from the parsed kernel \
-                           metadata is not over 'cells' or 'dofs'.
+    :raises InternalError: if the operates-on from the parsed kernel \
+                           metadata is not 'cell_column' or 'dof'.
     :raises InternalError: if all the metadata checks fail to catch an \
                            invalid argument type.
 
@@ -113,7 +113,7 @@ class LFRicArgDescriptor(Descriptor):
     VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
     # ----------------------------------------------------------------------- #
 
-    def __init__(self, arg_type, iterates_over):
+    def __init__(self, arg_type, operates_on):
         self._arg_type = arg_type
         # Initialise properties
         self._argument_type = None
@@ -193,16 +193,16 @@ class LFRicArgDescriptor(Descriptor):
         # Check for the allowed iteration spaces from the parsed kernel
         # metadata
         from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
-        if iterates_over not in VALID_ITERATION_SPACES:
+        if operates_on not in VALID_ITERATION_SPACES:
             raise InternalError(
                 "LFRicArgDescriptor.__init__(): Expected operates_on in the "
                 "kernel metadata to be one of {0} but got "
-                "'{1}'.".format(VALID_ITERATION_SPACES, iterates_over))
+                "'{1}'.".format(VALID_ITERATION_SPACES, operates_on))
 
         # FIELD, OPERATOR and SCALAR argument type descriptors and checks
         if self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
             # Validate field arguments
-            self._init_field(arg_type, iterates_over)
+            self._init_field(arg_type, operates_on)
 
         elif self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
             # Validate operator arguments
@@ -282,16 +282,16 @@ class LFRicArgDescriptor(Descriptor):
                 format(LFRicArgDescriptor.VALID_FIELD_NAMES,
                        arg_type.args[0]))
 
-    def _init_field(self, arg_type, iterates_over):
+    def _init_field(self, arg_type, operates_on):
         '''
         Validates metadata descriptors for field arguments and
         initialises field argument properties accordingly.
 
         :param arg_type: LFRic API field (vector) argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
-        :param iterates_over: iteration space from the parsed kernel \
-                              metadata (used for validation).
-        :type iterates_over: str
+        :param operates_on: value of operates_on from the parsed kernel \
+                            metadata (used for validation).
+        :type operates_on: str
 
         :raises InternalError: if argument type other than a field is \
                                passed in.
@@ -301,17 +301,17 @@ class LFRicArgDescriptor(Descriptor):
         :raises ParseError: if the optional 4th argument is not a stencil \
                             specification or a mesh identifier (for \
                             inter-grid kernels).
-        :raises ParseError: if a field passed to a kernel that iterates \
-                            over DoFs does not have a valid access \
+        :raises ParseError: if a field passed to a kernel that operates on \
+                            DoFs does not have a valid access \
                             (one of [READ, WRITE, READWRITE]).
         :raises ParseError: if a field on a discontinuous function space \
-                            passed to a kernel that iterates over cells \
+                            passed to a kernel that operates on cell-columns \
                             does not have a valid access (one of \
                             [READ, WRITE, READWRITE]).
         :raises ParseError: if a field on a continuous function space \
-                            passed to a kernel that iterates over cells \
+                            passed to a kernel that operates on cell-columns \
                             does not have a valid access (one of [READ, INC]).
-        :raises InternalError: if an invalid iteration space is passed in.
+        :raises InternalError: if an invalid operates-on is passed in.
         :raises ParseError: if a field with a stencil access is not read-only.
 
         '''
@@ -392,18 +392,18 @@ class LFRicArgDescriptor(Descriptor):
         fld_cont_spaces = (FunctionSpace.CONTINUOUS_FUNCTION_SPACES +
                            FunctionSpace.VALID_ANY_SPACE_NAMES)
 
-        # Check accesses for kernels that iterate over DoFs
-        if iterates_over == "dof":
+        # Check accesses for kernels that operate on DoFs
+        if operates_on == "dof":
             if self._access_type not in field_disc_accesses:
                 raise ParseError(
                     "In the LFRic API, allowed field accesses for a "
-                    "kernel that iterates over DoFs are {0}, but found "
+                    "kernel that operates on DoFs are {0}, but found "
                     "'{1}' for '{2}' in '{3}'.".
                     format(fld_disc_acc_msg,
                            rev_access_mapping[self._access_type],
                            self._function_space1.lower(), arg_type))
-        # Check accesses for kernels that iterate over cells
-        elif iterates_over == "cell_column":
+        # Check accesses for kernels that operate on cell-columns
+        elif operates_on == "cell_column":
             # Fields on discontinuous function spaces
             if (self._function_space1.lower() in
                     FunctionSpace.VALID_DISCONTINUOUS_NAMES and
@@ -411,7 +411,7 @@ class LFRicArgDescriptor(Descriptor):
                 raise ParseError(
                     "In the LFRic API, allowed accesses for fields on "
                     "discontinuous function spaces that are arguments to "
-                    "kernels that iterate over cells are {0}, but found "
+                    "kernels that operate on cell-columns are {0}, but found "
                     "'{1}' for '{2}' in '{3}'.".
                     format(fld_disc_acc_msg,
                            rev_access_mapping[self._access_type],
@@ -422,18 +422,18 @@ class LFRicArgDescriptor(Descriptor):
                 raise ParseError(
                     "In the LFRic API, allowed accesses for fields on "
                     "continuous function spaces that are arguments to "
-                    "kernels that iterate over cells are {0}, but found "
+                    "kernels that operate on cell-columns are {0}, but found "
                     "'{1}' for '{2}' in '{3}'.".
                     format(fld_cont_acc_msg,
                            rev_access_mapping[self._access_type],
                            self._function_space1.lower(), arg_type))
-        # Raise an InternalError for an invalid iteration space
+        # Raise an InternalError for an invalid value of operates-on
         else:
             from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
             raise InternalError(
-                "LFRicArgDescriptor._init_field(): Invalid iteration "
-                "space '{0}' in the kernel metadata (expected one of {1}).".
-                format(iterates_over, VALID_ITERATION_SPACES))
+                "LFRicArgDescriptor._init_field(): Invalid operates-on '{0}' "
+                "in the kernel metadata (expected one of {1}).".
+                format(operates_on, VALID_ITERATION_SPACES))
 
         # Test allowed accesses for fields that have stencil specification
         if self._stencil and self._access_type != AccessType.READ:
