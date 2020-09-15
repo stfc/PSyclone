@@ -104,6 +104,7 @@ module argument_mod
   integer, public, parameter :: GH_COLUMN_INDIRECTION_DOFMAP = 305
 
   ! Kernel iterator
+  ! TODO #870 remove CELLS
   integer, public, parameter :: CELLS       = 401
   integer, public, parameter :: CELL_COLUMN = 402
   integer, public, parameter :: ALL_DOFS    = 403

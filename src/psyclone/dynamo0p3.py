@@ -7195,12 +7195,12 @@ class DynKern(CodedKern):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         :raises GenerationError: if this kernel does not have a supported \
-                                 iteration space (currently only "cell_column").
+                        iteration space (currently only "cell_column").
         :raises GenerationError: if the loop goes beyond the level 1 \
-                                 halo and an operator is accessed.
+                        halo and an operator is accessed.
         :raises GenerationError: if a kernel in the loop has an inc access \
-                                 and the loop is not coloured but is within \
-                                 an OpenMP parallel region.
+                        and the loop is not coloured but is within an OpenMP \
+                        parallel region.
 
         '''
         # Check iteration space before generating code

@@ -54,6 +54,8 @@ from psyclone.errors import InternalError
 # Code fragment for testing standard kernel setup with
 # a type-bound procedure. This uses the 'iterates_over'
 # member rather than 'operates_on'.
+# TODO #870 remove this metadata fragment and update all tests to use CODE
+# below instead.
 ITERATES_OVER_CODE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
@@ -513,16 +515,16 @@ def test_kerneltype_operates_on(operates):
     code = CODE.replace("cell_column", operates)
     parse_tree = parse(code)
     ktype = KernelType(parse_tree)
-    assert ktype.operates_on == operates
+    assert ktype.iterates_over == operates
     # Check that the parsing is not case sensitive
     code = CODE.replace("cell_column", operates.upper())
     parse_tree = parse(code)
     ktype = KernelType(parse_tree)
-    assert ktype.operates_on == operates
+    assert ktype.iterates_over == operates
 
 
 @pytest.mark.parametrize("iterates", ["cells", "dofs"])
-def test_kerneltype_operates_on(iterates):
+def test_kerneltype_iterates_over(iterates):
     ''' Test the parsing of the 'iterates_over' metadata element. '''
     code = ITERATES_OVER_CODE.replace("cells", iterates)
     parse_tree = parse(code)
