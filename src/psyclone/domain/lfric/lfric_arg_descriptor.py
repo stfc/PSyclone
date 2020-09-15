@@ -195,8 +195,8 @@ class LFRicArgDescriptor(Descriptor):
         from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
         if iterates_over not in VALID_ITERATION_SPACES:
             raise InternalError(
-                "LFRicArgDescriptor.__init__(): Expected one of {0} "
-                "iteration spaces in the kernel metadata but got "
+                "LFRicArgDescriptor.__init__(): Expected operates_on in the "
+                "kernel metadata to be one of {0} but got "
                 "'{1}'.".format(VALID_ITERATION_SPACES, iterates_over))
 
         # FIELD, OPERATOR and SCALAR argument type descriptors and checks

@@ -399,9 +399,9 @@ def test_ad_invalid_iteration_space():
     arg_type = field_descriptor._arg_type
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, "colours")
-    assert ("LFRicArgDescriptor.__init__(): Expected one of "
-            "['cells', 'cell_column', 'dofs', 'dof'] iteration spaces in "
-            "the kernel metadata but got 'colours'." in str(excinfo.value))
+    assert ("LFRicArgDescriptor.__init__(): Expected operates_on in the "
+            "kernel metadata to be one of ['cells', 'cell_column', 'dofs', "
+            "'dof'] but got 'colours'." in str(excinfo.value))
 
 
 def test_arg_descriptor_invalid_fs1():

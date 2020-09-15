@@ -4821,10 +4821,8 @@ class DynInvoke(Invoke):
                   iterate over DoFs.
         :rtype: bool
         '''
-        for kern_call in self.schedule.kernels():
-            if kern_call.iterates_over.lower() != "dof":
-                return False
-        return True
+        return all(call.iterates_over.lower() == "dof" for call in
+                   self.schedule.kernels())
 
     def field_on_space(self, func_space):
         ''' If a field exists on this space for any kernel in this
