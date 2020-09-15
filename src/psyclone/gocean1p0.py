@@ -55,7 +55,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    KernelSchedule, AccessType, ACCEnterDataDirective
+    KernelSchedule, AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, Symbol
@@ -194,6 +194,11 @@ class GOInvoke(Invoke):
     def __init__(self, alg_invocation, idx, invokes):
         self._schedule = GOInvokeSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
+
+        if Config.get().distributed_memory:
+            # Insert halo exchange calls
+            for loop in self.schedule.loops():
+                loop.create_halo_exchanges()
 
     @property
     def unique_args_arrays(self):
@@ -339,11 +344,10 @@ class GOInvokeSchedule(InvokeSchedule):
         InvokeSchedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
                                 alg_calls, reserved_names)
 
-        # Configuration of this InvokeSchedule - we default to having
-        # constant loop bounds. If we end up having a long list
-        # of configuration member variables here we may want
-        # to create a a new ScheduleConfig object to manage them.
-        self._const_loop_bounds = True
+        # The GOcean Constants Loops Bounds Optimization is implemented using
+        # a flag parameter. It defaults to False and can be turned on applying
+        # the GOConstLoopBoundsTrans transformation to this InvokeSchedule.
+        self._const_loop_bounds = False
 
     def node_str(self, colour=True):
         ''' Creates a text description of this node with (optional) control
@@ -460,6 +464,62 @@ class GOLoop(Loop):
 
         if not GOLoop._bounds_lookup:
             GOLoop.setup_bounds()
+
+    # -------------------------------------------------------------------------
+    def _halo_read_access(self, arg):
+        '''Determines whether the supplied argument has (or might have) its
+        halo data read within this loop. Returns True if it does, or if
+        it might and False if it definitely does not.
+
+        :param arg: an argument contained within this loop.
+        :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
+
+        :return: True if the argument reads, or might read from the \
+                 halo and False otherwise.
+        :rtype: bool
+
+        '''
+        return arg.argument_type == 'field' and arg.stencil.has_stencil and \
+            arg.access in [AccessType.READ, AccessType.READWRITE,
+                           AccessType.INC]
+
+    def create_halo_exchanges(self):
+        '''Add halo exchanges before this loop as required by fields within
+        this loop. The PSyIR insertion logic is coded in the _add_halo_exchange
+        helper method. '''
+
+        for halo_field in self.unique_fields_with_halo_reads():
+            # for each unique field in this loop that has its halo
+            # read, find the previous update of this field.
+            prev_arg_list = halo_field.backward_write_dependencies()
+            if not prev_arg_list:
+                # field has no previous dependence so create new halo
+                # exchange(s) as we don't know the state of the fields
+                # halo on entry to the invoke
+                # TODO 856: If dl_es_inf supported an is_dirty flag, we could
+                # be more selective on which HaloEx are needed. This
+                # function then will be the same as in LFRic and therefore
+                # the code can maybe be generalised.
+                self._add_halo_exchange(halo_field)
+            else:
+                prev_node = prev_arg_list[0].call
+                if not isinstance(prev_node, HaloExchange):
+                    # Previous dependence is not a halo exchange so one needs
+                    # to be added to satisfy the dependency in distributed
+                    # memory.
+                    self._add_halo_exchange(halo_field)
+
+    def _add_halo_exchange(self, halo_field):
+        '''An internal helper method to add the halo exchange call immediately
+        before this loop using the halo_field argument for the associated
+        field information.
+
+        :param halo_field: the argument requiring a halo exchange
+        :type halo_field: :py:class:`psyclone.gocean1p0.GOKernelArgument`
+
+        '''
+        exchange = GOHaloExchange(halo_field, parent=self.parent)
+        self.parent.children.insert(self.position, exchange)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -2207,3 +2267,43 @@ class GOKernelSchedule(KernelSchedule):
     def __init__(self, name):
         super(GOKernelSchedule, self).__init__(name)
         self._symbol_table = GOSymbolTable(self)
+
+
+class GOHaloExchange(HaloExchange):
+    '''GOcean specific halo exchange class which can be added to and
+    manipulated in a schedule.
+
+    :param field: the field that this halo exchange will act on.
+    :type field: :py:class:`psyclone.gocean1p0.GOKernelArgument`
+    :param bool check_dirty: optional argument default False (contrary to \
+        its generic class - revisit in #856) indicating whether this halo \
+        exchange should be subject to a run-time check for clean/dirty halos.
+    :param parent: optional PSyIR parent node (default None) of this object.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    '''
+    def __init__(self, field, check_dirty=False, parent=None):
+        super(GOHaloExchange, self).__init__(field, check_dirty=check_dirty,
+                                             parent=parent)
+
+        # Name of the HaloExchange method in the GOcean infrastructure.
+        self._halo_exchange_name = "halo_exchange"
+
+    def gen_code(self, parent):
+        '''GOcean specific code generation for this class.
+
+        :param parent: an f2pygen object that will be the parent of \
+            f2pygen objects created in this method.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        from psyclone.f2pygen import CallGen, CommentGen
+        # TODO 856: Wrap Halo call with an is_dirty flag when necessary.
+
+        # TODO 886: Currently only stencils of depth 1 are accepted by this
+        # API, so the HaloExchange is hardcoded to depth 1.
+        parent.add(
+            CallGen(
+                parent, name=self._field.name +
+                "%" + self._halo_exchange_name +
+                "(depth=1)"))
+        parent.add(CommentGen(parent, ""))

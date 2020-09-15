@@ -1998,7 +1998,7 @@ class GOConstLoopBoundsTrans(Transformation):
 
     def apply(self, node, options=None):
         '''Switches constant loop bounds on or off for all loops in a
-        GOInvokeSchedule. Default is 'on'.
+        GOInvokeSchedule. Default is 'off'.
 
         :param node: the GOInvokeSchedule of which all loops will get the
             constant loop bounds switched on or off.
@@ -2010,7 +2010,7 @@ class GOConstLoopBoundsTrans(Transformation):
             be used (True) or not (False). Default is True.
 
         :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
+        :rtype: (:py:class:`psyclone.gocean1p0.GOInvokeSchedule`, \
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''

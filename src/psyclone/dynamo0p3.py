@@ -6382,21 +6382,6 @@ class DynLoop(Loop):
                 "Unsupported upper bound name '{0}' found in dynloop.upper_"
                 "bound_fortran()".format(self._upper_bound_name))
 
-    def unique_fields_with_halo_reads(self):
-        ''' Returns all fields in this loop that require at least some
-        of their halo to be clean to work correctly. '''
-
-        unique_fields = []
-        unique_field_names = []
-
-        for call in self.kernels():
-            for arg in call.arguments.args:
-                if self._halo_read_access(arg):
-                    if arg.name not in unique_field_names:
-                        unique_field_names.append(arg.name)
-                        unique_fields.append(arg)
-        return unique_fields
-
     def _halo_read_access(self, arg):
         '''
         Determines whether the supplied argument has (or might have) its
