@@ -38,7 +38,9 @@
 
 from __future__ import print_function, absolute_import
 import os
-import fparser
+import pytest
+from fparser.common.readfortran import FortranStringReader
+from psyclone.psyGen import PSyFactory
 
 # Constants
 API = "nemo"
@@ -54,7 +56,11 @@ def test_api_no_alg():
     alg, psy = generate(os.path.join(BASE_PATH, "explicit_do.f90"),
                         api="nemo")
     assert alg is None
-    assert isinstance(psy, fparser.two.Fortran2003.Program)
+    code = str(psy).lower()
+    assert "program explicit_do" in code
+    assert "integer :: ji" in code
+    assert "real, dimension(jpi, jpj, jpk) :: umask" in code
+    assert "end program explicit_do" in code
 
 
 def test_utf_char(tmpdir):
@@ -66,3 +72,47 @@ def test_utf_char(tmpdir):
     tmp_file = os.path.join(str(tmpdir), "test_psy.f90")
     main(["-api", "nemo", "-opsy", tmp_file, test_file])
     assert os.path.isfile(tmp_file)
+
+
+def test_psyir_backend_program(parser, psyir_backend):
+    ''' Check that using the Fortran backend to the PSyIR works for a
+    simple example consisting of a single Program. '''
+    reader = FortranStringReader("program fake_kern\n"
+                                 "integer :: ji, jpj\n"
+                                 "real(kind=wp) :: sto_tmp(5)\n"
+                                 "do ji = 1,jpj\n"
+                                 "sto_tmp(ji) = 1.0\n"
+                                 "end do\n"
+                                 "end program fake_kern\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    code = str(psy.gen).lower()
+    assert "program fake_kern" in code
+    assert "do ji = 1" in code
+    assert "sto_tmp(ji)=1.0" in code
+    assert "enddo" in code
+    assert "end program fake_kern" in code
+
+
+def test_psyir_backend_module(parser, psyir_backend):
+    ''' Check that using the Fortran backend to the PSyIR works for a
+    an example consisting of a module. '''
+    reader = FortranStringReader("module my_mod\n"
+                                 "contains\n"
+                                 "subroutine my_kern()\n"
+                                 "integer :: ji, jpj\n"
+                                 "real(kind=wp) :: sto_tmp(5)\n"
+                                 "do ji = 1,jpj\n"
+                                 "sto_tmp(ji) = 1.0\n"
+                                 "end do\n"
+                                 "end subroutine my_kern\n"
+                                 "end module my_mod\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    code = str(psy.gen).lower()
+    print(code)
+    assert "subroutine my_kern" in code
+    assert "do ji = 1" in code
+    assert "sto_tmp(ji)=1.0" in code
+    assert "enddo" in code
+    assert "end subroutine my_kern" in code

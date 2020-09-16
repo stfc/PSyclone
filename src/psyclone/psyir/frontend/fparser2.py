@@ -45,7 +45,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Container, Assignment, Return, Array, Node, Range
+    Container, Assignment, Return, Array, Node, Range, Routine
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
@@ -815,25 +815,30 @@ class Fparser2Reader(object):
                     return node
             raise ValueError  # Type not found
 
-        # ARPDBG, at this point we want to create a Routine (node)
-        routine = self._create_schedule(name)
-
         if not isinstance(parse_tree, (Fortran2003.Subroutine_Subprogram,
                                        Fortran2003.Main_Program,
                                        Fortran2003.Function_Subprogram)):
             raise TypeError("ARPDBG")
         subroutine = parse_tree
-        if isinstance(routine, Fortran2003.Function_Subprogram):
+        if isinstance(subroutine, Fortran2003.Function_Subprogram):
             # TODO fparser/#225 Function_Stmt does not have a get_name()
-            # method. Once it does we can remove this branch.
             routine_name = str(subroutine.children[0].children[1])
+            return_type = DeferredType() # ARPDBG
         else:
             routine_name = str(subroutine.children[0].get_name())
+            return_type = None
+        entry_point = isinstance(parse_tree, Fortran2003.Main_Program)
+
+        #sched = self._create_schedule(routine_name)
+        rnode = Routine(routine_name, parent=parent, entry_point=entry_point,
+                        return_type=return_type)
+        if parent:
+            parent.addchild(rnode)
 
         # Set pointer from schedule into fparser2 tree
         # TODO #435 remove this line once fparser2 tree not needed
         # pylint: disable=protected-access
-        new_schedule._ast = subroutine
+        rnode._ast = subroutine
         # pylint: enable=protected-access
 
         try:
@@ -855,7 +860,7 @@ class Fparser2Reader(object):
             decl_list = []
             arg_list = []
         finally:
-            self.process_declarations(new_schedule, decl_list, arg_list)
+            self.process_declarations(rnode, decl_list, arg_list)
 
         try:
             sub_exec = first_type_match(subroutine.content,
@@ -863,9 +868,9 @@ class Fparser2Reader(object):
         except ValueError:
             pass
         else:
-            self.process_nodes(new_schedule, sub_exec.content)
+            self.process_nodes(rnode, sub_exec.content)
 
-        return new_schedule
+        return rnode
 
     def generate_schedule(self, name, module_ast, container=None):
         '''Create a Schedule from the supplied fparser2 AST.

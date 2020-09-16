@@ -40,13 +40,17 @@
 
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import SymbolTable
 
 
-class Routine(Node):
+class Routine(Schedule):
     '''
     Represents a subroutine or function.
 
+    :param str name: the name of this routine.
+    :param bool entry_point: whether this Routine represents the entry point \
+                             into a program (i.e. Fortran Program or C main())
+    :param return_type: the return-type of this routine.
+    :type return_type: :py:class:`psyclone.psyir.symbols.DataType` or NoneType
     :param children: the PSyIR nodes that are children of this Routine.
     :type children: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parent: the parent node of this Schedule in the PSyIR.
@@ -57,30 +61,23 @@ class Routine(Node):
 
     '''
     # Textual description of the node.
-    _children_valid_format = "[Schedule]*"
+    _children_valid_format = "[Statement]*"
     _text_name = "Routine"
     _colour_key = "Routine"
 
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        # pylint: disable=unused-argument
-        return isinstance(child, Schedule)
-
-    def __init__(self, children=None, parent=None, symbol_table=None):
-        super(Routine, self).__init__(self, children=children, parent=parent)
-        if symbol_table:
-            self._symbol_table = symbol_table
-        else:
-            self._symbol_table = SymbolTable(self)
+    def __init__(self, name, entry_point=False, return_type=None,
+                 parent=None, symbol_table=None):
+        super(Routine, self).__init__(self, parent=parent)
+        #TODO perform type checks here
+        self._name = name
+        self._entry_point = entry_point
+        self._return_type = return_type
+        #if not schedule:
+        #    self._schedule = Schedule(parent=self,
+        #                              symbol_table=symbol_table)
+        #else:
+        #    self._schedule = schedule
+        #self._children = [self._schedule]
 
     @property
     def dag_name(self):
@@ -91,12 +88,12 @@ class Routine(Node):
         return "routine_" + str(self.abs_position)
 
     @property
-    def symbol_table(self):
-        '''
-        :returns: table containing symbol information for the routine.
-        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
-        '''
-        return self._symbol_table
+    def schedule(self):
+        return self._schedule
+
+    @property
+    def name(self):
+        return self._name
 
     def __str__(self):
         result = self.coloured_name(False) + ":\n"

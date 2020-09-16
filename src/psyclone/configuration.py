@@ -1046,6 +1046,9 @@ class NemoConfig(APISpecificConfig):
     def __init__(self, config, section):
         super(NemoConfig, self).__init__(section)
 
+        # TODO
+        self.use_psyir_backend = False
+
         # Maps a variable name to lon, lat etc. to determine the loop type
         # (e.g. lon, lat, ...)
         self._loop_type_mapping = {}

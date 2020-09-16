@@ -49,7 +49,7 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, SymbolTable, RoutineSymbol, \
     LocalInterface, GlobalInterface, Symbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
-    Reference, Literal
+    Reference, Literal, Routine
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.errors import InternalError
 
@@ -588,11 +588,11 @@ class FortranWriter(PSyIRVisitor):
         # All children must be KernelSchedules as modules within
         # modules are not supported.
         from psyclone.psyGen import KernelSchedule
-        if not all([isinstance(child, KernelSchedule)
+        if not all([isinstance(child, (Routine, KernelSchedule))
                     for child in node.children]):
             raise VisitorError(
                 "The Fortran back-end requires all children of a Container "
-                "to be KernelSchedules.")
+                "to be either Routines or KernelSchedules.")
 
         result = "{0}module {1}\n".format(self._nindent, node.name)
 
@@ -617,6 +617,43 @@ class FortranWriter(PSyIRVisitor):
         result += "{0}end module {1}\n".format(self._nindent, node.name)
         return result
 
+    def routine_node(self, node):
+        '''
+
+        '''
+        if node._entry_point:
+            routine_type = "program"
+            result = "{0}{1} {2}\n".format(self._nindent, routine_type,
+                                           node.name)
+        else:
+            args = [symbol.name for symbol in
+                    node.symbol_table.argument_list]
+            if node._return_type:
+                routine_type = "function"
+            else:
+                routine_type = "subroutine"
+        
+                result = "{0}{1} {2}({3})\n".format(self._nindent,
+                                                    routine_type, node.name,
+                                                    ",".join(args))
+        self._depth += 1
+        # Declare the kernel data.
+        declarations = self.gen_decls(node.symbol_table)
+        result += declarations + "\n"
+        result += self.schedule_node(node)
+        #for child in node.children:
+        #    result += self._visit(child)
+        self._depth -= 1
+        result += "{0}end {1} {2}\n".format(self._nindent, routine_type,
+                                            node.name)
+        return result
+
+    def schedule_node(self, node):
+        result = ""
+        for child in node.children:
+            result += self._visit(child)
+        return result
+        
     def kernelschedule_node(self, node):
         '''This method is called when a KernelSchedule instance is found in
         the PSyIR tree.
@@ -1064,6 +1101,9 @@ class FortranWriter(PSyIRVisitor):
         self._depth -= 1
         result_list.append("!${0}\n".format(node.end_string()))
         return "".join(result_list)
+
+    def accdirective_node(self, node):
+        return self.ompdirective_node(node)
 
     def call_node(self, node):
         '''Translate the PSyIR call node to Fortran.

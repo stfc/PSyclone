@@ -140,7 +140,6 @@ class NemoInvoke(Invoke):
     def __init__(self, ast, name, invokes):
         # pylint: disable=super-init-not-called
         self._invokes = invokes
-        self._schedule = None
         self._name = name
         # Store the whole fparser2 AST
         # TODO #435 remove this line.
@@ -149,11 +148,8 @@ class NemoInvoke(Invoke):
         # We now walk through the fparser2 parse tree and construct the
         # PSyIR with a NemoInvokeSchedule at its root.
         processor = NemoFparser2Reader()
-        # TODO #737 the fparser2 processor should really first be used
-        # to explicitly get the Container for this particular Invoke and
-        # then be used to generate a 'subroutine' rather than a Schedule.
-        self._schedule = processor.generate_schedule(name, ast,
-                                                     self.invokes.container)
+
+        self._schedule = processor.generate_routine(invokes.container, ast)
         self._schedule.invoke = self
 
     def update(self):
@@ -281,23 +277,27 @@ class NemoPSy(PSy):
                 :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` or \
                 :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
         '''
-        # Walk down our Schedule and update the underlying fparser2 AST
-        # to account for any transformations
-        # self.invokes.update()
-        # Return the fparser2 AST
-        # return self._ast
         from psyclone.psyir.backend.fortran import FortranWriter
-        fvisitor = FortranWriter()
-        if self._invokes._container:
-            result = fvisitor(self._invokes._container)
-        else:
-            # We have no container
-            if len(self._invokes.invoke_list) == 1:
-                result = fvisitor(self._invokes.invoke_list[0].schedule)
+        if Config.get().api_conf("nemo").use_psyir_backend:
+            # Use the Fortran backend to the PSyIR
+            fvisitor = FortranWriter()
+            if self.invokes._container:
+                result = fvisitor(self.invokes._container)
             else:
-                raise InternalError("NemoPSy contains more than one invoke "
-                                    "but does not have a Container")
-        return result
+                # We have no container
+                if len(self._invokes.invoke_list) == 1:
+                    result = fvisitor(self._invokes.invoke_list[0].schedule)
+                else:
+                    raise InternalError("NemoPSy contains more than one invoke"
+                                        " but does not have a Container")
+            return result
+        else:
+            # Use the fparser2 AST - the 'old' way of doing things.
+            # Walk down our Schedule and update the underlying fparser2 AST
+            # to account for any transformations
+            self.invokes.update()
+            # Return the fparser2 AST
+            return self._ast
 
 
 class NemoInvokeSchedule(InvokeSchedule):
@@ -357,6 +357,10 @@ class NemoInvokeSchedule(InvokeSchedule):
         :rtype: list of :py:class:`psyclone.psyGen.CodedKern`
         '''
         return self.walk(InlinedKern)
+
+    @property
+    def symbol_table(self):
+        return self._symbol_table
 
 
 class NemoKern(InlinedKern):
