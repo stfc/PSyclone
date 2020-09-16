@@ -123,7 +123,7 @@ class GOPSy(PSy):
         psy_module.add(UseGen(psy_module, name="field_mod"))
         self.invokes.gen_code(psy_module)
         # inline kernels where requested
-        self.inline(psy_module)
+        # self.inline(psy_module)
         return psy_module.root
 
 
@@ -1092,7 +1092,7 @@ class GOKern(CodedKern):
         :raises GenerationError: if it encounters a kernel argument of \
                                  unrecognised type.
         '''
-        from psyclone.f2pygen import CallGen, UseGen
+        from psyclone.f2pygen import CallGen, UseGen, PSyIRGen
 
         # If the kernel has been transformed then we rename it. If it
         # is *not* being module inlined then we also write it to file.
@@ -1108,6 +1108,12 @@ class GOKern(CodedKern):
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name, only=True,
                               funcnames=[self._name]))
+        else:
+            module = parent
+            while module.parent:
+                module = module.parent
+            # FIXME: Check for routine name clashes?
+            module.add(PSyIRGen(module, self.get_kernel_schedule()))
 
     def gen_ocl(self, parent):
         # pylint: disable=too-many-locals

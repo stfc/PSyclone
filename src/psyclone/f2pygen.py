@@ -537,6 +537,25 @@ class ProgUnitGen(BaseGen):
         return end_index
 
 
+class PSyIRGen(BaseGen):
+    ''' Create a Fortran block of code from PSyIR '''
+    def __init__(self, parent, content):
+        '''
+        :param parent: node in AST to which to add the Comment as a child
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param str content: the content of the comment
+        '''
+        from psyclone.psyir.backend.fortran import FortranWriter
+        from fparser.one.parsefortran import FortranParser
+        fortran_writer = FortranWriter()
+        reader = FortranStringReader(fortran_writer(content),
+                                     ignore_comments=False)
+        fparser1_parser = FortranParser(reader, ignore_comments=False)
+        fparser1_parser.parse()
+        BaseGen.__init__(self, parent, fparser1_parser.block.content[0])
+        self.root.parent = parent.root
+
+
 class ModuleGen(ProgUnitGen):
     ''' create a fortran module '''
     def __init__(self, name="", contains=True, implicitnone=True):

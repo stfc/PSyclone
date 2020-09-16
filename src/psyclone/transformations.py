@@ -1573,9 +1573,9 @@ class KernelModuleInlineTrans(KernelTrans):
             options = {}
         inline = options.get("inline", True)
 
-        if inline and node.modified:
-            raise TransformationError("Cannot inline kernel {0} because it "
-                                      "has previously been transformed.")
+        #if inline and node.modified:
+        #    raise TransformationError("Cannot inline kernel {0} because it "
+        #                              "has previously been transformed.")
 
 
 class Dynamo0p3ColourTrans(ColourTrans):
@@ -3256,6 +3256,7 @@ class ACCRoutineTrans(KernelTrans):
             Implicit_Part, Comment
         from fparser.two.utils import walk
         from fparser.common.readfortran import FortranStringReader
+        from psyclone.psyir.nodes import CodeBlock
 
         # Check that we can safely apply this transformation
         self.validate(kern, options)
@@ -3291,6 +3292,11 @@ class ACCRoutineTrans(KernelTrans):
             spec.content.insert(posn, cmt)
         # Flag that the kernel has been modified
         kern.modified = True
+
+        kernel_schedule = kern.get_kernel_schedule()
+        kernel_schedule.addchild(CodeBlock([cmt], \
+            CodeBlock.Structure.STATEMENT), 0)
+
         # Return the now modified kernel
         return kern, keep
 

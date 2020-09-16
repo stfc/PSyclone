@@ -2708,15 +2708,15 @@ class CodedKern(Kern):
         # required as inlining (or not) affects all calls to the same
         # kernel within an invoke. Note, this will set this kernel as
         # well so there is no need to set it locally.
-        if value and self.modified:
+        # if value and self.modified:
             # TODO #229. Kernel in-lining is currently implemented via
             # manipulation of the fparser1 Parse Tree while
             # transformations work with the fparser2 Parse Tree-derived
             # PSyIR.  Therefore there is presently no way to inline a
             # transformed kernel.
-            raise NotImplementedError(
-                "Cannot module-inline a transformed kernel ({0}).".
-                format(self.name))
+            #raise NotImplementedError(
+            #    "Cannot module-inline a transformed kernel ({0}).".
+            #    format(self.name))
         my_schedule = self.ancestor(InvokeSchedule)
         for kernel in my_schedule.walk(Kern):
             if kernel.name == self.name:
@@ -2933,6 +2933,7 @@ class CodedKern(Kern):
             # TODO #229. We cannot currently inline transformed kernels
             # (because that requires an fparser1 AST and we only have an
             # fparser2 AST of the modified kernel) so raise an error.
+            return
             raise NotImplementedError("Cannot module-inline a transformed "
                                       "kernel ({0})".format(self.name))
 
