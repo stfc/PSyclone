@@ -46,9 +46,10 @@
 
 module matrix_vector_mm_mod
 
-use argument_mod,            only : arg_type,                               &
-                                    GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
-                                    ANY_SPACE_1,                            &
+use argument_mod,            only : arg_type,                 &
+                                    GH_FIELD, GH_OPERATOR,    &
+                                    GH_REAL, GH_READ, GH_INC, &
+                                    ANY_SPACE_1,              &
                                     CELLS
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
@@ -63,10 +64,10 @@ private
 
 type, public, extends(kernel_type) :: matrix_vector_kernel_mm_type
   private
-  type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_1),                    &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1)        &
+  type(arg_type) :: meta_args(3) = (/                                    &
+       arg_type(GH_FIELD,    GH_REAL, GH_INC,  ANY_SPACE_1),             &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, ANY_SPACE_1),             &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_1) &
        /)
   integer :: iterates_over = CELLS
 contains

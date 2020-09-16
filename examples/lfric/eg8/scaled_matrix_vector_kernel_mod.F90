@@ -45,7 +45,7 @@ module scaled_matrix_vector_kernel_mod
 
 use argument_mod,            only : arg_type,                 &
                                     GH_FIELD, GH_OPERATOR,    &
-                                    GH_READ, GH_INC,          &
+                                    GH_REAL, GH_READ, GH_INC, &
                                     ANY_SPACE_1, ANY_SPACE_2, &
                                     CELLS
 use fs_continuity_mod,       only : W3
@@ -62,13 +62,13 @@ private
 
 type, public, extends(kernel_type) :: scaled_matrix_vector_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                    &
-       ! modified so that the redundant computation example will run
-       !arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),      &
-       arg_type(GH_FIELD,     GH_READ, W3),                            &
-       arg_type(GH_FIELD,     GH_READ, ANY_SPACE_1)                    &
+  type(arg_type) :: meta_args(4) = (/                                      &
+       arg_type(GH_FIELD,    GH_REAL, GH_INC,  ANY_SPACE_1),               &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, ANY_SPACE_2),               &
+       ! Modified so that the redundant computation example will run
+       !arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, W3),                        &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, ANY_SPACE_1)                &
        /)
   integer :: iterates_over = CELLS
 contains
@@ -90,7 +90,7 @@ contains
 !> @param[in,out] lhs Output lhs (A*x)
 !! @param[in] ncell_3d Total number of cells
 !! @param[in] matrix Local matrix assembly form of the operator A
-!! @param[in] y field to scale output by
+!! @param[in] y Field to scale output by
 !! @param[in] ndf1 Number of degrees of freedom per cell for the output field
 !! @param[in] undf1 Unique number of degrees of freedom  for the output field
 !! @param[in] map1 Dofmap for the cell at the base of the column for the output field
