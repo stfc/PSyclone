@@ -123,26 +123,6 @@ class NemoFparser2Reader(Fparser2Reader):
             for child in fakeparent.children:
                 child.parent = loop_body
 
-    def _create_child(self, child, parent=None):
-        '''
-        Before executing the generic _create_child, it checks if the parsed
-        AST is a NemoImplicitLoop because this is not handled yet by the
-        generic fparser2Reader.
-
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.utils.Base`
-        :param parent: parent node in the PSyclone IR we are constructing.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: returns the PSyIR representation of child or None if \
-                 there isn't one.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node` or NoneType
-        '''
-        if NemoImplicitLoop.match(child):
-            return NemoImplicitLoop(child, parent=parent)
-        return super(NemoFparser2Reader,
-                     self)._create_child(child, parent=parent)
-
 
 class NemoInvoke(Invoke):
     '''
@@ -409,28 +389,34 @@ class NemoKern(InlinedKern):
 
     @staticmethod
     def match(node):
-        '''
-        Whether or not the PSyIR sub-tree pointed to by node represents a
+        '''Whether or not the PSyIR sub-tree pointed to by node represents a
         kernel. A kernel is defined as a section of code that sits
         within a recognised loop structure and does not itself contain
-        loops or 'CodeBlocks' (code not represented in the PSyIR such as
-        subroutine calls or IO operations).
+        loops, array assignments, or 'CodeBlocks' (code not
+        represented in the PSyIR such as subroutine calls or IO
+        operations).
 
         :param node: node in the PSyIR to check.
         :type node: :py:class:`psyclone.psyir.nodes.Schedule`
         :returns: true if this node conforms to the rules for a kernel.
         :rtype: bool
+
         '''
-        from psyclone.psyir.nodes import CodeBlock
+        from psyclone.psyir.nodes import CodeBlock, Assignment
         # This function is called with node being a Schedule.
         if not isinstance(node, Schedule):
             raise InternalError("Expected 'Schedule' in 'match', got '{0}'.".
                                 format(type(node)))
-        nodes = node.walk((CodeBlock, NemoLoop))
 
-        # A kernel cannot contain loops or other unrecognised code (including
-        # IO operations and routine calls) or loops. So if there is any
-        # node in the result of the walk, this node can not be a kernel.
+        # Check for array assignment, codeblock and loop
+        nodes = [assign for assign in node.walk(Assignment)
+                 if assign.is_array_range]
+        nodes += node.walk((CodeBlock, NemoLoop))
+
+        # A kernel cannot contain loops, array assignments or other
+        # unrecognised code (including IO operations and routine
+        # calls) or loops. So if there is any node in the result of
+        # the walk, this node can not be a kernel.
         return len(nodes) == 0
 
     def get_kernel_schedule(self):
@@ -524,110 +510,3 @@ class NemoLoop(Loop):
                     "{0}".format(len(kernels)))
             return kernels[0]
         return None
-
-
-class NemoImplicitLoop(NemoLoop):
-    '''
-    Class representing an implicit loop in NEMO (i.e. using Fortran array
-    syntax).
-
-    :param ast: the part of the fparser2 AST representing the loop.
-    :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
-    :param parent: the parent of this Loop in the PSyIRe.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    _text_name = "NemoImplicitLoop"
-
-    def __init__(self, ast, parent=None):
-        # pylint: disable=super-init-not-called, non-parent-init-called
-        valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
-        Loop.__init__(self, parent=parent,
-                      valid_loop_types=valid_loop_types)
-        # Keep a ptr to the corresponding node in the AST
-        self._ast = ast
-
-    def node_str(self, colour=True):
-        '''
-        :param bool colour: whether or not to include control codes for \
-                            coloured text.
-
-        :returns: a text description of this node.
-        :rtype: str
-
-        '''
-        return self.coloured_name(colour) + "[{0}]".format(self._ast.items[0])
-
-    def __str__(self):
-        return self.node_str(False)
-
-    @staticmethod
-    def match(node):
-        '''
-        Checks whether the supplied node in the fparser2 AST represents
-        an implicit loop (using Fortran array syntax).
-
-        :param node: node in the fparser2 AST to check
-        :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
-        :returns: True if the node does represent an implicit loop.
-        :rtype: bool
-
-        '''
-        # pylint: disable=too-many-return-statements
-        if not isinstance(node, Fortran2003.Assignment_Stmt):
-            return False
-        # We are expecting something like:
-        #    array(:,:,jk) = some_expression
-        # but we have to beware of cases like the following:
-        #   array(1,:,:) = a_func(array2(:,:,:), mask(:,:))
-        # where a_func is an array-valued function and `array2(:,:,:)`
-        # could just be `array2`.
-        # We check the left-hand side...
-        lhs = node.items[0]
-        if not isinstance(lhs, Fortran2003.Part_Ref):
-            # LHS is not an array reference
-            return False
-        colons = walk(lhs.items, Fortran2003.Subscript_Triplet)
-        if not colons:
-            # LHS does not use array syntax
-            return False
-        # Now check the right-hand side...
-        rhs = node.items[2]
-        try:
-            if not walk(rhs.items, Fortran2003.Subscript_Triplet):
-                # We don't have any array syntax on the RHS
-                return True
-        except AttributeError:
-            # The RHS doesn't have the `items` attribute (it may be just
-            # a Name for instance).
-            return True
-        # Check that we haven't got array syntax used within the index
-        # expression to another array. Array references are represented by
-        # Part_Ref nodes in the fparser2 AST.
-        # Find all array references
-        array_refs = walk(rhs, Fortran2003.Part_Ref)
-        for ref in array_refs:
-            nested_refs = walk(ref.items, Fortran2003.Part_Ref)
-            # Do any of these nested array references use array syntax?
-            for nested_ref in nested_refs:
-                colons = walk(nested_ref.items, Fortran2003.Subscript_Triplet)
-                if colons:
-                    return False
-        return True
-
-    def reference_accesses(self, var_accesses):
-        ''' This method should get all variable access information in this
-        PSyIR node, but at the moment ImplicitLoops reference_access are not
-        implemented and this method just increases the var_accesses location
-        counter.
-
-        TODO #440: ImplicitLoops should be implemented as a PSyIR Loops or
-        be a special PSyIR node, any implementation would need to fix the
-        reference_access method.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-        '''
-        var_accesses.next_location()

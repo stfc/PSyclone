@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic,    Met Office
+#          C.M. Maynard, Met Office / University of Reading
 # -----------------------------------------------------------------------------
 
 ''' This module provides generic support for PSyclone's PSy code optimisation
@@ -142,24 +143,26 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
     arg_types and with access in arg_accesses. If these are not set
     then return all arguments.
 
-    :param arg_list: List of kernel arguments to filter
-    :type arg_list: list of :py:class:`psyclone.parse.algorithm.Descriptor`
-    :param arg_types: List of argument types (e.g. "GH_FIELD")
+    :param arg_list: list of kernel arguments to filter.
+    :type arg_list: list of :py:class:`psyclone.parse.kernel.Descriptor`
+    :param arg_types: list of argument types (e.g. "GH_FIELD").
     :type arg_types: list of str
-    :param arg_accesses: List of access types that arguments must have
-    :type arg_accesses: List of \
-        :py:class:`psyclone.core.access_type.AccessType`.
-    :param arg_meshes: List of meshes that arguments must be on
+    :param arg_accesses: list of access types that arguments must have.
+    :type arg_accesses: list of \
+        :py:class:`psyclone.core.access_type.AccessType`
+    :param arg_meshes: list of meshes that arguments must be on.
     :type arg_meshes: list of str
-    :param bool is_literal: Whether or not to include literal arguments in \
+    :param bool is_literal: whether or not to include literal arguments in \
                             the returned list.
-    :returns: list of kernel arguments matching the requirements
-    :rtype: list of :py:class:`psyclone.parse.algorithm.Descriptor`
+
+    :returns: list of kernel arguments matching the requirements.
+    :rtype: list of :py:class:`psyclone.parse.kernel.Descriptor`
+
     '''
     arguments = []
     for argument in arg_list:
         if arg_types:
-            if argument.type.lower() not in arg_types:
+            if argument.argument_type.lower() not in arg_types:
                 continue
         if arg_accesses:
             if argument.access not in arg_accesses:
@@ -262,28 +265,48 @@ class PSy(object):
 
     @property
     def invokes(self):
+        ''':returns: the list of invokes.
+        :rtype: :py:class:`psyclone.psyGen.Invokes` or derived class
+        '''
         return self._invokes
 
     @property
     def name(self):
+        ''':returns: the name of the PSy object.
+        :rtype: str
+        '''
         return "psy_"+self._name
 
     @property
     @abc.abstractmethod
     def gen(self):
         '''Abstract base class for code generation function.
-        :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`.
+
+        :returns: root node of generated Fortran AST.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
 
     def inline(self, module):
-        ''' inline all kernel subroutines into the module that are marked for
-            inlining. Avoid inlining the same kernel more than once. '''
+        '''Inline all kernel subroutines into the module that are marked for
+        inlining. Avoid inlining the same kernel more than once.
+
+        :param module: the module to which the kernel is added for inlining.
+        :type module: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        :raises InternalError: if kernel_code (fparser1 AST of kernel) \
+                is None.
+        '''
         inlined_kernel_names = []
         for invoke in self.invokes.invoke_list:
             schedule = invoke.schedule
             for kernel in schedule.walk(CodedKern):
                 if kernel.module_inline:
+                    # raise an internal error if kernel_code is None
+                    if kernel._kernel_code is None:
+                        raise InternalError(
+                            "Have no fparser1 AST for kernel {0}."
+                            " Therefore cannot inline it."
+                            .format(kernel))
                     if kernel.name.lower() not in inlined_kernel_names:
                         inlined_kernel_names.append(kernel.name.lower())
                         module.add_raw_subroutine(kernel._kernel_code)
@@ -545,35 +568,38 @@ class Invoke(object):
     def schedule(self, obj):
         self._schedule = obj
 
-    def unique_declarations(self, argument_type, access=None):
+    def unique_declarations(self, argument_types, access=None):
         '''
         Returns a list of all required declarations for the specified
-        API argument type. If access is supplied (e.g. "write") then
+        API argument types. If access is supplied (e.g. "write") then
         only declarations with that access are returned.
 
-        :param str argument_type: the type of the kernel argument for \
-                                  the particular API for which the intent \
-                                  is required.
+        :param argument_types: the types of the kernel argument for the \
+                               particular API.
+        :type argument_types: list of str
         :param access: optional AccessType that the declaration should have.
         :type access: :py:class:`psyclone.core.access_type.AccessType`
 
         :returns: a list of all declared kernel arguments.
         :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
 
-        :raises InternalError: if an invalid argument type is given.
+        :raises InternalError: if at least one kernel argument type is \
+                               not valid for the particular API.
         :raises InternalError: if an invalid access is specified.
 
         '''
-        if argument_type not in VALID_ARG_TYPE_NAMES:
+        # First check for invalid argument types and invalid access
+        if any(argtype not in VALID_ARG_TYPE_NAMES for
+               argtype in argument_types):
             raise InternalError(
-                "Invoke.unique_declarations() called with an invalid argument "
-                "type. Expected one of {0} but found '{1}'".
-                format(str(VALID_ARG_TYPE_NAMES), argument_type))
+                "Invoke.unique_declarations() called with at least one "
+                "invalid argument type. Expected one of {0} but found {1}.".
+                format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
 
         if access and not isinstance(access, AccessType):
             raise InternalError(
                 "Invoke.unique_declarations() called with an invalid access "
-                "type. Type is '{0}' instead of AccessType".
+                "type. Type is '{0}' instead of AccessType.".
                 format(str(access)))
 
         # Initialise dictionary of kernel arguments to get the
@@ -584,7 +610,7 @@ class Invoke(object):
             for arg in call.arguments.args:
                 if not access or arg.access == access:
                     if arg.text is not None:
-                        if arg.type == argument_type:
+                        if arg.argument_type in argument_types:
                             test_name = arg.declaration_name
                             if test_name not in declarations:
                                 declarations[test_name] = arg
@@ -601,28 +627,30 @@ class Invoke(object):
         raise GenerationError("Failed to find any kernel argument with name "
                               "'{0}'".format(arg_name))
 
-    def unique_declns_by_intent(self, argument_type):
+    def unique_declns_by_intent(self, argument_types):
         '''
         Returns a dictionary listing all required declarations for each
         type of intent ('inout', 'out' and 'in').
 
-        :param str argument_type: the type of the kernel argument for the \
-                                  particular API for which the intent is \
-                                  required.
+        :param argument_types: the types of the kernel argument for the \
+                               particular API for which the intent is required.
+        :type argument_types: list of str
 
         :returns: dictionary containing 'intent' keys holding the kernel \
                   arguments as values for each type of intent.
         :rtype: dict of :py:class:`psyclone.psyGen.KernelArgument`
 
-        :raises InternalError: if the kernel argument is not a valid \
-                               argument type for the particular API.
+        :raises InternalError: if at least one kernel argument type is \
+                               not valid for the particular API.
 
         '''
-        if argument_type not in VALID_ARG_TYPE_NAMES:
+        # First check for invalid argument types
+        if any(argtype not in VALID_ARG_TYPE_NAMES for
+               argtype in argument_types):
             raise InternalError(
-                "Invoke.unique_declns_by_intent() called with an invalid "
-                "argument type. Expected one of {0} but found '{1}'".
-                format(str(VALID_ARG_TYPE_NAMES), argument_type))
+                "Invoke.unique_declns_by_intent() called with at least one "
+                "invalid argument type. Expected one of {0} but found {1}.".
+                format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
 
         # We will return a dictionary containing as many lists
         # as there are types of intent
@@ -630,7 +658,7 @@ class Invoke(object):
         for intent in FORTRAN_INTENT_NAMES:
             declns[intent] = []
 
-        for arg in self.unique_declarations(argument_type):
+        for arg in self.unique_declarations(argument_types):
             first_arg = self.first_access(arg.declaration_name)
             if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
                 # If the first access is a write then the intent is
@@ -1576,7 +1604,7 @@ class OMPDirective(Directive):
         result = []
         for call in self.kernels():
             for arg in call.arguments.args:
-                if arg.type in MAPPING_SCALARS.values():
+                if arg.argument_type in MAPPING_SCALARS.values():
                     if arg.descriptor.access == reduction_type:
                         if arg.name not in result:
                             result.append(arg.name)
@@ -2387,13 +2415,14 @@ class Kern(Statement):
         '''
         Generate code to zero the reduction variable and to zero the local
         reduction variable if one exists. The latter is used for reproducible
-        reductions, if specified.
+        reductions, if specified. Note: this method is currently only supported
+        for LFRic API.
 
         :param parent: the Node in the AST to which to add new code.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param str position: where to position the new code in the AST.
-        :raises GenerationError: if the variable to zero is not of type \
-                                 gh_real or gh_integer.
+
+        :raises GenerationError: if the variable to zero is not a scalar.
         :raises GenerationError: if the reprod_pad_size (read from the \
                                  configuration file) is less than 1.
 
@@ -2403,28 +2432,25 @@ class Kern(Statement):
             position = ["auto"]
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
-        var_type = self._reduction_arg.type
-        if var_type == "gh_real":
-            data_type = "real"
-            data_value = "0.0"
-            kind_type = \
-                Config.get().api_conf("dynamo0.3").default_kind[data_type]
-            zero = "_".join([data_value, kind_type])
-        elif var_type == "gh_integer":
-            data_type = "integer"
-            data_value = "0"
-            kind_type = \
-                Config.get().api_conf("dynamo0.3").default_kind[data_type]
-            zero = "_".join([data_value, kind_type])
-        else:
+        var_arg = self._reduction_arg
+        # Check for a non-scalar argument
+        if not var_arg.is_scalar:
             raise GenerationError(
-                "zero_reduction variable should be one of ['gh_real', "
-                "'gh_integer'] but found '{0}'".format(var_type))
-
+                "Kern.zero_reduction_variable() should be a scalar but "
+                "found '{0}'.".format(var_arg.argument_type))
+        # Generate the reduction variable
+        var_data_type = var_arg.intrinsic_type
+        if var_data_type == "real":
+            data_value = "0.0"
+        if var_data_type == "integer":
+            data_value = "0"
+        kind_type = \
+            Config.get().api_conf("dynamo0.3").default_kind[var_data_type]
+        zero = "_".join([data_value, kind_type])
         parent.add(AssignGen(parent, lhs=var_name, rhs=zero),
                    position=position)
         if self.reprod_reduction:
-            parent.add(DeclGen(parent, datatype=data_type,
+            parent.add(DeclGen(parent, datatype=var_data_type,
                                entity_decls=[local_var_name],
                                allocatable=True, kind=kind_type,
                                dimension=":,:"))
@@ -3370,7 +3396,7 @@ class DataAccess(object):
             return
 
         if isinstance(arg.call, HaloExchange) and \
-           self._arg.vector_size > 1:
+           (hasattr(self._arg, 'vector_size') and self._arg.vector_size > 1):
             # The supplied argument is a vector field coming from a
             # halo exchange and therefore only accesses one of the
             # vectors
@@ -3462,8 +3488,6 @@ class Argument(object):
                 self._name = self._call.root.symbol_table.name_from_tag(
                     tag, self._orig_name)
 
-        self._vector_size = 1
-
     def __str__(self):
         return self._name
 
@@ -3501,12 +3525,30 @@ class Argument(object):
         self._access = value
 
     @property
-    def type(self):
-        '''Return the type of the argument. API's that do not have this
-        concept (such as gocean0.1 and dynamo0.1) can use this
-        baseclass version which just returns "field" in all
-        cases. API's with this concept can override this method '''
+    def argument_type(self):
+        '''
+        Returns the type of the argument. APIs that do not have this
+        concept (such as GOcean0.1 and Dynamo0.1) can use this
+        base class version which just returns "field" in all
+        cases. API's with this concept can override this method.
+
+        :returns: the API type of the kernel argument.
+        :rtype: str
+
+        '''
         return "field"
+
+    @property
+    @abc.abstractmethod
+    def intrinsic_type(self):
+        '''
+        Abstract property for the intrinsic type of the argument with
+        specific implementations in different APIs.
+
+        :returns: the intrinsic type of this argument.
+        :rtype: str
+
+        '''
 
     @property
     def call(self):
@@ -3743,6 +3785,7 @@ class KernelArgument(Argument):
     def stencil(self):
         return self._arg.stencil
 
+    @property
     @abc.abstractmethod
     def is_scalar(self):
         ''':returns: whether this variable is a scalar variable or not.

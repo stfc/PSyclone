@@ -1,1 +1,1 @@
-../bibliography/zz_bibliography.rst
+.. include:: ../bibliography/zz_bibliography.rst

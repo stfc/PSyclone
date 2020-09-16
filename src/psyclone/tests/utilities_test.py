@@ -170,6 +170,17 @@ def test_get_invoke():
                    "invalid-api", name="invalid_name")
     assert "The API 'invalid-api' is not supported" in str(excinfo.value)
 
+    # Test that invalid parameter combinations raise an exception:
+    with pytest.raises(RuntimeError) as excinfo:
+        get_invoke("does_not_exist", "nemo")
+    assert "Either the index or the name of the requested invoke must "\
+           "be specified" in str(excinfo.value)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        get_invoke("does_not_exist", "nemo", idx=0, name="name")
+    assert "Either the index or the name of the requested invoke must "\
+           "be specified" in str(excinfo.value)
+
     # Test that a non-existant file raises the right exception
     with pytest.raises(ParseError) as excinfo:
         get_invoke("does_not_exist", "nemo", idx=0)

@@ -610,7 +610,8 @@ def test_acc_dir_node_str():
     acclt = ACCLoopTrans()
     accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     colour = SCHEDULE_COLOUR_MAP["Directive"]
     schedule = invoke.schedule
 
@@ -749,8 +750,8 @@ def test_args_filter2():
 
 
 def test_reduction_var_error():
-    '''Check that we raise an exception if the zero_reduction_variable()
-    method is provided with an incorrect type of argument'''
+    ''' Check that we raise an exception if the zero_reduction_variable()
+    method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     for dist_mem in [False, True]:
@@ -762,8 +763,8 @@ def test_reduction_var_error():
         call._reduction_arg = call.arguments.args[1]
         with pytest.raises(GenerationError) as err:
             call.zero_reduction_variable(None)
-        assert ("zero_reduction variable should be one of ['gh_real', "
-                "'gh_integer']") in str(err.value)
+        assert ("Kern.zero_reduction_variable() should be a scalar but "
+                "found 'gh_field'." in str(err.value))
 
 
 def test_reduction_sum_error():
@@ -1566,7 +1567,8 @@ def test_omp_dag_names():
 def test_acc_dag_names():
     ''' Check that we generate the correct dag names for ACC parallel,
     ACC enter-data and ACC loop directive Nodes '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
 
     acclt = ACCLoopTrans()
@@ -2168,7 +2170,7 @@ def test_kern_ast():
     from fparser.two import Fortran2003
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].loop_body[0].loop_body[0]
+    kern = sched.coded_kernels()[0]
     assert isinstance(kern, GOKern)
     assert kern.ast
     assert isinstance(kern.ast, Fortran2003.Program)

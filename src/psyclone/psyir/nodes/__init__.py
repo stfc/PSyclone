@@ -53,6 +53,7 @@ from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.extract_node import ExtractNode
 from psyclone.psyir.nodes.profile_node import ProfileNode
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
+from psyclone.psyir.nodes.read_only_verify_node import ReadOnlyVerifyNode
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
@@ -82,4 +83,5 @@ __all__ = [
         'ExtractNode',
         'ProfileNode',
         'PSyDataNode',
+        'ReadOnlyVerifyNode',
         'Call']

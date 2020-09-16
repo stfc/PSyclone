@@ -23,9 +23,9 @@ def some_function(filename, kernel_path, node=None):
                  documentation.
     :type node: :py:class:`psyclone.psyir.nodes.Node`
 
-    :return: a new node in the PSyIR. The return type must always be\
-             specified in a separate line with an :rtype: entry. An empty\
-             line separates the return documentation and the exceptions.
+    :returns: a new node in the PSyIR. The return type must always be\
+              specified in a separate line with an :rtype: entry. An empty\
+              line separates the return documentation and the exceptions.
     :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
     :raises IOError: lower case start with punctuation at the end.
