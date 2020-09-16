@@ -1359,11 +1359,12 @@ class GOKern(CodedKern):
                               "C_LOC({4}))".format(qlist, device_buff,
                                                    nbytes, host_buff, wevent)))
                 if arg.argument_type == "field":
+                    # Fields have to set their 'data_on_device' flag to True
                     ifthen.add(AssignGen(
                         ifthen, lhs="{0}%data_on_device".format(arg.name),
                         rhs=".true."))
-                    # fields also have a 'read_from_device_f' function pointer
-                    # to specify how to read the data back from the device
+                    # Fields also have a 'read_from_device_f' function pointer
+                    # to specify how to read the data back from the device.
                     try:
                         read_fp = symtab.lookup_with_tag("ocl_read_func").name
                     except KeyError:
@@ -1371,7 +1372,6 @@ class GOKern(CodedKern):
                         # generated first.
                         read_fp = self.gen_ocl_read_from_device_function(
                                 parent.parent)
-
                     ifthen.add(AssignGen(
                         ifthen, lhs="{0}%read_from_device_f".format(arg.name),
                         rhs=read_fp, pointer=True))
@@ -1398,10 +1398,13 @@ class GOKern(CodedKern):
         '''
         from psyclone.f2pygen import SubroutineGen, UseGen, CallGen, DeclGen
 
+        # Create the symbol for the routine and add it to the symbol table.
         subroutine_name = self.root.symbol_table.new_symbol_name(
             "read_from_device")
         subroutine_symbol = Symbol(subroutine_name)
         self.root.symbol_table.add(subroutine_symbol, tag="ocl_read_func")
+
+        # Generate the routine in the given f2pygen_module
         args = ["from", "to", "nx", "ny", "width"]
         sub = SubroutineGen(f2pygen_module, name=subroutine_name, args=args)
         f2pygen_module.add(sub)
@@ -1420,6 +1423,7 @@ class GOKern(CodedKern):
             CallGen(
                 sub, name="read_buffer",
                 args=["from", "to", "int(width*ny, kind=8)"]))
+
         return subroutine_name
 
     def get_kernel_schedule(self):
