@@ -38,17 +38,19 @@
 GOcean 1.0 API.'''
 
 from __future__ import print_function, absolute_import
+import os
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.transformations import OCLTrans
+from psyclone.transformations import OCLTrans, TransformationError
 from psyclone.gocean1p0 import GOKernelSchedule
 from psyclone.errors import GenerationError
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE
 from psyclone.tests.utilities import Compile, get_invoke
-
+from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
+
 
 API = "gocean1.0"
 
@@ -120,6 +122,60 @@ def test_grid_proprty(kernel_outputdir):
     assert expected in generated_code
 
 
+def test_field_arguments(kernel_outputdir):
+    # pylint: disable=unused-argument
+    ''' Test that with an invoke transformed to OpenCL that has fields,
+    all the fields are initialized into OpenCL buffers, the data is copied
+    in, and a function to get the data back from the device is also
+    generated.'''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    generated_code = str(psy.gen).lower()
+
+    # The array size expression always uses the same field, in this case p_fld
+    size_expression = "int(p_fld%grid%nx*p_fld%grid%ny, 8)"
+
+    # For each of the invoke fields, add a conditional block that:
+    # - Creates a OpenCL rw buffer.
+    # - Writes the field data into the buffer.
+    # - Marks data_on_device flag as true.
+    # - Points the read_from_device_f attribute to the read_from_device
+    # local function.
+    # - Blocks OpenCL Queue until the data copy has finished.
+    single_invoke_fields = ["cu_fld", "p_fld", "u_fld"]
+    for field in single_invoke_fields:
+        expected = (
+            "      if (.not. {0}%data_on_device) then\n"
+            "        size_in_bytes = " + size_expression +
+            "*c_sizeof({0}%data(1,1))\n"
+            "        ! create buffer on device\n"
+            "        {0}%device_ptr = create_rw_buffer(size_in_bytes)\n"
+            "        ierr = clenqueuewritebuffer(cmd_queues(1), "
+            "{0}%device_ptr, cl_true, 0_8, size_in_bytes, "
+            "c_loc({0}%data), 0, c_null_ptr, "
+            "c_loc(write_event))\n"
+            "        {0}%data_on_device = .true.\n"
+            "        {0}%read_from_device_f => read_from_device\n"
+            "        ! block until data copies have finished\n"
+            "        ierr = clfinish(cmd_queues(1))\n"
+            "      end if\n").format(field)
+        assert expected in generated_code
+
+    # Check that the read_from_device routine has also been generated.
+    expected = (
+	"    subroutine read_from_device(from, to, nx, ny, width)\n"
+	"      use iso_c_binding, only: c_intptr_t\n"
+	"      use fortcl, only: read_buffer\n"
+	"      integer(kind=c_intptr_t), intent(in) :: from\n"
+	"      real(kind=go_wp), intent(inout), dimension(:,:) :: to\n"
+	"      integer, intent(in) :: nx, ny, width\n"
+	"      call read_buffer(from, to, int(width*ny, kind=8))\n"
+	"    end subroutine read_from_device\n")
+    assert expected in generated_code
+
+
 def test_psy_init(kernel_outputdir):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment. '''
@@ -181,7 +237,6 @@ def test_opencl_options_validation():
     ''' Check that OpenCL options which are not supported provide appropiate
     errors.
     '''
-    from psyclone.psyir.transformations import TransformationError
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()
@@ -380,7 +435,6 @@ def test_opencl_kernel_code_generation():
     ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
     the expected OpenCL code.
     '''
-    from psyclone.psyir.backend.opencl import OpenCLWriter
     psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=False)
     sched = psy.invokes.invoke_list[0].schedule
     kernel = sched.children[0].loop_body[0].loop_body[0]  # compute_cu kernel
@@ -412,7 +466,6 @@ def test_opencl_kernel_code_generation():
 def test_opencl_kernel_output_file(kernel_outputdir):
     '''Check that an OpenCL file named modulename_kernelname_0 is generated.
     '''
-    import os
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()
@@ -428,7 +481,6 @@ def test_opencl_kernel_output_file_with_suffix(kernel_outputdir):
     '''Check that an OpenCL file named modulename_kernelname_0 is
     generated without the _code suffix in the kernelname
     '''
-    import os
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()
@@ -510,7 +562,6 @@ def test_symtab_implementation_for_opencl():
 def test_opencl_kernel_with_use():
     ''' Check that we refuse to transform a Schedule to use OpenCL if any
     of the kernels use module data. '''
-    from psyclone.psyir.transformations import TransformationError
     psy, _ = get_invoke("single_invoke_kern_with_use.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()
