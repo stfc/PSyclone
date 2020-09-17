@@ -3687,8 +3687,7 @@ class KernelGlobalsToArguments(Transformation):
                 updated_sym = globalvar.resolve_deferred()
                 # If we have a new symbol then we must update the symbol table
                 if updated_sym is not globalvar:
-                    kernel.symbol_table.remove(globalvar)
-                    kernel.symbol_table.add(updated_sym)
+                    kernel.symbol_table.swap(globalvar, updated_sym)
 
             # Copy the global into the InvokeSchedule SymbolTable
             invoke_symtab.copy_external_global(
