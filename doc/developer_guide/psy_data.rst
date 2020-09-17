@@ -784,9 +784,9 @@ corresponding generic interfaces will be declared without further code changes:
         {{all_provides|join(", &\n"+indent) }}
 
 .. note::
-    Using ``or ""`` in the Jinja statements avoids having ``None``
-    added to the files (which would be the output of e.g. the append
-    instruction). The ``-`` before the closing ``}}`` also prevents this
+    Ending the Jinja statements with '``or ""``' avoids having ``None``
+    added to the files (which would be the output of e.g. the ``append``
+    instruction). The '``-``' before the closing '``}}``' also prevents this
     line from creating any white-spaces. As a result of this the
     processed file will not have unusual empty lines or indentation.
 
