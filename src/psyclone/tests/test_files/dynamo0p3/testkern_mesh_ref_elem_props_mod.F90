@@ -43,9 +43,9 @@ module testkern_mesh_ref_elem_props_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_mesh_ref_elem_props_type
-     type(arg_type), dimension(2) :: meta_args = &
-          (/ arg_type(gh_real,  gh_read),        &
-             arg_type(gh_field, gh_inc,  w1) /)
+     type(arg_type), dimension(2) :: meta_args =    &
+          (/ arg_type(gh_scalar, gh_real, gh_read), &
+             arg_type(gh_field,           gh_inc,  w1) /)
      type(mesh_data_type), dimension(1) :: meta_mesh = &
           (/ mesh_data_type(adjacent_face) /)
      type(reference_element_data_type), dimension(2) :: meta_reference_element = &
