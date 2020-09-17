@@ -418,6 +418,34 @@ def test_remove():
             "same" in str(err.value))
 
 
+def test_swap_symbol():
+    ''' Test the SymbolTable.swap() method. '''
+    symbol1 = Symbol("var1")
+    sym_table = SymbolTable()
+    sym_table.add(symbol1)
+    # Test the checks on argument types.
+    with pytest.raises(TypeError) as err:
+        sym_table.swap(symbol1, "var2")
+    assert ("Symbol to add must be of type Symbol but got 'str'" in
+            str(err.value))
+    with pytest.raises(TypeError) as err:
+        sym_table.swap("var2", symbol1)
+    assert ("Symbol to remove must be of type Symbol but got 'str'" in
+            str(err.value))
+    # Test that we reject attempts to swap symbols with different names.
+    symbol2 = DataSymbol("var2", INTEGER_TYPE, constant_value=6)
+    with pytest.raises(SymbolError) as err:
+        sym_table.swap(symbol1, symbol2)
+    assert ("Cannot swap symbols that have different names, got: 'var1' and "
+            "'var2'" in str(err.value))
+    # Finally, check that the method correctly adds the new symbol to the
+    # table and removes the old one.
+    symbol3 = DataSymbol("var1", REAL_TYPE)
+    sym_table.swap(symbol1, symbol3)
+    assert sym_table.lookup("var1") is symbol3
+    assert symbol1 not in sym_table._symbols
+
+
 def test_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
 
