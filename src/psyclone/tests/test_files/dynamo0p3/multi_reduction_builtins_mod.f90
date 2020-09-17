@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,18 +31,19 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified I. Kavcic Met Office
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 !
-!> @brief Meta-data for the Dynamo 0.3 built-in operations.
+!> @brief Meta-data for the LFRic built-in operations.
 !> @details This meta-data is broken for testing purposes.
 module dynamo0p3_builtins_mod
   !> Fake built-in that purports to do two reductions
   type, public, extends(kernel_type) :: X_innerproduct_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
-          arg_type(GH_REAL,  GH_SUM               ),                  &
-          arg_type(GH_REAL,  GH_SUM               )                   &
+          arg_type(GH_FIELD,           GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_SUM               ),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_SUM               )         &
           /)
      integer :: iterates_over = DOFS
    contains

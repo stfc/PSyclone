@@ -205,9 +205,9 @@ def test_stub_generate_with_scalar_sums():
             os.path.join(BASE_PATH, "simple_with_reduction.f90"),
             api=TEST_API)
     assert (
-        "user-supplied Dynamo 0.3 kernel must not write/update a scalar "
-        "argument but kernel simple_with_reduction_type has gh_real with "
-        "gh_sum access" in str(err.value))
+        "A user-supplied LFRic kernel must not write/update a scalar "
+        "argument but kernel 'simple_with_reduction_type' has a scalar "
+        "argument with 'gh_sum' access." in str(err.value))
 
 
 # Fields : intent
