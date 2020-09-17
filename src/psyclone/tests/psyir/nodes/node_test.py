@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import Schedule, Reference, Container, \
     Assignment, Return, Loop, Literal, Statement, node
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
     INTEGER_TYPE, REAL_TYPE, SymbolTable, ContainerSymbol, \
-    UnresolvedInterface, ScalarType, DeferredType
+    UnresolvedInterface, ScalarType, DeferredType, Symbol
 from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
@@ -63,7 +63,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
 def test_node_abstract_methods():
     ''' Tests that the abstract methods of the Node class raise appropriate
     errors. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     sched = invoke.schedule
     loop = sched.children[0].loop_body[0]
     with pytest.raises(NotImplementedError) as err:
@@ -431,7 +432,8 @@ def test_node_is_valid_location():
 
 def test_node_ancestor():
     ''' Test the Node.ancestor() method. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     sched = invoke.schedule
     kern = sched[0].loop_body[0].loop_body[0]
     anode = kern.ancestor(Node)
@@ -734,6 +736,21 @@ def test_find_or_create_symbol():
     assert ("The scope_limit node 'Reference[name:'alpha']' provided to the "
             "find_or_create_symbol method, is not an ancestor of this node "
             "'Reference[name:'alpha']'." in str(excinfo.value))
+
+    # find_or_create_symbol method with invalid visibility
+    with pytest.raises(TypeError) as excinfo:
+        _ = alpha.find_or_create_symbol(alpha.name, visibility="hello")
+    assert ("visibility argument 'hello' provided to the find_or_create_symbol"
+            " method should be of `Symbol.Visibility` type but instead is: "
+            "'str'" in str(excinfo.value))
+
+    # With a valid visibility
+    sym = alpha.find_or_create_symbol("very_private",
+                                      visibility=Symbol.Visibility.PRIVATE)
+    assert sym.name == "very_private"
+    assert sym.visibility == Symbol.Visibility.PRIVATE
+    assert sym is container.symbol_table.lookup("very_private",
+                                                check_ancestors=False)
 
 
 def test_find_or_create_new_symbol():

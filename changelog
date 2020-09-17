@@ -100,6 +100,16 @@
 
         34) #823 for #471. Updates the access from INC to READWRITE for
         those kernels that loop over DoFs.
+	
+	35) #872 for #736 and #858. Routine Symbols are captured by the Fortran
+	front-end when parsing a Container.
+
+        36) #850 for #849 - basic support for distributed memory in GOcean.
+        N.B. dl_esm_inf does not yet have support for set_dirty/clean.
+
+        37) #875 for #774. Add support for new metadata format for scalar
+        arguments to LFRic kernels - sepecify the intrinsic type
+        separately.
 
 release 1.9.0 20th May 2020
 

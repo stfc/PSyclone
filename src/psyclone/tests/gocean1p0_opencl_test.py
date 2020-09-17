@@ -381,7 +381,7 @@ def test_opencl_kernel_code_generation():
     the expected OpenCL code.
     '''
     from psyclone.psyir.backend.opencl import OpenCLWriter
-    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=False)
     sched = psy.invokes.invoke_list[0].schedule
     kernel = sched.children[0].loop_body[0].loop_body[0]  # compute_cu kernel
     kschedule = kernel.get_kernel_schedule()

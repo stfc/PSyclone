@@ -39,7 +39,8 @@
 ''' This module contains the abstract Node implementation.'''
 
 import abc
-from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.symbols import SymbolError, Symbol, DataSymbol, \
+    UnresolvedInterface, DeferredType
 from psyclone.errors import GenerationError, InternalError
 
 # Colour map to use when writing Invoke schedule to terminal. (Requires
@@ -1130,15 +1131,16 @@ class Node(object):
             "Unable to find the scope of node '{0}' as none of its ancestors "
             "are Container or Schedule nodes.".format(self))
 
-    def find_or_create_symbol(self, name, scope_limit=None):
+    def find_or_create_symbol(self, name, scope_limit=None,
+                              visibility=Symbol.DEFAULT_VISIBILITY):
         '''Returns the symbol with the name 'name' from a symbol table
         associated with this node or one of its ancestors.  If the symbol
         is not found and there are no ContainerSymbols with wildcard imports
         then an exception is raised. However, if there are one or more
         ContainerSymbols with wildcard imports (which could therefore be
-        bringing the symbol into scope) then a new DataSymbol of unknown type
-        and interface is created and inserted in the most local SymbolTable
-        that has such an import.
+        bringing the symbol into scope) then a new DataSymbol with the
+        specified visibility but of unknown type and interface is created and
+        inserted in the most local SymbolTable that has such an import.
         The scope_limit variable further limits the symbol table search so
         that the search through ancestor nodes stops when the scope_limit node
         is reached i.e. ancestors of the scope_limit node are not searched.
@@ -1152,16 +1154,21 @@ class Node(object):
             searched.
         :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
             `NoneType`
+        :param visibility: the visibility to give to any new symbol.
+        :type visibility: :py:class:`psyclone.Symbol.Visbility`
 
         :returns: the matching symbol.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
+        :raises TypeError: if the supplied scope_limit is not a Node.
+        :raises ValueError: if the supplied scope_limit node is not an \
+            ancestor of the supplied node.
+        :raises TypeError: if the supplied visibility is not of \
+            `Symbol.Visibility` type.
         :raises SymbolError: if no matching symbol is found and there are \
             no ContainerSymbols from which it might be brought into scope.
 
         '''
-        from psyclone.psyir.symbols import DataSymbol, UnresolvedInterface, \
-            DeferredType
         if scope_limit:
             # Validate the supplied scope_limit
             if not isinstance(scope_limit, Node):
@@ -1186,6 +1193,14 @@ class Node(object):
                     "The scope_limit node '{0}' provided to the "
                     "find_or_create_symbol method, is not an ancestor of this "
                     "node '{1}'.".format(str(scope_limit), str(self)))
+
+        # Validate supplied visibility
+        if not isinstance(visibility, Symbol.Visibility):
+            raise TypeError(
+                "The visibility argument '{0}' provided to the "
+                "find_or_create_symbol method should be of `Symbol."
+                "Visibility` type but instead is: '{1}'."
+                "".format(str(visibility), type(visibility).__name__))
 
         # Keep a list of (symbol table, container) tuples for containers that
         # have wildcard imports into the current scope and therefore may
@@ -1232,8 +1247,11 @@ class Node(object):
             # it may be being brought into scope. Therefore create a DataSymbol
             # of unknown type and deferred interface and add it to the most
             # local SymbolTable.
+            # TODO #876 - this should not always be a DataSymbol since
+            # sometimes the name will refer to a routine.
             symbol = DataSymbol(name, DeferredType(),
-                                interface=UnresolvedInterface())
+                                interface=UnresolvedInterface(),
+                                visibility=visibility)
             first_symbol_table.add(symbol)
             return symbol
 
