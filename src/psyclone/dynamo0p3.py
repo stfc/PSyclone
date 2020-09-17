@@ -7279,11 +7279,16 @@ class DynKern(CodedKern):
             # Get the PSyIR Kernel Schedule
             psyir_schedule = super(DynKern, self).get_kernel_schedule()
 
-            # Check the validity of the kernel arguments
+            # Before transforming, check the validity of the kernel
+            # arguments
             self.validate_kernel_code_args()
 
-            # TODO NEXT replace the PSyIR argument data symbols with LFRic
-            # data symbols.
+            # TODO NEXT replace the PSyIR argument data symbols with
+            # LFRic data symbols. For the moment we simply return the
+            # unmodified PSyIR schedule
+            self._kern_schedule = psyir_schedule
+
+        return self._kern_schedule
 
     def validate_kernel_code_args(self):
         '''Check that the arguments in the kernel code match the expected
@@ -7296,83 +7301,80 @@ class DynKern(CodedKern):
         symbol_table = psyir_schedule.symbol_table
         kern_code_args = symbol_table.argument_list
 
-        # Get the properties of the kernel code interface
-        # according to the kernel metadata and LFRic API
+        # Get the kernel code interface according to the kernel
+        # metadata and LFRic API
         from psyclone.domain.lfric import KernelInterface
         interface_info = KernelInterface(self)
         interface_info.generate()
         interface_args = interface_info.arglist
 
         # 1: Check the the number of arguments match
-        if len(interface_args) != len(kern_code_args):
+        actual_n_args = len(kern_code_args)
+        expected_n_args = len(interface_args)
+        if actual_n_args != expected_n_args:
             raise GenerationError(
                 "The number of arguments expected by the psy-layer kernel "
                 "call '{0}' does not match the actual number of kernel "
                 "arguments '{1}'.".format(
-                    len(interface_args), len(kern_code_args)))
+                    expected_n_args, actual_n_args))
 
         # 2: Check that the properties of each argument matches
         for idx, kern_code_arg in enumerate(kern_code_args):
             interface_arg = interface_args[idx]
-            print ("Checking arg {0} {1}".format(idx, interface_arg))
-            
-            # 2a: datatype
-            if kern_code_arg.datatype.intrinsic != \
-               interface_arg.datatype.intrinsic:
-                raise GenerationError(
-                    "Kernel argument '{0}' has datatype '{1}' "
-                    "but the LFRic API expects '{2}'."
-                    "".format(
-                        idx, kern_code_arg.datatype.intrinsic,
-                        interface_arg.datatype.intrinsic))
-                # precision
-                precision = kern_code_arg.datatype.precision
-                if precision.name != interface_arg.datatype.precision.name:
-                    raise GenerationError(
-                        "Kernel argument '{0}' has precision '{1}' "
-                        "but the LFRic API expects '{2}'."
-                        "".format(kern_code_arg.name, precision.name,
-                                  interface_arg.precision.name))
-                    raise GenerationError("precision does not match")
-                # intent
-                #from psyclone.psyir.backend.fortran import gen_intent
-                #arg_intent = gen_intent(kern_code_arg)
-                #if arg_intent != interface_arg.intent:
-                if kern_code_arg.intent != interface_arg.intent:
-                    raise GenerationError(
-                        "Kernel argument '{0}' has intent '{1}' "
-                        "but the LFRic API expects intent '{2}'."
-                        "".format(kern_code_arg.name, kern_code_arg.intent,
-                                  interface_arg.intent))
+            self.validate_kernel_code_arg(kern_code_arg, interface_arg)
 
-                # scalar or array
-                #if interface_arg.form == "scalar":
-                #    if not kern_code_arg.is_scalar:
-                #        raise GenerationError("Expecting a scalar")
-                #elif interface_arg.form == "array":
-                #    if not kern_code_arg.is_array:
-                #        raise GenerationError("Expecting an array")
-                #    # TODO Check arguments - we need the interface information to link arguments together to do this (I think)
-                #    
-                #    pass
-                #else:
-                #    raise InternalError(
-                #        "unexpected interface argument form found")
-        #for arg in interface_args:
-        #    print (arg)                
-        exit(1)
-        for call_arg in call_args.arglist:
-            print (call_arg)
-        #call_args = KernStubArgList(self)
-        #call_args.generate()
-        #for call_arg in call_args.arglist:
-        #    print (call_arg)
-        exit(1)
-        #symbol_table = psyir_schedule.
-            
-        # For the moment we simply return the unmodified PSyIR schedule
-        self._kern_schedule = psyir_schedule
-        return self._kern_schedule
+    def validate_kernel_code_arg(self, kern_code_arg, interface_arg):
+        '''Check that the supplied datatypes match'''
+
+        # 1: intrinsic datatype
+        actual_datatype = kern_code_arg.datatype.intrinsic
+        expected_datatype = interface_arg.datatype.intrinsic
+        if actual_datatype != expected_datatype:
+            raise GenerationError(
+                "Kernel argument '{0}' has datatype '{1}' "
+                "but the LFRic API expects '{2}'."
+                "".format(kern_code_arg_name, actual_datatype,
+                          expected_datatype))
+        # 2: precision
+        actual_precision = kern_code_arg.datatype.precision
+        expected_precision = interface_arg.datatype.precision
+        if actual_precision.name != expected_precision.name:
+            raise GenerationError(
+                "Kernel argument '{0}' has precision '{1}' "
+                "but the LFRic API expects '{2}'."
+                "".format(kern_code_arg.name, actual_precision.name,
+                          expected_precision.name))
+        # 3: intent
+        actual_intent = kern_code_arg.interface.access
+        expected_intent = interface_arg.interface.access
+        if actual_intent.name != expected_intent.name:
+            raise GenerationError(
+                "Kernel argument '{0}' has intent '{1}' "
+                "but the LFRic API expects intent '{2}'."
+                "".format(kern_code_arg.name, actual_intent.name,
+                          expected_intent.name))
+        # 4 scalar or array
+        if interface_arg.is_scalar:
+            if not kern_code_arg.is_scalar:
+                raise GenerationError(
+                    "Kernel argument '{0}' is expected to be a scalar "
+                    "by the LFRic API but it is not."
+                    "".format(kern_code_arg.name))
+        elif kern_code_arg.is_array:
+            if not interface_arg.is_array:
+                raise GenerationError(
+                    "Kernel argument '{0}' is expected to be an array "
+                    "by the LFRic API but it is not."
+                    "".format(kern_code_arg.name))
+            # 4.1 array arguments
+            for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
+                interface_arg_dim = interface_arg.shape[dim_idx]
+                print ("  Checking dim {0}".format(dim_idx))
+                self.validate_kernel_code_arg(kern_code_arg_dim, interface_arg_dim)
+        else:
+            raise InternalError(
+                "unexpected interface type found for '{0}'. Expecting a "
+                "scalar or an array.".format(kern_code_arg.name))
 
 
 class FSDescriptor(object):

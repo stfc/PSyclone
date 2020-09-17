@@ -50,8 +50,8 @@ from psyclone.psyGen import KernelSchedule
 from psyclone.psyir.nodes import Call, Reference, Container
 from psyclone.psyir.symbols import RoutineSymbol, SymbolTable, \
     ArgumentInterface
-from psyclone.domain.lfric.lfric_ir import CONSTANTS_MOD, \
-    NumberOfDofsDataSymbol, FieldDataDataSymbol, I_DEF, R_DEF, \
+from psyclone.domain.lfric.psyir import CONSTANTS_MOD, \
+    NumberOfDofsDataSymbol, RealFieldDataDataSymbol, I_DEF, R_DEF, \
     OperatorSizeDataSymbol, OperatorDataSymbol, NumberOfUniqueDofsDataSymbol
 
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -70,9 +70,9 @@ UNDF_W3 = NumberOfUniqueDofsDataSymbol("undf_w3", "w3")
 SYMBOL_TABLE.add(UNDF_W3)
 
 # Create LFRic field data symbols and add them to the symbol table
-FIELD1 = FieldDataDataSymbol("field1", [UNDF_W3], "w3")
+FIELD1 = RealFieldDataDataSymbol("field1", [UNDF_W3], "w3")
 SYMBOL_TABLE.add(FIELD1)
-FIELD2 = FieldDataDataSymbol(
+FIELD2 = RealFieldDataDataSymbol(
     "field2", [UNDF_W3], "w3",
     interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
 SYMBOL_TABLE.add(FIELD2)
@@ -81,7 +81,8 @@ SYMBOL_TABLE.specify_argument_list([FIELD2])
 # Create an LFRic operator and it to the symbol table
 NCELL_3D = OperatorSizeDataSymbol("ncell_3d")
 SYMBOL_TABLE.add(NCELL_3D)
-OPERATOR = OperatorDataSymbol("oper1", [NDF_W3, NDF_W3, NCELL_3D], "w3")
+OPERATOR = OperatorDataSymbol("oper1", [NDF_W3, NDF_W3, NCELL_3D],
+                              fs_from="w3", fs_to="w3")
 SYMBOL_TABLE.add(OPERATOR)
 
 # Routine symbol

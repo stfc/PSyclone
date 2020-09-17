@@ -70,6 +70,10 @@ CONSTANT_TYPE_MAP = {
     Fortran2003.Char_Literal_Constant: ScalarType.Intrinsic.CHARACTER,
     Fortran2003.Int_Literal_Constant: ScalarType.Intrinsic.INTEGER}
 
+# Mapping from Fortran intent to PSyIR access type
+INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
+                  "out": ArgumentInterface.Access.WRITE,
+                  "inout": ArgumentInterface.Access.READWRITE}
 
 def _get_symbol_table(node):
     '''Find a symbol table associated with an ancestor of Node 'node' (or
@@ -1256,16 +1260,10 @@ class Fparser2Reader(object):
                     (_, intent) = attr.items
                     normalized_string = \
                         intent.string.lower().replace(' ', '')
-                    if normalized_string == "in":
+                    try:
                         interface = ArgumentInterface(
-                            ArgumentInterface.Access.READ)
-                    elif normalized_string == "out":
-                        interface = ArgumentInterface(
-                            ArgumentInterface.Access.WRITE)
-                    elif normalized_string == "inout":
-                        interface = ArgumentInterface(
-                            ArgumentInterface.Access.READWRITE)
-                    else:
+                            INTENT_MAPPING[normalized_string])
+                    except KeyError:
                         raise InternalError(
                             "Could not process {0}. Unexpected intent "
                             "attribute '{1}'.".format(decl.items,

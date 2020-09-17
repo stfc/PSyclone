@@ -37,68 +37,94 @@
 generated LFRic kernel.
 
 '''
+
+# pylint: disable=no-name-in-module
+# pylint: disable=too-many-public-methods
+# pylint: disable=too-many-instance-attributes
+
 from psyclone.domain.lfric import ArgOrdering
-from psyclone.psyir.symbols import ScalarType, ContainerSymbol, DataSymbol, DeferredType, GlobalInterface, ArrayType
-from psyclone.psyir.nodes import Reference
-from psyclone.configuration import Config
-
-from psyclone.domain.lfric.lfric_ir import I_DEF, R_DEF, CellPositionDataType, MeshHeightDataType, OperatorSizeDataType, NumberOfDofsDataType, DofMapDataType, NumberOfUniqueDofsDataType
-
-from psyclone.domain.lfric.lfric_ir import CellPositionDataSymbol, MeshHeightDataSymbol, OperatorSizeDataSymbol, NumberOfDofsDataSymbol, NumberOfUniqueDofsDataSymbol, DofMapDataSymbol, FieldDataDataSymbol, OperatorDataSymbol
+from psyclone.domain.lfric.psyir import CellPositionDataSymbol, \
+    MeshHeightDataSymbol, OperatorSizeDataSymbol, NumberOfDofsDataSymbol, \
+    NumberOfUniqueDofsDataSymbol, DofMapDataSymbol, RealFieldDataDataSymbol, \
+    IntegerFieldDataDataSymbol, LogicalFieldDataDataSymbol, \
+    RealVectorFieldDataDataSymbol, IntegerVectorFieldDataDataSymbol, \
+    LogicalVectorFieldDataDataSymbol, OperatorDataSymbol, \
+    LfricIntegerScalarDataSymbol, LfricRealScalarDataSymbol, \
+    LfricLogicalScalarDataSymbol, BasisFunctionDataSymbol, \
+    DiffBasisFunctionDataSymbol
 from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
+from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 
 class KernelInterface(ArgOrdering):
-    '''Create the list of actual argument types that a kernel has'''
+    '''Create the list of actual argument types that a kernel has.
+
+    Also add function space information where appropriate (e.g. the
+    number of degrees of freedom of a cell (ndf) will be associated
+    with a function space) and associate arguments with each other
+    where appropriate (e.g. a particular dofmap will be associated
+    with a particular ndf dimension argument.
+
+    RF TBD: This should replace the current Kernel stub gen
+    implementation at some point.
+
+    '''
     def __init__(self, kern):
-        # RF TBD: TURN THIS INTO A KERNEL STUB GENERATOR WHICH USES LFRic PSYIR
         ArgOrdering.__init__(self, kern)
         self._symbol_table = SymbolTable()
-        self._arglist = []
-        self._dofmaps_list = [] 
         self._ndofs_map = {}
-        self._fields_list = []
         self._undfs_map = {}
-        self._operators_list = []
         self._operator_dims_map = {}
-       
-    def generate(self):
+        self._arglist = []
+        self._dofmaps_list = []
+        self._fields_list = []
+        self._operators_list = []
+
+    def generate(self, var_accesses=None):
         '''Call the generate base class then call the connect method after it
         has completed.'''
         super(KernelInterface, self).generate()
         self.connect()
 
     def connect(self):
-        '''Connect the interface arguments together. This is performed after
-        all the interface arguments have been created to avoid the
-        problem of trying to connect before an argument has been
-        created.
+        '''Add the symbol table argument list and connect the interface
+        arguments together. This is performed at the end once all
+        interface arguments have been created.
+
+        Here we must know the number of dimensions that a array object
+        has but not the order of the dimensions.
 
         '''
-        # TODO: Array dimensions and their order are specified here,
-        # so what if they change (particularly operators as they are
-        # multi-dimensional).
-        
+        # Set the argument list for the symbol table
+        self._symbol_table.specify_argument_list(self._arglist)
+
         # dofmaps are dimensioned by ndofs
         for dofmap in self._dofmaps_list:
-            fs = dofmap.fs
-            ndofs = self._ndofs_map[fs]
+            function_space = dofmap.fs
+            ndofs = self._ndofs_map[function_space]
             dofmap.datatype._shape = [ndofs]
 
         # fields are dimensioned by undf
         for field in self._fields_list:
-            fs = field.fs
-            undf = self._undfs_map[fs]
+            function_space = field.fs
+            undf = self._undfs_map[function_space]
             field.datatype._shape = [undf]
 
-        # operators are dimensioned by 2*ndf + ncell_3d
+        # operators have 3 dimensions, 2 of which are ndf and one of
+        # which is ncell_3d
         for operator in self._operators_list:
             fs_from = operator.fs_from
             fs_to = operator.fs_to
             ndf_from = self._ndofs_map[fs_from]
             ndf_to = self._ndofs_map[fs_to]
             op_dim = self._operator_dims_map[operator]
-            operator.datatype._shape = [ndf_from, ndf_to, op_dim]
-
+            dims = [None, None, None]
+            dims[operator.fs_from_dim] = ndf_from
+            dims[operator.fs_to_dim] = ndf_to
+            idx = 0
+            while dims[idx]:
+                idx += 1
+            dims[idx] = op_dim
+            operator.datatype._shape = dims
 
     def cell_position(self, var_accesses=None):
         ''' Create an LFRic cell position object '''
@@ -107,15 +133,15 @@ class KernelInterface(ArgOrdering):
             "cell", interface=ArgumentInterface(ArgumentInterface.Access.READ))
         self._symbol_table.add(arg)
         self._arglist.append(arg)
-        
+
     def mesh_height(self, var_accesses=None):
         ''' Create an LFRic mesh height object '''
 
         arg = MeshHeightDataSymbol(
-            "nlayers", interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            "nlayers",
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
         self._symbol_table.add(arg)
         self._arglist.append(arg)
-
 
     def mesh_ncell2d(self, var_accesses=None):
         ''' Not implemented '''
@@ -125,23 +151,47 @@ class KernelInterface(ArgOrdering):
         ''' Not implemented '''
         raise NotImplementedError("cell_map not implemented")
 
-    def field_vector(self, arg, var_accesses=None):
-        ''' Not implemented '''
-        raise NotImplementedError("field_vector not implemented")
+    def field_vector(self, argvect, var_accesses=None):
+        ''' Implemented '''
+        mapping = {
+            "integer": IntegerVectorFieldDataDataSymbol,
+            "real": RealVectorFieldDataDataSymbol,
+            "logical": LogicalVectorFieldDataDataSymbol}
+        for idx in range(argvect.vector_size):
+            dim = idx + 1
+            try:
+                field_data = mapping[argvect.intrinsic_type](
+                    "{0}_v{1}".format(argvect.name, idx), [1],
+                    argvect.function_space.orig_name,
+                    interface=ArgumentInterface(
+                        INTENT_MAPPING[argvect.intent]))
+            except KeyError:
+                raise NotImplementedError(
+                    "vector field of type {0} not implemented"
+                    "".format(argvect.intrinsic_type))
 
-    def field(self, field_node, var_accesses=None):
+            self._symbol_table.add(field_data)
+            self._arglist.append(field_data)
+            self._fields_list.append(field_data)
+
+    def field(self, arg, var_accesses=None):
         ''' Create an LFRic field data object '''
+        mapping = {
+            "integer": IntegerFieldDataDataSymbol,
+            "real": RealFieldDataDataSymbol,
+            "logical": LogicalFieldDataDataSymbol}
+        try:
+            field_data = mapping[arg.intrinsic_type](
+                arg.name, [1], arg.function_space.orig_name,
+                interface=ArgumentInterface(INTENT_MAPPING[arg.intent]))
+        except KeyError:
+            raise NotImplementedError(
+                "field of type {0} not implemented"
+                "".format(arg.intrinsic_type))
 
-        #intrinsic_mapping = {"real": ScalarType.Intrinsic.REAL,
-        #                     "integer": ScalarType.Intrinsic.INTEGER,
-        #                     "logical": ScalarType.Intrinsic.BOOLEAN}
-        intent_mapping = {"in": ArgumentInterface.Access.READ,
-                          "out": ArgumentInterface.Access.WRITE,
-                          "inout": ArgumentInterface.Access.READWRITE}
-        arg = FieldDataDataSymbol(field_node.name, [1], field_node.function_space.orig_name, interface=ArgumentInterface(intent_mapping[field_node.intent]))
-        self._symbol_table.add(arg)
-        self._arglist.append(arg)
-        self._fields_list.append(arg)
+        self._symbol_table.add(field_data)
+        self._arglist.append(field_data)
+        self._fields_list.append(field_data)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         ''' Not implemented '''
@@ -159,14 +209,15 @@ class KernelInterface(ArgOrdering):
         ''' Create LFRic size and operator data objects '''
 
         op_size = OperatorSizeDataSymbol(
-            "ncell_3d", interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            "ncell_3d",
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
         self._symbol_table.add(op_size)
         self._arglist.append(op_size)
-
-        intent_mapping = {"in": ArgumentInterface.Access.READ,
-                          "out": ArgumentInterface.Access.WRITE,
-                          "inout": ArgumentInterface.Access.READWRITE}
-        arg = OperatorDataSymbol(operator_node.name, [1, 1, 1], operator_node.function_space_from.orig_name, operator_node.function_space_to.orig_name, interface=ArgumentInterface(intent_mapping[operator_node.intent]))
+        arg = OperatorDataSymbol(
+            operator_node.name, [1, 1, 1],
+            operator_node.function_space_from.orig_name,
+            operator_node.function_space_to.orig_name,
+            interface=ArgumentInterface(INTENT_MAPPING[operator_node.intent]))
         self._symbol_table.add(arg)
         self._arglist.append(arg)
         self._operators_list.append(arg)
@@ -176,9 +227,20 @@ class KernelInterface(ArgOrdering):
         ''' Not implemented '''
         raise NotImplementedError("cma_operator not implemented")
 
-    def scalar(self, arg, var_accesses=None):
-        ''' Not implemented '''
-        raise NotImplementedError("scalar not implemented")
+    def scalar(self, scalar_arg, var_accesses=None):
+        ''' Create LFRic scalar symbol '''
+        mapping = {
+            "integer": LfricIntegerScalarDataSymbol,
+            "real": LfricRealScalarDataSymbol,
+            "logical": LfricLogicalScalarDataSymbol}
+        try:
+            arg = mapping[scalar_arg.intrinsic_type](scalar_arg.name)
+        except KeyError:
+            raise NotImplementedError(
+                "scalar of type {0} not implemented"
+                "".format(scalar_arg.intrinsic_type))
+        self._symbol_table.add(arg)
+        self._arglist.append(arg)
 
     def fs_common(self, fs, var_accesses=None):
         ''' Create LFRic Number of Dofs object '''
@@ -191,7 +253,7 @@ class KernelInterface(ArgOrdering):
         self._arglist.append(arg)
         self._ndofs_map[fs_name] = arg
 
-    def fs_intergrid(self, fs, var_accesses=None):
+    def fs_intergrid(self, function_space, var_accesses=None):
         ''' Not implemented '''
         raise NotImplementedError("fs_integrated not implemented")
 
@@ -215,43 +277,94 @@ class KernelInterface(ArgOrdering):
         self._arglist.append(arg)
         self._dofmaps_list.append(arg)
 
-    def banded_dofmap(self, fs, var_accesses=None):
+    def banded_dofmap(self, function_space, var_accesses=None):
         ''' Not implemented '''
         raise NotImplementedError("banded_dofmap not implemented")
 
-    def indirection_dofmap(self, fs, operator=None, var_accesses=None):
+    def indirection_dofmap(self, function_space, operator=None,
+                           var_accesses=None):
         ''' Not implemented '''
         raise NotImplementedError("indirection_dofmap not implemented")
 
-    def basis(self, fs, var_accesses=None):
+    def basis(self, function_space, var_accesses=None):
         ''' Not implemented '''
-        raise NotImplementedError("basis not implemented")
+        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
+            VALID_QUADRATURE_SHAPES
+        for shape in self._kern.eval_shapes:
+            if shape in VALID_QUADRATURE_SHAPES:
+                # A kernel stub won't have a name for the corresponding
+                # quadrature argument so we create one by appending the last
+                # part of the shape name to "qr_".
+                quad_name = shape.split("_")[-1]
+                basis_name = function_space.get_basis_name(
+                    qr_var="qr_"+quad_name)
+                fs_name = function_space.orig_name
+                arg = BasisFunctionDataSymbol(basis_name, [1, 1, 1], fs_name, quad_name)
+                self._symbol_table.add(arg)
+                self._arglist.append(arg)
 
-    def diff_basis(self, fs, var_accesses=None):
+            elif shape in VALID_EVALUATOR_SHAPES:
+                # Need a basis array for each target space upon which the basis
+                # functions have been evaluated. _kern.eval_targets is a dict
+                # where the values are 2-tuples of (FunctionSpace, argument).
+                for _, target in self._kern.eval_targets.items():
+                    raise NotImplementedError("evaluator shapes not implemented")
+            else:
+                raise InternalError(
+                    "Unrecognised evaluator shape ('{0}'). Expected one of: "
+                    "{1}".format(shape, VALID_EVALUATOR_SHAPES))
+
+    def diff_basis(self, function_space, var_accesses=None):
         ''' Not implemented '''
-        raise NotImplementedError("diff_basis not implemented")
+        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
+            VALID_QUADRATURE_SHAPES
+        for shape in self._kern.eval_shapes:
+            if shape in VALID_QUADRATURE_SHAPES:
+                # We need differential basis functions for quadrature. A
+                # kernel stub won't have a name for the corresponding
+                # quadrature argument so we create one by appending the
+                # last part of the shape name to "qr_".
+                quad_name = shape.split("_")[-1]
+                diff_basis_name = function_space.get_diff_basis_name(
+                    qr_var="qr_"+quad_name)
+                fs_name = function_space.orig_name
+                arg = DiffBasisFunctionDataSymbol(diff_basis_name, [1, 1, 1], fs_name, quad_name)
+                self._symbol_table.add(arg)
+                self._arglist.append(arg)
 
-    def orientation(self, fs, var_accesses=None):
+            elif shape in VALID_EVALUATOR_SHAPES:
+                # We need differential basis functions for an evaluator,
+                # potentially for multiple target spaces. _kern.eval_targets is
+                # a dict where the values are 2-tuples of
+                # (FunctionSpace, argument).
+                for _, target in self._kern.eval_targets.items():
+                    diff_basis_name = function_space.get_diff_basis_name(
+                        on_space=target[0])
+                    self.append(diff_basis_name, var_accesses)
+            else:
+                raise InternalError("Unrecognised evaluator shape ('{0}'). "
+                                    "Expected one of: {1}".format(
+                                        shape, VALID_EVALUATOR_SHAPES))
+
+    def orientation(self, function_space, var_accesses=None):
         ''' Not implemented '''
         raise NotImplementedError("orientation not implemented")
 
-    def field_bcs_kernel(self, fs, var_accesses=None):
+    def field_bcs_kernel(self, function_space, var_accesses=None):
         ''' Not implemented '''
         raise NotImplementedError("field_bcs_kernel not implemented")
 
-    def operator_bcs_kernel(self, fs, var_accesses=None):
+    def operator_bcs_kernel(self, function_space, var_accesses=None):
         ''' Not implemented '''
         raise NotImplementedError("operator_bcs_kernel not implemented")
 
     def ref_element_properties(self, var_accesses=None):
         ''' Properties associated with the reference element '''
         # This callback does not contribute any kernel arguments
-        pass
 
     def mesh_properties(self, var_accesses=None):
         ''' Properties associated with the mesh '''
         # This callback does not contribute any kernel arguments
-        pass
 
     def quad_rule(self, var_accesses=None):
         ''' Not implemented '''

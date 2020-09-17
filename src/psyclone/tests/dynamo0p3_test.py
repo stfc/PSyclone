@@ -7358,8 +7358,8 @@ def test_read_only_fields_hex(tmpdir):
 
 
 def test_get_kernel_schedule():
-    '''code under development ... using matrix_vector_kernel as that is
-    what we are interested in
+    '''Tests are under development ... using matrix_vector_kernel as that is
+    what we are interested in and what we currently support
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "12_kernel_specific.f90"),
@@ -7368,4 +7368,3 @@ def test_get_kernel_schedule():
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule[2].loop_body[0]
     kernel_schedule = kernel.get_kernel_schedule()
-    exit(1)

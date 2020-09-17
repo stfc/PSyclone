@@ -371,13 +371,15 @@ def test_invokeschedule_can_be_printed():
 
 # Kern class test
 
-def test_kern_get_kernel_schedule():
+def test_kern_get_kernel_schedule(monkeypatch):
     ''' Tests the get_kernel_schedule method in the Kern class.
     '''
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     my_kern = DynKern()
     my_kern.load_meta(metadata)
+    # disable kernel argument checking
+    monkeypatch.setattr(my_kern, "validate_kernel_code_args", lambda:[])
     schedule = my_kern.get_kernel_schedule()
     assert isinstance(schedule, KernelSchedule)
 
