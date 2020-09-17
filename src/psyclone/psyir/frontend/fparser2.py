@@ -39,8 +39,8 @@
     to transform each node into the equivalent PSyIR representation.'''
 
 from __future__ import absolute_import
-import six
 from collections import OrderedDict
+import six
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
@@ -295,8 +295,8 @@ def _kind_symbol_from_name(name, symbol_table):
     does not contain an appropriate entry then one is created. If it does
     contain a matching entry then it must be either a Symbol or a
     DataSymbol. If it is a DataSymbol then it must have a datatype of
-    'integer' or 'deferred'. If the latter then the fact that we now know
-    that this Symbol represents a KIND
+    'integer' or 'deferred'. If it is deferred then the fact that we now
+    know that this Symbol represents a KIND
     parameter means that we can change the datatype to be 'integer'.
     If the existing symbol is a generic Symbol then it is replaced with
     a new DataSymbol of type 'integer'.
@@ -329,8 +329,7 @@ def _kind_symbol_from_name(name, symbol_table):
                                     default_integer_type(),
                                     visibility=kind_symbol.visibility,
                                     interface=kind_symbol.interface)
-            table.remove(kind_symbol)
-            table.add(new_symbol)
+            table.swap(kind_symbol, new_symbol)
             kind_symbol = new_symbol
         elif isinstance(kind_symbol, DataSymbol):
 
@@ -1121,7 +1120,7 @@ class Fparser2Reader(object):
                         "({1}). This is invalid Fortran.".format(
                             mod_name, str(container)))
 
-            # Create a basic Symbol for each element in the ONLY clause.
+            # Create a generic Symbol for each element in the ONLY clause.
             if isinstance(decl.items[4], Fortran2003.Only_List):
                 if not new_container and not container.wildcard_import \
                    and not parent.symbol_table.imported_symbols(container):

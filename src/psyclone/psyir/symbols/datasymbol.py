@@ -81,41 +81,22 @@ class DataSymbol(Symbol):
         ''' If the symbol has a deferred datatype, find where it is defined
         (i.e. an external container) and obtain the properties of the symbol.
 
-        :raises SymbolError: if the module pointed to by the symbol interface \
-                             does not contain the symbol (or the symbol is \
-                             not public).
-        :raises NotImplementedError: if the deferred symbol is not a Global.
+        :returns: this DataSymbol with its properties updated. This is for \
+                  consistency with the equivalent method in the Symbol \
+                  class which returns a new Symbol object.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         from psyclone.psyir.symbols.datatypes import DeferredType
         if isinstance(self.datatype, DeferredType):
-            if self.is_global:
-                # Copy all the symbol properties but the interface and
-                # visibility (the latter is determined by the current
-                # scoping unit)
-                tmp = self.interface
-                module = self.interface.container_symbol
-                try:
-                    extern_symbol = module.container.symbol_table.lookup(
-                        self.name, visibility=self.Visibility.PUBLIC)
-                except KeyError:
-                    raise SymbolError(
-                        "Error trying to resolve the properties of symbol "
-                        "'{0}'. The interface points to module '{1}' but "
-                        "could not find the definition of '{0}' in that "
-                        "module.".format(self.name, module.name))
-                except SymbolError as err:
-                    raise SymbolError(
-                        "Error trying to resolve the properties of symbol "
-                        "'{0}' in module '{1}': {2}".format(
-                            self.name, module.name, str(err.value)))
-                self.copy_properties(extern_symbol)
-                self.interface = tmp
-            else:
-                raise NotImplementedError(
-                    "Error trying to resolve symbol '{0}' properties, the lazy"
-                    " evaluation of '{1}' interfaces is not supported."
-                    "".format(self.name, self.interface))
+            # Copy all the symbol properties but the interface and
+            # visibility (the latter is determined by the current
+            # scoping unit)
+            tmp = self.interface
+            extern_symbol = self.get_external_symbol()
+            self.copy_properties(extern_symbol)
+            self.interface = tmp
+
         return self
 
     @property

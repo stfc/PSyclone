@@ -512,9 +512,41 @@ class SymbolTable(object):
         return [symbol for symbol in self.global_symbols if
                 symbol.interface.container_symbol is csymbol]
 
+    def swap(self, old_symbol, new_symbol):
+        '''
+        Remove the `old_symbol` from the table and replace it with the
+        `new_symbol`.
+
+        :param old_symbol: the symbol to remove from the table.
+        :type old_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param new_symbol: the symbol to add to the table.
+        :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :raises TypeError: if either old/new_symbol are not Symbols.
+        :raises SymbolError: if `old_symbol` and `new_symbol` don't have \
+                             the same name.
+        '''
+        if not isinstance(old_symbol, Symbol):
+            raise TypeError("Symbol to remove must be of type Symbol but "
+                            "got '{0}'".format(type(old_symbol).__name__))
+        if not isinstance(new_symbol, Symbol):
+            raise TypeError("Symbol to add must be of type Symbol but "
+                            "got '{0}'".format(type(new_symbol).__name__))
+        if old_symbol.name != new_symbol.name:
+            raise SymbolError(
+                "Cannot swap symbols that have different names, got: '{0}' "
+                "and '{1}'".format(old_symbol.name, new_symbol.name))
+        # TODO #898 remove() does not currently check for any uses of
+        # old_symbol.
+        self.remove(old_symbol)
+        self.add(new_symbol)
+
     def remove(self, symbol):
         ''' Remove the supplied Symbol or ContainerSymbol from the Symbol Table.
         Support for removing other types of Symbol will be added as required.
+
+        TODO #898. This method should check for any references/uses of
+        the target symbol, even if it's not a ContainerSymbol.
 
         :param symbol: the container symbol to remove.
         :type symbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`

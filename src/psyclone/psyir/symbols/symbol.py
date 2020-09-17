@@ -299,6 +299,39 @@ class Symbol(object):
         # first positional argument.
         return type(self)(self.name, *args, **kwargs)
 
+    def get_external_symbol(self):
+        '''
+        Looks-up and returns the Symbol referred to by this Symbol's external
+        (global) interface.
+
+        :raises SymbolError: if the module pointed to by the symbol interface \
+                             does not contain the symbol (or the symbol is \
+                             not public).
+        :raises NotImplementedError: if the this symbol does not have an \
+                                     external (global) interface.
+        '''
+        if not self.is_global:
+            raise NotImplementedError(
+                "Error trying to resolve symbol '{0}' properties, the lazy"
+                " evaluation of '{1}' interfaces is not supported."
+                "".format(self.name, self.interface))
+
+        module = self.interface.container_symbol
+        try:
+            return module.container.symbol_table.lookup(
+                self.name, visibility=self.Visibility.PUBLIC)
+        except KeyError as kerr:
+            six.raise_from(SymbolError(
+                "Error trying to resolve the properties of symbol "
+                "'{0}'. The interface points to module '{1}' but "
+                "could not find the definition of '{0}' in that "
+                "module.".format(self.name, module.name)), kerr)
+        except SymbolError as err:
+            six.raise_from(SymbolError(
+                "Error trying to resolve the properties of symbol "
+                "'{0}' in module '{1}': {2}".format(
+                    self.name, module.name, str(err.value))), err)
+
     def resolve_deferred(self):
         '''
         Search for the Container in which this Symbol is defined and
@@ -312,23 +345,7 @@ class Symbol(object):
 
         '''
         if self.is_global:
-            # Find/create the Container that the symbol
-            # is imported from.
-            module = self.interface.container_symbol
-            try:
-                extern_symbol = module.container.symbol_table.lookup(
-                    self.name, visibility=Symbol.Visibility.PUBLIC)
-            except KeyError as kerr:
-                six.raise_from(SymbolError(
-                    "Error trying to resolve the properties of symbol "
-                    "'{0}'. The interface points to module '{1}' but "
-                    "could not find the definition of '{0}' in that "
-                    "module.".format(self.name, module.name)), kerr)
-            except SymbolError as err:
-                six.raise_from(SymbolError(
-                    "Error trying to resolve the properties of symbol "
-                    "'{0}' in module '{1}': {2}".format(
-                        self.name, module.name, str(err.value))), err)
+            extern_symbol = self.get_external_symbol()
             # Create a new symbol object of the same class as the one
             # we've just looked up but with the interface and visibility
             # of the current symbol.
