@@ -93,5 +93,9 @@ psy_data_base.f90: ../../psy_data_base.jinja Makefile
 read_only_base.f90: ../read_only_base.jinja Makefile
 	../../process.py $(PROCESS_ARGS) $< > read_only_base.f90
 
+# The dl_esm_inf library
+$(INF_LIB):
+	$(MAKE) -C $(INF_DIR) F90=$(F90)
+
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.*
