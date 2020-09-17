@@ -1389,7 +1389,7 @@ class GOKern(CodedKern):
         its name.
 
         :param f2pygen_module: the module where the new function will be \
-                               inserted into.
+                               inserted.
         :param type: :py:class:`psyclone.f2pygen.ModuleGen`
 
         :returns: the name of the generated subroutine.

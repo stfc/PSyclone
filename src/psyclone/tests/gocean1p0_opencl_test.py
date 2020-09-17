@@ -165,14 +165,14 @@ def test_field_arguments(kernel_outputdir):
 
     # Check that the read_from_device routine has also been generated.
     expected = (
-	"    subroutine read_from_device(from, to, nx, ny, width)\n"
-	"      use iso_c_binding, only: c_intptr_t\n"
-	"      use fortcl, only: read_buffer\n"
-	"      integer(kind=c_intptr_t), intent(in) :: from\n"
-	"      real(kind=go_wp), intent(inout), dimension(:,:) :: to\n"
-	"      integer, intent(in) :: nx, ny, width\n"
-	"      call read_buffer(from, to, int(width*ny, kind=8))\n"
-	"    end subroutine read_from_device\n")
+        "    subroutine read_from_device(from, to, nx, ny, width)\n"
+        "      use iso_c_binding, only: c_intptr_t\n"
+        "      use fortcl, only: read_buffer\n"
+        "      integer(kind=c_intptr_t), intent(in) :: from\n"
+        "      real(kind=go_wp), intent(inout), dimension(:,:) :: to\n"
+        "      integer, intent(in) :: nx, ny, width\n"
+        "      call read_buffer(from, to, int(width*ny, kind=8))\n"
+        "    end subroutine read_from_device\n")
     assert expected in generated_code
 
 
