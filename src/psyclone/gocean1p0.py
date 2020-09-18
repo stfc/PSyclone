@@ -1371,7 +1371,7 @@ class GOKern(CodedKern):
                         # If the subroutines does not exist, it needs to be
                         # generated first.
                         read_fp = self.gen_ocl_read_from_device_function(
-                                parent.parent)
+                            parent.parent)
                     ifthen.add(AssignGen(
                         ifthen, lhs="{0}%read_from_device_f".format(arg.name),
                         rhs=read_fp, pointer=True))
@@ -1416,7 +1416,7 @@ class GOKern(CodedKern):
         sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
                         intent="in", entity_decls=["from"]))
         sub.add(DeclGen(sub, datatype="real", kind="go_wp", intent="inout",
-                dimension=":,:", entity_decls=["to"]))
+                        dimension=":,:", entity_decls=["to"]))
         sub.add(DeclGen(sub, datatype="integer", intent="in",
                         entity_decls=["nx", "ny", "width"]))
         sub.add(
