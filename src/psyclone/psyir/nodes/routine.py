@@ -73,6 +73,9 @@ class Routine(Schedule):
         self._entry_point = entry_point
         self._return_type = return_type
 
+        self._text_name = "Schedule"
+        self._colour_key = "Schedule"
+
     @property
     def dag_name(self):
         '''
