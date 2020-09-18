@@ -291,9 +291,12 @@ class Symbol(object):
     def resolve_deferred(self):
         '''
         Search for the Container in which this Symbol is defined and
-        create and return a symbol of the correct class and type. If this
-        symbol does not have a 'global' interface then we just return
-        this symbol.
+        create and return a symbol of the correct class and type. If the
+        class and type of the looked-up symbol are the same as this one,
+        some specialisations of this method update the differing
+        properties in place rather than create a new symbol.
+        If this symbol does not have a 'global' interface then there is no
+        lookup needed and we just return this symbol.
 
         :returns: a symbol object with the class and type determined by \
                   examining the Container from which it is imported.
