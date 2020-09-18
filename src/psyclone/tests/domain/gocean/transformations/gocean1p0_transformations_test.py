@@ -1035,6 +1035,7 @@ def test_omp_region_invalid_node():
     # Check that the test can be disabled with the appropriate option:
     ompr.apply(new_sched.children, {"node-type-check": False})
 
+
 @pytest.mark.xfail(reason="OMP Region with children of different types "
                    "not yet implemented")
 def test_omp_region_with_children_of_different_types(tmpdir):
