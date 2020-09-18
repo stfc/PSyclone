@@ -146,11 +146,11 @@ VALID_ITERATION_SPACES = USER_KERNEL_ITERATION_SPACES + \
     BUILTIN_ITERATION_SPACES
 
 # ---------- psyGen mappings ------------------------------------------------ #
-# Mappings used by non-API-Specific code in psyGen.
-# psyGen ["iscalar", "rscalar"] translate to LFRic scalar names.
-psyGen.MAPPING_SCALARS = dict(zip(psyGen.MAPPING_SCALARS_LIST,
-                                  LFRicArgDescriptor.VALID_SCALAR_NAMES))
-# psyGen argument types translate to LFRic argument types
+# Mappings used by non-API-specific code in psyGen.
+# psyGen ["rscalar", "iscalar"] translate to LFRic scalar names.
+psyGen.VALID_SCALAR_NAMES = LFRicArgDescriptor.VALID_SCALAR_NAMES
+
+# psyGen argument types translate to LFRic argument types.
 psyGen.VALID_ARG_TYPE_NAMES = LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
 
 # ---------- Functions ------------------------------------------------------ #
@@ -592,12 +592,10 @@ class DynKernMetadata(KernelType):
                 if self.name not in BUILTIN_MAP and \
                    arg.argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
                     raise ParseError(
-                        "A user-supplied Dynamo 0.3 kernel must not "
-                        "write/update a scalar argument but kernel {0} has "
-                        "{1} with {2} access"
-                        .format(self.name,
-                                arg.argument_type,
-                                arg.access.api_specific_name()))
+                        "A user-supplied LFRic kernel must not write/update "
+                        "a scalar argument but kernel '{0}' has a scalar "
+                        "argument with '{1}' access."
+                        .format(self.name, arg.access.api_specific_name()))
         if write_count == 0:
             raise ParseError("A Dynamo 0.3 kernel must have at least one "
                              "argument that is updated (written to) but "
@@ -6153,12 +6151,12 @@ class DynLoop(Loop):
                     # Iterate to ncells for all discontinuous quantities,
                     # including any_discontinuous_space
                     self.set_upper_bound("ncells")
-                elif self.field_space.orig_name in \
-                        FunctionSpace.CONTINUOUS_FUNCTION_SPACES:
+                elif (self.field_space.orig_name in
+                      FunctionSpace.CONTINUOUS_FUNCTION_SPACES):
                     # Must iterate out to L1 halo for continuous quantities
                     self.set_upper_bound("cell_halo", index=1)
-                elif self.field_space.orig_name in \
-                        FunctionSpace.VALID_ANY_SPACE_NAMES:
+                elif (self.field_space.orig_name in
+                      FunctionSpace.VALID_ANY_SPACE_NAMES):
                     # We don't know whether any_space is continuous or not
                     # so we have to err on the side of caution and assume that
                     # it is.
@@ -6802,8 +6800,13 @@ class DynKern(CodedKern):
 
         :param ktype: the kernel meta-data object produced by the parser
         :type ktype: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
+
+        :raises InternalError: for an invalid data type of a scalar argument.
+        :raises GenerationError: if an invalid argument type is found \
+                                 in the kernel.
+
         '''
-        # create a name for each argument
+        # Create a name for each argument
         from psyclone.parse.algorithm import Arg
         args = []
         for idx, descriptor in enumerate(ktype.arg_descriptors):
@@ -6814,10 +6817,18 @@ class DynKern(CodedKern):
                 pre = "cma_op_"
             elif descriptor.argument_type.lower() == "gh_field":
                 pre = "field_"
-            elif descriptor.argument_type.lower() == "gh_real":
-                pre = "rscalar_"
-            elif descriptor.argument_type.lower() == "gh_integer":
-                pre = "iscalar_"
+            elif (descriptor.argument_type.lower() in
+                  LFRicArgDescriptor.VALID_SCALAR_NAMES):
+                if descriptor.data_type.lower() == "gh_real":
+                    pre = "rscalar_"
+                elif descriptor.data_type.lower() == "gh_integer":
+                    pre = "iscalar_"
+                else:
+                    raise InternalError(
+                        "DynKern.load_meta(): expected one of {0} data types "
+                        "for a scalar argument but found '{1}'.".
+                        format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES,
+                               descriptor.data_type))
             else:
                 raise GenerationError(
                     "DynKern.load_meta() expected one of {0} but found '{1}'".
@@ -6827,11 +6838,11 @@ class DynKern(CodedKern):
 
             if descriptor.stencil:
                 if not descriptor.stencil["extent"]:
-                    # stencil size (in cells) is passed in
+                    # Stencil size (in cells) is passed in
                     args.append(Arg("variable",
                                     pre+str(idx+1)+"_stencil_size"))
                 if descriptor.stencil["type"] == "xory1d":
-                    # direction is passed in
+                    # Direction is passed in
                     args.append(Arg("variable", pre+str(idx+1)+"_direction"))
 
         # Initialise basis/diff basis so we can test whether quadrature

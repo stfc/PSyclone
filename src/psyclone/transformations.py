@@ -554,9 +554,9 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                        node2.upper_bound_halo_depth))
 
         # 5) Check for reductions
-        from psyclone.psyGen import MAPPING_SCALARS
+        from psyclone.psyGen import VALID_SCALAR_NAMES
         from psyclone.core.access_type import AccessType
-        arg_types = MAPPING_SCALARS.values()
+        arg_types = VALID_SCALAR_NAMES
         all_reductions = AccessType.get_valid_reduction_modes()
         node1_red_args = node1.args_filter(arg_types=arg_types,
                                            arg_accesses=all_reductions)
@@ -1230,7 +1230,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # colouring.
         if node.field_space.orig_name not in \
            FunctionSpace.VALID_DISCONTINUOUS_NAMES:
-            if node.loop_type is not 'colour' and node.has_inc_arg():
+            if node.loop_type != 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     "Error in {0} transformation. The kernel has an "
                     "argument with INC access. Colouring is required.".
@@ -1333,7 +1333,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
         # If the loop is not already coloured then check whether or not
         # it should be
-        if node.loop_type is not 'colour' and node.has_inc_arg():
+        if node.loop_type != 'colour' and node.has_inc_arg():
             raise TransformationError(
                 "Error in {0} transformation. The kernel has an argument"
                 " with INC access. Colouring is required.".

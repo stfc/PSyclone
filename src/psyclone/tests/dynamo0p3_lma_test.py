@@ -62,13 +62,13 @@ TEST_API = "dynamo0.3"
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
-     type(arg_type), meta_args(6) =                  &
-          (/ arg_type(gh_real,  gh_read),            &
-             arg_type(gh_field, gh_inc, w1),         &
-             arg_type(gh_field, gh_read, w2),        &
-             arg_type(gh_operator, gh_read, w2, w2), &
-             arg_type(gh_field, gh_read, w3),        &
-             arg_type(gh_integer, gh_read)           &
+     type(arg_type), meta_args(6) =                     &
+          (/ arg_type(gh_scalar,   gh_real,  gh_read),  &
+             arg_type(gh_field,    gh_inc, w1),         &
+             arg_type(gh_field,    gh_read, w2),        &
+             arg_type(gh_operator, gh_read, w2, w2),    &
+             arg_type(gh_field,    gh_read, w3),        &
+             arg_type(gh_scalar,   gh_integer, gh_read) &
            /)
      type(func_type), dimension(3) :: meta_funcs =   &
           (/ func_type(w1, gh_basis),                &
@@ -179,7 +179,7 @@ def test_ad_op_type_init_wrong_type():
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
             wrong_arg, metadata.iterates_over)._init_operator(wrong_arg)
-    assert ("LFRicArgDescriptor._init_operator(): expecting an "
+    assert ("LFRicArgDescriptor._init_operator(): expected an "
             "operator argument but got an argument of type 'gh_field'."
             in str(excinfo.value))
 

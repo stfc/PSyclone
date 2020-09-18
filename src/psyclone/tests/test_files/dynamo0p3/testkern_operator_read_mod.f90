@@ -42,13 +42,13 @@ module testkern_operator_read_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_operator_read_type
-     type(arg_type), dimension(3) :: meta_args =      &
-          (/ arg_type(gh_operator, gh_read,  w3, w3), &
-             arg_type(gh_field*3,  gh_write, w3),     &
-             arg_type(gh_integer,  gh_read)           &
+     type(arg_type), dimension(3) :: meta_args =                  &
+          (/ arg_type(gh_operator,             gh_read,  w3, w3), &
+             arg_type(gh_field*3,              gh_write, w3),     &
+             arg_type(gh_scalar,   gh_integer, gh_read)           &
           /)
-     type(func_type) :: meta_funcs(1) =               &
-          (/ func_type(w3, gh_basis, gh_diff_basis)   &
+     type(func_type) :: meta_funcs(1) =                           &
+          (/ func_type(w3, gh_basis, gh_diff_basis)               &
           /)
      integer :: iterates_over = cells
      integer :: gh_shape = gh_quadrature_XYoZ
