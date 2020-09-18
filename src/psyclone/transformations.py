@@ -3682,12 +3682,14 @@ class KernelGlobalsToArguments(Transformation):
         for globalvar in kernel.symbol_table.global_symbols[:]:
 
             # Resolve the data type information if it is not available
+            # pylint: disable=unidiomatic-typecheck
             if (type(globalvar) == Symbol or
                     isinstance(globalvar.datatype, DeferredType)):
                 updated_sym = globalvar.resolve_deferred()
                 # If we have a new symbol then we must update the symbol table
                 if updated_sym is not globalvar:
                     kernel.symbol_table.swap(globalvar, updated_sym)
+            # pylint: enable=unidiomatic-typecheck
 
             # Copy the global into the InvokeSchedule SymbolTable
             invoke_symtab.copy_external_global(
@@ -3718,7 +3720,8 @@ class KernelGlobalsToArguments(Transformation):
             go_space = ""
             if updated_sym.datatype.intrinsic == ScalarType.Intrinsic.REAL:
                 go_space = "go_r_scalar"
-            elif updated_sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
+            elif (updated_sym.datatype.intrinsic ==
+                  ScalarType.Intrinsic.INTEGER):
                 go_space = "go_i_scalar"
             else:
                 raise TypeError(

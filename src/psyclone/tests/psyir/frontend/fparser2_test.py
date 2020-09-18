@@ -1191,7 +1191,6 @@ def test_wrong_type_kind_param():
     type.
 
     '''
-    from psyclone.psyir.symbols import RoutineSymbol
     fake_parent, _ = process_declarations("integer :: r_def\n"
                                           "real(kind=r_def) :: var2")
     r_def = fake_parent.symbol_table.lookup("r_def")

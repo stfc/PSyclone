@@ -319,6 +319,7 @@ def _kind_symbol_from_name(name, symbol_table):
     lower_name = name.lower()
     try:
         kind_symbol = symbol_table.lookup(lower_name)
+        # pylint: disable=unidiomatic-typecheck
         if type(kind_symbol) == Symbol:
             # There is an existing entry but it's only a generic Symbol
             # so we need to replace it with a DataSymbol of integer type.

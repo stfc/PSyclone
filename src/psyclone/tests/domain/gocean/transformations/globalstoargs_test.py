@@ -89,7 +89,7 @@ def test_globalstoargumentstrans_no_outer_module_import():
             str(err.value))
 
 
-def test_globalstoargumentstrans_no_wildcard_import(monkeypatch):
+def test_globalstoargumentstrans_no_wildcard_import():
     ''' Check that the transformation rejects kernels with wildcard
     imports. '''
     trans = KernelGlobalsToArguments()

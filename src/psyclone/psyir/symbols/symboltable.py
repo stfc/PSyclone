@@ -542,7 +542,8 @@ class SymbolTable(object):
         self.add(new_symbol)
 
     def remove(self, symbol):
-        ''' Remove the supplied Symbol or ContainerSymbol from the Symbol Table.
+        '''
+        Remove the supplied Symbol or ContainerSymbol from the Symbol Table.
         Support for removing other types of Symbol will be added as required.
 
         TODO #898. This method should check for any references/uses of
@@ -558,10 +559,12 @@ class SymbolTable(object):
         :raises InternalError: if the supplied symbol is not the same as the \
                                entry with that name in this SymbolTable.
         '''
+        # pylint: disable=unidiomatic-typecheck
         if not (isinstance(symbol, ContainerSymbol) or type(symbol) == Symbol):
             raise TypeError("remove() expects a ContainerSymbol or Symbol "
                             "object but got: '{0}'".format(
                                 type(symbol).__name__))
+        # pylint: enable=unidiomatic-typecheck
         if symbol.name not in self._symbols:
             raise KeyError("Cannot remove Symbol '{0}' from symbol table "
                            "because it does not exist.".format(symbol.name))
