@@ -47,7 +47,7 @@
 
 # This directory points to an external, compiled version of the LFRic,
 # which is required to find the module files when compiling this library:
-LFRIC_DIR ?= ../../../../../lfric/work/trunk/miniapps/gravity_wave/working/field
+LFRIC_DIR ?= ../../../../lfric/trunk/miniapps/gravity_wave/working/field
 
 # The LFRic ReadOnly library needs the PreDeclareVariable() and
 # ProvideVariable() routines for the basic Fortran types real, int,
@@ -58,7 +58,7 @@ PROCESS_ARGS = -prefix=read_only_verify_ -types=real,int,double \
 		       -dims=1,2,3,4
 
 F90 ?= gfortran
-F90FLAGS ?= -O0 -g
+F90FLAGS ?=
 F90FLAGS += -I$(LFRIC_DIR)
 LIB_NAME = lib_read_only.a
 
