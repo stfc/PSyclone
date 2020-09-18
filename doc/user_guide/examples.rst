@@ -111,7 +111,11 @@ Example 3: OpenCL
 ^^^^^^^^^^^^^^^^^
 
 Example of the use of PSyclone to generate an OpenCL driver version of
-the PSy layer and OpenCL kernels.
+the PSy layer and OpenCL kernels. The Makefile in this example provides
+a target (`make compile-ocl`) to compile the generated OpenCL code. This
+requires an OpenCL implementation installed in the system. Read the README
+provided in the example folder for more details about how to compile and
+execute the generated OpenCL code.
 
 Example 4: Kernels containing use statements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
