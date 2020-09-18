@@ -110,21 +110,24 @@ Please see the :ref:`algorithm-layer` section for a description of the
 ``name`` argument.
 
 Objects in the Dynamo0.3 API can be categorised by their functionality
-as data types and information that specifies supported operations on a
-particular data type. The above example introduces four of five data types
-supported by the Dynamo0.3 API: scalar, field, operator and column-wise
-operator (field vector is the fifth). ``qr`` represents a quadrature
-object which provides information required by a kernel to operate
-on fields (see section :ref:`dynamo0.3-quadrature` for more details).
+as data structures and information that specifies supported operations on
+a particular data structure. These data structures are represented by the
+five Dynamo0.3 API argument types: :ref:`scalar <dynamo0.3-scalar>`,
+:ref:`field <dynamo0.3-field>`, :ref:`field vector <dynamo0.3-field-vector>`,
+:ref:`operator <dynamo0.3-operator>` and :ref:`column-wise operator
+<dynamo0.3-cma-operator>`. All of them except the field vector are
+represented in the above example. ``qr`` represents a quadrature object
+which provides information required by a kernel to operate on fields
+(see section :ref:`dynamo0.3-quadrature` for more details).
 
 .. _dynamo0.3-scalar:
 
 Scalar
 ++++++
 
-In the Dynamo0.3 API a scalar is a single-valued variable that can be
-either real or integer. Real scalars are identified with ``GH_REAL``
-and integer scalars are identified with ``GH_INTEGER`` metadata.
+In the Dynamo0.3 API a scalar is a single-valued argument that can be
+:ref:`either real or integer <dynamo0.3-kernel-valid-data-type>`.
+Scalars are identified with ``GH_SCALAR`` metadata.
 
 .. _dynamo0.3-field:
 
@@ -612,17 +615,16 @@ array will be of size 2 and there will be two ``arg_type`` entries::
        arg_type( ... )                                                 &
        /)
 
-Argument-metadata (metadata contained within the brackets of an
+Argument metadata (information contained within the brackets of an
 ``arg_type`` entry), describes either a **scalar**, a **field** or an
 **operator** (either LMA or CMA).
 
 The first argument-metadata entry describes whether the data that is
-being passed is for a real scalar (``GH_REAL``), an integer scalar
-(``GH_INTEGER``), a field (``GH_FIELD``) or an operator (either
-``GH_OPERATOR`` for LMA or ``GH_COLUMNWISE_OPERATOR`` for CMA). This
-information is mandatory.
+being passed is for a scalar (``GH_SCALAR``), a field (``GH_FIELD``) or
+an operator (either ``GH_OPERATOR`` for LMA or ``GH_COLUMNWISE_OPERATOR``
+for CMA). This information is mandatory.
 
-Additionally, argument-metadata can be used to describe a vector of
+Additionally, argument metadata can be used to describe a vector of
 fields (see the :ref:`dynamo0.3-field-vector` section for more
 details).
 
@@ -633,14 +635,22 @@ fourth is an operator. The third entry is a field vector of size 3.
 ::
 
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_REAL, ...),                                         &
+       arg_type(GH_SCALAR, GH_REAL, ...),                              &
        arg_type(GH_FIELD, ... ),                                       &
        arg_type(GH_FIELD*3, ... ),                                     &
        arg_type(GH_OPERATOR, ...)                                      &
        /)
 
-The second entry to argument-metadata (information contained within
-the brackets of an ``arg_type``) describes how the Kernel makes use of
+The second item in a metadata entry for a :ref:`scalar argument
+<dynamo0.3-scalar>` describes the Fortran primitive (intrinsic)
+type of the data of a kernel argument. The currently supported values
+are ``GH_REAL`` and ``GH_INTEGER`` for ``real`` and ``integer``
+data, respectively. Valid data types for each Dynamo0.3 API argument
+type are specified later in this section (see
+:ref:`dynamo0.3-kernel-valid-data-type`).
+
+The third component of argument metadata for scalars and the second for
+all other argument types describes how the Kernel makes use of
 the data being passed into it (the way it is accessed within a
 Kernel). This information is mandatory. There are currently 5 possible
 values of this metadata ``GH_WRITE``, ``GH_READ``, ``GH_INC``,
@@ -676,7 +686,7 @@ later in this section (see :ref:`dynamo0.3-kernel-valid-access`).
 For example::
 
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_REAL,  GH_SUM),                                     &
+       arg_type(GH_SCALAR, GH_REAL, GH_SUM),                           &
        arg_type(GH_FIELD, GH_INC, ... ),                               &
        arg_type(GH_FIELD*3, GH_WRITE, ... ),                           &
        arg_type(GH_OPERATOR, GH_READ, ...)                             &
@@ -685,10 +695,10 @@ For example::
 .. note:: In the Dynamo0.3 API only :ref:`dynamo0.3-built-ins` are permitted
           to write to scalar arguments (and hence perform reductions).
           Furthermore, this permission is currently restricted to real
-          scalars (``GH_REAL``) as the LFRic infrastructure does not
-          yet support integer reductions.
+          scalars (``GH_SCALAR, GH_REAL``) as the LFRic infrastructure
+          does not yet support integer reductions.
 
-For a scalar the argument metadata contains only these two entries.
+For a scalar the argument metadata contains only these three entries.
 However, fields and operators require further entries specifying
 function-space information.
 The meaning of these further entries differs depending on whether a
@@ -758,6 +768,37 @@ contained two calls of a kernel with arguments described by the above
 metadata then the first field argument passed to each kernel call
 need not be on the same space.
 
+.. _dynamo0.3-kernel-valid-data-type:
+
+Valid Data Types
+^^^^^^^^^^^^^^^^
+
+As mentioned earlier, the currently supported Fortran primitive
+(intrinsic) types for kernel argument data are ``real`` and
+``integer``, described by the ``GH_REAL`` and ``GH_INTEGER``
+metadata descriptors. Supported data types for each argument
+type are given in the table below (please note that :ref:`field
+vectors <dynamo0.3-field-vector>` follow the same rules as the
+:ref:`LFRic fields <dynamo0.3-field>`):
+
+.. tabularcolumns:: |l|l|
+
++------------------------+---------------------+
+| Argument Type          | Data Type           |
++========================+=====================+
+| GH_SCALAR              | GH_INTEGER, GH_REAL |
++------------------------+---------------------+
+| GH_FIELD               | GH_REAL             |
++------------------------+---------------------+
+| GH_OPERATOR            | GH_REAL             |
++------------------------+---------------------+
+| GH_COLUMNWISE_OPERATOR | GH_REAL             |
++------------------------+---------------------+
+
+.. note:: The metadata descriptors for data type for field and operator
+          arguments will be introduced in `PSyclone issue #817
+          <https://github.com/stfc/PSyclone/issues/817>`_.
+
 .. _dynamo0.3-kernel-valid-access:
 
 Valid Access Modes
@@ -765,24 +806,22 @@ Valid Access Modes
 
 As mentioned earlier, not all combinations of metadata are
 valid. Valid combinations for each argument type in
-user-defined Kernels are summarised here. All types of data
-(``GH_INTEGER``, ``GH_REAL``, ``GH_FIELD``, ``GH_OPERATOR`` and
+user-defined Kernels are summarised here. All argument types
+(``GH_SCALAR``, ``GH_FIELD``, ``GH_OPERATOR`` and
 ``GH_COLUMNWISE_OPERATOR``) may be read within a Kernel and this
 is specified in metadata using ``GH_READ``. At least one kernel
-argument must be listed as being modified. When data is *modified*
-in a user-supplied Kernel (i.e. a Kernel that has ``CELLS`` as its
-iteration space, see :ref:`iteration space metadata
+argument must be listed as being modified. When argument data is
+*modified* in a user-supplied Kernel (i.e. a Kernel that has
+``CELLS`` as its iteration space, see :ref:`iteration space metadata
 <dynamo0.3-user-kernel-iterates-over>`) then the permitted access
-modes depend on the type it is and the function space it is on:
+modes depend upon the argument type and the function space it is on:
 
 .. tabularcolumns:: |l|l|l|
 
 +------------------------+------------------------------+--------------------+
 | Argument Type          | Function Space               | Access Type        |
 +========================+==============================+====================+
-| GH_INTEGER             | n/a                          | GH_READ            |
-+------------------------+------------------------------+--------------------+
-| GH_REAL                | n/a                          | GH_READ            |
+| GH_SCALAR              | n/a                          | GH_READ            |
 +------------------------+------------------------------+--------------------+
 | GH_FIELD               | Discontinuous                | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |
@@ -1144,7 +1183,7 @@ the rest are read-only. They may also have read-only scalar arguments, e.g.::
         arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
-        arg_type(GH_REAL, GH_READ) /)
+        arg_type(GH_SCALAR, GH_REAL, GH_READ) /)
 
 .. note:: The order with which arguments are specified in metadata for CMA
           kernels does not affect the process of identifying the type of
@@ -1162,14 +1201,14 @@ this metadata should be omitted.) Consider the
 following kernel metadata::
 
     type, extends(kernel_type) :: testkern_operator_type
-      type(arg_type), dimension(3) :: meta_args =     &
-          (/ arg_type(gh_operator, gh_write, w0, w0), &
-             arg_type(gh_field*3,  gh_read,  w1),     &
-             arg_type(gh_integer,  gh_read)           &
+      type(arg_type), dimension(3) :: meta_args =                 &
+          (/ arg_type(gh_operator,             gh_write, w0, w0), &
+             arg_type(gh_field*3,              gh_read,  w1),     &
+             arg_type(gh_scalar,   gh_integer, gh_read)           &
           /)
-      type(func_type) :: meta_funcs(2) =              &
-          (/ func_type(w0, gh_basis, gh_diff_basis)   &
-             func_type(w1, gh_basis)                  &
+      type(func_type) :: meta_funcs(2) =                          &
+          (/ func_type(w0, gh_basis, gh_diff_basis)               &
+             func_type(w1, gh_basis)                              &
           /)
       integer :: gh_shape = gh_quadrature_XYoZ
       integer :: iterates_over = cells
@@ -1579,7 +1618,7 @@ and at ``W1``)::
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
        basis_w0_on_w0, basis_w0_on_w1, ndf_w1)
 
-If the meta-data specifies that a kernel requires both an evaluator
+If the metadata specifies that a kernel requires both an evaluator
 and quadrature::
 
   type, extends(kernel_type) :: testkern_operator_type
@@ -1926,11 +1965,11 @@ metadata, 1) 'meta_args', 2) 'iterates_over' and 3) 'procedure'::
   type, public, extends(kernel_type) :: aX_plus_bY
      private
      type(arg_type) :: meta_args(5) = (/                              &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
-          arg_type(GH_REAL,  GH_READ              ),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
-          arg_type(GH_REAL,  GH_READ              ),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1)                   &
+          arg_type(GH_FIELD,           GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
+          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
+          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1)         &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -1951,17 +1990,18 @@ kernels are a bit different than for the
 :ref:`user-defined Kernels <dynamo0.3-kernel-valid-access>` and
 are listed in the table below.
 
-.. tabularcolumns:: |l|l|l|
+.. tabularcolumns:: |l|l|l|l|
 
-+---------------+----------------+---------------------------------+
-| Argument Type | Function Space | Access Type                     |
-+===============+================+=================================+
-| GH_INTEGER    | n/a            | GH_READ                         |
-+---------------+----------------+---------------------------------+
-| GH_REAL       | n/a            | GH_READ, GH_SUM                 |
-+---------------+----------------+---------------------------------+
-| GH_FIELD      | ANY_SPACE_n    | GH_READ, GH_WRITE, GH_READWRITE |
-+---------------+----------------+---------------------------------+
++---------------+------------+----------------+--------------------+
+| Argument Type | Data Type  | Function Space | Access Type        |
++===============+============+================+====================+
+| GH_SCALAR     | GH_INTEGER | n/a            | GH_READ            |
++---------------+------------+----------------+--------------------+
+| GH_SCALAR     | GH_REAL    | n/a            | GH_READ, GH_SUM    |
++---------------+------------+----------------+--------------------+
+| GH_FIELD      | GH_REAL    | ANY_SPACE_n    | GH_READ, GH_WRITE, |
+|               |            |                | GH_READWRITE       |
++---------------+------------+----------------+--------------------+
 
 .. note:: *Since the LFRic infrastructure does not currently support
           integer reductions, integer scalar arguments in Built-ins
@@ -2550,7 +2590,7 @@ on or off by the `RUN_TIME_CHECKS` option in the configuration file.
 
 Currently run-time checks can be generated to:
 
-1) check that a field with a read-only function space (see section
+1) Check that a field with a read-only function space (see section
    :ref:`lfric-ro-function-space`) is not modified by a kernel. This is
    enforced by checking that all fields that are marked (in kernel
    metadata) as being updated by a kernel are not on a read-only function
@@ -2563,7 +2603,7 @@ Currently run-time checks can be generated to:
    resulting halo exchange call will cause the infrastructure to raise an
    error (because the field is on a read-only space).
 
-2) check that the function space of a field is consistent with the
+2) Check that the function space of a field is consistent with the
    kernel function space metadata that the field's data is passed
    into. For example, if kernel metadata specifies that a field is on
    the W2 function space then a run-time check is added to ensure that
