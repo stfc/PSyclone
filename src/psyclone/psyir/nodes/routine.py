@@ -39,15 +39,17 @@
 ''' This module contains the Routine node implementation.'''
 
 from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.symbols import DataType
 
 
 class Routine(Schedule):
     '''
-    Represents a subroutine, function or program unit.
+    A sub-class of a Schedule that represents a subroutine, function or
+    program unit.
 
     :param str name: the name of this routine.
     :param bool entry_point: whether this Routine represents the entry point \
-                             into a program (i.e. Fortran Program or C main())
+                             into a program (i.e. Fortran Program or C main()).
     :param return_type: the return-type of this routine.
     :type return_type: :py:class:`psyclone.psyir.symbols.DataType` or NoneType
     :param children: the PSyIR nodes that are children of this Routine.
@@ -58,42 +60,74 @@ class Routine(Schedule):
     :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable` or \
             NoneType
 
+    :raises TypeError: if the supplied routine name is not a str.
+    :raises TypeError: if the supplied entry_point is not a bool.
+    :raises TypeError: if the supplied return_type is not a DataType.
+
     '''
     # Textual description of the node.
     _children_valid_format = "[Statement]*"
-    _text_name = "Routine"
-    _colour_key = "Routine"
+    _text_name = "Schedule"
+    _colour_key = "Schedule"
 
     def __init__(self, name, entry_point=False, return_type=None,
                  children=None, parent=None, symbol_table=None):
         super(Routine, self).__init__(children=children, parent=parent,
                                       symbol_table=symbol_table)
-        #TODO perform type checks here
+        if not isinstance(name, str):
+            raise TypeError("Routine 'name' must be a str but got "
+                            "'{0}'".format(type(name).__name__))
         self._name = name
-        self._entry_point = entry_point
-        self._return_type = return_type
 
-        self._text_name = "Schedule"
-        self._colour_key = "Schedule"
+        if not isinstance(entry_point, bool):
+            raise TypeError("Routine 'entry_point' must be a bool but got "
+                            "'{0}'".format(type(entry_point).__name__))
+        self._entry_point = entry_point
+
+        if return_type and not isinstance(return_type, DataType):
+            raise TypeError("Routine 'return_type' must be of type DataType "
+                            "but got '{0}'".format(type(return_type).__name__))
+        self._return_type = return_type
 
     @property
     def dag_name(self):
         '''
-        :returns: The name of this node in the dag.
+        :returns: the name of this node in the dag.
         :rtype: str
         '''
-        return "routine_" + str(self.abs_position)
+        return "_".join(["routine", self.name, str(self.abs_position)])
 
     @property
     def name(self):
+        '''
+        :returns: the name of this Routine.
+        :rtype: str
+        '''
         return self._name
 
     def __str__(self):
-        result = self.coloured_name(False) + ":\n"
+        result = "{0}[{1}]:\n".format(self.coloured_name(False), self.name)
         for entity in self._children:
             result += str(entity) + "\n"
         result += "End " + self.coloured_name(False)
         return result
+
+    @property
+    def entry_point(self):
+        '''
+        :returns: whether this Routine represents the entry point into a \
+                  program (i.e. is a Fortran Program or a C main()).
+        :rtype: bool
+        '''
+        return self._entry_point
+
+    @property
+    def return_type(self):
+        '''
+        :returns: the return type of this Routine.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType` or NoneType
+        '''
+        return self._return_type
 
 
 # For automatic documentation generation
