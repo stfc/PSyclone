@@ -68,12 +68,13 @@ class LFRicArgDescriptor(Descriptor):
     :type iterates_over: str
 
     :raises ParseError: if a 'meta_arg' entry is not of 'arg_type' type.
-    :raises ParseError: if an argument type is not one of LFRic API \
-                        valid argument types.
+    :raises ParseError: if the first argument of a 'meta_arg' entry is not \
+                        one of LFRic API valid argument types.
+    :raises ParseError: if the second argument of a 'meta_arg' entry is not \
+                        one of LFRic API valid data types.
     :raises ParseError: if a 'meta_arg' entry has fewer than 3 args.
     :raises ParseError: if the third 'meta_arg' entry is not a valid \
-                        access descriptor (second for fields and operators, \
-                        will be updated in issue #817).
+                        access descriptor.
     :raises InternalError: if the iteration space from the parsed kernel \
                            metadata is not over 'cells' or 'dofs'.
     :raises InternalError: if all the metadata checks fail to catch an \
@@ -91,11 +92,11 @@ class LFRicArgDescriptor(Descriptor):
     VALID_ARG_TYPE_NAMES = VALID_FIELD_NAMES + VALID_OPERATOR_NAMES + \
         VALID_SCALAR_NAMES
 
-    # Supported API argument data types (real and integer for now) (the check
-    # for data type metadata being one of the valid types for fields and
-    # operators will be introduced in #817).
+    # Supported API argument data types (real and integer for now)
     VALID_ARG_DATA_TYPES = ["gh_real", "gh_integer"]
     VALID_SCALAR_DATA_TYPES = VALID_ARG_DATA_TYPES
+    VALID_FIELD_DATA_TYPES = VALID_ARG_DATA_TYPES
+    VALID_OPERATOR_DATA_TYPES = [VALID_ARG_DATA_TYPES[0]]
 
     # Supported LFRic API stencil types and directions
     VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
@@ -177,25 +178,40 @@ class LFRicArgDescriptor(Descriptor):
         if separator:
             self._validate_vector_size(separator, arg_type)
 
-        # The 2nd arg for scalars (1st for the old-style scalar metadata)
-        # is the Fortran primitive type of their data.
-        # TODO in issue #817: introduce data type for fields and operators,
-        # too, and modify the ParseError accordingly.
+        # The 2nd arg is the Fortran primitive type of their data.
+        # TODO in #874: Remove support for the old-style metadata.
         # Note: Here we also set internal "offset" argument required to
         #       support the old and the current argument metadata style.
-        # TODO in #874: Remove support for the old-style metadata.
-        if self._argument_type == "gh_scalar":
-            dtype = arg_type.args[1].name
+        new_scalar_argtype = (self._argument_type == "gh_scalar")
+        new_operator_argtype = (
+            self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES
+            and len(arg_type.args) == 5)
+        dtype = arg_type.args[1].name
+        # ParseError for an invalid data type is raised here for scalars
+        # and operators as we know their argtype and/or many arguments
+        # they need to have. These conditions will be removed in #874.
+        if new_scalar_argtype or new_operator_argtype:
             if dtype in LFRicArgDescriptor.VALID_ARG_DATA_TYPES:
                 self._data_type = dtype
                 self._offset = 1
             else:
                 raise ParseError(
                     "In the LFRic API the 2nd argument of a 'meta_arg' "
-                    "scalar entry should be a valid data type (one of {0}), "
+                    "entry should be a valid data type (one of {0}), "
                     "but found '{1}' in '{2}'.".
                     format(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
                            dtype, self._argument_type))
+        # A field argument can have 3-4 arguments in case of old-style
+        # metadata or 4-5 in case of new-style metadata. We cannot rely
+        # on number of arguments without further checks in _init_field.
+        # If the second argument is one of the valid data types then a
+        # field's data type is assigned here and checked in _init_field.
+        # This will be removed in #874 when all argument types have data
+        # type metadata as the second arg.
+        if (self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES and
+                dtype in LFRicArgDescriptor.VALID_ARG_DATA_TYPES):
+            self._data_type = dtype
+            self._offset = 1
 
         # Check number of args (in general and also for scalar arguments).
         # We require at least three (two for old-style metadata).
@@ -211,9 +227,8 @@ class LFRicArgDescriptor(Descriptor):
                 format(min_nargs, self._nargs, arg_type))
 
         # The 3rd arg for scalars and 2nd arg for fields and operators is an
-        # access descriptor (issue #817 will make the access descriptor a 3rd
-        # argument for the fields and operators, too). Permitted accesses for
-        # each argument type are dealt with in the related _validate methods.
+        # access descriptor. Permitted accesses for each argument type are
+        # dealt with in the related _init methods.
         # Convert from GH_* names to the generic access type
         api_config = Config.get().api_conf(API)
         access_mapping = api_config.get_access_mapping()
@@ -334,10 +349,11 @@ class LFRicArgDescriptor(Descriptor):
 
         :raises InternalError: if argument type other than a field is \
                                passed in.
-        :raises ParseError: if there are fewer than 3 metadata arguments.
-        :raises ParseError: if there are more than 4 metadata arguments.
-        :raises ParseError: if the 3rd argument is not a valid function space.
-        :raises ParseError: if the optional 4th argument is not a stencil \
+        :raises ParseError: if there are fewer than 4 metadata arguments.
+        :raises ParseError: if there are more than 5 metadata arguments.
+        :raises ParseError: if a field argument has an invalid data type.
+        :raises ParseError: if the 4th argument is not a valid function space.
+        :raises ParseError: if the optional 5th argument is not a stencil \
                             specification or a mesh identifier (for \
                             inter-grid kernels).
         :raises ParseError: if a field passed to a kernel that iterates \
@@ -361,59 +377,77 @@ class LFRicArgDescriptor(Descriptor):
                 "argument but got an argument of type '{0}'.".
                 format(arg_type.args[0]))
 
-        # There must be at least 3 arguments
-        if self._nargs < 3:
+        # TODO in #874: Remove support for the old-style field descriptors
+        #               throughout this routine.
+        # There must be at least 4 arguments
+        nargs_field_min = 3 + self._offset
+        if self._nargs < nargs_field_min:
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must have at "
-                "least 3 arguments if its first argument is of {0} type, "
-                "but found {1} in '{2}'.".
-                format(LFRicArgDescriptor.VALID_FIELD_NAMES,
+                "least {0} arguments if its first argument is of {1} type, "
+                "but found {2} in '{3}'.".
+                format(nargs_field_min, LFRicArgDescriptor.VALID_FIELD_NAMES,
                        self._nargs, arg_type))
-        # There must be at most 4 arguments
-        if self._nargs > 4:
+        # There must be at most 5 arguments
+        nargs_field_max = 4 + self._offset
+        if self._nargs > nargs_field_max:
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must have at "
-                "most 4 arguments if its first argument is of {0} type, "
-                "but found {1} in '{2}'.".
-                format(LFRicArgDescriptor.VALID_FIELD_NAMES,
+                "most {0} arguments if its first argument is of {1} type, "
+                "but found {2} in '{3}'.".
+                format(nargs_field_max, LFRicArgDescriptor.VALID_FIELD_NAMES,
                        self._nargs, arg_type))
 
-        # Field data_type is "gh_real" for now, but will be determined by
-        # metadata descriptor as the second argument in issue #817
-        self._data_type = "gh_real"
+        # Check whether an invalid data type for a field argument is passed
+        # in. Valid data types for fields are valid data types in LFRic API.
+        # TODO in #874: Remove the support for old-style field metadata that
+        #               prescribes the data type and convert ParseError into
+        #               an InternalError.
+        if not self._data_type and self._offset == 0:
+            self._data_type = "gh_real"
+        if (self._data_type not in
+                LFRicArgDescriptor.VALID_FIELD_DATA_TYPES):
+            raise ParseError(
+                "In the LFRic API the 2nd argument of a 'meta_arg' "
+                "field entry should be a valid data type (one of "
+                "{0}), but found '{1}' in '{2}'.".
+                format(LFRicArgDescriptor.VALID_FIELD_DATA_TYPES,
+                       self._data_type, self._argument_type))
 
-        # The 3rd argument must be a valid function space name
-        if arg_type.args[2].name not in \
+        # The 4th argument must be a valid function space name
+        prop_ind = 2 + self._offset
+        if arg_type.args[prop_ind].name not in \
            FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
-                "In the LFRic API the 3rd argument of a 'meta_arg' "
-                "entry must be a valid function space name (one of {0}) if "
-                "its first argument is of {1} type, but found '{2}' in "
-                "'{3}'.".format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
-                                LFRicArgDescriptor.VALID_FIELD_NAMES,
-                                arg_type.args[2].name, arg_type))
-        self._function_space1 = arg_type.args[2].name
+                "In the LFRic API argument {0} of a 'meta_arg' field entry "
+                "must be a valid function space name (one of {1}) if its "
+                "first argument is of {2} type, but found '{3}' in '{4}'.".
+                format(prop_ind, FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                       LFRicArgDescriptor.VALID_FIELD_NAMES,
+                       arg_type.args[prop_ind].name, arg_type))
+        self._function_space1 = arg_type.args[prop_ind].name
 
-        # The optional 4th argument is either a stencil specification
+        # The optional 5th argument is either a stencil specification
         # or a mesh identifier (for inter-grid kernels)
-        if self._nargs == 4:
+        prop_ind = 3 + self._offset
+        if self._nargs == nargs_field_max:
             try:
-                if "stencil" in str(arg_type.args[3]):
+                if "stencil" in str(arg_type.args[prop_ind]):
                     self._stencil = get_stencil(
-                        arg_type.args[3],
+                        arg_type.args[prop_ind],
                         LFRicArgDescriptor.VALID_STENCIL_TYPES)
-                elif "mesh" in str(arg_type.args[3]):
-                    self._mesh = get_mesh(arg_type.args[3],
+                elif "mesh" in str(arg_type.args[prop_ind]):
+                    self._mesh = get_mesh(arg_type.args[prop_ind],
                                           LFRicArgDescriptor.VALID_MESH_TYPES)
                 else:
                     raise ParseError("Unrecognised metadata entry")
             except ParseError as err:
                 raise ParseError(
-                    "In the LFRic API the 4th argument of a 'meta_arg' "
-                    "field entry must be either a valid stencil specification"
+                    "In the LFRic API argument {0} of a 'meta_arg' field "
+                    "entry must be either a valid stencil specification"
                     "or a mesh identifier (for inter-grid kernels). However, "
-                    "entry '{0}' raised the following error: {1}.".
-                    format(arg_type, str(err)))
+                    "entry '{1}' raised the following error: {2}.".
+                    format(prop_ind, arg_type, str(err)))
 
         # Test allowed accesses for fields
         field_disc_accesses = [AccessType.READ, AccessType.WRITE,
@@ -492,7 +526,9 @@ class LFRicArgDescriptor(Descriptor):
 
         :raises InternalError: if argument type other than an operator is \
                                passed in.
-        :raises ParseError: if there are not exactly 4 metadata arguments.
+        :raises ParseError: if there are not exactly 5 metadata arguments.
+        :raises InternalError: if an operator argument has an invalid \
+                               data type.
         :raises ParseError: if the function space to- is not one of the \
                             valid function spaces.
         :raises ParseError: if the function space from- is not one of the \
@@ -507,39 +543,56 @@ class LFRicArgDescriptor(Descriptor):
                 "operator argument but got an argument of type '{0}'.".
                 format(self._argument_type))
 
-        # We expect 4 arguments with the 3rd and 4th each being a
+        # TODO in #874: Remove support for the old-style operator descriptors
+        #               throughout this routine.
+        # We expect 5 arguments with the 4th and 5th each being a
         # function space
-        if self._nargs != 4:
+        nargs_operator = 4 + self._offset
+        if self._nargs != nargs_operator:
             raise ParseError(
-                "In the LFRic API each 'meta_arg' entry must have 4 "
+                "In the LFRic API each 'meta_arg' entry must have {0} "
                 "arguments if its first argument is an operator (one "
-                "of {0}), but found {1} in '{2}'.".
-                format(LFRicArgDescriptor.VALID_OPERATOR_NAMES,
+                "of {1}), but found {2} in '{3}'.".
+                format(nargs_operator, LFRicArgDescriptor.VALID_OPERATOR_NAMES,
                        self._nargs, arg_type))
 
-        # Operator data_type is "gh_real" for now, but will be determined by
-        # metadata descriptor as the second argument in issue #817
-        self._data_type = "gh_real"
+        # Check whether an invalid data type for an operator argument is passed
+        # in. The only valid data type for operators in LFRic API is "gh_real".
+        # TODO in #874: Remove the support for old-style operator metadata that
+        #               prescribes the data type.
+        if not self._data_type and self._offset == 0:
+            self._data_type = "gh_real"
+        if (self._data_type not in
+                LFRicArgDescriptor.VALID_FIELD_DATA_TYPES):
+            raise InternalError(
+                "LFRicArgDescriptor._init_operator(): expected one of {0} "
+                "as the data type but got '{1}'.".
+                format(LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES,
+                       self._data_type))
 
         # Operator arguments need to have valid to- and from- function spaces
-        if arg_type.args[2].name not in \
+        # Check for a valid to- function space
+        prop_ind = 2 + self._offset
+        if arg_type.args[prop_ind].name not in \
            FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
-                "In the LFRic API the 3rd argument of a 'meta_arg' "
-                "operator entry must be a valid function space name (one of "
-                "{0}), but found '{1}' in '{2}'.".
-                format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
-                       arg_type.args[2].name, arg_type))
-        self._function_space1 = arg_type.args[2].name
-        if arg_type.args[3].name not in \
+                "In the LFRic API argument {0} of a 'meta_arg' operator "
+                "entry must be a valid function space name (one of {1}), "
+                "but found '{2}' in '{3}'.".
+                format(prop_ind, FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                       arg_type.args[prop_ind].name, arg_type))
+        self._function_space1 = arg_type.args[prop_ind].name
+        # Check for a valid from- function space
+        prop_ind = 3 + self._offset
+        if arg_type.args[prop_ind].name not in \
            FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
-                "In the LFRic API the 4th argument of a 'meta_arg' "
-                "operator entry must be a valid function space name (one "
-                "of {0}), but found '{1}' in '{2}'.".
-                format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
-                       arg_type.args[3].name, arg_type))
-        self._function_space2 = arg_type.args[3].name
+                "In the LFRic API argument {0} of a 'meta_arg' operator "
+                "entry must be a valid function space name (one of {1}), "
+                "but found '{2}' in '{3}'.".
+                format(prop_ind, FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                       arg_type.args[prop_ind].name, arg_type))
+        self._function_space2 = arg_type.args[prop_ind].name
 
         # Test allowed accesses for operators
         operator_accesses = [AccessType.READ, AccessType.WRITE,
@@ -583,23 +636,19 @@ class LFRicArgDescriptor(Descriptor):
 
         # There must be 3 argument descriptors to describe a scalar.
         # TODO in #874: Remove support for the old-style 2 descriptors.
-        min_scalar_nargs = 2 + self._offset
-        if self._nargs != min_scalar_nargs:
+        nargs_scalar = 2 + self._offset
+        if self._nargs != nargs_scalar:
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must have {0} "
                 "arguments if its first argument is 'gh_{{r,i}}scalar', but "
                 "found {1} in '{2}'.".
-                format(min_scalar_nargs, self._nargs, arg_type))
+                format(nargs_scalar, self._nargs, arg_type))
 
         # Check whether an invalid data type for a scalar argument is passed
         # in. Valid data types for scalars are valid data types in LFRic API.
         # TODO in #874: Remove the support for old-style scalar metadata that
         #               assigns the data type from the scalar name (the 1st
         #               argument).
-        #               Note: The main check for the valid scalar data types
-        #               will be ParseError in the class constructor and this
-        #               scalar init method only needs to check for
-        #               InternalError.
         if not self._data_type and self._offset == 0:
             self._data_type = arg_type.args[0].name
             # Translate the old-style argument type into the current one

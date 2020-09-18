@@ -65,8 +65,8 @@ private
 type, public, extends(kernel_type) :: columnwise_op_asm_kernel_scalar_type
   private
   type(arg_type) :: meta_args(3) = (/                                                 &
-       arg_type(GH_OPERATOR,                     GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
-       arg_type(GH_COLUMNWISE_OPERATOR,          GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_OPERATOR,            GH_REAL, GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
        arg_type(GH_SCALAR,              GH_REAL, GH_READ) &
        /)
   integer :: iterates_over = CELLS

@@ -786,18 +786,14 @@ vectors <dynamo0.3-field-vector>` follow the same rules as the
 +------------------------+---------------------+
 | Argument Type          | Data Type           |
 +========================+=====================+
-| GH_SCALAR              | GH_INTEGER, GH_REAL |
+| GH_SCALAR              | GH_REAL, GH_INTEGER |
 +------------------------+---------------------+
-| GH_FIELD               | GH_REAL             |
+| GH_FIELD               | GH_REAL, GH_INTEGER |
 +------------------------+---------------------+
 | GH_OPERATOR            | GH_REAL             |
 +------------------------+---------------------+
 | GH_COLUMNWISE_OPERATOR | GH_REAL             |
 +------------------------+---------------------+
-
-.. note:: The metadata descriptors for data type for field and operator
-          arguments will be introduced in `PSyclone issue #817
-          <https://github.com/stfc/PSyclone/issues/817>`_.
 
 .. _dynamo0.3-kernel-valid-access:
 

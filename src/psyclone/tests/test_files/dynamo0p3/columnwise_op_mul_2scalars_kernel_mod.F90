@@ -65,11 +65,11 @@ private
 type, public, extends(kernel_type) :: columnwise_op_mul_2scalars_kernel_type
    private
   type(arg_type) :: meta_args(5) = (/                                                     &
-       arg_type(GH_COLUMNWISE_OPERATOR,          GH_READ,      ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ,      ANY_SPACE_1, ANY_SPACE_2), &
        arg_type(GH_SCALAR,              GH_REAL, GH_READ),                                &
-       arg_type(GH_COLUMNWISE_OPERATOR,          GH_READ,      ANY_SPACE_2, ANY_SPACE_3), &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ,      ANY_SPACE_2, ANY_SPACE_3), &
        arg_type(GH_SCALAR,              GH_REAL, GH_READ),                                &
-       arg_type(GH_COLUMNWISE_OPERATOR,          GH_READWRITE, ANY_SPACE_1, ANY_SPACE_3)  &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_3)  &
        /)
   integer :: iterates_over = CELLS
 contains
