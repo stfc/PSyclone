@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,68 +36,43 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the Container node implementation.'''
+''' This module contains the KernelSchedule node implementation.'''
 
+from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols.symboltable import SymbolTable
 from psyclone.errors import GenerationError
 
 
-class Container(Node):
-    '''Node representing a set of KernelSchedule and/or Container nodes,
-    as well as a name and a SymbolTable. This construct can be used to
-    scope symbols of variables, KernelSchedule names and Container
-    names. In Fortran a container would naturally represent a module
-    or a submodule.
+class KernelSchedule(Routine):
+    '''
+    A KernelSchedule is the parent node of the PSyIR for Kernel source code.
 
-    :param str name: the name of the container.
-    :param parent: optional parent node of this Container in the PSyIR.
+    :param str name: Kernel subroutine name.
+    :param parent: Parent of the KernelSchedule, defaults to None.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    # Textual description of the node.
-    _children_valid_format = "[Container | KernelSchedule | InvokeSchedule]*"
-    _text_name = "Container"
-    _colour_key = "Container"
-
     def __init__(self, name, parent=None):
-        super(Container, self).__init__(parent=parent)
-        self._name = name
-        self._symbol_table = SymbolTable(self)
-
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        # pylint: disable=unused-argument
-        # Import KernelSchedule here to avoid circular dependency
-        from psyclone.psyGen import InvokeSchedule
-        return isinstance(child, (Container, KernelSchedule, InvokeSchedule))
+        super(KernelSchedule, self).__init__(name, entry_point=False,
+                                             return_type=None,
+                                             children=None, parent=parent)
 
     @staticmethod
     def create(name, symbol_table, children):
-        '''Create a Container instance given a name, a symbol table and a
+        '''Create a KernelSchedule instance given a name, a symbol table and a
         list of child nodes.
 
-        :param str name: the name of the Container.
+        :param str name: the name of the KernelSchedule.
         :param symbol_table: the symbol table associated with this \
-            Container.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+            KernelSchedule.
+        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
         :param children: a list of PSyIR nodes contained in the \
-            Container. These must be Containers or KernelSchedules.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Container` \
-            or :py:class:`psyclone.psyGen.KernelSchedule`
+            KernelSchedule.
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: a Container instance.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
+        :returns: a KernelSchedule instance.
+        :rtype: :py:class:`psyclone.psyGen.KernelInstance`
 
         :raises GenerationError: if the arguments to the create method \
             are not of the expected type.
@@ -105,58 +80,53 @@ class Container(Node):
         '''
         if not isinstance(name, str):
             raise GenerationError(
-                "name argument in create method of Container class "
+                "name argument in create method of KernelSchedule class "
                 "should be a string but found '{0}'."
                 "".format(type(name).__name__))
         if not isinstance(symbol_table, SymbolTable):
             raise GenerationError(
-                "symbol_table argument in create method of Container class "
-                "should be a SymbolTable but found '{0}'."
+                "symbol_table argument in create method of KernelSchedule "
+                "class should be a SymbolTable but found '{0}'."
                 "".format(type(symbol_table).__name__))
         if not isinstance(children, list):
             raise GenerationError(
-                "children argument in create method of Container class "
+                "children argument in create method of KernelSchedule class "
                 "should be a list but found '{0}'."
                 "".format(type(children).__name__))
-
-        container = Container(name)
-        container._symbol_table = symbol_table
-        symbol_table._node = container
-        container.children = children
         for child in children:
-            child.parent = container
-        return container
+            if not isinstance(child, Node):
+                raise GenerationError(
+                    "child of children argument in create method of "
+                    "KernelSchedule class should be a PSyIR Node but "
+                    "found '{0}'.".format(type(child).__name__))
+
+        kern = KernelSchedule(name)
+        kern._symbol_table = symbol_table
+        symbol_table._node = kern
+        for child in children:
+            child.parent = kern
+        kern.children = children
+        return kern
 
     @property
     def name(self):
         '''
-        :returns: name of the container.
+        :returns: Name of the Kernel
         :rtype: str
-
         '''
         return self._name
 
     @name.setter
     def name(self, new_name):
-        '''Sets a new name for the container.
+        '''
+        Sets a new name for the kernel.
 
-        :param str new_name: new name for the container.
-
+        :param str new_name: New name for the kernel.
         '''
         self._name = new_name
 
-    @property
-    def symbol_table(self):
-        '''
-        :returns: table containing symbol information for the container.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-        '''
-        return self._symbol_table
-
     def node_str(self, colour=True):
-        '''
-        Returns the name of this node with appropriate control codes
+        ''' Returns the name of this node with (optional) control codes
         to generate coloured output in a terminal that supports it.
 
         :param bool colour: whether or not to include colour control codes.
@@ -164,7 +134,15 @@ class Container(Node):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return self.coloured_name(colour) + "[{0}]".format(self.name)
+        return self.coloured_name(colour) + "[name:'" + self._name + "']"
 
     def __str__(self):
-        return "Container[{0}]\n".format(self.name)
+        result = self.node_str(False) + ":\n"
+        for entity in self._children:
+            result += str(entity)
+        result += "End KernelSchedule\n"
+        return result
+
+
+# For automatic documentation generation
+__all__ = ["KernelSchedule"]

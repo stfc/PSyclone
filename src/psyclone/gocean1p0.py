@@ -52,10 +52,10 @@ import six
 from psyclone.configuration import Config
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Node
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, KernelSchedule
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    KernelSchedule, AccessType, ACCEnterDataDirective, HaloExchange
+    AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, Symbol

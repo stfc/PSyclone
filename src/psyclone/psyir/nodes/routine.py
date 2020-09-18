@@ -66,7 +66,7 @@ class Routine(Schedule):
 
     def __init__(self, name, entry_point=False, return_type=None,
                  children=None, parent=None, symbol_table=None):
-        super(Routine, self).__init__(self, children=children, parent=parent,
+        super(Routine, self).__init__(children=children, parent=parent,
                                       symbol_table=symbol_table)
         #TODO perform type checks here
         self._name = name
@@ -91,3 +91,7 @@ class Routine(Schedule):
             result += str(entity) + "\n"
         result += "End " + self.coloured_name(False)
         return result
+
+
+# For automatic documentation generation
+__all__ = ["Routine"]

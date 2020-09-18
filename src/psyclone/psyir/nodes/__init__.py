@@ -51,6 +51,7 @@ from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.extract_node import ExtractNode
+from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
 from psyclone.psyir.nodes.profile_node import ProfileNode
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.read_only_verify_node import ReadOnlyVerifyNode
@@ -82,6 +83,7 @@ __all__ = [
         'Container',
         'Literal',
         'ExtractNode',
+        'KernelSchedule',
         'ProfileNode',
         'PSyDataNode',
         'ReadOnlyVerifyNode',
