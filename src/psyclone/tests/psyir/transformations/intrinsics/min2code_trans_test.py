@@ -41,9 +41,8 @@ from psyclone.psyir.transformations import Min2CodeTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
     ArgumentInterface, REAL_TYPE
 from psyclone.psyir.nodes import Reference, BinaryOperation, NaryOperation, \
-    Assignment, Literal
+    Assignment, Literal, KernelSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyGen import KernelSchedule
 from psyclone.configuration import Config
 from psyclone.tests.utilities import Compile
 

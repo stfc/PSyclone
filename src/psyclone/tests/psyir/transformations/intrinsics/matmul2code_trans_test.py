@@ -42,8 +42,7 @@ from psyclone.psyir.transformations import Matmul2CodeTrans, \
 from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
     _get_array_bound
 from psyclone.psyir.nodes import BinaryOperation, Literal, Array, Assignment, \
-    Reference, Range
-from psyclone.psyGen import KernelSchedule
+    Reference, Range, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArrayType, \
     ScalarType, INTEGER_TYPE, REAL_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter

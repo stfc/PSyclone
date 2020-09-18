@@ -42,12 +42,11 @@ from __future__ import absolute_import
 import re
 from collections import OrderedDict
 import pytest
-from psyclone.psyir.nodes import Schedule, Container
+from psyclone.psyir.nodes import Schedule, Container, KernelSchedule
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
     SymbolError, RoutineSymbol
-from psyclone.psyGen import KernelSchedule
 from psyclone.errors import InternalError
 
 

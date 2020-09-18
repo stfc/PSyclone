@@ -45,8 +45,8 @@ from fparser.two.Fortran2003 import Specification_Part, \
     Type_Declaration_Stmt, Execution_Part, Name
 from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference, \
-    Array, Container, Literal, Range
-from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
+    Array, Container, Literal, Range, KernelSchedule
+from psyclone.psyGen import PSyFactory, Directive
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol,
