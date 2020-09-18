@@ -258,20 +258,11 @@ def test_symbol_copy():
     csym = ContainerSymbol("some_mod")
     asym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
                   interface=GlobalInterface(csym))
-    # 1. Keep all properties unchanged
     new_sym = asym.copy()
     assert new_sym is not asym
     assert new_sym.name == asym.name
     assert new_sym.interface == asym.interface
     assert new_sym.visibility == asym.visibility
-    # 2. Override the visibility of the new symbol
-    new_sym2 = asym.copy(visibility=Symbol.Visibility.PUBLIC)
-    assert new_sym2.visibility == Symbol.Visibility.PUBLIC
-    assert new_sym2.interface == asym.interface
-    # 3. Override the interface of the new symbol
-    new_sym3 = asym.copy(interface=LocalInterface())
-    assert new_sym3.visibility == asym.visibility
-    assert isinstance(new_sym3.interface, LocalInterface)
 
 
 def test_symbol_resolve_deferred():

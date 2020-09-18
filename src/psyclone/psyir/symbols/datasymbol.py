@@ -39,7 +39,7 @@
 ''' This module contains the DataSymbol and its interfaces.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.symbols.symbol import Symbol, SymbolError
+from psyclone.psyir.symbols.symbol import Symbol
 
 
 class DataSymbol(Symbol):
@@ -259,28 +259,18 @@ class DataSymbol(Symbol):
             ret += ", constant_value={0}".format(self.constant_value)
         return ret + ">"
 
-    def copy(self, interface=None, visibility=None):
+    def copy(self):
         '''Create and return a copy of this object. Any references to the
         original will not be affected so the copy will not be referred
         to by any other object.
 
-        :param interface: optional value with which to override this object's \
-                interface in the new object.
-        :type interface: :py:class:`psyclone.psyir.symbols.SymbolInterface`
-        :param visibility: optional value with which to override this object's\
-                visibility in the new object.
-        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-
-        :returns: A symbol object with the same properties as this \
-                  symbol object.
+        :returns: An object with the same properties as this symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        # The DataSymbol constructor has datatype as an additional, positional
-        # argument and constant_value as an optional argument.
-        return self._base_copy([self.datatype],
-                               {"constant_value": self.constant_value},
-                               visibility=visibility, interface=interface)
+        return DataSymbol(self.name, self.datatype, visibility=self.visibility,
+                          interface=self.interface,
+                          constant_value=self.constant_value)
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from

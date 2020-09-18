@@ -226,16 +226,11 @@ class Symbol(object):
                 "{0} 'name' attribute should be of type 'str'"
                 " but '{1}' found.".format(
                     type(self).__name__, type(name).__name__))
-        if not isinstance(visibility, Symbol.Visibility):
-            raise TypeError(
-                "{0} 'visibility' attribute should be of type "
-                "psyir.symbols.Symbol.Visibility but '{1}' found.".format(
-                    type(self).__name__, type(visibility).__name__))
 
         self._name = name
-        self._visibility = visibility
 
-        # The following attributes has a setter method (with error checking)
+        # The following attributes have a setter method (with error checking)
+        self._visibility = None
         self._interface = None
         # If an interface is not provided, use LocalInterface by default
         if not interface:
@@ -243,61 +238,22 @@ class Symbol(object):
         else:
             # Use the setter as it checks the variables validity
             self.interface = interface
+        self.visibility = visibility
 
-    def copy(self, interface=None, visibility=None):
+    def copy(self):
         '''Create and return a copy of this object. Any references to the
         original will not be affected so the copy will not be referred
         to by any other object.
-
-        :param interface: optional value with which to override this object's \
-                interface in the new object.
-        :type interface: :py:class:`psyclone.psyir.symbols.SymbolInterface`
-        :param visibility: optional value with which to override this object's\
-                visibility in the new object.
-        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
         :returns: A symbol object with the same properties as this \
                   symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        return self._base_copy([], {}, interface=interface,
-                               visibility=visibility)
-
-    def _base_copy(self, args, kwargs, interface=None, visibility=None):
-        '''Create and return a copy of this object. Any references to the
-        original will not be affected so the copy will not be referred
-        to by any other object. This method is intended to be called from
-        the public `copy()` method of any subclass of Symbol.
-
-        :param args: list of positional arguments that must be provided to \
-                the constructor after the 'name' argument.
-        :type args: list of obj
-        :param kwargs: optional arguments to provide to the constructor.
-        :type kwargs: dict of keyword-value pairs.
-        :param interface: optional value with which to override this object's \
-                interface in the new object.
-        :type interface: :py:class:`psyclone.psyir.symbols.SymbolInterface`
-        :param visibility: optional value with which to override this object's\
-                visibility in the new object.
-        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-
-        :returns: A symbol object with the same properties as this \
-                  symbol object.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol` or subclass
-
-        '''
-        if interface:
-            kwargs["interface"] = interface
-        else:
-            kwargs["interface"] = self.interface
-        if visibility:
-            kwargs["visibility"] = visibility
-        else:
-            kwargs["visibility"] = self.visibility
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
-        return type(self)(self.name, *args, **kwargs)
+        return type(self)(self.name, visibility=self.visibility,
+                          interface=self.interface)
 
     def get_external_symbol(self):
         '''
@@ -349,8 +305,10 @@ class Symbol(object):
             # Create a new symbol object of the same class as the one
             # we've just looked up but with the interface and visibility
             # of the current symbol.
-            return extern_symbol.copy(interface=self.interface,
-                                      visibility=self.visibility)
+            new_sym = extern_symbol.copy()
+            new_sym.interface = self.interface
+            new_sym.visibility = self.visibility
+            return new_sym
         return self
 
     @property
@@ -368,6 +326,21 @@ class Symbol(object):
         :rtype: :py:class:`psyclone.psyir.symbol.Symbol.Visibility`
         '''
         return self._visibility
+
+    @visibility.setter
+    def visibility(self, value):
+        '''
+        Setter for the visibility attribute.
+
+        :raises TypeError: if the supplied value is not an instance of \
+                           Symbol.Visibility.
+        '''
+        if not isinstance(value, Symbol.Visibility):
+            raise TypeError(
+                "{0} 'visibility' attribute should be of type "
+                "psyir.symbols.Symbol.Visibility but got '{1}'.".format(
+                    type(self).__name__, type(value).__name__))
+        self._visibility = value
 
     @property
     def interface(self):
