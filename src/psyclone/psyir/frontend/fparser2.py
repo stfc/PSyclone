@@ -733,7 +733,7 @@ class Fparser2Reader(object):
         :param str name: Name of the subroutine represented by the kernel.
 
         :returns: New KernelSchedule empty object.
-        :rtype: py:class:`psyclone.psyGen.KernelSchedule`
+        :rtype: py:class:`psyclone.psyir.nodes.KernelSchedule`
 
         '''
         return KernelSchedule(name)
@@ -810,7 +810,7 @@ class Fparser2Reader(object):
         :type container: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: PSyIR schedule representing the kernel.
-        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+        :rtype: :py:class:`psyclone.psyir.nodes.KernelSchedule`
 
         :raises GenerationError: unable to generate a kernel schedule from \
                                  the provided fpaser2 parse tree.
@@ -1093,7 +1093,7 @@ class Fparser2Reader(object):
         appropriate interfaces.
 
         :param parent: PSyIR node in which to insert the symbols found.
-        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
+        :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
         :param nodes: fparser2 AST nodes to search for use statements.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
 
@@ -1204,7 +1204,7 @@ class Fparser2Reader(object):
         associated with the parent node.
 
         :param parent: PSyIR node in which to insert the symbols found.
-        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
+        :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
         :param decl: fparser2 parse tree of declaration to process.
         :type decl: :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
         :param default_visibility: the default visibility of symbols in the \
@@ -1465,7 +1465,7 @@ class Fparser2Reader(object):
         it defaults to PUBLIC (the Fortran default).
 
         :param parent: PSyIR node in which to insert the symbols found.
-        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
+        :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
         :param nodes: fparser2 AST nodes to search for declaration statements.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
         :param arg_list: fparser2 AST node containing the argument list.

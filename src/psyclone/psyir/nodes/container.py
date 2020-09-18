@@ -78,7 +78,7 @@ class Container(Node):
 
         '''
         # pylint: disable=unused-argument
-        # Import KernelSchedule here to avoid circular dependency
+        # Import InvokeSchedule here to avoid circular dependency
         from psyclone.psyGen import InvokeSchedule
         return isinstance(child, (Container, KernelSchedule, InvokeSchedule))
 
@@ -94,7 +94,7 @@ class Container(Node):
         :param children: a list of PSyIR nodes contained in the \
             Container. These must be Containers or KernelSchedules.
         :type children: list of :py:class:`psyclone.psyir.nodes.Container` \
-            or :py:class:`psyclone.psyGen.KernelSchedule`
+            or :py:class:`psyclone.psyir.nodes.KernelSchedule`
 
         :returns: a Container instance.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`

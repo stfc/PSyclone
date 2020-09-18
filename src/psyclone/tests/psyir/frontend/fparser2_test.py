@@ -66,7 +66,7 @@ def process_declarations(code):
 
     :returns: a 2-tuple consisting of a KernelSchedule with populated Symbol \
               Table and the parse tree for the specification part.
-    :rtype: (:py:class:`psyclone.psyGen.KernelSchedule`, \
+    :rtype: (:py:class:`psyclone.psyir.nodes.KernelSchedule`, \
              :py:class:`fparser.two.Fortran2003.Specification_Part`)
     '''
     sched = KernelSchedule("dummy_schedule")

@@ -1374,7 +1374,7 @@ class GOKern(CodedKern):
         Returns a PSyIR Schedule representing the GOcean kernel code.
 
         :return: Schedule representing the kernel code.
-        :rtype: :py:class:`psyclone.psyGen.GOKernelSchedule`
+        :rtype: :py:class:`psyclone.gocean1p0.GOKernelSchedule`
         '''
         if self._kern_schedule is None:
             astp = GOFparser2Reader()
