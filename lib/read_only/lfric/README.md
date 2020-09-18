@@ -2,14 +2,14 @@
 
 This library implements the PSyData API to verify that variables
 declared read-only are not modified (overwritten) in a kernel call
-for an application using LFRic.
+for an application using the LFRic infrastructure library.
 
 
 ## Dependencies
 
 This library uses the PSyData API to interface with the application.
 The following dependencies must be available:
-- The LFRIc infrastructure library. This library is not included
+- The LFRic infrastructure library. This library is not included
   in PSyclone, and must already be compiled.
 - The ReadOnly and PSyData base classes, which are included in
   PSyclone. These Jinja templates are processed to create

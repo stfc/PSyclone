@@ -9,14 +9,14 @@ the creation of API-specific wrapper libraries.
 
 The file `read_only_base.jinja` contains a Jinja template that is used
 by the dl_esm_inf- and LFRic-specific wrapper libraries. It implements
-the requires PSyData API calls for Fortran base types (scalar and arrays).
+the required PSyData API calls for Fortran base types (scalar and arrays).
 Full documentation to the Jinja implementation of a PSyData base class is in the
-[link developer's guide](https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja).
+[developer's guide](https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja).
 The script `process.py` is used by the derived classes to process this template.
 There is a simple Makefile contained here for compilation tests, but any API-specific
 implementation (in any of the subdirectories here) will process this
 template and compile it in their own directory (to allow for the required
-types to be supported), they do not link with a compiled version from this
+data types to be supported), they do not link with a compiled version from this
 directory.
 
 
