@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program single_invoke
 
@@ -40,9 +40,12 @@ program single_invoke
   ! two reduction operations (forbidden in the Dynamo 0.3 API) and then
   ! write to a field. Must be used with the fake kernel meta-data in
   ! multi_reduction_builtins_mod.f90.
-  use inf, only : r_def
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
+
   implicit none
-  real(r_def)   :: rsum1, rsum2
+
+  real(r_def)      :: rsum1, rsum2
   type(field_type) :: f1
 
   call invoke( X_innerproduct_Y(f1, rsum1, rsum2) )

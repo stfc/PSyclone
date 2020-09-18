@@ -107,6 +107,10 @@
         36) #850 for #849 - basic support for distributed memory in GOcean.
         N.B. dl_esm_inf does not yet have support for set_dirty/clean.
 
+        37) #875 for #774. Add support for new metadata format for scalar
+        arguments to LFRic kernels - sepecify the intrinsic type
+        separately.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
