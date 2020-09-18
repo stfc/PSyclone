@@ -75,7 +75,7 @@ The naming convention used for the PSyIR front-ends is
     :members:
 
 The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a
-`psyclone.psyGen.KernelSchedule` which has the same functionality as
+`psyclone.psyir.nodes.KernelSchedule` which has the same functionality as
 a PSyIR Schedule but with the addition of a Symbol Table
 (see :ref:`kernel_schedule-label`).
 

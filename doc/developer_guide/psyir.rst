@@ -231,7 +231,7 @@ KernelSchedule
 ^^^^^^^^^^^^^^
 
 The `KernelSchedule` is a PSyIR node that represents a kernel
-subroutine. It extends the `psyclone.psyir.nodes.Schedule` functionality
+subroutine. It extends the `psyclone.psyir.nodes.Routine` functionality
 with a SymbolTable (`psyclone.psyGen.psyir.symbols.SymbolTable`) that
 keeps a record of the Symbols (`psyclone.psyGen.psyir.symbols.Symbol`)
 used in the kernel scope (see :ref:`user_guide:symbol-label`).
