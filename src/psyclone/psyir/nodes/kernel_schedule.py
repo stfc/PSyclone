@@ -108,23 +108,6 @@ class KernelSchedule(Routine):
         kern.children = children
         return kern
 
-    @property
-    def name(self):
-        '''
-        :returns: Name of the Kernel
-        :rtype: str
-        '''
-        return self._name
-
-    @name.setter
-    def name(self, new_name):
-        '''
-        Sets a new name for the kernel.
-
-        :param str new_name: New name for the kernel.
-        '''
-        self._name = new_name
-
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
         to generate coloured output in a terminal that supports it.

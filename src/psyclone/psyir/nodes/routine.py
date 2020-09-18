@@ -31,9 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
+# Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Routine node implementation.'''
@@ -74,10 +72,7 @@ class Routine(Schedule):
                  children=None, parent=None, symbol_table=None):
         super(Routine, self).__init__(children=children, parent=parent,
                                       symbol_table=symbol_table)
-        if not isinstance(name, str):
-            raise TypeError("Routine 'name' must be a str but got "
-                            "'{0}'".format(type(name).__name__))
-        self._name = name
+        self.name = name
 
         if not isinstance(entry_point, bool):
             raise TypeError("Routine 'entry_point' must be a bool but got "
@@ -104,6 +99,18 @@ class Routine(Schedule):
         :rtype: str
         '''
         return self._name
+
+    @name.setter
+    def name(self, new_name):
+        '''
+        Sets a new name for the Routine.
+
+        :param str new_name: New name for the Routine.
+        '''
+        if not isinstance(new_name, str):
+            raise TypeError("Routine name must be a str but got "
+                            "'{0}'".format(type(new_name).__name__))
+        self._name = new_name
 
     def __str__(self):
         result = "{0}[{1}]:\n".format(self.coloured_name(False), self.name)

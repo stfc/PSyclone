@@ -79,14 +79,6 @@ def test_kernelschedule_can_be_printed():
     assert "End KernelSchedule" in str(kschedule)
 
 
-def test_kernelschedule_name_setter():
-    '''Test that the name setter changes the kernel name attribute.'''
-    kschedule = KernelSchedule("kname")
-    assert kschedule.name == "kname"
-    kschedule.name = "newname"
-    assert kschedule.name == "newname"
-
-
 def test_kernelschedule_create():
     '''Test that the create method in the KernelSchedule class correctly
     creates a KernelSchedule instance.

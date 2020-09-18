@@ -78,3 +78,9 @@ def test_routine_properties():
     node4 = Routine("welcome", entry_point=True, return_type=INTEGER_TYPE)
     assert node4.return_type == INTEGER_TYPE
     assert node4.entry_point
+
+    with pytest.raises(TypeError) as err:
+        node4.name = node3
+    assert "must be a str but got" in str(err.value)
+    node4.name = "goodbye"
+    assert node4.name == "goodbye"
