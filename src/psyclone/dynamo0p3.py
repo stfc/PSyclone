@@ -2131,7 +2131,7 @@ class DynDofmaps(DynCollection):
         self._unique_indirection_maps = OrderedDict()
 
         for call in self._calls:
-            # We only need a dofmap if the kernel iterates over cell_column
+            # We only need a dofmap if the kernel operates on a cell_column
             if call.iterates_over == "cell_column":
                 for unique_fs in call.arguments.unique_fss:
                     # We only need a dofmap if there is a *field* on this
@@ -7142,16 +7142,15 @@ class DynKern(CodedKern):
         :rtype: :py:class:`fparser.one.block_statements.Module`
 
         :raises InternalError: if the supplied kernel stub does not operate \
-                        on a supported quantity (currently only "cell_column").
+            on a supported subset of the domain (currently only "cell_column").
 
         '''
         # Check operates-on (iteration space) before generating code
         if self.iterates_over not in USER_KERNEL_ITERATION_SPACES:
             raise InternalError(
-                "DynKern.gen_stub(): Expected the kernel to operate on one of "
-                "{0} but found '{1}' in kernel '{2}'.".
-                format(USER_KERNEL_ITERATION_SPACES, self.iterates_over,
-                       self.name))
+                "Expected the kernel to operate on one of {0} but found '{1}' "
+                "in kernel '{2}'.".format(USER_KERNEL_ITERATION_SPACES,
+                                          self.iterates_over, self.name))
 
         # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")

@@ -280,7 +280,8 @@ def test_ad_field_init_wrong_iteration_space():
     (other than ['cell_column', 'dof']) is passed to the
     LFRicArgDescriptor._init_field() method.
 
-    TODO #870 update this test.
+    TODO #870 update this test with correct error msg once 'dofs' and
+    'cells' are no longer permitted.
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -292,8 +293,7 @@ def test_ad_field_init_wrong_iteration_space():
         LFRicArgDescriptor(
             field_arg, metadata.iterates_over)._init_field(
                 field_arg, "ncolours")
-    assert ("LFRicArgDescriptor._init_field(): Invalid operates-on "
-            "'ncolours' in the kernel metadata (expected "
+    assert ("Invalid operates_on 'ncolours' in the kernel metadata (expected "
             "one of ['cells', 'cell_column', 'dofs', 'dof'])." in
             str(excinfo.value))
 
@@ -399,9 +399,9 @@ def test_ad_invalid_iteration_space():
     arg_type = field_descriptor._arg_type
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, "colours")
-    assert ("LFRicArgDescriptor.__init__(): Expected operates_on in the "
-            "kernel metadata to be one of ['cells', 'cell_column', 'dofs', "
-            "'dof'] but got 'colours'." in str(excinfo.value))
+    assert ("Expected operates_on in the kernel metadata to be one of "
+            "['cells', 'cell_column', 'dofs', 'dof'] but got 'colours'." in
+            str(excinfo.value))
 
 
 def test_arg_descriptor_invalid_fs1():

@@ -73,7 +73,7 @@ class LFRicArgDescriptor(Descriptor):
                         valid argument types.
     :raises ParseError: if the second 'meta_arg' entry is not a valid \
                         access descriptor.
-    :raises InternalError: if the operates-on from the parsed kernel \
+    :raises InternalError: if the operates_on from the parsed kernel \
                            metadata is not 'cell_column' or 'dof'.
     :raises InternalError: if all the metadata checks fail to catch an \
                            invalid argument type.
@@ -195,9 +195,9 @@ class LFRicArgDescriptor(Descriptor):
         from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
         if operates_on not in VALID_ITERATION_SPACES:
             raise InternalError(
-                "LFRicArgDescriptor.__init__(): Expected operates_on in the "
-                "kernel metadata to be one of {0} but got "
-                "'{1}'.".format(VALID_ITERATION_SPACES, operates_on))
+                "Expected operates_on in the kernel metadata to be one of "
+                "{0} but got '{1}'.".format(
+                    VALID_ITERATION_SPACES, operates_on))
 
         # FIELD, OPERATOR and SCALAR argument type descriptors and checks
         if self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
@@ -431,9 +431,8 @@ class LFRicArgDescriptor(Descriptor):
         else:
             from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
             raise InternalError(
-                "LFRicArgDescriptor._init_field(): Invalid operates-on '{0}' "
-                "in the kernel metadata (expected one of {1}).".
-                format(operates_on, VALID_ITERATION_SPACES))
+                "Invalid operates_on '{0}' in the kernel metadata (expected "
+                "one of {1}).".format(operates_on, VALID_ITERATION_SPACES))
 
         # Test allowed accesses for fields that have stencil specification
         if self._stencil and self._access_type != AccessType.READ:

@@ -53,7 +53,7 @@ from psyclone.errors import InternalError
 
 # Code fragment for testing standard kernel setup with
 # a type-bound procedure. This uses the 'iterates_over'
-# member rather than 'operates_on'.
+# metadata rather than 'operates_on'.
 # TODO #870 remove this metadata fragment and update all tests to use CODE
 # below instead.
 ITERATES_OVER_CODE = (

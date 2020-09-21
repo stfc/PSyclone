@@ -73,7 +73,7 @@ def test_kernel_stub_invalid_iteration_space():
     kernel.load_meta(metadata)
     with pytest.raises(InternalError) as excinfo:
         _ = kernel.gen_stub
-    assert ("DynKern.gen_stub(): Expected the kernel to operate on one of "
+    assert ("Expected the kernel to operate on one of "
             "['cells', 'cell_column'] but found 'dof' in kernel "
             "'testkern_dofs_code'." in str(excinfo.value))
 
