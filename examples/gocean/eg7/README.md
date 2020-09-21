@@ -19,7 +19,7 @@ within the PSyclone repository. You can set the environment variable
 ``INF_DIR`` for the ``make`` command to pick a different version.
 
 The makefile here invokes psyclone with the script ``read_only_transform.py``.
-This script uses PSyClone's ``ReadOnlyVerifyTrans`` to instrument the two
+This script uses PSyclone's ``ReadOnlyVerifyTrans`` to instrument the two
 invokes in the ``test.x90`` source file.
 
 The source code overwrites the two read-only variables
