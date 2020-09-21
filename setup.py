@@ -155,6 +155,7 @@ if __name__ == '__main__':
         extras_require={
             'dag': ["graphviz"],
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_rtd_theme"],
+            'psydata': ["Jinja2"],
             'test': ["pep8", "pylint", "pytest-cov", "pytest-pep8",
                      "pytest-pylint", "pytest-flakes", "pytest-pep257"],
         },

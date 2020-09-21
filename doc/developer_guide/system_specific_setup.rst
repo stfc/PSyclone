@@ -39,7 +39,7 @@ You need to install the git package::
     >> sudo zypper --no-recommends install git
 
 
-Cloning PSyclone using git
+Cloning PSyclone Using git
 ++++++++++++++++++++++++++
 Cloning PSyclone from git and setting up your environment is done as follows::
 
@@ -60,7 +60,7 @@ file is not installed so you will have to do that manually (see the
    your `$PATH` if you have done a user-local install.
 
 
-Installing documentation tools
+Installing Documentation Tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Install Sphinx along with bibtex support for creating PSyclone documentation::
 
@@ -110,7 +110,7 @@ in all, requiring approximately 300 MB.
    texlive-courier texlive-dvips
 
 
-Creating pdf documentation
+Creating PDF Documentation
 ++++++++++++++++++++++++++
 
 You can now build the pdf documentation using
@@ -119,7 +119,7 @@ You can now build the pdf documentation using
    > cd doc
    > make latexpdf
 
-Installing testing tools
+Installing Testing Tools
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 You can install the necessary dependencies to run the PSyclone tests with::
@@ -162,3 +162,19 @@ Verifying the pylint standards is done with::
 
 
 OK, you're all set up.
+
+Installing Tools for PSyData Wrapper Libraries
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+If you intend to compile the PSyData wrapper libraries or develop new libraries,
+you might need to install Jinja2 (most wrapper libraries require Jinja2 though
+some, like the NVIDIA GPU profiling wrapper, do not need it). You can install
+the necessary dependencies to create all PSyData wrapper libraries with::
+
+    > pip install psyclone[psydata]
+
+or when using the git version::
+
+    > pip install .[psydata]
+
+
+Check :ref:`psy_data` and especially the section :ref:`jinja` for more details.
