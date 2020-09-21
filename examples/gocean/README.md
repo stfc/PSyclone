@@ -39,6 +39,12 @@ code may be compiled and executed.
 Illustrates the use of the kernel-data extraction support in PSyclone. The
 resulting code may be compiled and executed (requires a netcdf installation).
 
+## Example 7
+
+Illustrates the use of the read-only verification in PSyclone. The
+resulting code may be compiled and executed to show warnings printed
+by the read-only verification.
+
 ## Licence
 
 -----------------------------------------------------------------------------

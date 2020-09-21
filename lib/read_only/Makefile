@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,28 +31,36 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Australian Bureau of Meteorology
 
+# This Makefile just creates the Fortran base class for all read-only
+# wrappers from the jinja template. The compile functionality it offers is
+# only meant for testing, each library should compile its own version
+# of the base class (with therefore consistent compiler settings).
 
-# Assume that drhook is 'next' to psyclone
-DRHOOK_ROOT?=../../../../drhook
+F90 ?= gfortran
+F90FLAGS ?= 
 
-DRHOOK_INCLUDE?=$(DRHOOK_ROOT)/drhook/include
-DRHOOK_MODULES?=$(DRHOOK_ROOT)/build/module
+# The read-only verification library is implemented for int, real and
+# double scalars and 2-dimension arrays
+PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
+		       -dims=2
 
-F90?=gfortran
-FFLAGS?=-g
-FFLAGS += -I$(DRHOOK_INCLUDE) -I$(DRHOOK_MODULES)
+default: read_only_base.o psy_data_base.o
+process: read_only_base.f90
 
-name=drhook_psy
-libname=lib$(name).a
+.PHONY: default process clean
 
-default: $(libname)
+%.f90:	%.jinja
+	../process.py $< > $*.f90
 
-$(libname): $(name).f90
-	$(F90) -c $(FFLAGS) $<
-	ar rs $(libname) $(name).o
+psy_data_base.f90:	../psy_data_base.jinja
+	../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+
+read_only_base.o: psy_data_base.o
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f $(libname) $(name).o profile_mod.mod
-
+	rm -f read_only_base.f90 psy_data_base.f90 *.o *.mod
