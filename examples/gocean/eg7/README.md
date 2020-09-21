@@ -10,7 +10,7 @@ and run.
 
 ## Compilation
 A makefile is provided to compile this example. If required
-it will compile the dl_esm_inf libraryW and the read-only verification
+it will compile the dl_esm_inf library and the read-only verification
 wrapper library. By default, the compilation uses the version
 of the dl_esm_inf library provided as a git submodule (under
 ``../../../external/dl_esm_inf/finite_difference``- see
@@ -18,11 +18,12 @@ https://psyclone-dev.readthedocs.io/en/latest/working_practises.html)
 within the PSyclone repository. You can set the environment variable
 ``INF_DIR`` for the ``make`` command to pick a different version.
 
-The makefile here will invoke psyclone with the ``--profile invokes``
-flag, which will add profiling around the two invokes used in the example.
+The makefile here invokes psyclone with the script ``read_only_transform.py``.
+This script uses PSyClone's ``ReadOnlyVerifyTrans`` to instrument the two
+invokes in the ``test.x90`` source file.
 
-The source files overwrites the two read-only variables
-``b_fld`` and ``z`` in the kernel called, even though these variables are
+The source code overwrites the two read-only variables
+``b_fld`` and ``z`` in the kernel, even though these variables are
 declared as read-only in the PSyclone meta-data as well as being
 declared with ``intent(in)``.  This is done by using out-of-bounds accesses
 in one array that is declared to be writable. This code will trigger an

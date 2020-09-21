@@ -30,4 +30,4 @@ libraries.
 ## `read_only` directory
 
 Contains PSyData wrapper libraries for verifying at run time that parameters declared
-as read-only in the PSyclone meta data are indeed not changed in a subroutine.
+as read-only in the PSyclone metadata are indeed not changed in a subroutine.

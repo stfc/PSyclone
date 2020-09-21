@@ -1,6 +1,6 @@
 # ReadOnly Verification Libraries
 
-This directories contains files related to read-only verification, i.e. checks at
+This directory contains files related to read-only verification, i.e. checks at
 runtime that a read-only parameter of a subroutine is indeed not changed in a kernel.
 There is a base class as a Jinja template that can be used to simplify
 the creation of API-specific wrapper libraries.

@@ -1,4 +1,4 @@
-# Read-only Verification Library for dl_esm_info
+# Read-only Verification Library for dl_esm_inf
 
 This library implements the PSyData API to verify that variables
 declared read-only are not modified (overwritten) in a kernel call
