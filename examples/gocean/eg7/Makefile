@@ -66,7 +66,7 @@ KERNELS = init_field_mod.o update_field_mod.o
 # The name of the executable
 NAME = read_only_test
 
-.PHONY: default $(READ_ONLY_DIR)/$(LIB_NAME)
+.PHONY: default $(READ_ONLY_DIR)/$(LIB_NAME) $(INF_LIB)
 
 all: transform compile
 compile: transform $(NAME)
@@ -83,11 +83,21 @@ $(NAME): $(INF_LIB) $(READ_ONLY_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
 
 # The read-only library
 $(READ_ONLY_DIR)/$(LIB_NAME):
-	$(MAKE) -C $(READ_ONLY_DIR)
+	@echo "Making dl_esm_inf readonly wrapper library"
+	@echo "=========================================="
+	$(MAKE) -C $(READ_ONLY_DIR) F90=$(F90)
+	@echo "Finished making dl_esm_inf readonly wrapper library"
+	@echo "==================================================="
+	@echo
 
 # The dl_esm_inf library
 $(INF_LIB):
+	@echo "Making dl_esm_inf library"
+	@echo "========================="
 	$(MAKE) -C $(INF_DIR) F90=$(F90)
+	@echo "Finished making dl_esm_inf library"
+	@echo "=================================="
+	@echo
 
 # Kernel compilation needs the .mod files from dl_esm_inf
 $(KERNELS): $(INF_LIB)

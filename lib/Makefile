@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,29 +30,28 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+#------------------------------------------------------------------------------
+# Authors: J. Henrichs, Australian Bureau of Meteorology
 
+# This Makefile just creates the Fortran base class for the PSyData library
+# from the jinja template psy_data_base.jinja. The compile functionality it
+# offers is only meant for testing, each library should compile its own version
+# of the base class (with therefore consistent compiler settings).
 
-# Assume that drhook is 'next' to psyclone
-DRHOOK_ROOT?=../../../../drhook
+F90 ?= gfortran
+F90FLAGS ?= 
 
-DRHOOK_INCLUDE?=$(DRHOOK_ROOT)/drhook/include
-DRHOOK_MODULES?=$(DRHOOK_ROOT)/build/module
+default: psy_data_base.o
+process: psy_data_base.f90
 
-F90?=gfortran
-FFLAGS?=-g
-FFLAGS += -I$(DRHOOK_INCLUDE) -I$(DRHOOK_MODULES)
+.PHONY: default process clean
 
-name=drhook_psy
-libname=lib$(name).a
+%.f90:	%.jinja process.py
+	./process.py $< > $*.f90
 
-default: $(libname)
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
 
-$(libname): $(name).f90
-	$(F90) -c $(FFLAGS) $<
-	ar rs $(libname) $(name).o
 
 clean:
-	rm -f $(libname) $(name).o profile_mod.mod
-
+	rm -f psy_data_base.f90
