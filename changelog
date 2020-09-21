@@ -111,6 +111,14 @@
         arguments to LFRic kernels - sepecify the intrinsic type
         separately.
 
+        38) #895 towards #871. Updates to HEAD of dl_esm_inf, introduces
+        FortCL as a submodule and alters the OpenCL code generation for gocean
+        in order to create a read_from_device function.
+
+        39) #865 for #832. Use Jinja to generate Fortran code for the
+        PSyData read-only verification library plus the dl_esm_inf
+        implementation of this.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
