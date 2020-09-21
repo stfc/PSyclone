@@ -51,7 +51,10 @@ from psyclone.domain.lfric.psyir import CellPositionDataSymbol, \
     LogicalVectorFieldDataDataSymbol, OperatorDataSymbol, \
     LfricIntegerScalarDataSymbol, LfricRealScalarDataSymbol, \
     LfricLogicalScalarDataSymbol, BasisFunctionDataSymbol, \
-    DiffBasisFunctionDataSymbol
+    DiffBasisFunctionDataSymbol, NumberOfQrPointsInHorizontalDataSymbol, \
+    NumberOfQrPointsInVerticalDataSymbol, QrWeightsInHorizontalDataSymbol, \
+    QrWeightsInVerticalDataSymbol, NumberOfFacesDataSymbol, \
+    NumberOfFacesDataSymbol, QrWeightsDataSymbol, NumberOfEdgesDataSymbol
 from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 
@@ -117,13 +120,9 @@ class KernelInterface(ArgOrdering):
             ndf_from = self._ndofs_map[fs_from]
             ndf_to = self._ndofs_map[fs_to]
             op_dim = self._operator_dims_map[operator]
-            dims = [None, None, None]
-            dims[operator.fs_from_dim] = ndf_from
-            dims[operator.fs_to_dim] = ndf_to
-            idx = 0
-            while dims[idx]:
-                idx += 1
-            dims[idx] = op_dim
+            # RF hard code array ordering until we work out how to
+            # encode it (perhaps store it within the class)?
+            dims = [ndf_from, ndf_to, op_dim]
             operator.datatype._shape = dims
 
     def cell_position(self, var_accesses=None):
@@ -234,7 +233,8 @@ class KernelInterface(ArgOrdering):
             "real": LfricRealScalarDataSymbol,
             "logical": LfricLogicalScalarDataSymbol}
         try:
-            arg = mapping[scalar_arg.intrinsic_type](scalar_arg.name)
+            arg = mapping[scalar_arg.intrinsic_type](scalar_arg.name, \
+                interface=ArgumentInterface(INTENT_MAPPING[scalar_arg.intent]))
         except KeyError:
             raise NotImplementedError(
                 "scalar of type {0} not implemented"
@@ -299,10 +299,9 @@ class KernelInterface(ArgOrdering):
                 basis_name = function_space.get_basis_name(
                     qr_var="qr_"+quad_name)
                 fs_name = function_space.orig_name
-                arg = BasisFunctionDataSymbol(basis_name, [1, 1, 1], fs_name, quad_name)
+                arg = BasisFunctionDataSymbol(basis_name, [1, 1, 1], fs_name, quad_name, interface=ArgumentInterface(ArgumentInterface.Access.READ))
                 self._symbol_table.add(arg)
                 self._arglist.append(arg)
-
             elif shape in VALID_EVALUATOR_SHAPES:
                 # Need a basis array for each target space upon which the basis
                 # functions have been evaluated. _kern.eval_targets is a dict
@@ -328,7 +327,7 @@ class KernelInterface(ArgOrdering):
                 diff_basis_name = function_space.get_diff_basis_name(
                     qr_var="qr_"+quad_name)
                 fs_name = function_space.orig_name
-                arg = DiffBasisFunctionDataSymbol(diff_basis_name, [1, 1, 1], fs_name, quad_name)
+                arg = DiffBasisFunctionDataSymbol(diff_basis_name, [1, 1, 1], fs_name, quad_name, interface=ArgumentInterface(ArgumentInterface.Access.READ))
                 self._symbol_table.add(arg)
                 self._arglist.append(arg)
 
@@ -368,4 +367,41 @@ class KernelInterface(ArgOrdering):
 
     def quad_rule(self, var_accesses=None):
         ''' Not implemented '''
-        raise NotImplementedError("quad_rule not implemented")
+        args = []
+        read_access = ArgumentInterface(ArgumentInterface.Access.READ)
+        for shape in self._kern.qr_rules:
+            if shape == "gh_quadrature_xyoz":
+                nqp_h = NumberOfQrPointsInHorizontalDataSymbol(
+                    "nqp_h", interface=read_access)
+                nqp_v = NumberOfQrPointsInVerticalDataSymbol(
+                    "nqp_v", interface=read_access)
+                args.extend(
+                    [nqp_h, nqp_v,
+                     QrWeightsInHorizontalDataSymbol(
+                         "weights_h", [nqp_h], interface=read_access),
+                     QrWeightsInVerticalDataSymbol(
+                         "weights_v", [nqp_v], interface=read_access)])
+            elif shape == "gh_quadrature_face":
+                nfaces = NumberOfFacesDataSymbol(
+                    "nfaces", interface=read_access)
+                nqp = NumberOfQrPointsDataSymbol(
+                    "nqp", interface=read_access)
+                args.extend(
+                    [nfaces, nqp,
+                     QrWeightsDataSymbol(
+                         "weights", [nqp], interface=read_access)])
+            elif shape == "gh_quadrature_edge":
+                nedges = NumberOfEdgesDataSymbol(
+                    "nedges", interface=read_access)
+                nqp = NumberOfQrPointsDataSymbol(
+                    "nqp", interface=read_access)
+                args.extend(
+                    [nedges, nqp,
+                     QrWeightsDataSymbol(
+                         "weights", [nqp], interface=read_access)])
+            else:
+                raise InternalError("Unsupported quadrature shape ('{0}') "
+                                    "found in kernel_interface".format(shape))
+        for arg in args:
+            self._symbol_table.add(arg)
+            self._arglist.append(arg)

@@ -52,7 +52,8 @@ from psyclone.psyir.symbols import RoutineSymbol, SymbolTable, \
     ArgumentInterface
 from psyclone.domain.lfric.psyir import CONSTANTS_MOD, \
     NumberOfDofsDataSymbol, RealFieldDataDataSymbol, I_DEF, R_DEF, \
-    OperatorSizeDataSymbol, OperatorDataSymbol, NumberOfUniqueDofsDataSymbol
+    OperatorSizeDataSymbol, OperatorDataSymbol, NumberOfUniqueDofsDataSymbol, \
+    BasisFunctionDataSymbol, DiffBasisFunctionDataSymbol
 
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -84,6 +85,31 @@ SYMBOL_TABLE.add(NCELL_3D)
 OPERATOR = OperatorDataSymbol("oper1", [NDF_W3, NDF_W3, NCELL_3D],
                               fs_from="w3", fs_to="w3")
 SYMBOL_TABLE.add(OPERATOR)
+
+
+nqp_h = QrDataSymbol("np_xyz", "xyoz",
+                     interface=ArgumentInterface(ArgumentInterface.Access.READ))
+nqp_v =
+wh = wh(nqp_h)
+wv = wv(nqp_v)
+basis(3,ndf,nqp_h,nqp_v)
+      INTEGER(KIND=i_def), intent(in) :: np_xy_qr_xyoz, np_z_qr_xyoz
+      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w1_qr_xyoz
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2_qr_xyoz
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w3_qr_xyoz
+      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w3_qr_xyoz
+      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) :: weights_xy_qr_xyoz
+      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) :: weights_z_qr_xyoz
+
+
+# Create a basis function and add it to the symbol table
+BASIS = BasisFunctionDataSymbol("basis", [NDF_W3, NDF_W3, NDF_W3], "w3", "xox")
+SYMBOL_TABLE.add(BASIS)
+
+# Create a differential basis function and add it to the symbol table
+DIFF_BASIS = DiffBasisFunctionDataSymbol(
+    "diff_basis", [1 or 3, NDF_W3, NDF_W3], "w3", "xyoz")
+SYMBOL_TABLE.add(DIFF_BASIS)
 
 # Routine symbol
 ROUTINE_SYMBOL = RoutineSymbol("my_sub")
