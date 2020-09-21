@@ -177,12 +177,9 @@ def test_two_kernels(tmpdir, dist_mem):
 def test_two_kernels_with_dependencies(tmpdir, dist_mem):
     ''' Tests that an invoke containing two kernel calls with dependencies
     between them produces correct code '''
-    _, invoke_info = parse(os.path.join(os.path.
-                                        dirname(os.path.
-                                                abspath(__file__)),
-                                        "test_files", "gocean1p0",
-                                        "single_invoke_two_identical_kernels.f90"),
-                           api=API)
+    _, invoke_info = parse(os.path.join(os.path.dirname(
+        os.path.abspath(__file__)), "test_files", "gocean1p0",
+        "single_invoke_two_identical_kernels.f90"), api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     generated_code = psy.gen
 
@@ -214,8 +211,6 @@ def test_two_kernels_with_dependencies(tmpdir, dist_mem):
         "    END SUBROUTINE invoke_0\n"
         "  END MODULE psy_single_invoke_two_kernels")
 
-
-
     if dist_mem:
         # In this case the second kernel just has a RaW dependency on the
         # cu_fld of the first kernel, so a halo exchange should be inserted
@@ -233,7 +228,6 @@ def test_two_kernels_with_dependencies(tmpdir, dist_mem):
 
     assert str(generated_code) == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
 
 
 def test_grid_property(tmpdir, dist_mem):

@@ -48,11 +48,11 @@ module w3_solver_kernel_mod
 use kernel_mod,              only : kernel_type
 use constants_mod,           only : r_def, i_def
 use fs_continuity_mod,       only : W3, Wchi
-use argument_mod,            only : arg_type, func_type,     &
-                                    GH_FIELD, GH_REAL,       &
-                                    GH_READ, GH_WRITE,       &
-                                    GH_BASIS, GH_DIFF_BASIS, &
-                                    GH_QUADRATURE_XYoZ,      &
+use argument_mod,            only : arg_type, func_type,        &
+                                    GH_FIELD, GH_SCALAR,        &
+                                    GH_REAL, GH_READ, GH_WRITE, &
+                                    GH_BASIS, GH_DIFF_BASIS,    &
+                                    GH_QUADRATURE_XYoZ,         &
                                     CELL_COLUMN
 
 implicit none
@@ -65,15 +65,15 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: w3_solver_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/        &
-       arg_type(GH_FIELD,   GH_WRITE, W3),   &
-       arg_type(GH_FIELD,   GH_READ,  W3),   &
-       arg_type(GH_FIELD*3, GH_READ,  Wchi), &
-       arg_type(GH_REAL,    GH_READ)         &
+  type(arg_type) :: meta_args(4) = (/                 &
+       arg_type(GH_FIELD,            GH_WRITE, W3),   &
+       arg_type(GH_FIELD,            GH_READ,  W3),   &
+       arg_type(GH_FIELD*3,          GH_READ,  Wchi), &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ)         &
        /)
-  type(func_type) :: meta_funcs(2) = (/      &
-       func_type(W3,   GH_BASIS),            &
-       func_type(Wchi, GH_DIFF_BASIS)        &
+  type(func_type) :: meta_funcs(2) = (/               &
+       func_type(W3,   GH_BASIS),                     &
+       func_type(Wchi, GH_DIFF_BASIS)                 &
        /)
   integer :: gh_shape = GH_QUADRATURE_XYoZ
   integer :: operates_on = CELL_COLUMN
