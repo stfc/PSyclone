@@ -160,7 +160,8 @@ def test_loop_navigation_properties():
 
 def test_loop_invalid_type():
     ''' Tests assigning an invalid type to a Loop object. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     sched = invoke.schedule
     loop = sched.children[0].loop_body[0]
     assert isinstance(loop, Loop)
@@ -393,3 +394,12 @@ def test_variable_getter():
         _ = loop.variable
     assert ("variable property in Loop class should be a DataSymbol but "
             "found 'NoneType'.") in str(excinfo.value)
+
+
+def test_halo_read_access_is_abstract():
+    '''Check that the generic _halo_read_access method is abstract'''
+    loop = Loop()
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = loop._halo_read_access(None)
+    assert ("This method needs to be implemented by the APIs that support "
+            "distributed memory.") in str(excinfo.value)

@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the Dynamo 0.3 kernel-stub generator using pytest. '''
 
@@ -45,7 +46,7 @@ from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.errors import InternalError, GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.gen_kernel_stub import generate
 
@@ -61,9 +62,28 @@ def setup():
     Config.get().api = "dynamo0.3"
 
 
-def test_dynscalars_err(monkeypatch):
-    ''' Check that the DynScalarArgs constructor raises the expected error
-    if it encounters an unrecognised type of scalar. '''
+def test_kernel_stub_invalid_iteration_space():
+    ''' Check that we raise an exception if we attempt to generate kernel
+    stub for a kernel with an unsupported iteration space. '''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_dofs_mod.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    with pytest.raises(InternalError) as excinfo:
+        _ = kernel.gen_stub
+    assert ("DynKern.gen_stub(): Expected one of ['cells'] as iteration "
+            "space but found 'dofs' in kernel 'testkern_dofs_code'."
+            in str(excinfo.value))
+
+
+def test_dynscalars_stub_err():
+    ''' Check that the DynScalarArgs constructor raises the expected
+    internal error if it encounters an unrecognised intrinsic type of
+    scalar when generating a kernel stub.
+
+    '''
     from psyclone.dynamo0p3 import DynScalarArgs
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
@@ -71,18 +91,14 @@ def test_dynscalars_err(monkeypatch):
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    # Sabotage the scalar argument to make it have an invalid type.
+    # Sabotage the scalar argument to make it have an invalid intrinsic type
     arg = kernel.arguments.args[1]
-    arg._type = "invalid-scalar-type"
-    # Monkeypatch the list of supported scalar types to include this one
-    monkeypatch.setattr(
-        target=LFRicArgDescriptor, name="VALID_SCALAR_NAMES",
-        value=["gh_real", "gh_integer", "invalid-scalar-type"])
+    arg._intrinsic_type = "invalid-scalar-type"
     with pytest.raises(InternalError) as err:
         _ = DynScalarArgs(kernel)
-    assert ("Scalar type 'invalid-scalar-type' is in LFRicArgDescriptor."
-            "VALID_SCALAR_NAMES but is not handled in DynScalarArgs"
-            in str(err.value))
+    assert ("DynScalarArgs.__init__(): Found an unsupported intrinsic type "
+            "'invalid-scalar-type' for the scalar argument 'iscalar_2'. "
+            "Supported types are ['real', 'integer']." in str(err.value))
 
 
 def test_stub_generate_with_anyw2():
@@ -189,12 +205,12 @@ def test_stub_generate_with_scalar_sums():
             os.path.join(BASE_PATH, "simple_with_reduction.f90"),
             api=TEST_API)
     assert (
-        "user-supplied Dynamo 0.3 kernel must not write/update a scalar "
-        "argument but kernel simple_with_reduction_type has gh_real with "
-        "gh_sum access" in str(err.value))
+        "A user-supplied LFRic kernel must not write/update a scalar "
+        "argument but kernel 'simple_with_reduction_type' has a scalar "
+        "argument with 'gh_sum' access." in str(err.value))
 
 
-# fields : intent
+# Fields : intent
 INTENT = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
@@ -216,13 +232,13 @@ end module dummy_mod
 
 def test_load_meta_wrong_type():
     ''' Test that the load_meta function raises an appropriate error
-    if the meta-data contains an un-recognised type '''
+    if the meta-data contains an un-recognised type. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(INTENT, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     # Break the meta-data
-    metadata.arg_descriptors[0]._type = "gh_hedge"
+    metadata.arg_descriptors[0]._argument_type = "gh_hedge"
     with pytest.raises(GenerationError) as excinfo:
         kernel.load_meta(metadata)
     assert ("DynKern.load_meta() expected one of {0} but found "
@@ -262,7 +278,7 @@ def test_intent():
     assert output in str(generated_code)
 
 
-# fields : spaces
+# Fields : spaces
 SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
@@ -445,7 +461,7 @@ def test_any_spaces():
     assert output in generated_code
 
 
-# fields : vectors
+# Fields : vectors
 VECTORS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
@@ -504,12 +520,13 @@ def test_arg_descriptor_vec_str():
     expected_output = (
         "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'*3\n"
-        "  access_descriptor[1]='gh_inc'\n"
-        "  function_space[2]='w0'")
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_inc'\n"
+        "  function_space[3]='w0'")
     assert expected_output in result
 
 
-# orientation : spaces
+# Orientation : spaces
 ORIENTATION_OUTPUT = (
     "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
     "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "

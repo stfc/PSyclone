@@ -41,6 +41,8 @@ transformations and base classes.
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
+from psyclone.psyir.transformations.read_only_verify_trans \
+    import ReadOnlyVerifyTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
     Abs2CodeTrans
@@ -61,6 +63,7 @@ from psyclone.psyir.transformations.transformation_error \
 __all__ = ['ExtractTrans',
            'ProfileTrans',
            'PSyDataTrans',
+           'ReadOnlyVerifyTrans',
            'RegionTrans',
            'Abs2CodeTrans',
            'Matmul2CodeTrans',

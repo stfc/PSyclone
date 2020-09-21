@@ -37,26 +37,32 @@ metadata information describing the kernel code for the
 
   module w3_solver_kernel_mod
 
-    use kernel_mod,      only : kernel_type
-    use constants_mod,   only : r_def
-    use argument_mod,    only : arg_type, func_type,                 &
-                                GH_FIELD, GH_READ, GH_WRITE, W0, W3, &
-                                GH_BASIS, GH_DIFF_BASIS, CELLS 
+    use kernel_mod,              only : kernel_type
+    use constants_mod,           only : r_def, i_def
+    use fs_continuity_mod,       only : W3, Wchi
+    use argument_mod,            only : arg_type, func_type,        &
+                                        GH_FIELD, GH_SCALAR,        &
+                                        GH_REAL, GH_READ, GH_WRITE, &
+                                        GH_BASIS, GH_DIFF_BASIS,    &
+                                        GH_QUADRATURE_XYoZ, CELLS
+
     implicit none
+
+    private
 
     type, public, extends(kernel_type) :: w3_solver_kernel_type
       private
-      type(arg_type) :: meta_args(4) = (/                &
-           arg_type(GH_FIELD,   GH_WRITE, W3),           &
-           arg_type(GH_FIELD,   GH_READ,  W3),           &
-           arg_type(GH_FIELD*3, GH_READ,  W0),           &
-           arg_type(GH_REAL,    GH_READ)                 &
+      type(arg_type) :: meta_args(4) = (/                 &
+           arg_type(GH_FIELD,            GH_WRITE, W3),   &
+           arg_type(GH_FIELD,            GH_READ,  W3),   &
+           arg_type(GH_FIELD*3,          GH_READ,  Wchi), &
+           arg_type(GH_SCALAR,  GH_REAL, GH_READ)         &
            /)
-      type(func_type) :: meta_funcs(2) = (/              &
-           func_type(W3, GH_BASIS),                      &
-           func_type(W0, GH_DIFF_BASIS)                  &
+      type(func_type) :: meta_funcs(2) = (/               &
+           func_type(W3,   GH_BASIS),                     &
+           func_type(Wchi, GH_DIFF_BASIS)                 &
            /)
-      integer :: gh_shape = gh_quadrature_XYoZ
+      integer :: gh_shape = GH_QUADRATURE_XYoZ
       integer :: iterates_over = CELLS
     contains
       procedure, nopass :: solver_w3_code
@@ -90,19 +96,37 @@ that it allows the metadata to be kept with the code and for it to be
 compilable. In addition, currently all APIs will contain information
 about the arguments in an array called ``meta_args``, a specification
 of what the kernel code iterates over in a variable called
-``iterates_over`` and a reference to the kernel code as a type bound
-procedure.
+``iterates_over`` and a reference to the kernel code itself as a
+type-bound procedure::
+   
+    type, extends(kernel_type) :: integrate_one_kernel 
+      ... 
+      type(...) :: meta_args(...) = (/ ... /) 
+      ... 
+      integer :: ITERATES_OVER = ... 
+      ... 
+      contains 
+      ... 
+      procedure ... 
+      ... 
+    end type integrate_one_kernel 
 
-::
+If no type-bound procedure is declared then a named interface with
+module procedures must be included in the module::
 
-    type, extends(kernel_type) :: integrate_one_kernel
-      ...
-      type(...) :: meta_args(...) = (/ ... /)
-      ...
-      integer :: ITERATES_OVER = ...
-      ...
-      contains
-      ...
-      procedure ...
-      ...
-    end type integrate_one_kernel
+    type, extends(kernel_type) :: integrate_one_kernel 
+      ... 
+      type(...) :: meta_args(...) = (/ ... /) 
+      ... 
+      integer :: ITERATES_OVER = ... 
+      ... 
+    end type integrate_one_kernel 
+
+    interface ...
+      module procedure ... 
+    end interface   
+
+These module procedures provide alternative implementations (using
+different precisions) of the kernel code. They are selected as
+appropriate by the Fortran compiler, depending on the precision of the
+fields being passed to them.

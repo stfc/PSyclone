@@ -302,12 +302,12 @@ Kernel, excluding the subroutine body, is given below.
   type, public, extends(kernel_type) :: ru_kernel_type
     private
     type(arg_type) :: meta_args(6) = (/                                  &
-         arg_type(GH_FIELD,   GH_INC,  W2),                              &
-         arg_type(GH_FIELD,   GH_READ, W3),                              &
-         arg_type(GH_INTEGER, GH_READ),                                  &
-         arg_type(GH_REAL,    GH_READ),                                  &
-         arg_type(GH_FIELD,   GH_READ, W0),                              &
-         arg_type(GH_FIELD*3, GH_READ, W0)                               &
+         arg_type(GH_FIELD,               GH_INC,  W2),                  &
+         arg_type(GH_FIELD,               GH_READ, W3),                  &
+         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                      &
+         arg_type(GH_SCALAR,  GH_REAL,    GH_READ),                      &
+         arg_type(GH_FIELD,               GH_READ, W0),                  &
+         arg_type(GH_FIELD*3,             GH_READ, W0)                   &
          /)
     type(func_type) :: meta_funcs(3) = (/                                &
          func_type(W2, GH_BASIS, GH_DIFF_BASIS),                         &
@@ -412,6 +412,7 @@ supported in the stub generator.
     tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
     tests/test_files/dynamo0p3/testkern_any_space_4_mod.f90
     tests/test_files/dynamo0p3/testkern_any_discontinuous_space_op_2_mod.f90
+    tests/test_files/dynamo0p3/testkern_dofs_mod.f90
     tests/test_files/dynamo0p3/testkern_invalid_fortran.F90
     tests/test_files/dynamo0p3/testkern_short_name.F90
     tests/test_files/dynamo0p3/testkern_no_datatype.F90
@@ -428,6 +429,10 @@ appropriate errors. Two examples are below:
 
     > genkernelstub tests/test_files/dynamo0p3/testkern_no_datatype.F90
     Error: 'Parse Error: Kernel type testkern_type does not exist'
+
+``testkern_dofs_mod.f90`` is an example with an unsupported feature, as the
+``iterates_over`` metadata specifies ``dofs``. Currently only kernels with
+``iterates_over=CELLS`` are supported by the stub generator.
 
 Generic function space metadata ``any_space`` and ``any_discontinuous_space``
 (see Section :ref:`Supported Function Spaces <dynamo0.3-function-space>`

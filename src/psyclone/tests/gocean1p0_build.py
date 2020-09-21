@@ -97,7 +97,7 @@ class GOcean1p0Build(Compile):
 
         fortcl_path = \
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "../../../external/dl_esm_inf/external/FortCL/src")
+                         "../../../external/FortCL/src")
 
         arg_list = ["make", "F90={0}".format(self._f90),
                     "F90FLAGS={0}".format(self._f90flags),

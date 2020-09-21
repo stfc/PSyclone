@@ -29,13 +29,29 @@ Examples of the application of kernel transforms to kernels that access
 data and/or routines from other Fortran modules. Note that this is not
 yet fully supported and is the subject of Issues #490 and #342.
 
+## Example 5
+
+Illustrates the use of the profiling support in PSyclone. The resulting
+code may be compiled and executed.
+
+## Example 6
+
+Illustrates the use of the kernel-data extraction support in PSyclone. The
+resulting code may be compiled and executed (requires a netcdf installation).
+
+## Example 7
+
+Illustrates the use of the read-only verification in PSyclone. The
+resulting code may be compiled and executed to show warnings printed
+by the read-only verification.
+
 ## Licence
 
 -----------------------------------------------------------------------------
 
 BSD 3-Clause License
 
-Copyright (c) 2017-2019, Science and Technology Facilities Council.
+Copyright (c) 2017-2020, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

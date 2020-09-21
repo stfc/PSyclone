@@ -40,6 +40,7 @@
 
 from __future__ import absolute_import
 from collections import OrderedDict
+import six
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
@@ -48,8 +49,9 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
-    Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
-    LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType
+    Symbol, RoutineSymbol, GlobalInterface, ArgumentInterface, \
+    UnresolvedInterface, LocalInterface, \
+    ScalarType, ArrayType, DeferredType, UnknownType
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -447,6 +449,37 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         return symbol
 
 
+def _process_routine_symbols(module_ast, symbol_table,
+                             default_visibility, visibility_map):
+    '''
+    Examines the supplied fparser2 parse tree for a module and creates
+    RoutineSymbols for every routine (function or subroutine) that it
+    contains.
+
+    :param module_ast: fparser2 parse tree for module.
+    :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
+    :param symbol_table: the SymbolTable to which to add the symbols.
+    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param default_visibility: the default visibility that applies to all \
+            symbols without an explicit visibility specification.
+    :type default_visibility: \
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+    :param visibility_map: dict of symbol names with explicit visibilities.
+    :type visibility_map: dict with symbol names as keys and visibilities as \
+                          values
+    '''
+    routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
+                                 Fortran2003.Function_Subprogram))
+    for routine in routines:
+        name = str(routine.children[0].children[1])
+        vis = visibility_map.get(name, default_visibility)
+        # This routine is defined within this scoping unit and therefore has a
+        # local interface.
+        rsymbol = RoutineSymbol(name, visibility=vis,
+                                interface=LocalInterface())
+        symbol_table.add(rsymbol)
+
+
 class Fparser2Reader(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
@@ -734,10 +767,27 @@ class Fparser2Reader(object):
         # Create a container to capture the module information
         new_container = Container(mod_name)
 
+        # Search for any accessibility statements (e.g. "PUBLIC :: my_var") to
+        # determine the default accessibility of symbols as well as identifying
+        # those that are explicitly declared as public or private.
+        (default_visibility, visibility_map) = self._parse_access_statements(
+            module)
+
+        # Create symbols for all routines defined within this module
+        _process_routine_symbols(module_ast, new_container.symbol_table,
+                                 default_visibility, visibility_map)
+
         # Parse the declarations if it has any
         for child in module.children:
             if isinstance(child, Fortran2003.Specification_Part):
-                self.process_declarations(new_container, child.children, [])
+                try:
+                    self.process_declarations(new_container, child.children,
+                                              [], default_visibility,
+                                              visibility_map)
+                except SymbolError as err:
+                    six.raise_from(SymbolError(
+                        "Error when generating Container for module '{0}': "
+                        "{1}".format(mod_name, err.args[0])), err)
                 break
 
         return new_container
@@ -948,12 +998,17 @@ class Fparser2Reader(object):
         :type nodes: list of :py:class:`fparser.two.utils.Base`
 
         :returns: default visibility of symbols within the current scoping \
-            unit, list of public symbol names, list of private symbol names.
-        :rtype: 3-tuple of (:py:class:`psyclone.symbols.Symbol.Visibility`, \
-                list, list)
+            unit and dict of symbol names with explicit visibilities.
+        :rtype: 2-tuple of (:py:class:`psyclone.symbols.Symbol.Visibility`, \
+                dict)
 
+        :raises InternalError: if an accessibility attribute which is not \
+            'public' or 'private' is encountered.
+        :raises GenerationError: if the parse tree is found to contain more \
+            than one bare accessibility statement (i.e. 'PUBLIC' or 'PRIVATE')
         :raises GenerationError: if a symbol is explicitly declared as being \
-                                 both public and private.
+            both public and private.
+
         '''
         default_visibility = None
         # Sets holding the names of those symbols whose access is specified
@@ -1021,8 +1076,13 @@ class Fparser2Reader(object):
         if default_visibility is None:
             default_visibility = Symbol.Visibility.PUBLIC
 
-        return (default_visibility, list(explicit_public),
-                list(explicit_private))
+        visibility_map = {}
+        for name in explicit_public:
+            visibility_map[name] = Symbol.Visibility.PUBLIC
+        for name in explicit_private:
+            visibility_map[name] = Symbol.Visibility.PRIVATE
+
+        return (default_visibility, visibility_map)
 
     @staticmethod
     def _process_use_stmts(parent, nodes):
@@ -1137,7 +1197,7 @@ class Fparser2Reader(object):
                                           "'{0}'".format(str(decl)))
 
     def _process_decln(self, parent, decl, default_visibility,
-                       public_symbols, private_symbols):
+                       visibility_map=None):
         '''
         Process the supplied fparser2 parse tree for a declaration. For each
         entity that is declared, a symbol is added to the symbol table
@@ -1151,12 +1211,10 @@ class Fparser2Reader(object):
                                    current declaration section.
         :type default_visibility: \
             :py:class:`psyclone.symbols.Symbol.Visibility`
-        :param public_symbols: list of names of symbols that are known to \
-                               have public visibility.
-        :type public_symbols: list of str
-        :param private_symbols: list of names of symbols that are known to \
-                                have private visibility.
-        :type private_symbols: list of str
+        :param visibility_map: mapping of symbol name to visibility (for \
+            those symbols listed in an accessibility statement).
+        :type visibility_map: dict with str keys and \
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility` values
 
         :raises NotImplementedError: if an unsupported intrinsic type is found.
         :raises NotImplementedError: if the declaration is not of an \
@@ -1354,16 +1412,15 @@ class Fparser2Reader(object):
 
             sym_name = str(name).lower()
 
-            if decln_access_spec is None:
+            if decln_access_spec:
+                visibility = decln_access_spec
+            else:
                 # There was no access-spec on the LHS of the decln
-                if sym_name in private_symbols:
-                    visibility = Symbol.Visibility.PRIVATE
-                elif sym_name in public_symbols:
-                    visibility = Symbol.Visibility.PUBLIC
+                if visibility_map is not None:
+                    visibility = visibility_map.get(sym_name,
+                                                    default_visibility)
                 else:
                     visibility = default_visibility
-            else:
-                visibility = decln_access_spec
 
             if entity_shape:
                 # array
@@ -1382,7 +1439,9 @@ class Fparser2Reader(object):
                 except ValueError:
                     # Error setting initial value
                     raise NotImplementedError()
-                parent.symbol_table.add(sym)
+                # We don't want to check ancestor symbol tables as we're
+                # currently processing a *local* variable declaration.
+                parent.symbol_table.add(sym, check_ancestors=False)
             else:
                 # The symbol table already contains an entry with this name
                 # so update its interface information.
@@ -1394,10 +1453,16 @@ class Fparser2Reader(object):
                             sym_name, str(sym.interface)))
                 sym.interface = interface
 
-    def process_declarations(self, parent, nodes, arg_list):
+    def process_declarations(self, parent, nodes, arg_list,
+                             default_visibility=None,
+                             visibility_map=None):
         '''
         Transform the variable declarations in the fparser2 parse tree into
-        symbols in the symbol table of the PSyIR parent node.
+        symbols in the symbol table of the PSyIR parent node. If
+        `default_visibility` and `visibility_map` are not supplied then
+        _parse_access_statements() is called on the provided parse tree.
+        If `visibility_map` is supplied and `default_visibility` omitted then
+        it defaults to PUBLIC (the Fortran default).
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
@@ -1405,6 +1470,14 @@ class Fparser2Reader(object):
         :type nodes: list of :py:class:`fparser.two.utils.Base`
         :param arg_list: fparser2 AST node containing the argument list.
         :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
+        :param default_visibility: the visibility of a symbol which does not \
+                        have an explicit accessibility specification.
+        :type default_visibility: \
+                        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+        :param visibility_map: mapping of symbol names to explicit
+                        visibilities.
+        :type visibility_map: dict with str keys and values of type \
+                        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
         :raises NotImplementedError: the provided declarations contain \
                                      attributes which are not supported yet.
@@ -1416,11 +1489,16 @@ class Fparser2Reader(object):
                                or invalid fparser or Fortran expression.
 
         '''
-        # Search for any accessibility statements (e.g. "PUBLIC :: my_var") to
-        # determine the default accessibility of symbols as well as identifying
-        # those that are explicitly declared as public or private.
-        (default_visibility, explicit_public_symbols,
-         explicit_private_symbols) = self._parse_access_statements(nodes)
+        if default_visibility is None:
+            if visibility_map is None:
+                # If no default visibility or visibility mapping is supplied,
+                # check for any access statements.
+                default_visibility, visibility_map = \
+                    self._parse_access_statements(nodes)
+            else:
+                # In case the caller has provided a visibility map but
+                # omitted the default visibility, we use the Fortran default.
+                default_visibility = Symbol.Visibility.PUBLIC
 
         # Look at any USE statements
         self._process_use_stmts(parent, nodes)
@@ -1429,8 +1507,7 @@ class Fparser2Reader(object):
             try:
                 self._process_decln(parent, decl,
                                     default_visibility,
-                                    explicit_public_symbols,
-                                    explicit_private_symbols)
+                                    visibility_map)
             except NotImplementedError:
                 # Found an unsupported variable declaration. Create a
                 # DataSymbol with UnknownType for each entity being declared.
@@ -1460,30 +1537,26 @@ class Fparser2Reader(object):
                 # Restore the fparser2 parse tree
                 decl.children[2].items = tuple(orig_children)
 
-        # Check for symbols named in an access statement but not explicitly
-        # declared. These must then refer to symbols that have been brought
-        # into scope by an unqualified use statement. As we have no idea
-        # whether they represent data or a routine we use the Symbol base
-        # class.
-        for name in (list(explicit_public_symbols) +
-                     list(explicit_private_symbols)):
-            if name not in parent.symbol_table:
-                if name in explicit_public_symbols:
-                    vis = Symbol.Visibility.PUBLIC
-                else:
-                    vis = Symbol.Visibility.PRIVATE
-                # TODO 736 Ideally we would use parent.find_or_create_symbol()
-                # here since that checks that there is a possible source for
-                # this previously-unseen symbol. However, we cannot yet do this
-                # because we don't capture symbols for routine names so
-                # that, e.g.:
-                #   module my_mod
-                #     public my_routine
-                #   contains
-                #     subroutine my_routine()
-                # would cause us to raise an exception.
-                parent.symbol_table.add(Symbol(name, visibility=vis))
-
+        if visibility_map is not None:
+            # Check for symbols named in an access statement but not explicitly
+            # declared. These must then refer to symbols that have been brought
+            # into scope by an unqualified use statement.
+            for name, vis in visibility_map.items():
+                if name not in parent.symbol_table:
+                    # TODO #876 find_or_create_symbol() always creates a
+                    # DataSymbol if no matching symbol already exists and there
+                    # is at least one possible Container from which it may be
+                    # imported. This will be wrong if the symbol is actually
+                    # the name of a routine.
+                    try:
+                        parent.find_or_create_symbol(name, visibility=vis)
+                    except SymbolError as err:
+                        # Improve the error message with context-specific info
+                        six.raise_from(SymbolError(
+                            "'{0}' is listed in an accessibility statement as "
+                            "being '{1}' but failed to find a declaration or "
+                            "possible import (use) of this symbol.".format(
+                                name, vis)), err)
         try:
             arg_symbols = []
             # Ensure each associated symbol has the correct interface info.
@@ -1517,7 +1590,6 @@ class Fparser2Reader(object):
                 if symbol.is_array:
                     # This is an array assignment wrongly categorized as a
                     # statement_function by fparser2.
-                    array_name = fn_name
                     array_subscript = arg_list.items
 
                     assignment_rhs = scalar_expr

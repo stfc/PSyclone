@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: A. R. Porter and R. W. Ford  STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
 
 
@@ -214,9 +214,10 @@ def test_do_loop(parser):
                                 "s: WRITE, t: READ"
 
 
-@pytest.mark.xfail(reason="Implicit loops are not supported. TODO #440")
-def test_nemo_implicit_loop(parser):
-    ''' Check the handling of ImplicitLoops access information.
+def test_nemo_array_range(parser):
+    '''Check the handling of the access information for Fortran
+    array notation (captured using Ranges in the PSyiR).
+
     '''
     reader = FortranStringReader('''program test_prog
                                  integer :: jj, n
@@ -232,31 +233,8 @@ def test_nemo_implicit_loop(parser):
     do_loop = schedule.children[0]
     assert isinstance(do_loop, nemo.NemoLoop)
     var_accesses = VariablesAccessInfo(do_loop)
-    assert str(var_accesses) == "jj: READ+WRITE, n: READ, a: READ"
-
-
-def test_nemo_implicit_loop_partial(parser):
-    ''' Check the handling of ImplicitLoops access information.
-    '''
-    # TODO #440: Same as the test above but does not check the
-    # variables in the implicit loop construct, this test can
-    # be deleted when the issue is fixed and the above test
-    # passes.
-    reader = FortranStringReader('''program test_prog
-                                 integer :: jj, n
-                                 real :: s(5,5), t(5,5), a
-                                 do jj=1, n
-                                    s(:, jj)=t(:, jj)+a
-                                 enddo
-                                 end program test_prog''')
-    ast = parser(reader)
-    psy = PSyFactory(API).create(ast)
-    schedule = psy.invokes.get("test_prog").schedule
-
-    do_loop = schedule.children[0]
-    assert isinstance(do_loop, nemo.NemoLoop)
-    var_accesses = VariablesAccessInfo(do_loop)
-    assert str(var_accesses) == "jj: READ+WRITE, n: READ"  # a is missing
+    assert (str(var_accesses) == "a: READ, jj: READ+WRITE, n: READ, "
+            "s: WRITE, t: READ")
 
 
 @pytest.mark.xfail(reason="Gocean loops boundaries are strings #440")
@@ -287,14 +265,14 @@ def test_goloop_partially():
     of the gocean variable access handling.
     '''
     _, invoke = get_invoke("single_invoke_two_kernels_scalars.f90",
-                           "gocean1.0", name="invoke_0")
+                           "gocean1.0", name="invoke_0", dist_mem=False)
     do_loop = invoke.schedule.children[0]
     assert isinstance(do_loop, Loop)
 
     # The third argument is GO_GRID_X_MAX_INDEX, which is scalar
-    assert do_loop.args[2].is_scalar()
+    assert do_loop.args[2].is_scalar
     # The fourth argument is GO_GRID_MASK_T, which is an array
-    assert not do_loop.args[3].is_scalar()
+    assert not do_loop.args[3].is_scalar
 
     var_accesses = VariablesAccessInfo(do_loop)
     assert "a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "\
