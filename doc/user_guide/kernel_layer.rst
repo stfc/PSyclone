@@ -5,8 +5,8 @@ Kernel layer
 
 In the PSyKAl separation of concerns, Kernel code (code which is
 created to run within the Kernel layer), operates on a subset of a
-field (such as a column of cells). The reason for doing this is that it gives
-the PSy layer the responsibility of calling the Kernel over the
+field (such as a column of cells). The reason for doing this is that it
+gives the PSy layer the responsibility of calling the Kernel over the
 spatial domain which is where parallelism is typically exploited in
 finite element and finite difference codes. The PSy layer is therefore
 able to call the kernel layer in a flexible way (blocked and/or in

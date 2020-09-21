@@ -418,10 +418,11 @@ types.
 
 1) A Kernel must have at least one argument that is a field, field
    vector, or operator. This rule reflects the fact that a Kernel
-   operates on some sub-set of the whole domain (e.g. a cell column)
+   operates on some subset of the whole domain (e.g. a cell-column)
    and is therefore designed to be called from within a loop that
-   iterates over those sub-sets of the domain. It must therefore have
-   an argument that exists throughout the domain.
+   iterates over those subsets of the domain. This then only makes
+   sense if the kernel has one or more arguments that are not
+   invariant over the domain.
 
 2) The continuity of the iteration space of the Kernel is determined
    from the function space of the modified argument (see Section
@@ -1323,16 +1324,16 @@ The fourth type of metadata provided is ``OPERATES_ON``. This
 specifies that the Kernel has been written with the assumption that it
 is supplied with the specified data for each field/operator argument.
 For user-supplied kernels this currently only has one valid value
-which is ``CELL_COLUMN``. i.e. the kernel expects to be passed the
+which is ``CELL_COLUMN``, i.e. the kernel expects to be passed the
 data for a single column of cells for each field or operator argument.
-The possible values for ``OPERATES_ON`` and their interpretation is
+The possible values for ``OPERATES_ON`` and their interpretation are
 summarised in the following table:
 
 ===========  =========================================================
 operates_on  Data passed for each field/operator argument
 ===========  =========================================================
 cell_column  Single column of cells
-dof          Single dof (currently :ref:`built-ins` only)
+dof          Single DoF (currently :ref:`built-ins` only)
 ===========  =========================================================
 
 procedure
@@ -1911,7 +1912,7 @@ following rules:
 
 4) Kernel arguments must be either fields or scalars.
 
-4) All field arguments to a given Built-in must be on the same
+5) All field arguments to a given Built-in must be on the same
    function space. This is because all current Built-ins operate on
    DoFs and therefore all fields should have the same number. It also
    means that we can determine the number of DoFs uniquely when a

@@ -207,9 +207,8 @@ Cells
 -----
 
 In the LFRic API, kernels which have metadata which specifies
-``operates_on = CELL_COLUMN`` work
-internally on a column of cells. This means
-that PSyclone need only be concerned with iterating over cell-columns
+``operates_on = CELL_COLUMN`` work internally on a column of cells. This
+means that PSyclone need only be concerned with iterating over cell-columns
 in the horizontal. As a result, the LFRic infrastructure presents the
 mesh information to PSyclone as if the mesh were 2-dimensional. From
 now on this 2D view will be assumed i.e. a cell will actually be a
