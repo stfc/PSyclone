@@ -702,10 +702,13 @@ def try_kernels_trans(nodes):
                 if excluding.force_parallel:
                     loop_options["independent"] = True
                 # We put a COLLAPSE(2) clause on any perfectly-nested lon-lat
-                # loops.
+                # loops that have a Literal value for their step. The latter
+                # condition is necessary to avoid compiler errors with 20.7.
                 if loop.loop_type == "lat" and \
+                   isinstance(loop.step_expr, Literal) and \
                    isinstance(loop.loop_body[0], Loop) and \
                    loop.loop_body[0].loop_type == "lon" and \
+                   isinstance(loop.loop_body[0].step_expr, Literal) and \
                    len(loop.loop_body.children) == 1:
                     loop_options["collapse"] = 2
                 if loop_options and not isinstance(loop, NemoImplicitLoop):
