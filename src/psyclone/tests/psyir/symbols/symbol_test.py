@@ -265,39 +265,68 @@ def test_symbol_copy():
     assert new_sym.visibility == asym.visibility
 
 
-def test_symbol_resolve_deferred():
-    ''' Test the resolve_deferred method. '''
-    # resolve_deferred() for a local symbol has nothing to do so should
-    # just return itself.
+def test_get_external_symbol(monkeypatch):
+    ''' Test the get_external_symbol() method. '''
     asym = Symbol("a")
-    assert asym.resolve_deferred() is asym
-    # Create a Container that imports another Container
+    with pytest.raises(NotImplementedError) as err:
+        asym.get_external_symbol()
+    assert ("trying to resolve symbol 'a' properties, the lazy evaluation "
+            "of 'Local' interfaces is not supported" in str(err.value))
     other_container = ContainerSymbol("some_mod")
     ctable = SymbolTable()
     ctable.add(other_container)
     # Create a Symbol that is imported from the "some_mod" Container
     bsym = Symbol("b", interface=GlobalInterface(other_container))
     ctable.add(bsym)
-    sched = KernelSchedule("dummy")
-    _ = Container.create("test", ctable, [sched])
-    # We should be unable to find the "some_mod" module
+    _ = Container.create("test", ctable, [KernelSchedule("dummy")])
+    # Monkeypatch the container's FortranModuleInterface so that it always
+    # appears to be unable to find the "some_mod" module
+    def fake_import(name):
+        raise SymbolError("Oh dear")
+    monkeypatch.setattr(other_container._interface, "import_container",
+                        fake_import)
     with pytest.raises(SymbolError) as err:
-        bsym.resolve_deferred()
+        bsym.get_external_symbol()
     assert ("trying to resolve the properties of symbol 'b' in module "
-            "'some_mod'" in str(err.value))
-    sched2 = KernelSchedule("dummy2")
-    # To avoid this test searching for "some_mod", create a Container for it
-    # and attach this to the ContainerSymbol
+            "'some_mod': PSyclone SymbolTable error: Oh dear" in
+            str(err.value))
+    # Now create a Container for the 'some_mod' module and attach this to
+    # the ContainerSymbol
     ctable2 = SymbolTable()
-    some_mod = Container.create("some_mod", ctable2, [sched2])
+    some_mod = Container.create("some_mod", ctable2,
+                                [KernelSchedule("dummy2")])
     other_container._reference = some_mod
-    # At this point, that Container doesn't contain a definition of 'b'
+    # Currently the Container does not contain an entry for 'b'
     with pytest.raises(SymbolError) as err:
-        bsym.resolve_deferred()
-    assert ("interface points to module 'some_mod' but could not find the "
-            "definition of 'b'" in str(err.value))
-    # Finally, add a symbol for 'b' to the container
+        bsym.get_external_symbol()
+    assert ("trying to resolve the properties of symbol 'b'. The interface "
+            "points to module 'some_mod' but could not find the definition" in
+            str(err.value))
+    # Add an entry for 'b' to the Container's symbol table
     ctable2.add(DataSymbol("b", INTEGER_SINGLE_TYPE))
     new_sym = bsym.resolve_deferred()
+    assert isinstance(new_sym, DataSymbol)
+    assert new_sym.datatype == INTEGER_SINGLE_TYPE
+
+
+def test_symbol_resolve_deferred(monkeypatch):
+    ''' Test the resolve_deferred method. '''
+    # resolve_deferred() for a local symbol has nothing to do so should
+    # just return itself.
+    asym = Symbol("a")
+    assert asym.resolve_deferred() is asym
+    # Now test for a symbol that is imported from another Container
+    other_container = ContainerSymbol("some_mod")
+    bsym = Symbol("b", visibility=Symbol.Visibility.PRIVATE,
+                  interface=GlobalInterface(other_container))
+    # Monkeypatch the get_external_symbol() method so that it just returns
+    # a new DataSymbol
+    monkeypatch.setattr(bsym, "get_external_symbol",
+                        lambda: DataSymbol("b", INTEGER_SINGLE_TYPE))
+    new_sym = bsym.resolve_deferred()
+    # We should have a brand new symbol but with some of the properties
+    # of the original 'bsym' symbol.
     assert new_sym is not bsym
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
+    assert new_sym.visibility == Symbol.Visibility.PRIVATE
+    assert new_sym.is_global
