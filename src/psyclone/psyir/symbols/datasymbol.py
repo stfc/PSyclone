@@ -87,6 +87,9 @@ class DataSymbol(Symbol):
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
+        # This import has to be local to this method to avoid circular
+        # dependencies.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols.datatypes import DeferredType
         if isinstance(self.datatype, DeferredType):
             # Copy all the symbol properties but the interface and

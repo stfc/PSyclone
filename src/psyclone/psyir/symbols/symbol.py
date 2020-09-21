@@ -422,6 +422,9 @@ class Symbol(object):
         :raises TypeError: if the supplied `node` argument is not a PSyIR Node.
 
         '''
+        # This import has to be local to this method to avoid circular
+        # dependencies.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Node
         if not isinstance(node, Node):
             raise TypeError(

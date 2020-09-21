@@ -1123,6 +1123,9 @@ class Node(object):
         :raises SymbolError: if there is no Schedule or Container ancestor.
 
         '''
+        # These imports have to be local to this method to avoid circular
+        # dependencies.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Schedule, Container
         node = self.ancestor((Container, Schedule), include_self=True)
         if node:
