@@ -423,9 +423,7 @@ types.
    vector, or operator. This rule reflects the fact that a Kernel
    operates on some subset of the whole domain (e.g. a cell-column)
    and is therefore designed to be called from within a loop that
-   iterates over those subsets of the domain. This then only makes
-   sense if the kernel has one or more arguments that are not
-   invariant over the domain.
+   iterates over those subsets of the domain.
 
 2) The continuity of the iteration space of the Kernel is determined
    from the function space of the modified argument (see Section
@@ -2571,7 +2569,7 @@ Configuration
 Annexed DoFs
 ++++++++++++
 
-When a kernel operates on DoFs (rather than cell columns) for a continuous
+When a kernel operates on DoFs (rather than cell-columns) for a continuous
 field using distributed memory (see the :ref:`distributed_memory`
 Section), then PSyclone need only ensure that DoFs owned by a
 processor are computed. However, for continuous fields, shared DoFs at
@@ -2581,7 +2579,7 @@ processors will have continuous fields which contain DoFs that the
 processor does not own. These unowned DoFs are called `annexed` in the
 Dynamo0.3 API and are a separate, but related, concept to field halos.
 
-When a kernel that operates on a cell column needs to read a continuous
+When a kernel that operates on a cell-column needs to read a continuous
 field then the annexed DoFs must be up-to-date on all processors. If
 they are not then a halo exchange must be added. Currently PSyclone
 defaults, for kernels which iterate over DoFs, to iterating over only
