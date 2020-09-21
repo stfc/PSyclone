@@ -783,7 +783,7 @@ def test_find_or_create_new_symbol():
     new_symbol = assign.find_or_create_symbol("undefined")
     assert new_symbol.name == "undefined"
     assert isinstance(new_symbol.interface, UnresolvedInterface)
-    assert isinstance(new_symbol.datatype, DeferredType)
+    assert type(new_symbol) == Symbol
     assert "undefined" not in container.symbol_table
     assert kernel1.symbol_table.lookup("undefined") is new_symbol
 

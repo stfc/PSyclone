@@ -1582,12 +1582,10 @@ class Fparser2Reader(object):
             # into scope by an unqualified use statement.
             for name, vis in visibility_map.items():
                 if name not in parent.symbol_table:
-                    # TODO #876 find_or_create_symbol() always creates a
-                    # DataSymbol if no matching symbol already exists and there
-                    # is at least one possible Container from which it may be
-                    # imported. This will be wrong if the symbol is actually
-                    # the name of a routine.
                     try:
+                        # If a suitable unqualified use statement is found then
+                        # this call creates a Symbol and inserts it in the
+                        # appropriate symbol table.
                         parent.find_or_create_symbol(name, visibility=vis)
                     except SymbolError as err:
                         # Improve the error message with context-specific info
