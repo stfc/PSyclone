@@ -52,7 +52,8 @@ use argument_mod,            only : arg_type, func_type,     &
                                     GH_FIELD, GH_REAL,       &
                                     GH_READ, GH_WRITE,       &
                                     GH_BASIS, GH_DIFF_BASIS, &
-                                    GH_QUADRATURE_XYoZ, CELLS
+                                    GH_QUADRATURE_XYoZ,      &
+                                    CELL_COLUMN
 
 implicit none
 
