@@ -114,7 +114,7 @@ Below is an example of a kernel that is consistent with the
            arg_type(GH_FIELD,    GH_READ, ANY_SPACE_1),                    &
            arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1)        &
            /)
-      integer :: iterates_over = CELLS
+      integer :: operates_on = CELL_COLUMN
     contains
       procedure, nopass :: matrix_vector_mm_code
     end type

@@ -49,7 +49,7 @@ module testkern_dofs_mod
              arg_type(gh_field, gh_read,  w2),   &
              arg_type(gh_field, gh_read,  w3)    &
            /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: code => testkern_dofs_code
   end type testkern_dofs_type
