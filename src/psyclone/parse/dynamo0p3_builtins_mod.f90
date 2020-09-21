@@ -351,7 +351,7 @@ module dynamo0p3_builtins_mod
           arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              )         &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: setval_c_code
   end type setval_c
@@ -363,7 +363,7 @@ module dynamo0p3_builtins_mod
           arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_1),         &
           arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)          &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: setval_X_code
   end type setval_X
