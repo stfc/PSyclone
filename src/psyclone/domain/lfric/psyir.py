@@ -178,11 +178,9 @@ for array_type in array_datatypes + field_datatypes:
     exec('''
 class {0}DataType(ArrayType):
     def __init__(self, dims):
-        assert (len(dims) == {1}), ('Error, expected {1} dimension(s) but '
-            'got {{0}}'.format(len(dims)))
         super({0}DataType, self).__init__(
-            {2}DataType(), dims)
-    '''.format(NAME, len(DIMS), SCALAR_TYPE))
+            {1}DataType(), dims)
+    '''.format(NAME, SCALAR_TYPE))
     exec('''
 class {0}DataSymbol(DataSymbol):
     def __init__({1}):
