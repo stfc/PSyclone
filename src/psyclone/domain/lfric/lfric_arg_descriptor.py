@@ -63,13 +63,19 @@ class LFRicArgDescriptor(Descriptor):
                      field or operator).
     :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
                     :py:class:`psyclone.expression.BinaryOperator`
+    :param iterates_over: iteration space from the parsed kernel metadata \
+                          (used for validation).
+    :type iterates_over: str
 
     :raises ParseError: if a 'meta_arg' entry is not of 'arg_type' type.
-    :raises ParseError: if a 'meta_arg' entry has fewer than 2 args.
     :raises ParseError: if an argument type is not one of LFRic API \
                         valid argument types.
-    :raises ParseError: if the second 'meta_arg' entry is not a valid \
-                        access descriptor.
+    :raises ParseError: if a 'meta_arg' entry has fewer than 3 args.
+    :raises ParseError: if the third 'meta_arg' entry is not a valid \
+                        access descriptor (second for fields and operators, \
+                        will be updated in issue #817).
+    :raises InternalError: if the iteration space from the parsed kernel \
+                           metadata is not over 'cells' or 'dofs'.
     :raises InternalError: if all the metadata checks fail to catch an \
                            invalid argument type.
 
@@ -77,16 +83,19 @@ class LFRicArgDescriptor(Descriptor):
 
     # ---------- LFRicArgDescriptor class constants  ------------------------ #
     # Supported LFRic API argument types (scalars, fields, operators)
-    VALID_SCALAR_NAMES = ["gh_integer", "gh_real"]
+    # TODO in #874: Remove support for the old-style scalar metadata
+    #               (["gh_integer", "gh_real"]).
+    VALID_SCALAR_NAMES = ["gh_scalar", "gh_real", "gh_integer"]
     VALID_FIELD_NAMES = ["gh_field"]
     VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
     VALID_ARG_TYPE_NAMES = VALID_FIELD_NAMES + VALID_OPERATOR_NAMES + \
         VALID_SCALAR_NAMES
 
     # Supported API argument data types (real and integer for now) (the check
-    # for data type metadata being one of the valid types will be introduced
-    # in #774 and #817).
+    # for data type metadata being one of the valid types for fields and
+    # operators will be introduced in #817).
     VALID_ARG_DATA_TYPES = ["gh_real", "gh_integer"]
+    VALID_SCALAR_DATA_TYPES = VALID_ARG_DATA_TYPES
 
     # Supported LFRic API stencil types and directions
     VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
@@ -108,7 +117,7 @@ class LFRicArgDescriptor(Descriptor):
     VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
     # ----------------------------------------------------------------------- #
 
-    def __init__(self, arg_type):
+    def __init__(self, arg_type, iterates_over):
         self._arg_type = arg_type
         # Initialise properties
         self._argument_type = None
@@ -126,19 +135,17 @@ class LFRicArgDescriptor(Descriptor):
         self._stencil = None
         self._mesh = None
         self._nargs = 0
+        # Initialise temporary "offset" internal argument required
+        # to support the old and the current argument metadata style.
+        # TODO in #874: Remove support the for the old-style metadata
+        #               as well as this temporary argument.
+        self._offset = 0
 
         # Check for correct type descriptor
         if arg_type.name != 'arg_type':
             raise ParseError(
                 "In the LFRic API each 'meta_arg' entry must be of type "
                 "'arg_type', but found '{0}'.".format(arg_type.name))
-
-        # Check number of args (we require at least two)
-        self._nargs = len(arg_type.args)
-        if self._nargs < 2:
-            raise ParseError(
-                "In the LFRic API each 'meta_arg' entry must have at "
-                "least 2 args, but found '{0}'.".format(self._nargs))
 
         # Check the first argument descriptor. If it is a binary operator
         # then it has to be a field vector with an "*n" appended where "*"
@@ -160,8 +167,8 @@ class LFRicArgDescriptor(Descriptor):
         else:
             raise ParseError(
                 "In the LFRic API the 1st argument of a 'meta_arg' "
-                "entry should be a valid argument type (one of {0}), but "
-                "found '{1}' in '{2}'.".
+                "entry should be a valid argument type (one of {0}), "
+                "but found '{1}' in '{2}'.".
                 format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES,
                        argtype, arg_type))
 
@@ -170,25 +177,71 @@ class LFRicArgDescriptor(Descriptor):
         if separator:
             self._validate_vector_size(separator, arg_type)
 
-        # The 2nd arg is an access descriptor. Permitted accesses for each
-        # argument type are dealt with in the related _validate methods.
+        # The 2nd arg for scalars (1st for the old-style scalar metadata)
+        # is the Fortran primitive type of their data.
+        # TODO in issue #817: introduce data type for fields and operators,
+        # too, and modify the ParseError accordingly.
+        # Note: Here we also set internal "offset" argument required to
+        #       support the old and the current argument metadata style.
+        # TODO in #874: Remove support for the old-style metadata.
+        if self._argument_type == "gh_scalar":
+            dtype = arg_type.args[1].name
+            if dtype in LFRicArgDescriptor.VALID_ARG_DATA_TYPES:
+                self._data_type = dtype
+                self._offset = 1
+            else:
+                raise ParseError(
+                    "In the LFRic API the 2nd argument of a 'meta_arg' "
+                    "scalar entry should be a valid data type (one of {0}), "
+                    "but found '{1}' in '{2}'.".
+                    format(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
+                           dtype, self._argument_type))
+
+        # Check number of args (in general and also for scalar arguments).
+        # We require at least three (two for old-style metadata).
+        # TODO in issue #874: Remove offset and restore this check below
+        #                     the first check for the correct 'arg_type'
+        #                     descriptor name.
+        self._nargs = len(arg_type.args)
+        min_nargs = 2 + self._offset
+        if self._nargs < min_nargs:
+            raise ParseError(
+                "In the LFRic API each 'meta_arg' entry must have at least "
+                "{0} args, but found {1} in '{2}'.".
+                format(min_nargs, self._nargs, arg_type))
+
+        # The 3rd arg for scalars and 2nd arg for fields and operators is an
+        # access descriptor (issue #817 will make the access descriptor a 3rd
+        # argument for the fields and operators, too). Permitted accesses for
+        # each argument type are dealt with in the related _validate methods.
         # Convert from GH_* names to the generic access type
         api_config = Config.get().api_conf(API)
         access_mapping = api_config.get_access_mapping()
+        prop_ind = 1 + self._offset
         try:
-            self._access_type = access_mapping[arg_type.args[1].name]
+            self._access_type = access_mapping[arg_type.args[prop_ind].name]
         except KeyError:
             valid_names = api_config.get_valid_accesses_api()
             raise ParseError(
-                "In the LFRic API the 2nd argument of a 'meta_arg' entry "
-                "must be a valid access descriptor (one of {0}), but found "
-                "'{1}' in '{2}'.".format(valid_names,
-                                         arg_type.args[1].name, arg_type))
+                "In the LFRic API argument {0} of a 'meta_arg' entry "
+                "must be a valid access descriptor (one of {1}), but found "
+                "'{2}' in '{3}'.".
+                format(prop_ind+1, valid_names, arg_type.args[prop_ind].name,
+                       arg_type))
+
+        # Check for the allowed iteration spaces from the parsed kernel
+        # metadata
+        from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
+        if iterates_over not in VALID_ITERATION_SPACES:
+            raise InternalError(
+                "LFRicArgDescriptor.__init__(): expected one of {0} "
+                "iteration spaces in the kernel metadata but got "
+                "'{1}'.".format(VALID_ITERATION_SPACES, iterates_over))
 
         # FIELD, OPERATOR and SCALAR argument type descriptors and checks
         if self._argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
             # Validate field arguments
-            self._init_field(arg_type)
+            self._init_field(arg_type, iterates_over)
 
         elif self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
             # Validate operator arguments
@@ -268,13 +321,16 @@ class LFRicArgDescriptor(Descriptor):
                 format(LFRicArgDescriptor.VALID_FIELD_NAMES,
                        arg_type.args[0]))
 
-    def _init_field(self, arg_type):
+    def _init_field(self, arg_type, iterates_over):
         '''
         Validates metadata descriptors for field arguments and
         initialises field argument properties accordingly.
 
         :param arg_type: LFRic API field (vector) argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
+        :param iterates_over: iteration space from the parsed kernel \
+                              metadata (used for validation).
+        :type iterates_over: str
 
         :raises InternalError: if argument type other than a field is \
                                passed in.
@@ -284,19 +340,24 @@ class LFRicArgDescriptor(Descriptor):
         :raises ParseError: if the optional 4th argument is not a stencil \
                             specification or a mesh identifier (for \
                             inter-grid kernels).
+        :raises ParseError: if a field passed to a kernel that iterates \
+                            over DoFs does not have a valid access \
+                            (one of [READ, WRITE, READWRITE]).
         :raises ParseError: if a field on a discontinuous function space \
-                            has 'gh_inc' access.
-        :raises ParseError: if a field on a continuous function space has \
-                            'gh_readwrite' access.
-        :raises ParseError: if a field on 'any_space' function space has \
-                            'gh_readwrite' access.
-        :raises ParseError: if a field with a stencil access is not read only.
+                            passed to a kernel that iterates over cells \
+                            does not have a valid access (one of \
+                            [READ, WRITE, READWRITE]).
+        :raises ParseError: if a field on a continuous function space \
+                            passed to a kernel that iterates over cells \
+                            does not have a valid access (one of [READ, INC]).
+        :raises InternalError: if an invalid iteration space is passed in.
+        :raises ParseError: if a field with a stencil access is not read-only.
 
         '''
         # Check whether something other than a field is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_FIELD_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._init_field(): expecting a field "
+                "LFRicArgDescriptor._init_field(): expected a field "
                 "argument but got an argument of type '{0}'.".
                 format(arg_type.args[0]))
 
@@ -358,60 +419,60 @@ class LFRicArgDescriptor(Descriptor):
         field_disc_accesses = [AccessType.READ, AccessType.WRITE,
                                AccessType.READWRITE]
         field_cont_accesses = [AccessType.READ, AccessType.INC]
-        # TODO in issue #471: Kernels that loop over DoFs update each
-        # DoF independently, irrespective of whether the associated
-        # field is continuous or not. Therefore their allowed accesses
-        # are read, write and readwrite (which is the same as
-        # discontinuous fields that are accessed by kernels that
-        # iterate over cells). The logic associated with
-        # field_cont_accesses_tmp and fld_cont_acc_msg_tmp should be
-        # removed as part of #471.
-        field_cont_accesses_tmp = field_cont_accesses + [AccessType.WRITE]
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
         rev_access_mapping = api_config.get_reverse_access_mapping()
-
-        # Check fields on discontinuous function spaces
+        # Create a list of allowed accesses for use in error messages
         fld_disc_acc_msg = [rev_access_mapping[acc] for acc in
                             field_disc_accesses]
-        if self._function_space1.lower() in \
-           FunctionSpace.VALID_DISCONTINUOUS_NAMES \
-           and self._access_type not in field_disc_accesses:
-            raise ParseError(
-                "In the LFRic API, allowed accesses for a field on a "
-                "discontinuous function space '{0}' are {1}, but found "
-                "'{2}' in '{3}'.".
-                format(self._function_space1.lower(), fld_disc_acc_msg,
-                       rev_access_mapping[self._access_type], arg_type))
-
-        # Check fields on continuous function spaces
         fld_cont_acc_msg = [rev_access_mapping[acc] for acc in
                             field_cont_accesses]
-        # Remove fld_cont_acc_msg_tmp as part of #471
-        fld_cont_acc_msg_tmp = [rev_access_mapping[acc] for acc in
-                                field_cont_accesses_tmp]
-        if self._function_space1.lower() in \
-           FunctionSpace.CONTINUOUS_FUNCTION_SPACES \
-           and self._access_type not in field_cont_accesses:
-            raise ParseError(
-                "In the LFRic API, allowed accesses for a field on a "
-                "continuous function space '{0}' are {1}, but found "
-                "'{2}' in '{3}'.".
-                format(self._function_space1.lower(), fld_cont_acc_msg,
-                       rev_access_mapping[self._access_type], arg_type))
-        # As said above, the allowed accesses for fields on ANY_SPACE
-        # depend on the type of looping. This will be refined in #471,
-        # however for now we use the temporary variables
-        # field_cont_accesses_tmp and fld_cont_acc_msg_tmp for
-        # continuous spaces.
-        if self._function_space1.lower() in \
-           FunctionSpace.VALID_ANY_SPACE_NAMES \
-           and self._access_type not in field_cont_accesses_tmp:
-            raise ParseError(
-                "In the LFRic API, allowed accesses for a field on "
-                "'any_space' are {0}, but found '{1}' in '{2}'.".
-                format(fld_cont_acc_msg_tmp,
-                       rev_access_mapping[self._access_type], arg_type))
+        # Joint lists of valid function spaces for continuous fields
+        fld_cont_spaces = (FunctionSpace.CONTINUOUS_FUNCTION_SPACES +
+                           FunctionSpace.VALID_ANY_SPACE_NAMES)
+
+        # Check accesses for kernels that iterate over DoFs
+        if iterates_over == "dofs":
+            if self._access_type not in field_disc_accesses:
+                raise ParseError(
+                    "In the LFRic API, allowed field accesses for a "
+                    "kernel that iterates over DoFs are {0}, but found "
+                    "'{1}' for '{2}' in '{3}'.".
+                    format(fld_disc_acc_msg,
+                           rev_access_mapping[self._access_type],
+                           self._function_space1.lower(), arg_type))
+        # Check accesses for kernels that iterate over cells
+        elif iterates_over == "cells":
+            # Fields on discontinuous function spaces
+            if (self._function_space1.lower() in
+                    FunctionSpace.VALID_DISCONTINUOUS_NAMES and
+                    self._access_type not in field_disc_accesses):
+                raise ParseError(
+                    "In the LFRic API, allowed accesses for fields on "
+                    "discontinuous function spaces that are arguments to "
+                    "kernels that iterate over cells are {0}, but found "
+                    "'{1}' for '{2}' in '{3}'.".
+                    format(fld_disc_acc_msg,
+                           rev_access_mapping[self._access_type],
+                           self._function_space1.lower(), arg_type))
+            # Fields on continuous function spaces
+            if (self._function_space1.lower() in fld_cont_spaces and
+                    self._access_type not in field_cont_accesses):
+                raise ParseError(
+                    "In the LFRic API, allowed accesses for fields on "
+                    "continuous function spaces that are arguments to "
+                    "kernels that iterate over cells are {0}, but found "
+                    "'{1}' for '{2}' in '{3}'.".
+                    format(fld_cont_acc_msg,
+                           rev_access_mapping[self._access_type],
+                           self._function_space1.lower(), arg_type))
+        # Raise an InternalError for an invalid iteration space
+        else:
+            from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
+            raise InternalError(
+                "LFRicArgDescriptor._init_field(): Invalid iteration "
+                "space '{0}' in the kernel metadata (expected one of {1}).".
+                format(iterates_over, VALID_ITERATION_SPACES))
 
         # Test allowed accesses for fields that have stencil specification
         if self._stencil and self._access_type != AccessType.READ:
@@ -442,7 +503,7 @@ class LFRicArgDescriptor(Descriptor):
         # Check whether something other than an operator is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._init_operator(): expecting an "
+                "LFRicArgDescriptor._init_operator(): expected an "
                 "operator argument but got an argument of type '{0}'.".
                 format(self._argument_type))
 
@@ -505,7 +566,8 @@ class LFRicArgDescriptor(Descriptor):
 
         :raises InternalError: if argument type other than a scalar is \
                                passed in.
-        :raises ParseError: if there are not exactly 2 metadata arguments.
+        :raises ParseError: if there are not exactly 3 metadata arguments.
+        :raises InternalError: if a scalar argument has an invalid data type.
         :raises ParseError: if scalar arguments do not have a read-only or
                             a reduction access.
         :raises ParseError: if a scalar argument that is not a real \
@@ -515,21 +577,40 @@ class LFRicArgDescriptor(Descriptor):
         # Check whether something other than a scalar is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_SCALAR_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._init_scalar(): expecting a scalar "
+                "LFRicArgDescriptor._init_scalar(): expected a scalar "
                 "argument but got an argument of type '{0}'.".
                 format(arg_type.args[0]))
 
-        # There must be 2 arguments to describe a scalar
-        if self._nargs != 2:
+        # There must be 3 argument descriptors to describe a scalar.
+        # TODO in #874: Remove support for the old-style 2 descriptors.
+        min_scalar_nargs = 2 + self._offset
+        if self._nargs != min_scalar_nargs:
             raise ParseError(
-                "In the LFRic API each 'meta_arg' entry must have 2 "
+                "In the LFRic API each 'meta_arg' entry must have {0} "
                 "arguments if its first argument is 'gh_{{r,i}}scalar', but "
-                "found {0} in '{1}'.".format(self._nargs, arg_type))
+                "found {1} in '{2}'.".
+                format(min_scalar_nargs, self._nargs, arg_type))
 
-        # Scalar data_type is determined by its metadata descriptor for
-        # type as a first argument, however this will change to the second
-        # argument in issue #774
-        self._data_type = arg_type.args[0].name
+        # Check whether an invalid data type for a scalar argument is passed
+        # in. Valid data types for scalars are valid data types in LFRic API.
+        # TODO in #874: Remove the support for old-style scalar metadata that
+        #               assigns the data type from the scalar name (the 1st
+        #               argument).
+        #               Note: The main check for the valid scalar data types
+        #               will be ParseError in the class constructor and this
+        #               scalar init method only needs to check for
+        #               InternalError.
+        if not self._data_type and self._offset == 0:
+            self._data_type = arg_type.args[0].name
+            # Translate the old-style argument type into the current one
+            self._argument_type = "gh_scalar"
+        if (self._data_type not in
+                LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES):
+            raise InternalError(
+                "LFRicArgDescriptor._init_scalar(): expected one of {0} "
+                "as the data type but got '{1}'.".
+                format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES,
+                       self._data_type))
 
         # Test allowed accesses for scalars (read_only or reduction)
         scalar_accesses = [AccessType.READ] + \
@@ -550,10 +631,10 @@ class LFRicArgDescriptor(Descriptor):
            AccessType.get_valid_reduction_modes():
             raise ParseError(
                 "In the LFRic API a reduction access '{0}' is only valid "
-                "with a real scalar argument, but scalar '{1}' with '{2}' "
-                "data type was found in '{3}'.".
+                "with a real scalar argument, but a scalar argument with "
+                "'{1}' data type was found in '{2}'.".
                 format(self._access_type.api_specific_name(),
-                       self._argument_type, self._data_type, arg_type))
+                       self._data_type, arg_type))
 
         # Scalars don't have vector size
         self._vector_size = 0

@@ -85,7 +85,7 @@ def test_dynbuiltin_missing_defs(monkeypatch):
 
 def test_dynbuiltin_not_over_dofs():
     ''' Check that we raise an appropriate error if we encounter a
-    built-in that does not iterate over dofs '''
+    built-in that does not iterate over dofs. '''
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "not_dofs_builtins_mod.f90")
@@ -96,16 +96,16 @@ def test_dynbuiltin_not_over_dofs():
     # Restore the original file name before doing the assert in case
     # it fails
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("built-in calls must iterate over DoFs but found cells for "
+    assert ("built-in calls must iterate over DoFs but found 'cells' for "
             "Built-in: Set field " in str(excinfo.value))
 
 
 def test_builtin_multiple_writes():
     ''' Check that we raise an appropriate error if we encounter a built-in
-    that writes to more than one argument '''
+    that writes to more than one argument. '''
     # The file containing broken meta-data for the built-ins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
@@ -121,15 +121,17 @@ def test_builtin_multiple_writes():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
-            "one argument that is written to but found 2 for kernel " +
+    assert ("A built-in kernel in the LFRic API must have one and only "
+            "one argument that is written to but found 2 for kernel '" +
             test_builtin_name.lower() in str(excinfo.value))
 
 
-def test_builtin_write_and_inc():
+def test_builtin_write_and_readwrite():
     ''' Check that we raise an appropriate error if we encounter a built-in
     that updates more than one argument where one is gh_write and one is
-    gh_inc '''
+    gh_readwrite.
+
+    '''
     # The file containing broken meta-data for the built-ins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
@@ -144,15 +146,17 @@ def test_builtin_write_and_inc():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
-            "one argument that is written to but found 2 for kernel " +
+    assert ("A built-in kernel in the LFRic API must have one and only "
+            "one argument that is written to but found 2 for kernel '" +
             test_builtin_name.lower() in str(excinfo.value))
 
 
-def test_builtin_sum_and_inc():
+def test_builtin_sum_and_readwrite():
     ''' Check that we raise an appropriate error if we encounter a built-in
     that updates more than one argument where one is gh_sum and one is
-    gh_inc '''
+    gh_readwrite.
+
+    '''
     # The file containing broken meta-data for the built-ins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
@@ -167,14 +171,14 @@ def test_builtin_sum_and_inc():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the Dynamo 0.3 API must have one and "
-            "only one argument that is written to but found 2 for kernel " +
+    assert ("A built-in kernel in the LFRic API must have one and "
+            "only one argument that is written to but found 2 for kernel '" +
             test_builtin_name.lower() in str(excinfo.value))
 
 
 def test_builtin_zero_writes(monkeypatch):
     ''' Check that we raise an appropriate error if we encounter a built-in
-    that does not write to any field '''
+    that does not write to any field. '''
     # Use pytest's monkeypatch support to change our configuration to
     # point to a file containing broken meta-data for the
     # built-ins. The definition for aX_plus_bY that it contains erroneously
@@ -197,7 +201,7 @@ def test_builtin_zero_writes(monkeypatch):
 
 def test_builtin_no_field_args():
     ''' Check that we raise appropriate error if we encounter a built-in
-    that does not have any field arguments '''
+    that does not have any field arguments. '''
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "setval_X"
@@ -211,9 +215,9 @@ def test_builtin_no_field_args():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the Dynamo 0.3 API "
-            "must have at least one field as an argument but "
-            "kernel " + test_builtin_name.lower() + " has none"
+    assert ("A built-in kernel in the LFRic API must have "
+            "at least one field as an argument but kernel '"
+            + test_builtin_name.lower() + "' has none"
             in str(excinfo.value))
 
 
@@ -237,16 +241,15 @@ def test_builtin_operator_arg():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("In the LFRic API an argument to a built-in kernel "
-            "must be one of {0} but kernel '{1}' has an argument of "
-            "type 'gh_operator'.".
+    assert ("In the LFRic API an argument to a built-in kernel must be one "
+            "of {0} but kernel '{1}' has an argument of type 'gh_operator'.".
             format(VALID_BUILTIN_ARG_TYPES, test_builtin_name.lower())
             in str(excinfo.value))
 
 
 def test_builtin_args_not_same_space():
     ''' Check that we raise the correct error if we encounter a built-in
-    that has arguments on different function spaces '''
+    that has arguments on different function spaces. '''
     # Save the name of the actual builtin-definitions file
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
@@ -264,10 +267,10 @@ def test_builtin_args_not_same_space():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("All field arguments to a built-in in the Dynamo 0.3 API "
-            "must be on the same space. However, found spaces ['any_space_1', "
-            "'any_space_2'] for arguments to " + test_builtin_name.lower() in
-            str(excinfo.value))
+    assert ("All field arguments to a built-in in the LFRic API must "
+            "be on the same space. However, found spaces ['any_space_1', "
+            "'any_space_2'] for arguments to '" + test_builtin_name.lower()
+            in str(excinfo.value))
 
 
 def test_dynbuiltincallfactory_str():
@@ -275,7 +278,7 @@ def test_dynbuiltincallfactory_str():
     expected '''
     from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
     dyninf = DynBuiltInCallFactory()
-    assert str(dyninf) == "Factory for a call to a Dynamo built-in"
+    assert str(dyninf) == "Factory for a call to a Dynamo built-in."
 
 
 def test_dynbuiltin_wrong_name():
@@ -290,20 +293,20 @@ def test_dynbuiltin_wrong_name():
     fake_kern.func_name = "pw_blah"
     with pytest.raises(ParseError) as excinfo:
         _ = dyninf.create(fake_kern)
-    assert ("Unrecognised built-in call. Found 'pw_blah' but "
-            "expected one of '[" in str(excinfo.value))
+    assert ("Unrecognised built-in call in LFRic API: found 'pw_blah' "
+            "but expected one of [" in str(excinfo.value))
 
 
 def test_invalid_builtin_kernel():
     ''' Check that we raise an appropriate error if an unrecognised
-    built-in is specified in the algorithm layer '''
+    built-in is specified in the algorithm layer. '''
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
                                   "15.12.1_invalid_builtin_kernel.f90"),
                      api=API)
-    assert ("kernel call 'setva_c' must either be named in a "
-            "use statement (found ['inf']) or be a recognised built-in" in
-            str(excinfo.value))
+    assert ("kernel call 'setva_c' must either be named in a use "
+            "statement (found ['constants_mod', 'field_mod']) or be a "
+            "recognised built-in" in str(excinfo.value))
 
 
 def test_dynbuiltin_str(dist_mem):
@@ -2343,7 +2346,7 @@ def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "        f1_proxy%data(df) = fred\n"
             "      END DO\n"
             "      DO df=1,undf_aspc1_f2\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = ginger\n"
@@ -2363,7 +2366,7 @@ def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "      CALL f1_proxy%set_dirty()\n"
             "      !\n"
             "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2437,7 +2440,7 @@ def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
             "undf_w3, map_w3(:,cell))\n"
             "      END DO\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = 0.0\n"
+            "        f1_proxy%data(df) = 0.0_r_def\n"
             "      END DO")
         assert output in code
     if dist_mem:
@@ -2471,7 +2474,7 @@ def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
             "      CALL f1_proxy%set_dirty()\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = 0.0\n"
+            "        f1_proxy%data(df) = 0.0_r_def\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2602,7 +2605,7 @@ def test_scalar_int_builtin_error(monkeypatch):
                                   "16.2_integer_scalar_sum.f90"),
                      api=API)
     assert ("In the LFRic API a reduction access 'gh_sum' is only valid "
-            "with a real scalar argument, but scalar 'gh_integer' with "
+            "with a real scalar argument, but a scalar argument with "
             "'gh_integer' data type was found" in str(excinfo.value))
 
 

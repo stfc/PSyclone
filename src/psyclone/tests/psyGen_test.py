@@ -612,7 +612,8 @@ def test_acc_dir_node_str():
     acclt = ACCLoopTrans()
     accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     colour = SCHEDULE_COLOUR_MAP["Directive"]
     schedule = invoke.schedule
 
@@ -736,7 +737,7 @@ def test_args_filter2():
     assert len(args) == len(expected_output)
 
     # arg_types
-    args = loop.args_filter(arg_types=["gh_operator", "gh_integer"])
+    args = loop.args_filter(arg_types=["gh_operator", "gh_scalar"])
     expected_output = ["mm_w0", "a"]
     for arg in args:
         assert arg.name in expected_output
@@ -1568,7 +1569,8 @@ def test_omp_dag_names():
 def test_acc_dag_names():
     ''' Check that we generate the correct dag names for ACC parallel,
     ACC enter-data and ACC loop directive Nodes '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
 
     acclt = ACCLoopTrans()
@@ -2170,7 +2172,7 @@ def test_kern_ast():
     from fparser.two import Fortran2003
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].loop_body[0].loop_body[0]
+    kern = sched.coded_kernels()[0]
     assert isinstance(kern, GOKern)
     assert kern.ast
     assert isinstance(kern.ast, Fortran2003.Program)

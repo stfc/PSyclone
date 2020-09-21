@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,30 +30,24 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
 
-module simple_with_scalars_mod
-
-  use argument_mod
-  use fs_continuity_mod
-  use kernel_mod
-  use constants_mod
-
+program explicit_do_long_line
   implicit none
+  integer :: ji, jj, jk
+  integer :: jpi, jpj, jpk
+  real :: r
+  real, dimension(jpi,jpj,jpk) :: umask
 
-  type, extends(kernel_type) :: simple_with_scalars_type
-    type(arg_type), dimension(3) :: meta_args =          &
-         (/ arg_type(gh_scalar, gh_real,    gh_read),    &
-            arg_type(gh_field,              gh_inc, w1), &
-            arg_type(gh_scalar, gh_integer, gh_read) /)
-    integer :: iterates_over = cells
-  contains
-    procedure, nopass :: code => simple_with_scalars_code
-  end type simple_with_scalars_type
+  ! Test code with explicit NEMO-style do loop containing long line
+  DO jk = 1, jpk
+     DO jj = 1, jpj
+        DO ji = 1, jpi
+           umask(ji,jj,jk) = ji*jj*jk/r ! This is a comment that takes this line beyond the standard limit of one hundred and thirty two characters.
+        END DO
+     END DO
+  END DO
 
-contains
+  ! A line that really is too long, even without a comment
+  umask(1:jpi,1:jpj,1:jpk) = umask(jpi-1, jpj-1, jpk-1) + umask(jpi, jpj, jpk) + umask(jpi, jpj, jpk) + umask(jpi, jpj, jpk) + jpi + jpj + jpk + jpi + jpj + jpk
 
-  subroutine simple_with_scalars_code()
-  end subroutine simple_with_scalars_code
-
-end module simple_with_scalars_mod
+end program explicit_do_long_line

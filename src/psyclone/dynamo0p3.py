@@ -54,6 +54,7 @@ from psyclone.parse.utils import ParseError
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
+from psyclone.dynamo0p3_builtins import BUILTIN_ITERATION_SPACES
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor)
@@ -135,16 +136,21 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
                            + HALO_ACCESS_LOOP_BOUNDS)
 
 
-# Valid Dynamo0.3 loop types. The default is "" which is over cells (in the
+# Valid LFRic loop types. The default is "" which is over cells (in the
 # horizontal plane).
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
+# Valid LFRic iteration spaces for user-supplied kernels and built-in kernels
+USER_KERNEL_ITERATION_SPACES = ["cells"]
+VALID_ITERATION_SPACES = USER_KERNEL_ITERATION_SPACES + \
+    BUILTIN_ITERATION_SPACES
+
 # ---------- psyGen mappings ------------------------------------------------ #
-# Mappings used by non-API-Specific code in psyGen.
-# psyGen ["iscalar", "rscalar"] translate to LFRic scalar names.
-psyGen.MAPPING_SCALARS = dict(zip(psyGen.MAPPING_SCALARS_LIST,
-                                  LFRicArgDescriptor.VALID_SCALAR_NAMES))
-# psyGen argument types translate to LFRic argument types
+# Mappings used by non-API-specific code in psyGen.
+# psyGen ["rscalar", "iscalar"] translate to LFRic scalar names.
+psyGen.VALID_SCALAR_NAMES = LFRicArgDescriptor.VALID_SCALAR_NAMES
+
+# psyGen argument types translate to LFRic argument types.
 psyGen.VALID_ARG_TYPE_NAMES = LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
 
 # ---------- Functions ------------------------------------------------------ #
@@ -459,7 +465,8 @@ class DynKernMetadata(KernelType):
         # parse the arg_type metadata
         self._arg_descriptors = []
         for arg_type in self._inits:
-            self._arg_descriptors.append(LFRicArgDescriptor(arg_type))
+            self._arg_descriptors.append(
+                LFRicArgDescriptor(arg_type, self.iterates_over))
 
         # Get a list of the Type declarations in the metadata
         type_declns = [cline for cline in self._ktype.content if
@@ -585,12 +592,10 @@ class DynKernMetadata(KernelType):
                 if self.name not in BUILTIN_MAP and \
                    arg.argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
                     raise ParseError(
-                        "A user-supplied Dynamo 0.3 kernel must not "
-                        "write/update a scalar argument but kernel {0} has "
-                        "{1} with {2} access"
-                        .format(self.name,
-                                arg.argument_type,
-                                arg.access.api_specific_name()))
+                        "A user-supplied LFRic kernel must not write/update "
+                        "a scalar argument but kernel '{0}' has a scalar "
+                        "argument with '{1}' access."
+                        .format(self.name, arg.access.api_specific_name()))
         if write_count == 0:
             raise ParseError("A Dynamo 0.3 kernel must have at least one "
                              "argument that is updated (written to) but "
@@ -6146,12 +6151,12 @@ class DynLoop(Loop):
                     # Iterate to ncells for all discontinuous quantities,
                     # including any_discontinuous_space
                     self.set_upper_bound("ncells")
-                elif self.field_space.orig_name in \
-                        FunctionSpace.CONTINUOUS_FUNCTION_SPACES:
+                elif (self.field_space.orig_name in
+                      FunctionSpace.CONTINUOUS_FUNCTION_SPACES):
                     # Must iterate out to L1 halo for continuous quantities
                     self.set_upper_bound("cell_halo", index=1)
-                elif self.field_space.orig_name in \
-                        FunctionSpace.VALID_ANY_SPACE_NAMES:
+                elif (self.field_space.orig_name in
+                      FunctionSpace.VALID_ANY_SPACE_NAMES):
                     # We don't know whether any_space is continuous or not
                     # so we have to err on the side of caution and assume that
                     # it is.
@@ -6376,21 +6381,6 @@ class DynLoop(Loop):
             raise GenerationError(
                 "Unsupported upper bound name '{0}' found in dynloop.upper_"
                 "bound_fortran()".format(self._upper_bound_name))
-
-    def unique_fields_with_halo_reads(self):
-        ''' Returns all fields in this loop that require at least some
-        of their halo to be clean to work correctly. '''
-
-        unique_fields = []
-        unique_field_names = []
-
-        for call in self.kernels():
-            for arg in call.arguments.args:
-                if self._halo_read_access(arg):
-                    if arg.name not in unique_field_names:
-                        unique_field_names.append(arg.name)
-                        unique_fields.append(arg)
-        return unique_fields
 
     def _halo_read_access(self, arg):
         '''
@@ -6810,8 +6800,13 @@ class DynKern(CodedKern):
 
         :param ktype: the kernel meta-data object produced by the parser
         :type ktype: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
+
+        :raises InternalError: for an invalid data type of a scalar argument.
+        :raises GenerationError: if an invalid argument type is found \
+                                 in the kernel.
+
         '''
-        # create a name for each argument
+        # Create a name for each argument
         from psyclone.parse.algorithm import Arg
         args = []
         for idx, descriptor in enumerate(ktype.arg_descriptors):
@@ -6822,10 +6817,18 @@ class DynKern(CodedKern):
                 pre = "cma_op_"
             elif descriptor.argument_type.lower() == "gh_field":
                 pre = "field_"
-            elif descriptor.argument_type.lower() == "gh_real":
-                pre = "rscalar_"
-            elif descriptor.argument_type.lower() == "gh_integer":
-                pre = "iscalar_"
+            elif (descriptor.argument_type.lower() in
+                  LFRicArgDescriptor.VALID_SCALAR_NAMES):
+                if descriptor.data_type.lower() == "gh_real":
+                    pre = "rscalar_"
+                elif descriptor.data_type.lower() == "gh_integer":
+                    pre = "iscalar_"
+                else:
+                    raise InternalError(
+                        "DynKern.load_meta(): expected one of {0} data types "
+                        "for a scalar argument but found '{1}'.".
+                        format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES,
+                               descriptor.data_type))
             else:
                 raise GenerationError(
                     "DynKern.load_meta() expected one of {0} but found '{1}'".
@@ -6835,11 +6838,11 @@ class DynKern(CodedKern):
 
             if descriptor.stencil:
                 if not descriptor.stencil["extent"]:
-                    # stencil size (in cells) is passed in
+                    # Stencil size (in cells) is passed in
                     args.append(Arg("variable",
                                     pre+str(idx+1)+"_stencil_size"))
                 if descriptor.stencil["type"] == "xory1d":
-                    # direction is passed in
+                    # Direction is passed in
                     args.append(Arg("variable", pre+str(idx+1)+"_direction"))
 
         # Initialise basis/diff basis so we can test whether quadrature
@@ -7139,9 +7142,21 @@ class DynKern(CodedKern):
         Create the fparser1 AST for a kernel stub.
 
         :returns: root of fparser1 AST for the stub routine.
-        :rtype: :py:class:`fparser.one.XXXX`
+        :rtype: :py:class:`fparser.one.block_statements.Module`
+
+        :raises InternalError: if a kernel stub does not have a supported \
+                               iteration space (currently only "cells").
 
         '''
+        # Check iteration space before generating code
+        if self.iterates_over not in USER_KERNEL_ITERATION_SPACES:
+            raise InternalError(
+                "DynKern.gen_stub(): Expected one of {0} as iteration "
+                "space but found '{1}' in kernel '{2}'.".
+                format(USER_KERNEL_ITERATION_SPACES, self.iterates_over,
+                       self.name))
+
+        # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Create an empty PSy layer module
@@ -7175,12 +7190,16 @@ class DynKern(CodedKern):
         return psy_module.root
 
     def gen_code(self, parent):
-        '''Generates dynamo version 0.3 specific psy code for a call to
-           the dynamo kernel instance.
+        '''
+        Generates LFRic (Dynamo 0.3) specific PSy layer code for a call
+        to this user-supplied LFRic kernel.
 
         :param parent: an f2pygen object that will be the parent of \
                        f2pygen objects created in this method.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        :raises GenerationError: if this kernel does not have a supported \
+                                 iteration space (currently only "cells").
         :raises GenerationError: if the loop goes beyond the level 1 \
                                  halo and an operator is accessed.
         :raises GenerationError: if a kernel in the loop has an inc access \
@@ -7188,6 +7207,16 @@ class DynKern(CodedKern):
                                  an OpenMP parallel region.
 
         '''
+        # Check iteration space before generating code
+        if self.iterates_over not in USER_KERNEL_ITERATION_SPACES:
+            raise GenerationError(
+                "The LFRic API supports calls to user-supplied kernels "
+                "that have one of {0} as iteration space, but kernel '{1}' "
+                "has an iteration space of '{2}'.".
+                format(USER_KERNEL_ITERATION_SPACES, self.name,
+                       self.iterates_over))
+
+        # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")
 
         parent.add(DeclGen(parent, datatype="integer",

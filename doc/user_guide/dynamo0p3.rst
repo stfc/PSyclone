@@ -110,21 +110,24 @@ Please see the :ref:`algorithm-layer` section for a description of the
 ``name`` argument.
 
 Objects in the Dynamo0.3 API can be categorised by their functionality
-as data types and information that specifies supported operations on a
-particular data type. The above example introduces four of five data types
-supported by the Dynamo0.3 API: scalar, field, operator and column-wise
-operator (field vector is the fifth). ``qr`` represents a quadrature
-object which provides information required by a kernel to operate
-on fields (see section :ref:`dynamo0.3-quadrature` for more details).
+as data structures and information that specifies supported operations on
+a particular data structure. These data structures are represented by the
+five Dynamo0.3 API argument types: :ref:`scalar <dynamo0.3-scalar>`,
+:ref:`field <dynamo0.3-field>`, :ref:`field vector <dynamo0.3-field-vector>`,
+:ref:`operator <dynamo0.3-operator>` and :ref:`column-wise operator
+<dynamo0.3-cma-operator>`. All of them except the field vector are
+represented in the above example. ``qr`` represents a quadrature object
+which provides information required by a kernel to operate on fields
+(see section :ref:`dynamo0.3-quadrature` for more details).
 
 .. _dynamo0.3-scalar:
 
 Scalar
 ++++++
 
-In the Dynamo0.3 API a scalar is a single-valued variable that can be
-either real or integer. Real scalars are identified with ``GH_REAL``
-and integer scalars are identified with ``GH_INTEGER`` metadata.
+In the Dynamo0.3 API a scalar is a single-valued argument that can be
+:ref:`either real or integer <dynamo0.3-kernel-valid-data-type>`.
+Scalars are identified with ``GH_SCALAR`` metadata.
 
 .. _dynamo0.3-field:
 
@@ -243,7 +246,7 @@ invoke would look something like::
       qr_face = quadrature_face_type(nqp_exact, ..., rule)
       call invoke(pressure_gradient_kernel_type(rhs_tmp(igh_u), rho, theta, qr_xyoz), &
                   geopotential_gradient_kernel_type(rhs_tmp(igh_u), geopotential, &
-		                                    qr_xyoz, qr_face))
+                                                    qr_xyoz, qr_face))
 
 These quadrature objects specify the set(s) of points at which the
 basis/differential-basis functions required by the kernel are to be evaluated.
@@ -387,7 +390,7 @@ As the objects themselves are not modified in the PSy layer, their Fortran
 intents there are always ``intent(in)``.
 
 The Fortran intent of :ref:`scalars <dynamo0.3-scalar>` is still defined
-by their :ref:`access metadata <dynamo0.3-valid-access>` as they are
+by their :ref:`access metadata <dynamo0.3-kernel-valid-access>` as they are
 actual data. This means ``intent(in)`` for ``GH_READ`` and ``intent(out)``
 for ``GH_SUM`` (more details in :ref:`meta_args <dynamo0.3-api-meta-args>`
 section below).
@@ -469,7 +472,7 @@ Rules specific to General-Purpose Kernels without CMA Operators
 3) A Kernel may not write to a scalar argument. (Only
    :ref:`built-ins <dynamo0.3-built-ins>` are permitted to do this.) Any
    scalar aguments must therefore be declared in the metadata as
-   ``GH_READ`` - see :ref:`below <dynamo0.3-valid-access>`.
+   ``GH_READ`` - see :ref:`below <dynamo0.3-kernel-valid-access>`.
 
 .. _dynamo0.3-cma-mdata-rules:
 
@@ -561,11 +564,12 @@ Rules for Inter-Grid Kernels
 A consequence of Rules 5-7 is that an inter-grid kernel will
 only involve two function spaces.
 
+.. _dynamo0.3-api-kernel-metadata:
 
 Metadata
 ++++++++
 
-The code below outlines the elements of the Dynamo0.3 API kernel
+The code below outlines the elements of the Dynamo0.3 API Kernel
 metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'meta_reference_element',
 4) 'meta_mesh', 5) 'gh_shape', 6) 'iterates_over' and 7) 'procedure'::
 
@@ -611,17 +615,16 @@ array will be of size 2 and there will be two ``arg_type`` entries::
        arg_type( ... )                                                 &
        /)
 
-Argument-metadata (metadata contained within the brackets of an
+Argument metadata (information contained within the brackets of an
 ``arg_type`` entry), describes either a **scalar**, a **field** or an
 **operator** (either LMA or CMA).
 
 The first argument-metadata entry describes whether the data that is
-being passed is for a real scalar (``GH_REAL``), an integer scalar
-(``GH_INTEGER``), a field (``GH_FIELD``) or an operator (either
-``GH_OPERATOR`` for LMA or ``GH_COLUMNWISE_OPERATOR`` for CMA). This
-information is mandatory.
+being passed is for a scalar (``GH_SCALAR``), a field (``GH_FIELD``) or
+an operator (either ``GH_OPERATOR`` for LMA or ``GH_COLUMNWISE_OPERATOR``
+for CMA). This information is mandatory.
 
-Additionally, argument-metadata can be used to describe a vector of
+Additionally, argument metadata can be used to describe a vector of
 fields (see the :ref:`dynamo0.3-field-vector` section for more
 details).
 
@@ -632,21 +635,29 @@ fourth is an operator. The third entry is a field vector of size 3.
 ::
 
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_REAL, ...),                                         &
+       arg_type(GH_SCALAR, GH_REAL, ...),                              &
        arg_type(GH_FIELD, ... ),                                       &
        arg_type(GH_FIELD*3, ... ),                                     &
        arg_type(GH_OPERATOR, ...)                                      &
        /)
 
-The second entry to argument-metadata (information contained within
-the brackets of an ``arg_type``) describes how the Kernel makes use of
+The second item in a metadata entry for a :ref:`scalar argument
+<dynamo0.3-scalar>` describes the Fortran primitive (intrinsic)
+type of the data of a kernel argument. The currently supported values
+are ``GH_REAL`` and ``GH_INTEGER`` for ``real`` and ``integer``
+data, respectively. Valid data types for each Dynamo0.3 API argument
+type are specified later in this section (see
+:ref:`dynamo0.3-kernel-valid-data-type`).
+
+The third component of argument metadata for scalars and the second for
+all other argument types describes how the Kernel makes use of
 the data being passed into it (the way it is accessed within a
 Kernel). This information is mandatory. There are currently 5 possible
 values of this metadata ``GH_WRITE``, ``GH_READ``, ``GH_INC``,
 ``GH_READWRITE`` and ``GH_SUM``. However, not all combinations of
 metadata entries are valid and PSyclone will raise an exception if an
 invalid combination is specified. Valid combinations are specified
-later in this section (see :ref:`dynamo0.3-valid-access`).
+later in this section (see :ref:`dynamo0.3-kernel-valid-access`).
 
 * ``GH_WRITE`` indicates the data is modified in the Kernel before
   (optionally) being read.
@@ -675,7 +686,7 @@ later in this section (see :ref:`dynamo0.3-valid-access`).
 For example::
 
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_REAL,  GH_SUM),                                     &
+       arg_type(GH_SCALAR, GH_REAL, GH_SUM),                           &
        arg_type(GH_FIELD, GH_INC, ... ),                               &
        arg_type(GH_FIELD*3, GH_WRITE, ... ),                           &
        arg_type(GH_OPERATOR, GH_READ, ...)                             &
@@ -684,10 +695,10 @@ For example::
 .. note:: In the Dynamo0.3 API only :ref:`dynamo0.3-built-ins` are permitted
           to write to scalar arguments (and hence perform reductions).
           Furthermore, this permission is currently restricted to real
-          scalars (``GH_REAL``) as the LFRic infrastructure does not
-          yet support integer reductions.
+          scalars (``GH_SCALAR, GH_REAL``) as the LFRic infrastructure
+          does not yet support integer reductions.
 
-For a scalar the argument metadata contains only these two entries.
+For a scalar the argument metadata contains only these three entries.
 However, fields and operators require further entries specifying
 function-space information.
 The meaning of these further entries differs depending on whether a
@@ -757,50 +768,93 @@ contained two calls of a kernel with arguments described by the above
 metadata then the first field argument passed to each kernel call
 need not be on the same space.
 
-.. _dynamo0.3-valid-access:
+.. _dynamo0.3-kernel-valid-data-type:
+
+Valid Data Types
+^^^^^^^^^^^^^^^^
+
+As mentioned earlier, the currently supported Fortran primitive
+(intrinsic) types for kernel argument data are ``real`` and
+``integer``, described by the ``GH_REAL`` and ``GH_INTEGER``
+metadata descriptors. Supported data types for each argument
+type are given in the table below (please note that :ref:`field
+vectors <dynamo0.3-field-vector>` follow the same rules as the
+:ref:`LFRic fields <dynamo0.3-field>`):
+
+.. tabularcolumns:: |l|l|
+
++------------------------+---------------------+
+| Argument Type          | Data Type           |
++========================+=====================+
+| GH_SCALAR              | GH_INTEGER, GH_REAL |
++------------------------+---------------------+
+| GH_FIELD               | GH_REAL             |
++------------------------+---------------------+
+| GH_OPERATOR            | GH_REAL             |
++------------------------+---------------------+
+| GH_COLUMNWISE_OPERATOR | GH_REAL             |
++------------------------+---------------------+
+
+.. note:: The metadata descriptors for data type for field and operator
+          arguments will be introduced in `PSyclone issue #817
+          <https://github.com/stfc/PSyclone/issues/817>`_.
+
+.. _dynamo0.3-kernel-valid-access:
 
 Valid Access Modes
 ^^^^^^^^^^^^^^^^^^
 
 As mentioned earlier, not all combinations of metadata are
-valid. Valid combinations are summarised here. All types of data
-(``GH_INTEGER``, ``GH_REAL``, ``GH_FIELD``, ``GH_OPERATOR`` and
-``GH_COLUMNWISE_OPERATOR``) may be read within a Kernel and this is
-specified in metadata using ``GH_READ``. At least one kernel argument
-must be listed as being modified. When data is *modified* in a Kernel
-then the permitted access modes depend on the type of data it is and
-the function space it is on. Valid values are given in the table
-below.
+valid. Valid combinations for each argument type in
+user-defined Kernels are summarised here. All argument types
+(``GH_SCALAR``, ``GH_FIELD``, ``GH_OPERATOR`` and
+``GH_COLUMNWISE_OPERATOR``) may be read within a Kernel and this
+is specified in metadata using ``GH_READ``. At least one kernel
+argument must be listed as being modified. When argument data is
+*modified* in a user-supplied Kernel (i.e. a Kernel that has
+``CELLS`` as its iteration space, see :ref:`iteration space metadata
+<dynamo0.3-user-kernel-iterates-over>`) then the permitted access
+modes depend upon the argument type and the function space it is on:
 
-======================  ============================  =========================
-Argument Type           Function Space                Access Type
-======================  ============================  =========================
-*GH_INTEGER*            *n/a*                         *GH_SUM (Built-ins only)*
-GH_REAL                 n/a                           GH_SUM (Built-ins only)
-GH_FIELD                Discontinuous                 GH_WRITE, GH_READWRITE
-GH_FIELD                Continuous                    GH_INC
-GH_OPERATOR             Any for both 'to' and 'from'  GH_WRITE, GH_READWRITE
-GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'  GH_WRITE, GH_READWRITE
-======================  ============================  =========================
+.. tabularcolumns:: |l|l|l|
 
-.. note:: As mentioned above, note that only Built-ins may modify
-          scalar arguments. In practice this means that the only allowed
-          access for the user-defined scalars in kernels is ``GH_READ``.
-          *Furthermore, since the LFRic infrastructure does not currently
-          support integer reductions, integer scalar arguments are
-          restricted to having read-only access.*
++------------------------+------------------------------+--------------------+
+| Argument Type          | Function Space               | Access Type        |
++========================+==============================+====================+
+| GH_SCALAR              | n/a                          | GH_READ            |
++------------------------+------------------------------+--------------------+
+| GH_FIELD               | Discontinuous                | GH_READ, GH_WRITE, |
+|                        |                              | GH_READWRITE       |
++------------------------+------------------------------+--------------------+
+| GH_FIELD               | Continuous                   | GH_READ, GH_INC    |
++------------------------+------------------------------+--------------------+
+| GH_OPERATOR            | Any for both 'to' and 'from' | GH_READ, GH_WRITE, |
+|                        |                              | GH_READWRITE       |
++------------------------+------------------------------+--------------------+
+| GH_COLUMNWISE_OPERATOR | Any for both 'to' and 'from' | GH_READ, GH_WRITE, |
+|                        |                              | GH_READWRITE       |
++------------------------+------------------------------+--------------------+
 
-.. note:: A ``GH_FIELD`` argument that specifies ``GH_WRITE`` or
-          ``GH_READWRITE`` as its access pattern must be a discontinuous
-          function in the horizontal (see :ref:`dynamo0.3-function-space`
-          for list of discontinuous function spaces) and it will not
-          need colouring. If the field is described as being on any space,
-          there is currently no way to determine this from the metadata
-          (unless we can statically determine the space of the field
-          being passed in). At the moment this type of Kernel is always
-          treated as if it is continuous in the horizontal, even if it is
-          not (see rules for :ref:`user-supplied kernels
-          <dynamo0.3-user-kernel-rules>` above).
+Note that scalar arguments to user-defined Kernels must be read-only.
+Only :ref:`Built-ins <dynamo0.3-built-ins>` are permitted to modify scalar
+arguments. In practice this means that the only allowed access for the scalars
+in user-defined Kernels is ``GH_READ`` (see the allowed accesses for arguments
+in Built-ins in the :ref:`section below <dynamo0.3-built-ins-valid-access>`).
+
+Note also that a ``GH_FIELD`` argument that has ``GH_WRITE`` or
+``GH_READWRITE`` as its access pattern must be on a horizontally-discontinuous
+function space (see :ref:`dynamo0.3-function-space` for the list of
+discontinuous function spaces). Parallelisation of the loop over the
+horizontal domain for a kernel that updates such a field will not require
+colouring for either of the above cases (since there are no shared entities).
+
+If a field is described as being on ``ANY_SPACE``, there is currently no
+way to determine its continuity from the metadata (unless we can statically
+determine the space of the field being passed in). At the moment this type
+of a user-supplied Kernel is always treated as if it is updating a field
+that is on a function space that is continuous in the horizontal, even if
+it is not (see rules for :ref:`user-supplied kernels
+<dynamo0.3-user-kernel-rules>` above).
 
 There is no restriction on the number and function spaces of other
 quantities that a general-purpose kernel can modify other than that it
@@ -936,7 +990,7 @@ Since the Dynamo0.3 API operates on columns of data, function spaces
 are categorised as continuous or discontinuous with regard to their
 **continuity in the horizontal**. For example, a ``GH_FIELD`` that
 specifies ``GH_INC`` as its access pattern (see
-:ref:dynamo0.3-valid-access: above) may be continuous in the vertical
+:ref:dynamo0.3-kernel-valid-access: above) may be continuous in the vertical
 (and discontinuous in the horizontal), continuous in the horizontal
 (and discontinuous in the vertical), or continuous in both. In each
 case the code is the same. This principle of horizontal continuity also
@@ -1129,7 +1183,7 @@ the rest are read-only. They may also have read-only scalar arguments, e.g.::
         arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
-        arg_type(GH_REAL, GH_READ) /)
+        arg_type(GH_SCALAR, GH_REAL, GH_READ) /)
 
 .. note:: The order with which arguments are specified in metadata for CMA
           kernels does not affect the process of identifying the type of
@@ -1147,14 +1201,14 @@ this metadata should be omitted.) Consider the
 following kernel metadata::
 
     type, extends(kernel_type) :: testkern_operator_type
-      type(arg_type), dimension(3) :: meta_args =     &
-          (/ arg_type(gh_operator, gh_write, w0, w0), &
-             arg_type(gh_field*3,  gh_read,  w1),     &
-             arg_type(gh_integer,  gh_read)           &
+      type(arg_type), dimension(3) :: meta_args =                 &
+          (/ arg_type(gh_operator,             gh_write, w0, w0), &
+             arg_type(gh_field*3,              gh_read,  w1),     &
+             arg_type(gh_scalar,   gh_integer, gh_read)           &
           /)
-      type(func_type) :: meta_funcs(2) =              &
-          (/ func_type(w0, gh_basis, gh_diff_basis)   &
-             func_type(w1, gh_basis)                  &
+      type(func_type) :: meta_funcs(2) =                          &
+          (/ func_type(w0, gh_basis, gh_diff_basis)               &
+             func_type(w1, gh_basis)                              &
           /)
       integer :: gh_shape = gh_quadrature_XYoZ
       integer :: iterates_over = cells
@@ -1296,7 +1350,9 @@ Note that it is an error for kernel metadata to specify a value for
 It is also an error to specify ``gh_evaluator_targets`` if the kernel
 does not require an evaluator (i.e. ``gh_shape != gh_evaluator``).
 
-iterates over
+.. _dynamo0.3-user-kernel-iterates-over:
+
+iterates_over
 #############
 
 The fourth type of metadata provided is ``ITERATES_OVER``. This
@@ -1562,7 +1618,7 @@ and at ``W1``)::
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
        basis_w0_on_w0, basis_w0_on_w1, ndf_w1)
 
-If the meta-data specifies that a kernel requires both an evaluator
+If the metadata specifies that a kernel requires both an evaluator
 and quadrature::
 
   type, extends(kernel_type) :: testkern_operator_type
@@ -1847,7 +1903,7 @@ and/or update the data pointed to by objects such as
 :ref:`fields <dynamo0.3-field>` or :ref:`operators <dynamo0.3-operator>`.
 This data is passed to the kernels as :ref:`subroutine arguments
 <dynamo0.3-kern-subroutine>` and their Fortran intents usually follow the
-logic determined by their :ref:`access modes <dynamo0.3-valid-access>`.
+logic determined by their :ref:`access modes <dynamo0.3-kernel-valid-access>`.
 
 * ``GH_READ`` indicates ``intent(in)`` as the argument is only ever read from.
 
@@ -1869,17 +1925,18 @@ The basic concept of a PSyclone Built-in is described in the
 :ref:`built-ins` section.  In the Dynamo0.3 API, calls to
 Built-ins generally follow a convention that the field/scalar written
 to comes first in the argument list. Dynamo0.3 Built-ins must conform to the
-following four rules:
+following rules:
 
-1) Built-in kernels must have one and only one modified (i.e. written
-   to) argument.
+1) They must have one and only one modified (i.e. written to) argument.
 
-2) There must be at least one field in the argument list. This is so
+2) The iteration space must be over DoFs (``iterates_over = DOFS`` metadata).
+
+3) There must be at least one field in the argument list. This is so
    that we know the number of DoFs to iterate over.
 
-3) Kernel arguments must be either fields or scalars.
+4) Kernel arguments must be either fields or scalars.
 
-4) All field arguments to a given Built-in must be on the same
+5) All field arguments to a given Built-in must be on the same
    function space. This is because all current Built-ins iterate over
    DoFs and therefore all fields should have the same number. It also
    means that we can determine the number of DoFs uniquely when a
@@ -1896,6 +1953,59 @@ As described in the PSy-layer :ref:`Argument Intents
 <dynamo0.3-psy-arg-intents>` section, the Fortran intent of LFRic
 :ref:`field <dynamo0.3-field>` objects is always ``in``. The field or
 scalar that has its data modified by a Built-in is marked in **bold**.
+
+.. _dynamo0.3-api-built-ins-metadata:
+
+Metadata
+++++++++
+
+The code below outlines the elements of the LFRic API Built-in
+metadata, 1) 'meta_args', 2) 'iterates_over' and 3) 'procedure'::
+
+  type, public, extends(kernel_type) :: aX_plus_bY
+     private
+     type(arg_type) :: meta_args(5) = (/                              &
+          arg_type(GH_FIELD,           GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
+          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
+          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1)         &
+          /)
+     integer :: iterates_over = DOFS
+   contains
+     procedure, nopass :: aX_plus_bY_code
+  end type aX_plus_bY
+
+As can be seen, the metadata for a Built-in kernel is a subset of that
+for a :ref:`user-defined Kernel <dynamo0.3-api-kernel-metadata>` with the
+exception that the iteration space is ``DOFS`` instead of ``CELLS``.
+
+.. _dynamo0.3-built-ins-valid-access:
+
+Valid Access Modes
+##################
+
+The allowed accesses for arguments in Built-in
+kernels are a bit different than for the
+:ref:`user-defined Kernels <dynamo0.3-kernel-valid-access>` and
+are listed in the table below.
+
+.. tabularcolumns:: |l|l|l|l|
+
++---------------+------------+----------------+--------------------+
+| Argument Type | Data Type  | Function Space | Access Type        |
++===============+============+================+====================+
+| GH_SCALAR     | GH_INTEGER | n/a            | GH_READ            |
++---------------+------------+----------------+--------------------+
+| GH_SCALAR     | GH_REAL    | n/a            | GH_READ, GH_SUM    |
++---------------+------------+----------------+--------------------+
+| GH_FIELD      | GH_REAL    | ANY_SPACE_n    | GH_READ, GH_WRITE, |
+|               |            |                | GH_READWRITE       |
++---------------+------------+----------------+--------------------+
+
+.. note:: *Since the LFRic infrastructure does not currently support
+          integer reductions, integer scalar arguments in Built-ins
+          are restricted to having read-only access.*
 
 .. _dynamo0.3-built-ins-names:
 
@@ -2417,7 +2527,7 @@ An example of applying boundary conditions to an operator is the kernel
 Since operators are discontinuous quantities, updating their values can
 be safely performed in parallel (see Section :ref:`dynamo0.3-kernel`).
 The ``GH_READWRITE`` access is used for updating discontinuous operators
-(see subsection :ref:`dynamo0.3-valid-access` for more details).
+(see subsection :ref:`dynamo0.3-kernel-valid-access` for more details).
 
 Conventions
 -----------
@@ -2480,7 +2590,7 @@ on or off by the `RUN_TIME_CHECKS` option in the configuration file.
 
 Currently run-time checks can be generated to:
 
-1) check that a field with a read-only function space (see section
+1) Check that a field with a read-only function space (see section
    :ref:`lfric-ro-function-space`) is not modified by a kernel. This is
    enforced by checking that all fields that are marked (in kernel
    metadata) as being updated by a kernel are not on a read-only function
@@ -2493,7 +2603,7 @@ Currently run-time checks can be generated to:
    resulting halo exchange call will cause the infrastructure to raise an
    error (because the field is on a read-only space).
 
-2) check that the function space of a field is consistent with the
+2) Check that the function space of a field is consistent with the
    kernel function space metadata that the field's data is passed
    into. For example, if kernel metadata specifies that a field is on
    the W2 function space then a run-time check is added to ensure that

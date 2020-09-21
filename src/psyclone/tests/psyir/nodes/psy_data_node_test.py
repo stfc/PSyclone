@@ -169,7 +169,7 @@ def test_psy_data_node_invokes_gocean1p0():
     '''Check that an invoke is instrumented correctly
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0)
+                           "gocean1.0", idx=0, dist_mem=False)
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 
@@ -210,7 +210,7 @@ def test_psy_data_node_options():
     '''Check that the options for PSyData work as expected.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0)
+                           "gocean1.0", idx=0, dist_mem=False)
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 
