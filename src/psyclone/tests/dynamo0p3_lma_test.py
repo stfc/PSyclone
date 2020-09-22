@@ -146,9 +146,9 @@ def test_ad_op_type_too_many_args():
     assert "'meta_arg' entry must have 5 arguments" in str(excinfo.value)
 
 
-def test_ad_op_type_wrong_4th_arg():
+def test_ad_op_type_invalid_fs_to():
     ''' Tests that an error is raised when the 4th entry in the operator
-    descriptor metadata is invalid. '''
+    descriptor metadata is invalid (should be a function space to-). '''
     code = CODE.replace(
         "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
         "arg_type(gh_operator, gh_real,    gh_read, woops, w2)", 1)
@@ -160,9 +160,9 @@ def test_ad_op_type_wrong_4th_arg():
             "must be a valid function space to- name" in str(excinfo.value))
 
 
-def test_ad_op_type_wrong_5th_arg():
+def test_ad_op_type_invalid_fs_from():
     ''' Tests that an error is raised when the 5th entry in the operator
-    descriptor metadata is invalid. '''
+    descriptor metadata is invalid (should be a function space from-). '''
     code = CODE.replace(
         "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
         "arg_type(gh_operator, gh_real,    gh_read, w2, woops)", 1)

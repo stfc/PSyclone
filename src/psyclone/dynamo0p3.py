@@ -6833,8 +6833,8 @@ class DynKern(CodedKern):
                     pre = "iscalar_"
                 else:
                     raise InternalError(
-                        "DynKern.load_meta(): expected one of {0} data types "
-                        "for a scalar argument but found '{1}'.".
+                        "Expected one of {0} data types for a scalar "
+                        "argument but found '{1}'.".
                         format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES,
                                descriptor.data_type))
             else:
