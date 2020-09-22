@@ -57,7 +57,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.dynamo0p3_builtins import BUILTIN_ITERATION_SPACES
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
-                                   LFRicArgDescriptor)
+                                   LFRicArgDescriptor, KernelInterface)
 from psyclone.psyir.nodes import Loop, Literal, Schedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
@@ -69,7 +69,6 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DirectiveGen, DoGen,
                               IfThenGen, ModuleGen, SubroutineGen, TypeDeclGen,
                               UseGen)
-
 
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #
@@ -7312,9 +7311,9 @@ class DynKern(CodedKern):
             # arguments
             self.validate_kernel_code_args()
 
-            # TODO NEXT replace the PSyIR argument data symbols with
-            # LFRic data symbols. For the moment we simply return the
-            # unmodified PSyIR schedule
+            # TODO replace the PSyIR argument data symbols with LFRic
+            # data symbols, see issue #XXX. For the moment we simply
+            # return the unmodified PSyIR schedule
             self._kern_schedule = psyir_schedule
 
         return self._kern_schedule
@@ -7332,7 +7331,6 @@ class DynKern(CodedKern):
 
         # Get the kernel code interface according to the kernel
         # metadata and LFRic API
-        from psyclone.domain.lfric import KernelInterface
         interface_info = KernelInterface(self)
         interface_info.generate()
         interface_args = interface_info.arglist
@@ -7341,8 +7339,6 @@ class DynKern(CodedKern):
         actual_n_args = len(kern_code_args)
         expected_n_args = len(interface_args)
         if actual_n_args != expected_n_args:
-            for arg in interface_args:
-                print (arg)
             raise GenerationError(
                 "The number of arguments expected by the psy-layer kernel "
                 "call '{0}' does not match the actual number of kernel "
@@ -7398,12 +7394,13 @@ class DynKern(CodedKern):
                     "by the LFRic API but it is not."
                     "".format(kern_code_arg.name))
             # 4.1 array arguments
-            # Skip these for the moment as we don't yet create all the
-            # dimensions correctly.
-            #for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
-            #    interface_arg_dim = interface_arg.shape[dim_idx]
-            #    print ("  Checking dim {0}".format(dim_idx))
-            #    self.validate_kernel_code_arg(kern_code_arg_dim, interface_arg_dim)
+            # Skip the checking of dimensions for the moment as we
+            # don't yet create all of them correctly.
+            # for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
+            #     interface_arg_dim = interface_arg.shape[dim_idx]
+            #     print ("  Checking dim {0}".format(dim_idx))
+            #     self.validate_kernel_code_arg(
+            #         kern_code_arg_dim, interface_arg_dim)
         else:
             raise InternalError(
                 "unexpected interface type found for '{0}'. Expecting a "

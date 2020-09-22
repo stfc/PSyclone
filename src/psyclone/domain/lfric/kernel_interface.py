@@ -37,11 +37,9 @@
 generated LFRic kernel.
 
 '''
-# pylint: disable=no-name-in-module
-# pylint: disable=too-many-public-methods
-# pylint: disable=too-many-instance-attributes
-# pylint: disable=raise-missing-from
-# pylint: disable=super-with-arguments
+# pylint: disable=no-name-in-module, too-many-public-methods
+# pylint: disable=too-many-instance-attributes, raise-missing-from
+# pylint: disable=super-with-arguments, import-outside-toplevel
 
 from psyclone.domain.lfric import ArgOrdering
 from psyclone.domain.lfric.psyir import CellPositionDataSymbol, \
@@ -62,20 +60,23 @@ from psyclone.errors import InternalError
 
 
 class KernelInterface(ArgOrdering):
-    '''Create the list of actual argument types that a kernel has.
+    '''Create a kernel interface as specified by kernel metadata and the
+    LFRic kernel rules.
 
-    Also add function space information where appropriate (e.g. the
-    number of degrees of freedom of a cell (ndf) will be associated
-    with a function space) and associate arguments with each other
-    where appropriate (e.g. a particular dofmap will be associated
-    with a particular ndf dimension argument.
+    LFRic PSyIR symbols are used to specify the arguments. This class
+    is responsible for 1) creating the required symbols, 2) creating
+    the symbol argument order and 3) connecting related arguments. For
+    example, the dimension of a field array is passed as a separate
+    argument. Therefore the field argument should have a reference to
+    the appropriate dimension size argument.
 
-    RF TBD: This should replace the current Kernel stub gen
-    implementation at some point.
+    TBD: This should replace the current kernel stub gen
+    implementation when , see issue #XXX
 
     '''
     def __init__(self, kern):
         ArgOrdering.__init__(self, kern)
+        self.read_access = ArgumentInterface(ArgumentInterface.Access.READ)
         self._symbol_table = SymbolTable()
         self._ndofs_map = {}
         self._undfs_map = {}
@@ -129,20 +130,20 @@ class KernelInterface(ArgOrdering):
             operator.datatype.shape[1] = ndf_to
             operator.datatype.shape[2] = op_dim
 
+        # Basis functions are ignored for the moment as their
+        # dimensions are complicated, see issue #XXX
+
     def cell_position(self, var_accesses=None):
         ''' Create an LFRic cell position object '''
 
-        arg = CellPositionDataSymbol(
-            "cell", interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        arg = CellPositionDataSymbol("cell", interface=self.read_access)
         self._symbol_table.add(arg)
         self._arglist.append(arg)
 
     def mesh_height(self, var_accesses=None):
         ''' Create an LFRic mesh height object '''
 
-        arg = MeshHeightDataSymbol(
-            "nlayers",
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        arg = MeshHeightDataSymbol("nlayers", interface=self.read_access)
         self._symbol_table.add(arg)
         self._arglist.append(arg)
 
@@ -211,8 +212,7 @@ class KernelInterface(ArgOrdering):
         ''' Create LFRic size and operator data objects '''
 
         op_size = OperatorSizeDataSymbol(
-            "ncell_3d",
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            "ncell_3d", interface=self.read_access)
         self._symbol_table.add(op_size)
         self._arglist.append(op_size)
         op_arg = OperatorDataSymbol(
@@ -250,9 +250,8 @@ class KernelInterface(ArgOrdering):
         ''' Create LFRic Number of Dofs object '''
 
         fs_name = function_space.orig_name
-        arg = NumberOfDofsDataSymbol(
-            "ndf_{0}".format(fs_name), fs_name,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        arg = NumberOfDofsDataSymbol("ndf_{0}".format(fs_name), fs_name,
+                                     interface=self.read_access)
         self._symbol_table.add(arg)
         self._arglist.append(arg)
         self._ndofs_map[fs_name] = arg
@@ -265,18 +264,16 @@ class KernelInterface(ArgOrdering):
         '''Create LFRic Number of Unique dofs and dofmap objects'''
 
         fs_name = function_space.orig_name
-        arg = NumberOfUniqueDofsDataSymbol(
-            "undf_{0}".format(fs_name), fs_name,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        arg = NumberOfUniqueDofsDataSymbol("undf_{0}".format(fs_name), fs_name,
+                                           interface=self.read_access)
         self._symbol_table.add(arg)
         self._arglist.append(arg)
         self._undfs_map[fs_name] = arg
 
         # The dimension argument may not have been declared yet so use
         # an integer as a placeholder.
-        arg = DofMapDataSymbol(
-            "dofmap_{0}".format(fs_name), [1], fs_name,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        arg = DofMapDataSymbol("dofmap_{0}".format(fs_name), [1], fs_name,
+                               interface=self.read_access)
         self._symbol_table.add(arg)
         self._arglist.append(arg)
         self._dofmaps_list.append(arg)
@@ -291,8 +288,9 @@ class KernelInterface(ArgOrdering):
         raise NotImplementedError("indirection_dofmap not implemented")
 
     def basis(self, function_space, var_accesses=None):
-        ''' Not implemented '''
-        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, VALID_QUADRATURE_SHAPES
+        ''' Implemented '''
+        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
+            VALID_QUADRATURE_SHAPES
         for shape in self._kern.eval_shapes:
             if shape in VALID_QUADRATURE_SHAPES:
                 # A kernel stub won't have a name for the corresponding
@@ -304,7 +302,7 @@ class KernelInterface(ArgOrdering):
                 fs_name = function_space.orig_name
                 arg = BasisFunctionDataSymbol(
                     basis_name, [1, 1, 1], fs_name, quad_name,
-                    interface=ArgumentInterface(ArgumentInterface.Access.READ))
+                    interface=self.read_access)
                 self._symbol_table.add(arg)
                 self._arglist.append(arg)
             elif shape in VALID_EVALUATOR_SHAPES:
@@ -320,8 +318,9 @@ class KernelInterface(ArgOrdering):
                     "{1}".format(shape, VALID_EVALUATOR_SHAPES))
 
     def diff_basis(self, function_space, var_accesses=None):
-        ''' Not implemented '''
-        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, VALID_QUADRATURE_SHAPES
+        ''' Implemented '''
+        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
+            VALID_QUADRATURE_SHAPES
         for shape in self._kern.eval_shapes:
             if shape in VALID_QUADRATURE_SHAPES:
                 # We need differential basis functions for quadrature. A
@@ -334,7 +333,7 @@ class KernelInterface(ArgOrdering):
                 fs_name = function_space.orig_name
                 arg = DiffBasisFunctionDataSymbol(
                     diff_basis_name, [1, 1, 1], fs_name, quad_name,
-                    interface=ArgumentInterface(ArgumentInterface.Access.READ))
+                    interface=self.read_access)
                 self._symbol_table.add(arg)
                 self._arglist.append(arg)
 
@@ -375,37 +374,36 @@ class KernelInterface(ArgOrdering):
     def quad_rule(self, var_accesses=None):
         ''' Not implemented '''
         args = []
-        read_access = ArgumentInterface(ArgumentInterface.Access.READ)
         for shape in self._kern.qr_rules:
             if shape == "gh_quadrature_xyoz":
                 nqp_h = NumberOfQrPointsInHorizontalDataSymbol(
-                    "nqp_h", interface=read_access)
+                    "nqp_h", interface=self.read_access)
                 nqp_v = NumberOfQrPointsInVerticalDataSymbol(
-                    "nqp_v", interface=read_access)
+                    "nqp_v", interface=self.read_access)
                 args.extend(
                     [nqp_h, nqp_v,
                      QrWeightsInHorizontalDataSymbol(
-                         "weights_h", [nqp_h], interface=read_access),
+                         "weights_h", [nqp_h], interface=self.read_access),
                      QrWeightsInVerticalDataSymbol(
-                         "weights_v", [nqp_v], interface=read_access)])
+                         "weights_v", [nqp_v], interface=self.read_access)])
             elif shape == "gh_quadrature_face":
                 nfaces = NumberOfFacesDataSymbol(
-                    "nfaces", interface=read_access)
+                    "nfaces", interface=self.read_access)
                 nqp = NumberOfQrPointsDataSymbol(
-                    "nqp", interface=read_access)
+                    "nqp", interface=self.read_access)
                 args.extend(
                     [nfaces, nqp,
                      QrWeightsDataSymbol(
-                         "weights", [nqp], interface=read_access)])
+                         "weights", [nqp], interface=self.read_access)])
             elif shape == "gh_quadrature_edge":
                 nedges = NumberOfEdgesDataSymbol(
-                    "nedges", interface=read_access)
+                    "nedges", interface=self.read_access)
                 nqp = NumberOfQrPointsDataSymbol(
-                    "nqp", interface=read_access)
+                    "nqp", interface=self.read_access)
                 args.extend(
                     [nedges, nqp,
                      QrWeightsDataSymbol(
-                         "weights", [nqp], interface=read_access)])
+                         "weights", [nqp], interface=self.read_access)])
             else:
                 raise InternalError("Unsupported quadrature shape ('{0}') "
                                     "found in kernel_interface".format(shape))
