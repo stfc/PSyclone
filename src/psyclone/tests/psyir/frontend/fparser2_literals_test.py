@@ -44,7 +44,7 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend import fparser2
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     get_literal_precision
-from psyclone.psyir.symbols import ScalarType, DataSymbol, DeferredType
+from psyclone.psyir.symbols import ScalarType, DataSymbol, INTEGER_TYPE
 from psyclone.psyir.nodes import Node, Literal, CodeBlock, Schedule
 from psyclone.errors import InternalError
 
@@ -85,13 +85,11 @@ def test_handling_literal(code, dtype):
                           ("'hello'", "cdef", ScalarType.Intrinsic.CHARACTER),
                           (".tRue.", "ldef", ScalarType.Intrinsic.BOOLEAN),
                           (".false.", "ldef", ScalarType.Intrinsic.BOOLEAN)])
-@pytest.mark.usefixtures("f2008_parser", "disable_declaration_check")
+@pytest.mark.usefixtures("f2008_parser")
 def test_handling_literal_precision_1(value, dprecision, intrinsic):
     '''Check that the fparser2 frontend can handle literals with a
     specified precision kind symbol.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     if intrinsic == ScalarType.Intrinsic.CHARACTER:
         code = "x={0}_{1}".format(dprecision, value)
@@ -100,6 +98,9 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
     reader = FortranStringReader(code)
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Schedule()
+    # Ensure the symbol table has an entry for "x"
+    fake_parent.symbol_table.add(
+        DataSymbol("x", ScalarType(ScalarType.Intrinsic.INTEGER, 4)))
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [astmt])
     assert not fake_parent.walk(CodeBlock)
@@ -112,7 +113,10 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
         assert literal.value == value
     assert isinstance(literal.datatype.precision, DataSymbol)
     assert literal.datatype.precision.name == dprecision
-    assert isinstance(literal.datatype.precision.datatype, DeferredType)
+    assert isinstance(literal.datatype.precision.datatype,
+                      ScalarType)
+    assert (literal.datatype.precision.datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
 
 
 @pytest.mark.parametrize("value,dprecision,intrinsic",
@@ -280,9 +284,9 @@ def test_get_literal_precision_missing_table():
     code = "x=0.0_rdef"
     reader = FortranStringReader(code)
     astmt = Fortran2003.Assignment_Stmt(reader)
-    # Pass get_literal_precision just a Node() (which does not have an
+    # Pass get_literal_precision just a Literal() (which does not have an
     # associated symbol table).
     with pytest.raises(InternalError) as err:
-        get_literal_precision(astmt.children[2], Node())
+        get_literal_precision(astmt.children[2], Literal("1", INTEGER_TYPE))
     assert ("Failed to find a symbol table to which to add the kind"
             in str(err.value))

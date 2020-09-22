@@ -39,8 +39,7 @@
 ''' This module contains the abstract Node implementation.'''
 
 import abc
-from psyclone.psyir.symbols import SymbolError, Symbol, DataSymbol, \
-    UnresolvedInterface, DeferredType
+from psyclone.psyir.symbols import SymbolError, Symbol, UnresolvedInterface
 from psyclone.errors import GenerationError, InternalError
 
 # Colour map to use when writing Invoke schedule to terminal. (Requires
@@ -1120,17 +1119,17 @@ class Node(object):
         :returns: the closest ancestor Schedule or Container node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
-        :raises InternalError: if there is no Schedule or Container \
-            ancestor.
+        :raises SymbolError: if there is no Schedule or Container ancestor.
 
         '''
+        # These imports have to be local to this method to avoid circular
+        # dependencies.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Schedule, Container
-        current = self
-        while current:
-            if isinstance(current, (Container, Schedule)):
-                return current
-            current = current.parent
-        raise InternalError(
+        node = self.ancestor((Container, Schedule), include_self=True)
+        if node:
+            return node
+        raise SymbolError(
             "Unable to find the scope of node '{0}' as none of its ancestors "
             "are Container or Schedule nodes.".format(self))
 
@@ -1141,8 +1140,8 @@ class Node(object):
         is not found and there are no ContainerSymbols with wildcard imports
         then an exception is raised. However, if there are one or more
         ContainerSymbols with wildcard imports (which could therefore be
-        bringing the symbol into scope) then a new DataSymbol with the
-        specified visibility but of unknown type and interface is created and
+        bringing the symbol into scope) then a new Symbol with the
+        specified visibility but of unknown interface is created and
         inserted in the most local SymbolTable that has such an import.
         The scope_limit variable further limits the symbol table search so
         that the search through ancestor nodes stops when the scope_limit node
@@ -1247,14 +1246,11 @@ class Node(object):
 
         if possible_containers:
             # No symbol found but there are one or more Containers from which
-            # it may be being brought into scope. Therefore create a DataSymbol
-            # of unknown type and deferred interface and add it to the most
-            # local SymbolTable.
-            # TODO #876 - this should not always be a DataSymbol since
-            # sometimes the name will refer to a routine.
-            symbol = DataSymbol(name, DeferredType(),
-                                interface=UnresolvedInterface(),
-                                visibility=visibility)
+            # it may be being brought into scope. Therefore create a generic
+            # Symbol with a deferred interface and add it to the most
+            # local SymbolTable with a wildcard import.
+            symbol = Symbol(name, interface=UnresolvedInterface(),
+                            visibility=visibility)
             first_symbol_table.add(symbol)
             return symbol
 

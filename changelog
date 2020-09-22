@@ -122,6 +122,10 @@
 	40) #893 towards #866. Introduce support for "operates_on" instead of
 	"iterates_over" in LFRic kernel metadata.
 
+	41) #887 for #876. Create a generic symbol when no better information is
+	provided about a symbol and replace the symbol latter on if more information
+	if found.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
