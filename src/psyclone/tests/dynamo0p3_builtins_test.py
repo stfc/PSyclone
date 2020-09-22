@@ -273,6 +273,33 @@ def test_builtin_args_not_same_space():
             in str(excinfo.value))
 
 
+def test_builtin_integer_field_arg():
+    ''' Check that we raise appropriate error if we encounter a built-in
+    that takes a invalid field data type (here integer field). '''
+    from psyclone.dynamo0p3_builtins import VALID_BUILTIN_FIELD_DATA_TYPES
+    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Change the builtin-definitions file to point to one that has
+    # various invalid definitions
+    # Define the built-in name and test file
+    test_builtin_name = "X_minus_bY"
+    test_builtin_file = "15.2.4_" + test_builtin_name + "_builtin.f90"
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     test_builtin_file),
+        api=API)
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    with pytest.raises(ParseError) as excinfo:
+        _ = PSyFactory(API,
+                       distributed_memory=False).create(invoke_info)
+    assert ("In the LFRic API a field argument to a built-in kernel must "
+            "have one of {0} as data type but kernel '{1}' has a field "
+            "argument with data type 'gh_integer'.".
+            format(VALID_BUILTIN_FIELD_DATA_TYPES, test_builtin_name.lower())
+            in str(excinfo.value))
+
+
 def test_dynbuiltincallfactory_str():
     ''' Check that the str method of DynBuiltInCallFactory works as
     expected '''

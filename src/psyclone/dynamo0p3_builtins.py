@@ -56,6 +56,10 @@ BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
 VALID_BUILTIN_ARG_TYPES = LFRicArgDescriptor.VALID_FIELD_NAMES + \
     LFRicArgDescriptor.VALID_SCALAR_NAMES
 
+# The data types of field arguments that are valid for built-in
+# kernels in the LFRic API (only "gh_real")
+VALID_BUILTIN_FIELD_DATA_TYPES = [LFRicArgDescriptor.VALID_FIELD_DATA_TYPES[0]]
+
 # Valid LFRic iteration spaces for built-in kernels
 # TODO #870 rm 'dofs' from list below.
 BUILTIN_ITERATION_SPACES = ["dofs", "dof"]
@@ -188,6 +192,8 @@ class DynBuiltIn(BuiltIn):
         :raises ParseError: if a built-in call does not iterate over DoFs.
         :raises ParseError: if an argument to a built-in kernel is not \
                             one of valid argument types.
+        :raises ParseError: if a field argument to a built-in kernel has \
+                            an invalid data type (other than "gh_real").
         :raises ParseError: if a built-in kernel writes to more than \
                             one argument.
         :raises ParseError: if a built-in kernel does not have at least \
@@ -220,6 +226,14 @@ class DynBuiltIn(BuiltIn):
                     "must be one of {0} but kernel '{1}' has an argument of "
                     "type '{2}'.".format(VALID_BUILTIN_ARG_TYPES, self.name,
                                          arg.argument_type))
+            if (arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES and
+                    arg.data_type not in VALID_BUILTIN_FIELD_DATA_TYPES):
+                raise ParseError(
+                    "In the LFRic API a field argument to a built-in kernel "
+                    "must have one of {0} as data type but kernel '{1}' has "
+                    "a field argument with data type '{2}'.".
+                    format(VALID_BUILTIN_FIELD_DATA_TYPES, self.name,
+                           arg.data_type))
         if write_count != 1:
             raise ParseError("A built-in kernel in the LFRic API must "
                              "have one and only one argument that is written "
