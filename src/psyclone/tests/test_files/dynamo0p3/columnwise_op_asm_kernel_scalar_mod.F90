@@ -50,7 +50,7 @@ use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,                   &
                                     GH_OPERATOR, GH_COLUMNWISE_OPERATOR,   &
                                     GH_SCALAR, GH_REAL, GH_READ, GH_WRITE, &
-                                    ANY_SPACE_1, ANY_SPACE_2, CELLS
+                                    ANY_SPACE_1, ANY_SPACE_2, CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
 

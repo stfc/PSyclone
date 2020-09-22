@@ -49,7 +49,8 @@ use fs_continuity_mod,       only : W2
 use argument_mod,            only : arg_type, func_type,   &
                                     GH_OPERATOR, GH_FIELD, &
                                     GH_READ, GH_WRITE,     &
-                                    ANY_SPACE_9, CELLS,    &
+                                    ANY_SPACE_9,           &
+                                    CELL_COLUMN,           &
                                     GH_BASIS, GH_DIFF_BASIS
 use constants_mod,           only : r_def, i_def
 

@@ -41,7 +41,8 @@ module assemble_weak_derivative_w3_w2_kernel_mod
                                     GH_FIELD, GH_OPERATOR,   &
                                     GH_WRITE, GH_READ,       &
                                     GH_BASIS, GH_DIFF_BASIS, &
-                                    GH_ORIENTATION, CELLS,   &
+                                    GH_ORIENTATION,          &
+                                    CELL_COLUMN,             &
                                     gh_quadrature_XYoZ
 
   implicit none

@@ -49,7 +49,7 @@ use argument_mod,            only : arg_type, func_type,                 &
                                     ANY_DISCONTINUOUS_SPACE_1,           &
                                     ANY_DISCONTINUOUS_SPACE_2,           &
                                     GH_COLUMN_BANDED_DOFMAP,             &
-                                    CELLS 
+                                    CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
 

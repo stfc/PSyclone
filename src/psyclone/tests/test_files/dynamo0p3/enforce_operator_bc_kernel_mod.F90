@@ -49,7 +49,7 @@ use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,               &
                                     GH_OPERATOR, GH_READWRITE,         &
                                     ANY_SPACE_1, ANY_SPACE_2,          &
-                                    CELLS
+                                    CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 
 implicit none

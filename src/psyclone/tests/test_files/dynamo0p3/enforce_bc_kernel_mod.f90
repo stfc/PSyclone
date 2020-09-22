@@ -50,7 +50,7 @@ use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,               &
                                     GH_FIELD, GH_INC,                  &
                                     ANY_SPACE_1,                       &
-                                    CELLS
+                                    CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 
 implicit none

@@ -37,6 +37,8 @@
 !> @brief Meta-data for the LFRic built-in operations, broken for
 !>        testing purposes to operate on cell-columns.
 module dynamo0p3_builtins_mod
+  use argument_mod
+  use kernel_mod
 
   !> field1 = ascalar
   type, public, extends(kernel_type) :: setval_c
