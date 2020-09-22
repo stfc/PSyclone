@@ -63,7 +63,7 @@ type, public, extends(kernel_type) :: v3_solver_kernel_type
        arg_type(gh_write,v3,fe,.true.,.false.,.false.,.true.),        &
        arg_type(gh_read ,v3,fe,.false.,.false.,.false.,.false.)       &
        /)
-  integer :: iterates_over = cells
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: solver_v3_code
 end type

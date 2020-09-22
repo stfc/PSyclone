@@ -66,7 +66,7 @@ type, public, extends(kernel_type) :: v1_kernel_type
   type(arg_type) :: meta_args(1) = (/ &
        arg_type(gh_inc,v1,fe, .true., .false., .false., .true.) &
        /)
-  integer :: iterates_over = cells
+  integer :: operates_on = CELL_COLUMN
 
 contains
   procedure, nopass :: rhs_v1_code
