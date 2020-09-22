@@ -342,8 +342,8 @@ on your PATH:
 
    > psyclone
    usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
-                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l] [-dm] [-nodm]
-                   [--kernel-renaming {multiple,single}]
+                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
+		   [-dm] [-nodm] [--kernel-renaming {multiple,single}]
 		   [--profile {invokes,kernels}] [--config CONFIG] [-v]
                    filename
    psyclone: error: too few arguments
@@ -357,7 +357,7 @@ use that layer. These files are named according to the user-supplied
 arguments (options -oalg and -opsy). If those arguments are not
 supplied then the script writes the generated/re-written Fortran to
 the terminal. For details of the other command-line arguments please
-see the :ref:`psyclone_script` Section.
+see the :ref:`psyclone_command` Section.
 
 Examples are provided in the ``examples`` directory of the PSyclone git
 repository - if you have cloned the repository then ``EGS_HOME`` in

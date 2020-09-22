@@ -53,8 +53,10 @@ def test_psy_data_trans_basic(capsys):
     '''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0)
+                           "gocean1.0", idx=0, dist_mem=False)
     schedule = invoke.schedule
+    # This test expects constant loop bounds
+    schedule._const_loop_bounds = True
 
     data_trans = PSyDataTrans()
     assert "Insert a PSyData node" in str(data_trans)

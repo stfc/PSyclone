@@ -47,10 +47,11 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, SymbolTable, RoutineSymbol, \
-    GlobalInterface
+    LocalInterface, GlobalInterface, Symbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
     Reference, Literal
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
+from psyclone.errors import InternalError
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -443,21 +444,68 @@ class FortranWriter(PSyIRVisitor):
         result += "\n"
         return result
 
+    def gen_routine_access_stmts(self, symbol_table):
+        '''
+        Creates the accessibility statements (R518) for any routine symbols
+        in the supplied symbol table.
+
+        :param symbol_table: the symbol table for which to generate \
+                             accessibility statements.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :returns: the accessibility statements for any routine symbols.
+        :rtype: str
+
+        :raises InternalError: if a Routine symbol with an unrecognised \
+                               visibility is encountered.
+        '''
+        public_routines = []
+        private_routines = []
+        for symbol in symbol_table.symbols:
+            if isinstance(symbol, RoutineSymbol):
+                # It doesn't matter whether this symbol has a local or global
+                # interface - its accessibility in *this* context is determined
+                # by the local accessibility statements. e.g. if we are
+                # dealing with the declarations in a given module which itself
+                # uses a public symbol from some other module, the
+                # accessibility of that symbol is determined by the
+                # accessibility statements in the current module.
+                if symbol.visibility == Symbol.Visibility.PUBLIC:
+                    public_routines.append(symbol.name)
+                elif symbol.visibility == Symbol.Visibility.PRIVATE:
+                    private_routines.append(symbol.name)
+                else:
+                    raise InternalError(
+                        "Unrecognised visibility ('{0}') found for symbol "
+                        "'{1}'. Should be either 'Symbol.Visibility.PUBLIC' "
+                        "or 'Symbol.Visibility.PRIVATE'.".format(
+                            str(symbol.visibility), symbol.name))
+        result = "\n"
+        if public_routines:
+            result += "{0}public :: {1}\n".format(self._nindent,
+                                                  ", ".join(public_routines))
+        if private_routines:
+            result += "{0}private :: {1}\n".format(self._nindent,
+                                                   ", ".join(private_routines))
+        if len(result) > 1:
+            return result
+        return ""
+
     def gen_decls(self, symbol_table, args_allowed=True):
         '''Create and return the Fortran declarations for the supplied
         SymbolTable.
 
         :param symbol_table: the SymbolTable instance.
         :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool args_allowed: if False then one or more argument
-        declarations in symbol_table will cause this method to raise
-        an exception. Defaults to True.
+        :param bool args_allowed: if False then one or more argument \
+                declarations in symbol_table will cause this method to raise \
+                an exception. Defaults to True.
 
         :returns: the Fortran declarations as a string.
         :rtype: str
 
         :raises VisitorError: if one of the symbols is a RoutineSymbol \
-            and it does not have a GlobalInterface interface as this \
+            which does not have a GlobalInterface or LocalInterface as this \
             is not supported by this backend.
         :raises VisitorError: if args_allowed is False and one or more \
                               argument declarations exist in symbol_table.
@@ -468,12 +516,13 @@ class FortranWriter(PSyIRVisitor):
         '''
         declarations = ""
 
-        if not all([isinstance(symbol.interface, GlobalInterface)
+        if not all([isinstance(symbol.interface, (LocalInterface,
+                                                  GlobalInterface))
                     for symbol in symbol_table.symbols
                     if isinstance(symbol, RoutineSymbol)]):
             raise VisitorError(
-                "Routine symbols without a global interface are unsupported "
-                "by the Fortran back-end.")
+                "Routine symbols without a global or local interface are not "
+                "supported by the Fortran back-end.")
 
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope) that
@@ -509,6 +558,9 @@ class FortranWriter(PSyIRVisitor):
         # 3: Local variable declarations
         for symbol in symbol_table.local_datasymbols:
             declarations += self.gen_vardecl(symbol)
+
+        # 4: Accessibility statements for routine symbols
+        declarations += self.gen_routine_access_stmts(symbol_table)
 
         return declarations
 

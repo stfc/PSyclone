@@ -69,6 +69,7 @@ PSyclone User Guide
 
     introduction
     getting_going
+    psyclone_command
     tutorial
     examples
     system_specific_setup
@@ -94,7 +95,6 @@ PSyclone User Guide
     :maxdepth: 2
     :caption: PSyclone Transformations
 
-    psyclone_script
     psyir
     transformations
     distributed_memory

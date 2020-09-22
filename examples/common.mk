@@ -58,7 +58,7 @@ ifeq (,$(wildcard ${PSYCLONE_DIR}/config/psyclone.cfg))
   PSYCLONE ?= psyclone
   KERNEL_STUB_GEN ?= genkernelstub
 else
-  PSYCLONE ?= psyclone --config ${PSYCLONE_DIR}/config/psyclone.cfg
+  PSYCLONE ?= psyclone -l output --config ${PSYCLONE_DIR}/config/psyclone.cfg
   KERNEL_STUB_GEN ?= PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg genkernelstub
 endif
 

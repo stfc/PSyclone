@@ -52,7 +52,7 @@ from psyclone.undoredo import Memento
 from psyclone.domain.lfric import FunctionSpace
 from psyclone.psyir.transformations import RegionTrans, TransformationError
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
-    INTEGER_TYPE, DataSymbol
+    INTEGER_TYPE, DataSymbol, Symbol
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -554,9 +554,9 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                        node2.upper_bound_halo_depth))
 
         # 5) Check for reductions
-        from psyclone.psyGen import MAPPING_SCALARS
+        from psyclone.psyGen import VALID_SCALAR_NAMES
         from psyclone.core.access_type import AccessType
-        arg_types = MAPPING_SCALARS.values()
+        arg_types = VALID_SCALAR_NAMES
         all_reductions = AccessType.get_valid_reduction_modes()
         node1_red_args = node1.args_filter(arg_types=arg_types,
                                            arg_accesses=all_reductions)
@@ -1230,7 +1230,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # colouring.
         if node.field_space.orig_name not in \
            FunctionSpace.VALID_DISCONTINUOUS_NAMES:
-            if node.loop_type is not 'colour' and node.has_inc_arg():
+            if node.loop_type != 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     "Error in {0} transformation. The kernel has an "
                     "argument with INC access. Colouring is required.".
@@ -1333,7 +1333,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
         # If the loop is not already coloured then check whether or not
         # it should be
-        if node.loop_type is not 'colour' and node.has_inc_arg():
+        if node.loop_type != 'colour' and node.has_inc_arg():
             raise TransformationError(
                 "Error in {0} transformation. The kernel has an argument"
                 " with INC access. Colouring is required.".
@@ -1998,7 +1998,7 @@ class GOConstLoopBoundsTrans(Transformation):
 
     def apply(self, node, options=None):
         '''Switches constant loop bounds on or off for all loops in a
-        GOInvokeSchedule. Default is 'on'.
+        GOInvokeSchedule. Default is 'off'.
 
         :param node: the GOInvokeSchedule of which all loops will get the
             constant loop bounds switched on or off.
@@ -2010,7 +2010,7 @@ class GOConstLoopBoundsTrans(Transformation):
             be used (True) or not (False). Default is True.
 
         :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
+        :rtype: (:py:class:`psyclone.gocean1p0.GOInvokeSchedule`, \
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''
@@ -3682,49 +3682,56 @@ class KernelGlobalsToArguments(Transformation):
         for globalvar in kernel.symbol_table.global_symbols[:]:
 
             # Resolve the data type information if it is not available
-            if isinstance(globalvar.datatype, DeferredType):
-                globalvar.resolve_deferred()
+            # pylint: disable=unidiomatic-typecheck
+            if (type(globalvar) == Symbol or
+                    isinstance(globalvar.datatype, DeferredType)):
+                updated_sym = globalvar.resolve_deferred()
+                # If we have a new symbol then we must update the symbol table
+                if updated_sym is not globalvar:
+                    kernel.symbol_table.swap(globalvar, updated_sym)
+            # pylint: enable=unidiomatic-typecheck
 
             # Copy the global into the InvokeSchedule SymbolTable
             invoke_symtab.copy_external_global(
-                globalvar, tag="AlgArgs_" + globalvar.name)
+                updated_sym, tag="AlgArgs_" + updated_sym.name)
 
             # Keep a reference to the original container so that we can
             # update it after the interface has been updated.
-            container = globalvar.interface.container_symbol
+            container = updated_sym.interface.container_symbol
 
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
-            if globalvar.is_constant:
+            if updated_sym.is_constant:
                 # Global constants lose the constant value but are read-only
                 # TODO: When #633 and #11 are implemented, warn the user that
                 # they should transform the constants to literal values first.
-                globalvar.constant_value = None
-                globalvar.interface = ArgumentInterface(
+                updated_sym.constant_value = None
+                updated_sym.interface = ArgumentInterface(
                     ArgumentInterface.Access.READ)
             else:
-                globalvar.interface = ArgumentInterface(
+                updated_sym.interface = ArgumentInterface(
                     ArgumentInterface.Access.READWRITE)
-            current_arg_list.append(globalvar)
+            current_arg_list.append(updated_sym)
             symtab.specify_argument_list(current_arg_list)
 
             # Convert PSyIR DataTypes to Gocean VALID_SCALAR_TYPES
             # TODO #678: Ideally this strings should be provided by the GOcean
             # API configuration.
             go_space = ""
-            if globalvar.datatype.intrinsic == ScalarType.Intrinsic.REAL:
+            if updated_sym.datatype.intrinsic == ScalarType.Intrinsic.REAL:
                 go_space = "go_r_scalar"
-            elif globalvar.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
+            elif (updated_sym.datatype.intrinsic ==
+                  ScalarType.Intrinsic.INTEGER):
                 go_space = "go_i_scalar"
             else:
                 raise TypeError(
                     "The global variable '{0}' could not be promoted to an "
                     "argument because the GOcean infrastructure does not have"
                     " any scalar type equivalent to the PSyIR {1} type.".
-                    format(globalvar.name, globalvar.datatype))
+                    format(updated_sym.name, updated_sym.datatype))
 
             # Add the global variable in the call argument list
-            node.arguments.append(globalvar.name, go_space)
+            node.arguments.append(updated_sym.name, go_space)
 
             # Check whether we still need the Container symbol from which
             # this global was originally accessed

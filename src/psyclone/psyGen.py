@@ -65,11 +65,9 @@ FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 # overidden.
 OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
-# Names of internal scalar argument types
-MAPPING_SCALARS_LIST = ["iscalar", "rscalar"]
-# Mapping from domain-specific scalar-type names to internal scalar
-# types. Can be overridden in domain-specific modules.
-MAPPING_SCALARS = dict(zip(MAPPING_SCALARS_LIST, MAPPING_SCALARS_LIST))
+# Names of internal scalar argument types. Can be overridden in
+# domain-specific modules.
+VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
 
 # Valid types of argument to a kernel call
 VALID_ARG_TYPE_NAMES = []
@@ -1595,16 +1593,22 @@ class OMPDirective(Directive):
         return self.coloured_name(colour) + "[OMP]"
 
     def _get_reductions_list(self, reduction_type):
-        '''Return the name of all scalars within this region that require a
-        reduction of type reduction_type. Returned names will be unique.
-        :param reduction_type: The reduction type (e.g. AccessType.SUM) to \
-            search for.
+        '''
+        Returns the names of all scalars within this region that require a
+        reduction of type 'reduction_type'. Returned names will be unique.
+
+        :param reduction_type: the reduction type (e.g. AccessType.SUM) to \
+                               search for.
         :type reduction_type: :py:class:`psyclone.core.access_type.AccessType`
+
+        :returns: names of scalar arguments with reduction access.
+        :rtype: list of str
+
         '''
         result = []
         for call in self.kernels():
             for arg in call.arguments.args:
-                if arg.argument_type in MAPPING_SCALARS.values():
+                if arg.argument_type in VALID_SCALAR_NAMES:
                     if arg.descriptor.access == reduction_type:
                         if arg.name not in result:
                             result.append(arg.name)
@@ -2330,10 +2334,10 @@ class Kern(Statement):
 
         self._arg_descriptors = None
 
-        # initialise any reduction information
+        # Initialise any reduction information
         reduction_modes = AccessType.get_valid_reduction_modes()
         args = args_filter(arguments.args,
-                           arg_types=MAPPING_SCALARS.values(),
+                           arg_types=VALID_SCALAR_NAMES,
                            arg_accesses=reduction_modes)
         if args:
             self._reduction = True
@@ -3396,7 +3400,7 @@ class DataAccess(object):
             return
 
         if isinstance(arg.call, HaloExchange) and \
-           self._arg.vector_size > 1:
+           (hasattr(self._arg, 'vector_size') and self._arg.vector_size > 1):
             # The supplied argument is a vector field coming from a
             # halo exchange and therefore only accesses one of the
             # vectors
@@ -3487,8 +3491,6 @@ class Argument(object):
                 # TODO #720: Deprecate name_from_tag method
                 self._name = self._call.root.symbol_table.name_from_tag(
                     tag, self._orig_name)
-
-        self._vector_size = 1
 
     def __str__(self):
         return self._name
