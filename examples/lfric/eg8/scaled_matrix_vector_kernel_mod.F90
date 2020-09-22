@@ -70,7 +70,7 @@ type, public, extends(kernel_type) :: scaled_matrix_vector_kernel_type
        arg_type(GH_FIELD,     GH_READ, W3),                            &
        arg_type(GH_FIELD,     GH_READ, ANY_SPACE_1)                    &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: scaled_matrix_vector_code
 end type

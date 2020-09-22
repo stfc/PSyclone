@@ -72,7 +72,7 @@ type, public, extends(kernel_type) :: rtheta_kernel_type
        func_type(W0, GH_BASIS, GH_DIFF_BASIS),                         &
        func_type(W2, GH_BASIS)                                         &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_QUADRATURE_XYoZ
 contains
   procedure, nopass :: rtheta_code
