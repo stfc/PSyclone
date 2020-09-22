@@ -45,6 +45,8 @@ Program test
 
     use init_field_mod,   only : init_field
     use update_field_mod, only : update_field
+    use read_only_verify_psy_data_mod, only: read_only_verify_PSyDataInit, &
+        read_only_verify_PSyDataShutdown, read_only_verify_PSyDataStart
 
     TYPE(r2d_field)          :: a_fld, b_fld, c_fld, d_fld
     double precision         :: x, y, z
@@ -52,6 +54,10 @@ Program test
 
     ! Initialise dl_esm_inf and create a grid:
     call parallel_init()
+    call read_only_verify_PSyDataInit()
+    ! Just to show how to use the start function. It is not
+    ! actually required, since the previous call enables it anyway.
+    call read_only_verify_PSyDataStart()
     grid = grid_type(GO_ARAKAWA_C,                                 &
                      (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/), &
                      GO_OFFSET_SW)
@@ -65,7 +71,7 @@ Program test
     b_fld = r2d_field(grid, GO_T_POINTS)
     c_fld = r2d_field(grid, GO_T_POINTS)
     d_fld = r2d_field(grid, GO_T_POINTS)
-  
+
     ! Use a kernel to initialise each field:
     call invoke (init_field(a_fld, 1.0), &
                  init_field(b_Fld, 2.0), &
@@ -78,5 +84,7 @@ Program test
     x = 0.0d0
     z = 1.0d0
     call invoke (update_field(a_fld, b_fld, c_fld, d_fld, x, y, z) )
+
+    call read_only_verify_PSyDataShutdown()
 
 end program test
