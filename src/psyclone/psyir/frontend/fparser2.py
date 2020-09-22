@@ -1188,14 +1188,18 @@ class Fparser2Reader(object):
                     # will replace a previous import with an empty only-list.
                     pass
                 for name in decl.items[4].items:
-                    # The DataSymbol adds itself to the list of symbols
-                    # imported by the Container referenced in the
-                    # GlobalInterface.
                     sym_name = str(name).lower()
                     if sym_name not in parent.symbol_table:
+                        # We're dealing with a symbol named in a use statement
+                        # in the *current* scope therefore we don't need to
+                        # check any ancestor symbol tables; we just create a
+                        # new symbol. Since we don't yet know anything about
+                        # this symbol apart from its name we create a generic
+                        # Symbol.
                         parent.symbol_table.add(
                             Symbol(sym_name,
-                                   interface=GlobalInterface(container)))
+                                   interface=GlobalInterface(container)),
+                            check_ancestors=False)
                     else:
                         # There's already a symbol with this name
                         existing_symbol = parent.symbol_table.lookup(
