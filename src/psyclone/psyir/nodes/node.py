@@ -39,8 +39,7 @@
 ''' This module contains the abstract Node implementation.'''
 
 import abc
-from psyclone.psyir.symbols import SymbolError, Symbol, UnresolvedInterface, \
-    DeferredType
+from psyclone.psyir.symbols import SymbolError, Symbol, UnresolvedInterface
 from psyclone.errors import GenerationError, InternalError
 
 # Colour map to use when writing Invoke schedule to terminal. (Requires
