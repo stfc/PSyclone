@@ -185,7 +185,7 @@ class LFRicArgDescriptor(Descriptor):
         new_scalar_argtype = (self._argument_type == "gh_scalar")
         new_operator_argtype = (
             self._argument_type in LFRicArgDescriptor.VALID_OPERATOR_NAMES
-            and len(arg_type.args) == 5)
+            and len(arg_type.args) >= 5)
         dtype = arg_type.args[1].name
         # ParseError for an invalid data type is raised here for scalars
         # and operators as we know their argtype and/or many arguments
@@ -269,9 +269,8 @@ class LFRicArgDescriptor(Descriptor):
         else:
             # We should never get to here if the checks are tight enough
             raise InternalError(
-                "LFRicArgDescriptor.__init__(): failed argument validation "
-                "for the 'meta_arg' entry '{0}', should not get to here.".
-                format(arg_type))
+                "Failed argument validation for the 'meta_arg' entry '{0}', "
+                "should not get to here.".format(arg_type))
 
         # Initialise the parent class
         super(LFRicArgDescriptor,
@@ -374,9 +373,8 @@ class LFRicArgDescriptor(Descriptor):
         # Check whether something other than a field is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_FIELD_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._init_field(): expected a field "
-                "argument but got an argument of type '{0}'.".
-                format(arg_type.args[0]))
+                "Expected a field argument but got an argument of type "
+                "'{0}'.".format(arg_type.args[0]))
 
         # TODO in #874: Remove support for the old-style field descriptors
         #               throughout this routine.
@@ -423,7 +421,7 @@ class LFRicArgDescriptor(Descriptor):
                 "In the LFRic API argument {0} of a 'meta_arg' field entry "
                 "must be a valid function space name (one of {1}) if its "
                 "first argument is of {2} type, but found '{3}' in '{4}'.".
-                format(prop_ind, FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                format(prop_ind+1, FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
                        LFRicArgDescriptor.VALID_FIELD_NAMES,
                        arg_type.args[prop_ind].name, arg_type))
         self._function_space1 = arg_type.args[prop_ind].name
@@ -448,7 +446,7 @@ class LFRicArgDescriptor(Descriptor):
                     "entry must be either a valid stencil specification"
                     "or a mesh identifier (for inter-grid kernels). However, "
                     "entry '{1}' raised the following error: {2}.".
-                    format(prop_ind, arg_type, str(err)))
+                    format(prop_ind+1, arg_type, str(err)))
 
         # Test allowed accesses for fields
         field_disc_accesses = [AccessType.READ, AccessType.WRITE,
@@ -539,9 +537,8 @@ class LFRicArgDescriptor(Descriptor):
         # Check whether something other than an operator is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_OPERATOR_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._init_operator(): expected an "
-                "operator argument but got an argument of type '{0}'.".
-                format(self._argument_type))
+                "Expected an operator argument but got an argument of type "
+                "'{0}'.".format(self._argument_type))
 
         # TODO in #874: Remove support for the old-style operator descriptors
         #               throughout this routine.
@@ -563,10 +560,9 @@ class LFRicArgDescriptor(Descriptor):
         if not self._data_type and self._offset == 0:
             self._data_type = "gh_real"
         if (self._data_type not in
-                LFRicArgDescriptor.VALID_FIELD_DATA_TYPES):
+                LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES):
             raise InternalError(
-                "LFRicArgDescriptor._init_operator(): expected one of {0} "
-                "as the data type but got '{1}'.".
+                "Expected one of {0} as the data type but got '{1}'.".
                 format(LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES,
                        self._data_type))
 
@@ -577,9 +573,9 @@ class LFRicArgDescriptor(Descriptor):
            FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
                 "In the LFRic API argument {0} of a 'meta_arg' operator "
-                "entry must be a valid function space name (one of {1}), "
-                "but found '{2}' in '{3}'.".
-                format(prop_ind, FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                "entry must be a valid function space to- name (one of "
+                "{1}), but found '{2}' in '{3}'.".
+                format(prop_ind+1, FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
                        arg_type.args[prop_ind].name, arg_type))
         self._function_space1 = arg_type.args[prop_ind].name
         # Check for a valid from- function space
@@ -588,9 +584,9 @@ class LFRicArgDescriptor(Descriptor):
            FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
                 "In the LFRic API argument {0} of a 'meta_arg' operator "
-                "entry must be a valid function space name (one of {1}), "
-                "but found '{2}' in '{3}'.".
-                format(prop_ind, FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
+                "entry must be a valid function space from- name (one of "
+                "{1}), but found '{2}' in '{3}'.".
+                format(prop_ind+1, FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
                        arg_type.args[prop_ind].name, arg_type))
         self._function_space2 = arg_type.args[prop_ind].name
 
@@ -630,9 +626,8 @@ class LFRicArgDescriptor(Descriptor):
         # Check whether something other than a scalar is passed in
         if self._argument_type not in LFRicArgDescriptor.VALID_SCALAR_NAMES:
             raise InternalError(
-                "LFRicArgDescriptor._init_scalar(): expected a scalar "
-                "argument but got an argument of type '{0}'.".
-                format(arg_type.args[0]))
+                "Expected a scalar argument but got an argument of type "
+                "'{0}'.".format(arg_type.args[0]))
 
         # There must be 3 argument descriptors to describe a scalar.
         # TODO in #874: Remove support for the old-style 2 descriptors.
@@ -656,8 +651,7 @@ class LFRicArgDescriptor(Descriptor):
         if (self._data_type not in
                 LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES):
             raise InternalError(
-                "LFRicArgDescriptor._init_scalar(): expected one of {0} "
-                "as the data type but got '{1}'.".
+                "Expected one of {0} as the data type but got '{1}'.".
                 format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES,
                        self._data_type))
 
@@ -757,8 +751,8 @@ class LFRicArgDescriptor(Descriptor):
             return self._function_space2
         if self._argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
             return None
-        raise InternalError("LFRicArgDescriptor.function_space(), should "
-                            "not get to here.")
+        raise InternalError("Expected a valid argument type but got '{0}'.".
+                            format(self._argument_type))
 
     @property
     def function_spaces(self):
@@ -781,8 +775,8 @@ class LFRicArgDescriptor(Descriptor):
             return [self.function_space_to, self.function_space_from]
         if self._argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
             return []
-        raise InternalError("LFRicArgDescriptor.function_spaces(), should "
-                            "not get to here.")
+        raise InternalError("Expected a valid argument type but got '{0}'.".
+                            format(self._argument_type))
 
     @property
     def vector_size(self):
@@ -830,8 +824,8 @@ class LFRicArgDescriptor(Descriptor):
         elif self._argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
             pass  # We have nothing to add if we're a scalar
         else:  # We should never get to here
-            raise InternalError("LFRicArgDescriptor.__str__(), should not "
-                                "get to here.")
+            raise InternalError("Expected a valid argument type but got "
+                                "'{0}'.".format(self._argument_type))
         return res
 
 

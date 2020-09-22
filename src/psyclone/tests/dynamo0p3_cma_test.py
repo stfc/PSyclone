@@ -64,12 +64,13 @@ OP_WRITE_ACCESSES = ["gh_write", "gh_readwrite"]
 CMA_ASSEMBLE = '''
 module testkern_cma
   type, extends(kernel_type) :: testkern_cma_type
-     type(arg_type), meta_args(4) =                                    &
-          (/ arg_type(gh_operator, gh_read, any_space_1, any_space_2), &
-             arg_type(gh_columnwise_operator, gh_write, any_space_1,   &
-                      any_space_2),                                    &
-             arg_type(gh_field, gh_read, any_space_1),                 &
-             arg_type(gh_scalar, gh_real, gh_read)                     &
+     type(arg_type), meta_args(4) =                                &
+          (/ arg_type(gh_operator, gh_real, gh_read, any_space_1,  &
+                                                     any_space_2), &
+             arg_type(gh_columnwise_operator, gh_real, gh_write,   &
+                                    any_space_1, any_space_2),     &
+             arg_type(gh_field, gh_real, gh_read, any_space_1),    &
+             arg_type(gh_scalar, gh_real, gh_read)                 &
            /)
      integer :: iterates_over = cells
    contains
@@ -124,7 +125,24 @@ def test_cma_mdata_assembly():
     assert cma_op_desc.vector_size == 1
 
 
-def test_cma_mdata_init_wrong_type():
+def test_cma_mdata_invalid_data_type():
+    ''' Tests that an error is raised when the argument descriptor
+    metadata for a column-wise operator has an invalid data type. '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    name = "testkern_cma_type"
+    code = CMA_ASSEMBLE.replace(
+        "arg_type(gh_columnwise_operator, gh_real, gh_write,   &\n",
+        "arg_type(gh_columnwise_operator, gh_unreal, gh_write,   &\n", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("In the LFRic API the 2nd argument of a 'meta_arg' "
+            "entry should be a valid data type (one of "
+            "['gh_real', 'gh_integer']), but found 'gh_unreal' in "
+            "'gh_columnwise_operator'." in str(excinfo.value))
+
+
+def test_cma_mdata_init_wrong_argument_type():
     ''' Test that an error is raised if something other than an operator
     is passed to the LFRicArgDescriptor._init_operator() method. '''
     ast = fpapi.parse(CMA_ASSEMBLE, ignore_comments=False)
@@ -135,8 +153,24 @@ def test_cma_mdata_init_wrong_type():
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
             wrong_arg, metadata.iterates_over)._init_operator(wrong_arg)
-    assert ("LFRicArgDescriptor._init_operator(): expected an operator "
-            "argument but got an argument of type 'gh_scalar'." in
+    assert ("Expected an operator argument but got an argument of type "
+            "'gh_scalar'." in str(excinfo.value))
+
+
+def test_cma_mdata_init_wrong_data_type():
+    ''' Test that an error is raised if an invalid data type
+    is passed to the LFRicArgDescriptor._init_operator() method. '''
+    ast = fpapi.parse(CMA_ASSEMBLE, ignore_comments=False)
+    name = "testkern_cma_type"
+    metadata = DynKernMetadata(ast, name=name)
+    # Get a column-wise operator argument descriptor and set a wrong data type
+    cma_op_arg = metadata._inits[1]
+    cma_op_arg.args[1].name = "gh_integer"
+    with pytest.raises(InternalError) as excinfo:
+        LFRicArgDescriptor(
+            cma_op_arg, metadata.iterates_over)._init_operator(cma_op_arg)
+    assert ("Expected one of {0} as the data type but got 'gh_integer'.".
+            format(LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES) in
             str(excinfo.value))
 
 
@@ -145,10 +179,10 @@ def test_cma_mdata_assembly_missing_op():
     is assembling a gh_columnwise_operator but doesn't have a read-only
     gh_operator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    # Remove  the (required) LMA operator
-    code = CMA_ASSEMBLE.replace(
-        "arg_type(gh_operator, gh_read, any_space_1, any_space_2),", "", 1)
-    code = code.replace("meta_args(4) =", "meta_args(3) =", 1)
+    code = CMA_ASSEMBLE.splitlines()
+    # Remove the (required) LMA operator
+    code[4:6] = ["          (/ &"]
+    code = "\n".join(code).replace("meta_args(4) =", "meta_args(3) =", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
@@ -168,7 +202,7 @@ def test_cma_mdata_multi_writes():
         cmaopstring = "arg_type(gh_columnwise_operator," + access + \
                       ",any_space_1,any_space_2)"
         code = CMA_ASSEMBLE.replace(
-            "arg_type(gh_field, gh_read, any_space_1)",
+            "arg_type(gh_field, gh_real, gh_read, any_space_1)",
             cmaopstring, 1)
         ast = fpapi.parse(code, ignore_comments=False)
         name = "testkern_cma_type"
@@ -178,7 +212,7 @@ def test_cma_mdata_multi_writes():
                 "(column-wise) operator but kernel testkern_cma_type "
                 "updates 2") in str(excinfo.value)
         code = CMA_ASSEMBLE.replace(
-            "arg_type(gh_field, gh_read, any_space_1)",
+            "arg_type(gh_field, gh_real, gh_read, any_space_1)",
             cmaopstring + ",&\n" +
             cmaopstring, 1)
         code = code.replace("meta_args(4) = ", "meta_args(5) = ", 1)
@@ -197,10 +231,10 @@ def test_cma_mdata_mutable_op():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Make the LMA operator gh_write and gh_readwrite instead of gh_read
     for access in OP_WRITE_ACCESSES:
-        opstring = "arg_type(gh_operator," + access + \
-                   ", any_space_1, any_space_2),"
+        opstring = "gh_operator, gh_real, " + access + \
+                   ", any_space_1,  &\n"
         code = CMA_ASSEMBLE.replace(
-            "arg_type(gh_operator, gh_read, any_space_1, any_space_2),",
+            "gh_operator, gh_real, gh_read, any_space_1,  &\n",
             opstring, 1)
         ast = fpapi.parse(code, ignore_comments=False)
         name = "testkern_cma_type"
@@ -218,13 +252,11 @@ def test_cma_mdata_writes_lma_op():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Add an additional LMA operator that has write or readwrite access
     for access in OP_WRITE_ACCESSES:
-        opstring = "arg_type(gh_operator," + access + \
-                   ", any_space_1, any_space_2), &\n"
-        code = CMA_ASSEMBLE.replace(
-            "arg_type(gh_operator, gh_read, any_space_1, any_space_2), &\n",
-            "arg_type(gh_operator, gh_read, any_space_1, any_space_2), &\n" +
-            opstring, 1)
-        code = code.replace("meta_args(4)", "meta_args(5)", 1)
+        opstring = "             arg_type(gh_operator," + access + \
+                   ", any_space_1, any_space_2), &"
+        code = CMA_ASSEMBLE.split("\n")
+        code.insert(6, opstring)
+        code = "\n".join(code).replace("meta_args(4)", "meta_args(5)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         name = "testkern_cma_type"
         with pytest.raises(ParseError) as excinfo:
@@ -243,8 +275,8 @@ def test_cma_mdata_assembly_diff_spaces():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the to space of the LMA operator
     code = CMA_ASSEMBLE.replace(
-        "arg_type(gh_operator, gh_read, any_space_1, any_space_2),",
-        "arg_type(gh_operator, gh_read, any_space_3, any_space_2),", 1)
+        "arg_type(gh_operator, gh_real, gh_read, any_space_1,",
+        "arg_type(gh_operator, gh_real, gh_read, any_space_3,", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     dkm = DynKernMetadata(ast, name=name)
@@ -268,8 +300,8 @@ def test_cma_mdata_asm_vector_error():
 
     # Reject a field vector argument
     code = CMA_ASSEMBLE.replace(
-        "arg_type(gh_field, gh_read, any_space_1)",
-        "arg_type(gh_field*3, gh_read, any_space_1)", 1)
+        "arg_type(gh_field, gh_real, gh_read, any_space_1)",
+        "arg_type(gh_field*3, gh_real, gh_read, any_space_1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
@@ -294,8 +326,8 @@ def test_cma_mdata_asm_stencil_error():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the space of the field that is written
     code = CMA_ASSEMBLE.replace(
-        "arg_type(gh_field, gh_read, any_space_1)",
-        "arg_type(gh_field, gh_read,any_space_1,stencil(x1d))", 1)
+        "arg_type(gh_field, gh_real, gh_read, any_space_1)",
+        "arg_type(gh_field, gh_real, gh_read, any_space_1, stencil(x1d))", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
@@ -308,10 +340,11 @@ def test_cma_mdata_asm_stencil_error():
 CMA_APPLY = '''
 module testkern_cma_apply
   type, extends(kernel_type) :: testkern_cma_type
-  type(arg_type) :: meta_args(3) = (/                                      &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                        &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
+  type(arg_type) :: meta_args(3) = (/                     &
+       arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_1), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2), &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, &
+                                ANY_SPACE_1, ANY_SPACE_2) &
        /)
      integer :: iterates_over = cells
    contains
@@ -359,10 +392,10 @@ def test_cma_mdata_apply_too_many_ops():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Add an additional read-only CMA operator to the argument list
     code = CMA_APPLY.replace(
-        "ANY_SPACE_2),                        &\n",
-        "ANY_SPACE_2),                        &\n"
-        "       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
-        "ANY_SPACE_2), &\n", 1)
+        "                         ANY_SPACE_1, ANY_SPACE_2) &\n",
+        "                         ANY_SPACE_1, ANY_SPACE_2), &\n"
+        "       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, &\n"
+        "                                ANY_SPACE_1, ANY_SPACE_2) &\n", 1)
     code = code.replace("meta_args(3)", "meta_args(4)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
@@ -379,9 +412,9 @@ def test_cma_mdata_apply_too_many_flds():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Add an additional read-only field to the argument list
     code = CMA_APPLY.replace(
-        "ANY_SPACE_2),                        &\n",
-        "ANY_SPACE_2),                        &\n"
-        "       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2), &\n", 1)
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2), &\n",
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2), &\n"
+        "       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2), &\n", 1)
     code = code.replace("meta_args(3)", "meta_args(4)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
@@ -398,8 +431,8 @@ def test_cma_mdata_apply_no_read_fld():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Make the read-only field gh_inc instead
     code = CMA_APPLY.replace(
-        "arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2), ",
-        "arg_type(GH_FIELD,    GH_INC, ANY_SPACE_2), ", 1)
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2), ",
+        "arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_2), ", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
@@ -414,8 +447,9 @@ def test_cma_mdata_apply_no_write_fld():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Turn the written field into an operator instead
     code = CMA_APPLY.replace(
-        "arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1), ",
-        "arg_type(GH_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_1), ", 1)
+        "arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_1), ",
+        "arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, "
+        "ANY_SPACE_1), ", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
@@ -430,8 +464,9 @@ def test_cma_mdata_apply_wrong_spaces():
     CMA operator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the space of the field that is written
-    code = CMA_APPLY.replace("arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1)",
-                             "arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_3)", 1)
+    code = CMA_APPLY.replace(
+        "arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_1)",
+        "arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_3)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
@@ -440,8 +475,9 @@ def test_cma_mdata_apply_wrong_spaces():
             "argument it writes to (any_space_3) does not match the 'to' "
             "space of the operator (any_space_1)") in str(excinfo.value)
     # Change the space of the field that is read
-    code = CMA_APPLY.replace("arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2)",
-                             "arg_type(GH_FIELD,    GH_READ, ANY_SPACE_3)", 1)
+    code = CMA_APPLY.replace(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2)",
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_3)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
@@ -458,8 +494,9 @@ def test_cma_mdata_apply_vector_error():
     name = "testkern_cma_type"
 
     # Reject a field vector argument
-    code = CMA_APPLY.replace("arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1)",
-                             "arg_type(GH_FIELD*3,  GH_INC,  ANY_SPACE_1)", 1)
+    code = CMA_APPLY.replace(
+        "arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_1)",
+        "arg_type(GH_FIELD*3, GH_REAL, GH_INC,  ANY_SPACE_1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
@@ -484,8 +521,8 @@ def test_cma_mdata_apply_fld_stencil_error():
     access. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_APPLY.replace(
-        "arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2)",
-        "arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2, STENCIL(X1D))", 1)
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2)",
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2, STENCIL(X1D))", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
@@ -498,11 +535,14 @@ def test_cma_mdata_apply_fld_stencil_error():
 CMA_MATRIX = '''
 module testkern_cma_matrix_matrix
   type, extends(kernel_type) :: testkern_cma_type
-  type(arg_type) :: meta_args(4) = (/                                        &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
-       arg_type(GH_SCALAR,              GH_REAL,  GH_READ),                  &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2)  &
+  type(arg_type) :: meta_args(4) = (/                      &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ,  &
+                                ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_SCALAR,              GH_REAL, GH_READ), &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ,  &
+                                ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_WRITE, &
+                                ANY_SPACE_1, ANY_SPACE_2)  &
        /)
      integer :: iterates_over = cells
    contains
@@ -540,10 +580,11 @@ def test_cma_mdata_matrix_too_few_args():
     ''' Check that we raise the expected error when there are too few
     arguments specified in meta-data '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CMA_MATRIX.replace(
-        "       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  ANY_SPACE_1, "
-        "ANY_SPACE_2), &\n", "", 2)
-    code = code.replace("meta_args(4)", "meta_args(2)", 1)
+    code = CMA_MATRIX.split("\n")
+    # Remove read-only cma operators
+    del code[4:6]
+    del code[5:7]
+    code = "\n".join(code).replace("meta_args(4)", "meta_args(2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
@@ -559,9 +600,9 @@ def test_cma_mdata_matrix_field_arg():
     operator or scalar means that PSyclone attempts to identify this as an
     assembly kernel. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CMA_MATRIX.replace(
-        "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  ANY_SPACE_1, "
-        "ANY_SPACE_2)", "arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)", 1)
+    code = CMA_MATRIX.split("\n")
+    code[4:6] = ["       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_1), &"]
+    code = "\n".join(code)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
@@ -576,9 +617,9 @@ def test_cma_mdata_matrix_no_scalar_arg():
     that has no scalar arguments. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX.replace(
-        "arg_type(GH_SCALAR,              GH_REAL,  GH_READ)",
-        "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)",
-        1)
+        "arg_type(GH_SCALAR,              GH_REAL, GH_READ)",
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, "
+        "ANY_SPACE_2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     dkm = DynKernMetadata(ast, name=name)
@@ -590,8 +631,9 @@ def test_cma_mdata_matrix_2_scalar_args():
     that has 2 scalar arguments. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX.replace(
-        "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_2)",
-        "arg_type(GH_SCALAR,              GH_REAL,  GH_READ)",
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ,  &\n"
+        "                         ANY_SPACE_1, ANY_SPACE_2), &\n",
+        "arg_type(GH_SCALAR,              GH_REAL, GH_READ)",
         1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
@@ -604,15 +646,11 @@ def test_cma_mdata_matrix_2_writes():
     writes (write and readwrite access) to more than one CMA operator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     for access in OP_WRITE_ACCESSES:
-        cmaopstring = "arg_type(GH_COLUMNWISE_OPERATOR," + access + \
-                      ", ANY_SPACE_1, ANY_SPACE_2), &\n"
-        code = CMA_MATRIX.replace(
-            "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  ANY_SPACE_1, "
-            "ANY_SPACE_2), &\n",
-            "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  ANY_SPACE_1, "
-            "ANY_SPACE_2), &\n" +
-            cmaopstring, 1)
-        code = code.replace("meta_args(4)", "meta_args(5)", 1)
+        cmaopstring = "       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, " + \
+                      access + ", ANY_SPACE_1, ANY_SPACE_2), &"
+        code = CMA_MATRIX.split("\n")
+        code.insert(7, cmaopstring)
+        code = "\n".join(code).replace("meta_args(4)", "meta_args(5)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         name = "testkern_cma_type"
         with pytest.raises(ParseError) as excinfo:
@@ -627,24 +665,22 @@ def test_cma_mdata_stencil_invalid():
     specifies a stencil. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX.replace(
-        "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2)",
-        "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, "
-        "stencil(cross))", 1)
+        "                 ANY_SPACE_1, ANY_SPACE_2), &\n",
+        "                 ANY_SPACE_1, stencil(cross)), &\n", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("the 4th argument of a 'meta_arg' operator entry must be a valid "
-            "function space") in str(excinfo.value)
+    assert ("In the LFRic API argument 5 of a 'meta_arg' operator entry must "
+            "be a valid function space from- name") in str(excinfo.value)
     code = CMA_MATRIX.replace(
-        "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2)",
-        "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2, "
-        "stencil(cross))", 1)
+        "                 ANY_SPACE_1, ANY_SPACE_2)  &\n",
+        "                 ANY_SPACE_1, ANY_SPACE_2, stencil(cross)) &\n", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("each 'meta_arg' entry must have 4 arguments if its first "
+    assert ("each 'meta_arg' entry must have 5 arguments if its first "
             "argument is an operator (one of {0})".
             format(LFRicArgDescriptor.VALID_OPERATOR_NAMES)
             in str(excinfo.value))
@@ -658,8 +694,8 @@ def test_cma_mdata_matrix_vector_error():
 
     # Reject a CMA operator vector argument
     code = CMA_MATRIX.replace(
-        "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2)",
-        "arg_type(GH_COLUMNWISE_OPERATOR*3,GH_WRITE, ANY_SPACE_1,ANY_SPACE_2)",
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_WRITE, &\n",
+        "arg_type(GH_COLUMNWISE_OPERATOR*3, GH_REAL, GH_WRITE, &\n",
         1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
