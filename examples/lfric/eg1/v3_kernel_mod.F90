@@ -46,8 +46,8 @@
 
 module v3_kernel_mod
 use lfric
-use argument_mod,            only: arg_type, &          ! the type
-                                   gh_rw, v3, fe, cells ! the enums
+use argument_mod,            only: arg_type, &                ! the type
+                                   gh_rw, v3, fe, cell_column ! the enums
 
 
 implicit none

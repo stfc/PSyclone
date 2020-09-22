@@ -44,9 +44,9 @@ module v3_solver_kernel_mod
 use kernel_mod, only : kernel_type
 use constants_mod, only : dp
 use gaussian_quadrature_mod, only : ngp_h, ngp_v, gaussian_quadrature_type
-use argument_mod,            only : arg_type, &          ! the type
-                                    gh_read, gh_write, v3, fe, cells ! the enums
-
+use argument_mod,            only : arg_type,                  & ! the type
+                                    gh_read, gh_write, v3, fe, & ! the enums
+                                    cell_column
 use matrix_invert_mod,       only : matrix_invert
 
 implicit none

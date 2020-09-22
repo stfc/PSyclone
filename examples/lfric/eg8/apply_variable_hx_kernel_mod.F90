@@ -45,7 +45,7 @@ module apply_variable_hx_kernel_mod
 use argument_mod,            only : arg_type,                         &
                                     GH_FIELD, GH_OPERATOR, GH_SCALAR, &
                                     GH_REAL, GH_READ, GH_WRITE,       &
-                                    ANY_SPACE_1, CELLS
+                                    ANY_SPACE_1, CELL_COLUMN
 use fs_continuity_mod,       only : W3, W2
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type

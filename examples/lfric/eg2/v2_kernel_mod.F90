@@ -51,7 +51,7 @@ use kernel_mod,              only: kernel_type
 use gaussian_quadrature_mod, only: gaussian_quadrature_type, &
                                    ngp_h,ngp_v
 use argument_mod,            only: arg_type, &          ! the type
-                                   gh_inc, v2, fe, cells ! the enums
+                                   gh_inc, v2, fe, cell_column ! the enums
 
 
 implicit none

@@ -47,8 +47,8 @@ module prolong_kernel_mod
 use constants_mod,           only: i_def, r_def
 use kernel_mod,              only: kernel_type
 use argument_mod,            only: arg_type,                     &
-                                   GH_FIELD,                     &
-                                   GH_READ, GH_READWRITE, CELLS, &
+                                   GH_FIELD, CELL_COLUMN,        &
+                                   GH_READ, GH_READWRITE,        &
                                    ANY_DISCONTINUOUS_SPACE_1,    &
                                    ANY_DISCONTINUOUS_SPACE_2,    &
                                    GH_COARSE, GH_FINE

@@ -50,7 +50,7 @@ module matrix_vector_mod
 use gaussian_quadrature_mod, only : gaussian_quadrature_type,              &
                                     ngp_h,ngp_v
 use argument_mod,            only : arg_type,                              &
-                                    gh_read, gh_inc, v2, fe, cells
+                                    gh_read, gh_inc, v2, fe, cell_column
 use constants_mod,           only : dp
 use kernel_mod,              only : kernel_type
 

@@ -49,7 +49,7 @@ module mm_diagonal_kernel_mod
 use argument_mod,            only : arg_type,                               &
                                     GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
                                     ANY_SPACE_1,                            &
-                                    CELLS
+                                    CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 

@@ -42,10 +42,10 @@
 
 module v3_solver_kernel_mod
 use lfric
-use argument_mod,            only : arg_type, &          ! the type
-                                    gh_read, gh_write, v3, fe, cells ! the enums
+use argument_mod,         only : arg_type, &                            ! the type
+                                 gh_read, gh_write, v3, fe, cell_column ! the enums
 
-use matrix_invert_mod,       only : matrix_invert
+use matrix_invert_mod,    only : matrix_invert
 
 implicit none
 

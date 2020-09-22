@@ -49,7 +49,7 @@ module v1_kernel_mod
 use gaussian_quadrature_mod, only: gaussian_quadrature_type, &
                                    ngp_h, ngp_v ! parameter for how many GQ points
 use argument_mod,            only: arg_type, &          ! the type
-                                   gh_inc, v1, fe, cells ! the enums
+                                   gh_inc, v1, fe, cell_column ! the enums
 use kernel_mod,              only: kernel_type
 use constants_mod,           only: dp
 

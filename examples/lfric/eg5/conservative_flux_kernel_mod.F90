@@ -46,7 +46,7 @@ module conservative_flux_kernel_mod
 use constants_mod,     only : r_def, i_def
 use argument_mod,      only : arg_type, GH_FIELD, &
                               GH_INC, GH_READ,    &
-                              STENCIL, XORY1D, CELLS
+                              STENCIL, XORY1D, CELL_COLUMN
 use fs_continuity_mod, only : W2, W3
 use kernel_mod,        only : kernel_type
 

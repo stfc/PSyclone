@@ -56,8 +56,8 @@ module rtheta_bd_kernel_mod
                                     GH_READWRITE,                &
                                     STENCIL, CROSS,              &
                                     GH_BASIS, GH_DIFF_BASIS,     &
-                                    CELLS, GH_QUADRATURE_face,   &
-                                    adjacent_face,               &
+                                    GH_QUADRATURE_face,          &
+                                    CELL_COLUMN, adjacent_face,  &
                                     normals_to_horizontal_faces, &
                                     outward_normals_to_horizontal_faces
   use constants_mod,         only : r_def, i_def, l_def
