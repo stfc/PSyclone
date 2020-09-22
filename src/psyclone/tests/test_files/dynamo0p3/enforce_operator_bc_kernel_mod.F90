@@ -65,7 +65,7 @@ type, public, extends(kernel_type) :: enforce_operator_bc_kernel_type
   type(arg_type) :: meta_args(1) = (/                                  &
        arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2)   &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: enforce_operator_bc_code
 end type

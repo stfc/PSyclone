@@ -44,7 +44,7 @@ module dynamo0p3_builtins_mod
           arg_type(GH_FIELD,              GH_READ, ANY_SPACE_1),    &
           arg_type(GH_FIELD,              GH_READ, ANY_SPACE_1)     &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: X_innerproduct_Y_code
   end type X_innerproduct_Y

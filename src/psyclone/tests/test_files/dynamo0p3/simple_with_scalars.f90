@@ -46,7 +46,7 @@ module simple_with_scalars_mod
          (/ arg_type(gh_scalar, gh_real,    gh_read),    &
             arg_type(gh_field,              gh_inc, w1), &
             arg_type(gh_scalar, gh_integer, gh_read) /)
-    integer :: iterates_over = cells
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: code => simple_with_scalars_code
   end type simple_with_scalars_type

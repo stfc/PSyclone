@@ -56,7 +56,7 @@ module testkern_writers_mod
           arg_type(GH_FIELD, GH_INC,       W1), &
           arg_type(GH_FIELD, GH_INC,       W1)  &
           /)
-     integer :: iterates_over = CELLS
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, public, nopass :: testkern_writers_code
   end type testkern_writers_type
