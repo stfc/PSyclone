@@ -169,7 +169,8 @@ def test_cma_mdata_init_wrong_data_type():
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
             cma_op_arg, metadata.iterates_over)._init_operator(cma_op_arg)
-    assert ("Expected one of {0} as the data type but got 'gh_integer'.".
+    assert ("Expected one of {0} as the operator data type but got "
+            "'gh_integer'.".
             format(LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES) in
             str(excinfo.value))
 
