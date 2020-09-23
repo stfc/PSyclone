@@ -111,10 +111,10 @@ def test_ad_op_type_invalid_data_type():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API the 2nd argument of a 'meta_arg' "
-            "entry should be a valid data type (one of "
-            "['gh_real', 'gh_integer']), but found 'gh_clear' in "
-            "'gh_operator'." in str(excinfo.value))
+    assert ("In the LFRic API the 2nd argument of a 'meta_arg' entry should "
+            "be a valid data type (one of ['gh_real', 'gh_integer']), but "
+            "found 'gh_clear' in 'arg_type(gh_operator, gh_clear, gh_read, "
+            "w2)'." in str(excinfo.value))
 
 
 def test_ad_op_type_too_few_args():
@@ -227,11 +227,12 @@ def test_ad_op_type_init_wrong_data_type():
     # Get an operator argument descriptor and set a wrong data type
     op_arg = metadata._inits[3]
     op_arg.args[1].name = "gh_integer"
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
             op_arg, metadata.iterates_over)._init_operator(op_arg)
-    assert ("Expected one of {0} as the operator data type but got "
-            "'gh_integer'.".
+    assert ("In the LFRic API the permitted data types for operator "
+            "arguments are one of {0}, but found 'gh_integer' in "
+            "'arg_type(gh_operator, gh_integer, gh_read, w2, w2)'.".
             format(LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES) in
             str(excinfo.value))
 

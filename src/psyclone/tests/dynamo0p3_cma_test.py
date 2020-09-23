@@ -139,7 +139,8 @@ def test_cma_mdata_invalid_data_type():
     assert ("In the LFRic API the 2nd argument of a 'meta_arg' "
             "entry should be a valid data type (one of "
             "['gh_real', 'gh_integer']), but found 'gh_unreal' in "
-            "'gh_columnwise_operator'." in str(excinfo.value))
+            "'arg_type(gh_columnwise_operator, gh_unreal, gh_write, "
+            "any_space_1, any_space_2)'." in str(excinfo.value))
 
 
 def test_cma_mdata_init_wrong_argument_type():
@@ -166,11 +167,12 @@ def test_cma_mdata_init_wrong_data_type():
     # Get a column-wise operator argument descriptor and set a wrong data type
     cma_op_arg = metadata._inits[1]
     cma_op_arg.args[1].name = "gh_integer"
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
             cma_op_arg, metadata.iterates_over)._init_operator(cma_op_arg)
-    assert ("Expected one of {0} as the operator data type but got "
-            "'gh_integer'.".
+    assert ("In the LFRic API the permitted data types for operator arguments "
+            "are one of {0}, but found 'gh_integer' in 'arg_type(gh_columnwise"
+            "_operator, gh_integer, gh_write, any_space_1, any_space_2)'.".
             format(LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES) in
             str(excinfo.value))
 

@@ -196,7 +196,7 @@ class LFRicArgDescriptor(Descriptor):
                     "entry should be a valid data type (one of {0}), "
                     "but found '{1}' in '{2}'.".
                     format(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
-                           dtype, self._argument_type))
+                           dtype, arg_type))
         # TODO in # 874: Remove this temporary ParseError check for invalid
         #      data type for field and operator arguments.
         #      The old-style metadata has access type as the second argument
@@ -218,7 +218,7 @@ class LFRicArgDescriptor(Descriptor):
                         "entry should be a valid data type (one of {0}), "
                         "but found '{1}' in '{2}'.".
                         format(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
-                               dtype, self._argument_type))
+                               dtype, arg_type))
             else:
                 pass
 
@@ -531,8 +531,8 @@ class LFRicArgDescriptor(Descriptor):
         :raises InternalError: if argument type other than an operator is \
                                passed in.
         :raises ParseError: if there are not exactly 5 metadata arguments.
-        :raises InternalError: if an operator argument has an invalid \
-                               data type.
+        :raises ParseError: if an operator argument has an invalid data \
+                            type (the only permitted data type is 'gh_real').
         :raises ParseError: if the function space to- is not one of the \
                             valid function spaces.
         :raises ParseError: if the function space from- is not one of the \
@@ -567,10 +567,11 @@ class LFRicArgDescriptor(Descriptor):
             self._data_type = "gh_real"
         if (self._data_type not in
                 LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES):
-            raise InternalError(
-                "Expected one of {0} as the operator data type but got '{1}'.".
+            raise ParseError(
+                "In the LFRic API the permitted data types for operator "
+                "arguments are one of {0}, but found '{1}' in '{2}'.".
                 format(LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES,
-                       self._data_type))
+                       self._data_type, arg_type))
 
         # Operator arguments need to have valid to- and from- function spaces
         # Check for a valid to- function space

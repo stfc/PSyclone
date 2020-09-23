@@ -269,7 +269,7 @@ def test_ad_scalar_invalid_data_type():
     assert ("In the LFRic API the 2nd argument of a 'meta_arg' "
             "entry should be a valid data type (one of "
             "['gh_real', 'gh_integer']), but found 'gh_read' in "
-            "'gh_scalar'." in str(excinfo.value))
+            "'arg_type(gh_scalar, gh_read)'." in str(excinfo.value))
 
 
 def test_ad_scalar_init_wrong_data_type(monkeypatch):
@@ -5808,9 +5808,9 @@ end module testkern
     name = "testkern_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("A Dynamo 0.3 kernel must have at least one argument that is "
+    assert ("An LFRic kernel must have at least one argument that is "
             "updated (written to) but found none for kernel "
-            "testkern_type" in str(excinfo.value))
+            "'testkern_type'." in str(excinfo.value))
 
 
 def test_multiple_updated_field_args():
