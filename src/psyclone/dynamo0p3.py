@@ -628,7 +628,7 @@ class DynKernMetadata(KernelType):
         if write_count == 0:
             raise ParseError("An LFRic kernel must have at least one "
                              "argument that is updated (written to) but "
-                             "found none for kernel '{0}'".format(self.name))
+                             "found none for kernel '{0}'.".format(self.name))
 
         # Check that no shape has been supplied if no basis or
         # differential basis functions are required for the kernel

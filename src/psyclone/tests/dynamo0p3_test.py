@@ -5781,7 +5781,7 @@ def test_no_updated_args():
         _ = DynKernMetadata(ast, name=name)
     assert ("An LFRic kernel must have at least one argument that is "
             "updated (written to) but found none for kernel "
-            "'testkern_qr_type'" in str(excinfo.value))
+            "'testkern_qr_type'." in str(excinfo.value))
 
 
 def test_scalars_only_invalid():
