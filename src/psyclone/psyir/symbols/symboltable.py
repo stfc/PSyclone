@@ -760,11 +760,13 @@ class SymbolTable(object):
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
+        from psyclone.psyir.symbols import DeferredType, UnknownType
+
         # Accumulate into a set so as to remove any duplicates
         precision_symbols = set()
-        from psyclone.psyir.symbols import DeferredType
+
         for sym in self.datasymbols:
-            if (not isinstance(sym.datatype, DeferredType) and
+            if (not isinstance(sym.datatype, (DeferredType, UnknownType)) and
                     isinstance(sym.datatype.precision, DataSymbol)):
                 precision_symbols.add(sym.datatype.precision)
         return list(precision_symbols)

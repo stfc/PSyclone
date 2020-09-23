@@ -40,8 +40,8 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyGen import KernelSchedule
-from psyclone.psyir.symbols import (SymbolError, DeferredType, StructureType,
-                                    TypeSymbol, DataSymbol, ScalarType)
+from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
+    TypeSymbol, DataSymbol, ScalarType, RoutineSymbol
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from fparser.two.Fortran2003 import Specification_Part
 from fparser.common.readfortran import FortranStringReader
@@ -67,7 +67,6 @@ def test_missing_derived_type():
     ''' Check that the fronted raises an error if it encounters a variable
     of a derived type that cannot be resolved. '''
     fake_parent = KernelSchedule("dummy_schedule")
-    symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
     reader = FortranStringReader("type(my_type) :: var")
     fparser2spec = Specification_Part(reader)
@@ -78,25 +77,21 @@ def test_missing_derived_type():
     assert "No Symbol found for name 'my_type'" in str(err.value)
 
 
-@pytest.mark.xfail(reason="Needs support for RoutineSymbols added in #872")
 def test_name_clash_derived_type(f2008_parser):
     ''' Check that the fronted raises an error if it encounters a reference
     to a derived type that clashes with another symbol. '''
     fake_parent = KernelSchedule("dummy_schedule")
     symtab = fake_parent.symbol_table
+    # Add a RoutineSymbol to the symbol table that clashes with the name
+    # of the derived type.
+    symtab.add(RoutineSymbol("my_type"))
     processor = Fparser2Reader()
-    reader = FortranStringReader("module my_mod\n"
-                                 "  type :: my_type\n"
-                                 "    integer :: flag\n"
-                                 "  end type my_type\n"
-                                 "contains\n"
-                                 "  subroutine my_type()\n"
-                                 "    integer :: flag2\n"
-                                 "  end subroutine my_type\n"
-                                 "end module my_mod\n")
+    reader = FortranStringReader("subroutine my_sub()\n"
+                                 "  type(my_type) :: some_var\n"
+                                 "end subroutine my_sub\n")
     fparser2spec = f2008_parser(reader)
-    # This should raise an error because there's no Container from which
-    # the definition of 'my_type' can be brought into scope.
+    # This should raise an error because the Container symbol table should
+    # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, fparser2spec.content, [])
     assert ("Search for a TypeSymbol named 'my_type' found a RoutineSymbol "

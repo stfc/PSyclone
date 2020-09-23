@@ -51,7 +51,7 @@ from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
-    StructureType, TypeSymbol
+    StructureType, TypeSymbol, RoutineSymbol
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -1188,15 +1188,9 @@ class Fparser2Reader(object):
                     # will replace a previous import with an empty only-list.
                     pass
                 for name in decl.items[4].items:
-                    # The DataSymbol adds itself to the list of symbols
-                    # imported by the Container referenced in the
-                    # GlobalInterface.
                     sym_name = str(name).lower()
                     if sym_name not in parent.symbol_table:
                         parent.symbol_table.add(
-                            #DataSymbol(sym_name,
-                            #           DeferredType(),
-                            #           interface=GlobalInterface(container)))
                             Symbol(sym_name,
                                    interface=GlobalInterface(container)))
                     else:
@@ -1239,7 +1233,7 @@ class Fparser2Reader(object):
                                           "'{0}'".format(str(decl)))
 
     def _process_decln(self, parent, symbol_table, decl, default_visibility,
-                       public_symbols, private_symbols, visibility_map=None):
+                       visibility_map=None):
         '''
         Process the supplied fparser2 parse tree for a declaration. For each
         entity that is declared, a symbol is added to the symbol table
@@ -1289,6 +1283,7 @@ class Fparser2Reader(object):
 
         # Parse type_spec, currently just 'real', 'double precision',
         # 'integer', 'logical' and 'character' intrinsic types are supported.
+
         if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
             fort_type = str(type_spec.items[0]).lower()
             try:
@@ -1313,16 +1308,20 @@ class Fparser2Reader(object):
             # This is a variable of derived type
             type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
             # Do we already have a Symbol for this derived type?
-            type_symbol, table = parent.find_or_create_symbol(
-                type_name, symbol_type=TypeSymbol)
+            type_symbol = parent.find_or_create_symbol(type_name)
             if type(type_symbol) == Symbol:
                 # We do but we didn't know what it was. Create a TypeSymbol
                 # to replace it.
                 new_symbol = TypeSymbol(type_name, DeferredType(),
                                         interface=type_symbol.interface)
+                table = type_symbol.find_symbol_table(parent)
                 table.remove(type_symbol)
                 table.add(new_symbol)
                 type_symbol = new_symbol
+            elif not isinstance(type_symbol, TypeSymbol):
+                raise SymbolError(
+                    "Search for a TypeSymbol named '{0}' found a {1} "
+                    "instead.".format(type_name, type(type_symbol).__name__))
             base_type = type_symbol.datatype
         else:
             # Not a supported declaration.
@@ -1518,7 +1517,7 @@ class Fparser2Reader(object):
                 sym.interface = interface
 
     def _process_derived_type_decln(self, parent, decl, default_visibility,
-                                    public_symbols, private_symbols):
+                                    visibility_map):
         '''
         Process the supplied fparser2 parse tree for a derived-type
         declaration. For each entity that is declared, a symbol is added to the
@@ -1548,12 +1547,11 @@ class Fparser2Reader(object):
         try:
             for child in walk(decl, Fortran2003.Data_Component_Def_Stmt):
                 self._process_decln(parent, dtype.symbol_table, child,
-                                    default_visibility,
-                                    public_symbols, private_symbols)
+                                    default_visibility, visibility_map)
             parent.symbol_table.add(TypeSymbol(name, dtype))
         except NotImplementedError:
             # Support for this declaration is not fully implemented so create
-            # a DataSymbol of UnknownType.
+            # a Symbol of UnknownType.
             parent.symbol_table.add(DataSymbol(name, UnknownType(str(decl))))
 
     def process_declarations(self, parent, nodes, arg_list,
@@ -1639,6 +1637,12 @@ class Fparser2Reader(object):
                                     str(decl), symbol_name))
                 # Restore the fparser2 parse tree
                 decl.children[2].items = tuple(orig_children)
+
+        # Handle any derived-type declarations/definitions
+        for decl in walk(nodes, Fortran2003.Derived_Type_Def):
+            self._process_derived_type_decln(parent, decl,
+                                             default_visibility,
+                                             visibility_map)
 
         if visibility_map is not None:
             # Check for symbols named in an access statement but not explicitly
@@ -1926,7 +1930,7 @@ class Fparser2Reader(object):
         loop_var = str(ctrl[0].items[1][0])
         variable_name = str(loop_var)
         try:
-            data_symbol, _ = parent.find_or_create_symbol(variable_name)
+            data_symbol = parent.find_or_create_symbol(variable_name)
         except SymbolError:
             raise InternalError(
                 "Loop-variable name '{0}' is not declared and there are no "
@@ -2402,7 +2406,7 @@ class Fparser2Reader(object):
             range_idx = 0
             for idx, child in enumerate(array.children):
                 if isinstance(child, Range):
-                    symbol, _ = array.find_or_create_symbol(loop_vars[range_idx])
+                    symbol = array.find_or_create_symbol(loop_vars[range_idx])
                     array.children[idx] = Reference(symbol, parent=array)
                     range_idx += 1
 
@@ -2521,7 +2525,7 @@ class Fparser2Reader(object):
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
                                         parent=loop)
             loop.addchild(size_node)
-            symbol, _ = size_node.find_or_create_symbol(arrays[0].name)
+            symbol = size_node.find_or_create_symbol(arrays[0].name)
 
             size_node.addchild(Reference(symbol, parent=size_node))
             size_node.addchild(Literal(str(idx), integer_type,
@@ -2807,7 +2811,7 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
 
         '''
-        symbol, _ = parent.find_or_create_symbol(node.string)
+        symbol = parent.find_or_create_symbol(node.string)
         return Reference(symbol, parent)
 
     def _parenthesis_handler(self, node, parent):
@@ -2847,7 +2851,7 @@ class Fparser2Reader(object):
 
         '''
         reference_name = node.items[0].string.lower()
-        symbol, _ = parent.find_or_create_symbol(reference_name)
+        symbol = parent.find_or_create_symbol(reference_name)
 
         array = Array(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)

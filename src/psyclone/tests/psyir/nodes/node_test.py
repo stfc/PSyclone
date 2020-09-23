@@ -690,8 +690,8 @@ def test_find_or_create_symbol():
     assert field_old.symbol in kernel_schedule.symbol_table.symbols
 
     # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
-    sym, _ = field_old.find_or_create_symbol(field_old.name,
-                                             scope_limit=kernel_schedule)
+    sym = field_old.find_or_create_symbol(field_old.name,
+                                          scope_limit=kernel_schedule)
     assert isinstance(sym, DataSymbol)
     assert field_old.symbol.name == field_old.name
 
@@ -706,11 +706,11 @@ def test_find_or_create_symbol():
     # Symbol in Container SymbolTable
     alpha = references[6]
     assert alpha.name == "alpha"
-    sym, _ = alpha.find_or_create_symbol(alpha.name)
+    sym = alpha.find_or_create_symbol(alpha.name)
     assert isinstance(sym, DataSymbol)
     container = kernel_schedule.root
     assert isinstance(container, Container)
-    sym, _ = alpha.find_or_create_symbol(alpha.name)
+    sym = alpha.find_or_create_symbol(alpha.name)
     assert sym in container.symbol_table.symbols
 
     # Symbol in Container SymbolTable with KernelSchedule scope, so
@@ -722,7 +722,7 @@ def test_find_or_create_symbol():
     assert "No Symbol found for name 'alpha'." in str(excinfo.value)
 
     # Symbol in Container SymbolTable with Container scope
-    sym, _ = alpha.find_or_create_symbol(alpha.name, scope_limit=container)
+    sym = alpha.find_or_create_symbol(alpha.name, scope_limit=container)
     assert sym.name == alpha.name
 
     # find_or_create_symbol method with invalid scope type
@@ -774,7 +774,7 @@ def test_find_or_create_new_symbol():
         _ = assign.find_or_create_symbol("undefined")
     assert "No Symbol found for name 'undefined'" in str(err.value)
     # We should be able to find the 'tmp' symbol in the parent Container
-    sym, _ = assign.find_or_create_symbol("tmp")
+    sym = assign.find_or_create_symbol("tmp")
     assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
     # Add a wildcard import to the SymbolTable of the KernelSchedule
     new_container = ContainerSymbol("some_mod")
@@ -782,7 +782,7 @@ def test_find_or_create_new_symbol():
     kernel1.symbol_table.add(new_container)
     # Symbol not in any container but we do have wildcard imports so we
     # get a new symbol back
-    new_symbol, _ = assign.find_or_create_symbol("undefined")
+    new_symbol = assign.find_or_create_symbol("undefined")
     assert new_symbol.name == "undefined"
     assert isinstance(new_symbol.interface, UnresolvedInterface)
     assert type(new_symbol) == Symbol
@@ -805,7 +805,7 @@ def test_nemo_find_container_symbol(parser):
     # Get a node from the schedule
     bops = psy._invokes.invoke_list[0].schedule.walk(BinaryOperation)
     # Use it as the starting point for the search
-    symbol, _ = bops[0].find_or_create_symbol("alpha")
+    symbol = bops[0].find_or_create_symbol("alpha")
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
 

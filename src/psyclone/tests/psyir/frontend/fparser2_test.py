@@ -81,6 +81,7 @@ def process_declarations(code):
 
 FAKE_KERNEL_METADATA = '''
 module dummy_mod
+  use argument_mod
   type, extends(kernel_type) :: dummy_type
      type(arg_type) meta_args(3) =                     &
           (/ arg_type(gh_field, gh_write,     w3),     &
@@ -409,9 +410,8 @@ def test_generate_schedule_empty_subroutine(parser):
     assert len(container.children) == 1
     assert container.children[0] is schedule
     assert container.name == "dummy_mod"
-    assert len(container.symbol_table.symbols) == 1
-    assert isinstance(container.symbol_table.symbols[0], RoutineSymbol)
-    assert container.symbol_table.symbols[0].name == "dummy_code"
+    rsym = container.symbol_table.lookup("dummy_code")
+    assert isinstance(rsym, RoutineSymbol)
 
     # Test that we get an error for a nonexistant subroutine name
     with pytest.raises(GenerationError) as error:
@@ -443,11 +443,9 @@ def test_generate_schedule_module_decls(parser):
     schedule = processor.generate_schedule("dummy_code", ast)
     symbol_table = schedule.parent.symbol_table
     assert isinstance(symbol_table, SymbolTable)
-    # Two variables and one subroutine
-    assert len(symbol_table.symbols) == 3
-    assert symbol_table.lookup("scalar1")
-    assert symbol_table.lookup("array1")
-    assert symbol_table.lookup("dummy_code")
+    assert isinstance(symbol_table.lookup("scalar1"), DataSymbol)
+    assert isinstance(symbol_table.lookup("array1"), DataSymbol)
+    assert isinstance(symbol_table.lookup("dummy_code"), RoutineSymbol)
 
 
 def test_generate_schedule_dummy_subroutine(parser):
@@ -456,6 +454,7 @@ def test_generate_schedule_dummy_subroutine(parser):
     '''
     dummy_kernel_metadata = '''
     module dummy_mod
+      use argument_mod
       type, extends(kernel_type) :: dummy_type
          type(arg_type) meta_args(3) =                     &
               (/ arg_type(gh_field, gh_write,     w3),     &
@@ -500,6 +499,7 @@ def test_generate_schedule_no_args_subroutine(parser):
     '''
     dummy_kernel_metadata = '''
     module dummy_mod
+      use argument_mod
       type, extends(kernel_type) :: dummy_type
          type(arg_type) meta_args(3) =                      &
               (/ arg_type(gh_field, gh_write,     w3),     &
@@ -533,6 +533,7 @@ def test_generate_schedule_unmatching_arguments(parser):
     '''
     dummy_kernel_metadata = '''
     module dummy_mod
+      use kernel_mod
       type, extends(kernel_type) :: dummy_type
          type(arg_type) meta_args(3) =                     &
               (/ arg_type(gh_field, gh_write,     w3),     &
@@ -759,14 +760,6 @@ def test_process_unsupported_declarations(f2008_parser):
     c2sym = fake_parent.symbol_table.lookup("c2")
     assert isinstance(c2sym.datatype, UnknownType)
     assert c2sym.datatype.declaration == "COMPLEX :: c2"
-
-    # Derived type
-    reader = FortranStringReader("type(my_type) :: var")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    vsym = fake_parent.symbol_table.lookup("var")
-    assert isinstance(vsym.datatype, UnknownType)
-    assert vsym.datatype.declaration == "TYPE(my_type) :: var"
 
     # Char lengths are not supported
     # TODO: It would be simpler to do just a Specification_Part(reader) instead

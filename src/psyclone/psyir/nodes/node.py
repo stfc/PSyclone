@@ -1223,15 +1223,9 @@ class Node(object):
                 symbol_table = test_node.symbol_table
 
                 try:
-                    # If the reference matches a Symbol of the correct type
-                    # in this SymbolTable then return the Symbol.
-                    sym = symbol_table.lookup(name, check_ancestors=False)
-                    if type(sym) == Symbol or isinstance(sym, symbol_type):
-                        return sym, symbol_table
-                    raise SymbolError(
-                        "Search for a {0} named '{1}' found a {2} "
-                        "instead.".format(symbol_type.__name__, name,
-                                          type(sym).__name__))
+                    # If the reference matches a Symbol in this
+                    # SymbolTable then return the Symbol.
+                    return symbol_table.lookup(name, check_ancestors=False)
                 except KeyError:
                     # The Reference Node does not match any Symbols in
                     # this SymbolTable. Does this SymbolTable have any
@@ -1258,7 +1252,7 @@ class Node(object):
             symbol = Symbol(name, interface=UnresolvedInterface(),
                             visibility=visibility)
             first_symbol_table.add(symbol)
-            return symbol, first_symbol_table
+            return symbol
 
         # All requested Nodes have been checked but there has been no
         # match and there are no wildcard imports so raise an exception.
