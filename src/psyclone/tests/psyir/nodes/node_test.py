@@ -690,9 +690,8 @@ def test_find_or_create_symbol():
     assert field_old.symbol in kernel_schedule.symbol_table.symbols
 
     # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
-    sym = field_old.find_or_create_symbol(field_old.name,
-                                          scope_limit=kernel_schedule)
-    assert isinstance(sym, DataSymbol)
+    assert isinstance(field_old.find_or_create_symbol(
+        field_old.name, scope_limit=kernel_schedule), DataSymbol)
     assert field_old.symbol.name == field_old.name
 
     # Symbol in KernelSchedule SymbolTable with parent scope, so
@@ -706,12 +705,11 @@ def test_find_or_create_symbol():
     # Symbol in Container SymbolTable
     alpha = references[6]
     assert alpha.name == "alpha"
-    sym = alpha.find_or_create_symbol(alpha.name)
-    assert isinstance(sym, DataSymbol)
+    assert isinstance(alpha.find_or_create_symbol(alpha.name), DataSymbol)
     container = kernel_schedule.root
     assert isinstance(container, Container)
-    sym = alpha.find_or_create_symbol(alpha.name)
-    assert sym in container.symbol_table.symbols
+    assert (alpha.find_or_create_symbol(alpha.name) in
+            container.symbol_table.symbols)
 
     # Symbol in Container SymbolTable with KernelSchedule scope, so
     # the symbol should not be found as we limit the scope to the
@@ -722,8 +720,8 @@ def test_find_or_create_symbol():
     assert "No Symbol found for name 'alpha'." in str(excinfo.value)
 
     # Symbol in Container SymbolTable with Container scope
-    sym = alpha.find_or_create_symbol(alpha.name, scope_limit=container)
-    assert sym.name == alpha.name
+    assert (alpha.find_or_create_symbol(
+        alpha.name, scope_limit=container).name == alpha.name)
 
     # find_or_create_symbol method with invalid scope type
     with pytest.raises(TypeError) as excinfo:

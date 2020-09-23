@@ -1236,11 +1236,13 @@ class Fparser2Reader(object):
                        visibility_map=None):
         '''
         Process the supplied fparser2 parse tree for a declaration. For each
-        entity that is declared, a symbol is added to the symbol table
-        associated with the parent node.
+        entity that is declared, a symbol is added to the supplied symbol
+        table.
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
+        :param symbol_table: the symbol table to which to add new symbols.
+        :type symbol_table: py:class:`psyclone.psyir.symbols.SymbolTable`
         :param decl: fparser2 parse tree of declaration to process.
         :type decl: :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
         :param default_visibility: the default visibility of symbols in the \
@@ -1315,8 +1317,7 @@ class Fparser2Reader(object):
                 new_symbol = TypeSymbol(type_name, DeferredType(),
                                         interface=type_symbol.interface)
                 table = type_symbol.find_symbol_table(parent)
-                table.remove(type_symbol)
-                table.add(new_symbol)
+                table.swap(type_symbol, new_symbol)
                 type_symbol = new_symbol
             elif not isinstance(type_symbol, TypeSymbol):
                 raise SymbolError(
@@ -1410,9 +1411,6 @@ class Fparser2Reader(object):
                         "Could not process declaration: '{0}'. "
                         "Unrecognised attribute type '{1}'.".format(
                             str(decl), str(type(attr).__name__)))
-
-        #if not precision:
-        #    precision = default_precision(data_name)
 
         # Parse declarations RHS and declare new symbol into the
         # parent symbol table for each entity found.
@@ -1520,8 +1518,8 @@ class Fparser2Reader(object):
                                     visibility_map):
         '''
         Process the supplied fparser2 parse tree for a derived-type
-        declaration. For each entity that is declared, a symbol is added to the
-        symbol table associated with the parent node.
+        declaration. A TypeSymbol representing the derived-type is added to
+        the symbol table associated with the parent node.
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
@@ -1531,27 +1529,29 @@ class Fparser2Reader(object):
                                    current declaration section.
         :type default_visibility: \
             :py:class:`psyclone.symbols.Symbol.Visibility`
-        :param public_symbols: list of names of symbols that are known to \
-                               have public visibility.
-        :type public_symbols: list of str
-        :param private_symbols: list of names of symbols that are known to \
-                                have private visibility.
-        :type private_symbols: list of str
+        :param visibility_map: mapping of symbol name to visibility (for \
+            those symbols listed in an accessibility statement).
+        :type visibility_map: dict with str keys and \
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility` values
 
         '''
         name = str(walk(decl.children[0], Fortran2003.Type_Name)[0])
         # Create a new StructureType for this derived type
         dtype = StructureType(name, parent=parent.symbol_table)
+        # TODO look for any accessibility statement within the type decln
+
         # Populate the SymbolTable of this StructureType by processing the
         # components of the derived type
         try:
             for child in walk(decl, Fortran2003.Data_Component_Def_Stmt):
                 self._process_decln(parent, dtype.symbol_table, child,
                                     default_visibility, visibility_map)
-            parent.symbol_table.add(TypeSymbol(name, dtype))
+            vis = visibility_map.get(name, default_visibility)
+            parent.symbol_table.add(TypeSymbol(name, dtype, visibility=vis))
         except NotImplementedError:
             # Support for this declaration is not fully implemented so create
             # a Symbol of UnknownType.
+            # TODO this should be UnknownFortranType I think.
             parent.symbol_table.add(DataSymbol(name, UnknownType(str(decl))))
 
     def process_declarations(self, parent, nodes, arg_list,
