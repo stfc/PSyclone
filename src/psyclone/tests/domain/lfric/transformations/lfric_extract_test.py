@@ -639,7 +639,7 @@ def test_extract_colouring_omp_dynamo0p3():
     for child in schedule.children:
         if isinstance(child, Loop) and child.field_space.orig_name \
            not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
-           and child.iteration_space == "cells":
+           and child.iteration_space == "cell_column":
             cschedule, _ = ctrans.apply(child)
     # Then apply OpenMP to each of the colour loops
     schedule = cschedule

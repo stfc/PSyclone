@@ -484,6 +484,26 @@ class Loop(Statement):
                             args.append(arg)
         return args
 
+    def unique_fields_with_halo_reads(self):
+        ''' Returns all fields in this loop that require at least some
+        of their halo to be clean to work correctly.
+
+        :returns: fields in this loop that require at least some of their \
+            halo to be clean to work correctly.
+        :rtype: list of :py:class:`psyclone.psyGen.Argument`
+        '''
+
+        unique_fields = []
+        unique_field_names = []
+
+        for call in self.kernels():
+            for arg in call.arguments.args:
+                if self._halo_read_access(arg):
+                    if arg.name not in unique_field_names:
+                        unique_field_names.append(arg.name)
+                        unique_fields.append(arg)
+        return unique_fields
+
     def args_filter(self, arg_types=None, arg_accesses=None, unique=False):
         '''Return all arguments of type arg_types and arg_accesses. If these
         are not set then return all arguments. If unique is set to
@@ -555,3 +575,21 @@ class Loop(Statement):
             my_decl = DeclGen(parent, datatype="integer",
                               entity_decls=[self.variable.name])
             parent.add(my_decl)
+
+    def _halo_read_access(self, arg):
+        '''Determines whether the supplied argument has (or might have) its
+        halo data read within this loop. Returns True if it does, or if
+        it might and False if it definitely does not.
+
+        :param arg: an argument contained within this loop.
+        :type arg: :py:class:`psyclone.psyGen.KernelArgument`
+
+        :return: True if the argument reads, or might read from the \
+                 halo and False otherwise.
+        :rtype: bool
+
+        :raises NotImplementedError: This is an abstract method.
+
+        '''
+        raise NotImplementedError("This method needs to be implemented by the "
+                                  "APIs that support distributed memory.")

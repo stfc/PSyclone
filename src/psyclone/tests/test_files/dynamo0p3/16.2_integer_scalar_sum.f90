@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,16 +31,19 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program single_invoke
 
   ! Description: single kernel, single int scalar sum & field reader argument.
   ! Tests that using incorrect meta-data to perform a reduction into an
   ! integer variable raises the expected error.
-  use inf, only : i_def
+  use constants_mod, only: i_def
+  use field_mod,     only: field_type
+
   implicit none
+
   integer(i_def)   :: isum
   type(field_type) :: f1, f2
 

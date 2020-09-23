@@ -40,6 +40,7 @@ PSyclone-conformant Algorithm code.
 
 from __future__ import absolute_import
 
+from collections import OrderedDict
 from fparser.two import pattern_tools
 from fparser.two.utils import walk
 # pylint: disable=no-name-in-module
@@ -202,7 +203,7 @@ class Parser(object):
                 "'{0}'".format(alg_filename))
 
         self._unique_invoke_labels = []
-        self._arg_name_to_module_name = {}
+        self._arg_name_to_module_name = OrderedDict()
         invoke_calls = []
 
         for statement in walk(alg_parse_tree.content):

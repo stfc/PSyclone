@@ -3,13 +3,13 @@
 Line length
 ===========
 
-By default PSyclone will generate fortran code with no consideration
-of fortran line length limits.  As the line length limit for
-free-form fortran is 132 characters, the code that is output may be
+By default PSyclone will generate Fortran code with no consideration
+of Fortran line-length limits.  As the line-length limit for
+free-form Fortran is 132 characters, the code that is output may be
 non-conformant.
 
 Line length is not an issue for many compilers as they allow compiler
-flags to be set which allow lines longer than the fortran
+flags to be set which allow lines longer than the Fortran
 standard. However this is not the case for all compilers.
 
 PSyclone therefore supports the wrapping of lines within the 132
@@ -27,21 +27,21 @@ Interactive
 
 When using PSyclone interactively the line lengths of the input
 algorithm and Kernel files can be checked by setting the
-:func:`psyclone.parse.algorithm.parse` function's "line_length"
-argument to "True".  ::
+:func:`psyclone.parse.algorithm.parse` function's ``line_length``
+argument to ``True``.  ::
 
     >>> from psyclone.parse.algorithm import parse
     >>> ast, info = parse("argspec.F90", line_length=True)
 
-Similarly the "line_length" argument can be set to "True" if calling the
-:func:`generator.generate` function. This function simply passes this
+Similarly the ``line_length`` argument can be set to ``True`` if calling
+the :func:`generator.generate` function. This function simply passes this
 argument on to the :func:`psyclone.parse.algorithm.parse` function.
 ::
 
     >>> from psyclone.generator import generate
     >>> alg, psy = generate("argspec.F90", line_length=True)
 
-Line wrapping is performed as a post processing step, i.e. after the
+Line wrapping is performed as a post-processing step, i.e. after the
 code has been generated. This is done by an instance of the
 :class:`line_length.FortLineLength` class. For example:
 ::
@@ -61,7 +61,7 @@ Limitations
 -----------
 
 The :class:`line_length.FortLineLength` class is only partially aware
-of fortran syntax. This awareness is required so that appropriate
+of Fortran syntax. This awareness is required so that appropriate
 continuation characters can be used (for example ``&`` at the end of a
 line and ``!$omp&`` at the start of a line for OpenMP directives, ``&`` at
 the end of a line for statements and ``&`` at the end of a line and ``&``

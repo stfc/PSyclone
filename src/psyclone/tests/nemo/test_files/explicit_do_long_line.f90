@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council.
+! Copyright (c) 2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,33 +29,25 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Author A. R. Porter, STFC Daresbury Lab
 
-module testkern_mod
-
-  use constants_mod
-  use argument_mod
-  use fs_continuity_mod
-  use kernel_mod
-
+program explicit_do_long_line
   implicit none
+  integer :: ji, jj, jk
+  integer :: jpi, jpj, jpk
+  real :: r
+  real, dimension(jpi,jpj,jpk) :: umask
 
-  type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(4) :: meta_args = &
-          (/ arg_type(gh_field, gh_inc,  w1),    &
-             arg_type(gh_field, gh_read, w2),    &
-             arg_type(gh_field, gh_read, w2),    &
-             arg_type(gh_field, gh_read, w3)     &
-           /)
-     integer :: iterates_over = DOFS
-   contains
-     procedure, nopass :: code => testkern_code
-  end type testkern_type
+  ! Test code with explicit NEMO-style do loop containing long line
+  DO jk = 1, jpk
+     DO jj = 1, jpj
+        DO ji = 1, jpi
+           umask(ji,jj,jk) = ji*jj*jk/r ! This is a comment that takes this line beyond the standard limit of one hundred and thirty two characters.
+        END DO
+     END DO
+  END DO
 
-contains
+  ! A line that really is too long, even without a comment
+  umask(1:jpi,1:jpj,1:jpk) = umask(jpi-1, jpj-1, jpk-1) + umask(jpi, jpj, jpk) + umask(jpi, jpj, jpk) + umask(jpi, jpj, jpk) + jpi + jpj + jpk + jpi + jpj + jpk
 
-  subroutine testkern_code(a, b, c, d)
-  end subroutine testkern_code
-
-end module testkern_mod
+end program explicit_do_long_line

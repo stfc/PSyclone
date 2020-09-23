@@ -84,7 +84,7 @@ F90FLAGS += $$(nf-config --fflags) -I$(INF_INC) -I$(EXTRACT_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
 transform: test.x90 extract_transform.py
-	$(PSYCLONE) -nodm -l -api "gocean1.0" -s ./extract_transform.py\
+	$(PSYCLONE) -nodm -api "gocean1.0" -s ./extract_transform.py\
 				-opsy psy.f90 -oalg alg.f90 test.x90
 
 $(NAME): $(INF_LIB) $(EXTRACT_DIR)/lib_kernel_data_netcdf.a $(KERNELS) alg.o psy.o
