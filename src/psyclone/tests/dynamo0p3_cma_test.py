@@ -188,10 +188,10 @@ def test_cma_mdata_assembly_missing_op():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type has a single column-wise operator "
+    assert ("Kernel 'testkern_cma_type' has a single column-wise operator "
             "argument but does not conform to the rules for an Assembly "
             "kernel because it does not have any read-only LMA operator "
-            "arguments") in str(excinfo.value)
+            "arguments.") in str(excinfo.value)
 
 
 def test_cma_mdata_multi_writes():
@@ -209,8 +209,8 @@ def test_cma_mdata_multi_writes():
         name = "testkern_cma_type"
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
-        assert ("A Dynamo 0.3 kernel cannot update more than one CMA "
-                "(column-wise) operator but kernel testkern_cma_type "
+        assert ("An LFRic kernel cannot update more than one CMA "
+                "(column-wise) operator but kernel 'testkern_cma_type' "
                 "updates 2") in str(excinfo.value)
         code = CMA_ASSEMBLE.replace(
             "arg_type(gh_field, gh_real, gh_read, any_space_1)",
@@ -220,8 +220,8 @@ def test_cma_mdata_multi_writes():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
-        assert ("A Dynamo 0.3 kernel cannot update more than one CMA "
-                "(column-wise) operator but kernel testkern_cma_type "
+        assert ("An LFRic kernel cannot update more than one CMA "
+                "(column-wise) operator but kernel 'testkern_cma_type' "
                 "updates 3") in str(excinfo.value)
 
 
@@ -241,7 +241,7 @@ def test_cma_mdata_mutable_op():
         name = "testkern_cma_type"
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
-        assert ("Kernel testkern_cma_type writes to a column-wise operator "
+        assert ("Kernel 'testkern_cma_type' writes to a column-wise operator "
                 "but also writes to ['gh_operator'] argument(s). This is "
                 "not allowed.") in str(excinfo.value)
 
@@ -262,7 +262,7 @@ def test_cma_mdata_writes_lma_op():
         name = "testkern_cma_type"
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
-        assert ("Kernel testkern_cma_type writes to a column-wise operator "
+        assert ("Kernel 'testkern_cma_type' writes to a column-wise operator "
                 "but also writes to ['gh_operator'] argument(s). This is "
                 "not allowed.") in str(excinfo.value)
 
@@ -306,7 +306,7 @@ def test_cma_mdata_asm_vector_error():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type takes a CMA operator but has a "
+    assert ("Kernel 'testkern_cma_type' takes a CMA operator but has a "
             "vector argument 'gh_field*3'. This is forbidden."
             in str(excinfo.value))
 
@@ -321,7 +321,7 @@ def test_cma_mdata_asm_vector_error():
             "'gh_columnwise_operator * 2'." in str(excinfo.value))
 
 
-def test_cma_mdata_asm_stencil_error():
+def test_cma_mdata_asm_fld_stencil_error():
     ''' Check that we raise the expected error if a kernel assembling a
     CMA operator specifies a stencil access on a field. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -333,9 +333,27 @@ def test_cma_mdata_asm_stencil_error():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type takes a CMA operator but has an "
+    assert ("Kernel 'testkern_cma_type' takes a CMA operator but has an "
             "argument with a stencil access ('x1d'). This is forbidden."
             in str(excinfo.value))
+
+
+def test_cma_mdata_asm_field_data_type_invalid():
+    ''' Check that we raise the expected error if a kernel assembling a
+    CMA operator specifies a field argument with an invalid data type
+    (other than 'gh_real'). '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    code = CMA_ASSEMBLE.replace(
+        "arg_type(gh_field, gh_real, gh_read, any_space_1)",
+        "arg_type(gh_field, gh_integer, gh_read, any_space_1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("In the LFRic API a kernel that applies a CMA operator must "
+            "only have field arguments with 'gh_real' data type but kernel "
+            "'testkern_cma_type' has a field argument with 'gh_integer' "
+            "data type." in str(excinfo.value))
 
 
 CMA_APPLY = '''
@@ -422,7 +440,7 @@ def test_cma_mdata_apply_too_many_flds():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("a kernel that applies a CMA operator must have 3 arguments "
-            "(the operator and two fields) but kernel testkern_cma_type "
+            "(the operator and two fields) but kernel 'testkern_cma_type' "
             "has 4") in str(excinfo.value)
 
 
@@ -473,8 +491,8 @@ def test_cma_mdata_apply_wrong_spaces():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("applies a CMA operator but the function space of the field "
-            "argument it writes to (any_space_3) does not match the 'to' "
-            "space of the operator (any_space_1)") in str(excinfo.value)
+            "argument it writes to ('any_space_3') does not match the 'to' "
+            "space of the operator ('any_space_1')") in str(excinfo.value)
     # Change the space of the field that is read
     code = CMA_APPLY.replace(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2)",
@@ -484,8 +502,8 @@ def test_cma_mdata_apply_wrong_spaces():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("applies a CMA operator but the function space of the field "
-            "argument it reads from (any_space_3) does not match the 'from' "
-            "space of the operator (any_space_2)") in str(excinfo.value)
+            "argument it reads from ('any_space_3') does not match the 'from' "
+            "space of the operator ('any_space_2')") in str(excinfo.value)
 
 
 def test_cma_mdata_apply_vector_error():
@@ -501,7 +519,7 @@ def test_cma_mdata_apply_vector_error():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type takes a CMA operator but has a "
+    assert ("Kernel 'testkern_cma_type' takes a CMA operator but has a "
             "vector argument 'gh_field*3'. This is forbidden."
             in str(excinfo.value))
 
@@ -528,9 +546,27 @@ def test_cma_mdata_apply_fld_stencil_error():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type takes a CMA operator but has an "
+    assert ("Kernel 'testkern_cma_type' takes a CMA operator but has an "
             "argument with a stencil access ('x1d'). This is "
             "forbidden.") in str(excinfo.value)
+
+
+def test_cma_mdata_apply_field_data_type_invalid():
+    ''' Check that we raise the expected error if the metadata for a kernel
+    that applies a CMA operator contains a field argument with an invalid
+    data type (other than 'gh_real'). '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    code = CMA_APPLY.replace(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2)",
+        "arg_type(GH_FIELD, GH_INTEGER, GH_READ, ANY_SPACE_2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("In the LFRic API a kernel that applies a CMA operator must "
+            "only have field arguments with 'gh_real' data type but kernel "
+            "'testkern_cma_type' has a field argument with 'gh_integer' "
+            "data type." in str(excinfo.value))
 
 
 CMA_MATRIX = '''
@@ -609,8 +645,8 @@ def test_cma_mdata_matrix_field_arg():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("A column-wise matrix-matrix kernel must have only column-wise "
-            "operators and scalars as arguments but kernel testkern_cma_type "
-            "has: ['gh_field', ") in str(excinfo.value)
+            "operators and scalars as arguments but kernel "
+            "'testkern_cma_type' has: ['gh_field', ") in str(excinfo.value)
 
 
 def test_cma_mdata_matrix_no_scalar_arg():
@@ -656,8 +692,8 @@ def test_cma_mdata_matrix_2_writes():
         name = "testkern_cma_type"
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
-        assert ("A Dynamo 0.3 kernel cannot update more than one CMA "
-                "(column-wise) operator but kernel testkern_cma_type "
+        assert ("An LFRic kernel cannot update more than one CMA "
+                "(column-wise) operator but kernel 'testkern_cma_type' "
                 "updates 2") in str(excinfo.value)
 
 

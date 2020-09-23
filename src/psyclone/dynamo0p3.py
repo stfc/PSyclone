@@ -753,23 +753,71 @@ class DynKernMetadata(KernelType):
         self._is_intergrid = True
 
     def _identify_cma_op(self, cwise_ops):
-        '''Identify and return the type of CMA-operator-related operation
-        this kernel performs (one of "assemble", "apply" or "matrix-matrix")'''
+        '''
+        Identify and return the type of CMA-operator-related operation
+        this kernel performs (one of "assemble", "apply" or "matrix-matrix")
 
+        :param cwise_ops: all column-wise arguments in a kernel.
+        :type cwise_ops: list of str
+
+        :returns: the type of CMA-operator-related operation that this \
+                  kernel performs.
+        :rtype: str
+
+        :raises ParseError: if a CMA kernel has a vector argument.
+        :raises ParseError: if a CMA kernel has an argument with a \
+                            stencil access.
+        :raises ParseError: if a CMA kernel has a field argument with an \
+                            invalid data type (other than 'gh_real').
+        :raises ParseError: if a read-only CMA-apply kernel has more than \
+                            one CMA operator argument.
+        :raises ParseError: if a read-only CMA-apply kernel has fewer than \
+                            3 arguments of which two must be fields.
+        :raises ParseError: if a read-only CMA-apply kernel has more than \
+                            one read-only field.
+        :raises ParseError: if a read-only CMA-apply kernel writes to more \
+                            than one field.
+        :raises ParseError: if a read-only CMA-apply kernel reads from a \
+                            field argument on a function space different \
+                            from the 'from' space of the CMA operator argument.
+        :raises ParseError: if a read-only CMA-apply kernel writes to a \
+                            field argument on a function space different from \
+                            the 'to' space of the CMA operator argument.
+        :raises ParseError: if a CMA kernel that updates a CMA operator \
+                            argument also updates other argument types.
+        :raises ParseError: if a CMA-assemble kernel that updates a CMA \
+                            operator argument does not have any read-only \
+                            LMA operator arguments.
+        :raises ParseError: if a CMA-matrix-matrix kernel that updates a CMA \
+                            operator argument does not have only scalar and \
+                            CMA operator arguments.
+        :raises ParseError: if a CMA kernel updates more than one CMA \
+                            operator argument.
+
+        '''
         for arg in self._arg_descriptors:
             # No vector arguments are permitted
             if arg.vector_size > 1:
                 raise ParseError(
-                    "Kernel {0} takes a CMA operator but has a "
+                    "Kernel '{0}' takes a CMA operator but has a "
                     "vector argument '{1}'. This is forbidden.".
                     format(self.name,
                            arg.argument_type+"*"+str(arg.vector_size)))
             # No stencil accesses are permitted
             if arg.stencil:
                 raise ParseError(
-                    "Kernel {0} takes a CMA operator but has an argument "
+                    "Kernel '{0}' takes a CMA operator but has an argument "
                     "with a stencil access ('{1}'). This is forbidden.".
                     format(self.name, arg.stencil['type']))
+            # Only field arguments with 'gh_real' data type are permitted
+            if (arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES and
+                    arg.data_type != "gh_real"):
+                raise ParseError(
+                    "In the LFRic API a kernel that applies a CMA "
+                    "operator must only have field arguments with "
+                    "'gh_real' data type but kernel '{0}' has a field "
+                    "argument with '{1}' data type.".
+                    format(self.name, arg.data_type))
 
         # Count the number of CMA operators that are written to
         write_count = 0
@@ -784,16 +832,16 @@ class DynKernMetadata(KernelType):
             # written field as arguments
             if len(cwise_ops) != 1:
                 raise ParseError(
-                    "In the Dynamo 0.3 API a kernel that applies a CMA "
+                    "In the LFRic API a kernel that applies a CMA "
                     "operator must only have one such operator in its "
-                    "list of arguments but found {0} for kernel {1}".
+                    "list of arguments but found {0} for kernel '{1}'.".
                     format(len(cwise_ops), self.name))
             cma_op = cwise_ops[0]
             if len(self._arg_descriptors) != 3:
                 raise ParseError(
-                    "In the Dynamo 0.3 API a kernel that applies a CMA "
+                    "In the LFRic API a kernel that applies a CMA "
                     "operator must have 3 arguments (the operator and "
-                    "two fields) but kernel {0} has {1} arguments".
+                    "two fields) but kernel '{0}' has {1} arguments.".
                     format(self.name, len(self._arg_descriptors)))
             # Check that the other two arguments are fields
             farg_read = psyGen.args_filter(
@@ -807,29 +855,29 @@ class DynKernMetadata(KernelType):
                 arg_accesses=write_accesses)
             if len(farg_read) != 1:
                 raise ParseError(
-                    "Kernel {0} has a read-only CMA operator. In order "
+                    "Kernel '{0}' has a read-only CMA operator. In order "
                     "to apply it the kernel must have one read-only field "
                     "argument.".format(self.name))
             if len(farg_write) != 1:
                 raise ParseError(
-                    "Kernel {0} has a read-only CMA operator. In order "
+                    "Kernel '{0}' has a read-only CMA operator. In order "
                     "to apply it the kernel must write to one field "
                     "argument.".format(self.name))
             # Check that the function spaces match up
             if farg_read[0].function_space != cma_op.function_space_from:
                 raise ParseError(
-                    "Kernel {0} applies a CMA operator but the function "
-                    "space of the field argument it reads from ({1}) "
+                    "Kernel '{0}' applies a CMA operator but the function "
+                    "space of the field argument it reads from ('{1}') "
                     "does not match the 'from' space of the operator "
-                    "({2})".format(self.name, farg_read[0].function_space,
-                                   cma_op.function_space_from))
+                    "('{2}').".format(self.name, farg_read[0].function_space,
+                                      cma_op.function_space_from))
             if farg_write[0].function_space != cma_op.function_space_to:
                 raise ParseError(
-                    "Kernel {0} applies a CMA operator but the function "
-                    "space of the field argument it writes to ({1}) "
+                    "Kernel '{0}' applies a CMA operator but the function "
+                    "space of the field argument it writes to ('{1}') "
                     "does not match the 'to' space of the operator "
-                    "({2})".format(self.name, farg_write[0].function_space,
-                                   cma_op.function_space_to))
+                    "('{2}').".format(self.name, farg_write[0].function_space,
+                                      cma_op.function_space_to))
             # This is a valid CMA-apply or CMA-apply-inverse kernel
             return "apply"
 
@@ -851,7 +899,7 @@ class DynKernMetadata(KernelType):
                         write_args.remove(arg)
                         break
                 raise ParseError(
-                    "Kernel {0} writes to a column-wise operator but "
+                    "Kernel '{0}' writes to a column-wise operator but "
                     "also writes to {1} argument(s). This is not "
                     "allowed.".format(self.name,
                                       [str(arg.argument_type) for arg
@@ -868,10 +916,10 @@ class DynKernMetadata(KernelType):
                     return "assembly"
                 else:
                     raise ParseError(
-                        "Kernel {0} has a single column-wise operator "
+                        "Kernel '{0}' has a single column-wise operator "
                         "argument but does not conform to the rules for an "
                         "Assembly kernel because it does not have any read-"
-                        "only LMA operator arguments".format(self.name))
+                        "only LMA operator arguments.".format(self.name))
             else:
                 # A valid matrix-matrix kernel must only have CMA operators
                 # and scalars as arguments.
@@ -883,15 +931,15 @@ class DynKernMetadata(KernelType):
                     raise ParseError(
                         "A column-wise matrix-matrix kernel must have only "
                         "column-wise operators and scalars as arguments but "
-                        "kernel {0} has: {1}.".
+                        "kernel '{0}' has: {1}.".
                         format(self.name,
                                [str(arg.argument_type) for arg in
                                 self._arg_descriptors]))
                 return "matrix-matrix"
         else:
             raise ParseError(
-                "A Dynamo 0.3 kernel cannot update more than one CMA "
-                "(column-wise) operator but kernel {0} updates {1}".
+                "An LFRic kernel cannot update more than one CMA "
+                "(column-wise) operator but kernel '{0}' updates {1}.".
                 format(self.name, write_count))
 
     @property
