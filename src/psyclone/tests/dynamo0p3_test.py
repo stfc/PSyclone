@@ -5779,9 +5779,9 @@ def test_no_updated_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("A Dynamo 0.3 kernel must have at least one argument that is "
+    assert ("An LFRic kernel must have at least one argument that is "
             "updated (written to) but found none for kernel "
-            "testkern_qr_type" in str(excinfo.value))
+            "'testkern_qr_type'" in str(excinfo.value))
 
 
 def test_scalars_only_invalid():

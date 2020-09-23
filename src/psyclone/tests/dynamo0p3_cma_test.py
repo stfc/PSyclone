@@ -338,24 +338,6 @@ def test_cma_mdata_asm_fld_stencil_error():
             in str(excinfo.value))
 
 
-def test_cma_mdata_asm_field_data_type_invalid():
-    ''' Check that we raise the expected error if a kernel assembling a
-    CMA operator specifies a field argument with an invalid data type
-    (other than 'gh_real'). '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CMA_ASSEMBLE.replace(
-        "arg_type(gh_field, gh_real, gh_read, any_space_1)",
-        "arg_type(gh_field, gh_integer, gh_read, any_space_1)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_cma_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API a kernel that applies a CMA operator must "
-            "only have field arguments with 'gh_real' data type but kernel "
-            "'testkern_cma_type' has a field argument with 'gh_integer' "
-            "data type." in str(excinfo.value))
-
-
 CMA_APPLY = '''
 module testkern_cma_apply
   type, extends(kernel_type) :: testkern_cma_type
@@ -551,7 +533,7 @@ def test_cma_mdata_apply_fld_stencil_error():
             "forbidden.") in str(excinfo.value)
 
 
-def test_cma_mdata_apply_field_data_type_invalid():
+def test_cma_mdata_apply_invalid_field_data_type():
     ''' Check that we raise the expected error if the metadata for a kernel
     that applies a CMA operator contains a field argument with an invalid
     data type (other than 'gh_real'). '''
@@ -563,10 +545,10 @@ def test_cma_mdata_apply_field_data_type_invalid():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API a kernel that applies a CMA operator must "
-            "only have field arguments with 'gh_real' data type but kernel "
-            "'testkern_cma_type' has a field argument with 'gh_integer' "
-            "data type." in str(excinfo.value))
+    assert ("In the LFRic API a kernel that takes a CMA operator argument "
+            "must only have field arguments with 'gh_real' data type but "
+            "kernel 'testkern_cma_type' has a field argument with "
+            "'gh_integer' data type." in str(excinfo.value))
 
 
 CMA_MATRIX = '''

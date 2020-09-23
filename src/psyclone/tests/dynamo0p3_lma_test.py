@@ -251,6 +251,23 @@ def test_ad_op_type_wrong_access():
             str(excinfo.value))
 
 
+def test_ad_op_invalid_field_data_type():
+    ''' Check that we raise the expected error if the metadata for a kernel
+    that has an LMA operator argument contains a field argument with an
+    invalid data type (other than 'gh_real'). '''
+    code = CODE.replace(
+        "arg_type(gh_field,    gh_real,    gh_read, w3)",
+        "arg_type(gh_field,    gh_integer, gh_read, w3)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("In the LFRic API a kernel that has an LMA operator argument "
+            "must only have field arguments with 'gh_real' data type but "
+            "kernel 'testkern_qr_type' has a field argument with "
+            "'gh_integer' data type." in str(excinfo.value))
+
+
 def test_arg_descriptor_op():
     ''' Test that the LFRicArgDescriptor argument representation works
     as expected when we have an operator. '''

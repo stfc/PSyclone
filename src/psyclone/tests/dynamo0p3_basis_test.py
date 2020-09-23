@@ -156,8 +156,8 @@ def test_eval_targets_wrong_space():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
         _ = DynKernMetadata(ast, name="testkern_eval_type")
-    assert ("specifies that an evaluator is required on w3 but does not have "
-            "an argument on this space" in str(err.value))
+    assert ("specifies that an evaluator is required on 'w3' but does not "
+            "have an argument on this space" in str(err.value))
 
 
 def test_eval_targets_op_space():
@@ -171,8 +171,8 @@ def test_eval_targets_op_space():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
         _ = DynKernMetadata(ast, name="testkern_eval_type")
-    assert ("specifies that an evaluator is required on w3 but does not have "
-            "an argument on this space" in str(err.value))
+    assert ("specifies that an evaluator is required on 'w3' but does not "
+            "have an argument on this space" in str(err.value))
     # Change to a space that is referenced by an operator
     code = code.replace("[W0, W3]", "[W0, W2]")
     ast = fpapi.parse(code, ignore_comments=False)

@@ -577,9 +577,29 @@ class DynKernMetadata(KernelType):
         Check that the meta-data conforms to Dynamo 0.3 rules for a
         user-provided kernel or a built-in
 
-        :param bool need_evaluator: whether this kernel requires an
-                                    evaluator/quadrature
-        :raises: ParseError: if meta-data breaks the Dynamo 0.3 rules
+        :param bool need_evaluator: whether this kernel requires an \
+                                    evaluator/quadrature.
+        :raises ParseError: if the kernel metadata specifies writing to the \
+                            read-only function space.
+        :raises ParseError: if a user-supplied LFRic kernel updates/writes \
+                            to a scalar argument.
+        :raises ParseError: if a kernel does not have at least one argument \
+                            that is updated/written to.
+        :raises ParseError: if a kernel does not require basis or \
+                            differential basis functions but specifies one \
+                            or more gh_shapes.
+        :raises ParseError: if a kernel does not require basis or \
+                            differential basis functions but specifies \
+                            gh_evaluator_targets.
+        :raises ParseError: if a kernel specifies gh_evaluator_targets \
+                            but does not need an evaluator.
+        :raises ParseError: if a kernel requires an evaluator on a \
+                            specific function space but does not have an \
+                            argument on that space.
+        :raises ParseError: if a kernel that has LMA operator arguments \
+                            also has a field argument with an invalid \
+                            data type (other than 'gh_real').
+
         '''
         from psyclone.dynamo0p3_builtins import BUILTIN_MAP
         # We must have at least one argument that is written to
@@ -606,9 +626,9 @@ class DynKernMetadata(KernelType):
                         "argument with '{1}' access."
                         .format(self.name, arg.access.api_specific_name()))
         if write_count == 0:
-            raise ParseError("A Dynamo 0.3 kernel must have at least one "
+            raise ParseError("An LFRic kernel must have at least one "
                              "argument that is updated (written to) but "
-                             "found none for kernel {0}".format(self.name))
+                             "found none for kernel '{0}'".format(self.name))
 
         # Check that no shape has been supplied if no basis or
         # differential basis functions are required for the kernel
@@ -642,8 +662,24 @@ class DynKernMetadata(KernelType):
                 if eval_fs not in fs_list:
                     raise ParseError(
                         "Kernel '{0}' specifies that an evaluator is required "
-                        "on {1} but does not have an argument on this space."
+                        "on '{1}' but does not have an argument on this space."
                         .format(self.name, eval_fs))
+
+        # If we have an LMA operator as argument then only field arguments
+        # with 'gh_real' data type are permitted
+        lma_ops = psyGen.args_filter(self._arg_descriptors,
+                                     arg_types=["gh_operator"])
+        if lma_ops:
+            for arg in self._arg_descriptors:
+                if (arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES
+                        and arg.data_type != "gh_real"):
+                    raise ParseError(
+                        "In the LFRic API a kernel that has an LMA "
+                        "operator argument must only have field arguments "
+                        "with 'gh_real' data type but kernel '{0}' has a "
+                        "field argument with '{1}' data type.".
+                        format(self.name, arg.data_type))
+
         # If we have a columnwise operator as argument then we need to
         # identify the operation that this kernel performs (one of
         # assemble, apply/apply-inverse and matrix-matrix)
@@ -769,18 +805,18 @@ class DynKernMetadata(KernelType):
                             stencil access.
         :raises ParseError: if a CMA kernel has a field argument with an \
                             invalid data type (other than 'gh_real').
-        :raises ParseError: if a read-only CMA-apply kernel has more than \
+        :raises ParseError: if a CMA-apply (read-only) kernel has more than \
                             one CMA operator argument.
-        :raises ParseError: if a read-only CMA-apply kernel has fewer than \
+        :raises ParseError: if a CMA-apply (read-only) kernel has fewer than \
                             3 arguments of which two must be fields.
-        :raises ParseError: if a read-only CMA-apply kernel has more than \
+        :raises ParseError: if a CMA-apply (read-only) kernel has more than \
                             one read-only field.
-        :raises ParseError: if a read-only CMA-apply kernel writes to more \
+        :raises ParseError: if a CMA-apply (read-only) kernel writes to more \
                             than one field.
-        :raises ParseError: if a read-only CMA-apply kernel reads from a \
+        :raises ParseError: if a CMA-apply (read-only) kernel reads from a \
                             field argument on a function space different \
                             from the 'from' space of the CMA operator argument.
-        :raises ParseError: if a read-only CMA-apply kernel writes to a \
+        :raises ParseError: if a CMA-apply (read-only) kernel writes to a \
                             field argument on a function space different from \
                             the 'to' space of the CMA operator argument.
         :raises ParseError: if a CMA kernel that updates a CMA operator \
@@ -813,8 +849,8 @@ class DynKernMetadata(KernelType):
             if (arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES and
                     arg.data_type != "gh_real"):
                 raise ParseError(
-                    "In the LFRic API a kernel that applies a CMA "
-                    "operator must only have field arguments with "
+                    "In the LFRic API a kernel that takes a CMA operator "
+                    "argument must only have field arguments with "
                     "'gh_real' data type but kernel '{0}' has a field "
                     "argument with '{1}' data type.".
                     format(self.name, arg.data_type))
@@ -6348,7 +6384,7 @@ class DynLoop(Loop):
             # space. _field_name holds the name of the argument that
             # determines the iteration space of this kernel and that
             # is set-up to be the one on the coarse mesh (in
-            # DynKerelArguments.iteration_space_arg()).
+            # DynKernelArguments.iteration_space_arg()).
             mesh_name = "mesh_" + self._field_name
         else:
             # It's not an inter-grid kernel so there's only one mesh
