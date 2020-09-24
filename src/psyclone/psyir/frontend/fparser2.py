@@ -1537,7 +1537,7 @@ class Fparser2Reader(object):
         '''
         name = str(walk(decl.children[0], Fortran2003.Type_Name)[0])
         # Create a new StructureType for this derived type
-        dtype = StructureType(name, parent=parent.symbol_table)
+        dtype = StructureType(parent=parent.symbol_table)
 
         # Look for any private-components-stmt (R447) within the type
         # decln. In the absence of this, the default visibility of type

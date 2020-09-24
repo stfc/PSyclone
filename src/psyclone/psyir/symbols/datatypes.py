@@ -89,8 +89,9 @@ class UnknownType(DataType):
                 format(type(declaration_txt).__name__))
         self._declaration = declaration_txt
 
+    @abc.abstractmethod
     def __str__(self):
-        return "UnknownType('{0}')".format(self._declaration)
+        ''' Abstract method that must be implemented in subclass. '''
 
     @property
     def declaration(self):
@@ -112,6 +113,8 @@ class UnknownFortranType(UnknownType):
     :raises TypeError: if the supplied declaration_txt is not a str.
 
     '''
+    def __str__(self):
+        return "UnknownFortranType('{0}')".format(self._declaration)
 
 
 class ScalarType(DataType):
@@ -363,39 +366,22 @@ class StructureType(DataType):
     Describes a 'structure' or 'derived' datatype that is itself composed
     of a table of symbols.
 
-    :param str name: the name of this type.
-    :param symbol_table: symbol table for the constituents of this datatype.
-    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolType`
-
-    :raises TypeError: if symbol_table is not None and is not a SymbolTable.
+    :param parent: enclosing symbol table containing this datatype.
+    :type parent: :py:class:`psyclone.psyir.symbols.SymbolType`
 
     '''
-    def __init__(self, name, symbol_table=None, parent=None):
+    def __init__(self, parent=None):
         from psyclone.psyir.symbols.symboltable import SymbolTable
-
-        self._name = name.lower()
-
-        if symbol_table:
-            if not isinstance(symbol_table, SymbolTable):
-                raise TypeError("Expected a SymbolTable object but got: "
-                                "'{0}'".format(type(symbol_table).__name__))
-            self._symbol_table = symbol_table
-        else:
-            self._symbol_table = SymbolTable(parent=parent)
+        self._symbol_table = SymbolTable(parent=parent)
 
     def __str__(self):
-        return "Structure<{0}>".format(self.name)
-
-    @property
-    def name(self):
-        ''' TODO
-        '''
-        return self._name
+        return "StructureType<>"
 
     @property
     def symbol_table(self):
         '''
-        TODO
+        :returns: the symbol table describing the contents of this type.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
         '''
         return self._symbol_table
 
