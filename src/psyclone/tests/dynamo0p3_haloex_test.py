@@ -43,9 +43,11 @@ import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.dynamo0p3 import DynLoop, DynHaloExchange
-from psyclone.transformations import Dynamo0p3RedundantComputationTrans
+from psyclone.transformations import Dynamo0p3RedundantComputationTrans, \
+    Dynamo0p3AsyncHaloExchangeTrans
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
+from psyclone.core.access_info import AccessType
 
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -445,7 +447,7 @@ def test_setval_x_then_user(tmpdir, monkeypatch):
     # Now transform the first loop to perform redundant computation out to
     # the level-1 halo
     rtrans = Dynamo0p3RedundantComputationTrans()
-    schedule, _ = rtrans.apply(first_invoke.schedule[0], options={"depth": 1})
+    _, _ = rtrans.apply(first_invoke.schedule[0], options={"depth": 1})
     # There should now be a halo exchange for f1 before the first
     # (builtin) kernel call
     assert isinstance(first_invoke.schedule[0], DynHaloExchange)
@@ -454,8 +456,6 @@ def test_setval_x_then_user(tmpdir, monkeypatch):
     # There should only be one halo exchange for field f1
     assert len([node for node in first_invoke.schedule.walk(DynHaloExchange)
                 if node.field.name == "f1"]) == 1
-    code = str(psy.gen)
-
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -487,7 +487,6 @@ def test_compute_halo_read_info_read_dep(monkeypatch):
     # make the access read-only. This stops the dependence from being
     # the last on the list.
     schedule[2].field._name = "f1"
-    from psyclone.core.access_info import AccessType
     schedule[2].field.access = AccessType.READ
     with pytest.raises(InternalError) as info:
         hex_f1._compute_halo_read_info(ignore_hex_dep=True)
@@ -522,13 +521,13 @@ def test_compute_halo_read_info_async(monkeypatch):
     hex_f1 = schedule[1]
 
     schedule[2].field._name = "f1"
-    from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans
     async_hex = Dynamo0p3AsyncHaloExchangeTrans()
     async_hex.apply(schedule[2])
     with pytest.raises(GenerationError) as info:
         hex_f1._compute_halo_read_info(ignore_hex_dep=True)
     assert ("Please perform redundant computation transformations "
-            "before asynchronous halo exchange transformations.")
+            "before asynchronous halo exchange transformations."
+            in str(info.value))
 
 
 # Tests for DynLoop
