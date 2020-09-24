@@ -1538,14 +1538,22 @@ class Fparser2Reader(object):
         name = str(walk(decl.children[0], Fortran2003.Type_Name)[0])
         # Create a new StructureType for this derived type
         dtype = StructureType(name, parent=parent.symbol_table)
-        # TODO look for any accessibility statement within the type decln
+
+        # Look for any private-components-stmt (R447) within the type
+        # decln. In the absence of this, the default visibility of type
+        # components is public.
+        private_stmts = walk(decl, Fortran2003.Private_Components_Stmt)
+        if private_stmts:
+            default_type_visibility = Symbol.Visibility.PRIVATE
+        else:
+            default_type_visibility = Symbol.Visibility.PUBLIC
 
         # Populate the SymbolTable of this StructureType by processing the
         # components of the derived type
         try:
             for child in walk(decl, Fortran2003.Data_Component_Def_Stmt):
                 self._process_decln(parent, dtype.symbol_table, child,
-                                    default_visibility, visibility_map)
+                                    default_type_visibility)
             vis = visibility_map.get(name, default_visibility)
             parent.symbol_table.add(TypeSymbol(name, dtype, visibility=vis))
         except NotImplementedError:

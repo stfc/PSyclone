@@ -41,7 +41,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyGen import KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
-    TypeSymbol, DataSymbol, ScalarType, RoutineSymbol
+    TypeSymbol, DataSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from fparser.two.Fortran2003 import Specification_Part
 from fparser.common.readfortran import FortranStringReader
@@ -111,6 +111,7 @@ def test_parse_derived_type(use_stmt):
                                  "type :: my_type\n"
                                  "  integer :: flag\n"
                                  "  type(grid_type) :: grid\n"
+                                 "  real, dimension(3) :: posn\n"
                                  "end type my_type\n".format(use_stmt))
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
@@ -123,3 +124,28 @@ def test_parse_derived_type(use_stmt):
     grid_sym = sym.datatype.symbol_table.lookup("grid")
     assert isinstance(grid_sym, DataSymbol)
     assert isinstance(grid_sym.datatype, DeferredType)
+    posn_sym = sym.datatype.symbol_table.lookup("posn")
+    assert isinstance(posn_sym, DataSymbol)
+    assert isinstance(posn_sym.datatype, ArrayType)
+
+
+def test_derived_type_accessibility():
+    '''
+    Check that accessibility statements/attributes within a derived type
+    are handled correctly.
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    processor = Fparser2Reader()
+    reader = FortranStringReader("type :: my_type\n"
+                                 "  private\n"
+                                 "  integer :: flag\n"
+                                 "  real, public :: scale\n"
+                                 "end type my_type\n")
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    sym = symtab.lookup("my_type")
+    flag_sym = sym.datatype.symbol_table.lookup("flag")
+    assert flag_sym.visibility == Symbol.Visibility.PRIVATE
+    scale_sym = sym.datatype.symbol_table.lookup("scale")
+    assert scale_sym.visibility == Symbol.Visibility.PUBLIC
