@@ -531,11 +531,11 @@ def test_compute_halo_read_info_async(monkeypatch):
 
 
 # Tests for DynLoop
-# Tests for _add_halo_exchange_code() within DynLoop
+# Tests for _add_field_component_halo_exchange() within DynLoop
 def test_add_halo_exchange_code_nreader(monkeypatch):
-    '''Check that _add_halo_exchange_code() in DynLoop raises the expected
-    exception when there is more than one read dependence associated
-    with a halo exchange in the read dependence list.
+    '''Check that _add_field_component_halo_exchange() in DynLoop raises
+    the expected exception when there is more than one read dependence
+    associated with a halo exchange in the read dependence list.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -552,8 +552,8 @@ def test_add_halo_exchange_code_nreader(monkeypatch):
     del schedule.children[0]
     schedule[1].field._name = "f1"
     schedule[2].field._name = "f1"
-    with pytest.raises(GenerationError) as info:
-        loop._add_halo_exchange_code(f1_field)
+    with pytest.raises(InternalError) as info:
+        loop._add_field_component_halo_exchange(f1_field)
     assert ("When replacing a halo exchange with another one for field f1, "
             "a subsequent dependent halo exchange was found. This should "
             "never happen." in str(info.value))
