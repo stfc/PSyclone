@@ -51,7 +51,7 @@ from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
-    StructureType, TypeSymbol, RoutineSymbol
+    UnknownFortranType, StructureType, TypeSymbol, RoutineSymbol
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -1544,23 +1544,27 @@ class Fparser2Reader(object):
         # components is public.
         private_stmts = walk(decl, Fortran2003.Private_Components_Stmt)
         if private_stmts:
-            default_type_visibility = Symbol.Visibility.PRIVATE
+            default_compt_visibility = Symbol.Visibility.PRIVATE
         else:
-            default_type_visibility = Symbol.Visibility.PUBLIC
+            default_compt_visibility = Symbol.Visibility.PUBLIC
+
+        # The visibility of the symbol representing this derived type
+        dtype_symbol_vis = visibility_map.get(name, default_visibility)
 
         # Populate the SymbolTable of this StructureType by processing the
         # components of the derived type
         try:
             for child in walk(decl, Fortran2003.Data_Component_Def_Stmt):
                 self._process_decln(parent, dtype.symbol_table, child,
-                                    default_type_visibility)
-            vis = visibility_map.get(name, default_visibility)
-            parent.symbol_table.add(TypeSymbol(name, dtype, visibility=vis))
+                                    default_compt_visibility)
+            parent.symbol_table.add(TypeSymbol(name, dtype,
+                                               visibility=dtype_symbol_vis))
         except NotImplementedError:
             # Support for this declaration is not fully implemented so create
-            # a Symbol of UnknownType.
-            # TODO this should be UnknownFortranType I think.
-            parent.symbol_table.add(DataSymbol(name, UnknownType(str(decl))))
+            # a TypeSymbol of UnknownFortranType.
+            parent.symbol_table.add(
+                TypeSymbol(name, UnknownFortranType(str(decl)),
+                           visibility=dtype_symbol_vis))
 
     def process_declarations(self, parent, nodes, arg_list,
                              default_visibility=None,

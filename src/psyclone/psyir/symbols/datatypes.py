@@ -68,9 +68,12 @@ class DeferredType(DataType):
         return "DeferredType"
 
 
+@six.add_metaclass(abc.ABCMeta)
 class UnknownType(DataType):
     '''
     Indicates that the type declaration is not supported by the PSyIR.
+    This class is abstract and must be subclassed for each language
+    supported by the PSyIR frontends.
 
     :param str declaration_txt: string containing the original variable \
                                 declaration.
@@ -87,19 +90,28 @@ class UnknownType(DataType):
         self._declaration = declaration_txt
 
     def __str__(self):
-        '''
-        :returns: a description of this unknown type.
-        :rtype: str
-        '''
         return "UnknownType('{0}')".format(self._declaration)
 
     @property
     def declaration(self):
         '''
-        :returns: the original declaration of the symbol.
+        :returns: the original declaration of the symbol. This is obviously \
+                  language specific and hence this class must be subclassed.
         :rtype: str
         '''
         return self._declaration
+
+
+class UnknownFortranType(UnknownType):
+    '''
+    Indicates that the Fortran type declaration is not supported by the PSyIR.
+
+    :param str declaration_txt: string containing the original variable \
+                                declaration.
+
+    :raises TypeError: if the supplied declaration_txt is not a str.
+
+    '''
 
 
 class ScalarType(DataType):

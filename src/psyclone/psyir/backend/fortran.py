@@ -405,10 +405,17 @@ class FortranWriter(PSyIRVisitor):
                 "gen_vardecl requires the symbol '{0}' to have a Local or "
                 "an Argument interface but found a '{1}' interface."
                 "".format(symbol.name, type(symbol.interface).__name__))
-        from psyclone.psyir.symbols.datatypes import UnknownType
+        from psyclone.psyir.symbols.datatypes import UnknownType, \
+            UnknownFortranType
 
         if isinstance(symbol.datatype, UnknownType):
-            # TODO need to know that the original declaration was Fortran
+            if not isinstance(symbol.datatype, UnknownFortranType):
+                # The Fortran backend can only handle unknown *Fortran*
+                # declarations.
+                raise VisitorError(
+                    "The Fortran backend cannot handle the declaration of a "
+                    "symbol of '{0}' type.".format(
+                        type(symbol.datatype).__name__))
             return symbol.datatype.declaration
 
         datatype = gen_datatype(symbol)
