@@ -1,0 +1,90 @@
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2020, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author: J. Henrichs, Bureau of Meteorology
+
+!> This is a simple test program that creates a small
+!! dl_esm_inf grid, then declares 4 fields on that grid
+!! and calls some trivial kernels to do some work.
+
+Program test
+    USE field_mod
+    USE grid_mod
+    use decomposition_mod, only : decomposition_type
+    use parallel_mod, only      : parallel_init
+
+    use init_field_mod,   only : init_field
+    use update_field_mod, only : update_field
+    use read_only_verify_psy_data_mod, only: read_only_verify_PSyDataInit, &
+        read_only_verify_PSyDataShutdown, read_only_verify_PSyDataStart
+
+    TYPE(r2d_field)          :: a_fld, b_fld, c_fld, d_fld
+    double precision         :: x, y, z
+    TYPE(grid_type), target  :: grid
+
+    ! Initialise dl_esm_inf and create a grid:
+    call parallel_init()
+    call read_only_verify_PSyDataInit()
+    ! Just to show how to use the start function. It is not
+    ! actually required, since the previous call enables it anyway.
+    call read_only_verify_PSyDataStart()
+    grid = grid_type(GO_ARAKAWA_C,                                 &
+                     (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/), &
+                     GO_OFFSET_SW)
+    ! Create a grid with 3x3 points, decomposed into 
+    ! 1 domain as 1x1. Define a halo of width 1
+    call grid%decompose(3, 3, 1, 1, 1, halo_width=1)
+    call grid_init(grid, 1.0_8, 1.0_8)
+
+    ! Declare the fields on this grid:
+    a_fld = r2d_field(grid, GO_T_POINTS)
+    b_fld = r2d_field(grid, GO_T_POINTS)
+    c_fld = r2d_field(grid, GO_T_POINTS)
+    d_fld = r2d_field(grid, GO_T_POINTS)
+
+    ! Use a kernel to initialise each field:
+    call invoke (init_field(a_fld, 1.0), &
+                 init_field(b_Fld, 2.0), &
+                 init_field(c_Fld, 3.0), &
+                 init_field(d_Fld, 4.0)    )
+
+    ! Use a kernel to do some simple maths. But this kernel uses
+    ! some very bad coding to overwrite a read-only scalar and
+    ! array value to show how the read-only detection works!
+    x = 0.0d0
+    z = 1.0d0
+    call invoke (update_field(a_fld, b_fld, c_fld, d_fld, x, y, z) )
+
+    call read_only_verify_PSyDataShutdown()
+
+end program test

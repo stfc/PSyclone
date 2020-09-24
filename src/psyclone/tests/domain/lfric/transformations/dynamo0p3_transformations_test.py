@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic,    Met Office
+#          C.M. Maynard, Met Office / University of Reading
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
 
@@ -72,10 +73,12 @@ def setup():
 
 
 def test_colour_trans_declarations(tmpdir, dist_mem):
-    '''Check that we generate the correct variable declarations when
+    ''' Check that we generate the correct variable declarations when
     doing a colouring transformation. We check when distributed memory
-    is both off and on. '''
-    # test of the colouring transformation of a single loop
+    is both off and on.
+
+    '''
+    # Test of the colouring transformation of a single loop
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              name="invoke_0_testkern_type",
                              dist_mem=dist_mem)
@@ -83,7 +86,7 @@ def test_colour_trans_declarations(tmpdir, dist_mem):
     ctrans = Dynamo0p3ColourTrans()
 
     if dist_mem:
-        index = 3
+        index = 4
     else:
         index = 0
 
@@ -107,7 +110,7 @@ def test_colour_trans_declarations(tmpdir, dist_mem):
 
 
 def test_colour_trans(tmpdir, dist_mem):
-    '''test of the colouring transformation of a single loop. We test
+    ''' Test of the colouring transformation of a single loop. We test
     when distributed memory is both off and on. '''
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              name="invoke_0_testkern_type",
@@ -116,7 +119,7 @@ def test_colour_trans(tmpdir, dist_mem):
     ctrans = Dynamo0p3ColourTrans()
 
     if dist_mem:
-        index = 3
+        index = 4
     else:
         index = 0
 
@@ -201,10 +204,12 @@ def test_colour_trans_operator(tmpdir, dist_mem):
 
 
 def test_colour_trans_cma_operator(tmpdir, dist_mem):
-    '''test of the colouring transformation of a single loop with a CMA
+    ''' Test of the colouring transformation of a single loop with a CMA
     operator. We check that the first argument is a colourmap lookup,
     not a direct cell index. We test when distributed memory is both
-    off and on. '''
+    off and on.
+
+    '''
     psy, invoke = get_invoke("20.3_cma_assembly_field.f90", TEST_API,
                              name="invoke_0_columnwise_op_asm_"
                              "field_kernel_type",
@@ -242,18 +247,17 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
         "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
         "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-        "ndf_any_space_1_afield, undf_any_space_1_afield, "
-        "map_any_space_1_afield(:,cmap(colour, cell)), "
-        "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
-        "cbanded_map_any_space_2_lma_op1)\n"
+        "ndf_aspc1_afield, undf_aspc1_afield, "
+        "map_aspc1_afield(:,cmap(colour, cell)), cbanded_map_aspc1_afield, "
+        "ndf_aspc2_lma_op1, cbanded_map_aspc2_lma_op1)\n"
         "        END DO\n"
         "      END DO\n") in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_colour_trans_stencil(dist_mem):
-    '''test of the colouring transformation of a single loop with a
+def test_colour_trans_stencil(dist_mem, tmpdir):
+    ''' Test of the colouring transformation of a single loop with a
     stencil access. We test when distributed memory is both off and
     on. '''
     psy, invoke = get_invoke("19.1_single_stencil.f90", TEST_API,
@@ -263,7 +267,7 @@ def test_colour_trans_stencil(dist_mem):
     ctrans = Dynamo0p3ColourTrans()
 
     if dist_mem:
-        index = 3
+        index = 4
     else:
         index = 0
 
@@ -276,7 +280,6 @@ def test_colour_trans_stencil(dist_mem):
     # Store the results of applying this code transformation as
     # a string
     gen = str(psy.gen)
-    print(gen)
 
     # Check that we index the stencil dofmap appropriately
     assert (
@@ -286,6 +289,8 @@ def test_colour_trans_stencil(dist_mem):
         "f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cmap(colour, cell)), "
         "ndf_w2, undf_w2, map_w2(:,cmap(colour, cell)), ndf_w3, "
         "undf_w3, map_w3(:,cmap(colour, cell)))" in gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_colouring_not_a_loop(dist_mem):
@@ -385,7 +390,7 @@ def test_colour_str():
 
 
 def test_omp_colour_trans(tmpdir, dist_mem):
-    '''Test the OpenMP transformation applied to a coloured loop. We test
+    ''' Test the OpenMP transformation applied to a coloured loop. We test
     when distributed memory is on or off. '''
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              name="invoke_0_testkern_type",
@@ -396,7 +401,7 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     otrans = DynamoOMPParallelLoopTrans()
 
     if dist_mem:
-        index = 3
+        index = 4
     else:
         index = 0
 
@@ -611,12 +616,20 @@ def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_colouring_after_openmp(dist_mem):
+def test_colouring_after_openmp(dist_mem, monkeypatch):
     '''Test that we raise an error if the user attempts to colour a loop
     that is already within an OpenMP parallel region. We test when
-    distributed memory is on or off. '''
-    _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
-                           name="invoke_0_testkern_type", dist_mem=dist_mem)
+    distributed memory is on or off.  Note: An OpenMP parallel
+    transformation can only be applied on its own for a discontinuous
+    function space. However, colouring can be applied when an argument
+    has "INC" access and in the LFRic API this is only possible for
+    fields on a continuous function space. Therefore we need to
+    monkeypatch the function space of the loop argument to a
+    continuous function space before applying colouring.
+
+    '''
+    _, invoke = get_invoke("1_single_invoke_w3.f90", TEST_API,
+                           name="invoke_0_testkern_w3_type", dist_mem=dist_mem)
     schedule = invoke.schedule
 
     ctrans = Dynamo0p3ColourTrans()
@@ -628,7 +641,14 @@ def test_colouring_after_openmp(dist_mem):
         index = 0
 
     # Apply OpenMP to the loop
-    schedule, _ = otrans.apply(schedule.children[index])
+    schedule, _ = otrans.apply(schedule[index])
+
+    # Monkeypatch the loop argument to "INC" access and a continuous function
+    # space so colouring can be applied
+    write_arg = schedule[index].dir_body[0].loop_body[0].arguments.args[4]
+    fspace = write_arg.function_space
+    monkeypatch.setattr(write_arg, "access", AccessType.INC)
+    monkeypatch.setattr(fspace, "_orig_name", "w1")
 
     # Now attempt to colour the loop within this OpenMP region
     with pytest.raises(TransformationError) as excinfo:
@@ -685,11 +705,16 @@ def test_colouring_multi_kernel(monkeypatch, annexed, dist_mem):
 
 
 def test_omp_region_omp_do(dist_mem):
-    '''Test that we correctly generate code for the case of a single OMP
+    ''' Test that we correctly generate code for the case of a single OMP
     DO within an OMP PARALLEL region without colouring. We test when
-    distributed memory is on or off. '''
-    psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
-                             name="invoke_0_testkern_type", dist_mem=dist_mem)
+    distributed memory is on or off.
+    Note: this test does not apply colouring so the loops must be over
+    discontinuous function spaces.
+
+    '''
+    psy, invoke = get_invoke(
+        "1_single_invoke_w3.f90", TEST_API,
+        name="invoke_0_testkern_w3_type", dist_mem=dist_mem)
     schedule = invoke.schedule
     olooptrans = Dynamo0p3OMPLoopTrans()
     ptrans = OMPParallelTrans()
@@ -718,9 +743,9 @@ def test_omp_region_omp_do(dist_mem):
     cell_loop_idx = -1
     omp_enddo_idx = -1
     if dist_mem:
-        loop_str = "DO cell=1,mesh%get_last_halo_cell(1)"
+        loop_str = "DO cell=1,mesh%get_last_edge_cell()"
     else:
-        loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
+        loop_str = "DO cell=1,m2_proxy%vspace%get_ncell()"
     for idx, line in enumerate(code.split('\n')):
         if loop_str in line:
             cell_loop_idx = idx
@@ -803,8 +828,12 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
 def test_multi_kernel_single_omp_region(dist_mem):
     ''' Test that we correctly generate all the map-lookups etc.
     when an invoke contains more than one kernel that are all contained
-    within a single OMP region. '''
-    psy, invoke = get_invoke("4_multikernel_invokes.f90", TEST_API,
+    within a single OMP region.
+    Note: this test does not apply colouring so the loops must be over
+    discontinuous function spaces.
+
+    '''
+    psy, invoke = get_invoke("4.13_multikernel_invokes_w3_anyd.f90", TEST_API,
                              name="invoke_0",
                              dist_mem=dist_mem)
     schedule = invoke.schedule
@@ -833,9 +862,9 @@ def test_multi_kernel_single_omp_region(dist_mem):
     cell_loop_idx = -1
     end_do_idx = -1
     if dist_mem:
-        loop_str = "DO cell=1,mesh%get_last_halo_cell(1)"
+        loop_str = "DO cell=1,mesh%get_last_edge_cell()"
     else:
-        loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
+        loop_str = "DO cell=1,m2_proxy%vspace%get_ncell()"
     for idx, line in enumerate(code.split('\n')):
         if (cell_loop_idx == -1) and (loop_str in line):
             cell_loop_idx = idx
@@ -859,7 +888,7 @@ def test_multi_kernel_single_omp_region(dist_mem):
 
 def test_multi_different_kernel_omp(
         tmpdir, monkeypatch, dist_mem, annexed):
-    '''Test that we correctly generate the OpenMP private lists when we
+    ''' Test that we correctly generate the OpenMP private lists when we
     have more than one kernel of a different type (requiring a
     different private list) within an invoke. Test with and without
     DM. We also test when annexed is False and True as it affects how
@@ -880,7 +909,7 @@ def test_multi_different_kernel_omp(
             index2 = 8
         else:
             index1 = 6
-            index2 = 9
+            index2 = 10
     else:
         index1 = 0
         index2 = 1
@@ -943,13 +972,12 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
         ftrans.same_space = same_space
         mtrans = MoveTrans()
         if dist_mem:
-            # c and g halo exchange between loops can be moved before
-            # 1st loop as they are not accessed in first loop
-            schedule, _ = mtrans.apply(schedule.children[7],
-                                       schedule.children[6])
-            schedule, _ = mtrans.apply(schedule.children[8],
-                                       schedule.children[7])
-            index = 8
+            index = 9
+            # f, c and g halo exchanges between loops can be moved
+            # before the 1st loop as they are not accessed in it
+            for idx in range(index-3, index):
+                schedule, _ = mtrans.apply(schedule.children[idx+1],
+                                           schedule.children[idx])
         else:
             index = 0
 
@@ -992,13 +1020,13 @@ def test_loop_fuse(dist_mem):
     schedule = invoke.schedule
 
     if dist_mem:
-        index = 3
+        index = 4
     else:
         index = 0
 
     ftrans = DynamoLoopFuseTrans()
 
-    # fuse the loops
+    # Fuse the loops
     schedule, _ = ftrans.apply(schedule.children[index],
                                schedule.children[index+1])
 
@@ -1038,36 +1066,33 @@ def test_loop_fuse_set_dirty():
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
     # Fuse the loops
-    schedule, _ = ftrans.apply(schedule.children[3],
-                               schedule.children[4])
-    schedule.view()
+    schedule, _ = ftrans.apply(schedule.children[4],
+                               schedule.children[5])
+
     gen = str(psy.gen)
-    print(gen)
     assert gen.count("set_dirty()") == 1
 
 
 def test_loop_fuse_omp(dist_mem):
-    '''Test that we can loop-fuse two loop nests and enclose them in an
-       OpenMP parallel region. '''
-    psy, invoke = get_invoke("4_multikernel_invokes.f90", TEST_API,
+    ''' Test that we can loop-fuse two loop nests and enclose them in an
+    OpenMP parallel region.
+    Note: this test does not apply colouring so the loops must be over
+    discontinuous function spaces.
+
+    '''
+    psy, invoke = get_invoke("4.12_multikernel_invokes_w2v.f90", TEST_API,
                              name="invoke_0", dist_mem=dist_mem)
     schedule = invoke.schedule
-
-    if dist_mem:
-        index = 3
-    else:
-        index = 0
 
     ftrans = DynamoLoopFuseTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
-    schedule, _ = ftrans.apply(schedule.children[index],
-                               schedule.children[index+1])
+    schedule, _ = ftrans.apply(schedule.children[0],
+                               schedule.children[1])
 
-    schedule, _ = otrans.apply(schedule.children[index])
+    schedule, _ = otrans.apply(schedule.children[0])
 
     code = str(psy.gen)
-    print(code)
 
     # Check generated code
     omp_para_idx = -1
@@ -1077,7 +1102,7 @@ def test_loop_fuse_omp(dist_mem):
     call1_idx = -1
     call2_idx = -1
     if dist_mem:
-        loop_str = "DO cell=1,mesh%get_last_halo_cell(1)"
+        loop_str = "DO cell=1,mesh%get_last_edge_cell()"
     else:
         loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
     for idx, line in enumerate(code.split('\n')):
@@ -1086,7 +1111,7 @@ def test_loop_fuse_omp(dist_mem):
         if "!$omp parallel do default(shared), " +\
            "private(cell), schedule(static)" in line:
             omp_para_idx = idx
-        if "CALL testkern_code" in line:
+        if "CALL testkern_w2v_code" in line:
             if call1_idx == -1:
                 call1_idx = idx
             else:
@@ -1273,9 +1298,11 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_loop_fuse_cma(dist_mem):
+def test_loop_fuse_cma(tmpdir, dist_mem):
     ''' Test that we can loop fuse two loops when one contains a
-    call to a CMA-related kernel. '''
+    call to a CMA-related kernel.
+
+    '''
     psy, invoke = get_invoke("20.6_multi_invoke_with_cma.f90", TEST_API,
                              name="invoke_0", dist_mem=dist_mem)
     ftrans = DynamoLoopFuseTrans()
@@ -1298,13 +1325,15 @@ def test_loop_fuse_cma(dist_mem):
     schedule, _ = ftrans.apply(schedule.children[index],
                                schedule.children[index+1])
     code = str(psy.gen)
-    print(code)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     assert (
         "      ! Look-up required column-banded dofmaps\n"
         "      !\n"
-        "      cbanded_map_any_space_1_afield => "
+        "      cbanded_map_aspc1_afield => "
         "cma_op1_proxy%column_banded_dofmap_to\n"
-        "      cbanded_map_any_space_2_lma_op1 => "
+        "      cbanded_map_aspc2_lma_op1 => "
         "cma_op1_proxy%column_banded_dofmap_from\n") in code
     assert (
         "      ! Look-up information for each CMA operator\n"
@@ -1323,12 +1352,12 @@ def test_loop_fuse_cma(dist_mem):
         "ncell_2d, afield_proxy%data, lma_op1_proxy%ncell_3d, "
         "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
-        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_any_space_1_afield, "
-        "undf_any_space_1_afield, map_any_space_1_afield(:,cell), "
-        "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
-        "cbanded_map_any_space_2_lma_op1)\n"
+        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_aspc1_afield, "
+        "undf_aspc1_afield, map_aspc1_afield(:,cell), "
+        "cbanded_map_aspc1_afield, ndf_aspc2_lma_op1, "
+        "cbanded_map_aspc2_lma_op1)\n"
         "        !\n"
-        "        CALL testkern_code(nlayers, scalar1, "
+        "        CALL testkern_two_real_scalars_code(nlayers, scalar1, "
         "afield_proxy%data, bfield_proxy%data, cfield_proxy%data, "
         "dfield_proxy%data, scalar2, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
@@ -1336,11 +1365,15 @@ def test_loop_fuse_cma(dist_mem):
 
 
 def test_omp_par_and_halo_exchange_error():
-    '''Tests that we raise an error if we try to apply an omp parallel
+    ''' Tests that we raise an error if we try to apply an OMP parallel
     transformation to a list containing halo_exchange calls. If this is
     allowed then it is likely that we will get incorrect results, or that
-    the code will fail.'''
-    _, invoke = get_invoke("4_multikernel_invokes.f90", TEST_API,
+    the code will fail.
+    Note: this test does not apply colouring so the loops must be over
+    discontinuous function spaces.
+
+    '''
+    _, invoke = get_invoke("4.13_multikernel_invokes_w3_anyd.f90", TEST_API,
                            name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
 
@@ -1354,7 +1387,27 @@ def test_omp_par_and_halo_exchange_error():
     # Enclose the invoke code within a single region
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rtrans.apply(schedule.children)
-    assert "A halo exchange within a parallel region is not supported" \
+    assert ("type 'DynHaloExchange' cannot be enclosed by a OMPParallelTrans "
+            "transformation" in str(excinfo.value))
+
+
+def test_module_inline_no_code(monkeypatch):
+    '''Tests that if a kernel doesn't have a code AST set
+       _kernel_code = None, for example when an interface is
+       used, the inline transformation produces an error as
+       there is no code to inline.
+    '''
+    psy, invoke = get_invoke("4.6_multikernel_invokes.f90", TEST_API,
+                             name="invoke_0", dist_mem=True)
+    schedule = invoke.schedule
+    kern_call = schedule.children[8].loop_body[0]
+    monkeypatch.setattr(kern_call, "_kernel_code", None)
+    inline_trans = KernelModuleInlineTrans()
+    schedule, _ = inline_trans.apply(kern_call)
+    with pytest.raises(InternalError) as excinfo:
+        _ = psy.gen
+    assert "Have no fparser1 AST for kernel {0}." \
+        " Therefore cannot inline it.".format(kern_call) \
         in str(excinfo.value)
 
 
@@ -1389,8 +1442,8 @@ def test_module_inline(monkeypatch, annexed, dist_mem):
     assert 'USE ru_kernel_mod, only : ru_code' not in gen
 
 
-def test_builtin_single_omp_pdo(monkeypatch, annexed, dist_mem):
-    '''Test that we generate correct code if an OpenMP parallel do is
+def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that we generate correct code if an OpenMP PARALLEL DO is
     applied to a single builtin. Also test with and without annexed
     dofs being computed as this affects the generated code.
 
@@ -1405,7 +1458,9 @@ def test_builtin_single_omp_pdo(monkeypatch, annexed, dist_mem):
     schedule, _ = otrans.apply(schedule.children[0])
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if dist_mem:  # annexed can be True or False
         code = (
             "      !$omp parallel do default(shared), private(df), "
@@ -1426,14 +1481,14 @@ def test_builtin_single_omp_pdo(monkeypatch, annexed, dist_mem):
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,undf_any_space_1_f2\n"
+            "      DO df=1,undf_aspc1_f2\n"
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do") in result
 
 
-def test_builtin_multiple_omp_pdo(monkeypatch, annexed, dist_mem):
-    '''Test that we generate correct code if OpenMP parallel do's are
+def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that we generate correct code if OpenMP PARALLEL DOs are
     applied to multiple builtins. Also test with and without annexed
     dofs being computed as this affects the generated code.
 
@@ -1449,7 +1504,9 @@ def test_builtin_multiple_omp_pdo(monkeypatch, annexed, dist_mem):
         schedule, _ = otrans.apply(child)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if dist_mem:  # annexed can be True or False
         code = (
             "      !$omp parallel do default(shared), private(df), "
@@ -1467,7 +1524,7 @@ def test_builtin_multiple_omp_pdo(monkeypatch, annexed, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
             "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
@@ -1494,29 +1551,31 @@ def test_builtin_multiple_omp_pdo(monkeypatch, annexed, dist_mem):
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = fred\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,undf_any_space_1_f2\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "      DO df=1,undf_aspc1_f2\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in result
 
 
-def test_builtin_loop_fuse_pdo(monkeypatch, annexed, dist_mem):
-    '''Test that we generate correct code if an OpenMP parallel do is
+def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that we generate correct code if an OpenMP PARALLEL DO is
     applied to multiple loop fused builtins. We have to assert that it
     is safe to loop fuse. Also test with and without annexed
-    dofs being computed as this affects the generated code. '''
+    dofs being computed as this affects the generated code.
+
+    '''
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("15.14.2_multiple_set_kernels.f90", TEST_API,
@@ -1531,14 +1590,16 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed, dist_mem):
     schedule, _ = otrans.apply(schedule.children[0])
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if dist_mem:  # annexed can be True or False
         code = (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = fred\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
@@ -1556,18 +1617,18 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed, dist_mem):
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = fred\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end parallel do") in result
 
 
-def test_builtin_single_omp_do(monkeypatch, annexed, dist_mem):
-    '''Test that we generate correct code if an OpenMP do (with an outer
-    OpenMP parallel) is applied to a single builtin. Also test with
-    and without annexed dofs being computed as this affects the
+def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that we generate correct code if an OpenMP DO (with an
+    outer OpenMP parallel) is applied to a single builtin. Also test
+    with and without annexed dofs being computed as this affects the
     generated code.
 
     '''
@@ -1586,6 +1647,8 @@ def test_builtin_single_omp_do(monkeypatch, annexed, dist_mem):
     # Put an OMP DO around this loop
     schedule, _ = olooptrans.apply(schedule[0].dir_body[0])
     result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
         code = (
@@ -1611,17 +1674,17 @@ def test_builtin_single_omp_do(monkeypatch, annexed, dist_mem):
         assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_any_space_1_f2\n"
+            "      DO df=1,undf_aspc1_f2\n"
             "        f2_proxy%data(df) = f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n") in result
 
 
-def test_builtin_multiple_omp_do(monkeypatch, annexed, dist_mem):
-    '''Test that we generate correct code if OpenMP do's are applied to
-    multiple builtins. Also test with and without annexed dofs being
-    computed as this affects the generated code.
+def test_builtin_multiple_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that we generate correct code if OpenMP DOs are applied
+    to multiple builtins. Also test with and without annexed dofs
+    being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(TEST_API)
@@ -1641,6 +1704,8 @@ def test_builtin_multiple_omp_do(monkeypatch, annexed, dist_mem):
         schedule, _ = olooptrans.apply(child)
     result = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if dist_mem:  # annexed can be True or False
         code = (
             "      !$omp parallel default(shared), private(df)\n"
@@ -1659,7 +1724,7 @@ def test_builtin_multiple_omp_do(monkeypatch, annexed, dist_mem):
             "      !\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !\n"
@@ -1691,28 +1756,28 @@ def test_builtin_multiple_omp_do(monkeypatch, annexed, dist_mem):
         assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = fred\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_any_space_1_f2\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "      DO df=1,undf_aspc1_f2\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_any_space_1_f3\n"
+            "      DO df=1,undf_aspc1_f3\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel") in result
 
 
-def test_builtin_loop_fuse_do(monkeypatch, annexed, dist_mem):
-    '''Test that we generate correct code if an OpenMP do is applied to
-    multiple loop fused builtins. We need to assert it is safe to
-    perform loop fusion. Also test with and without annexed dofs being
-    computed as this affects the generated code.
+def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that we generate correct code if an OpenMP DO is applied
+    to multiple loop fused builtins. We need to assert it is safe to
+    perform loop fusion. Also test with and without annexed dofs
+    being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(TEST_API)
@@ -1734,14 +1799,16 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed, dist_mem):
     # Put an OMP DO around the loop
     schedule, _ = olooptrans.apply(schedule[0].dir_body[0])
     result = str(psy.gen)
-    print(result)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     if dist_mem:  # annexed can be True or False
         code = (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = fred\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -1763,155 +1830,165 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed, dist_mem):
         assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df=1,undf_any_space_1_f1\n"
+            "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = fred\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel") in result
 
 
-def test_reduction_real_pdo():
-    '''test that we generate a correct OpenMP parallel do reduction for a
-    real scalar summed in a builtin. We use inner product in this case. '''
-    for distmem in [False, True]:
-        psy, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
-                                 TEST_API, idx=0, dist_mem=distmem)
-        schedule = invoke.schedule
-        otrans = DynamoOMPParallelLoopTrans()
-        # Apply OpenMP parallelisation to the loop
-        schedule, _ = otrans.apply(schedule.children[0])
-        invoke.schedule = schedule
-        code = str(psy.gen)
-        print(code)
-        if distmem:
-            assert (
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n") in code
+def test_reduction_real_pdo(tmpdir, dist_mem):
+    ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
+    a real scalar summed in a builtin. We use inner product in this case.
 
-        else:
-            assert (
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n") in code
+    '''
+    psy, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
+                             TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    otrans = DynamoOMPParallelLoopTrans()
+    # Apply OpenMP parallelisation to the loop
+    schedule, _ = otrans.apply(schedule.children[0])
+    invoke.schedule = schedule
+    code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
-def test_reduction_real_do():
-    '''test that we generate a correct OpenMP do reduction for a real
-    scalar summed in a builtin. We use inner product in this case. '''
-    for distmem in [False, True]:
-        psy, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
-                                 TEST_API, idx=0, dist_mem=distmem)
-        schedule = invoke.schedule
-        otrans = Dynamo0p3OMPLoopTrans()
-        rtrans = OMPParallelTrans()
-        # Apply an OpenMP do directive to the loop
-        schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
-        # Apply an OpenMP Parallel directive around the OpenMP do directive
-        schedule, _ = rtrans.apply(schedule.children[0])
-        invoke.schedule = schedule
-        code = str(psy.gen)
-        print(code)
-        if distmem:
-            assert (
-                "      !$omp parallel default(shared), private(df)\n"
-                "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp end parallel\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n") in code
-        else:
-            assert (
-                "      !$omp parallel default(shared), private(df)\n"
-                "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp end parallel\n") in code
+    if dist_mem:
+        assert (
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static), reduction(+:asum)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n"
+            "      global_sum%value = asum\n"
+            "      asum = global_sum%get_sum()\n") in code
+
+    else:
+        assert (
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static), reduction(+:asum)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n") in code
 
 
-def test_multi_reduction_real_pdo():
-    '''test that we generate a correct OpenMP parallel do reduction for a
-    real scalar summed in a builtin. We use inner product in this case. '''
-    for distmem in [False, True]:
-        psy, invoke = get_invoke("15.15.1_two_same_builtin_reductions.f90",
-                                 TEST_API, idx=0, dist_mem=distmem)
-        schedule = invoke.schedule
-        otrans = DynamoOMPParallelLoopTrans()
-        # Apply OpenMP parallelisation to the loop
-        for child in schedule.children:
-            if isinstance(child, psyir.nodes.Loop):
-                schedule, _ = otrans.apply(child)
-        invoke.schedule = schedule
-        code = str(psy.gen)
-        print(code)
-        if distmem:
-            assert (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n"
-                "      !\n"
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n") in code
-        else:
-            assert (
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n"
-                "      !\n"
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n") in code
+def test_reduction_real_do(tmpdir, dist_mem):
+    ''' Test that we generate a correct OpenMP DO reduction for a real
+    scalar summed in a builtin. We use inner product in this case.
+
+    '''
+    psy, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
+                             TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do directive to the loop
+    schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
+    # Apply an OpenMP Parallel directive around the OpenMP do directive
+    schedule, _ = rtrans.apply(schedule.children[0])
+    invoke.schedule = schedule
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if dist_mem:
+        assert (
+            "      !$omp parallel default(shared), private(df)\n"
+            "      !$omp do schedule(static), reduction(+:asum)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp end parallel\n"
+            "      global_sum%value = asum\n"
+            "      asum = global_sum%get_sum()\n") in code
+    else:
+        assert (
+            "      !$omp parallel default(shared), private(df)\n"
+            "      !$omp do schedule(static), reduction(+:asum)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp end parallel\n") in code
 
 
-def test_reduction_after_normal_real_do(monkeypatch, annexed):
-    '''test that we produce correct code when we have a reduction after a
-    "normal" builtin and we use OpenMP DO loops for parallelisation
+def test_multi_reduction_real_pdo(tmpdir, dist_mem):
+    ''' Test that we generate a correct OpenMP PARALLEL DO reduction for a
+    real scalar summed in a builtin. We use inner product in this case.
+
+    '''
+    psy, invoke = get_invoke("15.15.1_two_same_builtin_reductions.f90",
+                             TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    otrans = DynamoOMPParallelLoopTrans()
+    # Apply OpenMP parallelisation to the loop
+    for child in schedule.children:
+        if isinstance(child, psyir.nodes.Loop):
+            schedule, _ = otrans.apply(child)
+    invoke.schedule = schedule
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if dist_mem:
+        assert (
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static), reduction(+:asum)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n"
+            "      global_sum%value = asum\n"
+            "      asum = global_sum%get_sum()\n"
+            "      !\n"
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static), reduction(+:asum)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n"
+            "      global_sum%value = asum\n"
+            "      asum = global_sum%get_sum()\n") in code
+    else:
+        assert (
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static), reduction(+:asum)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n"
+            "      !\n"
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static), reduction(+:asum)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n") in code
+
+
+def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
+                                        dist_mem):
+    ''' Test that we produce correct code when we have a reduction after
+    a "normal" builtin and we use OpenMP DO loops for parallelisation
     with a single parallel region over all calls. Also test with and
     without annexed dofs being computed as this affects the generated
     code.
@@ -1920,75 +1997,76 @@ def test_reduction_after_normal_real_do(monkeypatch, annexed):
     file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API,
-                                 idx=0, dist_mem=distmem)
-        schedule = invoke.schedule
-        otrans = Dynamo0p3OMPLoopTrans()
-        rtrans = OMPParallelTrans()
-        # Apply an OpenMP do to the loop
-        for child in schedule.children:
-            if isinstance(child, psyir.nodes.Loop):
-                schedule, _ = otrans.apply(child, {"reprod": False})
-        # Apply an OpenMP Parallel for all loops
-        schedule, _ = rtrans.apply(schedule.children[0:2])
-        invoke.schedule = schedule
-        result = str(psy.gen)
-        print(result)
-        if distmem:  # annexed can be True or False
-            expected_output = (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel default(shared), private(df)\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      !$omp master\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !$omp end master\n"
-                "      !\n"
-                "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp end parallel\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()")
-            if not annexed:
-                expected_output = expected_output.replace("dof_annexed",
-                                                          "dof_owned")
-        else:  # not distmem. annexed can be True or False
-            expected_output = (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel default(shared), private(df)\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        asum = asum+f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp end parallel")
-        assert expected_output in result
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do to the loop
+    for child in schedule.children:
+        if isinstance(child, psyir.nodes.Loop):
+            schedule, _ = otrans.apply(child, {"reprod": False})
+    # Apply an OpenMP Parallel for all loops
+    schedule, _ = rtrans.apply(schedule.children[0:2])
+    invoke.schedule = schedule
+    result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if dist_mem:  # annexed can be True or False
+        expected_output = (
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel default(shared), private(df)\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      !$omp master\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !$omp end master\n"
+            "      !\n"
+            "      !$omp do schedule(static), reduction(+:asum)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        asum = asum+f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp end parallel\n"
+            "      global_sum%value = asum\n"
+            "      asum = global_sum%get_sum()")
+        if not annexed:
+            expected_output = expected_output.replace("dof_annexed",
+                                                      "dof_owned")
+    else:  # not distmem. annexed can be True or False
+        expected_output = (
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel default(shared), private(df)\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp do schedule(static), reduction(+:asum)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        asum = asum+f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp end parallel")
+    assert expected_output in result
 
 
-def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
-    '''test that we produce correct code when we have a reproducible
+def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
+                                         dist_mem):
+    ''' Test that we produce correct code when we have a reproducible
     reduction after a "normal" builtin and we use OpenMP DO loops for
     parallelisation with a single parallel region over all calls. Also
     test with and without annexed dofs being computed as this affects
@@ -1998,273 +2076,273 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
     file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API,
-                                 idx=0, dist_mem=distmem)
-        schedule = invoke.schedule
-        otrans = Dynamo0p3OMPLoopTrans()
-        rtrans = OMPParallelTrans()
-        # Apply an OpenMP do to the loop
-        for child in schedule.children:
-            if isinstance(child, psyir.nodes.Loop):
-                schedule, _ = otrans.apply(child, {"reprod": True})
-        # Apply an OpenMP Parallel for all loops
-        schedule, _ = rtrans.apply(schedule.children[0:2])
-        invoke.schedule = schedule
-        result = str(psy.gen)
-        print(result)
-        if distmem:  # annexed can be True or False
-            expected_output = (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      ALLOCATE (l_asum(8,nthreads))\n"
-                "      l_asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel default(shared), private(df,th_idx)\n"
-                "      th_idx = omp_get_thread_num()+1\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      !$omp master\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !$omp end master\n"
-                "      !\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
-                "f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp end parallel\n"
-                "      !\n"
-                "      ! sum the partial results sequentially\n"
-                "      !\n"
-                "      DO th_idx=1,nthreads\n"
-                "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO\n"
-                "      DEALLOCATE (l_asum)\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()")
-            if not annexed:
-                expected_output = expected_output.replace("dof_annexed",
-                                                          "dof_owned")
-        else:  # not distmem. annexed can be True or False
-            expected_output = (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      ALLOCATE (l_asum(8,nthreads))\n"
-                "      l_asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel default(shared), private(df,th_idx)\n"
-                "      th_idx = omp_get_thread_num()+1\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
-                "f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp end parallel\n"
-                "      !\n"
-                "      ! sum the partial results sequentially\n"
-                "      !\n"
-                "      DO th_idx=1,nthreads\n"
-                "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO\n"
-                "      DEALLOCATE (l_asum)\n")
-        assert expected_output in result
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do to the loop
+    for child in schedule.children:
+        if isinstance(child, psyir.nodes.Loop):
+            schedule, _ = otrans.apply(child, {"reprod": True})
+    # Apply an OpenMP Parallel for all loops
+    schedule, _ = rtrans.apply(schedule.children[0:2])
+    invoke.schedule = schedule
+    result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if dist_mem:  # annexed can be True or False
+        expected_output = (
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      ALLOCATE (l_asum(8,nthreads))\n"
+            "      l_asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel default(shared), private(df,th_idx)\n"
+            "      th_idx = omp_get_thread_num()+1\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      !$omp master\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !$omp end master\n"
+            "      !\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp end parallel\n"
+            "      !\n"
+            "      ! sum the partial results sequentially\n"
+            "      !\n"
+            "      DO th_idx=1,nthreads\n"
+            "        asum = asum+l_asum(1,th_idx)\n"
+            "      END DO\n"
+            "      DEALLOCATE (l_asum)\n"
+            "      global_sum%value = asum\n"
+            "      asum = global_sum%get_sum()")
+        if not annexed:
+            expected_output = expected_output.replace("dof_annexed",
+                                                      "dof_owned")
+    else:  # not distmem. annexed can be True or False
+        expected_output = (
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      ALLOCATE (l_asum(8,nthreads))\n"
+            "      l_asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel default(shared), private(df,th_idx)\n"
+            "      th_idx = omp_get_thread_num()+1\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp end parallel\n"
+            "      !\n"
+            "      ! sum the partial results sequentially\n"
+            "      !\n"
+            "      DO th_idx=1,nthreads\n"
+            "        asum = asum+l_asum(1,th_idx)\n"
+            "      END DO\n"
+            "      DEALLOCATE (l_asum)\n")
+    assert expected_output in result
 
 
-def test_two_reductions_real_do():
-    '''test that we produce correct code when we have more than one
+def test_two_reductions_real_do(tmpdir, dist_mem):
+    ''' Test that we produce correct code when we have more than one
     builtin with a reduction, with each reduction using a different
     variable, and we use OpenMP DO loops for parallelisation with a
-    single parallel region over all calls. '''
+    single parallel region over all calls.
+
+    '''
     file_name = "15.16.1_two_different_builtin_reductions.f90"
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API,
-                                 idx=0, dist_mem=distmem)
-        schedule = invoke.schedule
-        if distmem:
-            # move the first global sum after the second loop
-            mtrans = MoveTrans()
-            schedule, _ = mtrans.apply(schedule.children[1],
-                                       schedule.children[2],
-                                       {"position": "after"})
-        otrans = Dynamo0p3OMPLoopTrans()
-        rtrans = OMPParallelTrans()
-        # Apply an OpenMP do to the loop
-        for child in schedule.children:
-            if isinstance(child, psyir.nodes.Loop):
-                schedule, _ = otrans.apply(child, {"reprod": False})
-        # Apply an OpenMP Parallel for all loops
-        schedule, _ = rtrans.apply(schedule.children[0:2])
-        invoke.schedule = schedule
-        result = str(psy.gen)
-        print(result)
-        if distmem:
-            expected_output = (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      bsum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel default(shared), private(df)\n"
-                "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp do schedule(static), reduction(+:bsum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        bsum = bsum+f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp end parallel\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n"
-                "      global_sum%value = bsum\n"
-                "      bsum = global_sum%get_sum()")
-        else:
-            expected_output = (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      bsum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel default(shared), private(df)\n"
-                "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp do schedule(static), reduction(+:bsum)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        bsum = bsum+f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp end parallel")
-        assert expected_output in result
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    if dist_mem:
+        # Move the first global sum after the second loop
+        mtrans = MoveTrans()
+        schedule, _ = mtrans.apply(schedule.children[1],
+                                   schedule.children[2],
+                                   {"position": "after"})
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do to the loop
+    for child in schedule.children:
+        if isinstance(child, psyir.nodes.Loop):
+            schedule, _ = otrans.apply(child, {"reprod": False})
+    # Apply an OpenMP Parallel for all loops
+    schedule, _ = rtrans.apply(schedule.children[0:2])
+    invoke.schedule = schedule
+    result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if dist_mem:
+        expected_output = (
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      bsum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel default(shared), private(df)\n"
+            "      !$omp do schedule(static), reduction(+:asum)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp do schedule(static), reduction(+:bsum)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        bsum = bsum+f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp end parallel\n"
+            "      global_sum%value = asum\n"
+            "      asum = global_sum%get_sum()\n"
+            "      global_sum%value = bsum\n"
+            "      bsum = global_sum%get_sum()")
+    else:
+        expected_output = (
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      bsum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel default(shared), private(df)\n"
+            "      !$omp do schedule(static), reduction(+:asum)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp do schedule(static), reduction(+:bsum)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        bsum = bsum+f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp end parallel")
+    assert expected_output in result
 
 
-def test_two_reprod_reductions_real_do():
-    '''test that we produce correct code when we have more than one
+def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
+    ''' Test that we produce correct code when we have more than one
     builtin with a reproducible reduction, with each reduction using a
     different variable, and we use OpenMP DO loops for parallelisation
-    with a single parallel region over all calls. '''
+    with a single parallel region over all calls.
+
+    '''
     file_name = "15.16.1_two_different_builtin_reductions.f90"
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API,
-                                 idx=0, dist_mem=distmem)
-        schedule = invoke.schedule
-        if distmem:
-            # move the first global sum after the second loop
-            mtrans = MoveTrans()
-            schedule, _ = mtrans.apply(schedule.children[1],
-                                       schedule.children[2],
-                                       {"position": "after"})
-        otrans = Dynamo0p3OMPLoopTrans()
-        rtrans = OMPParallelTrans()
-        # Apply an OpenMP do to the loop
-        for child in schedule.children:
-            if isinstance(child, psyir.nodes.Loop):
-                schedule, _ = otrans.apply(child, {"reprod": True})
-        # Apply an OpenMP Parallel for all loops
-        schedule, _ = rtrans.apply(schedule.children[0:2])
-        invoke.schedule = schedule
-        result = str(psy.gen)
-        print(result)
-        if distmem:
-            expected_output = (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      ALLOCATE (l_asum(8,nthreads))\n"
-                "      l_asum = 0.0_r_def\n"
-                "      bsum = 0.0_r_def\n"
-                "      ALLOCATE (l_bsum(8,nthreads))\n"
-                "      l_bsum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel default(shared), private(df,th_idx)\n"
-                "      th_idx = omp_get_thread_num()+1\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
-                "f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        l_bsum(1,th_idx) = l_bsum(1,th_idx)+"
-                "f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp end parallel\n"
-                "      !\n"
-                "      ! sum the partial results sequentially\n"
-                "      !\n"
-                "      DO th_idx=1,nthreads\n"
-                "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO\n"
-                "      DEALLOCATE (l_asum)\n"
-                "      DO th_idx=1,nthreads\n"
-                "        bsum = bsum+l_bsum(1,th_idx)\n"
-                "      END DO\n"
-                "      DEALLOCATE (l_bsum)\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n"
-                "      global_sum%value = bsum\n"
-                "      bsum = global_sum%get_sum()")
-        else:
-            expected_output = (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      ALLOCATE (l_asum(8,nthreads))\n"
-                "      l_asum = 0.0_r_def\n"
-                "      bsum = 0.0_r_def\n"
-                "      ALLOCATE (l_bsum(8,nthreads))\n"
-                "      l_bsum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel default(shared), private(df,th_idx)\n"
-                "      th_idx = omp_get_thread_num()+1\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
-                "f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        l_bsum(1,th_idx) = l_bsum(1,th_idx)+"
-                "f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp end parallel\n"
-                "      !\n"
-                "      ! sum the partial results sequentially\n"
-                "      !\n"
-                "      DO th_idx=1,nthreads\n"
-                "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO\n"
-                "      DEALLOCATE (l_asum)\n"
-                "      DO th_idx=1,nthreads\n"
-                "        bsum = bsum+l_bsum(1,th_idx)\n"
-                "      END DO\n"
-                "      DEALLOCATE (l_bsum)")
-        assert expected_output in result
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    if dist_mem:
+        # Move the first global sum after the second loop
+        mtrans = MoveTrans()
+        schedule, _ = mtrans.apply(schedule.children[1],
+                                   schedule.children[2],
+                                   {"position": "after"})
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do to the loop
+    for child in schedule.children:
+        if isinstance(child, psyir.nodes.Loop):
+            schedule, _ = otrans.apply(child, {"reprod": True})
+    # Apply an OpenMP Parallel for all loops
+    schedule, _ = rtrans.apply(schedule.children[0:2])
+    invoke.schedule = schedule
+    result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if dist_mem:
+        expected_output = (
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      ALLOCATE (l_asum(8,nthreads))\n"
+            "      l_asum = 0.0_r_def\n"
+            "      bsum = 0.0_r_def\n"
+            "      ALLOCATE (l_bsum(8,nthreads))\n"
+            "      l_bsum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel default(shared), private(df,th_idx)\n"
+            "      th_idx = omp_get_thread_num()+1\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+            "f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        l_bsum(1,th_idx) = l_bsum(1,th_idx)+f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp end parallel\n"
+            "      !\n"
+            "      ! sum the partial results sequentially\n"
+            "      !\n"
+            "      DO th_idx=1,nthreads\n"
+            "        asum = asum+l_asum(1,th_idx)\n"
+            "      END DO\n"
+            "      DEALLOCATE (l_asum)\n"
+            "      DO th_idx=1,nthreads\n"
+            "        bsum = bsum+l_bsum(1,th_idx)\n"
+            "      END DO\n"
+            "      DEALLOCATE (l_bsum)\n"
+            "      global_sum%value = asum\n"
+            "      asum = global_sum%get_sum()\n"
+            "      global_sum%value = bsum\n"
+            "      bsum = global_sum%get_sum()")
+    else:
+        expected_output = (
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      ALLOCATE (l_asum(8,nthreads))\n"
+            "      l_asum = 0.0_r_def\n"
+            "      bsum = 0.0_r_def\n"
+            "      ALLOCATE (l_bsum(8,nthreads))\n"
+            "      l_bsum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel default(shared), private(df,th_idx)\n"
+            "      th_idx = omp_get_thread_num()+1\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+            "f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        l_bsum(1,th_idx) = l_bsum(1,th_idx)+f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp end parallel\n"
+            "      !\n"
+            "      ! sum the partial results sequentially\n"
+            "      !\n"
+            "      DO th_idx=1,nthreads\n"
+            "        asum = asum+l_asum(1,th_idx)\n"
+            "      END DO\n"
+            "      DEALLOCATE (l_asum)\n"
+            "      DO th_idx=1,nthreads\n"
+            "        bsum = bsum+l_bsum(1,th_idx)\n"
+            "      END DO\n"
+            "      DEALLOCATE (l_bsum)")
+    assert expected_output in result
 
 
 def test_multi_reduction_same_name_real_do():
@@ -2326,76 +2404,78 @@ def test_multi_reduction_real_fuse():
                 "reduction") in str(excinfo.value)
 
 
-def test_multi_different_reduction_real_pdo():
-    '''test that we generate a correct OpenMP parallel do reduction for
-    two different builtins. We use inner product and sum_X. '''
+def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
+    ''' Test that we generate a correct OpenMP PARALLEL DO reduction
+    for two different builtins. We use inner product and sum_X.
+
+    '''
     file_name = "15.16.1_two_different_builtin_reductions.f90"
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API, idx=0,
-                                 dist_mem=distmem)
-        schedule = invoke.schedule
-        otrans = DynamoOMPParallelLoopTrans()
-        # Apply OpenMP parallelisation to the loop
-        for child in schedule.children:
-            if isinstance(child, psyir.nodes.Loop):
-                schedule, _ = otrans.apply(child)
-        invoke.schedule = schedule
-        code = str(psy.gen)
-        print(code)
-        if distmem:
-            assert (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n"
-                "      !\n"
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      bsum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:bsum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        bsum = bsum+f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n"
-                "      global_sum%value = bsum\n"
-                "      bsum = global_sum%get_sum()\n") in code
-        else:
-            assert (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n"
-                "      !\n"
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      bsum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:bsum)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        bsum = bsum+f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n") in code
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    otrans = DynamoOMPParallelLoopTrans()
+    # Apply OpenMP parallelisation to the loop
+    for child in schedule.children:
+        if isinstance(child, psyir.nodes.Loop):
+            schedule, _ = otrans.apply(child)
+    invoke.schedule = schedule
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if dist_mem:
+        assert (
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static), reduction(+:asum)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n"
+            "      global_sum%value = asum\n"
+            "      asum = global_sum%get_sum()\n"
+            "      !\n"
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      bsum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static), reduction(+:bsum)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        bsum = bsum+f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n"
+            "      global_sum%value = bsum\n"
+            "      bsum = global_sum%get_sum()\n") in code
+    else:
+        assert (
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static), reduction(+:asum)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n"
+            "      !\n"
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      bsum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static), reduction(+:bsum)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        bsum = bsum+f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n") in code
 
 
-def test_multi_builtins_red_then_pdo(monkeypatch, annexed):
-    '''test that we generate a correct OpenMP parallel do reduction for
+def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
     two different builtins, first a reduction then not. Also test with
     and without annexed dofs being computed as this affects the
     generated code.
@@ -2404,68 +2484,68 @@ def test_multi_builtins_red_then_pdo(monkeypatch, annexed):
     file_name = "15.17.1_one_reduction_one_standard_builtin.f90"
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API, idx=0,
-                                 dist_mem=distmem)
-        schedule = invoke.schedule
-        otrans = DynamoOMPParallelLoopTrans()
-        # Apply OpenMP parallelisation to the loop
-        for child in schedule.children:
-            if isinstance(child, psyir.nodes.Loop):
-                schedule, _ = otrans.apply(child)
-        invoke.schedule = schedule
-        result = str(psy.gen)
-        print(result)
-        if distmem:  # annexed can be True or False
-            code = (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n"
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f1_proxy%set_dirty()\n")
-            if not annexed:
-                code = code.replace("dof_annexed", "dof_owned")
-            assert code in result
-        else:  # not distmem. annexed can be True or False
-            assert (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n"
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n") in result
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    otrans = DynamoOMPParallelLoopTrans()
+    # Apply OpenMP parallelisation to the loop
+    for child in schedule.children:
+        if isinstance(child, psyir.nodes.Loop):
+            schedule, _ = otrans.apply(child)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if dist_mem:  # annexed can be True or False
+        code = (
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static), reduction(+:asum)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n"
+            "      global_sum%value = asum\n"
+            "      asum = global_sum%get_sum()\n"
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n")
+        if not annexed:
+            code = code.replace("dof_annexed", "dof_owned")
+        assert code in result
+    else:  # not distmem. annexed can be True or False
+        assert (
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static), reduction(+:asum)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n"
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n") in result
 
 
-def test_multi_builtins_red_then_do(monkeypatch, annexed):
-    '''test that we generate a correct OpenMP do reduction for two
+def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that we generate a correct OpenMP DO reduction for two
     different builtins, first a reduction then not. Also test with and
     without annexed dofs being computed as this affects the generated
     code.
@@ -2474,39 +2554,202 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed):
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     file_name = "15.17.1_one_reduction_one_standard_builtin.f90"
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API, idx=0,
-                                 dist_mem=distmem)
-        schedule = invoke.schedule
-        otrans = Dynamo0p3OMPLoopTrans()
-        rtrans = OMPParallelTrans()
-        # Apply an OpenMP do to the loop
-        for child in schedule.children:
-            if isinstance(child, psyir.nodes.Loop):
-                schedule, _ = otrans.apply(child, {"reprod": False})
-        if distmem:  # annexed can be True or False
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do to the loop
+    for child in schedule.children:
+        if isinstance(child, psyir.nodes.Loop):
+            schedule, _ = otrans.apply(child, {"reprod": False})
+    if dist_mem:  # annexed can be True or False
+        mtrans = MoveTrans()
+        schedule, _ = mtrans.apply(schedule.children[1],
+                                   schedule.children[2],
+                                   {"position": "after"})
+    schedule, _ = rtrans.apply(schedule.children[0:2])
+    invoke.schedule = schedule
+    result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if dist_mem:  # annexed can be True or False
+        code = (
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel default(shared), private(df)\n"
+            "      !$omp do schedule(static), reduction(+:asum)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      !$omp master\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !$omp end master\n"
+            "      !\n"
+            "      !$omp end parallel\n"
+            "      global_sum%value = asum\n"
+            "      asum = global_sum%get_sum()\n")
+        if not annexed:
+            code = code.replace("dof_annexed", "dof_owned")
+        assert code in result
+    else:  # not distmem. annexed can be True or False
+        assert (
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel default(shared), private(df)\n"
+            "      !$omp do schedule(static), reduction(+:asum)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp end parallel\n") in result
+
+
+def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
+                                          dist_mem):
+    ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
+    two different loop-fused builtins, first a reduction then not. We
+    need to specify that the fused loops are on the same iteration
+    space. Also test with and without annexed dofs being computed as
+    this affects the validity of the transform.
+
+    '''
+    api_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    file_name = "15.17.1_one_reduction_one_standard_builtin.f90"
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    ftrans = DynamoLoopFuseTrans()
+    ftrans.same_space = True
+    if dist_mem and annexed:
+        mtrans = MoveTrans()
+        schedule, _ = mtrans.apply(schedule.children[1],
+                                   schedule.children[2],
+                                   {"position": "after"})
+        with pytest.raises(TransformationError) as excinfo:
+            schedule, _ = ftrans.apply(schedule.children[0],
+                                       schedule.children[1])
+        assert "The upper bound names are not the same" in str(excinfo.value)
+    else:  # not (distmem and annexed)
+        if dist_mem:  # annexed must be False here
+            # first move the loop as the global sum is in the way
             mtrans = MoveTrans()
             schedule, _ = mtrans.apply(schedule.children[1],
                                        schedule.children[2],
                                        {"position": "after"})
-        schedule, _ = rtrans.apply(schedule.children[0:2])
+        rtrans = DynamoOMPParallelLoopTrans()
+        schedule, _ = ftrans.apply(schedule.children[0],
+                                   schedule.children[1])
+        schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         result = str(psy.gen)
-        print(result)
-        if distmem:  # annexed can be True or False
+
+        if dist_mem:  # annexed must be False here
             code = (
                 "      ! Zero summation variables\n"
                 "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:asum)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+                "      END DO\n"
+                "      !$omp end parallel do\n"
+                "      !\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n")
+        else:  # not distmem. annexed can be True or False
+            code = (
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:asum)\n"
+                "      DO df=1,undf_aspc1_f1\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+                "      END DO\n"
+                "      !$omp end parallel do\n")
+        assert code in result
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
+                                         dist_mem):
+    ''' Test that we generate a correct OpenMP DO reduction for two
+    different loop-fused builtins, first a reduction then not. We need
+    to specify that the fused loops are on the same iteration
+    space. Also test with and without annexed dofs being computed as
+    this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    file_name = "15.17.1_one_reduction_one_standard_builtin.f90"
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    ftrans = DynamoLoopFuseTrans()
+    ftrans.same_space = True
+    if dist_mem and annexed:
+        mtrans = MoveTrans()
+        schedule, _ = mtrans.apply(schedule.children[1],
+                                   schedule.children[2],
+                                   {"position": "after"})
+        with pytest.raises(TransformationError) as excinfo:
+            schedule, _ = ftrans.apply(schedule.children[0],
+                                       schedule.children[1])
+        assert "The upper bound names are not the same" in str(excinfo.value)
+    else:  # not (distmem and annexed)
+        if dist_mem:  # annexed must be False here
+            mtrans = MoveTrans()
+            schedule, _ = mtrans.apply(schedule.children[1],
+                                       schedule.children[2],
+                                       {"position": "after"})
+        rtrans = OMPParallelTrans()
+        otrans = Dynamo0p3OMPLoopTrans()
+        schedule, _ = ftrans.apply(schedule.children[0],
+                                   schedule.children[1])
+        schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
+        schedule, _ = rtrans.apply(schedule.children[0])
+        invoke.schedule = schedule
+        result = str(psy.gen)
+
+        if dist_mem:  # annexed must be False here
+            code = (
                 "      asum = 0.0_r_def\n"
                 "      !\n"
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -2521,188 +2764,26 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed):
                 "      !$omp end parallel\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
-            if not annexed:
-                code = code.replace("dof_annexed", "dof_owned")
-            assert code in result
-        else:  # not distmem. annexed can be True or False
-            assert (
-                "      ! Zero summation variables\n"
-                "      !\n"
+        else:  # not distmem, annexed is True or False
+            code = (
                 "      asum = 0.0_r_def\n"
                 "      !\n"
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_aspc1_f1\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
                 "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
-                "      !$omp end parallel\n") in result
+                "      !$omp end parallel\n")
+        assert code in result
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
-    '''test that we generate a correct OpenMP parallel do reduction for
-    two different loop-fused builtins, first a reduction then not. We
-    need to specify that the fused loops are on the same iteration
-    space. Also test with and without annexed dofs being computed as
-    this affects the validity of the transform.
-
-    '''
-    api_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    file_name = "15.17.1_one_reduction_one_standard_builtin.f90"
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API, idx=0,
-                                 dist_mem=distmem)
-        schedule = invoke.schedule
-        ftrans = DynamoLoopFuseTrans()
-        ftrans.same_space = True
-        if distmem and annexed:
-            mtrans = MoveTrans()
-            schedule, _ = mtrans.apply(schedule.children[1],
-                                       schedule.children[2],
-                                       {"position": "after"})
-            with pytest.raises(TransformationError) as excinfo:
-                schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1])
-            assert ("The upper bound names are not the same"
-                    in str(excinfo.value))
-        else:  # not (distmem and annexed)
-            if distmem:  # annexed must be False here
-                # first move the loop as the global sum is in the way
-                mtrans = MoveTrans()
-                schedule, _ = mtrans.apply(schedule.children[1],
-                                           schedule.children[2],
-                                           {"position": "after"})
-            rtrans = DynamoOMPParallelLoopTrans()
-            schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1])
-            schedule, _ = rtrans.apply(schedule.children[0])
-            invoke.schedule = schedule
-            result = str(psy.gen)
-            print(result)
-            if distmem:  # annexed must be False here
-                code = (
-                    "      ! Zero summation variables\n"
-                    "      !\n"
-                    "      asum = 0.0_r_def\n"
-                    "      !\n"
-                    "      !$omp parallel do default(shared), private(df), "
-                    "schedule(static), reduction(+:asum)\n"
-                    "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                    "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                    "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                    "      END DO\n"
-                    "      !$omp end parallel do\n"
-                    "      !\n"
-                    "      ! Set halos dirty/clean for fields modified in the "
-                    "above loop\n"
-                    "      !\n"
-                    "      CALL f1_proxy%set_dirty()\n"
-                    "      !\n"
-                    "      global_sum%value = asum\n"
-                    "      asum = global_sum%get_sum()\n")
-            else:  # not distmem. annexed can be True or False
-                code = (
-                    "      ! Zero summation variables\n"
-                    "      !\n"
-                    "      asum = 0.0_r_def\n"
-                    "      !\n"
-                    "      !$omp parallel do default(shared), private(df), "
-                    "schedule(static), reduction(+:asum)\n"
-                    "      DO df=1,undf_any_space_1_f1\n"
-                    "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                    "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                    "      END DO\n"
-                    "      !$omp end parallel do\n")
-            assert code in result
-
-
-def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
-    '''test that we generate a correct OpenMP do reduction for two
-    different loop-fused builtins, first a reduction then not. We need
-    to specify that the fused loops are on the same iteration
-    space. Also test with and without annexed dofs being computed as
-    this affects the generated code.
-
-    '''
-    api_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    file_name = "15.17.1_one_reduction_one_standard_builtin.f90"
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API, idx=0,
-                                 dist_mem=distmem)
-        schedule = invoke.schedule
-        ftrans = DynamoLoopFuseTrans()
-        ftrans.same_space = True
-        if distmem and annexed:
-            mtrans = MoveTrans()
-            schedule, _ = mtrans.apply(schedule.children[1],
-                                       schedule.children[2],
-                                       {"position": "after"})
-            with pytest.raises(TransformationError) as excinfo:
-                schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1])
-            assert ("The upper bound names are not the same"
-                    in str(excinfo.value))
-        else:  # not (distmem and annexed)
-            if distmem:  # annexed must be False here
-                mtrans = MoveTrans()
-                schedule, _ = mtrans.apply(schedule.children[1],
-                                           schedule.children[2],
-                                           {"position": "after"})
-            rtrans = OMPParallelTrans()
-            otrans = Dynamo0p3OMPLoopTrans()
-            schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1])
-            schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
-            schedule, _ = rtrans.apply(schedule.children[0])
-            invoke.schedule = schedule
-            result = str(psy.gen)
-            print(result)
-            if distmem:  # annexed must be False here
-                code = (
-                    "      asum = 0.0_r_def\n"
-                    "      !\n"
-                    "      !$omp parallel default(shared), private(df)\n"
-                    "      !$omp do schedule(static), reduction(+:asum)\n"
-                    "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                    "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                    "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                    "      END DO\n"
-                    "      !$omp end do\n"
-                    "      !\n"
-                    "      ! Set halos dirty/clean for fields modified in the "
-                    "above loop\n"
-                    "      !\n"
-                    "      !$omp master\n"
-                    "      CALL f1_proxy%set_dirty()\n"
-                    "      !$omp end master\n"
-                    "      !\n"
-                    "      !$omp end parallel\n"
-                    "      global_sum%value = asum\n"
-                    "      asum = global_sum%get_sum()\n")
-            else:  # not distmem, annexed is True or False
-                code = (
-                    "      asum = 0.0_r_def\n"
-                    "      !\n"
-                    "      !$omp parallel default(shared), private(df)\n"
-                    "      !$omp do schedule(static), reduction(+:asum)\n"
-                    "      DO df=1,undf_any_space_1_f1\n"
-                    "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                    "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                    "      END DO\n"
-                    "      !$omp end do\n"
-                    "      !$omp end parallel\n")
-            assert code in result
-
-
-def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed):
-    '''test that we generate a correct OpenMP parallel do reduction for
+def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
+                                           dist_mem):
+    ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
     two different builtins, first a standard builtin then a
     reduction. Also test with and without annexed dofs being computed
     as this affects the generated code.
@@ -2711,24 +2792,110 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed):
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API, idx=0,
-                                 dist_mem=distmem)
-        schedule = invoke.schedule
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    otrans = DynamoOMPParallelLoopTrans()
+    # Apply OpenMP parallelisation to the loop
+    for child in schedule.children:
+        if isinstance(child, psyir.nodes.Loop):
+            schedule, _ = otrans.apply(child)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if dist_mem:  # annexed can be True or False
+        code = (
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !\n"
+            "      !\n"
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static), reduction(+:asum)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        asum = asum+f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n"
+            "      global_sum%value = asum\n"
+            "      asum = global_sum%get_sum()\n")
+        if not annexed:
+            code = code.replace("dof_annexed", "dof_owned", 1)
+        assert code in result
+    else:  # not distmem. annexed can be True or False
+        assert (
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n"
+            "      !\n"
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel do default(shared), private(df), "
+            "schedule(static), reduction(+:asum)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        asum = asum+f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end parallel do\n") in result
+
+
+def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
+                                          dist_mem):
+    ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
+    two different loop-fused builtins, first a normal builtin then a
+    reduction. We need to specify that the fused loops iterate over
+    the same space. Also test with and without annexed dofs being
+    computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    ftrans = DynamoLoopFuseTrans()
+    ftrans.same_space = True
+
+    if dist_mem and annexed:
+        with pytest.raises(TransformationError) as excinfo:
+            schedule, _ = ftrans.apply(schedule.children[0],
+                                       schedule.children[1])
+        assert "The upper bound names are not the same" in str(excinfo.value)
+    else:  # not (distmem and annexed)
         otrans = DynamoOMPParallelLoopTrans()
-        # Apply OpenMP parallelisation to the loop
-        for child in schedule.children:
-            if isinstance(child, psyir.nodes.Loop):
-                schedule, _ = otrans.apply(child)
+        schedule, _ = ftrans.apply(schedule.children[0],
+                                   schedule.children[1])
+        schedule, _ = otrans.apply(schedule.children[0])
         invoke.schedule = schedule
         result = str(psy.gen)
-        print(result)
-        if distmem:  # annexed can be True or False
+
+        if dist_mem:  # annexed is False here
             code = (
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
-                "schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "schedule(static), reduction(+:asum)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+                "        asum = asum+f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      !\n"
@@ -2737,45 +2904,29 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed):
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n"
-                "      !\n"
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n")
-            if not annexed:
-                code = code.replace("dof_annexed", "dof_owned", 1)
-            assert code in result
         else:  # not distmem. annexed can be True or False
-            assert (
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end parallel do\n"
-                "      !\n"
+            code = (
                 "      ! Zero summation variables\n"
                 "      !\n"
                 "      asum = 0.0_r_def\n"
                 "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_aspc1_f1\n"
+                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
                 "        asum = asum+f1_proxy%data(df)\n"
                 "      END DO\n"
-                "      !$omp end parallel do\n") in result
+                "      !$omp end parallel do\n")
+        assert code in result
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed):
-    '''test that we generate a correct OpenMP parallel do reduction for
+def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
+                                         dist_mem):
+    ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
     two different loop-fused builtins, first a normal builtin then a
     reduction. We need to specify that the fused loops iterate over
     the same space. Also test with and without annexed dofs being
@@ -2785,131 +2936,63 @@ def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed):
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API, idx=0,
-                                 dist_mem=distmem)
-        schedule = invoke.schedule
-        ftrans = DynamoLoopFuseTrans()
-        ftrans.same_space = True
-        if distmem and annexed:
-            with pytest.raises(TransformationError) as excinfo:
-                schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1])
-            assert ("The upper bound names are not the same"
-                    in str(excinfo.value))
-        else:  # not (distmem and annexed)
-            otrans = DynamoOMPParallelLoopTrans()
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    ftrans = DynamoLoopFuseTrans()
+    ftrans.same_space = True
+
+    if dist_mem and annexed:
+        with pytest.raises(TransformationError) as excinfo:
             schedule, _ = ftrans.apply(schedule.children[0],
                                        schedule.children[1])
-            schedule, _ = otrans.apply(schedule.children[0])
-            invoke.schedule = schedule
-            result = str(psy.gen)
-            print(result)
-            if distmem:  # annexed is False here
-                code = (
-                    "      ! Zero summation variables\n"
-                    "      !\n"
-                    "      asum = 0.0_r_def\n"
-                    "      !\n"
-                    "      !$omp parallel do default(shared), private(df), "
-                    "schedule(static), reduction(+:asum)\n"
-                    "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                    "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                    "        asum = asum+f1_proxy%data(df)\n"
-                    "      END DO\n"
-                    "      !$omp end parallel do\n"
-                    "      !\n"
-                    "      ! Set halos dirty/clean for fields modified in the "
-                    "above loop\n"
-                    "      !\n"
-                    "      CALL f1_proxy%set_dirty()\n"
-                    "      !\n"
-                    "      global_sum%value = asum\n"
-                    "      asum = global_sum%get_sum()\n")
-            else:  # not distmem. annexed can be True or False
-                code = (
-                    "      ! Zero summation variables\n"
-                    "      !\n"
-                    "      asum = 0.0_r_def\n"
-                    "      !\n"
-                    "      !$omp parallel do default(shared), private(df), "
-                    "schedule(static), reduction(+:asum)\n"
-                    "      DO df=1,undf_any_space_1_f1\n"
-                    "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                    "        asum = asum+f1_proxy%data(df)\n"
-                    "      END DO\n"
-                    "      !$omp end parallel do\n")
-            assert code in result
+        assert "The upper bound names are not the same" in str(excinfo.value)
+    else:  # not (distmem and annexed)
+        rtrans = OMPParallelTrans()
+        otrans = Dynamo0p3OMPLoopTrans()
+        schedule, _ = ftrans.apply(schedule.children[0],
+                                   schedule.children[1])
+        schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
+        schedule, _ = rtrans.apply(schedule.children[0])
+        invoke.schedule = schedule
+        result = str(psy.gen)
 
+        if dist_mem:  # annexed is False here
+            code = (
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel default(shared), private(df)\n"
+                "      !$omp do schedule(static), reduction(+:asum)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+                "        asum = asum+f1_proxy%data(df)\n"
+                "      END DO\n"
+                "      !$omp end do\n"
+                "      !\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      !$omp master\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !$omp end master\n"
+                "      !\n"
+                "      !$omp end parallel\n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n")
+        else:  # not distmem. annexed can be True or False
+            code = (
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel default(shared), private(df)\n"
+                "      !$omp do schedule(static), reduction(+:asum)\n"
+                "      DO df=1,undf_aspc1_f1\n"
+                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+                "        asum = asum+f1_proxy%data(df)\n"
+                "      END DO\n"
+                "      !$omp end do\n"
+                "      !$omp end parallel\n")
+        assert code in result
 
-def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed):
-    '''test that we generate a correct OpenMP parallel do reduction for
-    two different loop-fused builtins, first a normal builtin then a
-    reduction. We need to specify that the fused loops iterate over
-    the same space. Also test with and without annexed dofs being
-    computed as this affects the generated code.
-
-    '''
-    api_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API, idx=0,
-                                 dist_mem=distmem)
-        schedule = invoke.schedule
-        ftrans = DynamoLoopFuseTrans()
-        ftrans.same_space = True
-        if distmem and annexed:
-            with pytest.raises(TransformationError) as excinfo:
-                schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1])
-            assert ("The upper bound names are not the same"
-                    in str(excinfo.value))
-        else:  # not (distmem and annexed)
-            rtrans = OMPParallelTrans()
-            otrans = Dynamo0p3OMPLoopTrans()
-            schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1])
-            schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
-            schedule, _ = rtrans.apply(schedule.children[0])
-            invoke.schedule = schedule
-            result = str(psy.gen)
-            print(result)
-            if distmem:  # annexed is False here
-                code = (
-                    "      asum = 0.0_r_def\n"
-                    "      !\n"
-                    "      !$omp parallel default(shared), private(df)\n"
-                    "      !$omp do schedule(static), reduction(+:asum)\n"
-                    "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                    "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                    "        asum = asum+f1_proxy%data(df)\n"
-                    "      END DO\n"
-                    "      !$omp end do\n"
-                    "      !\n"
-                    "      ! Set halos dirty/clean for fields modified in the "
-                    "above loop\n"
-                    "      !\n"
-                    "      !$omp master\n"
-                    "      CALL f1_proxy%set_dirty()\n"
-                    "      !$omp end master\n"
-                    "      !\n"
-                    "      !$omp end parallel\n"
-                    "      global_sum%value = asum\n"
-                    "      asum = global_sum%get_sum()\n")
-            else:  # not distmem. annexed can be True or False
-                code = (
-                    "      asum = 0.0_r_def\n"
-                    "      !\n"
-                    "      !$omp parallel default(shared), private(df)\n"
-                    "      !$omp do schedule(static), reduction(+:asum)\n"
-                    "      DO df=1,undf_any_space_1_f1\n"
-                    "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                    "        asum = asum+f1_proxy%data(df)\n"
-                    "      END DO\n"
-                    "      !$omp end do\n"
-                    "      !$omp end parallel\n")
-            assert code in result
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 # There are no tests requires for integer reduction and no tests
 # required for a builtin with more than 1 reduction as we have no
@@ -2954,85 +3037,88 @@ def test_loop_fuse_error(dist_mem):
 
 # Repeat the reduction tests for the reproducible version
 
-def test_reprod_reduction_real_do():
-    '''test that we generate a correct reproducible OpenMP do reduction
+def test_reprod_reduction_real_do(tmpdir, dist_mem):
+    ''' Test that we generate a correct reproducible OpenMP DO reduction
     for a real scalar summed in a builtin. We use inner product in
-    this case. '''
-    for distmem in [True, False]:
-        psy, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
-                                 TEST_API, idx=0, dist_mem=distmem)
-        schedule = invoke.schedule
-        otrans = Dynamo0p3OMPLoopTrans()
-        rtrans = OMPParallelTrans()
-        # Apply an OpenMP do directive to the loop
-        schedule, _ = otrans.apply(schedule.children[0], {"reprod": True})
-        # Apply an OpenMP Parallel directive around the OpenMP do directive
-        schedule, _ = rtrans.apply(schedule.children[0])
-        invoke.schedule = schedule
-        code = str(psy.gen)
-        print(code)
+    this case.
+
+    '''
+    psy, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
+                             TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do directive to the loop
+    schedule, _ = otrans.apply(schedule.children[0], {"reprod": True})
+    # Apply an OpenMP Parallel directive around the OpenMP do directive
+    schedule, _ = rtrans.apply(schedule.children[0])
+    invoke.schedule = schedule
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    assert (
+        "      USE omp_lib, ONLY: omp_get_thread_num\n"
+        "      USE omp_lib, ONLY: omp_get_max_threads\n") in code
+    assert (
+        "      REAL(KIND=r_def), allocatable, dimension(:,:) "
+        ":: l_asum\n") in code
+    assert "      INTEGER th_idx\n" in code
+    assert "      INTEGER nthreads\n" in code
+    assert (
+        "      !\n"
+        "      ! Determine the number of OpenMP threads\n"
+        "      !\n"
+        "      nthreads = omp_get_max_threads()\n"
+        "      !\n") in code
+    if dist_mem:
         assert (
-            "      USE omp_lib, ONLY: omp_get_thread_num\n"
-            "      USE omp_lib, ONLY: omp_get_max_threads\n") in code
-        assert (
-            "      REAL(KIND=r_def), allocatable, dimension(:,:) "
-            ":: l_asum\n") in code
-        assert "      INTEGER th_idx\n" in code
-        assert "      INTEGER nthreads\n" in code
-        assert (
+            "      ! Zero summation variables\n"
             "      !\n"
-            "      ! Determine the number of OpenMP threads\n"
+            "      asum = 0.0_r_def\n"
+            "      ALLOCATE (l_asum(8,nthreads))\n"
+            "      l_asum = 0.0_r_def\n"
             "      !\n"
-            "      nthreads = omp_get_max_threads()\n"
-            "      !\n") in code
-        if distmem:
-            assert (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      ALLOCATE (l_asum(8,nthreads))\n"
-                "      l_asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel default(shared), private(df,th_idx)\n"
-                "      th_idx = omp_get_thread_num()+1\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
-                "*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp end parallel\n"
-                "      !\n"
-                "      ! sum the partial results sequentially\n"
-                "      !\n"
-                "      DO th_idx=1,nthreads\n"
-                "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO\n"
-                "      DEALLOCATE (l_asum)\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()") in code
-        else:
-            assert (
-                "      asum = 0.0_r_def\n"
-                "      ALLOCATE (l_asum(8,nthreads))\n"
-                "      l_asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel default(shared), private(df,th_idx)\n"
-                "      th_idx = omp_get_thread_num()+1\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
-                "*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp end parallel\n"
-                "      !\n"
-                "      ! sum the partial results sequentially\n"
-                "      !\n"
-                "      DO th_idx=1,nthreads\n"
-                "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO\n"
-                "      DEALLOCATE (l_asum)\n") in code
+            "      !$omp parallel default(shared), private(df,th_idx)\n"
+            "      th_idx = omp_get_thread_num()+1\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
+            "*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp end parallel\n"
+            "      !\n"
+            "      ! sum the partial results sequentially\n"
+            "      !\n"
+            "      DO th_idx=1,nthreads\n"
+            "        asum = asum+l_asum(1,th_idx)\n"
+            "      END DO\n"
+            "      DEALLOCATE (l_asum)\n"
+            "      global_sum%value = asum\n"
+            "      asum = global_sum%get_sum()") in code
+    else:
+        assert (
+            "      asum = 0.0_r_def\n"
+            "      ALLOCATE (l_asum(8,nthreads))\n"
+            "      l_asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel default(shared), private(df,th_idx)\n"
+            "      th_idx = omp_get_thread_num()+1\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
+            "*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp end parallel\n"
+            "      !\n"
+            "      ! sum the partial results sequentially\n"
+            "      !\n"
+            "      DO th_idx=1,nthreads\n"
+            "        asum = asum+l_asum(1,th_idx)\n"
+            "      END DO\n"
+            "      DEALLOCATE (l_asum)\n") in code
 
 
 def test_no_global_sum_in_parallel_region():
@@ -3058,8 +3144,9 @@ def test_no_global_sum_in_parallel_region():
             "containing children of different types") in str(excinfo.value)
 
 
-def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
-    '''test that we generate a correct reproducible OpenMP do reduction
+def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
+                                           dist_mem):
+    ''' Test that we generate a correct reproducible OpenMP DO reduction
     for two different builtins, first a reduction then not when we
     have reprod set to True. Also test with and without annexed dofs
     being computed as this affects the generated code.
@@ -3068,25 +3155,148 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     file_name = "15.17.1_one_reduction_one_standard_builtin.f90"
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API, idx=0,
-                                 dist_mem=distmem)
-        schedule = invoke.schedule
-        otrans = Dynamo0p3OMPLoopTrans()
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do to the loop
+    for child in schedule.children:
+        if isinstance(child, psyir.nodes.Loop):
+            schedule, _ = otrans.apply(child, {"reprod": True})
+    if dist_mem:  # annexed can be True or False
+        mtrans = MoveTrans()
+        schedule, _ = mtrans.apply(schedule.children[1],
+                                   schedule.children[2],
+                                   {"position": "after"})
+    schedule, _ = rtrans.apply(schedule.children[0:2])
+    invoke.schedule = schedule
+    result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    assert (
+        "      USE omp_lib, ONLY: omp_get_thread_num\n"
+        "      USE omp_lib, ONLY: omp_get_max_threads\n") in result
+    assert (
+        "      REAL(KIND=r_def), allocatable, dimension(:,:) "
+        ":: l_asum\n") in result
+    assert "      INTEGER th_idx\n" in result
+    assert "      INTEGER nthreads\n" in result
+    assert (
+        "      !\n"
+        "      ! Determine the number of OpenMP threads\n"
+        "      !\n"
+        "      nthreads = omp_get_max_threads()\n"
+        "      !\n") in result
+    if dist_mem:  # annexed can be True or False
+        code = (
+            "      asum = 0.0_r_def\n"
+            "      ALLOCATE (l_asum(8,nthreads))\n"
+            "      l_asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel default(shared), private(df,th_idx)\n"
+            "      th_idx = omp_get_thread_num()+1\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
+            "*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      !$omp master\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !$omp end master\n"
+            "      !\n"
+            "      !$omp end parallel\n"
+            "      !\n"
+            "      ! sum the partial results sequentially\n"
+            "      !\n"
+            "      DO th_idx=1,nthreads\n"
+            "        asum = asum+l_asum(1,th_idx)\n"
+            "      END DO\n"
+            "      DEALLOCATE (l_asum)\n"
+            "      global_sum%value = asum\n"
+            "      asum = global_sum%get_sum()\n")
+        if not annexed:
+            code = code.replace("dof_annexed", "dof_owned")
+        assert code in result
+    else:  # not distmem. annexed can be True or False
+        assert (
+            "      asum = 0.0_r_def\n"
+            "      ALLOCATE (l_asum(8,nthreads))\n"
+            "      l_asum = 0.0_r_def\n"
+            "      !\n"
+            "      !$omp parallel default(shared), private(df,th_idx)\n"
+            "      th_idx = omp_get_thread_num()+1\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
+            "*f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp do schedule(static)\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+            "      END DO\n"
+            "      !$omp end do\n"
+            "      !$omp end parallel\n"
+            "      !\n"
+            "      ! sum the partial results sequentially\n"
+            "      !\n"
+            "      DO th_idx=1,nthreads\n"
+            "        asum = asum+l_asum(1,th_idx)\n"
+            "      END DO\n"
+            "      DEALLOCATE (l_asum)\n") in result
+
+
+def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
+                                            dist_mem):
+    ''' Test that we generate a correct reproducible OpenMP DO reduction
+    for two different loop-fused builtins, first a reduction then
+    not. We need to specify that the fused loops are on the same
+    iteration space. Also test with and without annexed dofs being
+    computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    file_name = "15.17.1_one_reduction_one_standard_builtin.f90"
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    ftrans = DynamoLoopFuseTrans()
+    ftrans.same_space = True
+
+    if dist_mem:  # annexed can be True or False
+        mtrans = MoveTrans()
+        schedule, _ = mtrans.apply(schedule.children[1],
+                                   schedule.children[2],
+                                   {"position": "after"})
+    if dist_mem and annexed:
+        # we can't loop fuse as the loop bounds differ
+        with pytest.raises(TransformationError) as excinfo:
+            schedule, _ = ftrans.apply(schedule.children[0],
+                                       schedule.children[1])
+        assert "The upper bound names are not the same" in str(excinfo.value)
+    else:  # not (distmem and annexed)
+        # we can loop fuse as the loop bounds are the same
+        schedule, _ = ftrans.apply(schedule.children[0],
+                                   schedule.children[1])
         rtrans = OMPParallelTrans()
-        # Apply an OpenMP do to the loop
-        for child in schedule.children:
-            if isinstance(child, psyir.nodes.Loop):
-                schedule, _ = otrans.apply(child, {"reprod": True})
-        if distmem:  # annexed can be True or False
-            mtrans = MoveTrans()
-            schedule, _ = mtrans.apply(schedule.children[1],
-                                       schedule.children[2],
-                                       {"position": "after"})
-        schedule, _ = rtrans.apply(schedule.children[0:2])
+        otrans = Dynamo0p3OMPLoopTrans()
+        schedule, _ = otrans.apply(schedule.children[0],
+                                   {"reprod": "True"})
+        schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         result = str(psy.gen)
-        print(result)
+
         assert (
             "      USE omp_lib, ONLY: omp_get_thread_num\n"
             "      USE omp_lib, ONLY: omp_get_max_threads\n") in result
@@ -3101,8 +3311,8 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
             "      !\n"
             "      nthreads = omp_get_max_threads()\n"
             "      !\n") in result
-        if distmem:  # annexed can be True or False
-            code = (
+        if dist_mem:  # annexed is False here
+            assert (
                 "      asum = 0.0_r_def\n"
                 "      ALLOCATE (l_asum(8,nthreads))\n"
                 "      l_asum = 0.0_r_def\n"
@@ -3111,12 +3321,8 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
-                "*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+                "f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -3137,10 +3343,7 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
                 "      END DO\n"
                 "      DEALLOCATE (l_asum)\n"
                 "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n")
-            if not annexed:
-                code = code.replace("dof_annexed", "dof_owned")
-            assert code in result
+                "      asum = global_sum%get_sum()\n") in result
         else:  # not distmem. annexed can be True or False
             assert (
                 "      asum = 0.0_r_def\n"
@@ -3150,13 +3353,9 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
-                "*f2_proxy%data(df)\n"
-                "      END DO\n"
-                "      !$omp end do\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_aspc1_f1\n"
+                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+                "f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -3169,125 +3368,12 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
                 "      END DO\n"
                 "      DEALLOCATE (l_asum)\n") in result
 
-
-def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
-    '''test that we generate a correct reproducible OpenMP do reduction
-    for two different loop-fused builtins, first a reduction then
-    not. We need to specify that the fused loops are on the same
-    iteration space. Also test with and without annexed dofs being
-    computed as this affects the generated code.
-
-    '''
-    api_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    file_name = "15.17.1_one_reduction_one_standard_builtin.f90"
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API, idx=0,
-                                 dist_mem=distmem)
-        schedule = invoke.schedule
-        ftrans = DynamoLoopFuseTrans()
-        ftrans.same_space = True
-        if distmem:  # annexed can be True or False
-            mtrans = MoveTrans()
-            schedule, _ = mtrans.apply(schedule.children[1],
-                                       schedule.children[2],
-                                       {"position": "after"})
-        if distmem and annexed:
-            # we can't loop fuse as the loop bounds differ
-            with pytest.raises(TransformationError) as excinfo:
-                schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1])
-            assert ("The upper bound names are not the same"
-                    in str(excinfo.value))
-        else:  # not (distmem and annexed)
-            # we can loop fuse as the loop bounds are the same
-            schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1])
-            rtrans = OMPParallelTrans()
-            otrans = Dynamo0p3OMPLoopTrans()
-            schedule, _ = otrans.apply(schedule.children[0],
-                                       {"reprod": "True"})
-            schedule, _ = rtrans.apply(schedule.children[0])
-            invoke.schedule = schedule
-            result = str(psy.gen)
-            print(result)
-            assert (
-                "      USE omp_lib, ONLY: omp_get_thread_num\n"
-                "      USE omp_lib, ONLY: omp_get_max_threads\n") in result
-            assert (
-                "      REAL(KIND=r_def), allocatable, dimension(:,:) "
-                ":: l_asum\n") in result
-            assert "      INTEGER th_idx\n" in result
-            assert "      INTEGER nthreads\n" in result
-            assert (
-                "      !\n"
-                "      ! Determine the number of OpenMP threads\n"
-                "      !\n"
-                "      nthreads = omp_get_max_threads()\n"
-                "      !\n") in result
-            if distmem:  # annexed is False here
-                assert (
-                    "      asum = 0.0_r_def\n"
-                    "      ALLOCATE (l_asum(8,nthreads))\n"
-                    "      l_asum = 0.0_r_def\n"
-                    "      !\n"
-                    "      !$omp parallel default(shared), "
-                    "private(df,th_idx)\n"
-                    "      th_idx = omp_get_thread_num()+1\n"
-                    "      !$omp do schedule(static)\n"
-                    "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                    "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
-                    "f1_proxy%data(df)*f2_proxy%data(df)\n"
-                    "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                    "      END DO\n"
-                    "      !$omp end do\n"
-                    "      !\n"
-                    "      ! Set halos dirty/clean for fields modified in the "
-                    "above loop\n"
-                    "      !\n"
-                    "      !$omp master\n"
-                    "      CALL f1_proxy%set_dirty()\n"
-                    "      !$omp end master\n"
-                    "      !\n"
-                    "      !$omp end parallel\n"
-                    "      !\n"
-                    "      ! sum the partial results sequentially\n"
-                    "      !\n"
-                    "      DO th_idx=1,nthreads\n"
-                    "        asum = asum+l_asum(1,th_idx)\n"
-                    "      END DO\n"
-                    "      DEALLOCATE (l_asum)\n"
-                    "      global_sum%value = asum\n"
-                    "      asum = global_sum%get_sum()\n") in result
-            else:  # not distmem. annexed can be True or False
-                assert (
-                    "      asum = 0.0_r_def\n"
-                    "      ALLOCATE (l_asum(8,nthreads))\n"
-                    "      l_asum = 0.0_r_def\n"
-                    "      !\n"
-                    "      !$omp parallel default(shared), "
-                    "private(df,th_idx)\n"
-                    "      th_idx = omp_get_thread_num()+1\n"
-                    "      !$omp do schedule(static)\n"
-                    "      DO df=1,undf_any_space_1_f1\n"
-                    "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
-                    "f1_proxy%data(df)"
-                    "*f2_proxy%data(df)\n"
-                    "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                    "      END DO\n"
-                    "      !$omp end do\n"
-                    "      !$omp end parallel\n"
-                    "      !\n"
-                    "      ! sum the partial results sequentially\n"
-                    "      !\n"
-                    "      DO th_idx=1,nthreads\n"
-                    "        asum = asum+l_asum(1,th_idx)\n"
-                    "      END DO\n"
-                    "      DEALLOCATE (l_asum)\n") in result
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
-    '''test that we generate a correct OpenMP do reduction for two
+def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
+                                            dist_mem):
+    ''' Test that we generate a correct OpenMP DO reduction for two
     different loop-fused builtins, first a normal builtin then a
     reduction. We need to specify that the fused loops iterate over
     the same space. Also test with and without annexed dofs being
@@ -3297,177 +3383,173 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API, idx=0,
-                                 dist_mem=distmem)
-        schedule = invoke.schedule
-        ftrans = DynamoLoopFuseTrans()
-        ftrans.same_space = True
-        if distmem and annexed:
-            with pytest.raises(TransformationError) as excinfo:
-                schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1])
-            assert ("The upper bound names are not the same"
-                    in str(excinfo.value))
-        else:  # not distmem and annexed
-            rtrans = OMPParallelTrans()
-            otrans = Dynamo0p3OMPLoopTrans()
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    ftrans = DynamoLoopFuseTrans()
+    ftrans.same_space = True
+
+    if dist_mem and annexed:
+        with pytest.raises(TransformationError) as excinfo:
             schedule, _ = ftrans.apply(schedule.children[0],
                                        schedule.children[1])
-            schedule, _ = otrans.apply(schedule.children[0], {"reprod": True})
-            schedule, _ = rtrans.apply(schedule.children[0])
-            invoke.schedule = schedule
-            result = str(psy.gen)
-            print(result)
-            assert "      INTEGER th_idx\n" in result
-            if distmem:  # annexed is False here
-                assert (
-                    "      asum = 0.0_r_def\n"
-                    "      ALLOCATE (l_asum(8,nthreads))\n"
-                    "      l_asum = 0.0_r_def\n"
-                    "      !\n"
-                    "      !$omp parallel default(shared), "
-                    "private(df,th_idx)\n"
-                    "      th_idx = omp_get_thread_num()+1\n"
-                    "      !$omp do schedule(static)\n"
-                    "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                    "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                    "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
-                    "f1_proxy%data(df)\n"
-                    "      END DO\n"
-                    "      !$omp end do\n"
-                    "      !\n"
-                    "      ! Set halos dirty/clean for fields modified in the "
-                    "above loop\n"
-                    "      !\n"
-                    "      !$omp master\n"
-                    "      CALL f1_proxy%set_dirty()\n"
-                    "      !$omp end master\n"
-                    "      !\n"
-                    "      !$omp end parallel\n"
-                    "      !\n"
-                    "      ! sum the partial results sequentially\n"
-                    "      !\n"
-                    "      DO th_idx=1,nthreads\n"
-                    "        asum = asum+l_asum(1,th_idx)\n"
-                    "      END DO\n"
-                    "      DEALLOCATE (l_asum)\n"
-                    "      global_sum%value = asum\n"
-                    "      asum = global_sum%get_sum()\n") in result
-            else:  # distmem is False. annexed can be True or False
-                assert (
-                    "      asum = 0.0_r_def\n"
-                    "      ALLOCATE (l_asum(8,nthreads))\n"
-                    "      l_asum = 0.0_r_def\n"
-                    "      !\n"
-                    "      !$omp parallel default(shared), "
-                    "private(df,th_idx)\n"
-                    "      th_idx = omp_get_thread_num()+1\n"
-                    "      !$omp do schedule(static)\n"
-                    "      DO df=1,undf_any_space_1_f1\n"
-                    "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                    "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
-                    "f1_proxy%data(df)\n"
-                    "      END DO\n"
-                    "      !$omp end do\n"
-                    "      !$omp end parallel\n"
-                    "      !\n"
-                    "      ! sum the partial results sequentially\n"
-                    "      !\n"
-                    "      DO th_idx=1,nthreads\n"
-                    "        asum = asum+l_asum(1,th_idx)\n"
-                    "      END DO\n"
-                    "      DEALLOCATE (l_asum)\n") in result
+        assert "The upper bound names are not the same" in str(excinfo.value)
+    else:  # not distmem and annexed
+        rtrans = OMPParallelTrans()
+        otrans = Dynamo0p3OMPLoopTrans()
+        schedule, _ = ftrans.apply(schedule.children[0],
+                                   schedule.children[1])
+        schedule, _ = otrans.apply(schedule.children[0], {"reprod": True})
+        schedule, _ = rtrans.apply(schedule.children[0])
+        invoke.schedule = schedule
+        result = str(psy.gen)
+
+        assert "      INTEGER th_idx\n" in result
+        if dist_mem:  # annexed is False here
+            assert (
+                "      asum = 0.0_r_def\n"
+                "      ALLOCATE (l_asum(8,nthreads))\n"
+                "      l_asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel default(shared), private(df,th_idx)\n"
+                "      th_idx = omp_get_thread_num()+1\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+                "f1_proxy%data(df)\n"
+                "      END DO\n"
+                "      !$omp end do\n"
+                "      !\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      !$omp master\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !$omp end master\n"
+                "      !\n"
+                "      !$omp end parallel\n"
+                "      !\n"
+                "      ! sum the partial results sequentially\n"
+                "      !\n"
+                "      DO th_idx=1,nthreads\n"
+                "        asum = asum+l_asum(1,th_idx)\n"
+                "      END DO\n"
+                "      DEALLOCATE (l_asum)\n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n") in result
+        else:  # distmem is False. annexed can be True or False
+            assert (
+                "      asum = 0.0_r_def\n"
+                "      ALLOCATE (l_asum(8,nthreads))\n"
+                "      l_asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel default(shared), private(df,th_idx)\n"
+                "      th_idx = omp_get_thread_num()+1\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,undf_aspc1_f1\n"
+                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+                "f1_proxy%data(df)\n"
+                "      END DO\n"
+                "      !$omp end do\n"
+                "      !$omp end parallel\n"
+                "      !\n"
+                "      ! sum the partial results sequentially\n"
+                "      !\n"
+                "      DO th_idx=1,nthreads\n"
+                "        asum = asum+l_asum(1,th_idx)\n"
+                "      END DO\n"
+                "      DEALLOCATE (l_asum)\n") in result
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_repr_3_builtins_2_reductions_do():
-    '''test that we generate correct reproducible OpenMP do reductions
+def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
+    ''' Test that we generate correct reproducible OpenMP DO reductions
     when we have three different builtins, first a reduction, then a
     normal builtin then a reduction. '''
     from psyclone.dynamo0p3 import DynLoop
     from psyclone.psyGen import OMPDoDirective
     file_name = "15.19.1_three_builtins_two_reductions.f90"
-    for distmem in [False, True]:
-        psy, invoke = get_invoke(file_name, TEST_API, idx=0,
-                                 dist_mem=distmem)
-        schedule = invoke.schedule
-        rtrans = OMPParallelTrans()
-        otrans = Dynamo0p3OMPLoopTrans()
-        for child in schedule.children:
-            if isinstance(child, DynLoop):
-                schedule, _ = otrans.apply(child, {"reprod": True})
-        for child in schedule.children:
-            if isinstance(child, OMPDoDirective):
-                schedule, _ = rtrans.apply(child)
-        invoke.schedule = schedule
-        code = str(psy.gen)
-        print(code)
-        assert "INTEGER th_idx\n" in code
-        if distmem:
-            for names in [
-                    {"var": "asum", "lvar": "l_asum",
-                     "bounds": "f1_proxy%vspace%get_last_dof_owned()",
-                     "rhs": "f1_proxy%data(df)*f2_proxy%data(df)"},
-                    {"var": "bsum", "lvar": "l_bsum",
-                     "bounds": "f2_proxy%vspace%get_last_dof_owned()",
-                     "rhs": "f2_proxy%data(df)"}]:
-                assert (
-                    "      " + names["var"] + " = 0.0_r_def\n"
-                    "      ALLOCATE (" + names["lvar"] + "(8,nthreads))\n"
-                    "      " + names["lvar"] + " = 0.0_r_def\n"
-                    "      !\n"
-                    "      !$omp parallel default(shared), "
-                    "private(df,th_idx)\n"
-                    "      th_idx = omp_get_thread_num()+1\n"
-                    "      !$omp do schedule(static)\n"
-                    "      DO df=1," + names["bounds"] + "\n"
-                    "        " + names["lvar"] + "(1,th_idx) = " +
-                    names["lvar"] + "(1,th_idx)+" + names["rhs"] + "\n"
-                    "      END DO\n"
-                    "      !$omp end do\n"
-                    "      !$omp end parallel\n"
-                    "      !\n"
-                    "      ! sum the partial results sequentially\n"
-                    "      !\n"
-                    "      DO th_idx=1,nthreads\n"
-                    "        " + names["var"] + " = " + names["var"] + "+" +
-                    names["lvar"] + "(1,th_idx)\n"
-                    "      END DO\n"
-                    "      DEALLOCATE (" + names["lvar"] + ")\n"
-                    "      global_sum%value = " + names["var"] + "\n"
-                    "      " + names["var"] + " = "
-                    "global_sum%get_sum()\n") in code
-        else:
-            for names in [
-                    {"var": "asum", "lvar": "l_asum",
-                     "bounds": "undf_any_space_1_f1",
-                     "rhs": "f1_proxy%data(df)*f2_proxy%data(df)"},
-                    {"var": "bsum", "lvar": "l_bsum",
-                     "bounds": "undf_any_space_1_f2",
-                     "rhs": "f2_proxy%data(df)"}]:
-                assert (
-                    "      " + names["var"] + " = 0.0_r_def\n"
-                    "      ALLOCATE (" + names["lvar"] + "(8,nthreads))\n"
-                    "      " + names["lvar"] + " = 0.0_r_def\n"
-                    "      !\n"
-                    "      !$omp parallel default(shared), "
-                    "private(df,th_idx)\n"
-                    "      th_idx = omp_get_thread_num()+1\n"
-                    "      !$omp do schedule(static)\n"
-                    "      DO df=1," + names["bounds"] + "\n"
-                    "        " + names["lvar"] + "(1,th_idx) = " +
-                    names["lvar"] + "(1,th_idx)+" + names["rhs"] + "\n"
-                    "      END DO\n"
-                    "      !$omp end do\n"
-                    "      !$omp end parallel\n"
-                    "      !\n"
-                    "      ! sum the partial results sequentially\n"
-                    "      !\n"
-                    "      DO th_idx=1,nthreads\n"
-                    "        " + names["var"] + " = " + names["var"] + "+" +
-                    names["lvar"] + "(1,th_idx)\n"
-                    "      END DO\n"
-                    "      DEALLOCATE (" + names["lvar"] + ")\n") in code
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    rtrans = OMPParallelTrans()
+    otrans = Dynamo0p3OMPLoopTrans()
+    for child in schedule.children:
+        if isinstance(child, DynLoop):
+            schedule, _ = otrans.apply(child, {"reprod": True})
+    for child in schedule.children:
+        if isinstance(child, OMPDoDirective):
+            schedule, _ = rtrans.apply(child)
+    invoke.schedule = schedule
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    assert "INTEGER th_idx\n" in code
+    if dist_mem:
+        for names in [
+                {"var": "asum", "lvar": "l_asum",
+                 "bounds": "f1_proxy%vspace%get_last_dof_owned()",
+                 "rhs": "f1_proxy%data(df)*f2_proxy%data(df)"},
+                {"var": "bsum", "lvar": "l_bsum",
+                 "bounds": "f2_proxy%vspace%get_last_dof_owned()",
+                 "rhs": "f2_proxy%data(df)"}]:
+            assert (
+                "      " + names["var"] + " = 0.0_r_def\n"
+                "      ALLOCATE (" + names["lvar"] + "(8,nthreads))\n"
+                "      " + names["lvar"] + " = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel default(shared), private(df,th_idx)\n"
+                "      th_idx = omp_get_thread_num()+1\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1," + names["bounds"] + "\n"
+                "        " + names["lvar"] + "(1,th_idx) = " +
+                names["lvar"] + "(1,th_idx)+" + names["rhs"] + "\n"
+                "      END DO\n"
+                "      !$omp end do\n"
+                "      !$omp end parallel\n"
+                "      !\n"
+                "      ! sum the partial results sequentially\n"
+                "      !\n"
+                "      DO th_idx=1,nthreads\n"
+                "        " + names["var"] + " = " + names["var"] + "+" +
+                names["lvar"] + "(1,th_idx)\n"
+                "      END DO\n"
+                "      DEALLOCATE (" + names["lvar"] + ")\n"
+                "      global_sum%value = " + names["var"] + "\n"
+                "      " + names["var"] + " = "
+                "global_sum%get_sum()\n") in code
+    else:
+        for names in [
+                {"var": "asum", "lvar": "l_asum",
+                 "bounds": "undf_aspc1_f1",
+                 "rhs": "f1_proxy%data(df)*f2_proxy%data(df)"},
+                {"var": "bsum", "lvar": "l_bsum",
+                 "bounds": "undf_aspc1_f2",
+                 "rhs": "f2_proxy%data(df)"}]:
+            assert (
+                "      " + names["var"] + " = 0.0_r_def\n"
+                "      ALLOCATE (" + names["lvar"] + "(8,nthreads))\n"
+                "      " + names["lvar"] + " = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel default(shared), private(df,th_idx)\n"
+                "      th_idx = omp_get_thread_num()+1\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1," + names["bounds"] + "\n"
+                "        " + names["lvar"] + "(1,th_idx) = " +
+                names["lvar"] + "(1,th_idx)+" + names["rhs"] + "\n"
+                "      END DO\n"
+                "      !$omp end do\n"
+                "      !$omp end parallel\n"
+                "      !\n"
+                "      ! sum the partial results sequentially\n"
+                "      !\n"
+                "      DO th_idx=1,nthreads\n"
+                "        " + names["var"] + " = " + names["var"] + "+" +
+                names["lvar"] + "(1,th_idx)\n"
+                "      END DO\n"
+                "      DEALLOCATE (" + names["lvar"] + ")\n") in code
 
 
 def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
@@ -3518,7 +3600,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3531,7 +3613,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='nannexed']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3543,7 +3625,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3561,7 +3643,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3573,7 +3655,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3585,7 +3667,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3625,30 +3707,31 @@ def test_reductions_reprod():
                                DynXInnerproductYKern))
 
 
-def test_list_multiple_reductions():
-    '''test that we produce correct reduction lists when there is more
+def test_list_multiple_reductions(dist_mem):
+    ''' Test that we produce correct reduction lists when there is more
     than one reduction in a OpenMP parallel directive. As only one
     reduction per OpenMP parallel region is currently supported we
     need to modify the internal representation after the
-    transformations have been performed to enable this test. '''
-    for distmem in [False, True]:
-        _, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
-                               TEST_API, idx=0, dist_mem=distmem)
-        schedule = invoke.schedule
-        otrans = Dynamo0p3OMPLoopTrans()
-        rtrans = OMPParallelTrans()
-        # Apply an OpenMP do directive to the loop
-        schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
-        # Apply an OpenMP Parallel directive around the OpenMP do directive
-        schedule, _ = rtrans.apply(schedule.children[0])
-        invoke.schedule = schedule
-        omp_loop_directive = schedule[0].dir_body[0]
-        call = omp_loop_directive.dir_body[0].loop_body[0]
-        arg = call.arguments.args[2]
-        arg._type = "gh_real"
-        arg.descriptor._access = AccessType.SUM
-        result = omp_loop_directive._reduction_string()
-        assert ", reduction(+:asum), reduction(+:f2)" in result
+    transformations have been performed to enable this test.
+
+    '''
+    _, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
+                           TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do directive to the loop
+    schedule, _ = otrans.apply(schedule.children[0], {"reprod": False})
+    # Apply an OpenMP Parallel directive around the OpenMP do directive
+    schedule, _ = rtrans.apply(schedule.children[0])
+    invoke.schedule = schedule
+    omp_loop_directive = schedule[0].dir_body[0]
+    call = omp_loop_directive.dir_body[0].loop_body[0]
+    arg = call.arguments.args[2]
+    arg._argument_type = "gh_scalar"
+    arg.descriptor._access = AccessType.SUM
+    result = omp_loop_directive._reduction_string()
+    assert ", reduction(+:asum), reduction(+:f2)" in result
 
 
 def test_move_name():
@@ -3665,11 +3748,14 @@ def test_move_str():
     assert name == "Move a node to a different location"
 
 
-def test_move_valid_node():
-    '''Test that MoveTrans raises an exception if an invalid node
+def test_move_valid_node(tmpdir):
+    ''' Test that MoveTrans raises an exception if an invalid node
     argument is passed. '''
-    _, invoke = get_invoke("4.2_multikernel_invokes.f90", TEST_API, idx=0,
-                           dist_mem=True)
+    psy, invoke = get_invoke("4.2_multikernel_invokes.f90", TEST_API, idx=0,
+                             dist_mem=True)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     schedule = invoke.schedule
     move_trans = MoveTrans()
     with pytest.raises(TransformationError) as excinfo:
@@ -3811,13 +3897,13 @@ def test_rc_node_not_loop():
 
 
 def test_rc_invalid_loop(monkeypatch):
-    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied loop does not iterate over cells or dofs. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     # set the loop to a type that should raise an exception
     monkeypatch.setattr(loop, "loop_type", value="colours")
     with pytest.raises(TransformationError) as excinfo:
@@ -3842,13 +3928,13 @@ def test_rc_nodm():
 
 
 def test_rc_invalid_depth():
-    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied depth is less than 1. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": 0})
     assert ("In the Dynamo0p3RedundantComputation transformation apply method "
@@ -3856,13 +3942,13 @@ def test_rc_invalid_depth():
 
 
 def test_rc_invalid_depth_continuous():
-    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied depth equals 1 when modifying a continuous field. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": 1})
     assert ("In the Dynamo0p3RedundantComputation transformation apply method "
@@ -3871,20 +3957,22 @@ def test_rc_invalid_depth_continuous():
 
 
 def test_rc_continuous_depth():
-    '''Test that the loop bounds for a continuous kernel (iterating over
+    ''' Test that the loop bounds for a continuous kernel (iterating over
     cells) are modified appropriately, that set_clean() is added
     correctly and halo_exchange modified appropriately after applying
     the redundant computation transformation with a fixed value for
-    halo depth. '''
+    halo depth.
+
+    '''
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     schedule, _ = rc_trans.apply(loop, {"depth": 3})
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
+
     for field_name in ["f2", "m1", "m2"]:
         assert ("IF ({0}_proxy%is_dirty(depth=3)) THEN".
                 format(field_name)) in result
@@ -3896,20 +3984,26 @@ def test_rc_continuous_depth():
 
 
 def test_rc_continuous_no_depth():
-    '''Test that the loop bounds for a continuous kernel (iterating over
+    ''' Test that the loop bounds for a continuous kernel (iterating over
     cells) are modified appropriately, that set_clean() is added
     correctly and halo_exchange modified appropriately after applying
     the redundant computation transformation with no value for halo
-    depth. '''
+    depth.
+
+    '''
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
+
+    assert ("      IF (f1_proxy%is_dirty(depth=mesh%get_halo_"
+            "depth()-1)) THEN\n"
+            "        CALL f1_proxy%halo_exchange(depth=mesh%"
+            "get_halo_depth()-1)") in result
     for field_name in ["f2", "m1", "m2"]:
         assert ("      IF ({0}_proxy%is_dirty(depth=mesh%get_halo_"
                 "depth())) THEN\n"
@@ -4247,12 +4341,15 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
+@pytest.mark.xfail(reason="#885 missing halo exchange for f1")
 def test_rc_dofs_depth():
-    '''Test that the loop bounds when iterating over dofs are modified
+    ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with a fixed value for halo depth where the halo
-    fields have no previous dependence. '''
+    fields have no previous dependence.
+
+    '''
     psy, invoke = get_invoke("15.1.2_inc_X_plus_Y_builtin.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
@@ -4261,23 +4358,22 @@ def test_rc_dofs_depth():
     schedule, _ = rc_trans.apply(loop, {"depth": 3})
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
-    for field_name in ["f1", "f2"]:
-        assert ("IF ({0}_proxy%is_dirty(depth=3)) "
-                "THEN".format(field_name)) in result
-        assert ("CALL {0}_proxy%halo_exchange(depth=3"
-                ")".format(field_name)) in result
+    for field in ["f1", "f2"]:
+        assert "IF ({0}_proxy%is_dirty(depth=3)) THEN".format(field) in result
+        assert "CALL {0}_proxy%halo_exchange(depth=3)".format(field) in result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo(3)" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(3)" in result
 
 
 def test_rc_dofs_no_depth():
-    '''Test that the loop bounds when iterating over dofs are modified
+    ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with no halo depth value where the halo fields have
-    no previous dependence. '''
+    no previous dependence.
+
+    '''
     psy, invoke = get_invoke("15.1.2_inc_X_plus_Y_builtin.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
@@ -4286,19 +4382,18 @@ def test_rc_dofs_no_depth():
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
-    for field_name in ["f1", "f2"]:
-        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_halo_depth())) "
-                "THEN".format(field_name)) in result
-        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%"
-                "get_halo_depth())".format(field_name)) in result
+
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN"
+            in result)
+    assert ("CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())"
+            in result)
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
     assert "CALL f1_proxy%set_dirty()" not in result
     assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
-def test_rc_dofs_depth_prev_dep(monkeypatch, annexed):
-    '''Test that the loop bounds when iterating over dofs are modified
+def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
+    ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with a fixed value for halo depth where the halo
@@ -4312,31 +4407,32 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed):
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[4]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    loop = schedule.children[index]
     schedule, _ = rc_trans.apply(loop, {"depth": 3})
     invoke.schedule = schedule
     result = str(psy.gen)
-    # check the f1 halo exchange is added and the f2 halo exchange is
-    # modified
-    for field_name in ["f1", "f2"]:
-        assert ("CALL {0}_proxy%halo_exchange(depth=3"
-                ")".format(field_name)) in result
-    # there is no need for a run-time is_dirty check for field f1 as
-    # we know that we need a halo exchange. We know this as f1 is
-    # modified in an earlier loop which leaves all of f1's halo
-    # dirty. As we know that we need the halo to be clean to depth 3
-    # we can be certain we need a halo exchange.
-    assert ("IF (f1_proxy%is_dirty(depth=3)) "
-            "THEN") not in result
-    # there is a need for a run-time is_dirty check for field f2 as
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Check that the f2 halo exchange is modified
+    assert "CALL f2_proxy%halo_exchange(depth=3)" in result
+    # There is a need for a run-time is_dirty check for field f2 as
     # this field is not modified in this invoke and therefore its halo
     # is in an unknown state before it is read
     assert ("IF (f2_proxy%is_dirty(depth=3)) "
             "THEN") in result
 
-    # check the existing m1 and m2 halo exchanges (for the first
-    # un-modified loop) remain unchanged
-    for field_name in ["m1", "m2"]:
+    # Check that the existing halo exchanges (for the first un-modified
+    # loop) remain unchanged. These are on f1, m1 and m2 without annexed
+    # dofs and only on m1 and m2 with annexed dofs.
+    fld_hex_names = ["f1", "m1", "m2"]
+    if annexed:
+        fld_hex_names.remove("f1")
+    for field_name in fld_hex_names:
         assert ("IF ({0}_proxy%is_dirty(depth=1)) "
                 "THEN".format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=1"
@@ -4347,31 +4443,28 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed):
 
 
 def test_rc_dofs_no_depth_prev_dep():
-    '''Test that the loop bounds when iterating over dofs are modified
+    ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with no halo depth value where the halo
-    fields have a previous (non-halo-exchange) dependence. '''
+    fields have a previous (non-halo-exchange) dependence.
+
+    '''
     psy, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[4]
+    loop = schedule.children[5]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
-    # check the f1 halo exchange is added and the f2 halo exchange is
-    # modified
-    for field_name in ["f1", "f2"]:
-        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%get_halo_depth()"
-                ")".format(field_name)) in result
-    assert ("IF (f1_proxy%is_dirty(depth=mesh%get_halo_depth())) "
-            "THEN") not in result
+
+    # Check that the f2 halo exchange is modified
+    assert "CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())" in result
     assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
-    # check the existing m1 and m2 halo exchanges remain unchanged
-    for field_name in ["m1", "m2"]:
+    # Check that the existing f1, m1 and m2 halo exchanges remain unchanged
+    for field_name in ["f1", "m1", "m2"]:
         assert ("IF ({0}_proxy%is_dirty(depth=1)) "
                 "THEN".format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=1"
@@ -4430,20 +4523,24 @@ def test_dofs_no_set_clean(monkeypatch, annexed):
     assert "CALL f1_proxy%set_clean(" not in result
 
 
-def test_rc_vector_depth():
-    '''Test that the loop bounds for a (continuous) vector are modified
+def test_rc_vector_depth(tmpdir):
+    ''' Test that the loop bounds for a (continuous) vector are modified
     appropriately and set_clean() added correctly and halo_exchange
     added/modified appropriately after applying the redundant
-    computation transformation with a fixed value for halo depth. '''
+    computation transformation with a fixed value for halo depth.
+
+    '''
     psy, invoke = get_invoke("8_vector_field.f90", TEST_API, idx=0,
                              dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[1]
+    loop = schedule[5]
     schedule, _ = rc_trans.apply(loop, {"depth": 3})
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
     assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
@@ -4453,20 +4550,24 @@ def test_rc_vector_depth():
         assert "CALL chi_proxy({0})%set_clean(2)".format(index) in result
 
 
-def test_rc_vector_no_depth():
-    '''Test that the loop bounds for a (continuous) vector are modified
+def test_rc_vector_no_depth(tmpdir):
+    ''' Test that the loop bounds for a (continuous) vector are modified
     appropriately and set_clean() added correctly and halo_exchange
     added/modified appropriately after applying the redundant
-    computation transformation with no halo depth value. '''
+    computation transformation with no halo depth value.
+
+    '''
     psy, invoke = get_invoke("8_vector_field.f90", TEST_API, idx=0,
                              dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[1]
+    loop = schedule[5]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     assert ("CALL f2_proxy%halo_exchange(depth=mesh%"
@@ -4480,33 +4581,35 @@ def test_rc_vector_no_depth():
 
 
 def test_rc_no_halo_decrease():
-    '''Test that we do not decrease an existing halo size when setting it
+    ''' Test that we do not decrease an existing halo size when setting it
     to a particular value. This situation may happen when the
     redundant computation affects the same field in two different
-    loops and both depend on the same halo exchange. '''
+    loops and both depend on the same halo exchange.
+
+    '''
     psy, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # first, change the size of the f2 halo exchange to 3 by performing
+    # First, change the size of the f2 halo exchange to 3 by performing
     # redundant computation in the first loop
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     schedule, _ = rc_trans.apply(loop, {"depth": 3})
     invoke.schedule = schedule
     result = str(psy.gen)
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
     assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
     assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
-    # second, try to change the size of the f2 halo exchange to 2 by
+    # Second, try to change the size of the f2 halo exchange to 2 by
     # performing redundant computation in the second loop
-    loop = schedule.children[4]
+    loop = schedule.children[5]
     schedule, _ = rc_trans.apply(loop, {"depth": 2})
     invoke.schedule = schedule
     result = str(psy.gen)
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
     assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
     assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
-    # third, set the size of the f2 halo exchange to the full halo
+    # Third, set the size of the f2 halo exchange to the full halo
     # depth by performing redundant computation in the second loop
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
@@ -4515,13 +4618,12 @@ def test_rc_no_halo_decrease():
             "THEN") in result
     assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
     assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
-    # fourth, try to change the size of the f2 halo exchange to 4 by
+    # Fourth, try to change the size of the f2 halo exchange to 4 by
     # performing redundant computation in the first loop
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     schedule, _ = rc_trans.apply(loop, {"depth": 4})
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
     assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     assert "IF (m1_proxy%is_dirty(depth=4)) THEN" in result
@@ -4642,31 +4744,34 @@ def test_rc_max_remove_halo_exchange(tmpdir):
     field to maximum depth. Also check that the halo exchange is not
     removed for the continuous case as the outer halo stays dirty.
     The halo should also have an if round it as we do not know how
-    much redundant computation we are doing. '''
+    much redundant computation we are doing.
+
+    '''
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     result = str(psy.gen)
     #
-    # at this point we know we need a halo exchange of depth 1 for f3
+    # f3 has "inc" access so there is a check for the halo exchange
+    # of depth 1
     assert "CALL f3_proxy%halo_exchange(depth=1)" in result
-    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" not in result
+    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     rc_trans.apply(loop)
     result = str(psy.gen)
-    print(result)
+
     # f3 halo exchange is not removed even though we redundantly
     # compute f3 as the redundant computation is on a continuous field
     # and therefore the outermost halo stays dirty. We can not be
     # certain whether the halo exchange is required or not as we don't
     # know the depth of the halo.
     assert "CALL f3_proxy%halo_exchange(depth=1)" in result
-    # we do not know whether we need the halo exchange so we include an if
+    # We do not know whether we need the halo exchange so we include an if
     assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
     #
     assert "CALL f4_proxy%halo_exchange(depth=1)" in result
-    loop = schedule.children[4]
+    loop = schedule.children[5]
     rc_trans.apply(loop)
     result = str(psy.gen)
     # f4 halo exchange is removed as it is redundantly computed to the
@@ -4685,26 +4790,50 @@ def test_rc_continuous_halo_remove():
     halo access depth. The reason for this is that the outer halo
     remains invalid when written to for a continuous field. Also check
     that we do remove the halo exchange when the redundant computation
-    depth is one more than the required halo access depth. '''
+    depth is one more than the required halo access depth.
+
+    '''
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     result = str(psy.gen)
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    f3_write_loop = schedule.children[3]
-    f3_read_loop = schedule.children[7]
-    assert "CALL f3_proxy%halo_exchange(depth=1)" in result
-    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" not in result
+    f3_inc_hex = schedule.children[2]
+    f3_inc_loop = schedule.children[4]
+    f3_read_hex = schedule.children[7]
+    f3_read_loop = schedule.children[9]
+    # field "f3" has "inc" access resulting in two halo exchanges of
+    # depth 1, one of which is conditional. One of these halo
+    # exchanges is placed before the f3_inc_loop and one is placed
+    # before the f3_read_loop (there are three other halo exchanges,
+    # one each for fields f1, f2 and f4).
+    assert result.count("CALL f3_proxy%halo_exchange(depth=1") == 2
+    assert result.count("IF (f3_proxy%is_dirty(depth=1)) THEN") == 1
+    #
+    # Applying redundant computation to equal depth on f3_inc_loop and
+    # f3_read_loop does not remove the initial number of halo exchanges.
+    # However, the "is_dirty" check and the halo exchange before the
+    # f3_inc_loop are now to depth 2.
     rc_trans.apply(f3_read_loop, {"depth": 3})
-    rc_trans.apply(f3_write_loop, {"depth": 3})
+    rc_trans.apply(f3_inc_loop, {"depth": 3})
     result = str(psy.gen)
-    assert "CALL f3_proxy%halo_exchange(depth=3)" in result
+    assert result.count("CALL f3_proxy%halo_exchange(depth=") == 2
+    assert f3_inc_hex._compute_halo_depth() == "2"
+    assert f3_read_hex._compute_halo_depth() == "3"
+    assert "IF (f3_proxy%is_dirty(depth=2)) THEN" in result
     assert "IF (f3_proxy%is_dirty(depth=3)) THEN" not in result
     #
-    rc_trans.apply(f3_write_loop, {"depth": 4})
+    # Applying redundant computation to one more depth to f3_inc_loop
+    # removes the halo exchange before the f3_read_loop.
+    # The "is_dirty" check and the halo exchange before the
+    # f3_inc_loop are now to depth 3.
+    rc_trans.apply(f3_inc_loop, {"depth": 4})
     result = str(psy.gen)
-    assert "CALL f3_proxy%halo_exchange(depth=" not in result
-    assert "IF (f3_proxy%is_dirty(depth=" not in result
+    assert result.count("CALL f3_proxy%halo_exchange(depth=") == 1
+    assert f3_inc_hex._compute_halo_depth() == "3"
+    # Position 7 is now halo exchange on f4 instead of f3
+    assert schedule.children[7].field != "f3"
+    assert "IF (f3_proxy%is_dirty(depth=4)" not in result
 
 
 def test_rc_discontinuous_halo_remove(monkeypatch):
@@ -4712,14 +4841,16 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
     discontinuous and the redundant computation depth equals the
     required halo access depth. Also check that we do not remove the
     halo exchange when the redundant computation depth is one less
-    than the required halo access depth. '''
+    than the required halo access depth.
+
+    '''
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     result = str(psy.gen)
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    f4_write_loop = schedule.children[4]
-    f4_read_loop = schedule.children[7]
+    f4_write_loop = schedule.children[5]
+    f4_read_loop = schedule.children[9]
     assert "CALL f4_proxy%halo_exchange(depth=1)" in result
     assert "IF (f4_proxy%is_dirty(depth=1)) THEN" not in result
     rc_trans.apply(f4_read_loop, {"depth": 3})
@@ -4746,11 +4877,12 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
 
 
 def test_rc_reader_halo_remove():
-    '''check that we do not add an unnecessary halo exchange when we
+    ''' Check that we do not add an unnecessary halo exchange when we
     increase the depth of halo that a loop computes but the previous loop
     still computes deep enough into the halo to avoid needing a halo
-    exchange.'''
+    exchange.
 
+    '''
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
@@ -4762,16 +4894,16 @@ def test_rc_reader_halo_remove():
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
-    # redundant computation to avoid halo exchange for f2
+    # Redundant computation to avoid halo exchange for f2
     schedule, _ = rc_trans.apply(schedule.children[1], {"depth": 2})
     invoke.schedule = schedule
     result = str(psy.gen)
     assert "CALL f2_proxy%halo_exchange(" not in result
 
-    # redundant computation to depth 2 in f2 reader loop should not
+    # Redundant computation to depth 2 in f2 reader loop should not
     # cause a new halo exchange as it is still covered by depth=2 in
     # the writer loop
-    schedule, _ = rc_trans.apply(schedule.children[2], {"depth": 2})
+    schedule, _ = rc_trans.apply(schedule.children[4], {"depth": 2})
     invoke.schedule = schedule
     result = str(psy.gen)
     assert "CALL f2_proxy%halo_exchange(" not in result
@@ -4861,17 +4993,19 @@ def test_rc_vector_reader_halo_readwrite():
 
 
 def test_stencil_rc_max_depth_1(monkeypatch):
-    '''If a loop contains a kernel with a stencil access and the loop
+    ''' If a loop contains a kernel with a stencil access and the loop
     attempts to compute redundantly into the halo to the maximum depth
     then the stencil will access beyond the halo bounds. This is
     therefore not allowed and exceptions are raised in the
     Dynamo0p3RedundantComputationTrans transformation and in
     _compute_single_halo_info. This test checks these exceptions are
-    raised correctly. '''
+    raised correctly.
+
+    '''
     _, invoke = get_invoke("19.1_single_stencil.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    loop = schedule.children[3]
+    loop = schedule[4]
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
@@ -4880,7 +5014,7 @@ def test_stencil_rc_max_depth_1(monkeypatch):
             "'testkern_stencil_code', so it is invalid to set redundant "
             "computation to maximum depth" in str(excinfo.value))
 
-    halo_exchange = schedule.children[0]
+    halo_exchange = schedule[1]
     monkeypatch.setattr(loop, "_upper_bound_halo_depth", None)
     with pytest.raises(GenerationError) as excinfo:
         _ = halo_exchange._compute_halo_read_info()
@@ -4889,13 +5023,15 @@ def test_stencil_rc_max_depth_1(monkeypatch):
 
 
 def test_rc_invalid_depth_type():
-    '''If an incorrect type is passed as a depth value to the redundant
+    ''' If an incorrect type is passed as a depth value to the redundant
     computation transformation an exception should be raised. This test
-    checks that this exception is raised as expected.'''
+    checks that this exception is raised as expected.
+
+    '''
     _, invoke = get_invoke("1_single_invoke.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    loop = schedule.children[3]
+    loop = schedule.children[4]
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": "2"})
@@ -5037,8 +5173,8 @@ def test_rc_max_w_to_r_continuous_known_halo(monkeypatch, annexed):
     assert known
 
 
-def test_red_comp_w_to_n_r_clean_gt_cleaned():
-    '''Tests the case where we have multiple (derived) read dependence
+def test_red_comp_w_to_n_r_clean_gt_cleaned(tmpdir):
+    ''' Tests the case where we have multiple (derived) read dependence
     entries and one of them has a literal depth value (and no
     associated variable) and we write redundantly into the halo with a
     literal depth. Depending on the literal values of the halo-reads
@@ -5050,8 +5186,8 @@ def test_red_comp_w_to_n_r_clean_gt_cleaned():
     # The initial test case writes to a field over dofs, then reads
     # the halo to depth 2 with a stencil, then reads the halo to a
     # variable depth with a stencil
-    _, invoke = get_invoke("14.11_halo_required_clean_multi.f90",
-                           TEST_API, idx=0, dist_mem=True)
+    psy, invoke = get_invoke("14.11_halo_required_clean_multi.f90",
+                             TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
     w_loop = schedule.children[0]
@@ -5096,56 +5232,62 @@ def test_red_comp_w_to_n_r_clean_gt_cleaned():
     assert required
     assert known
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
 
 def test_rc_no_directive():
-    '''When the redundant computation transformation is given a Loop whose
+    ''' When the redundant computation transformation is given a Loop whose
     parent is a directive an exception is raised as this is not
     supported (redundant computation transformations must be applied
     before directives are added). This test checks that this exception
-    is raised correctly.'''
+    is raised correctly.
+
+    '''
     _, invoke = get_invoke("1_single_invoke.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # create a colouring transformation and apply this to the loop
+    # Create a colouring transformation and apply this to the loop
     ctrans = Dynamo0p3ColourTrans()
-    schedule, _ = ctrans.apply(schedule[3])
+    schedule, _ = ctrans.apply(schedule[4])
 
-    # create an openmp transformation and apply this to the loop
+    # Create an openmp transformation and apply this to the loop
     otrans = DynamoOMPParallelLoopTrans()
-    schedule, _ = otrans.apply(schedule[3].loop_body[0])
+    schedule, _ = otrans.apply(schedule[4].loop_body[0])
 
-    # create a redundant computation transformation and apply this to the loop
+    # Create a redundant computation transformation and apply this to the loop
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(
-            schedule[3].loop_body[0].dir_body[0], {"depth": 1})
+            schedule[4].loop_body[0].dir_body[0], {"depth": 1})
     assert ("Redundant computation must be applied before directives are added"
             in str(excinfo.value))
 
 
 def test_rc_wrong_parent(monkeypatch):
-    '''When the redundant computation transformation is given a Loop which
+    ''' When the redundant computation transformation is given a Loop which
     has the wrong parent, and that parent is not a Directive (which is
     handled in a separate case) an exception is raised. This test
-    checks that this exception is raised correctly.'''
+    checks that this exception is raised correctly.
+
+    '''
     _, invoke = get_invoke("1_single_invoke.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # make the parent of the loop a halo exchange
-    monkeypatch.setattr(schedule.children[3], "parent", schedule.children[0])
+    # Make the parent of the loop a halo exchange
+    monkeypatch.setattr(schedule.children[4], "parent", schedule.children[0])
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # apply redundant computation to the loop
+    # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        schedule, _ = rc_trans.apply(schedule.children[3], {"depth": 1})
+        schedule, _ = rc_trans.apply(schedule.children[4], {"depth": 1})
     assert ("the parent of the supplied loop must be the DynInvokeSchedule, "
             "or a Loop") in str(excinfo.value)
 
 
 def test_rc_parent_loop_colour(monkeypatch):
-    '''If the parent of the loop supplied to the redundant computation
+    ''' If the parent of the loop supplied to the redundant computation
     transformation is a loop then
 
     1) the parent loop's parent should be a schedule. If this is not
@@ -5165,52 +5307,52 @@ def test_rc_parent_loop_colour(monkeypatch):
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # apply colouring
-    # create colour transformation
+    # Apply colouring
+    # Create colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    schedule, _ = ctrans.apply(schedule.children[3])
+    schedule, _ = ctrans.apply(schedule.children[4])
 
-    # make the parent of the outermost loop something other than
+    # Make the parent of the outermost loop something other than
     # InvokeSchedule (we use halo exchange in this case)
-    monkeypatch.setattr(schedule.children[3], "parent", schedule.children[0])
+    monkeypatch.setattr(schedule.children[4], "parent", schedule.children[0])
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # apply redundant computation to the loop
+    # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], {"depth": 1})
+        _, _ = rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "parent's parent must be the DynInvokeSchedule"
             in str(excinfo.value))
 
-    # make the outermost loop iterate over cells (it should be
+    # Make the outermost loop iterate over cells (it should be
     # colours). We can ignore the previous monkeypatch as this
     # exception is ecountered before the previous one.
-    monkeypatch.setattr(schedule.children[3], "_loop_type", "cells")
+    monkeypatch.setattr(schedule.children[4], "_loop_type", "cells")
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # apply redundant computation to the loop
+    # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], {"depth": 1})
+        _, _ = rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "parent must iterate over 'colours'" in str(excinfo.value))
 
-    # make the innermost loop iterate over cells (it should be
+    # Make the innermost loop iterate over cells (it should be
     # colour). We can ignore the previous monkeypatches as this
     # exception is encountered before the previous ones.
-    monkeypatch.setattr(schedule.children[3].loop_body[0], "_loop_type",
+    monkeypatch.setattr(schedule.children[4].loop_body[0], "_loop_type",
                         "cells")
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # apply redundant computation to the loop
+    # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], {"depth": 1})
+        _, _ = rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "supplied Loop must iterate over 'colour'" in str(excinfo.value))
 
 
 def test_rc_unsupported_loop_type(monkeypatch):
-    '''When an unsupported loop type is provided to the redundant
+    ''' When an unsupported loop type is provided to the redundant
     computation apply method an exception is raised. It is not
     possible to get to this exception in normal circumstances due to
     the validation tests so we monkey patch it. This test checks that
@@ -5221,30 +5363,30 @@ def test_rc_unsupported_loop_type(monkeypatch):
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # apply colouring
-    # create colour transformation
+    # Apply colouring
+    # Create colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    schedule, _ = ctrans.apply(schedule.children[3])
+    schedule, _ = ctrans.apply(schedule.children[4])
 
-    # make the loop type invalid
-    monkeypatch.setattr(schedule.children[3].loop_body[0], "_loop_type",
+    # Make the loop type invalid
+    monkeypatch.setattr(schedule.children[4].loop_body[0], "_loop_type",
                         "invalid")
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
-    # switch off validation
+    # Switch off validation
     monkeypatch.setattr(rc_trans, "validate",
                         lambda loop, options: None)
 
-    # apply redundant computation to the loop
+    # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = rc_trans.apply(schedule.children[3].loop_body[0], {"depth": 1})
+        _, _ = rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
     assert "Unsupported loop_type 'invalid' found" in str(excinfo.value)
 
 
 def test_rc_colour_no_loop_decrease():
-    '''Test that we raise an exception if we try to reduce the size of a
+    ''' Test that we raise an exception if we try to reduce the size of a
     loop halo depth when using the redundant computation
     transformation. This is not allowed partly for simplicity but also
     because, in the current implementation we might not decrease the
@@ -5256,30 +5398,30 @@ def test_rc_colour_no_loop_decrease():
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # create our colour transformation
+    # Create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    schedule, _ = ctrans.apply(schedule.children[3])
+    schedule, _ = ctrans.apply(schedule.children[4])
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # first set our loop to redundantly compute to the level 2 halo
-    loop = schedule.children[3].loop_body[0]
+    # First set our loop to redundantly compute to the level 2 halo
+    loop = schedule.children[4].loop_body[0]
     schedule, _ = rc_trans.apply(loop, {"depth": 2})
     invoke.schedule = schedule
-    # now try to reduce the redundant computation to the level 1 halo
+    # Now try to reduce the redundant computation to the level 1 halo
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop, {"depth": 1})
     assert ("supplied depth (1) must be greater than the existing halo depth "
             "(2)") in str(excinfo.value)
-    # second set our loop to redundantly compute to the maximum halo depth
+    # Second set our loop to redundantly compute to the maximum halo depth
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
-    # now try to reduce the redundant computation to a fixed value
+    # Now try to reduce the redundant computation to a fixed value
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop, {"depth": 2})
     assert ("loop is already set to the maximum halo depth so can't be "
             "set to a fixed value") in str(excinfo.value)
-    # now try to set the redundant computation to the same (max) value
+    # Now try to set the redundant computation to the same (max) value
     # it is now
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop)
@@ -5288,21 +5430,21 @@ def test_rc_colour_no_loop_decrease():
 
 
 def test_rc_colour(tmpdir):
-    '''Test that we can redundantly compute over a colour in a coloured
-    loop.'''
+    ''' Test that we can redundantly compute over a colour in a coloured
+    loop. '''
     psy, invoke = get_invoke("1_single_invoke.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # create our colour transformation
+    # Create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[3])
+    cschedule, _ = ctrans.apply(schedule.children[4])
 
-    # create our redundant computation transformation
+    # Create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # apply redundant computation to the colour loop
-    rc_trans.apply(cschedule.children[3].loop_body[0], {"depth": 2})
+    # Apply redundant computation to the colour loop
+    rc_trans.apply(cschedule.children[4].loop_body[0], {"depth": 2})
 
     result = str(psy.gen)
 
@@ -5336,22 +5478,22 @@ def test_rc_colour(tmpdir):
 
 
 def test_rc_max_colour(tmpdir):
-    '''Test that we can redundantly compute over a colour to the maximum
-    depth in a coloured loop.'''
+    ''' Test that we can redundantly compute over a colour to the maximum
+    depth in a coloured loop. '''
     psy, invoke = get_invoke("1_single_invoke.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # create our colour transformation
+    # Create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[3])
+    cschedule, _ = ctrans.apply(schedule.children[4])
 
-    # create our redundant computation transformation
+    # Create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    # apply redundant computation to the colour loop out to the full
+    # Apply redundant computation to the colour loop out to the full
     # halo depth
-    rc_trans.apply(cschedule.children[3].loop_body[0])
+    rc_trans.apply(cschedule.children[4].loop_body[0])
 
     result = str(psy.gen)
     assert (
@@ -5401,7 +5543,7 @@ def test_colour_discontinuous():
 
 
 def test_rc_then_colour(tmpdir):
-    '''Test that we generate correct code when we first perform redundant
+    ''' Test that we generate correct code when we first perform redundant
     computation to a fixed depth then colour the loop.
 
     '''
@@ -5409,17 +5551,17 @@ def test_rc_then_colour(tmpdir):
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # create our colour transformation
+    # Create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
 
-    # create our redundant computation transformation
+    # Create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
-    # apply redundant computation to the loop, out to the level-3 halo
-    schedule, _ = rc_trans.apply(schedule.children[3], {"depth": 3})
+    # Apply redundant computation to the loop, out to the level-3 halo
+    schedule, _ = rc_trans.apply(schedule.children[4], {"depth": 3})
 
     # Colour the loop
-    schedule, _ = ctrans.apply(schedule.children[3])
+    schedule, _ = ctrans.apply(schedule.children[4])
 
     psy.invokes.invoke_list[0].schedule = schedule
 
@@ -5456,7 +5598,7 @@ def test_rc_then_colour(tmpdir):
 
 
 def test_rc_then_colour2(tmpdir):
-    '''Test that we generate correct code when we first perform redundant
+    ''' Test that we generate correct code when we first perform redundant
     computation to the full depth then colour the loop.
 
     '''
@@ -5464,17 +5606,17 @@ def test_rc_then_colour2(tmpdir):
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    # create our colour transformation
+    # Create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
 
-    # create our redundant computation transformation
+    # Create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
-    # apply redundant computation to the loop to the full halo depth
-    schedule, _ = rc_trans.apply(schedule.children[3])
+    # Apply redundant computation to the loop to the full halo depth
+    schedule, _ = rc_trans.apply(schedule.children[4])
 
     # Colour the loop
-    schedule, _ = ctrans.apply(schedule.children[3])
+    schedule, _ = ctrans.apply(schedule.children[4])
 
     psy.invokes.invoke_list[0].schedule = schedule
 
@@ -5506,35 +5648,39 @@ def test_rc_then_colour2(tmpdir):
 
 
 def test_loop_fuse_then_rc(tmpdir):
-    '''Test that we are able to fuse two loops together, perform
-    redundant computation and then colour.'''
+    ''' Test that we are able to fuse two loops together, perform
+    redundant computation and then colour. '''
     psy, invoke = get_invoke("4_multikernel_invokes.f90",
                              TEST_API, name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
 
     ftrans = DynamoLoopFuseTrans()
 
-    # fuse the loops
-    schedule, _ = ftrans.apply(schedule.children[3],
-                               schedule.children[4])
+    # Fuse the loops
+    schedule, _ = ftrans.apply(schedule.children[4],
+                               schedule.children[5])
 
-    # create our redundant computation transformation
+    # Create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
-    # apply redundant computation to the loop
-    schedule, _ = rc_trans.apply(schedule.children[3])
+    # Apply redundant computation to the loop
+    schedule, _ = rc_trans.apply(schedule.children[4])
 
-    # create our colour transformation
+    # Create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
 
     # Colour the loop
-    schedule, _ = ctrans.apply(schedule.children[3])
+    schedule, _ = ctrans.apply(schedule.children[4])
 
     psy.invokes.invoke_list[0].schedule = schedule
 
     result = str(psy.gen)
 
     assert (
+        "      IF (f1_proxy%is_dirty(depth=mesh%get_halo_depth()-1)) THEN\n"
+        "        CALL f1_proxy%halo_exchange(depth=mesh%get_halo_depth()-1)\n"
+        "      END IF\n"
+        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
         "      END IF\n"
@@ -6071,7 +6217,7 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     # Manually add an un-coloured kernel to the loop that we coloured
     loop = loops[2]
     monkeypatch.setattr(loops[3].loop_body[0], "is_coloured", lambda: True)
-    loop.children.append(loops[3].loop_body[0])
+    loop.loop_body.children.append(loops[3].loop_body[0])
     with pytest.raises(InternalError) as err:
         _ = loops[1]._upper_bound_fortran()
     assert ("All kernels within a loop over colours must have been coloured "
@@ -6222,9 +6368,11 @@ def test_accenterdatatrans():
     # add one.
 
 
-def test_accenterdata_builtin():
+def test_accenterdata_builtin(tmpdir):
     ''' Check that the enter-data transformation can be applied to an invoke
-    containing a call to a BuiltIn kernel. '''
+    containing a call to a BuiltIn kernel.
+
+    '''
     from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
         ACCParallelTrans
     acc_enter_trans = ACCEnterDataTrans()
@@ -6239,14 +6387,16 @@ def test_accenterdata_builtin():
     _, _ = acc_enter_trans.apply(sched)
     output = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     assert ("!$acc enter data copyin(nlayers,ginger,f1_proxy,f1_proxy%data,"
             "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
             "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,ndf_w3,"
-            "undf_w3,map_w3,0.0,ndf_any_space_1_f1,undf_any_space_1_f1,"
-            "map_any_space_1_f1)" in output)
+            "undf_w3,map_w3,0.0_r_def,ndf_aspc1_f1,undf_aspc1_f1,"
+            "map_aspc1_f1)" in output)
     assert ("      !$acc loop independent\n"
-            "      DO df=1,undf_any_space_1_f1\n"
-            "        f1_proxy%data(df) = 0.0\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        f1_proxy%data(df) = 0.0_r_def\n"
             "      END DO\n"
             "      !$acc end parallel\n" in output)
 
@@ -6388,19 +6538,23 @@ def test_async_hex_str():
 
 
 def test_async_hex(tmpdir):
-    '''Test that we can convert a synchronous halo exchange to an
+    ''' Test that we can convert a synchronous halo exchange to an
     asynchronous one using the Dynamo0p3AsyncHaloExchangeTrans transformation.
 
     '''
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    f2_hex = schedule.children[0]
+    f2_hex = schedule.children[1]
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(f2_hex)
     result = str(psy.gen)
     assert (
         "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f1_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange_start(depth=1)\n"
@@ -6415,7 +6569,7 @@ def test_async_hex(tmpdir):
 
 
 def test_async_hex_move_1(tmpdir):
-    '''Test that we can convert a synchronous halo exchange to an
+    ''' Test that we can convert a synchronous halo exchange to an
     asynchronous one using the Dynamo0p3AsyncHaloExchangeTrans
     transformation and then move them to new valid locations. In this
     case we move them before and after other halo exchanges
@@ -6425,15 +6579,15 @@ def test_async_hex_move_1(tmpdir):
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    m1_hex = schedule.children[1]
+    m1_hex = schedule.children[2]
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(m1_hex)
 
     mtrans = MoveTrans()
-    schedule, _ = mtrans.apply(schedule.children[1],
-                               schedule.children[0])
-    schedule, _ = mtrans.apply(schedule.children[3],
-                               schedule.children[2])
+    schedule, _ = mtrans.apply(schedule.children[2],
+                               schedule.children[1])
+    schedule, _ = mtrans.apply(schedule.children[4],
+                               schedule.children[3])
     result = str(psy.gen)
     assert (
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
@@ -6515,7 +6669,7 @@ def test_async_hex_preserve_properties():
 
 
 def test_async_hex_move_2(tmpdir, monkeypatch):
-    '''Test that we can convert a synchronous halo exchange to an
+    ''' Test that we can convert a synchronous halo exchange to an
     asynchronous one using the Dynamo0p3AsyncHaloExchangeTrans
     transformation and then move them to new valid locations. In this
     case we move a haloexchangestart before a loop.
@@ -6542,8 +6696,8 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        CALL testkern_any_space_3_code(cell, nlayers, "
-        "op_proxy%ncell_3d, op_proxy%local_stencil, ndf_any_space_1_op, "
-        "ndf_any_space_2_op)\n"
+        "op_proxy%ncell_3d, op_proxy%local_stencil, ndf_aspc1_op, "
+        "ndf_aspc2_op)\n"
         "      END DO\n"
         "      CALL f2_proxy%halo_exchange_finish(depth=1)\n") in result
 
@@ -7062,6 +7216,7 @@ def test_kern_const_anyw2_apply(capsys):
 def test_kern_const_ndofs():
     '''Test the computed number-of-dof values per 3D cell on a quadrilateral
     element for different orders and different function spaces.
+    Note: w2*trace spaces have their dofs on cell faces only.
 
     '''
     expected = {"w3": [1, 8, 27, 64, 125, 216, 343, 512, 729, 1000],
@@ -7073,12 +7228,15 @@ def test_kern_const_ndofs():
                 "w2v": [2, 12, 36, 80, 150, 252, 392, 576, 810, 1100],
                 "w2broken": [6, 36, 108, 240, 450, 756, 1176, 1728, 2430,
                              3300],
+                "wchi": [1, 8, 27, 64, 125, 216, 343, 512, 729, 1000],
                 "w2trace": [6, 24, 54, 96, 150, 216, 294, 384, 486, 600],
-                "wchi": [1, 8, 27, 64, 125, 216, 343, 512, 729, 1000]}
+                "w2htrace": [4, 16, 36, 64, 100, 144, 196, 256, 324, 400],
+                "w2vtrace": [2, 8, 18, 32, 50, 72, 98, 128, 162, 200]}
     kct = Dynamo0p3KernelConstTrans()
     for order in range(10):
         for function_space in ["w3", "w2", "w1", "w0", "wtheta", "w2h",
-                               "w2v", "w2broken", "w2trace", "wchi"]:
+                               "w2v", "w2broken", "wchi", "w2trace",
+                               "w2htrace", "w2vtrace"]:
             assert kct.space_to_dofs[function_space](order) == \
                 expected[function_space][order]
         # wtheta should equal w2v
@@ -7087,6 +7245,10 @@ def test_kern_const_ndofs():
         # w2h and w2v should sum up to w2
         assert kct.space_to_dofs["w2h"](order) + \
             kct.space_to_dofs["w2v"](order) == kct.space_to_dofs["w2"](order)
+        # w2htrace and w2vtrace should sum up to w2trace
+        assert kct.space_to_dofs["w2htrace"](order) + \
+            kct.space_to_dofs["w2vtrace"](order) == \
+            kct.space_to_dofs["w2trace"](order)
 
 
 def test_kern_const_invalid():

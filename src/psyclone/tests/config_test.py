@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic, Met Office, R. W. Ford, STFC Daresbury Lab
 
 '''
 Module containing tests relating to PSyclone configuration handling.
@@ -68,6 +68,7 @@ access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
 default_kind = real: r_def, integer: i_def, logical: l_def
+RUN_TIME_CHECKS = false
 '''
 
 
@@ -96,7 +97,8 @@ def clear_config_instance():
 @pytest.fixture(scope="module",
                 params=["DISTRIBUTED_MEMORY",
                         "REPRODUCIBLE_REDUCTIONS",
-                        "COMPUTE_ANNEXED_DOFS"])
+                        "COMPUTE_ANNEXED_DOFS",
+                        "RUN_TIME_CHECKS"])
 def bool_entry(request):
     '''
     Parameterised fixture that will cause a test that has it as an
@@ -652,9 +654,9 @@ def test_psy_data_prefix(tmpdir):
         config = Config()
         config.load(config_file=str(config_file))
 
-        assert "profile" in config.valid_psy_data_prefix
-        assert "extract" in config.valid_psy_data_prefix
-        assert len(config.valid_psy_data_prefix) == 2
+        assert "profile" in config.valid_psy_data_prefixes
+        assert "extract" in config.valid_psy_data_prefixes
+        assert len(config.valid_psy_data_prefixes) == 2
 
     # Now handle a config file without psy data prefixes:
     # This should not raise an exception, but define an empty list
@@ -666,7 +668,7 @@ def test_psy_data_prefix(tmpdir):
         new_cfg.close()
         config = Config()
         config.load(str(config_file))
-        assert not config.valid_psy_data_prefix
+        assert not config.valid_psy_data_prefixes
 
 
 def test_invalid_prefix(tmpdir):
@@ -692,3 +694,5 @@ def test_invalid_prefix(tmpdir):
                    .format(prefix) in str(err.value)  \
                 or "Invalid PsyData-prefix \\'{0}\\' in config file" \
                    .format(prefix) in str(err.value)
+            assert "The prefix must be valid for use as the start of a " \
+                   "Fortran variable name." in str(err.value)

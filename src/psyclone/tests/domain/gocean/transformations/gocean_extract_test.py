@@ -48,6 +48,7 @@ from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.psyir.nodes import ExtractNode
 from psyclone.psyGen import Loop
 from psyclone.psyir.transformations import TransformationError
+from psyclone.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.utilities import get_invoke
 
 # API names
@@ -197,6 +198,8 @@ def test_single_node_ompparalleldo_gocean1p0():
     psy, invoke = get_invoke("single_invoke_three_kernels.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
+    # This test expects constant loop bounds
+    schedule._const_loop_bounds = True
 
     # Apply GOceanOMPParallelLoopTrans to the second Loop
     schedule, _ = otrans.apply(schedule.children[1])
@@ -246,12 +249,15 @@ def test_node_list_ompparallel_gocean1p0():
     etrans = GOceanExtractTrans()
     ltrans = GOceanOMPLoopTrans()
     otrans = OMPParallelTrans()
+    ctrans = GOConstLoopBoundsTrans()
 
     # Test a Loop nested within the OMP Parallel DO Directive
     psy, invoke = get_invoke("single_invoke_three_kernels.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
+    # Apply GOConstLoopBoundsTrans
+    schedule, _ = ctrans.apply(schedule)
     # Apply GOceanOMPParallelLoopTrans to the first two Loops
     schedule, _ = ltrans.apply(schedule.children[0])
     schedule, _ = ltrans.apply(schedule.children[1])
@@ -351,9 +357,12 @@ def test_driver_creation(tmpdir):
     tmpdir.chdir()
 
     etrans = GOceanExtractTrans()
+    ctrans = GOConstLoopBoundsTrans()
     psy, invoke = get_invoke("driver_test.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
+    # This test expects constant loop bounds
+    schedule, _ = ctrans.apply(schedule)
 
     schedule, _ = etrans.apply(schedule.children[0],
                                {'create_driver': True})
@@ -691,7 +700,7 @@ def test_rename_region(tmpdir):
 # -----------------------------------------------------------------------------
 def test_change_prefix(tmpdir, monkeypatch):
     '''
-    This tests that the prefix of an gocean extract transformation
+    This tests that the prefix of a gocean extract transformation
     can be changed, and that the new prefix is also used in the
     created driver.
     '''
@@ -705,18 +714,18 @@ def test_change_prefix(tmpdir, monkeypatch):
     # So monkeypatch the valid prefix names in the config object:
     from psyclone.configuration import Config
     config = Config.get()
-    monkeypatch.setattr(config, "_valid_psy_data_prefix", ["NEW"])
+    monkeypatch.setattr(config, "_valid_psy_data_prefixes", ["NEW"])
 
     etrans = GOceanExtractTrans()
     etrans.apply(invoke.schedule.children[0],
                  {'create_driver': True, 'region_name': ("main", "update"),
-                  'class': "NEW"})
+                  'prefix': "NEW"})
 
     # Test that the extraction code contains the new prefix:
     assert 'CALL NEW_psy_data%PreStart("main", "update", 4, 3)' \
         in str(psy.gen)
 
-    # Now test if the created driver has the right prefix"
+    # Now test if the created driver has the right prefix:
     driver_name = tmpdir.join("driver-main-update.f90")
     with open(str(driver_name), "r") as driver_file:
         driver_code = driver_file.read()

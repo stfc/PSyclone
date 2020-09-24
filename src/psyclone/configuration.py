@@ -44,6 +44,7 @@ Deals with reading the config file and storing default settings.
 from __future__ import absolute_import, print_function
 from collections import namedtuple
 import os
+from psyclone.errors import InternalError
 
 
 # Name of the config file we search for
@@ -117,7 +118,7 @@ class Config(object):
     _default_psyir_root_name = "psyir_tmp"
 
     # The list of valid PSyData class prefixes
-    _valid_psy_data_prefix = []
+    _valid_psy_data_prefixes = []
 
     @staticmethod
     def get(do_not_load_file=False):
@@ -322,18 +323,21 @@ class Config(object):
         # Read the valid PSyData class prefixes:
         try:
             # Convert it to a list of strings:
-            self._valid_psy_data_prefix = \
+            self._valid_psy_data_prefixes = \
                 self._config["DEFAULT"]["VALID_PSY_DATA_PREFIXES"].split()
         except KeyError:
-            self._valid_psy_data_prefix = []
+            self._valid_psy_data_prefixes = []
 
         # Verify that the prefixes will result in valid Fortran names:
         import re
         valid_var = re.compile(r"[A-Z][A-Z0-9_]*$", re.I)
-        for prefix in self._valid_psy_data_prefix:
+        for prefix in self._valid_psy_data_prefixes:
             if not valid_var.match(prefix):
                 raise ConfigurationError("Invalid PsyData-prefix '{0}' in "
-                                         "config file.".format(prefix),
+                                         "config file. The prefix must be "
+                                         "valid for use as the start of a "
+                                         "Fortran variable name."
+                                         .format(prefix),
                                          config=self)
 
         # Now we deal with the API-specific sections of the config file. We
@@ -655,10 +659,10 @@ class Config(object):
                              format(type(path_list)))
 
     @property
-    def valid_psy_data_prefix(self):
+    def valid_psy_data_prefixes(self):
         ''':returns: The list of all valid class prefixes.
         :rtype: list of str'''
-        return self._valid_psy_data_prefix
+        return self._valid_psy_data_prefixes
 
     def get_default_keys(self):
         '''Returns all keys from the default section.
@@ -788,6 +792,8 @@ class DynConfig(APISpecificConfig):
         self._config = config
         # Initialise redundant computation setting
         self._compute_annexed_dofs = None
+        # Initialise run_time_checks setting
+        self._run_time_checks = None
         # Initialise LFRic datatypes' default kinds (precisions) settings
         self._default_kind = {}
         # Set mandatory keys
@@ -800,7 +806,8 @@ class DynConfig(APISpecificConfig):
         if section.name == "dynamo0.3":
             # Define and check mandatory keys
             self._mandatory_keys = ["access_mapping",
-                                    "compute_annexed_dofs", "default_kind"]
+                                    "compute_annexed_dofs", "default_kind",
+                                    "run_time_checks"]
             mdkeys = set(self._mandatory_keys)
             if not mdkeys.issubset(set(section.keys())):
                 raise ConfigurationError(
@@ -816,6 +823,16 @@ class DynConfig(APISpecificConfig):
             except ValueError as err:
                 raise ConfigurationError(
                     "error while parsing COMPUTE_ANNEXED_DOFS in the "
+                    "[dynamo0.3] section of the config file: {0}"
+                    .format(str(err)), config=self._config)
+
+            # Setting for run_time_checks flag
+            try:
+                self._run_time_checks = section.getboolean(
+                    "run_time_checks")
+            except ValueError as err:
+                raise ConfigurationError(
+                    "error while parsing RUN_TIME_CHECKS in the "
                     "[dynamo0.3] section of the config file: {0}"
                     .format(str(err)), config=self._config)
 
@@ -854,6 +871,17 @@ class DynConfig(APISpecificConfig):
 
         '''
         return self._compute_annexed_dofs
+
+    @property
+    def run_time_checks(self):
+        '''
+        Getter for whether or not we generate run-time checks in the code.
+
+        :returns: true if we are generating run-time checks
+        :rtype: bool
+
+        '''
+        return self._run_time_checks
 
     @property
     def default_kind(self):
@@ -910,21 +938,24 @@ class GOceanConfig(APISpecificConfig):
                 pass
             elif key == "grid-properties":
                 # Grid properties have the format:
-                # go_grid_area_u: {0}%%grid%%area_u: array,
+                # go_grid_area_u: {0}%%grid%%area_u: array: real,
                 # First the name, then the Fortran code to access the property,
-                # followed by the type ("array" or "scalar")
+                # followed by the type ("array" or "scalar") and then the
+                # intrinsic type ("integer" or "real")
                 all_props = self.create_dict_from_string(section[key])
                 for grid_property in all_props:
                     try:
-                        fortran, variable_type = all_props[grid_property]\
-                                            .split(":")
+                        fortran, variable_type, intrinsic_type = \
+                            all_props[grid_property].split(":")
                     except ValueError:
                         # Raised when the string does not contain exactly
-                        # two values separated by ":"
+                        # three values separated by ":"
                         error = "Invalid property \"{0}\" found with value " \
                                 "\"{1}\" in \"{2}\". It must have exactly " \
-                                "two ':'-delimited separated values: the " \
-                                "property and the type." \
+                                "three ':'-delimited separated values: the " \
+                                "property, whether it is a scalar or an " \
+                                "array, and the intrinsic type (real or " \
+                                "integer)." \
                                 .format(grid_property,
                                         all_props[grid_property],
                                         config.filename)
@@ -933,7 +964,8 @@ class GOceanConfig(APISpecificConfig):
                     # file might contain
                     self._grid_properties[grid_property] = \
                         GOceanConfig.make_property(fortran.strip(),
-                                                   variable_type.strip())
+                                                   variable_type.strip(),
+                                                   intrinsic_type.strip())
                 # Check that the required values for xstop and ystop
                 # are defined:
                 for required in ["go_grid_xstop", "go_grid_ystop",
@@ -959,7 +991,7 @@ class GOceanConfig(APISpecificConfig):
 
     # ---------------------------------------------------------------------
     @staticmethod
-    def make_property(dereference_format, type_name):
+    def make_property(dereference_format, type_name, intrinsic_type):
         '''Creates a property (based on namedtuple) for a given Fortran
         code to access a grid property, and the type.
 
@@ -968,26 +1000,32 @@ class GOceanConfig(APISpecificConfig):
             string. E.g. "{0}%whole%xstop").
         :param str type_name: The type of the grid property, must be \
             'scalar' or 'array'.
+        :param str intrinsic_type: The intrinsic type of the grid property, \
+            must be 'integer' or 'real'.
 
         :returns: a namedtuple for a grid property given the Fortran
             statement to access it and the type.
 
         :raises InternalError: if type_name is not 'scalar' or 'array'
+        :raises InternalError: if intrinsic_type is not 'integer' or 'real'
         '''
         if type_name not in ['array', 'scalar']:
-            from psyclone.errors import InternalError
             raise InternalError("Type must be 'array' or 'scalar' but is "
                                 "'{0}'.".format(type_name))
 
-        Property = namedtuple("Property", "fortran type")
-        return Property(dereference_format, type_name)
+        if intrinsic_type not in ['integer', 'real']:
+            raise InternalError("Intrinsic type must be 'integer' or 'real' "
+                                "but is '{0}'.".format(intrinsic_type))
+
+        Property = namedtuple("Property", "fortran type intrinsic_type")
+        return Property(dereference_format, type_name, intrinsic_type)
 
     # ---------------------------------------------------------------------
     @property
     def grid_properties(self):
         ''':returns: the dict containing the grid properties.
-        :rtype: a dict with values of namedtuple("Property","fortran type") \
-            instances.
+        :rtype: a dict with values of \
+            namedtuple("Property","fortran type intrinsic_type") instances.
         '''
         return self._grid_properties
 

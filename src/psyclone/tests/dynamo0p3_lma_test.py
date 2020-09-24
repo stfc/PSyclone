@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for LMA operators in the Dynamo 0.3 API
 using pytest. '''
@@ -47,7 +48,8 @@ from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
+from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, FunctionSpace
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -60,13 +62,13 @@ TEST_API = "dynamo0.3"
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
-     type(arg_type), meta_args(6) =                  &
-          (/ arg_type(gh_real,  gh_read),            &
-             arg_type(gh_field, gh_inc, w1),         &
-             arg_type(gh_field, gh_read, w2),        &
-             arg_type(gh_operator, gh_read, w2, w2), &
-             arg_type(gh_field, gh_read, w3),        &
-             arg_type(gh_integer, gh_read)           &
+     type(arg_type), meta_args(6) =                     &
+          (/ arg_type(gh_scalar,   gh_real,  gh_read),  &
+             arg_type(gh_field,    gh_inc, w1),         &
+             arg_type(gh_field,    gh_read, w2),        &
+             arg_type(gh_operator, gh_read, w2, w2),    &
+             arg_type(gh_field,    gh_read, w3),        &
+             arg_type(gh_scalar,   gh_integer, gh_read) &
            /)
      type(func_type), dimension(3) :: meta_funcs =   &
           (/ func_type(w1, gh_basis),                &
@@ -94,9 +96,8 @@ def setup():
 def test_get_op_wrong_name():
     ''' Tests that the get_operator_name() utility raises an error
     if passed the name of something that is not a valid operator '''
-    from psyclone.dynamo0p3 import get_fs_operator_name
     with pytest.raises(GenerationError) as err:
-        get_fs_operator_name("not_an_op", FunctionSpace("w3", None))
+        FunctionSpace("w3", None).get_operator_name("not_an_op")
     assert "Unsupported name 'not_an_op' found" in str(err.value)
 
 
@@ -109,7 +110,10 @@ def test_ad_op_type_too_few_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
+    assert ("'meta_arg' entry must have 4 arguments if its first "
+            "argument is an operator (one of {0})".
+            format(LFRicArgDescriptor.VALID_OPERATOR_NAMES) in
+            str(excinfo.value))
 
 
 def test_ad_op_type_too_many_args():
@@ -121,7 +125,7 @@ def test_ad_op_type_too_many_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
+    assert "'meta_arg' entry must have 4 arguments" in str(excinfo.value)
 
 
 def test_ad_op_type_wrong_3rd_arg():
@@ -133,8 +137,8 @@ def test_ad_op_type_wrong_3rd_arg():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("dynamo0.3 API the 3rd argument of a meta_arg entry must be "
-            "a valid function space name" in str(excinfo.value))
+    assert ("LFRic API the 3rd argument of a 'meta_arg' operator entry "
+            "must be a valid function space name" in str(excinfo.value))
 
 
 def test_ad_op_type_1st_arg_not_space():
@@ -146,20 +150,84 @@ def test_ad_op_type_1st_arg_not_space():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'meta_arg entry must be a valid function space' in \
-        str(excinfo.value)
+    assert ("'meta_arg' operator entry must be a valid function space" in
+            str(excinfo.value))
+
+
+def test_no_vector_operator():
+    ''' Test that we raise an error when kernel metadata erroneously
+    specifies a vector operator argument. '''
+    code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
+                        "arg_type(gh_operator*3, gh_read, w2, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("vector notation is only supported for ['gh_field'] "
+            "argument types but found 'gh_operator * 3'" in
+            str(excinfo.value))
+
+
+def test_ad_op_type_init_wrong_type():
+    ''' Test that an error is raised if something other than an operator
+    is passed to the LFRicArgDescriptor._init_operator() method. '''
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    # Get an argument which is not an operator
+    wrong_arg = metadata._inits[1]
+    with pytest.raises(InternalError) as excinfo:
+        LFRicArgDescriptor(
+            wrong_arg, metadata.iterates_over)._init_operator(wrong_arg)
+    assert ("LFRicArgDescriptor._init_operator(): expected an "
+            "operator argument but got an argument of type 'gh_field'."
+            in str(excinfo.value))
 
 
 def test_ad_op_type_wrong_access():
-    ''' Test that an error is raised if an operator has gh_inc access. '''
+    ''' Test that an error is raised if an operator has 'gh_inc' access. '''
     code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
                         "arg_type(gh_operator, gh_inc, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the dynamo0.3 API operators cannot have a 'gh_inc' access"
-            in str(excinfo.value))
+    assert ("In the LFRic API, allowed accesses for operators are "
+            "['gh_read', 'gh_write', 'gh_readwrite'] because they behave "
+            "as discontinuous quantities, but found 'gh_inc'" in
+            str(excinfo.value))
+
+
+def test_arg_descriptor_op():
+    ''' Test that the LFRicArgDescriptor argument representation works
+    as expected when we have an operator. '''
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    operator_descriptor = metadata.arg_descriptors[3]
+
+    # Assert correct string representation from LFRicArgDescriptor
+    result = str(operator_descriptor)
+    expected_output = (
+        "LFRicArgDescriptor object\n"
+        "  argument_type[0]='gh_operator'\n"
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_read'\n"
+        "  function_space_to[3]='w2'\n"
+        "  function_space_from[4]='w2'\n")
+    assert expected_output in result
+
+    # Check LFRicArgDescriptor argument properties
+    assert operator_descriptor.argument_type == "gh_operator"
+    assert operator_descriptor.data_type == "gh_real"
+    assert operator_descriptor.function_space_to == "w2"
+    assert operator_descriptor.function_space_from == "w2"
+    assert operator_descriptor.function_space == "w2"
+    assert operator_descriptor.function_spaces == ['w2', 'w2']
+    assert str(operator_descriptor.access) == "READ"
+    assert operator_descriptor.mesh is None
+    assert operator_descriptor.stencil is None
+    assert operator_descriptor.vector_size == 1
 
 
 def test_fs_descriptor_wrong_type():
@@ -257,30 +325,34 @@ def test_fsdesc_fs_not_in_argdesc():
         'meta_args' in str(excinfo.value)
 
 
-def test_operator():
-    ''' Tests that a LMA operator is implemented correctly in the PSy
+def test_operator(tmpdir):
+    ''' Tests that an LMA operator is implemented correctly in the PSy
     layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     assert (
-        "SUBROUTINE invoke_0_testkern_operator_type(mm_w0, chi, a, qr)"
+        "SUBROUTINE invoke_0_testkern_operator_type(mm_w0, coord, a, qr)"
         in generated_code)
     assert "TYPE(operator_type), intent(in) :: mm_w0" in generated_code
     assert "TYPE(operator_proxy_type) mm_w0_proxy" in generated_code
     assert "mm_w0_proxy = mm_w0%get_proxy()" in generated_code
     assert ("CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, "
-            "mm_w0_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, "
-            "chi_proxy(3)%data, a, ndf_w0, undf_w0, map_w0(:,cell), "
-            "basis_w0_qr, diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
-            "weights_z_qr)") in generated_code
+            "mm_w0_proxy%local_stencil, coord_proxy(1)%data, "
+            "coord_proxy(2)%data, coord_proxy(3)%data, a, ndf_w0, undf_w0, "
+            "map_w0(:,cell), basis_w0_qr, diff_basis_w0_qr, np_xy_qr, "
+            "np_z_qr, weights_xy_qr, weights_z_qr)") in generated_code
 
 
 def test_operator_different_spaces(tmpdir):
     ''' Tests that an operator with different to and from spaces is
-    implemented correctly in the PSy layer '''
+    implemented correctly in the PSy layer.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.3_operator_different_spaces.f90"),
                            api=TEST_API)
@@ -291,14 +363,14 @@ def test_operator_different_spaces(tmpdir):
 
     decl_output = (
         "    SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_type"
-        "(mapping, chi, qr)\n"
+        "(mapping, coord, qr)\n"
         "      USE assemble_weak_derivative_w3_w2_kernel_mod, ONLY: "
         "assemble_weak_derivative_w3_w2_kernel_code\n"
         "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
         "quadrature_xyoz_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(in) :: chi(3)\n"
+        "      TYPE(field_type), intent(in) :: coord(3)\n"
         "      TYPE(operator_type), intent(in) :: mapping\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
@@ -310,7 +382,7 @@ def test_operator_different_spaces(tmpdir):
         "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
         "      INTEGER(KIND=i_def) nlayers\n"
         "      TYPE(operator_proxy_type) mapping_proxy\n"
-        "      TYPE(field_proxy_type) chi_proxy(3)\n"
+        "      TYPE(field_proxy_type) coord_proxy(3)\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w0(:,:) => null()\n"
         "      INTEGER(KIND=i_def) ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
@@ -322,9 +394,9 @@ def test_operator_different_spaces(tmpdir):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      mapping_proxy = mapping%get_proxy()\n"
-        "      chi_proxy(1) = chi(1)%get_proxy()\n"
-        "      chi_proxy(2) = chi(2)%get_proxy()\n"
-        "      chi_proxy(3) = chi(3)%get_proxy()\n"
+        "      coord_proxy(1) = coord(1)%get_proxy()\n"
+        "      coord_proxy(2) = coord(2)%get_proxy()\n"
+        "      coord_proxy(3) = coord(3)%get_proxy()\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -336,7 +408,7 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
-        "      map_w0 => chi_proxy(1)%vspace%get_whole_dofmap()\n"
+        "      map_w0 => coord_proxy(1)%vspace%get_whole_dofmap()\n"
         "      !\n"
         "      ! Initialise number of DoFs for w3\n"
         "      !\n"
@@ -348,8 +420,8 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      ! Initialise number of DoFs for w0\n"
         "      !\n"
-        "      ndf_w0 = chi_proxy(1)%vspace%get_ndf()\n"
-        "      undf_w0 = chi_proxy(1)%vspace%get_undf()\n"
+        "      ndf_w0 = coord_proxy(1)%vspace%get_ndf()\n"
+        "      undf_w0 = coord_proxy(1)%vspace%get_undf()\n"
         "      !\n"
         "      ! Look-up quadrature variables\n"
         "      !\n"
@@ -361,7 +433,7 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      ! Allocate basis/diff-basis arrays\n"
         "      !\n"
-        "      diff_dim_w0 = chi_proxy(1)%vspace%get_dim_space_diff()\n"
+        "      diff_dim_w0 = coord_proxy(1)%vspace%get_dim_space_diff()\n"
         "      dim_w3 = mapping_proxy%fs_to%get_dim_space()\n"
         "      diff_dim_w2 = mapping_proxy%fs_from%get_dim_space_diff()\n"
         "      ALLOCATE (diff_basis_w0_qr(diff_dim_w0, ndf_w0, np_xy_qr, "
@@ -372,7 +444,7 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      ! Compute basis/diff-basis arrays\n"
         "      !\n"
-        "      CALL qr%compute_function(DIFF_BASIS, chi_proxy(1)%vspace, "
+        "      CALL qr%compute_function(DIFF_BASIS, coord_proxy(1)%vspace, "
         "diff_dim_w0, ndf_w0, diff_basis_w0_qr)\n"
         "      CALL qr%compute_function(BASIS, mapping_proxy%fs_to, "
         "dim_w3, ndf_w3, basis_w3_qr)\n"
@@ -381,16 +453,16 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
-        "      IF (chi_proxy(1)%is_dirty(depth=1)) THEN\n"
-        "        CALL chi_proxy(1)%halo_exchange(depth=1)\n"
+        "      IF (coord_proxy(1)%is_dirty(depth=1)) THEN\n"
+        "        CALL coord_proxy(1)%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      IF (chi_proxy(2)%is_dirty(depth=1)) THEN\n"
-        "        CALL chi_proxy(2)%halo_exchange(depth=1)\n"
+        "      IF (coord_proxy(2)%is_dirty(depth=1)) THEN\n"
+        "        CALL coord_proxy(2)%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      IF (chi_proxy(3)%is_dirty(depth=1)) THEN\n"
-        "        CALL chi_proxy(3)%halo_exchange(depth=1)\n"
+        "      IF (coord_proxy(3)%is_dirty(depth=1)) THEN\n"
+        "        CALL coord_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
@@ -400,8 +472,8 @@ def test_operator_different_spaces(tmpdir):
         "        !\n"
         "        CALL assemble_weak_derivative_w3_w2_kernel_code(cell, "
         "nlayers, mapping_proxy%ncell_3d, mapping_proxy%local_stencil, "
-        "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w3, "
-        "basis_w3_qr, ndf_w2, diff_basis_w2_qr, orientation_w2, "
+        "coord_proxy(1)%data, coord_proxy(2)%data, coord_proxy(3)%data, "
+        "ndf_w3, basis_w3_qr, ndf_w2, diff_basis_w2_qr, orientation_w2, "
         "ndf_w0, undf_w0, map_w0(:,cell), diff_basis_w0_qr, "
         "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         "      END DO\n"
@@ -417,7 +489,7 @@ def test_operator_different_spaces(tmpdir):
 
 def test_operator_nofield(tmpdir):
     ''' Tests that an operator with no field on the same space is
-    implemented correctly in the PSy layer '''
+    implemented correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.1_operator_nofield.f90"),
                            api=TEST_API)
@@ -427,7 +499,7 @@ def test_operator_nofield(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
-        "SUBROUTINE invoke_0_testkern_operator_nofield_type(mm_w2, chi, qr)"
+        "SUBROUTINE invoke_0_testkern_operator_nofield_type(mm_w2, coord, qr)"
         in gen_code_str)
     assert "TYPE(operator_type), intent(in) :: mm_w2" in gen_code_str
     assert "TYPE(operator_proxy_type) mm_w2_proxy" in gen_code_str
@@ -436,15 +508,15 @@ def test_operator_nofield(tmpdir):
     assert "map_w2" not in gen_code_str
     assert ("CALL testkern_operator_nofield_code(cell, nlayers, "
             "mm_w2_proxy%ncell_3d, mm_w2_proxy%local_stencil, "
-            "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, "
+            "coord_proxy(1)%data, coord_proxy(2)%data, coord_proxy(3)%data, "
             "ndf_w2, basis_w2_qr, ndf_w0, undf_w0, "
             "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr)" in gen_code_str)
 
 
 def test_operator_nofield_different_space(tmpdir):
-    ''' tests that an operator with no field on different spaces is
-    implemented correctly in the PSy layer '''
+    ''' Tests that an operator with no field on different spaces is
+    implemented correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.5_operator_no_field_different_"
                                         "space.f90"),
@@ -486,7 +558,7 @@ def test_operator_nofield_scalar(tmpdir):
 def test_operator_nofield_scalar_deref(tmpdir, dist_mem):
     ''' Tests that an operator with no field and a
     scalar argument is implemented correctly in the PSy layer when both
-    are obtained by dereferencing derived type objects '''
+    are obtained by dereferencing derived type objects. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "10.6.1_operator_no_field_scalar_deref.f90"),
@@ -501,9 +573,9 @@ def test_operator_nofield_scalar_deref(tmpdir, dist_mem):
         assert "mesh => opbox_my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = opbox_my_mapping_proxy%fs_from%get_ndf()" in gen
-    assert ("qr_get_instance%compute_function(BASIS, "
-            "opbox_my_mapping_proxy%fs_from, "
-            "dim_w2, ndf_w2, basis_w2_qr_get_instance)" in gen)
+    assert ("qr_init_quadrature_symmetrical%compute_function(BASIS, "
+            "opbox_my_mapping_proxy%fs_from, dim_w2, ndf_w2, "
+            "basis_w2_qr_init_quadrature_symmetrical)" in gen)
     if dist_mem:
         assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
     else:
@@ -512,14 +584,16 @@ def test_operator_nofield_scalar_deref(tmpdir, dist_mem):
     assert (
         "(cell, nlayers, opbox_my_mapping_proxy%ncell_3d, "
         "opbox_my_mapping_proxy%local_stencil, box_b, ndf_w2, "
-        "basis_w2_qr_get_instance, np_xy_qr_get_instance, "
-        "np_z_qr_get_instance, weights_xy_qr_get_instance,"
-        " weights_z_qr_get_instance)" in gen)
+        "basis_w2_qr_init_quadrature_symmetrical, "
+        "np_xy_qr_init_quadrature_symmetrical, "
+        "np_z_qr_init_quadrature_symmetrical, "
+        "weights_xy_qr_init_quadrature_symmetrical, "
+        "weights_z_qr_init_quadrature_symmetrical)" in gen)
 
 
 def test_operator_orientation(tmpdir):
     ''' Tests that an operator requiring orientation information is
-    implemented correctly in the PSy layer '''
+    implemented correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.2_operator_orient.f90"),
                            api=TEST_API)
@@ -529,7 +603,7 @@ def test_operator_orientation(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
-        "SUBROUTINE invoke_0_testkern_operator_orient_type(mm_w1, chi, qr)"
+        "SUBROUTINE invoke_0_testkern_operator_orient_type(mm_w1, coord, qr)"
         in gen_str)
     assert "TYPE(operator_type), intent(in) :: mm_w1" in gen_str
     assert "TYPE(operator_proxy_type) mm_w1_proxy" in gen_str
@@ -539,15 +613,15 @@ def test_operator_orientation(tmpdir):
         "(cell)" in gen_str)
     assert ("CALL testkern_operator_orient_code(cell, nlayers, "
             "mm_w1_proxy%ncell_3d, mm_w1_proxy%local_stencil, "
-            "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w1, "
-            "basis_w1_qr, orientation_w1, ndf_w0, undf_w0, map_w0(:,cell), "
-            "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
-            "weights_z_qr)" in gen_str)
+            "coord_proxy(1)%data, coord_proxy(2)%data, coord_proxy(3)%data, "
+            "ndf_w1, basis_w1_qr, orientation_w1, ndf_w0, undf_w0, "
+            "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
+            "weights_xy_qr, weights_z_qr)" in gen_str)
 
 
 def test_op_orient_different_space(tmpdir):
     ''' Tests that an operator on different spaces requiring orientation
-    information is implemented correctly in the PSy layer '''
+    information is implemented correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.4_operator_orient_different_"
                                         "space.f90"),
@@ -572,8 +646,8 @@ def test_op_orient_different_space(tmpdir):
         "orientation_w1 => my_mapping_proxy%fs_to%get_cell_orientation(cell)"
         in gen_str)
     assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, "
-            "my_mapping_proxy%local_stencil, chi_proxy(1)%data, "
-            "chi_proxy(2)%data, chi_proxy(3)%data, ndf_w1, basis_w1_qr, "
+            "my_mapping_proxy%local_stencil, coord_proxy(1)%data, "
+            "coord_proxy(2)%data, coord_proxy(3)%data, ndf_w1, basis_w1_qr, "
             "orientation_w1, ndf_w2, orientation_w2, ndf_w0, undf_w0, "
             "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr)" in gen_str)
@@ -582,7 +656,7 @@ def test_op_orient_different_space(tmpdir):
 def test_operator_deref(tmpdir, dist_mem):
     ''' Tests that we generate correct names for an operator in the PSy
     layer when obtained by de-referencing a derived type in the Algorithm
-    layer '''
+    layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10.8_operator_deref.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API,
@@ -592,7 +666,7 @@ def test_operator_deref(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
-        "SUBROUTINE invoke_0_testkern_operator_type(mm_w0_op, chi, a, qr)"
+        "SUBROUTINE invoke_0_testkern_operator_type(mm_w0_op, coord, a, qr)"
         in generated_code)
     assert "TYPE(operator_type), intent(in) :: mm_w0_op" in generated_code
     assert "TYPE(operator_proxy_type) mm_w0_op_proxy" in generated_code
@@ -600,7 +674,7 @@ def test_operator_deref(tmpdir, dist_mem):
     assert (
         "CALL testkern_operator_code(cell, nlayers, "
         "mm_w0_op_proxy%ncell_3d, mm_w0_op_proxy%local_stencil, "
-        "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, a, "
+        "coord_proxy(1)%data, coord_proxy(2)%data, coord_proxy(3)%data, a, "
         "ndf_w0, undf_w0, map_w0(:,cell), basis_w0_qr, "
         "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
         "weights_z_qr)" in generated_code)
@@ -620,13 +694,16 @@ def test_operator_no_dofmap_lookup():
     assert gen_code.count("get_whole_dofmap") == 1
 
 
-def test_operator_read_level1_halo():
+def test_operator_read_level1_halo(tmpdir):
     ''' Check that we raise an error if a kernel attempts to read from an
-    operator beyond the level-1 halo '''
+    operator beyond the level-1 halo. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.7_operator_read.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
     # Modify the loop bound so that we attempt to read from the L2 halo
@@ -635,16 +712,18 @@ def test_operator_read_level1_halo():
     # Attempt to generate the code
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
-    assert ("Kernel 'testkern_operator_code' reads from an operator and "
+    assert ("Kernel 'testkern_operator_read_code' reads from an operator and "
             "therefore cannot be used for cells beyond the level 1 halo. "
             "However the containing loop goes out to level 2"
             in str(excinfo.value))
 
 
 def test_operator_bc_kernel(tmpdir):
-    ''' Tests that a kernel with a particular name is recognised as a
-    kernel that applies boundary conditions to operators and that
-    appropriate code is added to support this. '''
+    ''' Tests that a kernel with a particular name is recognised as
+    a kernel that applies boundary conditions to operators and that
+    appropriate code is added to support this.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
                            api=TEST_API)
@@ -657,8 +736,8 @@ def test_operator_bc_kernel(tmpdir):
     assert output2 in generated_code
     output3 = (
         "CALL enforce_operator_bc_code(cell, nlayers, op_a_proxy%ncell_3d, "
-        "op_a_proxy%local_stencil, ndf_any_space_1_op_a, "
-        "ndf_any_space_2_op_a, boundary_dofs_op_a)")
+        "op_a_proxy%local_stencil, ndf_aspc1_op_a, ndf_aspc2_op_a, "
+        "boundary_dofs_op_a)")
     assert output3 in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -678,10 +757,10 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     arg = call.arguments.args[0]
     # Monkeypatch the argument object so that it thinks it is a
     # field rather than an operator
-    monkeypatch.setattr(arg, "_type", value="gh_field")
+    monkeypatch.setattr(arg, "_argument_type", value="gh_field")
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
-    assert ("Expected a LMA operator from which to look-up boundary dofs "
+    assert ("Expected an LMA operator from which to look-up boundary dofs "
             "but kernel enforce_operator_bc_code has argument gh_field") \
         in str(excinfo.value)
 
@@ -708,7 +787,7 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
             "should only have 1 (an LMA operator)") in str(excinfo.value)
     # And again but make the second argument a field this time
-    call.arguments.args[1]._type = "gh_field"
+    call.arguments.args[1]._argument_type = "gh_field"
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
@@ -735,15 +814,23 @@ def test_operator_bc_kernel_wrong_access_err(dist_mem):
             "gh_readwrite") in str(excinfo.value)
 
 
-# operators : spaces and intent
+# Operators : spaces and intent (except for Wchi space as the fields on
+# this space are read-only).
 OPERATORS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(6) =                                         &
+     type(arg_type), meta_args(13) =                                        &
           (/ arg_type(gh_operator, gh_write,     w0, w0),                   &
              arg_type(gh_operator, gh_readwrite, w1, w1),                   &
              arg_type(gh_operator, gh_read,      w2, w2),                   &
+             arg_type(gh_operator, gh_read,      w2h, w2h),                 &
+             arg_type(gh_operator, gh_readwrite, w2v, w2v),                 &
+             arg_type(gh_operator, gh_write,     w2broken, w2broken),       &
+             arg_type(gh_operator, gh_read,      w2trace, w2trace),         &
+             arg_type(gh_operator, gh_read,      w2htrace, w2htrace),       &
+             arg_type(gh_operator, gh_readwrite, w2vtrace, w2vtrace),       &
              arg_type(gh_operator, gh_write,     w3, w3),                   &
+             arg_type(gh_operator, gh_write,     wtheta, wtheta),           &
              arg_type(gh_operator, gh_read,      any_space_1, any_space_1), &
              arg_type(gh_operator, gh_read,      any_discontinuous_space_1, &
                                                  any_discontinuous_space_1) &
@@ -760,7 +847,10 @@ end module dummy_mod
 
 
 def test_operators():
-    ''' Test that operators are handled correctly for kernel stubs '''
+    ''' Test that operators are handled correctly for kernel stubs (except
+    for Wchi space as the fields on this space are read-only).
+
+    '''
     ast = fpapi.parse(OPERATORS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -772,13 +862,18 @@ def test_operators():
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code(cell, nlayers, op_1_ncell_3d, op_1, "
         "op_2_ncell_3d, op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, "
-        "op_5_ncell_3d, op_5, op_6_ncell_3d, op_6, ndf_w0, ndf_w1, ndf_w2, "
-        "ndf_w3, ndf_any_space_1_op_5, ndf_any_discontinuous_space_1_op_6)\n"
+        "op_5_ncell_3d, op_5, op_6_ncell_3d, op_6, op_7_ncell_3d, op_7, "
+        "op_8_ncell_3d, op_8, op_9_ncell_3d, op_9, op_10_ncell_3d, op_10, "
+        "op_11_ncell_3d, op_11, op_12_ncell_3d, op_12, op_13_ncell_3d, "
+        "op_13, ndf_w0, ndf_w1, ndf_w2, ndf_w2h, ndf_w2v, ndf_w2broken, "
+        "ndf_w2trace, ndf_w2htrace, ndf_w2vtrace, ndf_w3, ndf_wtheta, "
+        "ndf_aspc1_op_12, ndf_adspc1_op_13)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w0, ndf_w1, ndf_w2, "
-        "ndf_w3, ndf_any_space_1_op_5, ndf_any_discontinuous_space_1_op_6\n"
+        "ndf_w2h, ndf_w2v, ndf_w2broken, ndf_w2trace, ndf_w2htrace, "
+        "ndf_w2vtrace, ndf_w3, ndf_wtheta, ndf_aspc1_op_12, ndf_adspc1_op_13\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w0,ndf_w0,"
@@ -790,34 +885,38 @@ def test_operators():
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w2,ndf_w2,"
         "op_3_ncell_3d) :: op_3\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2h,ndf_w2h,"
         "op_4_ncell_3d) :: op_4\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_5_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_5,"
-        "ndf_any_space_1_op_5,op_5_ncell_3d) :: op_5\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2v,ndf_w2v,"
+        "op_5_ncell_3d) :: op_5\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension("
-        "ndf_any_discontinuous_space_1_op_6,"
-        "ndf_any_discontinuous_space_1_op_6,op_6_ncell_3d) :: op_6\n"
+        "      REAL(KIND=r_def), intent(out), dimension(ndf_w2broken,"
+        "ndf_w2broken,op_6_ncell_3d) :: op_6\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_7_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2trace,"
+        "ndf_w2trace,op_7_ncell_3d) :: op_7\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_8_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2htrace,"
+        "ndf_w2htrace,op_8_ncell_3d) :: op_8\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_9_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2vtrace,"
+        "ndf_w2vtrace,op_9_ncell_3d) :: op_9\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "op_10_ncell_3d) :: op_10\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_11_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(out), dimension(ndf_wtheta,ndf_wtheta,"
+        "op_11_ncell_3d) :: op_11\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_aspc1_op_12,"
+        "ndf_aspc1_op_12,op_12_ncell_3d) :: op_12\n"
+        "      INTEGER(KIND=i_def), intent(in) :: op_13_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_adspc1_op_13,"
+        "ndf_adspc1_op_13,op_13_ncell_3d) :: op_13\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code
-
-
-def test_arg_descriptor_op_str():
-    ''' Tests that the string method for DynArgDescriptor03 works as
-    expected when we have an operator '''
-    ast = fpapi.parse(OPERATORS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    field_descriptor = metadata.arg_descriptors[0]
-    result = str(field_descriptor)
-    expected_output = (
-        "DynArgDescriptor03 object\n"
-        "  argument_type[0]='gh_operator'\n"
-        "  access_descriptor[1]='gh_write'\n"
-        "  function_space_to[2]='w0'\n"
-        "  function_space_from[3]='w0'\n")
-    assert expected_output in result
 
 
 OPERATOR_DIFFERENT_SPACES = '''
@@ -840,7 +939,9 @@ end module dummy_mod
 def test_stub_operator_different_spaces():
     ''' Test that the correct function spaces are provided in the
     correct order when generating a kernel stub with an operator on
-    different spaces '''
+    different spaces.
+
+    '''
     # Check the original code (to- and from- spaces both continuous)
     ast = fpapi.parse(OPERATOR_DIFFERENT_SPACES, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -858,11 +959,10 @@ def test_stub_operator_different_spaces():
     kernel = DynKern()
     kernel.load_meta(metadata)
     result = str(kernel.gen_stub)
-    assert ("(cell, nlayers, op_1_ncell_3d, op_1, ndf_w3, "
-            "ndf_any_discontinuous_space_2_op_1)") in result
-    assert ("dimension(ndf_w3,ndf_any_discontinuous_space_2_op_1,"
-            "op_1_ncell_3d)") in result
+    assert ("(cell, nlayers, op_1_ncell_3d, op_1, ndf_w3, ndf_adspc2_op_1)"
+            in result)
+    assert "dimension(ndf_w3,ndf_adspc2_op_1,op_1_ncell_3d)" in result
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
-    assert "function_space_to[2]='w3'" in result
-    assert "function_space_from[3]='any_discontinuous_space_2'" in result
+    assert "function_space_to[3]='w3'" in result
+    assert "function_space_from[4]='any_discontinuous_space_2'" in result

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
 
 ''' pytest tests for the Range class. '''
 
@@ -41,28 +41,21 @@ import pytest
 from psyclone.psyir.symbols import ScalarType, ArrayType, DataSymbol, \
     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE
 from psyclone.psyir.nodes import Range, Literal, Reference, Node
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError, GenerationError
 
 
 @pytest.mark.parametrize("prop", ["start", "stop", "step"])
 def test_range_getter_errors(prop):
     ''' Test that attempting to get any of the start/stop/step properties for
-    an invalid Range object raises the expected errors. '''
+    an incomplete Range object raises the expected error. '''
     # pylint:disable=eval-used
     erange = Range()
     # Manually break the list of children
-    erange._children = []
+    erange.children = []
     with pytest.raises(InternalError) as err:
         _ = eval("erange." + prop)
     assert ("Malformed Range: should have three children but found 0"
             in str(err.value))
-
-    # Correct number of children but wrong type (as initialised to None)
-    erange = Range()
-    with pytest.raises(InternalError) as err:
-        _ = eval("erange." + prop)
-    assert ("Malformed Range: all children must be sub-classes of "
-            "Node" in str(err.value))
 
 
 def test_range_init(parser):
@@ -70,7 +63,7 @@ def test_range_init(parser):
     from fparser.common.readfortran import FortranStringReader
     # When no arguments are provided
     erange = Range()
-    assert erange.children == [None, None, None]
+    assert not erange.children  # Children list is empty
     assert erange.parent is None
     assert erange.annotations == []
     assert erange.ast is None
@@ -78,7 +71,7 @@ def test_range_init(parser):
     parent = Node()
     reader = FortranStringReader("program hello\nend program hello\n")
     prog = parser(reader)
-    erange2 = Range(parse_node=prog, parent=parent)
+    erange2 = Range(ast=prog, parent=parent)
     assert erange2.parent is parent
     assert erange2.ast is prog
     with pytest.raises(InternalError) as err:
@@ -178,17 +171,50 @@ def test_range_references_props():
     assert erange.children[2] is step
 
 
+def test_range_out_of_order_setter():
+    ''' Test that setting the start/stop/step props out of order raises the
+    expected error. '''
+    erange = Range()
+    datanode1 = Literal("1", INTEGER_SINGLE_TYPE)
+    datanode2 = Literal("2", INTEGER_SINGLE_TYPE)
+    datanode3 = Literal("3", INTEGER_SINGLE_TYPE)
+
+    # Stop before Start
+    with pytest.raises(IndexError) as excinfo:
+        erange.stop = datanode2
+    assert ("The Stop value 'Literal[value:'2', Scalar<INTEGER, SINGLE>]' can"
+            " not be inserted into range 'Range[]' before the Start value is "
+            "provided." in str(excinfo.value))
+    # Once start is added, setting it up again just replaces it
+    erange.start = datanode1
+    erange.start = datanode1
+    assert len(erange.children) == 1
+    # Now Stop can be accepted
+    erange.stop = datanode2
+    # Once added, setting it up again just replaces it
+    erange.stop = datanode2
+    assert len(erange.children) == 2
+
+    # Step before Step
+    del erange.children[1]
+    with pytest.raises(IndexError) as excinfo:
+        erange.step = datanode3
+    assert ("The Step value 'Literal[value:'3', Scalar<INTEGER, SINGLE>]' can"
+            " not be inserted into range 'Range[]' before the Start and Stop "
+            "values are provided." in str(excinfo.value))
+    erange.stop = datanode2
+    erange.step = datanode3
+    # Once added, setting it up again just replaces it
+    erange.step = datanode3
+    assert len(erange.children) == 3
+
+
 def test_range_str():
     ''' Check that node_str and str work correctly for a Range node. '''
     erange = Range()
-    with pytest.raises(InternalError) as err:
-        str(erange)
-    assert "Malformed Range: all children must be sub-" in str(err.value)
-    erange2 = Range.create(Literal("1", INTEGER_SINGLE_TYPE),
-                           Literal("10", INTEGER_SINGLE_TYPE))
-    assert 'Range[]' in erange2.node_str(colour=False)
-    assert 'Range' in erange2.node_str(colour=True)
-    assert erange2.node_str(colour=False) == str(erange2)
+    assert 'Range[]' in erange.node_str(colour=False)
+    assert 'Range' in erange.node_str(colour=True)
+    assert erange.node_str(colour=False) == str(erange)
 
 
 def test_range_view(capsys):
@@ -215,9 +241,46 @@ def test_range_view(capsys):
             indent + literal +
             "[value:'1', Scalar<INTEGER, SINGLE>]\n" +
             indent + rangestr + "[]\n" +
-            2*indent + literal +
-            "[value:'1', Scalar<INTEGER, SINGLE>]\n" +
-            2*indent + literal +
-            "[value:'10', Scalar<INTEGER, SINGLE>]\n" +
-            2*indent + literal +
-            "[value:'1', Scalar<INTEGER, UNDEFINED>]\n" in stdout)
+            2*indent + literal + "[value:'1', Scalar<INTEGER, SINGLE>]\n" +
+            2*indent + literal + "[value:'10', Scalar<INTEGER, SINGLE>]\n" +
+            2*indent + literal + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            in stdout)
+
+
+def test_range_children_validation():
+    '''Test that children added to Range are validated. Range accepts
+    3 DataNodes.
+
+    '''
+    erange = Range()
+    datanode1 = Literal("1", INTEGER_SINGLE_TYPE)
+    datanode2 = Literal("2", INTEGER_SINGLE_TYPE)
+    datanode3 = Literal("3", INTEGER_SINGLE_TYPE)
+    range2 = Range()
+
+    # First child
+    with pytest.raises(GenerationError) as excinfo:
+        erange.addchild(range2)
+    assert ("Item 'Range' can't be child 0 of 'Range'. The valid format is: "
+            "'DataNode, DataNode, DataNode'." in str(excinfo.value))
+    erange.addchild(datanode1)
+
+    # Second child
+    with pytest.raises(GenerationError) as excinfo:
+        erange.addchild(range2)
+    assert ("Item 'Range' can't be child 1 of 'Range'. The valid format is: "
+            "'DataNode, DataNode, DataNode'." in str(excinfo.value))
+    erange.addchild(datanode2)
+
+    # Third child
+    with pytest.raises(GenerationError) as excinfo:
+        erange.addchild(range2)
+    assert ("Item 'Range' can't be child 2 of 'Range'. The valid format is: "
+            "'DataNode, DataNode, DataNode'." in str(excinfo.value))
+    erange.addchild(datanode3)
+
+    # Additional children
+    with pytest.raises(GenerationError) as excinfo:
+        erange.addchild(datanode1)
+    assert ("Item 'Literal' can't be child 3 of 'Range'. The valid format is:"
+            " 'DataNode, DataNode, DataNode'." in str(excinfo.value))

@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic,    Met Office
+#          C.M. Maynard, Met Office / University of Reading
 # -----------------------------------------------------------------------------
 
 ''' This module provides generic support for PSyclone's PSy code optimisation
@@ -40,6 +41,7 @@
     particular API and implementation. '''
 
 from __future__ import print_function, absolute_import
+from collections import OrderedDict
 import abc
 import six
 from fparser.two import Fortran2003
@@ -48,8 +50,9 @@ from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
     Symbol, INTEGER_TYPE, BOOLEAN_TYPE
-from psyclone.psyir.nodes import Node, Schedule, Loop
+from psyclone.psyir.nodes import Node, Schedule, Loop, Statement
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
+from psyclone.parse.algorithm import BuiltInCall
 
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -62,9 +65,9 @@ FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 # overidden.
 OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
-# Names of types of scalar variable
-MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
-
+# Names of internal scalar argument types. Can be overridden in
+# domain-specific modules.
+VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
 
 # Valid types of argument to a kernel call
 VALID_ARG_TYPE_NAMES = []
@@ -138,24 +141,26 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
     arg_types and with access in arg_accesses. If these are not set
     then return all arguments.
 
-    :param arg_list: List of kernel arguments to filter
-    :type arg_list: list of :py:class:`psyclone.parse.algorithm.Descriptor`
-    :param arg_types: List of argument types (e.g. "GH_FIELD")
+    :param arg_list: list of kernel arguments to filter.
+    :type arg_list: list of :py:class:`psyclone.parse.kernel.Descriptor`
+    :param arg_types: list of argument types (e.g. "GH_FIELD").
     :type arg_types: list of str
-    :param arg_accesses: List of access types that arguments must have
-    :type arg_accesses: List of \
-        :py:class:`psyclone.core.access_type.AccessType`.
-    :param arg_meshes: List of meshes that arguments must be on
+    :param arg_accesses: list of access types that arguments must have.
+    :type arg_accesses: list of \
+        :py:class:`psyclone.core.access_type.AccessType`
+    :param arg_meshes: list of meshes that arguments must be on.
     :type arg_meshes: list of str
-    :param bool is_literal: Whether or not to include literal arguments in \
+    :param bool is_literal: whether or not to include literal arguments in \
                             the returned list.
-    :returns: list of kernel arguments matching the requirements
-    :rtype: list of :py:class:`psyclone.parse.algorithm.Descriptor`
+
+    :returns: list of kernel arguments matching the requirements.
+    :rtype: list of :py:class:`psyclone.parse.kernel.Descriptor`
+
     '''
     arguments = []
     for argument in arg_list:
         if arg_types:
-            if argument.type.lower() not in arg_types:
+            if argument.argument_type.lower() not in arg_types:
                 continue
         if arg_accesses:
             if argument.access not in arg_accesses:
@@ -258,28 +263,48 @@ class PSy(object):
 
     @property
     def invokes(self):
+        ''':returns: the list of invokes.
+        :rtype: :py:class:`psyclone.psyGen.Invokes` or derived class
+        '''
         return self._invokes
 
     @property
     def name(self):
+        ''':returns: the name of the PSy object.
+        :rtype: str
+        '''
         return "psy_"+self._name
 
     @property
     @abc.abstractmethod
     def gen(self):
         '''Abstract base class for code generation function.
-        :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`.
+
+        :returns: root node of generated Fortran AST.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
 
     def inline(self, module):
-        ''' inline all kernel subroutines into the module that are marked for
-            inlining. Avoid inlining the same kernel more than once. '''
+        '''Inline all kernel subroutines into the module that are marked for
+        inlining. Avoid inlining the same kernel more than once.
+
+        :param module: the module to which the kernel is added for inlining.
+        :type module: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        :raises InternalError: if kernel_code (fparser1 AST of kernel) \
+                is None.
+        '''
         inlined_kernel_names = []
         for invoke in self.invokes.invoke_list:
             schedule = invoke.schedule
             for kernel in schedule.walk(CodedKern):
                 if kernel.module_inline:
+                    # raise an internal error if kernel_code is None
+                    if kernel._kernel_code is None:
+                        raise InternalError(
+                            "Have no fparser1 AST for kernel {0}."
+                            " Therefore cannot inline it."
+                            .format(kernel))
                     if kernel.name.lower() not in inlined_kernel_names:
                         inlined_kernel_names.append(kernel.name.lower())
                         module.add_raw_subroutine(kernel._kernel_code)
@@ -541,41 +566,53 @@ class Invoke(object):
     def schedule(self, obj):
         self._schedule = obj
 
-    def unique_declarations(self, datatype, access=None):
-        ''' Returns a list of all required declarations for the
-        specified datatype. If access is supplied (e.g. "write") then
-        only declarations with that access are returned.
-        :param string datatype: The type of the kernel argument for the \
-                                particular API for which the intent is \
-                                required
-        :param access: Optional AccessType that the declaration should have.
-        :returns: List of all declared names.
-        :rtype: A list of strings.
-        :raises: GenerationError if an invalid datatype is given.
-        :raises: InternalError if an invalid access is specified.
+    def unique_declarations(self, argument_types, access=None):
         '''
-        if datatype not in VALID_ARG_TYPE_NAMES:
-            raise GenerationError(
-                "unique_declarations called with an invalid datatype. "
-                "Expected one of '{0}' but found '{1}'".
-                format(str(VALID_ARG_TYPE_NAMES), datatype))
+        Returns a list of all required declarations for the specified
+        API argument types. If access is supplied (e.g. "write") then
+        only declarations with that access are returned.
+
+        :param argument_types: the types of the kernel argument for the \
+                               particular API.
+        :type argument_types: list of str
+        :param access: optional AccessType that the declaration should have.
+        :type access: :py:class:`psyclone.core.access_type.AccessType`
+
+        :returns: a list of all declared kernel arguments.
+        :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
+
+        :raises InternalError: if at least one kernel argument type is \
+                               not valid for the particular API.
+        :raises InternalError: if an invalid access is specified.
+
+        '''
+        # First check for invalid argument types and invalid access
+        if any(argtype not in VALID_ARG_TYPE_NAMES for
+               argtype in argument_types):
+            raise InternalError(
+                "Invoke.unique_declarations() called with at least one "
+                "invalid argument type. Expected one of {0} but found {1}.".
+                format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
 
         if access and not isinstance(access, AccessType):
             raise InternalError(
-                "unique_declarations called with an invalid access type. "
-                "Type is {0} instead of AccessType".
-                format(type(access)))
+                "Invoke.unique_declarations() called with an invalid access "
+                "type. Type is '{0}' instead of AccessType.".
+                format(str(access)))
 
-        declarations = []
+        # Initialise dictionary of kernel arguments to get the
+        # argument list from
+        declarations = OrderedDict()
+        # Find unique kernel arguments using their declaration names
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
                 if not access or arg.access == access:
                     if arg.text is not None:
-                        if arg.type == datatype:
+                        if arg.argument_type in argument_types:
                             test_name = arg.declaration_name
                             if test_name not in declarations:
-                                declarations.append(test_name)
-        return declarations
+                                declarations[test_name] = arg
+        return list(declarations.values())
 
     def first_access(self, arg_name):
         ''' Returns the first argument with the specified name passed to
@@ -588,56 +625,30 @@ class Invoke(object):
         raise GenerationError("Failed to find any kernel argument with name "
                               "'{0}'".format(arg_name))
 
-    def unique_declns_by_intent(self, datatype):
+    def unique_declns_by_intent(self, argument_types):
         '''
         Returns a dictionary listing all required declarations for each
         type of intent ('inout', 'out' and 'in').
 
-        :param string datatype: the type of the kernel argument for the \
-                                particular API for which the intent is \
-                                required
+        :param argument_types: the types of the kernel argument for the \
+                               particular API for which the intent is required.
+        :type argument_types: list of str
+
         :returns: dictionary containing 'intent' keys holding the kernel \
-                  argument intent and declarations of all kernel arguments \
-                  for each type of intent
-        :rtype: dict
-        :raises GenerationError: if the kernel argument is not a valid \
-                                 datatype for the particular API.
+                  arguments as values for each type of intent.
+        :rtype: dict of :py:class:`psyclone.psyGen.KernelArgument`
+
+        :raises InternalError: if at least one kernel argument type is \
+                               not valid for the particular API.
 
         '''
-        if datatype not in VALID_ARG_TYPE_NAMES:
-            raise GenerationError(
-                "unique_declns_by_intent called with an invalid datatype. "
-                "Expected one of '{0}' but found '{1}'".
-                format(str(VALID_ARG_TYPE_NAMES), datatype))
-
-        # Get the lists of all kernel arguments that are accessed as
-        # inc (shared update), write, read and readwrite (independent
-        # update). A single argument may be accessed in different ways
-        # by different kernels.
-        inc_args = self.unique_declarations(datatype, access=AccessType.INC)
-        write_args = self.unique_declarations(datatype,
-                                              access=AccessType.WRITE)
-        read_args = self.unique_declarations(datatype, access=AccessType.READ)
-        readwrite_args = self.unique_declarations(datatype,
-                                                  AccessType.READWRITE)
-        sum_args = self.unique_declarations(datatype, access=AccessType.SUM)
-        # sum_args behave as if they are write_args from
-        # the PSy-layer's perspective.
-        write_args += sum_args
-        # readwrite_args behave in the same way as inc_args
-        # from the perspective of first access and intents
-        inc_args += readwrite_args
-        # Rationalise our lists so that any fields that are updated
-        # (have inc or readwrite access) do not appear in the list
-        # of those that are only written to
-        for arg in write_args[:]:
-            if arg in inc_args:
-                write_args.remove(arg)
-        # Fields that are only ever read by any kernel that
-        # accesses them
-        for arg in read_args[:]:
-            if arg in write_args or arg in inc_args:
-                read_args.remove(arg)
+        # First check for invalid argument types
+        if any(argtype not in VALID_ARG_TYPE_NAMES for
+               argtype in argument_types):
+            raise InternalError(
+                "Invoke.unique_declns_by_intent() called with at least one "
+                "invalid argument type. Expected one of {0} but found {1}.".
+                format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
 
         # We will return a dictionary containing as many lists
         # as there are types of intent
@@ -645,38 +656,35 @@ class Invoke(object):
         for intent in FORTRAN_INTENT_NAMES:
             declns[intent] = []
 
-        for name in inc_args:
-            # For every arg that is updated ('inc'd' or readwritten)
-            # by at least one kernel, identify the type of the first
-            # access. If it is 'write' then the arg is only
-            # intent(out), otherwise it is intent(inout)
-            first_arg = self.first_access(name)
-            if first_arg.access != AccessType.WRITE:
-                if name not in declns["inout"]:
-                    declns["inout"].append(name)
+        for arg in self.unique_declarations(argument_types):
+            first_arg = self.first_access(arg.declaration_name)
+            if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
+                # If the first access is a write then the intent is
+                # out irrespective of any other accesses. Note,
+                # sum_args behave as if they are write_args from the
+                # PSy-layer's perspective.
+                declns["out"].append(arg)
+                continue
+            # if all accesses are read, then the intent is in,
+            # otherwise the intent is inout (as we have already
+            # dealt with intent out).
+            read_only = True
+            for call in self.schedule.kernels():
+                for tmp_arg in call.arguments.args:
+                    if tmp_arg.text is not None and \
+                       tmp_arg.declaration_name == arg.declaration_name:
+                        if tmp_arg.access != AccessType.READ:
+                            # readwrite_args behave in the
+                            # same way as inc_args from the
+                            # perspective of intents
+                            read_only = False
+                            break
+                if not read_only:
+                    break
+            if read_only:
+                declns["in"].append(arg)
             else:
-                if name not in declns["out"]:
-                    declns["out"].append(name)
-
-        for name in write_args:
-            # For every argument that is written to by at least one kernel,
-            # identify the type of the first access - if it is read
-            # or inc'd before it is written then it must have intent(inout).
-            # However, we deal with inc and readwrite args separately so we
-            # do not consider those here.
-            first_arg = self.first_access(name)
-            if first_arg.access == AccessType.READ:
-                if name not in declns["inout"]:
-                    declns["inout"].append(name)
-            else:
-                if name not in declns["out"]:
-                    declns["out"].append(name)
-
-        for name in read_args:
-            # Anything we have left must be declared as intent(in)
-            if name not in declns["in"]:
-                declns["in"].append(name)
-
+                declns["inout"].append(arg)
         return declns
 
     def gen(self):
@@ -779,40 +787,34 @@ class InvokeSchedule(Schedule):
     :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
 
     '''
+    # Textual description of the node.
+    _text_name = "InvokeSchedule"
+
     def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None):
+        super(InvokeSchedule, self).__init__()
 
-        # Initialise class attributes
-        self._parent = None
-        # TODO #645 once children are not passed to the base-class constructor
-        # we should call that constructor here and have *it* create the symbol
-        # table.
-        self._symbol_table = SymbolTable()
-        if reserved_names:
-            for name in reserved_names:
-                self._symbol_table.add(Symbol(name))
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
 
         # InvokeSchedule opencl_options default values
         self._opencl_options = {"end_barrier": True}
 
-        # we need to separate calls into loops (an iteration space really)
+        # Populate the Schedule Symbol Table with the reserved names.
+        if reserved_names:
+            for name in reserved_names:
+                self.symbol_table.add(Symbol(name))
+
+        # We need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
         # two entities.
         if alg_calls is None:
             alg_calls = []
-        sequence = []
-        from psyclone.parse.algorithm import BuiltInCall
         for call in alg_calls:
             if isinstance(call, BuiltInCall):
-                sequence.append(BuiltInFactory.create(call, parent=self))
+                self.addchild(BuiltInFactory.create(call, parent=self))
             else:
-                sequence.append(KernFactory.create(call, parent=self))
-        # TODO #645 move this constructor call to the beginning of this
-        # routine.
-        Schedule.__init__(self, children=sequence, parent=None)
-        self._text_name = "InvokeSchedule"
+                self.addchild(KernFactory.create(call, parent=self))
 
     @property
     def symbol_table(self):
@@ -871,10 +873,10 @@ class InvokeSchedule(Schedule):
             self.coloured_name(colour), self.invoke.name)
 
     def __str__(self):
-        result = "InvokeSchedule:\n"
+        result = self.coloured_name(False) + ":\n"
         for entity in self._children:
             result += str(entity) + "\n"
-        result += "End InvokeSchedule\n"
+        result += "End " + self.coloured_name(False) + "\n"
         return result
 
     def gen_code(self, parent):
@@ -903,7 +905,7 @@ class InvokeSchedule(Schedule):
         # Global symbols promoted from Kernel Globals are in the SymbolTable
         # First aggregate all globals variables from the same module in a map
         module_map = {}
-        for globalvar in self.symbol_table.global_datasymbols:
+        for globalvar in self.symbol_table.global_symbols:
             module_name = globalvar.interface.container_symbol.name
             if module_name in module_map:
                 module_map[module_name].append(globalvar.name)
@@ -1029,7 +1031,7 @@ class InvokeSchedule(Schedule):
         self._opencl = value
 
 
-class Directive(Node):
+class Directive(Statement):
     '''
     Base class for all Directive statements.
 
@@ -1049,13 +1051,28 @@ class Directive(Node):
     # The prefix to use when constructing this directive in Fortran
     # (e.g. "OMP"). Must be set by sub-class.
     _PREFIX = ""
+    # Textual description of the node.
+    _children_valid_format = "Schedule"
+    _text_name = "Directive"
+    _colour_key = "Directive"
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
         sched = self._insert_schedule(children, ast)
         super(Directive, self).__init__(ast, children=[sched], parent=parent)
-        self._text_name = "Directive"
-        self._colour_key = "Directive"
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return position == 0 and isinstance(child, Schedule)
 
     @property
     def dir_body(self):
@@ -1576,16 +1593,22 @@ class OMPDirective(Directive):
         return self.coloured_name(colour) + "[OMP]"
 
     def _get_reductions_list(self, reduction_type):
-        '''Return the name of all scalars within this region that require a
-        reduction of type reduction_type. Returned names will be unique.
-        :param reduction_type: The reduction type (e.g. AccessType.SUM) to \
-            search for.
+        '''
+        Returns the names of all scalars within this region that require a
+        reduction of type 'reduction_type'. Returned names will be unique.
+
+        :param reduction_type: the reduction type (e.g. AccessType.SUM) to \
+                               search for.
         :type reduction_type: :py:class:`psyclone.core.access_type.AccessType`
+
+        :returns: names of scalar arguments with reduction access.
+        :rtype: list of str
+
         '''
         result = []
         for call in self.kernels():
             for arg in call.arguments.args:
-                if arg.type in MAPPING_SCALARS.values():
+                if arg.argument_type in VALID_SCALAR_NAMES:
                     if arg.descriptor.access == reduction_type:
                         if arg.name not in result:
                             result.append(arg.name)
@@ -1962,11 +1985,11 @@ class OMPDoDirective(OMPDirective):
         '''
         # Since this is an OpenMP do, it can only be applied
         # to a single loop.
-        if len(self._children) != 1:
+        if len(self.dir_body.children) != 1:
             raise GenerationError(
                 "An OpenMP DO can only be applied to a single loop "
                 "but this Node has {0} children: {1}".
-                format(len(self._children), self._children))
+                format(len(self.dir_body.children), self.dir_body.children))
 
         self._add_region(start_text="do schedule({0})".format(
             self._omp_schedule), end_text="end do")
@@ -2034,11 +2057,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         '''
         # Since this is an OpenMP (parallel) do, it can only be applied
         # to a single loop.
-        if len(self._children) != 1:
+        if len(self.dir_body.children) != 1:
             raise GenerationError(
                 "An OpenMP PARALLEL DO can only be applied to a single loop "
                 "but this Node has {0} children: {1}".
-                format(len(self._children), self._children))
+                format(len(self.dir_body.children), self.dir_body.children))
 
         self._add_region(
             start_text="parallel do default(shared), private({0}), "
@@ -2047,7 +2070,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             end_text="end parallel do")
 
 
-class GlobalSum(Node):
+class GlobalSum(Statement):
     '''
     Generic Global Sum class which can be added to and manipulated
     in, a schedule.
@@ -2058,6 +2081,11 @@ class GlobalSum(Node):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
+    # Textual description of the node.
+    _children_valid_format = "<LeafNode>"
+    _text_name = "GlobalSum"
+    _colour_key = "GlobalSum"
+
     def __init__(self, scalar, parent=None):
         Node.__init__(self, children=[], parent=parent)
         import copy
@@ -2068,8 +2096,6 @@ class GlobalSum(Node):
             # accesses/updates a scalar
             self._scalar.access = AccessType.READWRITE
             self._scalar.call = self
-        self._text_name = "GlobalSum"
-        self._colour_key = "GlobalSum"
 
     @property
     def scalar(self):
@@ -2104,7 +2130,7 @@ class GlobalSum(Node):
         return self.node_str(False)
 
 
-class HaloExchange(Node):
+class HaloExchange(Statement):
     '''
     Generic Halo Exchange class which can be added to and
     manipulated in, a schedule.
@@ -2123,6 +2149,11 @@ class HaloExchange(Node):
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
+    # Textual description of the node.
+    _children_valid_format = "<LeafNode>"
+    _text_name = "HaloExchange"
+    _colour_key = "HaloExchange"
+
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
         Node.__init__(self, children=[], parent=parent)
@@ -2138,8 +2169,6 @@ class HaloExchange(Node):
         self._halo_depth = None
         self._check_dirty = check_dirty
         self._vector_index = vector_index
-        self._text_name = "HaloExchange"
-        self._colour_key = "HaloExchange"
 
     @property
     def vector_index(self):
@@ -2262,7 +2291,7 @@ class HaloExchange(Node):
         return self.node_str(False)
 
 
-class Kern(Node):
+class Kern(Statement):
     '''
     Base class representing a call to a sub-program unit from within the
     PSy layer. It is possible for this unit to be in-lined within the
@@ -2281,8 +2310,11 @@ class Kern(Node):
     :raises GenerationError: if any of the arguments to the call are \
                              duplicated.
     '''
+    # Textual representation of the valid children for this node.
+    _children_valid_format = "<LeafNode>"
+
     def __init__(self, parent, call, name, arguments):
-        Node.__init__(self, children=[], parent=parent)
+        super(Kern, self).__init__(self, parent=parent)
         self._arguments = arguments
         self._name = name
         self._iterates_over = call.ktype.iterates_over
@@ -2298,15 +2330,14 @@ class Kern(Node):
                         "Argument '{0}' is passed into kernel '{1}' code more "
                         "than once from the algorithm layer. This is not "
                         "allowed.".format(arg.text, self._name))
-                else:
-                    arg_names.append(text)
+                arg_names.append(text)
 
         self._arg_descriptors = None
 
-        # initialise any reduction information
+        # Initialise any reduction information
         reduction_modes = AccessType.get_valid_reduction_modes()
         args = args_filter(arguments.args,
-                           arg_types=MAPPING_SCALARS.values(),
+                           arg_types=VALID_SCALAR_NAMES,
                            arg_accesses=reduction_modes)
         if args:
             self._reduction = True
@@ -2388,13 +2419,14 @@ class Kern(Node):
         '''
         Generate code to zero the reduction variable and to zero the local
         reduction variable if one exists. The latter is used for reproducible
-        reductions, if specified.
+        reductions, if specified. Note: this method is currently only supported
+        for LFRic API.
 
         :param parent: the Node in the AST to which to add new code.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param str position: where to position the new code in the AST.
-        :raises GenerationError: if the variable to zero is not of type \
-                                 gh_real or gh_integer.
+
+        :raises GenerationError: if the variable to zero is not a scalar.
         :raises GenerationError: if the reprod_pad_size (read from the \
                                  configuration file) is less than 1.
 
@@ -2404,28 +2436,25 @@ class Kern(Node):
             position = ["auto"]
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
-        var_type = self._reduction_arg.type
-        if var_type == "gh_real":
-            data_type = "real"
-            data_value = "0.0"
-            kind_type = \
-                Config.get().api_conf("dynamo0.3").default_kind[data_type]
-            zero = "_".join([data_value, kind_type])
-        elif var_type == "gh_integer":
-            data_type = "integer"
-            data_value = "0"
-            kind_type = \
-                Config.get().api_conf("dynamo0.3").default_kind[data_type]
-            zero = "_".join([data_value, kind_type])
-        else:
+        var_arg = self._reduction_arg
+        # Check for a non-scalar argument
+        if not var_arg.is_scalar:
             raise GenerationError(
-                "zero_reduction variable should be one of ['gh_real', "
-                "'gh_integer'] but found '{0}'".format(var_type))
-
+                "Kern.zero_reduction_variable() should be a scalar but "
+                "found '{0}'.".format(var_arg.argument_type))
+        # Generate the reduction variable
+        var_data_type = var_arg.intrinsic_type
+        if var_data_type == "real":
+            data_value = "0.0"
+        if var_data_type == "integer":
+            data_value = "0"
+        kind_type = \
+            Config.get().api_conf("dynamo0.3").default_kind[var_data_type]
+        zero = "_".join([data_value, kind_type])
         parent.add(AssignGen(parent, lhs=var_name, rhs=zero),
                    position=position)
         if self.reprod_reduction:
-            parent.add(DeclGen(parent, datatype=data_type,
+            parent.add(DeclGen(parent, datatype=var_data_type,
                                entity_decls=[local_var_name],
                                allocatable=True, kind=kind_type,
                                dimension=":,:"))
@@ -2562,6 +2591,10 @@ class CodedKern(Kern):
                              call does not match that in the meta-data.
 
     '''
+    # Textual description of the node.
+    _text_name = "CodedKern"
+    _colour_key = "CodedKern"
+
     def __init__(self, KernelArguments, call, parent=None, check=True):
         self._parent = parent
         super(CodedKern, self).__init__(parent, call,
@@ -2587,8 +2620,6 @@ class CodedKern(Kern):
                        len(call.ktype.arg_descriptors),
                        len(call.args)))
         self.arg_descriptors = call.ktype.arg_descriptors
-        self._text_name = "CodedKern"
-        self._colour_key = "CodedKern"
 
     def get_kernel_schedule(self):
         '''
@@ -3083,17 +3114,47 @@ class InlinedKern(Kern):
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
     '''
+    # Textual description of the node.
+    _children_valid_format = "Schedule"
+    _text_name = "InlinedKern"
+    _colour_key = "InlinedKern"
 
     def __init__(self, psyir_nodes):
-        # pylint: disable=non-parent-init-called,super-init-not-called
+        # pylint: disable=non-parent-init-called, super-init-not-called
+        Node.__init__(self)
         schedule = Schedule(children=psyir_nodes, parent=self)
-        Node.__init__(self, children=[schedule])
+        self.children = [schedule]
         # Update the parent info for each node we've moved
         for node in schedule.children:
             node.parent = schedule
 
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return position == 0 and isinstance(child, Schedule)
+
+    def node_str(self, colour=True):
+        '''
+        Creates a class-specific text description of this node, optionally
+        including colour control codes (for coloured output in a terminal).
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: the class-specific text describing this node.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + "[]"
+
     def __str__(self):
-        return "inlined kern: " + self._name
+        return self.coloured_name(False)
 
     @abc.abstractmethod
     def local_vars(self):
@@ -3109,6 +3170,10 @@ class BuiltIn(Kern):
     Parent class for all built-ins (field operations for which the user
     does not have to provide an implementation).
     '''
+    # Textual description of the node.
+    _text_name = "BuiltIn"
+    _colour_key = "BuiltIn"
+
     def __init__(self):
         # We cannot call Kern.__init__ as don't have necessary information
         # here. Instead we provide a load() method that can be called once
@@ -3117,8 +3182,6 @@ class BuiltIn(Kern):
         self._func_descriptors = None
         self._fs_descriptors = None
         self._reduction = None
-        self._text_name = "BuiltIn"
-        self._colour_key = "BuiltIn"
 
     @property
     def dag_name(self):
@@ -3129,8 +3192,6 @@ class BuiltIn(Kern):
         ''' Set-up the state of this BuiltIn call '''
         name = call.ktype.name
         super(BuiltIn, self).__init__(parent, call, name, arguments)
-        self._text_name = "BuiltIn"
-        self._colour_key = "BuiltIn"
 
     def local_vars(self):
         '''Variables that are local to this built-in and therefore need to be
@@ -3339,7 +3400,7 @@ class DataAccess(object):
             return
 
         if isinstance(arg.call, HaloExchange) and \
-           self._arg.vector_size > 1:
+           (hasattr(self._arg, 'vector_size') and self._arg.vector_size > 1):
             # The supplied argument is a vector field coming from a
             # halo exchange and therefore only accesses one of the
             # vectors
@@ -3431,8 +3492,6 @@ class Argument(object):
                 self._name = self._call.root.symbol_table.name_from_tag(
                     tag, self._orig_name)
 
-        self._vector_size = 1
-
     def __str__(self):
         return self._name
 
@@ -3470,12 +3529,30 @@ class Argument(object):
         self._access = value
 
     @property
-    def type(self):
-        '''Return the type of the argument. API's that do not have this
-        concept (such as gocean0.1 and dynamo0.1) can use this
-        baseclass version which just returns "field" in all
-        cases. API's with this concept can override this method '''
+    def argument_type(self):
+        '''
+        Returns the type of the argument. APIs that do not have this
+        concept (such as GOcean0.1 and Dynamo0.1) can use this
+        base class version which just returns "field" in all
+        cases. API's with this concept can override this method.
+
+        :returns: the API type of the kernel argument.
+        :rtype: str
+
+        '''
         return "field"
+
+    @property
+    @abc.abstractmethod
+    def intrinsic_type(self):
+        '''
+        Abstract property for the intrinsic type of the argument with
+        specific implementations in different APIs.
+
+        :returns: the intrinsic type of this argument.
+        :rtype: str
+
+        '''
 
     @property
     def call(self):
@@ -3712,6 +3789,7 @@ class KernelArgument(Argument):
     def stencil(self):
         return self._arg.stencil
 
+    @property
     @abc.abstractmethod
     def is_scalar(self):
         ''':returns: whether this variable is a scalar variable or not.
@@ -4071,7 +4149,7 @@ class KernelSchedule(Schedule):
 
         kern = KernelSchedule(name)
         kern._symbol_table = symbol_table
-        symbol_table._schedule = kern
+        symbol_table._node = kern
         for child in children:
             child.parent = kern
         kern.children = children

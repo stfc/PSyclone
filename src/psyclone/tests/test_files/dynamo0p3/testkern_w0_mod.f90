@@ -1,6 +1,6 @@
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -28,29 +28,42 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
+! Author R. W. Ford STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 module testkern_w0_mod
+
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
+
+  implicit none
+
   type, extends(kernel_type) :: testkern_w0_type
-     type(arg_type), dimension(2) :: meta_args =  &
-          (/ arg_type(gh_field,gh_inc, w0),       &
-             arg_type(gh_field,gh_read,w0)        &
+     type(arg_type), dimension(2) :: meta_args = &
+          (/ arg_type(gh_field, gh_inc,  w0),    &
+             arg_type(gh_field, gh_read, w0)     &
            /)
      integer :: iterates_over = cells
    contains
      procedure, nopass :: code => testkern_w0_code
   end type testkern_w0_type
+
 contains
 
-  subroutine testkern_w0_code(nlayers, fld1, fld2, ndf_w0, undf_w0, map_w0)
-    integer :: nlayers
-    real(kind=r_def), dimension(:), intent(inout) :: fld1
-    real(kind=r_def), dimension(:), intent(in)    :: fld2
-    integer :: ndf_w0, undf_w0
-    integer, dimension(:) :: map_w0
+  subroutine testkern_w0_code(nlayers, fld1, fld2, &
+                              ndf_w0, undf_w0, map_w0)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w0
+    integer(kind=i_def), intent(in) :: undf_w0
+    integer(kind=i_def), intent(in), dimension(ndf_w0) :: map_w0
+    real(kind=r_def), intent(inout), dimension(undf_w0) :: fld1
+    real(kind=r_def), intent(in), dimension(undf_w0)    :: fld2
+
   end subroutine testkern_w0_code
 
 end module testkern_w0_mod

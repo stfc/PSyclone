@@ -41,24 +41,30 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 
 '''
 
+from __future__ import absolute_import
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ContainerSymbol, ScalarType, ArrayType, SymbolTable
-from psyclone.psyir.nodes import BinaryOperation, Reference, Literal
+    ContainerSymbol, ScalarType, ArrayType, SymbolTable, RoutineSymbol, \
+    LocalInterface, GlobalInterface, Symbol
+from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
+    Reference, Literal
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
+from psyclone.errors import InternalError
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
 # fparser.
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
 
-# Mapping from PSyIR types to Fortran data types - simply reverse the map
-# from the frontend.
+# Mapping from PSyIR types to Fortran data types. Simply reverse the
+# map from the frontend, removing the special case of "double
+# precision", which is captured as a REAL intrinsic in the PSyIR.
 TYPE_MAP_TO_FORTRAN = {}
 for key, item in TYPE_MAP_FROM_FORTRAN.items():
-    TYPE_MAP_TO_FORTRAN[item] = key
+    if key != "double precision":
+        TYPE_MAP_TO_FORTRAN[item] = key
 
 
 def gen_intent(symbol):
@@ -103,7 +109,6 @@ def gen_dims(symbol):
     supported.
 
     '''
-
     dims = []
     for index in symbol.shape:
         if isinstance(index, DataSymbol):
@@ -231,6 +236,89 @@ def _reverse_map(op_map):
     return mapping
 
 
+def get_fortran_operator(operator):
+    '''Determine the Fortran operator that is equivalent to the provided
+    PSyIR operator. This is achieved by reversing the Fparser2Reader
+    maps that are used to convert from Fortran operator names to PSyIR
+    operator names.
+
+    :param operator: a PSyIR operator.
+    :type operator: :py:class:`psyclone.psyir.nodes.Operation.Operator`
+
+    :returns: the Fortran operator.
+    :rtype: str
+
+    :raises KeyError: if the supplied operator is not known.
+
+    '''
+    unary_mapping = _reverse_map(Fparser2Reader.unary_operators)
+    if operator in unary_mapping:
+        return unary_mapping[operator].upper()
+
+    binary_mapping = _reverse_map(Fparser2Reader.binary_operators)
+    if operator in binary_mapping:
+        return binary_mapping[operator].upper()
+
+    nary_mapping = _reverse_map(Fparser2Reader.nary_operators)
+    if operator in nary_mapping:
+        return nary_mapping[operator].upper()
+    raise KeyError()
+
+
+def is_fortran_intrinsic(fortran_operator):
+    '''Determine whether the supplied Fortran operator is an intrinsic
+    Fortran function or not.
+
+    :param str fortran_operator: the supplied Fortran operator.
+
+    :returns: true if the supplied Fortran operator is a Fortran \
+        intrinsic and false otherwise.
+
+    '''
+    return fortran_operator in FORTRAN_INTRINSICS
+
+
+def precedence(fortran_operator):
+    '''Determine the relative precedence of the supplied Fortran operator.
+    Relative Operator precedence is taken from the Fortran 2008
+    specification document and encoded as a list.
+
+    :param str fortran_operator: the supplied Fortran operator.
+
+    :returns: an integer indicating the relative precedence of the \
+        supplied Fortran operator. The higher the value, the higher \
+        the precedence.
+
+    :raises KeyError: if the supplied operator is not in the \
+        precedence list.
+
+    '''
+    # The index of the fortran_precedence list indicates relative
+    # precedence. Strings within sub-lists have the same precendence
+    # apart from the following two caveats. 1) unary + and - have
+    # a higher precedence than binary + and -, e.g. -(a-b) !=
+    # -a-b and 2) floating point operations are not actually
+    # associative due to rounding errors, e.g. potentially (a * b) / c
+    # != a * (b / c). Therefore, if a particular ordering is specified
+    # then it should be respected. These issues are dealt with in the
+    # binaryoperation handler.
+    fortran_precedence = [
+        ['.EQV.', 'NEQV'],
+        ['.OR.'],
+        ['.AND.'],
+        ['.NOT.'],
+        ['.EQ.', '.NE.', '.LT.', '.LE.', '.GT.', '.GE.', '==', '/=', '<',
+         '<=', '>', '>='],
+        ['//'],
+        ['+', '-'],
+        ['*', '/'],
+        ['**']]
+    for oper_list in fortran_precedence:
+        if fortran_operator in oper_list:
+            return fortran_precedence.index(oper_list)
+    raise KeyError()
+
+
 class FortranWriter(PSyIRVisitor):
     '''Implements a PSyIR-to-Fortran back end for PSyIR kernel code (not
     currently PSyIR algorithm code which has its own gen method for
@@ -356,19 +444,69 @@ class FortranWriter(PSyIRVisitor):
         result += "\n"
         return result
 
+    def gen_routine_access_stmts(self, symbol_table):
+        '''
+        Creates the accessibility statements (R518) for any routine symbols
+        in the supplied symbol table.
+
+        :param symbol_table: the symbol table for which to generate \
+                             accessibility statements.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :returns: the accessibility statements for any routine symbols.
+        :rtype: str
+
+        :raises InternalError: if a Routine symbol with an unrecognised \
+                               visibility is encountered.
+        '''
+        public_routines = []
+        private_routines = []
+        for symbol in symbol_table.symbols:
+            if isinstance(symbol, RoutineSymbol):
+                # It doesn't matter whether this symbol has a local or global
+                # interface - its accessibility in *this* context is determined
+                # by the local accessibility statements. e.g. if we are
+                # dealing with the declarations in a given module which itself
+                # uses a public symbol from some other module, the
+                # accessibility of that symbol is determined by the
+                # accessibility statements in the current module.
+                if symbol.visibility == Symbol.Visibility.PUBLIC:
+                    public_routines.append(symbol.name)
+                elif symbol.visibility == Symbol.Visibility.PRIVATE:
+                    private_routines.append(symbol.name)
+                else:
+                    raise InternalError(
+                        "Unrecognised visibility ('{0}') found for symbol "
+                        "'{1}'. Should be either 'Symbol.Visibility.PUBLIC' "
+                        "or 'Symbol.Visibility.PRIVATE'.".format(
+                            str(symbol.visibility), symbol.name))
+        result = "\n"
+        if public_routines:
+            result += "{0}public :: {1}\n".format(self._nindent,
+                                                  ", ".join(public_routines))
+        if private_routines:
+            result += "{0}private :: {1}\n".format(self._nindent,
+                                                   ", ".join(private_routines))
+        if len(result) > 1:
+            return result
+        return ""
+
     def gen_decls(self, symbol_table, args_allowed=True):
         '''Create and return the Fortran declarations for the supplied
         SymbolTable.
 
         :param symbol_table: the SymbolTable instance.
         :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool args_allowed: if False then one or more argument
-        declarations in symbol_table will cause this method to raise
-        an exception. Defaults to True.
+        :param bool args_allowed: if False then one or more argument \
+                declarations in symbol_table will cause this method to raise \
+                an exception. Defaults to True.
 
         :returns: the Fortran declarations as a string.
         :rtype: str
 
+        :raises VisitorError: if one of the symbols is a RoutineSymbol \
+            which does not have a GlobalInterface or LocalInterface as this \
+            is not supported by this backend.
         :raises VisitorError: if args_allowed is False and one or more \
                               argument declarations exist in symbol_table.
         :raises VisitorError: if any symbols representing variables (i.e. \
@@ -377,6 +515,14 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         declarations = ""
+
+        if not all([isinstance(symbol.interface, (LocalInterface,
+                                                  GlobalInterface))
+                    for symbol in symbol_table.symbols
+                    if isinstance(symbol, RoutineSymbol)]):
+            raise VisitorError(
+                "Routine symbols without a global or local interface are not "
+                "supported by the Fortran back-end.")
 
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope) that
@@ -412,6 +558,9 @@ class FortranWriter(PSyIRVisitor):
         # 3: Local variable declarations
         for symbol in symbol_table.local_datasymbols:
             declarations += self.gen_vardecl(symbol)
+
+        # 4: Accessibility statements for routine symbols
+        declarations += self.gen_routine_access_stmts(symbol_table)
 
         return declarations
 
@@ -540,18 +689,34 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        # reverse the fortran2psyir mapping to make a psyir2fortran
-        # mapping
-        mapping = _reverse_map(Fparser2Reader.binary_operators)
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
         try:
-            oper = mapping[node.operator]
-            # This is a binary operation
-            if oper.upper() in FORTRAN_INTRINSICS:
+            fort_oper = get_fortran_operator(node.operator)
+            if is_fortran_intrinsic(fort_oper):
                 # This is a binary intrinsic function.
-                return "{0}({1}, {2})".format(oper.upper(), lhs, rhs)
-            return "{0} {1} {2}".format(lhs, oper, rhs)
+                return "{0}({1}, {2})".format(fort_oper, lhs, rhs)
+            parent = node.parent
+            if isinstance(parent, Operation):
+                # We may need to enforce precedence
+                parent_fort_oper = get_fortran_operator(parent.operator)
+                if not is_fortran_intrinsic(parent_fort_oper):
+                    # We still may need to enforce precedence
+                    if precedence(fort_oper) < precedence(parent_fort_oper):
+                        # We need brackets to enforce precedence
+                        return "({0} {1} {2})".format(lhs, fort_oper, rhs)
+                    if precedence(fort_oper) == precedence(parent_fort_oper):
+                        # We still may need to enforce precedence
+                        if (isinstance(parent, UnaryOperation) or
+                                (isinstance(parent, BinaryOperation) and
+                                 parent.children[1] == node)):
+                            # We need brackets to enforce precedence
+                            # as a) a unary operator is performed
+                            # before a binary operator and b) floating
+                            # point operations are not actually
+                            # associative due to rounding errors.
+                            return "({0} {1} {2})".format(lhs, fort_oper, rhs)
+            return "{0} {1} {2}".format(lhs, fort_oper, rhs)
         except KeyError:
             raise VisitorError("Unexpected binary op '{0}'."
                                "".format(node.operator))
@@ -569,15 +734,12 @@ class FortranWriter(PSyIRVisitor):
         :raises VisitorError: if an unexpected N-ary operator is found.
 
         '''
-        # Reverse the fortran2psyir mapping to make a psyir2fortran
-        # mapping.
-        mapping = _reverse_map(Fparser2Reader.nary_operators)
         arg_list = []
         for child in node.children:
             arg_list.append(self._visit(child))
         try:
-            oper = mapping[node.operator]
-            return "{0}({1})".format(oper.upper(), ", ".join(arg_list))
+            fort_oper = get_fortran_operator(node.operator)
+            return "{0}({1})".format(fort_oper, ", ".join(arg_list))
         except KeyError:
             raise VisitorError("Unexpected N-ary op '{0}'".
                                format(node.operator))
@@ -764,7 +926,7 @@ class FortranWriter(PSyIRVisitor):
         start = self._visit(node.start_expr)
         stop = self._visit(node.stop_expr)
         step = self._visit(node.step_expr)
-        variable_name = node.variable_name
+        variable_name = node.variable.name
 
         self._depth += 1
         body = ""
@@ -790,18 +952,13 @@ class FortranWriter(PSyIRVisitor):
         :raises VisitorError: if an unexpected Unary op is encountered.
 
         '''
-        # Reverse the fortran2psyir mapping to make a psyir2fortran
-        # mapping.
-        mapping = _reverse_map(Fparser2Reader.unary_operators)
-
         content = self._visit(node.children[0])
         try:
-            oper = mapping[node.operator]
-            # This is a unary operation
-            if oper.upper() in FORTRAN_INTRINSICS:
+            fort_oper = get_fortran_operator(node.operator)
+            if is_fortran_intrinsic(fort_oper):
                 # This is a unary intrinsic function.
-                return "{0}({1})".format(oper.upper(), content)
-            return "{0}{1}".format(oper, content)
+                return "{0}({1})".format(fort_oper, content)
+            return "{0}{1}".format(fort_oper, content)
         except KeyError:
             raise VisitorError("Unexpected unary op '{0}'.".format(
                 node.operator))
@@ -888,24 +1045,6 @@ class FortranWriter(PSyIRVisitor):
             result += self._visit(child)
         return result
 
-    def nemoimplicitloop_node(self, node):
-        '''Fortran implicit loops are currently captured in the PSyIR as a
-        NemoImplicitLoop node. This is a temporary solution while the
-        best way to capture their behaviour is decided. This method
-        outputs the Fortran representation of such a loop by simply
-        using the original Fortran ast (i.e. acting in a similar way
-        to a code block). As it is a temporary solution we don't
-        bother fixing the _ast internal access.
-
-        :param node: a NemoImplicitLoop PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.NemoImplicitLoop`
-
-        :returns: the Fortran code as a string.
-        :rtype: str
-
-        '''
-        return "{0}{1}\n".format(self._nindent, str(node.ast))
-
     def ompdirective_node(self, node):
         '''This method is called when an OMPDirective instance is found in
         the PSyIR tree. It returns the opening and closing directives, and
@@ -925,3 +1064,21 @@ class FortranWriter(PSyIRVisitor):
         self._depth -= 1
         result_list.append("!${0}\n".format(node.end_string()))
         return "".join(result_list)
+
+    def call_node(self, node):
+        '''Translate the PSyIR call node to Fortran.
+
+        :param node: a Call PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Call`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+
+        result_list = []
+        for child in node.children:
+            result_list.append(self._visit(child))
+        args = ", ".join(result_list)
+        return "{0}call {1}({2})\n".format(self._nindent, node.routine.name,
+                                           args)

@@ -2,7 +2,7 @@
 !
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2019, Science and Technology Facilities Council
+! Copyright (c) 2018-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -40,10 +40,13 @@ module prolong_test_kernel_mod
   use constants_mod
   use kernel_mod
   use argument_mod
+  use fs_continuity_mod
 
   implicit none
 
-  type, extends(kernel_type) :: prolong_test_kernel_type
+  private
+
+  type, public, extends(kernel_type) :: prolong_test_kernel_type
      private
      type(arg_type), dimension(2) :: meta_args = (/           &
           arg_type(GH_FIELD, GH_INC,  W1, mesh_arg=GH_FINE),  &

@@ -311,14 +311,10 @@ test suite for both Python 2.7 and 3.6 but does not do the extra
 compilation checks (since that would considerably increase the execution
 time of the test suite).
 
-Travis also runs all of the examples using the ``check_examples``
-bash script in the ``examples`` directory. Although this script has the
-option to do some limited compilation of generated code (via the
-``--compile`` flag) this is currently not enabled on Travis. Note that
-a bash script is possibly not the best choice for implementing this
-functionality and it might be better handled by a Makefile (issue #713).
-That would also allow support to be added for running the examples for
-a specific domain rather than for all of them.
+Travis also runs all of the examples using the ``Makefile`` in the
+``examples`` directory. Again, no compilation is performed; only the
+``transform`` (performs the PSyclone transformations) and ``notebook``
+(runs the various Jupyter notebooks) targets are used.
 
 By default, the Travis configuration uses ``pip`` to install the
 dependencies required by PSyclone before running the test suite. This

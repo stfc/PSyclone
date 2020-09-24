@@ -43,14 +43,18 @@ import sys
 import os
 import re
 import pytest
-from psyclone.psyir.nodes import Node, Schedule, Reference, Container
-from psyclone.psyir.symbols import DataSymbol, SymbolError
-from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
+from psyclone.psyir.nodes.node import (ChildrenList, Node,
+                                       _graphviz_digraph_class)
+from psyclone.psyir.nodes import Schedule, Reference, Container, \
+    Assignment, Return, Loop, Literal, Statement, node
+from psyclone.psyir.symbols import DataSymbol, SymbolError, \
+    INTEGER_TYPE, REAL_TYPE, SymbolTable, ContainerSymbol, \
+    UnresolvedInterface, ScalarType, DeferredType, Symbol
+from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.transformations import DynamoLoopFuseTrans
 from psyclone.tests.utilities import get_invoke
-
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -59,7 +63,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
 def test_node_abstract_methods():
     ''' Tests that the abstract methods of the Node class raise appropriate
     errors. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     sched = invoke.schedule
     loop = sched.children[0].loop_body[0]
     with pytest.raises(NotImplementedError) as err:
@@ -71,7 +76,12 @@ def test_node_coloured_name():
     ''' Tests for the coloured_name method of the Node class. '''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     tnode = Node()
-    assert tnode.coloured_name(False) == "Node"
+    # Node is an abstract class
+    with pytest.raises(NotImplementedError) as err:
+        tnode.node_str()
+    assert ("_text_name is an abstract attribute which needs to be given a "
+            "string value in the concrete class 'Node'." in str(err.value))
+
     # Check that we can change the name of the Node and the colour associated
     # with it
     tnode._text_name = "ATest"
@@ -88,11 +98,19 @@ def test_node_str():
     ''' Tests for the Node.node_str method. '''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     tnode = Node()
-    # Manually set the colour key for this node to something that will result
-    # in coloured output (if requested *and* termcolor is installed).
+    # Node is an abstract class
+    with pytest.raises(NotImplementedError) as err:
+        tnode.node_str()
+    assert ("_text_name is an abstract attribute which needs to be given a "
+            "string value in the concrete class 'Node'." in str(err.value))
+
+    # Manually set the _text_name and _colour_key for this node to something
+    # that will result in coloured output (if requested *and* termcolor is
+    # installed).
+    tnode._text_name = "FakeName"
     tnode._colour_key = "Loop"
-    assert tnode.node_str(False) == "Node[]"
-    assert tnode.node_str(True) == colored("Node",
+    assert tnode.node_str(False) == "FakeName[]"
+    assert tnode.node_str(True) == colored("FakeName",
                                            SCHEDULE_COLOUR_MAP["Loop"]) + "[]"
 
 
@@ -340,9 +358,11 @@ def test_node_backward_dependence():
 
 
 def test_node_is_valid_location():
-    '''Test that the Node class is_valid_location method returns True if
+    ''' Test that the Node class is_valid_location method returns True if
     the new location does not break any data dependencies, otherwise it
-    returns False'''
+    returns False.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         api="dynamo0.3")
@@ -350,39 +370,39 @@ def test_node_is_valid_location():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: new node argument is invalid
-    node = schedule.children[0]
+    anode = schedule.children[0]
     with pytest.raises(GenerationError) as excinfo:
-        node.is_valid_location("invalid_node_argument")
+        anode.is_valid_location("invalid_node_argument")
     assert "argument is not a Node, it is a 'str'." in str(excinfo.value)
     # 2: optional position argument is invalid
     with pytest.raises(GenerationError) as excinfo:
-        node.is_valid_location(node, position="invalid_node_argument")
+        anode.is_valid_location(anode, position="invalid_node_argument")
     assert "The position argument in the psyGen" in str(excinfo.value)
     assert "method must be one of" in str(excinfo.value)
     # 3: parents of node and new_node are not the same
     with pytest.raises(GenerationError) as excinfo:
-        node.is_valid_location(schedule.children[3].children[0])
+        anode.is_valid_location(schedule.children[4].children[0])
     assert ("the node and the location do not have the same "
             "parent") in str(excinfo.value)
     # 4: positions are the same
     prev_node = schedule.children[0]
-    node = schedule.children[1]
+    anode = schedule.children[1]
     next_node = schedule.children[2]
     # a) before this node
     with pytest.raises(GenerationError) as excinfo:
-        node.is_valid_location(node, position="before")
+        anode.is_valid_location(anode, position="before")
     assert "the node and the location are the same" in str(excinfo.value)
     # b) after this node
     with pytest.raises(GenerationError) as excinfo:
-        node.is_valid_location(node, position="after")
+        anode.is_valid_location(anode, position="after")
     assert "the node and the location are the same" in str(excinfo.value)
     # c) after previous node
     with pytest.raises(GenerationError) as excinfo:
-        node.is_valid_location(prev_node, position="after")
+        anode.is_valid_location(prev_node, position="after")
     assert "the node and the location are the same" in str(excinfo.value)
     # d) before next node
     with pytest.raises(GenerationError) as excinfo:
-        node.is_valid_location(next_node, position="before")
+        anode.is_valid_location(next_node, position="before")
     assert "the node and the location are the same" in str(excinfo.value)
     # 5: valid no previous dependency
     _, invoke_info = parse(
@@ -392,49 +412,50 @@ def test_node_is_valid_location():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 6: valid no prev dep
-    node = schedule.children[2]
-    assert node.is_valid_location(schedule.children[0])
+    anode = schedule.children[2]
+    assert anode.is_valid_location(schedule.children[0])
     # 7: valid prev dep (after)
-    node = schedule.children[6]
-    assert node.is_valid_location(schedule.children[3], position="after")
+    anode = schedule.children[6]
+    assert anode.is_valid_location(schedule.children[3], position="after")
     # 8: invalid prev dep (before)
-    assert not node.is_valid_location(schedule.children[3], position="before")
+    assert not anode.is_valid_location(schedule.children[3], position="before")
     # 9: valid no following dep
-    node = schedule.children[4]
-    assert node.is_valid_location(schedule.children[6], position="after")
+    anode = schedule.children[4]
+    assert anode.is_valid_location(schedule.children[6], position="after")
     # 10: valid following dep (before)
-    node = schedule.children[0]
-    assert node.is_valid_location(schedule.children[3], position="before")
+    anode = schedule.children[0]
+    assert anode.is_valid_location(schedule.children[3], position="before")
     # 11: invalid following dep (after)
-    node = schedule.children[0]
-    assert not node.is_valid_location(schedule.children[3], position="after")
+    anode = schedule.children[0]
+    assert not anode.is_valid_location(schedule.children[3], position="after")
 
 
 def test_node_ancestor():
     ''' Test the Node.ancestor() method. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     sched = invoke.schedule
     kern = sched[0].loop_body[0].loop_body[0]
-    node = kern.ancestor(Node)
-    assert isinstance(node, Schedule)
+    anode = kern.ancestor(Node)
+    assert isinstance(anode, Schedule)
     # If 'excluding' is supplied then it can only be a single type or a
     # tuple of types
-    node = kern.ancestor(Node, excluding=Schedule)
-    assert node is sched[0].loop_body[0]
-    node = kern.ancestor(Node, excluding=(Schedule,))
-    assert node is sched[0].loop_body[0]
+    anode = kern.ancestor(Node, excluding=Schedule)
+    assert anode is sched[0].loop_body[0]
+    anode = kern.ancestor(Node, excluding=(Schedule,))
+    assert anode is sched[0].loop_body[0]
     with pytest.raises(TypeError) as err:
         kern.ancestor(Node, excluding=[Schedule])
     assert ("argument to ancestor() must be a type or a tuple of types but "
             "got: 'list'" in str(err.value))
     # Check that the include_self argument behaves as expected
-    node = kern.ancestor(Kern, excluding=(Schedule,), include_self=True)
-    assert node is kern
+    anode = kern.ancestor(Kern, excluding=(Schedule,), include_self=True)
+    assert anode is kern
 
 
 def test_dag_names():
-    '''test that the dag_name method returns the correct value for the
-    node class and its specialisations'''
+    ''' Test that the dag_name method returns the correct value for the
+    node class and its specialisations. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         api="dynamo0.3")
@@ -443,13 +464,13 @@ def test_dag_names():
     schedule = invoke.schedule
     assert super(Schedule, schedule).dag_name == "node_0"
     assert schedule.dag_name == "schedule_0"
-    assert schedule.children[0].dag_name == "checkHaloExchange(f2)_0"
-    assert schedule.children[3].dag_name == "loop_4"
-    schedule.children[3].loop_type = "colour"
-    assert schedule.children[3].dag_name == "loop_[colour]_4"
-    schedule.children[3].loop_type = ""
-    assert (schedule.children[3].loop_body[0].dag_name ==
-            "kernel_testkern_code_9")
+    assert schedule.children[0].dag_name == "checkHaloExchange(f1)_0"
+    assert schedule.children[4].dag_name == "loop_5"
+    schedule.children[4].loop_type = "colour"
+    assert schedule.children[4].dag_name == "loop_[colour]_5"
+    schedule.children[4].loop_type = ""
+    assert (schedule.children[4].loop_body[0].dag_name ==
+            "kernel_testkern_code_10")
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         api="dynamo0.3")
@@ -462,10 +483,19 @@ def test_dag_names():
     assert builtin.dag_name == "builtin_sum_x_12"
 
 
+def test_node_digraph_no_graphviz(monkeypatch):
+    ''' Test that the function to get the graphviz Digraph class type returns
+    None if graphviz is not installed. We monkeypatch sys.modules to ensure
+    that it always appears that graphviz is not installed on this system. '''
+    monkeypatch.setitem(sys.modules, 'graphviz', None)
+    dag_class = _graphviz_digraph_class()
+    assert dag_class is None
+
+
 def test_node_dag_no_graphviz(tmpdir, monkeypatch):
-    '''test that dag generation does nothing if graphviz is not
-    installed. We monkeypatch sys.modules to ensure that it always
-    appears that graphviz is not installed on this system. '''
+    ''' Test that the dag generation returns None (and that no file is created)
+    when graphviz is not installed. We make this test independent of whether or
+    not graphviz is installed by monkeypatching sys.modules. '''
     monkeypatch.setitem(sys.modules, 'graphviz', None)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -473,10 +503,68 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
     my_file = tmpdir.join('test')
-    schedule.dag(file_name=my_file.strpath)
+    dag = invoke.schedule.dag(file_name=my_file.strpath)
+    assert dag is None
     assert not os.path.exists(my_file.strpath)
+
+
+def test_node_dag_returns_digraph(monkeypatch):
+    ''' Test that the dag generation returns the expected Digraph object. We
+    make this test independent of whether or not graphviz is installed by
+    monkeypatching the psyir.nodes.node._graphviz_digraph_class function to
+    return a fake digraph class type. '''
+    class FakeDigraph(object):
+        ''' Fake version of graphviz.Digraph class with key methods
+        implemented as noops. '''
+        # pylint: disable=redefined-builtin
+        def __init__(self, format=None):
+            ''' Fake constructor. '''
+
+        def node(self, _name):
+            ''' Fake node method. '''
+
+        def edge(self, _name1, _name2, color="red"):
+            ''' Fake edge method. '''
+
+        def render(self, filename):
+            ''' Fake render method. '''
+
+    monkeypatch.setattr(node, "_graphviz_digraph_class", lambda: FakeDigraph)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    dag = schedule.dag()
+    assert isinstance(dag, FakeDigraph)
+
+
+def test_node_dag_wrong_file_format(monkeypatch):
+    ''' Test the handling of the error raised by graphviz when it is passed
+    an invalid file format. We make this test independent of whether or not
+    graphviz is actually available by monkeypatching the
+    psyir.nodes.node._graphviz_digraph_class function to return a fake digraph
+    class type that mimics the error. '''
+    class FakeDigraph(object):
+        ''' Fake version of graphviz.Digraph class that raises a ValueError
+        when instantiated. '''
+        # pylint: disable=redefined-builtin
+        def __init__(self, format=None):
+            raise ValueError(format)
+
+    monkeypatch.setattr(node, "_graphviz_digraph_class", lambda: FakeDigraph)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    with pytest.raises(GenerationError) as err:
+        invoke.schedule.dag()
+    assert "unsupported graphviz file format 'svg' provided" in str(err.value)
 
 
 # Use a regex to allow for whitespace differences between graphviz
@@ -512,10 +600,14 @@ EXPECTED2 = re.compile(
 
 
 def test_node_dag(tmpdir, have_graphviz):
-    '''test that dag generation works correctly. Skip the test if
-    graphviz is not installed'''
+    ''' Test that dag generation works correctly. Skip the test if
+    graphviz is not installed. '''
     if not have_graphviz:
         return
+    # We may not have graphviz installed so disable pylint error
+    # pylint: disable=import-error
+    # pylint: disable=import-outside-toplevel
+    import graphviz
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.1_multikernel_invokes.f90"),
         api="dynamo0.3")
@@ -524,7 +616,9 @@ def test_node_dag(tmpdir, have_graphviz):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     my_file = tmpdir.join('test')
-    schedule.dag(file_name=my_file.strpath)
+    dag = schedule.dag(file_name=my_file.strpath)
+    assert isinstance(dag, graphviz.Digraph)
+
     result = my_file.read()
     assert EXPECTED2.match(result)
     my_file = tmpdir.join('test.svg')
@@ -545,6 +639,35 @@ def test_node_dag(tmpdir, have_graphviz):
     with pytest.raises(GenerationError) as excinfo:
         schedule.dag(file_name=my_file.strpath, file_format="rubbish")
     assert "unsupported graphviz file format" in str(excinfo.value)
+
+
+def test_scope():
+    '''Test that the scope method in a Node instance returns the closest
+    ancestor Schedule or Container Node (including itself) or raises
+    an exception if one does not exist.
+
+    '''
+    kernel_symbol_table = SymbolTable()
+    symbol = DataSymbol("tmp", REAL_TYPE)
+    kernel_symbol_table.add(symbol)
+    ref = Reference(symbol)
+    assign = Assignment.create(ref, Literal("0.0", REAL_TYPE))
+    kernel_schedule = KernelSchedule.create("my_kernel", kernel_symbol_table,
+                                            [assign])
+    container = Container.create("my_container", SymbolTable(),
+                                 [kernel_schedule])
+    assert ref.scope is kernel_schedule
+    assert assign.scope is kernel_schedule
+    assert kernel_schedule.scope is kernel_schedule
+    assert container.scope is container
+
+    anode = Literal("x", INTEGER_TYPE)
+    with pytest.raises(SymbolError) as excinfo:
+        _ = anode.scope
+    assert ("Unable to find the scope of node "
+            "'Literal[value:'x', Scalar<INTEGER, UNDEFINED>]' as "
+            "none of its ancestors are Container or Schedule nodes."
+            in str(excinfo.value))
 
 
 def test_find_or_create_symbol():
@@ -614,14 +737,25 @@ def test_find_or_create_symbol():
             "find_or_create_symbol method, is not an ancestor of this node "
             "'Reference[name:'alpha']'." in str(excinfo.value))
 
+    # find_or_create_symbol method with invalid visibility
+    with pytest.raises(TypeError) as excinfo:
+        _ = alpha.find_or_create_symbol(alpha.name, visibility="hello")
+    assert ("visibility argument 'hello' provided to the find_or_create_symbol"
+            " method should be of `Symbol.Visibility` type but instead is: "
+            "'str'" in str(excinfo.value))
+
+    # With a valid visibility
+    sym = alpha.find_or_create_symbol("very_private",
+                                      visibility=Symbol.Visibility.PRIVATE)
+    assert sym.name == "very_private"
+    assert sym.visibility == Symbol.Visibility.PRIVATE
+    assert sym is container.symbol_table.lookup("very_private",
+                                                check_ancestors=False)
+
 
 def test_find_or_create_new_symbol():
     ''' Check that the Node.find_or_create_symbol() method creates new
     symbols when appropriate. '''
-    from psyclone.psyir.symbols import SymbolTable, REAL_TYPE, \
-        ContainerSymbol, UnresolvedInterface, ScalarType, DeferredType
-    from psyclone.psyir.nodes import Assignment, Literal
-    from psyclone.psyGen import KernelSchedule
     # Create some suitable PSyIR from scratch
     symbol_table = SymbolTable()
     symbol_table.add(DataSymbol("tmp", REAL_TYPE))
@@ -649,7 +783,7 @@ def test_find_or_create_new_symbol():
     new_symbol = assign.find_or_create_symbol("undefined")
     assert new_symbol.name == "undefined"
     assert isinstance(new_symbol.interface, UnresolvedInterface)
-    assert isinstance(new_symbol.datatype, DeferredType)
+    assert type(new_symbol) == Symbol
     assert "undefined" not in container.symbol_table
     assert kernel1.symbol_table.lookup("undefined") is new_symbol
 
@@ -659,7 +793,6 @@ def test_nemo_find_container_symbol(parser):
     searched-for symbol is declared in the parent module. '''
     from fparser.common.readfortran import FortranFileReader
     from psyclone.psyir.nodes import BinaryOperation
-    from psyclone.psyir.symbols import ScalarType
     reader = FortranFileReader(
         os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(
@@ -672,3 +805,94 @@ def test_nemo_find_container_symbol(parser):
     # Use it as the starting point for the search
     symbol = bops[0].find_or_create_symbol("alpha")
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
+
+
+def test_children_validation():
+    ''' Test that nodes are validated when inserted as children of other
+    nodes. For simplicity we use Node subclasses to test this functionality
+    across a range of possible operations.
+
+    The specific logic of each validate method will be tested individually
+    inside each Node test file.
+    '''
+    assignment = Assignment()
+    return_stmt = Return()
+    reference = Reference(DataSymbol("a", INTEGER_TYPE))
+
+    assert isinstance(assignment.children, (ChildrenList, list))
+
+    # Try adding a invalid child (e.g. a return_stmt into an assingment)
+    with pytest.raises(GenerationError) as error:
+        assignment.addchild(return_stmt)
+    assert "Item 'Return' can't be child 0 of 'Assignment'. The valid format" \
+        " is: 'DataNode, DataNode'." in str(error.value)
+
+    # The same behaviour occurs when list insertion operations are used.
+    with pytest.raises(GenerationError):
+        assignment.children.append(return_stmt)
+
+    with pytest.raises(GenerationError):
+        assignment.children[0] = return_stmt
+
+    with pytest.raises(GenerationError):
+        assignment.children.insert(0, return_stmt)
+
+    with pytest.raises(GenerationError):
+        assignment.children.extend([return_stmt])
+
+    with pytest.raises(GenerationError):
+        assignment.children = assignment.children + [return_stmt]
+
+    # Valid nodes are accepted
+    assignment.addchild(reference)
+
+    # Check displaced items are also be checked when needed
+    start = Literal("0", INTEGER_TYPE)
+    stop = Literal("1", INTEGER_TYPE)
+    step = Literal("2", INTEGER_TYPE)
+    child_node = Assignment.create(Reference(DataSymbol("tmp", REAL_TYPE)),
+                                   Reference(DataSymbol("i", REAL_TYPE)))
+    loop_variable = DataSymbol("idx", INTEGER_TYPE)
+    loop = Loop.create(loop_variable, start, stop, step, [child_node])
+    with pytest.raises(GenerationError):
+        loop.children.insert(1, Literal("0", INTEGER_TYPE))
+
+    with pytest.raises(GenerationError):
+        loop.children.remove(stop)
+
+    with pytest.raises(GenerationError):
+        del loop.children[2]
+
+    with pytest.raises(GenerationError):
+        loop.children.pop(2)
+
+    with pytest.raises(GenerationError):
+        loop.children.reverse()
+
+    # But the in the right circumstances they work fine
+    assert isinstance(loop.children.pop(), Schedule)
+    loop.children.reverse()
+    assert loop.children[0].value == "2"
+
+
+def test_children_setter():
+    ''' Test that the children setter sets-up accepts lists or None or raises
+    the appropriate issue. '''
+    testnode = Schedule()
+
+    # children is initialised as a ChildrenList
+    assert isinstance(testnode.children, ChildrenList)
+
+    # When is set up with a list, this becomes a ChildrenList
+    testnode.children = [Statement(), Statement()]
+    assert isinstance(testnode.children, ChildrenList)
+
+    # It also accepts None
+    testnode.children = None
+    assert testnode.children is None
+
+    # Other types are not accepted
+    with pytest.raises(TypeError) as error:
+        testnode.children = Node()
+    assert "The 'my_children' parameter of the node.children setter must be" \
+           " a list or None." in str(error.value)

@@ -77,15 +77,14 @@ is linked the above code will actually look like this::
     While adding the class prefix to the name of the instance variable
     is not necessary, it helps improves the readability of the created code.
 
-
-The list of valid classes is specified in the configuration file. It can be
-extended by the user to support additional classes::
+The list of valid class prefixes is specified in the configuration file. It
+can be extended by the user to support additional classes::
 
     [DEFAULT]
     ...
     VALID_PSY_DATA_PREFIXES = profile extract
 
-The classes supported at the moment are:
+The class prefixes supported at the moment are:
 
 .. tabularcolumns:: |l|L|
 
@@ -97,10 +96,12 @@ profile                 All libraries related to profiling tools like DrHook,
                         :ref:`user_guide:profiling` for details.
 extract                 For libraries used for kernel data extraction. See
                         :ref:`user_guide:psyke` for details.
+read_only_verify        Use a checksum to verify that variables that are 
+                        read-only are not modified in a subroutine.
 ======================= =======================================================
 
 In the following documentation the string ``PREFIX_`` is used
-to indicate the class-prefix used (e.g. ``profile`` or ``extract``).
+to indicate the class prefix used (e.g. ``profile``).
 
 .. note:: 
     The transformations for profiling or kernel extraction allow
@@ -108,9 +109,9 @@ to indicate the class-prefix used (e.g. ``profile`` or ``extract``).
     :ref:`psy_data_parameters_to_constructor`).
     This can be used to link with two different libraries of the
     same class at the same time, e.g. you could use ``drhook_profile``
-    and ``nvidia_profile`` as class es. However, this would also require
-    that the corresponding wrapper libraries be modified to use this
-    new prefix.
+    and ``nvidia_profile`` as class prefixes. However, this would also
+    require that the corresponding wrapper libraries be modified to use
+    this new prefix.
 
 Full Example
 ------------
@@ -178,7 +179,6 @@ This section describes the actual PSyData API in detail. It contains
 all functions, data types and methods that need to be implemented for
 a wrapper library.
 
-
 The PSyData API includes two function calls that allow initialisation and
 shut down of a wrapper library. These two calls must be inserted
 manually into the program, and their location might depend on 
@@ -195,6 +195,23 @@ be called before or after ``MPI_Finalize``.
     order to avoid linking problems. It is the responsibility
     of the user to decide if the initialisation and shutdown
     calls are unnecessary.
+
+Similarly, the PSyData API also includes two function calls that allow
+programmatic control of whether or not the underlying data-capture
+mechanism is active. If this functionality is required then these
+calls must be inserted manually into the program. They are intended to
+be used e.g. when profiling only a part of a program's execution or
+perhaps to switch on/off output of data for on-line visualisation. As
+with the initialisation and shutdown subroutines, any PSyData library
+should include implementations of these routines, even if they are
+empty.
+
+ .. note::
+    Currently only the NVIDIA profiling wrapper library and all
+    read-only-verification libraries implement the Start and Stop
+    routines. Wider support for all PSyData-based APIs will be addressed
+    in Issue #832.
+
 
 Init and Shutdown Functions
 +++++++++++++++++++++++++++
@@ -218,6 +235,44 @@ Init and Shutdown Functions
         ...
         call profile_PSyDataShutdown()
 
+.. _psydata_start_stop_functions:
+
+Start and Stop Functions
+++++++++++++++++++++++++
+.. method:: PREFIX_PSyDataStart()
+
+   Currently only implemented in the NVIDIA profiling wrapper.
+
+   Starts or enables the PSyData library so that subsequent calls to
+   the API cause data to be output. For instance, if we have a time-stepping
+   application where ``timestep`` holds the value of the current time step
+   then we could turn on profiling after the first 5 steps by doing::
+
+       use profile_psy_data_mod, only: profile_PSyDataStart
+       ...
+       if(timestep == 6) call profile_PSyDataStart()
+
+   (Assuming that profiling was disabled at application start by the
+   runtime environment or by a call to ``profile_PSyDataStop`` - see below.)
+
+   This routine may be called any number of times but must be after
+   ``PSyDataInit()`` and before ``PSyDataShutdown()`` (if present).
+
+.. method:: PREFIX_PSyDataStop()
+
+   Currently only implemented in the NVIDIA profiling wrapper.
+
+   Stops or disables the PSyData library so that subsequent calls to
+   the PSyData API have no effect. Continuing the above time-stepping
+   example, we could turn off profiling after time step 10 by doing::
+
+       use profile_psy_data_mod, only: profile_PSyDataStop
+       ...
+       if(timestep == 11) call profile_PSyDataStop()
+
+   This routine may be called any number of times but must be after
+   ``PSyDataInit()`` and before ``PSyDataShutdown()`` (if present).
+
 .. _psy_data_type:
 
 ``PREFIX_PSyDataType``
@@ -228,8 +283,9 @@ used. PSyclone will declare the variables to be static, meaning that they
 can be used to accumulate data from call to call. An example of
 the PSyDataType can be found in the NetCDF example extraction code
 (see ``lib/extract/dl_esm_inf/netcdf``, or :ref:`user_guide:psyke_netcdf` for
-a detailed description) or any of the profiling wrapper libraries
-(all contained in ``lib/profiling``).
+a detailed description), any of the profiling wrapper libraries
+(all contained in ``lib/profiling``) or the read_only wrappers
+(in ``lib/read_only``).
 
 .. method:: PreStart(this, module_name, kernel_name, num_pre_vars, num_post_vars)
 
@@ -312,7 +368,7 @@ a detailed description) or any of the profiling wrapper libraries
 
     Called once all variables have been declared. This call is only
     inserted if any variables are to be provided either before or after
-    the instrumented region thus this call is not created for
+    the instrumented region (thus this call is not created for
     performance profiling).
 
 .. method:: ProvideVariable(this, name, value)
@@ -445,7 +501,7 @@ node supports in the option dictionary:
                     code region, or by ``GOceanExtractNode``
                     to define the file name for the output
                     data- and driver-files.
-    class           A prefix to be used for the module name,
+    prefix          A prefix to be used for the module name,
                     the user-defined data type and the
                     variables declared for the API.
     =============== =========================================
@@ -482,7 +538,7 @@ If there is no variable to be provided by the PSyData API (i.e both
 ``pre_variable_list`` and ``post_variable_list`` are empty), then the
 ``PSyDataNode`` will only create a call to ``PreStart`` and
 ``PostEnd``. This is utilised by the profiling node to make the profiling
-API libraries (see :ref:`user_guide:ProfilingAPI`) independent of the infrastructure
+API libraries (see :ref:`user_guide:profiling`) independent of the infrastructure
 library (since a call to ``ProvideVariable`` can contain API-specific
 variable types). It also reduces the number of calls required before
 and after the instrumented region which can affect overall
@@ -494,6 +550,330 @@ module to determine which variables are input- and output-parameters,
 and provides these two lists to the ``gen_code()`` function of its base class,
 a ``PSyDataNode`` node. It also uses the ``post_var_postfix`` option
 as described under ``gen_code()`` above (see also :ref:`user_guide:psyke_netcdf`).
+
+.. _psydata_base_class:
+
+PSyData Base Class
+-------------------
+PSyclone provides a base class for all PSyData wrapper libraries. The
+base class is independent of the API, but it can provide implementations for
+scalars and arrays for all native Fortran types that are required by the
+API-specific implementation. The base class does not have to be used, but it
+provides useful functionality:
+
+Verbosity:
+    It will check the ``PSYDATA_VERBOSE`` environment flag. If it exists, it
+    must have a value of either 0 (no messages), 1 (some messages, typically
+    only ``PSyDataStart`` and ``PSyDataEnd``), or 2 (detailed messages,
+    depending on wrapper library). All other values will result in a warning
+    message being printed (and verbosity will be disabled). The verbosity level
+    is available as ``this%verbosity``.
+
+Module- and Region-Name Handling:
+    The module stores the module name in ``this%module_name``, and the region
+    name as ``this%region_name``.
+
+Variable Index:
+    It automatically sets ``this%next_var_index`` to 1 in ``PSyDataPreStart``
+    ``PSyDataPreEndDeclaration`` and ``PostStart``. This variable will also
+    be increased by one for each call to a Declare- or Provide-subroutine.
+    It can be used to provide a reproducible index for declaring and
+    providing a variable (and it also counts the number of declared variables,
+    which can be used in e.g. ``PSyDataPreEndDeclaration`` to allocate arrays).
+
+Start/Stop Handling:
+    The base class maintains a module variable ``is_enabled``. This is set
+    to true at startup, and gets enabled and disabled by calling the module
+    functions ``PREFIX_PSyDataStart()`` and ``PREFIX_PSyDataStop()``
+    (see :ref:`psydata_start_stop_functions`).
+    It is up to the derived classes to actually use this setting. Of
+    course it is also possible to ignore ``is_enabled`` and use a different
+    mechanism. For example, the NVIDIA profiling wrapper library calls corresponding
+    start and stop functions in the NVIDIA profiler.
+
+Jinja Support:
+    The base class is creating using the template language Jinja. It is
+    therefore easy to automatically create the base functions for the
+    argument types actually required by the wrapper library. See
+    :ref:`jinja` for details.
+
+
+.. _jinja:
+
+Jinja Support in the Base Class
++++++++++++++++++++++++++++++++
+Code written for a PSyData library is often very repetitive. For example, an
+implementation of ``PreDeclareVariable`` must be provided for each data type.
+For LFRic that can easily result in over 10 very similar subroutines (3 basic
+types integer, 4- and 8-byte reals; and 4- and 8-byte arrays of one to four
+dimensions). In order to simplify the creation of these subroutines the templating
+language Jinja is being used. Jinja creates code based on an template,
+which makes it possible to maintain just one template implementation of a subroutine,
+from which the various Fortran-type specific implementation will be generated.
+
+Jinja is used in the generic base class ``PSyDataBase``, and the base class for all
+``ReadOnly`` libraries. It is not required that any library using one of these base
+classes itself uses Jinja. For example, the ReadOnly library for
+dl_esm_inf does not use Jinja (except for processing the base class templates
+of course), while the ReadOnly library for LFRic does. In case of dl_esm_inf,
+there were only 5 data types that need to be supported, so it was easy to just
+list these 5 functions in a generic interface. LFRic on the other hand uses
+many more Fortran basic types, so it uses Jinja to create the code that declares
+the generic interfaces. The additional advantage is that if new data types are
+required by LFRic (e.g. if 5-dimensional arrays are used), there will be no code
+change required (except for declaring the new types in the Makefile).
+
+The PSyData base class ``PSyDataBaseType`` is contained in ``lib/psy_data_base.jinja``.
+It is processed with the script ``process.py``, which will print the processed
+file to stdout. The ``Makefile`` will automatically create the file
+``psy_data_base.f90`` from the Jinja template and compile it. If you use the
+base class in a wrapper library, you have to process the template in your library
+directory with additional parameters to specify the required types and the prefix.
+Besides the name of the template file to process the ``process.py`` script
+takes the following parameters:
+
+-types:
+    A comma-separated list of Fortran basic types (no spaces allowed).
+    The following type names are supported:
+
+    ``real``:
+        32-bit floating point value
+    ``double``:
+        64-bit floating point value
+    ``int``:
+        32-bit integer value
+    ``long``:
+        64-bit integer value
+
+    Default value is ``real,double,int``.
+
+-dims:
+    A comma-separated list of dimensions (no spaces allowed). Default
+    value is ``1,2,3,4``.
+
+-prefix:
+    The prefix to use for the PSyData type and functions. Default is
+    emtpy (i.e. no prefix). If you specify a prefix, you have to
+    add the ``_`` between the prefix and name explicitly.
+
+For each specified type name the Jinja template will create methods called
+``DeclareScalar{{type}}`` and ``ProvideScalar{{type}}`` for handling
+scalar parameters. For array parameters, the functions
+``DeclareArray{{dim}}d{{type}}`` and ``ProvideArray{{dim}}d{{type}}``
+will be created for each type and each specified number of dimensions.
+
+Below is an example of using the ``process.py`` script in a Makefile for a read-only
+verification library (taken from ``lib/read_only/lfric/Makefile``):
+
+.. code-block:: Makefile
+
+    PROCESS_ARGS = -prefix=read_only_verification -types=real,int,double \
+                   -dims=1,2,3,4
+
+    psy_data_base.f90: ../../psy_data_base.jinja
+        ../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+
+This will create the processed file ``psy_data_base.f90`` in the directory
+of the library, where it will be compiled. Having a separate pre-processed
+source code version of the base class for each library (as opposed to one
+compiled base class library that is used for all libraries) has the advantage
+that consistent compiler settings will be used in your library, and consistent
+parameters have been provided specifying the required types and dimensions.
+
+The ``process.py`` script provides the two variables for a template
+(based on its command line parameters of course): ``ALL_DIMS`` stores the list of 
+required dimensions, and ``ALL_TYPES`` stores the type information
+requested when invoking ``process.py``. ``ALL_TYPES`` is a three-tuple
+that lists the name to use when creating subroutine names, the Fortran data
+type, and number of bits for the data type. While number of bits is not used
+in the base class, the read-only-verification base class (see
+:ref:`psydata_read_only_base_class`) uses it. If more types are required,
+they can be defined in ``process.py``. If the additional types need
+different numbers of bits and are required in a read-only library, the
+read-only-verification base class (``lib/read_only/read_only_base.jinja``)
+needs to be adjusted as well. 
+
+Below is a short excerpt that shows how these variables are defined by
+default, and how they are used to create subroutines and declare their
+parameters in ``lib/read_only_base.jinja``:
+
+.. code-block:: jinja
+
+    {% if ALL_DIMS is not defined %}
+       {# Support 1 to 4 dimensional arrays if not specified #}
+       {% set ALL_DIMS = [1, 2, 3, 4] %}
+    {% endif %}
+
+    {# The types that are supported. The first entry of each tuple
+       is the name used when naming subroutines and in user messages.
+       The second entry is the Fortran declaration. The third entry
+       is the number of bits. There is slightly different code
+       required for 32 and 64 bit values (due to the fact that the
+       Fortran transfer(value, mould) function leaves undefined bits
+       when mould is larger than value.) #}
+
+    {% if ALL_TYPES is not defined %}
+       {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
+                            ("Real",   "real(kind=real32)",   32),
+                            ("Int",    "integer(kind=int32)", 32) ] %}
+    {% endif %}
+    ...
+    {% for name, type, bits in ALL_TYPES %}
+    subroutine DeclareScalar{{name}}(this, name, value)
+        {{type}}, intent(in) :: value
+    ...
+
+      {# Now create the declarations of all array implementations #}
+      {% for dim in ALL_DIMS %}
+        {# Create the ':,:...' string - DIM-times
+           We repeat the list [":"] DIM-times, which is then joined #}
+        {% set DIMENSION=([":"]*dim)|join(",") %}
+    ! ---------------------------------------------------------------------
+    subroutine DeclareArray{{dim}}d{{name}}(this, name, value)
+        {{type}}, dimension({{DIMENSION}}), intent(in) :: value
+      {% endfor %}
+    {% endfor %}
+
+
+Since the PSyData API relies on a generic interface to automatically call the
+right subroutine depending on type, a library must declare these automatically
+created subroutines (together with additional, library-specific versions)
+as one generic interface. This can either be done by explicitly listing the
+subroutines (which is for example done in ``lib/read_only/dl_esm_inf/read_only.f90``,
+since it uses only 5 different data types), or using Jinja as well.
+The code below shows how the base class and Jinja are used in
+``lib/read_only/lfric/read_only.f90``. The ``FieldDouble`` and ``FieldVectorDouble``
+related functions are explicitly coded in the LFRic-specific library, the
+rest is taken from the base class. Jinja is then
+used to create the list of all automatically created subroutines, which 
+allows the declaration of one generic interface for each ``PreDeclareVariable``
+and ``ProvideVariable`` function. While the use of Jinja here is only very
+minimal (only the list of subroutine names in the generic interfaces is created),
+the advantage of using Jinja here is that if a new data type is added to LFRic
+(e.g. a 5-dimensional array), only the parameter to ``process.py`` need to be 
+changed, and the correct subroutines will be created in the base class, and the
+corresponding generic interfaces will be declared without further code changes:
+
+.. code-block:: jinja
+
+    procedure :: DeclareFieldDouble,  ProvideFieldDouble
+    procedure :: DeclareFieldVectorDouble,  ProvideFieldVectorDouble
+
+    {# Collect the various procedures for the same generic interface #}
+    {# ------------------------------------------------------------- #}
+    {% set all_declares=[] %}
+    {% set all_provides=[] %}
+    {% for name, type, bits in ALL_TYPES %}
+      {{ all_declares.append("DeclareScalar"~name) or "" -}}
+      {{ all_provides.append("ProvideScalar"~name) or "" -}}
+      {% for dim in ALL_DIMS %}
+        {{ all_declares.append("DeclareArray"~dim~"d"~name) or "" -}}
+        {{ all_provides.append("ProvideArray"~dim~"d"~name) or "" -}}
+      {% endfor %}
+    {% endfor %}
+
+    {% set indent="            " %}
+    generic, public :: PreDeclareVariable => &
+        DeclareFieldDouble, &
+        DeclareFieldVectorDouble, &
+        {{all_declares|join(", &\n"+indent) }}
+
+    generic, public :: ProvideVariable => &
+        ProvideFieldDouble,       &
+        ProvideFieldVectorDouble, &
+        {{all_provides|join(", &\n"+indent) }}
+
+.. note::
+    Ending the Jinja statements with '``or ""``' avoids having ``None``
+    added to the files (which would be the output of e.g. the ``append``
+    instruction). The '``-``' before the closing '``}}``' also prevents this
+    line from creating any white-spaces. As a result of this the
+    processed file will not have unusual empty lines or indentation.
+
+
+Static Functions in the Base Class
+++++++++++++++++++++++++++++++++++
+The base class provides the four static functions defined in the API (see
+:ref:`psy_data_api`). The subroutines ``PREFIX_PSyDataInit()`` and
+``PREFIX_PSyDataShutdown()`` are empty, and ``PREFIX_PSyDataStart()`` and
+``PREFIX_PSyDataStop()`` function just change the module variable
+``is_enabled`` (which can then be used by a wrapper library to enable
+or disable its functionality).
+
+If you don't need specific functionality for these functions, you
+can just declare them in your wrapper library::
+
+    module MyProfileWrapperLibrary
+      use psydata_base_mod, only : profile_PSyDataInit, profilePSyDataShutdown, &
+                                   profile_PSyDataStart, profile_PSyDataStop
+
+If you need to partially change the behaviour of these functions,
+you have to rename them in your ``use`` statement, and then call the renamed
+base class function like this::
+
+    module MyProfileWrapperLibrary
+    ...
+    contains
+
+    subroutine profile_PSyDataStart()
+      use psydata_base_mod, only : base_PSyDataStart => profile_PSyDataStart
+      ! Do something
+      call base_PSyDataStart()
+      ! Do something else
+    end subroutine profile_PSyDataStart
+
+.. note::
+    The ``PSyDataBase`` template will use the prefix that you have specified
+    as parameter when using the ``process.py`` script  for naming
+    the static functions. So as an alternative to renaming the symbol when
+    importing them you could also specify a different prefix when processing
+    the base Jinja file, and use this name.
+
+.. _psydata_read_only_base_class:
+
+PSyData Read-Only-Verification Base Class
+-----------------------------------------
+The ReadOnlyVerification transformation uses the PSyData API
+to verify that read-only arguments to a subroutine call are not changed.
+It does this by computing and storing a checksum of each read-only parameter
+to a subroutine before the call, and verifying that this checksum
+is not changed after the subroutine call. Since the API-specific
+instances share a significant part of code (all functions for
+the non API-specific Fortran types, e.g. scalar values and plain
+Fortran arrays), a common base class is implemented for these,
+based on the PSyData Base class (see :ref:`psydata_base_class`).
+The ``ReadOnlyBaseType`` is provided as a Jinja template as well (see
+:ref:`jinja`), see ``lib/read_only/read_only_base.jinja``. It 
+takes the same parameters as the ``PSyDataBaseType``, which makes it
+easy to make sure the PSyDataBaseClass and ReadOnly base classes are
+created with the same settings (like supported Fortran types
+and number of dimensions).
+
+This Read-Only-Verification base class uses the PSyData base
+class. It uses the Declaration functions to count how many variables
+will be provided. In ``PreEndDeclaration`` a checksum array will be
+allocated.
+
+.. note::
+    The ``PreStart`` function gets the number of variables as
+    a parameter. The decision not to use this value for allocating
+    the array is that the LFRic read-only implementation stores
+    several checksums for one variable of a certain type (VectorField).
+    The ``DeclareVariable`` functions for VectorFields counts the
+    right number of checksums required.
+
+The ReadOnlyBase base class uses the information about the number of bits for
+the data types to implement the checksum functions. One complication
+is that the Fortran ``transfer`` function results in undefined bits
+when transferring e.g. a 32-bit value into a 64-bit variable.
+Therefore any 32-bit value is first transferred to a 32-bit integer value,
+which is then assigned to the 64-bit integer value, which is added to
+the overall checksum value.
+
+The two API-specific ReadOnlyVerification libraries are both based on
+this base class. Therefore they need only implement the checksum functions
+for the API-specific types - ``Field`` and ``VectorFields`` in LFRic, and
+``Field`` in GOcean.
 
 .. _profiling:
 
@@ -544,5 +924,5 @@ At code creation time the function ``gen_code`` of the inserted node is
 called. This function determines the lists of variable to write before and
 after the instrumented region. These lists are then passed to ``gen_code``
 of the ``PSyDataNode`` base class, which creates required PSyData API calls.
-The domain-specific library is then responsible to write the data in the
+The domain-specific library is then responsible for writing the data in the
 required file format. 

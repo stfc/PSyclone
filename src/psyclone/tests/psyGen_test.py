@@ -53,7 +53,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyir.nodes import Assignment, Reference, BinaryOperation, \
     Literal, Node, Schedule
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
-    OMPParallelDoDirective, KernelSchedule, \
+    OMPParallelDoDirective, KernelSchedule, InlinedKern, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
     ACCEnterDataDirective, ACCKernelsDirective, HaloExchange, Invoke, \
     DataAccess, Kern, Arguments, CodedKern
@@ -69,6 +69,7 @@ from psyclone.transformations import OMPParallelLoopTrans, \
 from psyclone.generator import generate
 from psyclone.configuration import Config
 from psyclone.tests.utilities import get_invoke, check_links
+from psyclone.tests.lfric_build import LFRicBuild
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -278,15 +279,19 @@ def test_same_name_invalid_array():
             "more than once") in str(excinfo.value)
 
 
-def test_derived_type_deref_naming():
+def test_derived_type_deref_naming(tmpdir):
     ''' Test that we do not get a name clash for dummy arguments in the PSy
     layer when the name generation for the component of a derived type
-    may lead to a name already taken by another argument. '''
+    may lead to a name already taken by another argument.
+
+    '''
     _, invoke = parse(
         os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke)
     generated_code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output = (
         "    SUBROUTINE invoke_0_testkern_type"
@@ -427,6 +432,36 @@ def test_kern_abstract_methods():
             in str(err.value))
 
 
+def test_kern_children_validation():
+    '''Test that children added to Kern are validated. A Kern node does not
+    accept any children.
+
+    '''
+    # We use a subclass (CodedKern->DynKern) to test this functionality.
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kern = DynKern()
+    kern.load_meta(metadata)
+
+    with pytest.raises(GenerationError) as excinfo:
+        kern.addchild(Literal("2", INTEGER_TYPE))
+    assert ("Item 'Literal' can't be child 0 of 'CodedKern'. CodedKern "
+            "is a LeafNode and doesn't accept children.") in str(excinfo.value)
+
+
+def test_inlinedkern_children_validation():
+    '''Test that children added to Kern are validated. A Kern node does not
+    accept any children.
+
+    '''
+    ikern = InlinedKern(None)
+
+    with pytest.raises(GenerationError) as excinfo:
+        ikern.addchild(Literal("2", INTEGER_TYPE))
+    assert ("Item 'Literal' can't be child 1 of 'InlinedKern'. The valid "
+            "format is: 'Schedule'.") in str(excinfo.value)
+
+
 def test_call_abstract_methods():
     ''' Check that calling the abstract methods of Kern raises
     the expected exceptions '''
@@ -519,19 +554,19 @@ def test_ompdo_constructor():
     # Check the dir_body property
     assert isinstance(ompdo.dir_body, Schedule)
     # Break the directive
-    ompdo.children[0] = "not-a-schedule"
+    del ompdo.children[0]
     with pytest.raises(InternalError) as err:
         # pylint: disable=pointless-statement
         ompdo.dir_body
     assert ("malformed or incomplete. It should have a single Schedule as a "
-            "child but found: ['str']" in str(err.value))
+            "child but found: []" in str(err.value))
     ompdo = OMPDoDirective(parent=schedule, children=[schedule.children[0]])
     assert len(ompdo.dir_body.children) == 1
 
 
 def test_ompdo_directive_class_node_str(dist_mem):
-    '''Tests the node_str method in the OMPDoDirective class. We create a
-    sub-class object then call this method from it '''
+    ''' Tests the node_str method in the OMPDoDirective class. We create a
+    sub-class object then call this method from it. '''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
@@ -551,7 +586,7 @@ def test_ompdo_directive_class_node_str(dist_mem):
     schedule = psy.invokes.invoke_list[0].schedule
 
     if dist_mem:
-        idx = 3
+        idx = 4
     else:
         idx = 0
 
@@ -559,7 +594,7 @@ def test_ompdo_directive_class_node_str(dist_mem):
     omp_parallel_loop = schedule.children[idx]
 
     for case in cases:
-        # call the OMPDirective node_str method
+        # Call the OMPDirective node_str method
         out = case["current_class"].node_str(omp_parallel_loop)
 
         directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
@@ -575,7 +610,8 @@ def test_acc_dir_node_str():
     acclt = ACCLoopTrans()
     accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     colour = SCHEDULE_COLOUR_MAP["Directive"]
     schedule = invoke.schedule
 
@@ -635,6 +671,27 @@ def test_globalsum_node_str():
     assert expected_output in output
 
 
+def test_globalsum_children_validation():
+    '''Test that children added to GlobalSum are validated. A GlobalSum node
+    does not accept any children.
+
+    '''
+    from psyclone import dynamo0p3
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    gsum = None
+    for child in psy.invokes.invoke_list[0].schedule.children:
+        if isinstance(child, dynamo0p3.DynGlobalSum):
+            gsum = child
+            break
+    with pytest.raises(GenerationError) as excinfo:
+        gsum.addchild(Literal("2", INTEGER_TYPE))
+    assert ("Item 'Literal' can't be child 0 of 'GlobalSum'. GlobalSum is a"
+            " LeafNode and doesn't accept children.") in str(excinfo.value)
+
+
 def test_args_filter():
     '''the args_filter() method is in both Loop() and Arguments() classes
     with the former method calling the latter. This example tests the
@@ -661,9 +718,9 @@ def test_args_filter():
 
 
 def test_args_filter2():
-    '''the args_filter() method is in both Loop() and Arguments() classes
+    ''' The args_filter() method is in both Loop() and Arguments() classes
     with the former method calling the latter. This example tests the cases
-    when one or both of the intent and type arguments are not specified.'''
+    when one or both of the intent and type arguments are not specified. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
@@ -672,13 +729,13 @@ def test_args_filter2():
 
     # arg_accesses
     args = loop.args_filter(arg_accesses=[AccessType.READ])
-    expected_output = ["chi", "a"]
+    expected_output = ["coord", "a"]
     for arg in args:
         assert arg.name in expected_output
     assert len(args) == len(expected_output)
 
     # arg_types
-    args = loop.args_filter(arg_types=["gh_operator", "gh_integer"])
+    args = loop.args_filter(arg_types=["gh_operator", "gh_scalar"])
     expected_output = ["mm_w0", "a"]
     for arg in args:
         assert arg.name in expected_output
@@ -686,15 +743,15 @@ def test_args_filter2():
 
     # neither
     args = loop.args_filter()
-    expected_output = ["chi", "mm_w0", "a"]
+    expected_output = ["coord", "mm_w0", "a"]
     for arg in args:
         assert arg.name in expected_output
     assert len(args) == len(expected_output)
 
 
 def test_reduction_var_error():
-    '''Check that we raise an exception if the zero_reduction_variable()
-    method is provided with an incorrect type of argument'''
+    ''' Check that we raise an exception if the zero_reduction_variable()
+    method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     for dist_mem in [False, True]:
@@ -706,13 +763,13 @@ def test_reduction_var_error():
         call._reduction_arg = call.arguments.args[1]
         with pytest.raises(GenerationError) as err:
             call.zero_reduction_variable(None)
-        assert ("zero_reduction variable should be one of ['gh_real', "
-                "'gh_integer']") in str(err.value)
+        assert ("Kern.zero_reduction_variable() should be a scalar but "
+                "found 'gh_field'." in str(err.value))
 
 
 def test_reduction_sum_error():
-    '''Check that we raise an exception if the reduction_sum_loop()
-    method is provided with an incorrect type of argument'''
+    ''' Check that we raise an exception if the reduction_sum_loop()
+    method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     for dist_mem in [False, True]:
@@ -725,7 +782,7 @@ def test_reduction_sum_error():
         with pytest.raises(GenerationError) as err:
             call.reduction_sum_loop(None)
         assert (
-            "unsupported reduction access 'gh_write' found in DynBuiltin:"
+            "unsupported reduction access 'gh_inc' found in DynBuiltin:"
             "reduction_sum_loop(). Expected one of '['gh_sum']"
             in str(err.value))
 
@@ -763,7 +820,7 @@ def test_invoke_name():
     assert "SUBROUTINE invoke_important_invoke" in gen
 
 
-def test_multi_kern_named_invoke():
+def test_multi_kern_named_invoke(tmpdir):
     ''' Check that specifying the name of an invoke containing multiple
     kernel invocations result in a correctly-named routine in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -773,9 +830,10 @@ def test_multi_kern_named_invoke():
     gen = str(psy.gen)
 
     assert "SUBROUTINE invoke_some_name" in gen
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_named_multi_invokes():
+def test_named_multi_invokes(tmpdir):
     ''' Check that we generate correct code when we have more than one
     named invoke in an Algorithm file '''
     _, invoke_info = parse(
@@ -787,9 +845,10 @@ def test_named_multi_invokes():
 
     assert "SUBROUTINE invoke_my_first(" in gen
     assert "SUBROUTINE invoke_my_second(" in gen
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_named_invoke_name_clash():
+def test_named_invoke_name_clash(tmpdir):
     ''' Check that we do not get a name clash when the name of a variable
     in the PSy layer would normally conflict with the name given to the
     subroutine generated by an Invoke. '''
@@ -799,8 +858,11 @@ def test_named_invoke_name_clash():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
 
-    assert "SUBROUTINE invoke_a(invoke_a_1, b, c, istp, rdt," in gen
+    assert ("SUBROUTINE invoke_a(invoke_a_1, b, istp, rdt, d, e, ascalar, "
+            "f, c, g, qr)") in gen
     assert "TYPE(field_type), intent(in) :: invoke_a_1" in gen
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
@@ -870,8 +932,8 @@ def test_argument_depends_on():
 
 
 def test_argument_find_argument():
-    '''Check that the find_argument method returns the first dependent
-    argument in a list of nodes, or None if none are found'''
+    ''' Check that the find_argument method returns the first dependent
+    argument in a list of nodes, or None if none are found. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         api="dynamo0.3")
@@ -900,12 +962,12 @@ def test_argument_find_argument():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # a) kern arg depends on halo arg
-    m2_read_arg = schedule.children[3].loop_body[0].arguments.args[4]
-    m2_halo_field = schedule.children[2].field
+    m2_read_arg = schedule.children[4].loop_body[0].arguments.args[4]
+    m2_halo_field = schedule.children[3].field
     result = m2_read_arg._find_argument(schedule.children)
     assert result == m2_halo_field
     # b) halo arg depends on kern arg
-    result = m2_halo_field._find_argument([schedule.children[3].loop_body[0]])
+    result = m2_halo_field._find_argument([schedule.children[4].loop_body[0]])
     assert result == m2_read_arg
     # 4: globalsum node
     _, invoke_info = parse(
@@ -1188,8 +1250,8 @@ def test_haloexchange_can_be_printed():
 def test_haloexchange_node_str():
     ''' Test the node_str() method of HaloExchange. '''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    # We have to use the dynamo0.3 API as that's currently the only one
-    # that supports halo exchanges.
+    # We have to use the LFRic (Dynamo0.3) API as that's currently the only
+    # one that supports halo exchanges.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         api="dynamo0.3")
@@ -1197,11 +1259,23 @@ def test_haloexchange_node_str():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # We have to manually call the correct node_str() method as the one we want
-    # to test is overidden in DynHaloExchange.
-    out = HaloExchange.node_str(schedule.children[1])
+    # to test is overridden in DynHaloExchange.
+    out = HaloExchange.node_str(schedule.children[2])
     colour = SCHEDULE_COLOUR_MAP["HaloExchange"]
     assert (colored("HaloExchange", colour) +
             "[field='m1', type='None', depth=None, check_dirty=True]" in out)
+
+
+def test_haloexchange_children_validation():
+    '''Test that children added to HaloExchange are validated. A HaloExchange
+    node does not accept any children.
+
+    '''
+    haloex = HaloExchange(None)
+    with pytest.raises(GenerationError) as excinfo:
+        haloex.addchild(Literal("2", INTEGER_TYPE))
+    assert ("Item 'Literal' can't be child 0 of 'HaloExchange'. HaloExchange "
+            "is a LeafNode and doesn't accept children.") in str(excinfo.value)
 
 
 def test_haloexchange_args():
@@ -1385,9 +1459,13 @@ def test_directive_backward_dependence():
 
 
 def test_directive_get_private(monkeypatch):
-    ''' Tests for the _get_private_list() method of OMPParallelDirective. '''
+    ''' Tests for the _get_private_list() method of OMPParallelDirective.
+    Note: this test does not apply colouring so the loops must be over
+    discontinuous function spaces.
+
+    '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+        os.path.join(BASE_PATH, "1_single_invoke_w3.f90"), api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1411,8 +1489,30 @@ def test_directive_get_private(monkeypatch):
     monkeypatch.setattr(call, "local_vars", lambda: [""])
     with pytest.raises(InternalError) as err:
         _ = directive._get_private_list()
-    assert ("call 'testkern_code' has a local variable but its name is "
+    assert ("call 'testkern_w3_code' has a local variable but its name is "
             "not set" in str(err.value))
+
+
+def test_directive_children_validation():
+    '''Test that children added to Directive are validated. Directive accepts
+    1 Schedule as child.
+
+    '''
+    directive = Directive()
+    datanode = Literal("1", INTEGER_TYPE)
+    schedule = Schedule()
+
+    # First child
+    with pytest.raises(GenerationError) as excinfo:
+        directive.children[0] = datanode
+    assert ("Item 'Literal' can't be child 0 of 'Directive'. The valid format"
+            " is: 'Schedule'." in str(excinfo.value))
+
+    # Additional children
+    with pytest.raises(GenerationError) as excinfo:
+        directive.addchild(schedule)
+    assert ("Item 'Schedule' can't be child 1 of 'Directive'. The valid format"
+            " is: 'Schedule'." in str(excinfo.value))
 
 
 def test_openmp_pdo_dag_name():
@@ -1432,14 +1532,18 @@ def test_openmp_pdo_dag_name():
 
 
 def test_omp_dag_names():
-    '''Test that we generate the correct dag names for omp parallel, omp
-    do, omp directive and directive nodes'''
+    ''' Test that we generate the correct dag names for omp parallel, omp
+    do, omp directive and directive nodes.
+    Note: this test does not apply colouring so the loops must be over
+    discontinuous function spaces.
+
+    '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "1_single_invoke.f90"),
+                                 "1_single_invoke_w3.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
+    invoke = psy.invokes.get('invoke_0_testkern_w3_type')
     schedule = invoke.schedule
     from psyclone.transformations import Dynamo0p3OMPLoopTrans, \
         OMPParallelTrans
@@ -1463,7 +1567,8 @@ def test_omp_dag_names():
 def test_acc_dag_names():
     ''' Check that we generate the correct dag names for ACC parallel,
     ACC enter-data and ACC loop directive Nodes '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
 
     acclt = ACCLoopTrans()
@@ -1717,8 +1822,8 @@ def test_haloexchange_halo_depth_get_set():
 
 
 def test_haloexchange_vector_index_depend():
-    '''check that _find_read_arguments does not return a haloexchange as a
-    read dependence if the source node is a halo exchange and its
+    ''' Check that _find_read_arguments does not return a halo exchange as
+    a read dependence if the source node is a halo exchange and its
     field is a vector and the other halo exchange accesses a different
     element of the vector
 
@@ -1729,8 +1834,8 @@ def test_haloexchange_vector_index_depend():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    first_d_field_halo_exchange = schedule.children[3]
-    field = first_d_field_halo_exchange.field
+    first_e_field_halo_exchange = schedule.children[3]
+    field = first_e_field_halo_exchange.field
     all_nodes = schedule.walk(Node)
     following_nodes = all_nodes[5:]
     result_list = field._find_read_arguments(following_nodes)
@@ -1739,28 +1844,28 @@ def test_haloexchange_vector_index_depend():
 
 
 def test_find_write_arguments_for_write():
-    '''when backward_write_dependencies is called from an field argument
+    ''' When backward_write_dependencies is called from a field argument
     that does not read then we should return an empty list. This test
-    checks this functionality. We use the dynamo0p3 api to create the
-    required objects
+    checks this functionality. We use the LFRic (Dynamo0.3) API to create
+    the required objects.
 
     '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    loop = schedule.children[3]
+    loop = schedule.children[13]
     kernel = loop.loop_body[0]
-    field_writer = kernel.arguments.args[1]
+    field_writer = kernel.arguments.args[7]
     node_list = field_writer.backward_write_dependencies()
     assert node_list == []
 
 
 def test_find_w_args_hes_no_vec(monkeypatch, annexed):
-    '''when backward_write_dependencies, or forward_read_dependencies, are
+    ''' When backward_write_dependencies, or forward_read_dependencies, are
     called and a dependence is found between two halo exchanges, then
     the field must be a vector field. If the field is not a vector
     then an exception is raised. This test checks that the exception
@@ -1782,17 +1887,17 @@ def test_find_w_args_hes_no_vec(monkeypatch, annexed):
         index = 4
     else:
         index = 5
-    halo_exchange_d_v3 = schedule.children[index]
-    field_d_v3 = halo_exchange_d_v3.field
-    monkeypatch.setattr(field_d_v3, "_vector_size", 1)
+    halo_exchange_e_v3 = schedule.children[index]
+    field_e_v3 = halo_exchange_e_v3.field
+    monkeypatch.setattr(field_e_v3, "_vector_size", 1)
     with pytest.raises(InternalError) as excinfo:
-        _ = field_d_v3.backward_write_dependencies()
-    assert ("DataAccess.overlaps(): vector sizes differ for field 'd' in two "
+        _ = field_e_v3.backward_write_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
             "halo exchange calls. Found '1' and '3'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
-    '''when backward_write_dependencies, or forward_read_dependencies, are
+    ''' When backward_write_dependencies, or forward_read_dependencies, are
     called and a dependence is found between two halo exchanges, then
     the associated fields must be equal size vectors . If the fields
     are not vectors of equal size then an exception is raised. This
@@ -1815,17 +1920,17 @@ def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
         index = 4
     else:
         index = 5
-    halo_exchange_d_v3 = schedule.children[index]
-    field_d_v3 = halo_exchange_d_v3.field
-    monkeypatch.setattr(field_d_v3, "_vector_size", 2)
+    halo_exchange_e_v3 = schedule.children[index]
+    field_e_v3 = halo_exchange_e_v3.field
+    monkeypatch.setattr(field_e_v3, "_vector_size", 2)
     with pytest.raises(InternalError) as excinfo:
-        _ = field_d_v3.backward_write_dependencies()
-    assert ("DataAccess.overlaps(): vector sizes differ for field 'd' in two "
+        _ = field_e_v3.backward_write_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
             "halo exchange calls. Found '2' and '3'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
-    '''when backward_write_dependencies, or forward_read_dependencies are
+    ''' When backward_write_dependencies, or forward_read_dependencies are
     called, and a dependence is found between two halo exchanges, then
     the vector indices of the two halo exchanges must be different. If
     the vector indices have the same value then an exception is
@@ -1848,19 +1953,19 @@ def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
         index = 4
     else:
         index = 5
-    halo_exchange_d_v3 = schedule.children[index]
-    field_d_v3 = halo_exchange_d_v3.field
-    halo_exchange_d_v2 = schedule.children[index-1]
-    monkeypatch.setattr(halo_exchange_d_v2, "_vector_index", 3)
+    halo_exchange_e_v3 = schedule.children[index]
+    field_e_v3 = halo_exchange_e_v3.field
+    halo_exchange_e_v2 = schedule.children[index-1]
+    monkeypatch.setattr(halo_exchange_e_v2, "_vector_index", 3)
     with pytest.raises(InternalError) as excinfo:
-        _ = field_d_v3.backward_write_dependencies()
+        _ = field_e_v3.backward_write_dependencies()
     assert ("DataAccess:update_coverage() The halo exchange vector indices "
-            "for 'd' are the same. This should never happen"
+            "for 'e' are the same. This should never happen"
             in str(excinfo.value))
 
 
 def test_find_w_args_hes_vec_no_dep():
-    '''when _find_write_arguments, or _find_read_arguments, are called,
+    ''' When _find_write_arguments, or _find_read_arguments, are called,
     halo exchanges with the same field but a different index should
     not depend on each other. This test checks that this behaviour is
     working correctly
@@ -1873,11 +1978,11 @@ def test_find_w_args_hes_vec_no_dep():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    halo_exchange_d_v3 = schedule.children[5]
-    field_d_v3 = halo_exchange_d_v3.field
+    halo_exchange_e_v3 = schedule.children[5]
+    field_e_v3 = halo_exchange_e_v3.field
     # there are two halo exchanges before d_v3 which should not count
     # as dependencies
-    node_list = field_d_v3.backward_write_dependencies()
+    node_list = field_e_v3.backward_write_dependencies()
     assert node_list == []
 
 
@@ -1904,12 +2009,13 @@ def test_check_vect_hes_differ_wrong_argtype():
 
 
 def test_check_vec_hes_differ_diff_names():
-    '''when the check_vector_halos_differ method is called from a halo
+    ''' When the check_vector_halos_differ method is called from a halo
     exchange object the argument being passed should be a halo
     exchange with an argument having the same name as the local halo
     exchange argument name. If this is not the case an exception
     should be raised. This test checks that this exception is working
     correctly.
+
     '''
 
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -1919,20 +2025,20 @@ def test_check_vec_hes_differ_diff_names():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     halo_exchange = schedule.children[0]
-    # obtain another halo exchange object which has an argument with a
+    # Obtain another halo exchange object which has an argument with a
     # different name
     different_halo_exchange = schedule.children[1]
     with pytest.raises(GenerationError) as excinfo:
-        # pass halo exchange with different name to the method
+        # Pass halo exchange with different name to the method
         halo_exchange.check_vector_halos_differ(different_halo_exchange)
     assert (
         "the halo exchange object passed to "
         "HaloExchange.check_vector_halos_differ() has a "
-        "different field name 'm1' to self 'f2'" in str(excinfo.value))
+        "different field name 'f2' to self 'f1'" in str(excinfo.value))
 
 
-def test_find_w_args_multiple_deps_error(monkeypatch, annexed):
-    '''when _find_write_arguments finds a write that causes it to return
+def test_find_w_args_multiple_deps_error(monkeypatch, annexed, tmpdir):
+    ''' When _find_write_arguments finds a write that causes it to return
     there should not be any previous dependencies. This test checks
     that an error is raised if this is not the case. We test with
     annexed dofs is True and False as different numbers of halo
@@ -1951,7 +2057,7 @@ def test_find_w_args_multiple_deps_error(monkeypatch, annexed):
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    # create halo exchanges between the two loops via redundant
+    # Create halo exchanges between the two loops via redundant
     # computation
     if annexed:
         index = 1
@@ -1969,10 +2075,12 @@ def test_find_w_args_multiple_deps_error(monkeypatch, annexed):
         "Found a writer dependence but there are already dependencies"
         in str(excinfo.value))
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
 
 def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):
-    '''when _find_write_arguments has looked through all nodes but has not
-    returned it should mean that is has not found any write
+    ''' When _find_write_arguments has looked through all nodes but has
+    not returned it should mean that is has not found any write
     dependencies. This test checks that an error is raised if this is
     not the case. We test with and without computing annexed dofs as
     different numbers of halo exchanges are created.
@@ -1997,9 +2105,9 @@ def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):
     del schedule.children[index]
     loop = schedule.children[index+1]
     kernel = loop.loop_body[0]
-    d_field = kernel.arguments.args[5]
+    e_field = kernel.arguments.args[5]
     with pytest.raises(InternalError) as excinfo:
-        d_field.backward_write_dependencies()
+        e_field.backward_write_dependencies()
     assert (
         "no more nodes but there are already dependencies"
         in str(excinfo.value))
@@ -2062,14 +2170,14 @@ def test_kern_ast():
     from fparser.two import Fortran2003
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].loop_body[0].loop_body[0]
+    kern = sched.coded_kernels()[0]
     assert isinstance(kern, GOKern)
     assert kern.ast
     assert isinstance(kern.ast, Fortran2003.Program)
 
 
 def test_dataaccess_vector():
-    '''Test that the DataAccess class works as expected when we have a
+    ''' Test that the DataAccess class works as expected when we have a
     vector field argument that depends on more than one halo exchange
     (due to halo exchanges working separately on components of
     vectors).
@@ -2083,35 +2191,35 @@ def test_dataaccess_vector():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
-    # d from halo exchange vector 1
-    halo_exchange_d_v1 = schedule.children[3]
-    field_d_v1 = halo_exchange_d_v1.field
-    # d from halo exchange vector 2
-    halo_exchange_d_v2 = schedule.children[4]
-    field_d_v2 = halo_exchange_d_v2.field
-    # d from halo exchange vector 3
-    halo_exchange_d_v3 = schedule.children[5]
-    field_d_v3 = halo_exchange_d_v3.field
-    # d from a kernel argument
+    # e from halo exchange vector 1
+    halo_exchange_e_v1 = schedule.children[3]
+    field_e_v1 = halo_exchange_e_v1.field
+    # e from halo exchange vector 2
+    halo_exchange_e_v2 = schedule.children[4]
+    field_e_v2 = halo_exchange_e_v2.field
+    # e from halo exchange vector 3
+    halo_exchange_e_v3 = schedule.children[5]
+    field_e_v3 = halo_exchange_e_v3.field
+    # e from a kernel argument
     loop = schedule.children[6]
     kernel = loop.loop_body[0]
-    d_arg = kernel.arguments.args[5]
+    e_arg = kernel.arguments.args[5]
 
-    access = DataAccess(d_arg)
+    access = DataAccess(e_arg)
     assert not access.covered
 
-    access.update_coverage(field_d_v3)
+    access.update_coverage(field_e_v3)
     assert not access.covered
-    access.update_coverage(field_d_v2)
+    access.update_coverage(field_e_v2)
     assert not access.covered
 
     with pytest.raises(InternalError) as excinfo:
-        access.update_coverage(field_d_v3)
+        access.update_coverage(field_e_v3)
     assert (
         "Found more than one dependent halo exchange with the same vector "
         "index" in str(excinfo.value))
 
-    access.update_coverage(field_d_v1)
+    access.update_coverage(field_e_v1)
     assert access.covered
 
     access.reset_coverage()
@@ -2120,7 +2228,7 @@ def test_dataaccess_vector():
 
 
 def test_dataaccess_same_vector_indices(monkeypatch):
-    '''If update_coverage() is called from DataAccess and the arguments
+    ''' If update_coverage() is called from DataAccess and the arguments
     are the same vector field, and the field vector indices are the
     same then check that an exception is raised. This particular
     exception is difficult to raise as it is caught by an earlier
@@ -2134,25 +2242,25 @@ def test_dataaccess_same_vector_indices(monkeypatch):
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    # d for this halo exchange is for vector component 2
-    halo_exchange_d_v2 = schedule.children[4]
-    field_d_v2 = halo_exchange_d_v2.field
-    # modify d from vector component 3 to be component 2
-    halo_exchange_d_v3 = schedule.children[5]
-    field_d_v3 = halo_exchange_d_v3.field
-    monkeypatch.setattr(halo_exchange_d_v3, "_vector_index", 2)
+    # e for this halo exchange is for vector component 2
+    halo_exchange_e_v2 = schedule.children[4]
+    field_e_v2 = halo_exchange_e_v2.field
+    # modify e from vector component 3 to be component 2
+    halo_exchange_e_v3 = schedule.children[5]
+    field_e_v3 = halo_exchange_e_v3.field
+    monkeypatch.setattr(halo_exchange_e_v3, "_vector_index", 2)
 
     # Now raise an exception with our erroneous vector indices (which
     # are the same but should not be), but first make sure that the
     # overlaps() method returns True otherwise an earlier exception
     # will be raised.
-    access = DataAccess(field_d_v2)
+    access = DataAccess(field_e_v2)
     monkeypatch.setattr(access, "overlaps", lambda arg: True)
 
     with pytest.raises(InternalError) as excinfo:
-        access.update_coverage(field_d_v3)
+        access.update_coverage(field_e_v3)
     assert (
-        "The halo exchange vector indices for 'd' are the same. This should "
+        "The halo exchange vector indices for 'e' are the same. This should "
         "never happen" in str(excinfo.value))
 
 

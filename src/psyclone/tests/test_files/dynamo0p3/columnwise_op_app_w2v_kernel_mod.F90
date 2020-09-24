@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018-2019, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2020, Science and Technology Facilities Council
 ! All rights reserved.
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -43,16 +43,17 @@
 module columnwise_op_app_w2v_kernel_mod
 
 use kernel_mod,              only : kernel_type
+use fs_continuity_mod,       only : W2V
 use argument_mod,            only : arg_type, func_type,              &
                                     GH_FIELD, GH_COLUMNWISE_OPERATOR, &
-                                    GH_READ, GH_WRITE,                &
-                                    W2V, ANY_SPACE_2,                 &
+                                    GH_READ, GH_WRITE, ANY_SPACE_2,   &
                                     GH_COLUMN_INDIRECTION_DOFMAP,     &
-                                    CELLS 
-
+                                    CELLS
 use constants_mod,           only : r_def, i_def
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -71,26 +72,11 @@ contains
 end type columnwise_op_app_w2v_kernel_type
 
 !-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
-
-! Overload the default structure constructor for function space
-interface columnwise_op_app_w2v_kernel_type
-   module procedure columnwise_op_app_w2v_kernel_constructor
-end interface
-
-!-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public columnwise_op_app_w2v_kernel_code
 
 contains
-
-  type(columnwise_op_app_w2v_kernel_type) function &
-       columnwise_op_app_w2v_kernel_constructor() result(self)
-    implicit none
-    return
-  end function columnwise_op_app_w2v_kernel_constructor
 
   subroutine columnwise_op_app_w2v_kernel_code(cell,                    &
                                                ncell_2d,                &
@@ -108,30 +94,30 @@ contains
                                                undf_w2v,                &
                                                map_w2v,                 &
                                                cma_indirection_map_w2v, &
-                                               ndf_any_space_2,         &
-                                               undf_any_space_2,        &
-                                               map_any_space_2,         &
-                                               cma_indirection_map_any_space_2)
+                                               ndf_aspc2,               &
+                                               undf_aspc2,              &
+                                               map_aspc2,               &
+                                               cma_indirection_map_aspc2)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
     integer(kind=i_def), intent(in) :: ndf_w2v
-    integer(kind=i_def), intent(in) :: ndf_any_space_2
+    integer(kind=i_def), intent(in) :: ndf_aspc2
     integer(kind=i_def), intent(in) :: undf_w2v
-    integer(kind=i_def), intent(in) :: undf_any_space_2
+    integer(kind=i_def), intent(in) :: undf_aspc2
     integer(kind=i_def), intent(in) :: cma_op_nrow
     integer(kind=i_def), intent(in) :: cma_op_ncol
     integer(kind=i_def), intent(in) :: cma_op_bandwidth
     integer(kind=i_def), intent(in) :: cma_op_alpha, cma_op_beta
     integer(kind=i_def), intent(in) :: cma_op_gamma_m, cma_op_gamma_p
-    integer(kind=i_def), intent(in), dimension(ndf_w2v)         :: map_w2v
-    integer(kind=i_def), intent(in), dimension(ndf_any_space_2) :: map_any_space_2
+    integer(kind=i_def), intent(in), dimension(ndf_w2v)   :: map_w2v
+    integer(kind=i_def), intent(in), dimension(ndf_aspc2) :: map_aspc2
     integer(kind=i_def), intent(in), dimension(cma_op_nrow) :: cma_indirection_map_w2v
-    integer(kind=i_def), intent(in), dimension(cma_op_ncol) :: cma_indirection_map_any_space_2
-    real(kind=r_def), intent(out), dimension(undf_w2v)        :: field1
-    real(kind=r_def), intent(in), dimension(undf_any_space_2) :: field2
+    integer(kind=i_def), intent(in), dimension(cma_op_ncol) :: cma_indirection_map_aspc2
+    real(kind=r_def), intent(out), dimension(undf_w2v)  :: field1
+    real(kind=r_def), intent(in), dimension(undf_aspc2) :: field2
     real(kind=r_def), intent(in), dimension(cma_op_bandwidth,cma_op_nrow,ncell_2d) :: cma_op
 
     write(*,*) "A kernel that applies CMA operator to a field on discontinuous space W2V"

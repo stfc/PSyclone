@@ -51,11 +51,30 @@ to provide an overview of the various examples so that a user can find
 one that is appropriate to them. For details of how to run each
 example please see the ``README.md`` files in the associated directories.
 
-The ``check_examples`` bash script (in the ``examples`` directory) is
-primarily intended for correctness checking and is run by Travis
-alongside the test suite. For those examples that support it,
-compilation of the generated code may be requested via the ``-c`` or
-``--compile`` flags.
+Alternatively, some of the examples have associated Jupyter notebooks
+that may be launched with Binder on `MyBinder <https://mybinder.org/>`_.
+This is most easily done by following the links from the top-level
+`README <https://github.com/stfc/PSyclone#try-it-on-binder>`_.
+
+For the purposes of correctness checking, the whole suite of examples
+may be executed using Gnu ``make`` (this functionality is used by Travis
+alongside the test suite). The default target is ``transform`` which
+just performs the PSyclone code transformation steps for each
+example. For those examples that support it, the ``compile`` target
+also requests that the generated code be compiled. The ``notebook``
+target checks the various Jupyter notebooks using ``nbconvert``.
+
+.. note:: if you have copied the examples directory to some other
+	  location but still wish to use ``make`` then you will also
+	  have to set the ``PSYCLONE_CONFIG`` environment variable to
+	  the full path to the PSyclone configuration file, e.g.
+	  ``$ PSYCLONE_CONFIG=/some/path/psyclone.cfg make``
+
+Each of the Makefiles also provides the ``clean`` and ``allclean``
+targets.  The former simply removes all generated files while the
+latter also cleans each of the infrastructure libraries used when
+compiling the examples (``dl_timer``, ``dl_esm_inf`` and the various
+PSyData wrapper libraries).
 
 GOcean
 ------
@@ -64,7 +83,7 @@ Example 1: Loop transformations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Examples of applying various transformations (loop fusion, OpenMP,
-OpenACC) to the semi-PSyKAl'd version of the Shallow
+OpenACC, OpenCL) to the semi-PSyKAl'd version of the Shallow
 benchmark. ("semi" because not all kernels are called from within
 invoke()'s.) Also includes an example of generating a DAG from an
 InvokeSchedule.
@@ -92,7 +111,11 @@ Example 3: OpenCL
 ^^^^^^^^^^^^^^^^^
 
 Example of the use of PSyclone to generate an OpenCL driver version of
-the PSy layer and OpenCL kernels.
+the PSy layer and OpenCL kernels. The Makefile in this example provides
+a target (`make compile-ocl`) to compile the generated OpenCL code. This
+requires an OpenCL implementation installed in the system. Read the README
+provided in the example folder for more details about how to compile and
+execute the generated OpenCL code.
 
 Example 4: Kernels containing use statements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -135,7 +158,7 @@ It instruments each of the two invokes in the example program
 with the PSyData-based kernel extraction code.
 It uses the dl_esm_inf-specific extraction library 'netcdf'
 (``lib/extract/dl_esm_inf/netcdf``), and needs NetCDF to be
-available (including ``nc-config`` to detect installation-specific
+available (including ``nf-config`` to detect installation-specific
 paths). You need to compile the NetCDF extraction library
 (see :ref:`psyke_netcdf`).
 The makefile in this example will link with the compiled NetCDF
@@ -151,6 +174,49 @@ and then executes the original code.
     At this stage the driver program will not compile
     (see issue #644).
 
+.. _gocean_example_7:
+
+Example 7: Read-only-verification
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example shows the use of read-only-verification with PSyclone.
+It instruments each of the two invokes in the example program
+with the PSyData-based read-only-verification code.
+It uses the dl_esm_inf-specific read-only-verification library
+(``lib/read_only/dl_esm_inf/``).
+
+.. note::
+
+    The ``update_field_mod`` subroutine contains some very
+    buggy and non-standard code to change the value of some
+    read-only variables and fields, even though the variables
+    are all declared with
+    ``intent(in)``. It uses the addresses of variables and
+    then out-of-bound writes to a writeable array to
+    actually overwrite the read-only variables. Using
+    array bounds checking at runtime will be triggered by these
+    out-of-bound writes.
+
+The makefile in this example will link with the compiled 
+read-only-verification library. You can execute the created
+binary and it will print two warnings about modified
+read-only variables:
+
+.. code-block:: none
+
+    --------------------------------------
+    Double precision field b_fld has been modified in main : update
+    Original checksum:   4611686018427387904
+    New checksum:        4638355772470722560
+    --------------------------------------
+    --------------------------------------
+    Double precision variable z has been modified in main : update
+    Original value:    1.0000000000000000     
+    New value:         123.00000000000000     
+    --------------------------------------
+
+
+.. _examples_lfric:
 
 LFRic
 ------

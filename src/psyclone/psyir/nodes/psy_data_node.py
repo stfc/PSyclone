@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 ''' This module implementes a PSyData node, i.e.a node that at code
@@ -43,12 +43,13 @@ or profiling.'''
 from __future__ import absolute_import, print_function
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import Symbol, SymbolTable
 
 
 # =============================================================================
-class PSyDataNode(Node):
+class PSyDataNode(Statement):
     # pylint: disable=too-many-instance-attributes, too-many-locals
     '''
     This class can be inserted into a schedule to instrument a set of nodes.
@@ -73,7 +74,7 @@ class PSyDataNode(Node):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
     :type options: dictionary of string:values or None
-    :param str options["class"]: a prefix to use for the PSyData module name \
+    :param str options[prefix"]: a prefix to use for the PSyData module name \
         (``prefix_psy_data_mod``) and the PSyDataType \
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
         It defaults to "", which means the module name used will just be \
@@ -89,6 +90,10 @@ class PSyDataNode(Node):
     fortran_module = "psy_data_mod"
     # The symbols we import from the PSyData Fortran module
     symbols = ["PSyDataType"]
+    # Textual description of the node.
+    _children_valid_format = "Schedule"
+    _text_name = "PSyData"
+    _colour_key = "PSyData"
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
 
@@ -98,7 +103,7 @@ class PSyDataNode(Node):
         # This string stores a prefix to be used with all external PSyData
         # symbols (i.e. data types and module name), used in the
         # method 'add_psydata_class_prefix'.
-        self._class_string = options.get("class", "")
+        self._class_string = options.get("prefix", "")
         if self._class_string:
             self._class_string = self._class_string + "_"
 
@@ -138,7 +143,7 @@ class PSyDataNode(Node):
         # (and also, calling create_name in gen() would result in the name
         # being changed every time gen() is called).
         self._var_name = symtab.new_symbol_name(
-            self.add_psydata_class_prefix("psy_data"))
+            self._psy_data_symbol_with_prefix)
         symtab.add(Symbol(self._var_name))
 
         if children and parent:
@@ -156,11 +161,6 @@ class PSyDataNode(Node):
             parent.addchild(self, index=node_position)
         elif parent:
             parent.addchild(self)
-
-        # Name and colour to use for this node - must be set after calling
-        # the constructor
-        self._text_name = "PSyData"
-        self._colour_key = "PSyData"
 
         # Name of the region. In general at constructor time we might
         # not have a parent subroutine or any child nodes, so
@@ -207,6 +207,19 @@ class PSyDataNode(Node):
             self._region_name = name[1]
             self.set_region_identifier(self._module_name, self._region_name)
 
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return position == 0 and isinstance(child, Schedule)
+
     # -------------------------------------------------------------------------
     def add_psydata_class_prefix(self, symbol):
         '''Returns a string with the class-string as prefix, e.g. if the
@@ -214,9 +227,9 @@ class PSyDataNode(Node):
         become "profilePSyDataType". Typically the class_string will
         contain a trailing "_".
 
-        :param str symbol: the symbol name to get the class string prefixed.
+        :param str symbol: the symbol name to prefix with the class string.
 
-        :returns: the symbol with the class string as prefix.
+        :returns: the symbol name with the class string as prefix.
         :rtype: str
         '''
         return self._class_string + symbol
@@ -262,7 +275,6 @@ class PSyDataNode(Node):
         :raises InternalError: if this PSyData node does not have a Schedule \
                                as its one and only child.
         '''
-        from psyclone.psyir.nodes import Schedule
         if len(self.children) != 1 or not \
            isinstance(self.children[0], Schedule):
             raise InternalError(

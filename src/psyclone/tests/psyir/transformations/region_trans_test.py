@@ -43,6 +43,7 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Node, Schedule
 from psyclone.psyir.transformations import RegionTrans
 from psyclone.tests.utilities import get_invoke
+from psyclone.gocean1p0 import GOLoop
 
 
 class MyRegionTrans(RegionTrans):
@@ -50,7 +51,7 @@ class MyRegionTrans(RegionTrans):
     abstract, so create a simple class that can be instantiated
     by adding dummy implementations of the missing methods.
     '''
-    valid_node_types = (Node, )
+    excluded_node_types = ()
 
     def apply(self, node, options=None):
         '''Dummy only to make this not abstract.'''
@@ -115,7 +116,7 @@ def test_validate_errors():
     '''Tests error handling of the region transformation.'''
 
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
-                           name="invoke_loop1")
+                           name="invoke_loop1", dist_mem=False)
 
     schedule = invoke.schedule
     my_rt = MyRegionTrans()
@@ -161,13 +162,15 @@ def test_validate_errors():
     assert "Transformation apply method options argument must be a " \
         "dictionary" in str(err.value)
 
-    my_rt.valid_node_types = ()
+    # Check that the tuple of excluded node types is used correctly (by
+    # resetting it here to a Loop which is within the region)
+    my_rt.excluded_node_types = (GOLoop,)
     node_list = [schedule.children[0], schedule.children[1],
                  schedule.children[2]]
     with pytest.raises(TransformationError) as err:
         my_rt.validate(node_list)
-    assert "Transformation Error: Nodes of type '<class 'psyclone.gocean1p0."\
-        "GOLoop'>' cannot be enclosed" in str(err.value)
+    assert ("Transformation Error: Nodes of type 'GOLoop' cannot be enclosed"
+            in str(err.value))
 
 
 # -----------------------------------------------------------------------------

@@ -40,11 +40,13 @@
 from __future__ import print_function, absolute_import
 import os
 import pytest
+from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
-from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.nodes import Assignment, CodeBlock, IfBlock
+from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
 # Constants
 API = "nemo"
@@ -69,7 +71,6 @@ def test_unamed_unit(parser):
     a name for the PSy object.
     '''
     code = ("program simple\n"
-            "  ztmp(:,:,:) = 0.0\n"
             "end program\n")
     reader = FortranStringReader(code)
     prog = parser(reader)
@@ -95,7 +96,6 @@ def test_explicit_do_sched():
     assert psy._name == "explicit_do_psy"
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
-
     # The schedule should contain 3 loop objects
     loops = sched.walk(nemo.NemoLoop)
     assert len(loops) == 3
@@ -118,13 +118,13 @@ def test_do_while():
     ''' Check that do-while loops are put into CodeBlocks. Eventually we
     will need to recognise them as Nodes in the Schedule in their
     own right. '''
-    from psyclone.psyir.nodes import CodeBlock
+
     _, invoke_info = get_invoke("do_while.f90", api=API, idx=0)
     sched = invoke_info.schedule
     # Do while loops are not currently handled and thus are put into
     # CodeBlocks.
     assert isinstance(sched[1], CodeBlock)
-    assert isinstance(sched[2], nemo.NemoLoop)
+    assert isinstance(sched[2], Assignment)
     assert isinstance(sched[4], CodeBlock)
 
 
@@ -136,28 +136,11 @@ def test_multi_kern():
     loops = sched.walk(nemo.NemoLoop)
     kerns = sched.coded_kernels()
     # Add the second kernel as a child of the first loop
-    loops[0].children.append(kerns[1])
+    loops[0].loop_body.children.append(kerns[1])
     with pytest.raises(NotImplementedError) as err:
         _ = loops[0].kernel
     assert ("getter method does not yet support a loop containing more than "
             "one kernel but this loop contains 2" in str(err.value))
-
-
-def test_implicit_loop_assign():
-    ''' Check that we only identify an implicit loop when array syntax
-    is used as part of an assignment statement. '''
-    _, invoke_info = get_invoke("array_syntax.f90", api=API, idx=0)
-    sched = invoke_info.schedule
-    loops = sched.walk(nemo.NemoLoop)
-    # We should have three implicit loops
-    assert len(loops) == 3
-    assert isinstance(sched.children[0], nemo.NemoLoop)
-    # Check the __str__ property of the implicit loop
-    txt = str(sched.children[0])
-    assert "NemoImplicitLoop[zftv(:, :, :)]" in txt
-    # The other statements (that use array syntax) are not assignments
-    # and therefore are not implicit loops
-    assert not isinstance(sched.children[1], nemo.NemoLoop)
 
 
 def test_complex_code():
@@ -166,7 +149,7 @@ def test_complex_code():
     _, invoke_info = get_invoke("code_block.f90", api=API, idx=0)
     sched = invoke_info.schedule
     loops = sched.walk(nemo.NemoLoop)
-    assert len(loops) == 5
+    assert len(loops) == 4
     kerns = sched.coded_kernels()
     assert len(kerns) == 1
     # The last loop does not contain a kernel
@@ -186,7 +169,6 @@ def test_io_not_kernel():
 def test_fn_call_no_kernel(parser):
     ''' Check that we don't create a kernel if the loop body contains a
     function call. '''
-    from psyclone.psyir.nodes import Assignment
     reader = FortranStringReader("program fn_call\n"
                                  "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
@@ -206,7 +188,6 @@ def test_fn_call_no_kernel(parser):
 def test_codeblock_no_kernel(parser, monkeypatch):
     ''' Check that we don't create a kernel if the loop body contains a
     CodeBlock. '''
-    from psyclone.psyir.nodes import CodeBlock
     reader = FortranStringReader("program fake_kern\n"
                                  "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
@@ -245,7 +226,7 @@ def test_no_explicit_loop_in_kernel(parser):
     ''' Check that NemoKern.match() does not match a candidate parse tree
     if it includes an explicit loop. '''
     reader = FortranStringReader("program fake_kern\n"
-                                 "integer :: ji, jpj\n"
+                                 "integer :: ji, jpj, idx\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "  do idx = 1, 5\n"
@@ -278,14 +259,14 @@ def test_no_implicit_loop_in_kernel(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
     assert isinstance(loop, nemo.NemoLoop)
-    assert isinstance(loop.loop_body[0], nemo.NemoLoop)
-    # 'loop.loop_body' is not a valid kernel because it itself contains a loop
+    assert isinstance(loop.loop_body[0], Assignment)
+    # 'loop.loop_body' is not a valid kernel because it contains an
+    # assignment to an array range.
     assert not nemo.NemoKern.match(loop.loop_body)
 
 
 def test_schedule_view(capsys):
     ''' Check the schedule view/str methods work as expected '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = get_invoke("io_in_loop.f90", api=API, idx=0)
     sched = invoke_info.schedule
     sched_str = str(sched)
@@ -298,7 +279,7 @@ def test_schedule_view(capsys):
     # Have to allow for colouring of output text
     loop_str = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
     kern_str = colored("InlinedKern", SCHEDULE_COLOUR_MAP["InlinedKern"])
-    isched_str = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    isched_str = colored("NemoInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     sched_str = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     lit_str = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
     ref_str = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -336,7 +317,6 @@ def test_schedule_view(capsys):
 
 def test_kern_inside_if():
     ''' Check that we identify kernels when they are within an if block. '''
-    from psyclone.psyir.nodes import IfBlock
     _, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
     sched = invoke_info.schedule
     kerns = sched.coded_kernels()

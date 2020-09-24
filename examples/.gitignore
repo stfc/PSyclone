@@ -5,3 +5,7 @@ gocean/eg3/compute_cu*.cl
 gocean/eg3/compute_cv*.cl
 gocean/eg3/compute_h*.cl
 gocean/eg3/compute_z*.cl
+gocean/eg3/allkernels.cl
+gocean/eg3/psy_gen.f90
+gocean/eg3/alg_gen.f90
+*.exe

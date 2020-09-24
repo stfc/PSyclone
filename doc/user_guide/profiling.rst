@@ -386,7 +386,7 @@ By default PSyclone will generate appropriate names to uniquely
 determine a particular region. Since those names can be
 somewhat cryptic, alternative names can be specified by the user
 when adding profiling via a transformation script, see
-:ref:`psy_data_parameters_to_constructor`.
+:ref:`dev_guide:psy_data_parameters_to_constructor`.
 
 The automatic name generation depends on the API according
 to the following rules:

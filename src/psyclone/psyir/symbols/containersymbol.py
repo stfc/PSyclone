@@ -38,7 +38,9 @@
 
 ''' This module contains the ContainerSymbol and its interfaces.'''
 
+from __future__ import absolute_import
 from psyclone.psyir.symbols import Symbol, SymbolError
+from psyclone.psyir.symbols.symbol import SymbolInterface
 
 
 class ContainerSymbol(Symbol):
@@ -48,15 +50,18 @@ class ContainerSymbol(Symbol):
     when needed.
 
     :param str name: name of the symbol.
+    :param visibility: the visibility of the symbol.
+    :type scope: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+
     '''
-    def __init__(self, name):
-        super(ContainerSymbol, self).__init__(name)
+    def __init__(self, name, visibility=Symbol.DEFAULT_VISIBILITY):
+        # At the moment we just have one ContainerSymbol interface, so we
+        # always assign this interface to all ContainerSymbols. We will
+        # pass the interface as a parameter when we have more than one.
+        super(ContainerSymbol, self).__init__(
+            name, visibility=visibility, interface=FortranModuleInterface())
 
         self._reference = None
-        # At the moment we just have one ContainerSymbol interface, so we
-        # always assign this interface to all ContainerSymbols, we may want
-        # to pass the interface as a parameter when we have more than one.
-        self._interface = FortranModuleInterface
         # Whether or not there is a wildcard import of all public symbols
         # from this container (e.g. an unqualified USE of a module in Fortran).
         self._has_wildcard_import = False
@@ -108,9 +113,7 @@ class ContainerSymbol(Symbol):
         self._has_wildcard_import = value
 
 
-# Classes below are not exposed in the psyclone.psyir.symbols
-
-class ContainerSymbolInterface(object):
+class ContainerSymbolInterface(SymbolInterface):
     ''' Abstract implementation of the ContainerSymbol Interface '''
 
     @staticmethod

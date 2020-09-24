@@ -40,6 +40,7 @@
 
 from __future__ import absolute_import
 from collections import OrderedDict
+import six
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
@@ -48,8 +49,9 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
-    Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
-    LocalInterface, ScalarType, ArrayType, DeferredType
+    Symbol, RoutineSymbol, GlobalInterface, ArgumentInterface, \
+    UnresolvedInterface, LocalInterface, \
+    ScalarType, ArrayType, DeferredType, UnknownType
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -60,7 +62,8 @@ FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
 TYPE_MAP_FROM_FORTRAN = {"integer": ScalarType.Intrinsic.INTEGER,
                          "character": ScalarType.Intrinsic.CHARACTER,
                          "logical": ScalarType.Intrinsic.BOOLEAN,
-                         "real": ScalarType.Intrinsic.REAL}
+                         "real": ScalarType.Intrinsic.REAL,
+                         "double precision": ScalarType.Intrinsic.REAL}
 
 # Mapping from fparser2 Fortran Literal types to PSyIR types
 CONSTANT_TYPE_MAP = {
@@ -68,34 +71,6 @@ CONSTANT_TYPE_MAP = {
     Fortran2003.Logical_Literal_Constant: ScalarType.Intrinsic.BOOLEAN,
     Fortran2003.Char_Literal_Constant: ScalarType.Intrinsic.CHARACTER,
     Fortran2003.Int_Literal_Constant: ScalarType.Intrinsic.INTEGER}
-
-
-def _get_symbol_table(node):
-    '''Find a symbol table associated with an ancestor of Node 'node' (or
-    the node itself). If there is more than one symbol table, then the
-    symbol table closest in ancestory to 'node' is returned. If no
-    symbol table is found then None is returned.
-
-    :param node: a PSyIR Node.
-    :type node: :py:class:`psyclone.psyir.nodes.Node`
-
-    :returns: a symbol table associated with node or one of its \
-        ancestors or None if one is not found.
-    :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
-
-    :raises TypeError: if the node argument is not a Node.
-
-    '''
-    if not isinstance(node, Node):
-        raise TypeError(
-            "node argument to _get_symbol_table() should be of type Node, but "
-            "found '{0}'.".format(type(node).__name__))
-    current = node
-    while current:
-        if hasattr(current, "symbol_table"):
-            return current.symbol_table
-        current = current.parent
-    return None
 
 
 def _check_args(array, dim):
@@ -314,6 +289,82 @@ def _is_range_full_extent(my_range):
     return is_lower and is_upper and is_step
 
 
+def _kind_symbol_from_name(name, symbol_table):
+    '''
+    Utility method that returns a Symbol representing the named KIND
+    parameter. If the supplied Symbol Table (or one of its ancestors)
+    does not contain an appropriate entry then one is created. If it does
+    contain a matching entry then it must be either a Symbol or a
+    DataSymbol. If it is a DataSymbol then it must have a datatype of
+    'integer' or 'deferred'. If it is deferred then the fact that we now
+    know that this Symbol represents a KIND
+    parameter means that we can change the datatype to be 'integer'.
+    If the existing symbol is a generic Symbol then it is replaced with
+    a new DataSymbol of type 'integer'.
+
+    :param str name: the name of the variable holding the KIND value.
+    :param symbol_table: the Symbol Table associated with the code being\
+                         processed.
+    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+    :returns: the Symbol representing the KIND parameter.
+    :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :raises TypeError: if the symbol table already contains an entry for \
+            `name` but it is not an instance of Symbol or DataSymbol.
+    :raises TypeError: if the symbol table already contains a DataSymbol \
+            for `name` and its datatype is not 'integer' or 'deferred'.
+
+    '''
+    lower_name = name.lower()
+    try:
+        kind_symbol = symbol_table.lookup(lower_name)
+        # pylint: disable=unidiomatic-typecheck
+        if type(kind_symbol) == Symbol:
+            # There is an existing entry but it's only a generic Symbol
+            # so we need to replace it with a DataSymbol of integer type.
+            # Since the lookup() above looks through *all* ancestor symbol
+            # tables, we have to find precisely which table the existing
+            # Symbol is in.
+            table = kind_symbol.find_symbol_table(symbol_table.node)
+            new_symbol = DataSymbol(lower_name,
+                                    default_integer_type(),
+                                    visibility=kind_symbol.visibility,
+                                    interface=kind_symbol.interface)
+            table.swap(kind_symbol, new_symbol)
+            kind_symbol = new_symbol
+        elif isinstance(kind_symbol, DataSymbol):
+
+            if not (isinstance(kind_symbol.datatype,
+                               (UnknownType, DeferredType)) or
+                    (isinstance(kind_symbol.datatype, ScalarType) and
+                     kind_symbol.datatype.intrinsic ==
+                     ScalarType.Intrinsic.INTEGER)):
+                raise TypeError(
+                    "SymbolTable already contains a DataSymbol for "
+                    "variable '{0}' used as a kind parameter but it is not"
+                    "a 'deferred', 'unknown' or 'scalar integer' type.".
+                    format(lower_name))
+            # A KIND parameter must be of type integer so set it here
+            # (in case it was previously 'deferred'). We don't know
+            # what precision this is so set it to the default.
+            kind_symbol.datatype = default_integer_type()
+        else:
+            raise TypeError(
+                "A symbol representing a kind parameter must be an "
+                "instance of either a Symbol or a DataSymbol. However, "
+                "found an entry of type '{0}' for variable '{1}'.".format(
+                    type(kind_symbol).__name__, lower_name))
+    except KeyError:
+        # The SymbolTable does not contain an entry for this kind parameter
+        # so create one. We specify an UnresolvedInterface as we don't
+        # currently know how this symbol is brought into scope.
+        kind_symbol = DataSymbol(lower_name, default_integer_type(),
+                                 interface=UnresolvedInterface())
+        symbol_table.add(kind_symbol)
+    return kind_symbol
+
+
 def default_precision(_):
     '''Returns the default precision specified by the front end. This is
     currently always set to undefined irrespective of the datatype but
@@ -425,25 +476,47 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         # PSyIR stores names as lower case.
         precision_name = precision_name.lower()
         # Find the closest symbol table
-        symbol_table = _get_symbol_table(psyir_literal_parent)
-        if not symbol_table:
+        try:
+            symbol_table = psyir_literal_parent.scope.symbol_table
+        except SymbolError as err:
             # No symbol table found. This should never happen in
             # normal usage but could occur if a test constructs a
             # PSyIR without a Schedule.
-            raise InternalError(
+            six.raise_from(InternalError(
                 "Failed to find a symbol table to which to add the kind "
-                "symbol '{0}'.".format(precision_name))
-        # Lookup the precision symbol
-        try:
-            symbol = symbol_table.lookup(precision_name)
-        except KeyError:
-            # The symbol is not found so create a data
-            # symbol with deferred type and add it to the
-            # symbol table then return the symbol.
-            symbol = DataSymbol(precision_name, DeferredType(),
-                                interface=UnresolvedInterface())
-            symbol_table.add(symbol)
-        return symbol
+                "symbol '{0}'.".format(precision_name)), err)
+        return _kind_symbol_from_name(precision_name, symbol_table)
+
+
+def _process_routine_symbols(module_ast, symbol_table,
+                             default_visibility, visibility_map):
+    '''
+    Examines the supplied fparser2 parse tree for a module and creates
+    RoutineSymbols for every routine (function or subroutine) that it
+    contains.
+
+    :param module_ast: fparser2 parse tree for module.
+    :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
+    :param symbol_table: the SymbolTable to which to add the symbols.
+    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param default_visibility: the default visibility that applies to all \
+            symbols without an explicit visibility specification.
+    :type default_visibility: \
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+    :param visibility_map: dict of symbol names with explicit visibilities.
+    :type visibility_map: dict with symbol names as keys and visibilities as \
+                          values
+    '''
+    routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
+                                 Fortran2003.Function_Subprogram))
+    for routine in routines:
+        name = str(routine.children[0].children[1])
+        vis = visibility_map.get(name, default_visibility)
+        # This routine is defined within this scoping unit and therefore has a
+        # local interface.
+        rsymbol = RoutineSymbol(name, visibility=vis,
+                                interface=LocalInterface())
+        symbol_table.add(rsymbol)
 
 
 class Fparser2Reader(object):
@@ -469,6 +542,7 @@ class Fparser2Reader(object):
         ('atan', UnaryOperation.Operator.ATAN),
         ('sqrt', UnaryOperation.Operator.SQRT),
         ('real', UnaryOperation.Operator.REAL),
+        ('nint', UnaryOperation.Operator.NINT),
         ('int', UnaryOperation.Operator.INT)])
 
     binary_operators = OrderedDict([
@@ -732,10 +806,27 @@ class Fparser2Reader(object):
         # Create a container to capture the module information
         new_container = Container(mod_name)
 
+        # Search for any accessibility statements (e.g. "PUBLIC :: my_var") to
+        # determine the default accessibility of symbols as well as identifying
+        # those that are explicitly declared as public or private.
+        (default_visibility, visibility_map) = self._parse_access_statements(
+            module)
+
+        # Create symbols for all routines defined within this module
+        _process_routine_symbols(module_ast, new_container.symbol_table,
+                                 default_visibility, visibility_map)
+
         # Parse the declarations if it has any
         for child in module.children:
             if isinstance(child, Fortran2003.Specification_Part):
-                self.process_declarations(new_container, child.children, [])
+                try:
+                    self.process_declarations(new_container, child.children,
+                                              [], default_visibility,
+                                              visibility_map)
+                except SymbolError as err:
+                    six.raise_from(SymbolError(
+                        "Error when generating Container for module '{0}': "
+                        "{1}".format(mod_name, err.args[0])), err)
                 break
 
         return new_container
@@ -899,9 +990,15 @@ class Fparser2Reader(object):
                     dim_name = dim.items[1].string.lower()
                     try:
                         sym = symbol_table.lookup(dim_name)
-                        if (sym.datatype.intrinsic !=
-                                ScalarType.Intrinsic.INTEGER or
-                                isinstance(sym.datatype, ArrayType)):
+                        if isinstance(sym.datatype, (UnknownType,
+                                                     DeferredType)):
+                            # Allow symbols of Unknown/DeferredType.
+                            pass
+                        elif not (isinstance(sym.datatype, ScalarType) and
+                                  sym.datatype.intrinsic ==
+                                  ScalarType.Intrinsic.INTEGER):
+                            # It's not of Unknown/DeferredType and it's not an
+                            # integer scalar.
                             _unsupported_type_error(dimensions)
                     except KeyError:
                         # We haven't seen this symbol before so create a new
@@ -926,28 +1023,127 @@ class Fparser2Reader(object):
 
         return shape
 
-    def process_declarations(self, parent, nodes, arg_list):
+    @staticmethod
+    def _parse_access_statements(nodes):
         '''
-        Transform the variable declarations in the fparser2 parse tree into
-        symbols in the symbol table of the PSyIR parent node.
+        Search the supplied list of fparser2 nodes (which must represent a
+        complete Specification Part) for any accessibility
+        statements (e.g. "PUBLIC :: my_var") to determine the default
+        visibility of symbols as well as identifying those that are
+        explicitly declared as public or private.
+
+        :param nodes: nodes in the fparser2 parse tree describing a \
+                      Specification Part that will be searched.
+        :type nodes: list of :py:class:`fparser.two.utils.Base`
+
+        :returns: default visibility of symbols within the current scoping \
+            unit and dict of symbol names with explicit visibilities.
+        :rtype: 2-tuple of (:py:class:`psyclone.symbols.Symbol.Visibility`, \
+                dict)
+
+        :raises InternalError: if an accessibility attribute which is not \
+            'public' or 'private' is encountered.
+        :raises GenerationError: if the parse tree is found to contain more \
+            than one bare accessibility statement (i.e. 'PUBLIC' or 'PRIVATE')
+        :raises GenerationError: if a symbol is explicitly declared as being \
+            both public and private.
+
+        '''
+        default_visibility = None
+        # Sets holding the names of those symbols whose access is specified
+        # explicitly via an access-stmt (e.g. "PUBLIC :: my_var")
+        explicit_public = set()
+        explicit_private = set()
+        # R518 an access-stmt shall appear only in the specification-part
+        # of a *module*.
+        access_stmts = walk(nodes, Fortran2003.Access_Stmt)
+
+        for stmt in access_stmts:
+
+            if stmt.children[0].lower() == "public":
+                public_stmt = True
+            elif stmt.children[0].lower() == "private":
+                public_stmt = False
+            else:
+                raise InternalError(
+                    "Failed to process '{0}'. Found an accessibility "
+                    "attribute of '{1}' but expected either 'public' or "
+                    "'private'.".format(str(stmt), stmt.children[0]))
+            if not stmt.children[1]:
+                if default_visibility:
+                    # We've already seen an access statement without an
+                    # access-id-list. This is therefore invalid Fortran (which
+                    # fparser does not catch).
+                    current_node = stmt.parent
+                    while current_node:
+                        if isinstance(current_node, Fortran2003.Module):
+                            mod_name = str(
+                                current_node.children[0].children[1])
+                            raise GenerationError(
+                                "Module '{0}' contains more than one access "
+                                "statement with an omitted access-id-list. "
+                                "This is invalid Fortran.".format(mod_name))
+                        current_node = current_node.parent
+                    # Failed to find an enclosing Module. This is also invalid
+                    # Fortran since an access statement is only permitted
+                    # within a module.
+                    raise GenerationError(
+                        "Found multiple access statements with omitted access-"
+                        "id-lists and no enclosing Module. Both of these "
+                        "things are invalid Fortran.")
+                if public_stmt:
+                    default_visibility = Symbol.Visibility.PUBLIC
+                else:
+                    default_visibility = Symbol.Visibility.PRIVATE
+            else:
+                if public_stmt:
+                    explicit_public.update(
+                        [child.string for child in stmt.children[1].children])
+                else:
+                    explicit_private.update(
+                        [child.string for child in stmt.children[1].children])
+        # Sanity check the lists of symbols (because fparser2 does not
+        # currently do much validation)
+        invalid_symbols = explicit_public.intersection(explicit_private)
+        if invalid_symbols:
+            raise GenerationError(
+                "Symbols {0} appear in access statements with both PUBLIC "
+                "and PRIVATE access-ids. This is invalid Fortran.".format(
+                    list(invalid_symbols)))
+
+        # Symbols are public by default in Fortran
+        if default_visibility is None:
+            default_visibility = Symbol.Visibility.PUBLIC
+
+        visibility_map = {}
+        for name in explicit_public:
+            visibility_map[name] = Symbol.Visibility.PUBLIC
+        for name in explicit_private:
+            visibility_map[name] = Symbol.Visibility.PRIVATE
+
+        return (default_visibility, visibility_map)
+
+    @staticmethod
+    def _process_use_stmts(parent, nodes):
+        '''
+        Process all of the USE statements in the fparser2 parse tree
+        supplied as a list of nodes. Imported symbols are added to
+        the symbol table associated with the supplied parent node with
+        appropriate interfaces.
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
-        :param nodes: fparser2 AST nodes to search for declaration statements.
+        :param nodes: fparser2 AST nodes to search for use statements.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
-        :param arg_list: fparser2 AST node containing the argument list.
-        :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
 
-        :raises NotImplementedError: the provided declarations contain \
-                                     attributes which are not supported yet.
-        :raises GenerationError: if the parse tree for a USE statement does \
-                                 not have the expected structure.
-        :raises SymbolError: if a declaration is found for a Symbol that is \
-                    already in the symbol table with a defined interface.
-        :raises InternalError: if the provided declaration is an unexpected \
-                               or invalid fparser or Fortran expression.
+        :raises GenerationError: if the parse tree for a use statement has an \
+                                 unrecognised structure.
+        :raises SymbolError: if a symbol imported via a use statement is \
+                             already present in the symbol table.
+        :raises NotImplementedError: if the form of use statement is not \
+                                     supported.
+
         '''
-        # Look at any USE statments
         for decl in walk(nodes, Fortran2003.Use_Stmt):
 
             # Check that the parse tree is what we expect
@@ -971,7 +1167,9 @@ class Fparser2Reader(object):
             if mod_name not in parent.symbol_table:
                 new_container = True
                 container = ContainerSymbol(mod_name)
-                parent.symbol_table.add(container)
+                # It is OK if a parent symbol table also has a
+                # reference to this module so do not check ancestors.
+                parent.symbol_table.add(container, check_ancestors=False)
             else:
                 new_container = False
                 container = parent.symbol_table.lookup(mod_name)
@@ -982,7 +1180,7 @@ class Fparser2Reader(object):
                         "({1}). This is invalid Fortran.".format(
                             mod_name, str(container)))
 
-            # Create a 'deferred' symbol for each element in the ONLY clause.
+            # Create a generic Symbol for each element in the ONLY clause.
             if isinstance(decl.items[4], Fortran2003.Only_List):
                 if not new_container and not container.wildcard_import \
                    and not parent.symbol_table.imported_symbols(container):
@@ -996,12 +1194,12 @@ class Fparser2Reader(object):
                     sym_name = str(name).lower()
                     if sym_name not in parent.symbol_table:
                         parent.symbol_table.add(
-                            DataSymbol(sym_name,
-                                       DeferredType(),
-                                       interface=GlobalInterface(container)))
+                            Symbol(sym_name,
+                                   interface=GlobalInterface(container)))
                     else:
                         # There's already a symbol with this name
-                        existing_symbol = parent.symbol_table.lookup(sym_name)
+                        existing_symbol = parent.symbol_table.lookup(
+                            sym_name)
                         if not existing_symbol.is_global:
                             raise SymbolError(
                                 "Symbol '{0}' is imported from module '{1}' "
@@ -1037,175 +1235,365 @@ class Fparser2Reader(object):
                 raise NotImplementedError("Found unsupported USE statement: "
                                           "'{0}'".format(str(decl)))
 
-        for decl in walk(nodes, Fortran2003.Type_Declaration_Stmt):
-            (type_spec, attr_specs, entities) = decl.items
+    def _process_decln(self, parent, decl, default_visibility,
+                       visibility_map=None):
+        '''
+        Process the supplied fparser2 parse tree for a declaration. For each
+        entity that is declared, a symbol is added to the symbol table
+        associated with the parent node.
 
-            # Parse type_spec, currently just 'real', 'integer', 'logical' and
-            # 'character' intrinsic types are supported.
-            if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
-                fort_type = str(type_spec.items[0]).lower()
-                try:
-                    data_name = TYPE_MAP_FROM_FORTRAN[fort_type]
-                except KeyError:
-                    raise NotImplementedError(
-                        "Could not process {0}. Only 'real', 'integer', "
-                        "'logical' and 'character' intrinsic types are "
-                        "supported.".format(str(decl.items)))
-                # Check for a KIND specification
-                precision = self._process_kind_selector(
-                    type_spec, parent)
+        :param parent: PSyIR node in which to insert the symbols found.
+        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
+        :param decl: fparser2 parse tree of declaration to process.
+        :type decl: :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
+        :param default_visibility: the default visibility of symbols in the \
+                                   current declaration section.
+        :type default_visibility: \
+            :py:class:`psyclone.symbols.Symbol.Visibility`
+        :param visibility_map: mapping of symbol name to visibility (for \
+            those symbols listed in an accessibility statement).
+        :type visibility_map: dict with str keys and \
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility` values
 
-            # Parse declaration attributes:
-            # 1) If no dimension attribute is provided, it defaults to scalar.
-            attribute_shape = []
-            # 2) If no intent attribute is provided, it is provisionally
-            # marked as a local variable (when the argument list is parsed,
-            # arguments with no explicit intent are updated appropriately).
-            interface = LocalInterface()
-            # 3) Record initialized constant values
-            has_constant_value = False
-            allocatable = False
-            if attr_specs:
-                for attr in attr_specs.items:
-                    if isinstance(attr, Fortran2003.Attr_Spec):
-                        normalized_string = str(attr).lower().replace(' ', '')
-                        if "save" in normalized_string:
-                            # Variables declared with SAVE attribute inside a
-                            # module, submodule or main program are implicitly
-                            # SAVE'd (see Fortran specification 8.5.16.4) so it
-                            # is valid to ignore the attribute in these
-                            # situations.
-                            if not (decl.parent and
-                                    isinstance(decl.parent.parent,
-                                               (Fortran2003.Module,
-                                                Fortran2003.Main_Program))):
-                                raise NotImplementedError(
-                                    "Could not process {0}. The 'SAVE' "
-                                    "attribute is not yet supported when it is"
-                                    " not part of a module, submodule or main_"
-                                    "program specification part.".
-                                    format(decl.items))
+        :raises NotImplementedError: if an unsupported intrinsic type is found.
+        :raises NotImplementedError: if the declaration is not of an \
+                                     intrinsic type.
+        :raises NotImplementedError: if the save attribute is encountered on a\
+                                     declaration that is not within a module.
+        :raises NotImplementedError: if an unsupported attribute is found.
+        :raises NotImplementedError: if an unsupported intent attribute is \
+                                     found.
+        :raises NotImplementedError: if an unsupported access-spec attribute \
+                                     is found.
+        :raises NotImplementedError: if the allocatable attribute is found on \
+                                     a non-array declaration.
+        :raises InternalError: if an array with defined extent has the \
+                               allocatable attribute.
+        :raises NotImplementedError: if an initialisation expression is found \
+                                     for a variable declaration.
+        :raises NotImplementedError: if an unsupported initialisation \
+                expression is found for a parameter declaration.
+        :raises NotImplementedError: if a character-length specification is \
+                                     found.
+        :raises SymbolError: if a declaration is found for a symbol that is \
+                already present in the symbol table with a defined interface.
 
-                        elif normalized_string == "parameter":
-                            # Flag the existence of a constant value in the RHS
-                            has_constant_value = True
-                        elif normalized_string == "allocatable":
-                            allocatable = True
-                        else:
+        '''
+        (type_spec, attr_specs, entities) = decl.items
+
+        # Parse type_spec, currently just 'real', 'double precision',
+        # 'integer', 'logical' and 'character' intrinsic types are supported.
+        if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
+            fort_type = str(type_spec.items[0]).lower()
+            try:
+                data_name = TYPE_MAP_FROM_FORTRAN[fort_type]
+            except KeyError:
+                raise NotImplementedError(
+                    "Could not process {0}. Only 'real', 'double "
+                    "precision', 'integer', 'logical' and 'character' "
+                    "intrinsic types are supported."
+                    "".format(str(decl.items)))
+            if fort_type == "double precision":
+                # Fortran double precision is equivalent to a REAL
+                # intrinsic with precision DOUBLE in the PSyIR.
+                precision = ScalarType.Precision.DOUBLE
+            else:
+                # Check for precision being specified.
+                precision = self._process_precision(type_spec, parent)
+        else:
+            # Not an intrinsic type so not yet supported.
+            raise NotImplementedError()
+
+        # Parse declaration attributes:
+        # 1) If no dimension attribute is provided, it defaults to scalar.
+        attribute_shape = []
+        # 2) If no intent attribute is provided, it is provisionally
+        # marked as a local variable (when the argument list is parsed,
+        # arguments with no explicit intent are updated appropriately).
+        interface = LocalInterface()
+        # 3) Record initialized constant values
+        has_constant_value = False
+        # 4) Whether the declaration has the allocatable attribute
+        allocatable = False
+        # 5) Access-specification - this var is only set if the declaration
+        # has an explicit access-spec (e.g. INTEGER, PRIVATE :: xxx)
+        decln_access_spec = None
+        if attr_specs:
+            for attr in attr_specs.items:
+                if isinstance(attr, Fortran2003.Attr_Spec):
+                    normalized_string = str(attr).lower().replace(' ', '')
+                    if "save" in normalized_string:
+                        # Variables declared with SAVE attribute inside a
+                        # module, submodule or main program are implicitly
+                        # SAVE'd (see Fortran specification 8.5.16.4) so it
+                        # is valid to ignore the attribute in these
+                        # situations.
+                        if not (decl.parent and
+                                isinstance(decl.parent.parent,
+                                           (Fortran2003.Module,
+                                            Fortran2003.Main_Program))):
                             raise NotImplementedError(
-                                "Could not process {0}. Unrecognized "
-                                "attribute '{1}'.".format(decl.items,
-                                                          str(attr)))
-                    elif isinstance(attr, Fortran2003.Intent_Attr_Spec):
-                        (_, intent) = attr.items
-                        normalized_string = \
-                            intent.string.lower().replace(' ', '')
-                        if normalized_string == "in":
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.READ)
-                        elif normalized_string == "out":
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.WRITE)
-                        elif normalized_string == "inout":
-                            interface = ArgumentInterface(
-                                ArgumentInterface.Access.READWRITE)
-                        else:
-                            raise InternalError(
-                                "Could not process {0}. Unexpected intent "
-                                "attribute '{1}'.".format(decl.items,
-                                                          str(attr)))
-                    elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
-                        attribute_shape = \
-                            self._parse_dimensions(attr, parent.symbol_table)
+                                "Could not process {0}. The 'SAVE' "
+                                "attribute is not yet supported when it is"
+                                " not part of a module, submodule or main_"
+                                "program specification part.".
+                                format(decl.items))
+
+                    elif normalized_string == "parameter":
+                        # Flag the existence of a constant value in the RHS
+                        has_constant_value = True
+                    elif normalized_string == "allocatable":
+                        allocatable = True
                     else:
                         raise NotImplementedError(
-                            "Could not process {0}. Unrecognized attribute "
-                            "type {1}.".format(decl.items, str(type(attr))))
-
-            if not precision:
-                precision = default_precision(data_name)
-
-            # Parse declarations RHS and declare new symbol into the
-            # parent symbol table for each entity found.
-            for entity in entities.items:
-                (name, array_spec, char_len, initialisation) = entity.items
-                ct_expr = None
-
-                # If the entity has an array-spec shape, it has priority.
-                # Otherwise use the declaration attribute shape.
-                if array_spec is not None:
-                    entity_shape = \
-                        self._parse_dimensions(array_spec, parent.symbol_table)
-                else:
-                    entity_shape = attribute_shape
-
-                if allocatable and not entity_shape:
-                    # We have an allocatable attribute on something that we
-                    # don't recognise as an array - this is not supported.
-                    raise NotImplementedError(
-                        "Could not process {0}. The 'allocatable' attribute is"
-                        " only supported on array declarations.".format(
-                            str(decl)))
-
-                for idx, extent in enumerate(entity_shape):
-                    if extent is None:
-                        if allocatable:
-                            entity_shape[idx] = ArrayType.Extent.DEFERRED
-                        else:
-                            entity_shape[idx] = ArrayType.Extent.ATTRIBUTE
-                    elif not isinstance(extent, ArrayType.Extent) and \
-                            allocatable:
-                        # We have an allocatable array with a defined extent.
-                        # This is invalid Fortran.
+                            "Could not process {0}. Unrecognised "
+                            "attribute '{1}'.".format(decl.items,
+                                                      str(attr)))
+                elif isinstance(attr, Fortran2003.Intent_Attr_Spec):
+                    (_, intent) = attr.items
+                    normalized_string = \
+                        intent.string.lower().replace(' ', '')
+                    if normalized_string == "in":
+                        interface = ArgumentInterface(
+                            ArgumentInterface.Access.READ)
+                    elif normalized_string == "out":
+                        interface = ArgumentInterface(
+                            ArgumentInterface.Access.WRITE)
+                    elif normalized_string == "inout":
+                        interface = ArgumentInterface(
+                            ArgumentInterface.Access.READWRITE)
+                    else:
                         raise InternalError(
-                            "Invalid Fortran: '{0}'. An array with defined "
-                            "extent cannot have the ALLOCATABLE attribute.".
-                            format(str(decl)))
-
-                if initialisation:
-                    if has_constant_value:
-                        # If it is a parameter parse its initialization
-                        tmp = Node()
-                        expr = initialisation.items[1]
-                        self.process_nodes(parent=tmp, nodes=[expr])
-                        ct_expr = tmp.children[0]
+                            "Could not process {0}. Unexpected intent "
+                            "attribute '{1}'.".format(decl.items,
+                                                      str(attr)))
+                elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
+                    attribute_shape = \
+                        self._parse_dimensions(attr, parent.symbol_table)
+                elif isinstance(attr, Fortran2003.Access_Spec):
+                    if attr.string.lower() == 'public':
+                        decln_access_spec = Symbol.Visibility.PUBLIC
+                    elif attr.string.lower() == 'private':
+                        decln_access_spec = Symbol.Visibility.PRIVATE
                     else:
-                        raise NotImplementedError(
-                            "Could not process {0}. Initialisations on the"
-                            " declaration statements are only supported for "
-                            "parameter declarations.".format(decl.items))
-
-                if char_len is not None:
+                        raise InternalError(
+                            "Could not process '{0}'. Unexpected Access "
+                            "Spec attribute '{1}'.".format(decl.items,
+                                                           str(attr)))
+                else:
                     raise NotImplementedError(
-                        "Could not process {0}. Character length "
-                        "specifications are not supported."
-                        "".format(decl.items))
+                        "Could not process declaration: '{0}'. "
+                        "Unrecognised attribute type '{1}'.".format(
+                            str(decl), str(type(attr).__name__)))
 
-                sym_name = str(name).lower()
+        if not precision:
+            precision = default_precision(data_name)
 
-                if entity_shape:
-                    # array
-                    datatype = ArrayType(ScalarType(data_name, precision),
-                                         entity_shape)
+        # Parse declarations RHS and declare new symbol into the
+        # parent symbol table for each entity found.
+        for entity in entities.items:
+            (name, array_spec, char_len, initialisation) = entity.items
+            ct_expr = None
+
+            # If the entity has an array-spec shape, it has priority.
+            # Otherwise use the declaration attribute shape.
+            if array_spec is not None:
+                entity_shape = \
+                    self._parse_dimensions(array_spec, parent.symbol_table)
+            else:
+                entity_shape = attribute_shape
+
+            if allocatable and not entity_shape:
+                # We have an allocatable attribute on something that we
+                # don't recognise as an array - this is not supported.
+                raise NotImplementedError(
+                    "Could not process {0}. The 'allocatable' attribute is"
+                    " only supported on array declarations.".format(
+                        str(decl)))
+
+            for idx, extent in enumerate(entity_shape):
+                if extent is None:
+                    if allocatable:
+                        entity_shape[idx] = ArrayType.Extent.DEFERRED
+                    else:
+                        entity_shape[idx] = ArrayType.Extent.ATTRIBUTE
+                elif not isinstance(extent, ArrayType.Extent) and \
+                        allocatable:
+                    # We have an allocatable array with a defined extent.
+                    # This is invalid Fortran.
+                    raise InternalError(
+                        "Invalid Fortran: '{0}'. An array with defined "
+                        "extent cannot have the ALLOCATABLE attribute.".
+                        format(str(decl)))
+
+            if initialisation:
+                if has_constant_value:
+                    # If it is a parameter parse its initialization into
+                    # a dummy Assignment inside a Schedule which temporally
+                    # hijacks the parent's node symbol table
+                    tmp_sch = Schedule(symbol_table=parent.symbol_table)
+                    dummynode = Assignment(parent=tmp_sch)
+                    tmp_sch.addchild(dummynode)
+                    expr = initialisation.items[1]
+                    self.process_nodes(parent=dummynode, nodes=[expr])
+                    ct_expr = dummynode.children[0]
                 else:
-                    # scalar
-                    datatype = ScalarType(data_name, precision)
+                    raise NotImplementedError(
+                        "Could not process {0}. Initialisations on the"
+                        " declaration statements are only supported for "
+                        "parameter declarations.".format(decl.items))
 
-                if sym_name not in parent.symbol_table:
-                    parent.symbol_table.add(DataSymbol(sym_name, datatype,
-                                                       constant_value=ct_expr,
-                                                       interface=interface))
+            if char_len is not None:
+                raise NotImplementedError(
+                    "Could not process {0}. Character length "
+                    "specifications are not supported."
+                    "".format(decl.items))
+
+            sym_name = str(name).lower()
+
+            if decln_access_spec:
+                visibility = decln_access_spec
+            else:
+                # There was no access-spec on the LHS of the decln
+                if visibility_map is not None:
+                    visibility = visibility_map.get(sym_name,
+                                                    default_visibility)
                 else:
-                    # The symbol table already contains an entry with this name
-                    # so update its interface information.
-                    sym = parent.symbol_table.lookup(sym_name)
-                    if not sym.unresolved_interface:
-                        raise SymbolError(
-                            "Symbol '{0}' already present in SymbolTable with "
-                            "a defined interface ({1}).".format(
-                                sym_name, str(sym.interface)))
-                    sym.interface = interface
+                    visibility = default_visibility
 
+            if entity_shape:
+                # array
+                datatype = ArrayType(ScalarType(data_name, precision),
+                                     entity_shape)
+            else:
+                # scalar
+                datatype = ScalarType(data_name, precision)
+
+            if sym_name not in parent.symbol_table:
+                try:
+                    sym = DataSymbol(sym_name, datatype,
+                                     visibility=visibility,
+                                     constant_value=ct_expr,
+                                     interface=interface)
+                except ValueError:
+                    # Error setting initial value
+                    raise NotImplementedError()
+                # We don't want to check ancestor symbol tables as we're
+                # currently processing a *local* variable declaration.
+                parent.symbol_table.add(sym, check_ancestors=False)
+            else:
+                # The symbol table already contains an entry with this name
+                # so update its interface information.
+                sym = parent.symbol_table.lookup(sym_name)
+                if not sym.is_unresolved:
+                    raise SymbolError(
+                        "Symbol '{0}' already present in SymbolTable with "
+                        "a defined interface ({1}).".format(
+                            sym_name, str(sym.interface)))
+                sym.interface = interface
+
+    def process_declarations(self, parent, nodes, arg_list,
+                             default_visibility=None,
+                             visibility_map=None):
+        '''
+        Transform the variable declarations in the fparser2 parse tree into
+        symbols in the symbol table of the PSyIR parent node. If
+        `default_visibility` and `visibility_map` are not supplied then
+        _parse_access_statements() is called on the provided parse tree.
+        If `visibility_map` is supplied and `default_visibility` omitted then
+        it defaults to PUBLIC (the Fortran default).
+
+        :param parent: PSyIR node in which to insert the symbols found.
+        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
+        :param nodes: fparser2 AST nodes to search for declaration statements.
+        :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :param arg_list: fparser2 AST node containing the argument list.
+        :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
+        :param default_visibility: the visibility of a symbol which does not \
+                        have an explicit accessibility specification.
+        :type default_visibility: \
+                        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+        :param visibility_map: mapping of symbol names to explicit
+                        visibilities.
+        :type visibility_map: dict with str keys and values of type \
+                        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+
+        :raises NotImplementedError: the provided declarations contain \
+                                     attributes which are not supported yet.
+        :raises GenerationError: if the parse tree for a USE statement does \
+                                 not have the expected structure.
+        :raises SymbolError: if a declaration is found for a Symbol that is \
+                    already in the symbol table with a defined interface.
+        :raises InternalError: if the provided declaration is an unexpected \
+                               or invalid fparser or Fortran expression.
+
+        '''
+        if default_visibility is None:
+            if visibility_map is None:
+                # If no default visibility or visibility mapping is supplied,
+                # check for any access statements.
+                default_visibility, visibility_map = \
+                    self._parse_access_statements(nodes)
+            else:
+                # In case the caller has provided a visibility map but
+                # omitted the default visibility, we use the Fortran default.
+                default_visibility = Symbol.Visibility.PUBLIC
+
+        # Look at any USE statements
+        self._process_use_stmts(parent, nodes)
+
+        for decl in walk(nodes, Fortran2003.Type_Declaration_Stmt):
+            try:
+                self._process_decln(parent, decl,
+                                    default_visibility,
+                                    visibility_map)
+            except NotImplementedError:
+                # Found an unsupported variable declaration. Create a
+                # DataSymbol with UnknownType for each entity being declared.
+                # Currently this means that any symbols that come after an
+                # unsupported declaration will also have UnknownType. This is
+                # the subject of Issue #791.
+                orig_children = list(decl.children[2].children[:])
+                for child in orig_children:
+                    # Modify the fparser2 parse tree so that it only declares
+                    # the current entity. `items` is a tuple and thus immutable
+                    # so we create a new one.
+                    decl.children[2].items = (child,)
+                    symbol_name = str(child.children[0])
+                    # If a declaration declares multiple entities, it's
+                    # possible that some may have already been processed
+                    # successfully and thus be in the symbol table.
+                    try:
+                        parent.symbol_table.add(
+                            DataSymbol(symbol_name, UnknownType(str(decl))))
+                    except KeyError:
+                        if len(orig_children) == 1:
+                            raise SymbolError(
+                                "Error while processing unsupported "
+                                "declaration ('{0}'). An entry for symbol "
+                                "'{1}' is already in the symbol table.".format(
+                                    str(decl), symbol_name))
+                # Restore the fparser2 parse tree
+                decl.children[2].items = tuple(orig_children)
+
+        if visibility_map is not None:
+            # Check for symbols named in an access statement but not explicitly
+            # declared. These must then refer to symbols that have been brought
+            # into scope by an unqualified use statement.
+            for name, vis in visibility_map.items():
+                if name not in parent.symbol_table:
+                    try:
+                        # If a suitable unqualified use statement is found then
+                        # this call creates a Symbol and inserts it in the
+                        # appropriate symbol table.
+                        parent.find_or_create_symbol(name, visibility=vis)
+                    except SymbolError as err:
+                        # Improve the error message with context-specific info
+                        six.raise_from(SymbolError(
+                            "'{0}' is listed in an accessibility statement as "
+                            "being '{1}' but failed to find a declaration or "
+                            "possible import (use) of this symbol.".format(
+                                name, vis)), err)
         try:
             arg_symbols = []
             # Ensure each associated symbol has the correct interface info.
@@ -1239,7 +1627,6 @@ class Fparser2Reader(object):
                 if symbol.is_array:
                     # This is an array assignment wrongly categorized as a
                     # statement_function by fparser2.
-                    array_name = fn_name
                     array_subscript = arg_list.items
 
                     assignment_rhs = scalar_expr
@@ -1268,11 +1655,12 @@ class Fparser2Reader(object):
                     "are not supported.".format(str(stmtfn)))
 
     @staticmethod
-    def _process_kind_selector(type_spec, psyir_parent):
+    def _process_precision(type_spec, psyir_parent):
         '''Processes the fparser2 parse tree of the type specification of a
-        variable declaration in order to extract KIND information. This
-        information is used to determine the precision of the variable (as
-        supplied to the DataSymbol constructor).
+        variable declaration in order to extract precision
+        information. Two formats for specifying precision are
+        supported a) "*N" e.g. real*8 and b) "kind=" e.g. kind=i_def, or
+        kind=KIND(x).
 
         :param type_spec: the fparser2 parse tree of the type specification.
         :type type_spec: :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec
@@ -1290,14 +1678,21 @@ class Fparser2Reader(object):
             a valid variable name.
 
         '''
-        symbol_table = _get_symbol_table(psyir_parent)
+        symbol_table = psyir_parent.scope.symbol_table
 
         if not isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
+            # No precision is specified
             return None
-        # The KIND() intrinsic itself is Fortran specific and has no direct
-        # representation in the PSyIR. We therefore can't use
-        # self.process_nodes() here.
+
         kind_selector = type_spec.items[1]
+
+        if (isinstance(kind_selector.children[0], str) and
+                kind_selector.children[0] == "*"):
+            # Precision is provided in the form *N
+            precision = int(str(kind_selector.children[1]))
+            return precision
+
+        # Precision is supplied in the form "kind=..."
         intrinsics = walk(kind_selector.items,
                           Fortran2003.Intrinsic_Function_Reference)
         if intrinsics and isinstance(intrinsics[0].items[0],
@@ -1325,54 +1720,8 @@ class Fparser2Reader(object):
             raise NotImplementedError(
                 "Failed to find valid Name in Fortran Kind "
                 "Selector: '{0}'".format(str(kind_selector)))
-        return Fparser2Reader._kind_symbol_from_name(str(kind_names[0]),
-                                                     symbol_table)
 
-    @staticmethod
-    def _kind_symbol_from_name(name, symbol_table):
-        '''
-        Utility method that returns a Symbol representing the named KIND
-        parameter. If the supplied Symbol Table does not contain an appropriate
-        entry then one is created. If it does contain a matching entry then
-        its datatype must be 'integer' or 'deferred'. If the latter then the
-        fact that we now know that this Symbol represents a KIND parameter
-        means that we can change the datatype to be 'integer'.
-
-        :param str name: the name of the variable holding the KIND value.
-        :param symbol_table: the Symbol Table associated with the code being\
-                             processed.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-        :returns: the Symbol representing the KIND parameter.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-        :raises TypeError: if the Symbol Table already contains an entry for \
-                       `name` and its datatype is not 'integer' or 'deferred'.
-        '''
-        lower_name = name.lower()
-        try:
-            kind_symbol = symbol_table.lookup(lower_name)
-            if not (isinstance(kind_symbol.datatype, DeferredType) or
-                    (isinstance(kind_symbol.datatype, ScalarType) and
-                     kind_symbol.datatype.intrinsic ==
-                     ScalarType.Intrinsic.INTEGER)):
-                raise TypeError(
-                    "SymbolTable already contains an entry for "
-                    "variable '{0}' used as a kind parameter but it "
-                    "is not a 'deferred' or 'scalar integer' type.".
-                    format(lower_name))
-            # A KIND parameter must be of type integer so set it here
-            # (in case it was previously 'deferred'). We don't know
-            # what precision this is so set it to the default.
-            kind_symbol.datatype = default_integer_type()
-        except KeyError:
-            # The SymbolTable does not contain an entry for this kind parameter
-            # so create one. We specify an UnresolvedInterface as we don't
-            # currently know how this symbol is brought into scope.
-            kind_symbol = DataSymbol(lower_name, default_integer_type(),
-                                     interface=UnresolvedInterface())
-            symbol_table.add(kind_symbol)
-        return kind_symbol
+        return _kind_symbol_from_name(str(kind_names[0]), symbol_table)
 
     def process_nodes(self, parent, nodes):
         '''
@@ -1448,20 +1797,21 @@ class Fparser2Reader(object):
         '''
         return None
 
-    def _create_loop(self, parent, variable_name):
+    def _create_loop(self, parent, variable):
         '''
         Create a Loop instance. This is done outside _do_construct_handler
         because some APIs may want to instantiate a specialised Loop.
 
         :param parent: the parent of the node.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        :param str variable_name: name of the iteration variable.
+        :param variable: the loop variable.
+        :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :return: a new Loop instance.
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         '''
-        return Loop(parent=parent, variable_name=variable_name)
+        return Loop(parent=parent, variable=variable)
 
     def _process_loopbody(self, loop_body, node):
         ''' Process the loop body. This is done outside _do_construct_handler
@@ -1490,14 +1840,13 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
-        :raises InternalError: if the fparser2 tree has an unexpected \
-            structure.
+        :raises NotImplementedError: if the fparser2 tree has an unsupported \
+            structure (e.g. DO WHILE or a DO with no loop control).
         '''
         ctrl = walk(node.content, Fortran2003.Loop_Control)
         if not ctrl:
-            raise InternalError(
-                "Unrecognised form of DO loop - failed to find Loop_Control "
-                "element in the node '{0}'.".format(str(node)))
+            # TODO #359 a DO with no loop control is put into a CodeBlock
+            raise NotImplementedError()
         if ctrl[0].items[0]:
             # If this is a DO WHILE then the first element of items will not
             # be None. (See `fparser.two.Fortran2003.Loop_Control`.)
@@ -1512,7 +1861,16 @@ class Fparser2Reader(object):
         # Loop variable will be an instance of Fortran2003.Name
         loop_var = str(ctrl[0].items[1][0])
         variable_name = str(loop_var)
-        loop = self._create_loop(parent, variable_name)
+        try:
+            data_symbol = parent.find_or_create_symbol(variable_name)
+        except SymbolError:
+            raise InternalError(
+                "Loop-variable name '{0}' is not declared and there are no "
+                "unqualified use statements. This is currently unsupported."
+                "".format(variable_name))
+        # The loop node is created with the _create_loop factory method as some
+        # APIs require a specialised loop node type.
+        loop = self._create_loop(parent, data_symbol)
         loop._ast = node
 
         # Get the loop limits. These are given in a list which is the second
@@ -1771,9 +2129,14 @@ class Fparser2Reader(object):
 
         if default_clause_idx:
             # Finally, add the content of the 'default' clause as a last
-            # 'else' clause.
-            elsebody = Schedule(parent=currentparent)
-            start_idx = default_clause_idx
+            # 'else' clause. If the 'default' clause was the only clause
+            # then 'rootif' will still be None and we don't bother creating
+            # an enclosing IfBlock at all.
+            if rootif:
+                elsebody = Schedule(parent=currentparent)
+                currentparent.addchild(elsebody)
+                currentparent = elsebody
+            start_idx = default_clause_idx + 1
             # Find the next 'case' clause that occurs after 'case default'
             # (if any)
             end_idx = -1
@@ -1781,12 +2144,12 @@ class Fparser2Reader(object):
                 if idx > default_clause_idx:
                     end_idx = idx
                     break
-            self.process_nodes(parent=elsebody,
-                               nodes=node.content[start_idx + 1:
-                                                  end_idx])
-            currentparent.addchild(elsebody)
-            elsebody.ast = node.content[start_idx + 1]
-            elsebody.ast_end = node.content[end_idx - 1]
+            # Process the statements within the 'default' clause
+            self.process_nodes(parent=currentparent,
+                               nodes=node.content[start_idx:end_idx])
+            if rootif:
+                elsebody.ast = node.content[start_idx]
+                elsebody.ast_end = node.content[end_idx - 1]
         return rootif
 
     def _process_case_value_list(self, selector, nodes, parent):
@@ -2051,9 +2414,9 @@ class Fparser2Reader(object):
         # use a temporary parent as we haven't yet constructed the PSyIR
         # for the loop nest and innermost IfBlock. Once we have a valid
         # parent for this logical expression we will repeat the processing.
-        fake_parent = Schedule(parent=parent)
+        fake_parent = Assignment(parent=parent)
         self.process_nodes(fake_parent, logical_expr)
-        arrays = fake_parent[0].walk(Array)
+        arrays = fake_parent.walk(Array)
         if not arrays:
             # If the PSyIR doesn't contain any Arrays then that must be
             # because the code doesn't use explicit array syntax. At least one
@@ -2070,43 +2433,20 @@ class Fparser2Reader(object):
         # need them to index into the arrays.
         loop_vars = rank*[""]
 
-        # Since we don't have support for searching a hierarchy of symbol
-        # tables (#630), for now we simply add new symbols to the highest-level
-        # symbol table.
-        symbol_table = parent.root.symbol_table
-
-        # Create a set of all of the symbol names in the fparser2 parse
-        # tree so that we can find any clashes. We go as far back up the tree
-        # as we can before searching for all instances of Fortran2003.Name.
-        # We can't just rely on looking in our symbol tables because there
-        # may be CodeBlocks that access symbols that are e.g. imported from
-        # modules without being explicitly named.
-        name_list = walk(node.get_root(), Fortran2003.Name)
-        for name_obj in name_list:
-            name = str(name_obj)
-            if name not in symbol_table:
-                # TODO #630 some of these symbols will be put in the wrong
-                # symbol table. We need support for creating a unique symbol
-                # within a hierarchy of symbol tables. However, until we are
-                # generating code from the PSyIR Fortran backend
-                # (#435) this doesn't matter.
-                symbol_table.add(Symbol(name))
-
+        symbol_table = parent.scope.symbol_table
         integer_type = default_integer_type()
+
         # Now create a loop nest of depth `rank`
         new_parent = parent
         for idx in range(rank, 0, -1):
 
-            # TODO #630 this creation of a new symbol really needs to account
-            # for all of the symbols in the hierarchy of symbol tables. Since
-            # we don't yet have that functionality we just add everything to
-            # the top-level symbol table.
             loop_vars[idx-1] = symbol_table.new_symbol_name(
                 "widx{0}".format(idx))
 
-            symbol_table.add(DataSymbol(loop_vars[idx-1], integer_type))
+            data_symbol = DataSymbol(loop_vars[idx-1], integer_type)
+            symbol_table.add(data_symbol)
 
-            loop = Loop(parent=new_parent, variable_name=loop_vars[idx-1],
+            loop = Loop(parent=new_parent, variable=data_symbol,
                         annotations=annotations)
             # Point to the original WHERE statement in the parse tree.
             loop.ast = node

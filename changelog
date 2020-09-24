@@ -1,8 +1,137 @@
+	1) #778 for #713. Use 'make' to execute all examples.
 
-        1) #602 for #597. Modify Node.ancestor() to optionally include
+	2) #782 for #780. Refactor FunctionSpace support and move it
+	out of dynamo0p3.py and into the lfric domain.
+
+	3) #785 for #679. Use a DataSymbol to represent the PSyIR Loop variable.
+
+	4) #795 for #793. Add the scope property to PSyIR node.
+
+	5) #779 for #763. Capture unrecognised declarations in a new
+	PSyIR UnknownType DataType.
+
+	6) #787 for #786. Introduce the PSyIR Call node and the RoutineSymbol.
+
+	7) #784 for #764. Update LFRic test kernels to use fs_continuity_mod.
+
+	8) #797 for #790. Add intrinsic type information to GOcean grid
+	properties in config file. Add OpenCL to GOcean/eg1 ('shallow').
+
+	9) #792 for #789. Return kernel argument objects instead of just names
+	from unique_declarations() and unique_declarations_by_intent().
+
+	10) #750 for #575. Add support for jupyter notebooks with links to
+	binder for some examples.
+
+	11) #804 for #801. Correct Fortran intents for invoke arguments in
+	unique_declns_by_intent().
+
+	12) #794 for #788. Re-structuring and tidying of DynArgDescriptor03
+	to become LFRicArgDescriptor.
+
+	13) #807 for #805. Put fparser2 bare DO constructs inside CodeBlocks.
+
+ 	14) #816 for #810 (fix GOcean examples to build dl_esm_inf if
+	required) and #730 (bring GOcean/eg5 up-to-date with latest dl_timer).
+
+	15) #811 for #783. Removes potential duplication of orientation
+	pointer declarations.
+
+	16) #808 for #800. Adds support in the PSyIR for the case when a
+	variable used to dimension an array has deferred or unknown type.
+
+	17) #822 for #820. Excludes return statements from profile and
+	directive regions. Also reworks the relevant code to exclude nodes
+	rather than include them which makes more sense as exclusion is
+	the exception.
+
+	18) #796 for #412. Adds a transformation to convert an assignment
+	to an array range into an explicit loop in the PSyIR.
+
+	19) #834 for #833. Adds the NINT intrinsic to the PSyIR and adds
+	support in fparser2reader for translating Fortran NINT into this
+	intrinsic.
+
+	20) #821 for #630. Extends symbol table functionality to allow
+	search of ancestor symbol tables.
+
+	21) #837 for #824. Introduce profile_PSyDataStart() and
+	profile_PSyDataStop() functions for NVTX profiling on NVIDIA.
+
+	22) #818 for #138. Modifies PSyclone tests which use GH_WRITE for
+	continuous fields when iterating over cells (as this is not
+	valid).
+
+	23) #842 for #841. Fixes gocean/eg1 so that PSYCLONE_CONFIG is
+	set correctly (and adds a .gitignore).
+
+	24) #825 for #646. Extends the dependency analysis so that it
+	works for all 'implicit' arguments passed to LFRic kernels.
+
+	25) #799 for #757. Extends kernel metadata such that multiple
+	implementations (in different precisions) of a single kernel
+	may now be specified through an interface block.
+
+        26) #854 for #848. Adds a tutorial in the form of Jupyter
+        notebooks. Covers fparser2, the NEMO API and PSyIR navigation.
+
+        27) #839 for #836. Improves the separation between the metadata
+        parsing and type information in the LFRic API.
+
+	28) #862 for #860. Fixes error when building documentation using
+	windows filesystems (removes symbolic links).
+
+        29) #812 towards #199. Adds PSyclone support for read-only
+	verification for LFRic and GOcean.
+
+        30) #829 for #827. Removes the NemoImplicitLoop node and the
+	associated NemoExplicitLoopTrans (now that the PSyIR has support
+	for assignments to array ranges).
+
+	31) #844 for #809. Improves PSyclone linelength support by
+	allowing linelength checks to be applied to modified or generated
+	code but not input code. The various options can be controlled by
+	command line switches.
+
+	32) #882 for #881. Removes specific version of pylint in setup.py.
+
+	33) #884 for #883. Restructure psyclone user guide to move
+	psyclone command section nearer the front of the document.
+
+        34) #823 for #471. Updates the access from INC to READWRITE for
+        those kernels that loop over DoFs.
+	
+	35) #872 for #736 and #858. Routine Symbols are captured by the Fortran
+	front-end when parsing a Container.
+
+        36) #850 for #849 - basic support for distributed memory in GOcean.
+        N.B. dl_esm_inf does not yet have support for set_dirty/clean.
+
+        37) #875 for #774. Add support for new metadata format for scalar
+        arguments to LFRic kernels - sepecify the intrinsic type
+        separately.
+
+        38) #895 towards #871. Updates to HEAD of dl_esm_inf, introduces
+        FortCL as a submodule and alters the OpenCL code generation for gocean
+        in order to create a read_from_device function.
+
+        39) #865 for #832. Use Jinja to generate Fortran code for the
+        PSyData read-only verification library plus the dl_esm_inf
+        implementation of this.
+
+	40) #893 towards #866. Introduce support for "operates_on" instead of
+	"iterates_over" in LFRic kernel metadata.
+
+	41) #887 for #876. Create a generic symbol when no better information is
+	provided about a symbol and replace the symbol latter on if more information
+	if found.
+
+release 1.9.0 20th May 2020
+
+	1) #602 for #597. Modify Node.ancestor() to optionally include
 	self.
 
-        2) #607 for #457. Add fixtures documentation to the developer
+	2) #607 for #457. Add fixtures documentation to the developer
 	guide and split guide into smaller files.
 
 	3) #610 towards #567. Extends the Profile transformation so that
@@ -51,7 +180,7 @@
 	in fparser and to remove spurious white space in some of the
 	generated (end do/if) code.
 
-        18) #657 towards #474. Moves various node classes out of psyGen
+	18) #657 towards #474. Moves various node classes out of psyGen
 	and into the psyclone.psyir.nodes module.
 
 	19) #669 towards #474. Move those error/exception classes that
@@ -62,7 +191,7 @@
 
 	21) #672 for #651. Add PSyIR lbound and ubound BinaryOperations.
 
-        22) #670 for #666. Make the various GOcean grid properties
+	22) #670 for #666. Make the various GOcean grid properties
 	configurable (previously the mapping from meta-data name to
 	corresponding Fortran code was a dict in the code).
 
@@ -70,11 +199,11 @@
 	generation for the GOcean API (handling of the SAVE attribute
 	and support for real and integer scalar arguments).
 
-        24) #541 for #536. Adds transformations to convert MIN, ABS and
+	24) #541 for #536. Adds transformations to convert MIN, ABS and
 	SIGN intrinsics into equivalent PSyIR code and uses these in
 	NEMO/eg4.
 
-        25) #662 for #661. Adds PSyIR support for the MATMUL intrinsic
+	25) #662 for #661. Adds PSyIR support for the MATMUL intrinsic
 	and renames the dynamo examples to lfric.
 
 	26) #665 for #603 and #673. Alters the Reference and Array nodes
@@ -100,7 +229,7 @@
 	refactoring of Extraction and Profiling support. Note that the LFRic
 	(Dynamo0.3) API is not yet fully supported.
 
-        33) PR #702 for #660. Read the default KIND parameters for the LFRic
+	33) PR #702 for #660. Read the default KIND parameters for the LFRic
 	domain from the configuration file.
 	NOTE: this change requires that any local config file be updated as
 	the new KIND mapping is mandatory.
@@ -108,7 +237,7 @@
 	34) PR #704 for #699 and #697. Fixes gocean/eg2 and adds a
 	--compile option to the check_examples script.
 
-        35) PR #684 for #655. Re-factor psy-data-based transformations.
+	35) PR #684 for #655. Re-factor psy-data-based transformations.
 
 	36) PR #700 for #687. Adds support for Fortran array syntax
 	to the PSyIR Fortran front-/back-ends.
@@ -120,7 +249,7 @@
 	it with a SymbolTable. This is work towards all code being
 	generated by the PSyIR backends.
 
-        39) PR #722 for #716. Adds support for reference-element normals
+	39) PR #722 for #716. Adds support for reference-element normals
 	and extends the kernel-stub generator to support reference-element
 	properties.
 
@@ -131,7 +260,7 @@
 	quadrature as well as multiple quadratures in a kernel in the
 	Dynamo0.3 (LFRic) API. Also extends kernel-stub generator support.
 
-        42) PR #709 for #698. Adds the 'target' attribute to declarations
+	42) PR #709 for #698. Adds the 'target' attribute to declarations
 	of the PSyData object.
 
 	43) PR #729 for #12. Change the Fortran intent of all derived-type
@@ -149,6 +278,51 @@
 	47) PR #728 for #721. Adds DataType hierarchy decoupled from DataSymbol.
 
 	48) PR #596 for #500. Makes the NEMO API use the symbol table.
+
+	49) PR #686 for #684. Adds the MatMul2CodeTrans which transforms
+	a MATMUL PSyIR operation into the equivalent PSyIR expression.
+
+	50) PR #747 for #18. Implements code generation (PSy-layer and
+	kernel stub) for mesh properties that a kernel can request in
+	LFRic (Dynamo0.3) API.
+
+	51) PR #731 for #668. Adds support for ProfileInit and ProfileEnd
+	functions in the PSyData API. Re-structuring of the associated
+	documentation.
+
+	52) PR #756 for #749. Adds the option to generate run-time checks
+	for the LFRic API that fields are on function spaces consistent
+	with those specified in kernel metadata.
+
+	53) PR #726 for issue #723. Adds the concepts of DataNode and
+	Statement to the PSyIR and adds checks that ensure that when a
+	child Node is added to a parent Node, the type of the child Node
+	is compatible with the type of Node expected by the parent.
+
+	54) PR #758 for #733. Shortens the variable names that are
+	constructed for LFRic PSy-layer variables related to any-space
+	function spaces.
+
+	55) PR #760 for #751. Adds support for W2htrace and W2vtrace
+	function spaces.
+
+	56) PR #762 for #725. Renames the various builtin-operation-to-
+	code transformations now that they are not NEMO specific.
+
+	57) PR #773 for #772 and #715. Adds support for reading Fortran
+	parameter statements containing symbols into the PSyIR.
+
+	58) PR #776 for #775. Small bug fix for upper loop bound in
+	Matmul2CodeTrans transformation.
+
+	59) PR #735 for #732. Add a Visibility attribute to symbols and
+	fparser2 front-end captures public and private visibilities.
+
+	60) PR #770 for #766. Fix operation precedence issues in the Fortran
+	back-end by inserting parenthesis when needed.
+
+	61) PR #769 for #588. Adds frontend support for *N and double
+	precision type declarations.
 
 release 1.8.1 29th November 2019
 

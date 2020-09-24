@@ -40,6 +40,7 @@ PSyclone-conformant Algorithm code.
 
 from __future__ import absolute_import
 
+from collections import OrderedDict
 from fparser.two import pattern_tools
 from fparser.two.utils import walk
 # pylint: disable=no-name-in-module
@@ -202,7 +203,7 @@ class Parser(object):
                 "'{0}'".format(alg_filename))
 
         self._unique_invoke_labels = []
-        self._arg_name_to_module_name = {}
+        self._arg_name_to_module_name = OrderedDict()
         invoke_calls = []
 
         for statement in walk(alg_parse_tree.content):
@@ -736,13 +737,13 @@ class ParsedCall(object):
     kernel.
 
     :param ktype: information about a kernel or builtin. Provides \
-    access to the PSyclone description metadata and the code if it \
-    exists.
-    :type ktype: APi-specific specialisation of \
-    :py:class:`psyclone.dynamo0p3.KernelType`
+        access to the PSyclone description metadata and the code if it \
+        exists.
+    :type ktype: API-specific specialisation of \
+        :py:class:`psyclone.parse.kernel.KernelType`
     :param args: a list of Arg instances which capture the relevant \
-    information about the arguments associated with the call to the \
-    kernel or builtin
+        information about the arguments associated with the call to the \
+        kernel or builtin.
     :type args: list of :py:class:`psyclone.parse.algorithm.Arg`
 
     '''
@@ -766,10 +767,10 @@ class ParsedCall(object):
     def ktype(self):
         '''
         :returns: information about a kernel or builtin. Provides \
-        access to the PSyclone description metadata and the code if it \
-        exists.
-        :rtype: APi-specific specialisation of \
-        :py:class:`psyclone.dynamo0p3.KernelType`
+            access to the PSyclone description metadata and the code if it \
+            exists.
+        :rtype: API-specific specialisation of \
+            :py:class:`psyclone.parse.kernel.KernelType`
 
         '''
         return self._ktype

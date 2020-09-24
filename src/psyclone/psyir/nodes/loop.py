@@ -38,15 +38,16 @@
 
 ''' This module contains the Loop node implementation.'''
 
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes import Schedule, Literal
+from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core.access_info import AccessType
 from psyclone.errors import InternalError, GenerationError
 
 
-class Loop(Node):
-    '''
-    Node representing a loop within the PSyIR. It has 4 mandatory children:
+class Loop(Statement):
+    '''Node representing a loop within the PSyIR. It has 4 mandatory children:
     the first one represents the loop lower bound, the second one represents
     the loop upper bound, the third one represents the step value and the
     fourth one is always a PSyIR Schedule node containing the statements inside
@@ -58,8 +59,10 @@ class Loop(Node):
 
     :param parent: parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-    :param str variable_name: optional name of the loop iterator \
-        variable. Defaults to an empty string.
+    :param variable: optional reference to the loop iterator \
+        variable. Defaults to None.
+    :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol` or \
+        `NoneType`
     :param valid_loop_types: a list of loop types that are specific \
         to a particular API.
     :type valid_loop_types: list of str
@@ -73,10 +76,15 @@ class Loop(Node):
 
     '''
     valid_annotations = ('was_where', 'was_single_stmt')
+    # Textual description of the node.
+    _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
+    _text_name = "Loop"
+    _colour_key = "Loop"
 
-    def __init__(self, parent=None, variable_name="", valid_loop_types=None,
+    def __init__(self, parent=None, variable=None, valid_loop_types=None,
                  annotations=None):
-        Node.__init__(self, parent=parent, annotations=annotations)
+        super(Loop, self).__init__(self, parent=parent,
+                                   annotations=annotations)
 
         # Although the base class checks on the annotations individually, we
         # need to do further checks here
@@ -101,23 +109,65 @@ class Loop(Node):
         self._field_space = None      # v0, v1, ...,     cu, cv, ...
         self._iteration_space = None  # cells, ...,      cu, cv, ...
         self._kern = None             # Kernel associated with this loop
-        self._text_name = "Loop"
-        self._colour_key = "Loop"
 
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
 
-        self._variable_name = variable_name
+        if variable:
+            # The variable might not be provided when the loop is
+            # first created so only check if it is.
+            self._check_variable(variable)
+        self._variable = variable
         self._id = ""
 
     @staticmethod
-    def create(var_name, start, stop, step, children):
-        '''Create a Loop instance given valid instances of a variable name,
+    def _check_variable(variable):
+        '''The loop variable should be a scalar integer. Check that this is
+        the case and raise an exception if not.
+
+        :param variable: the loop iterator.
+        :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises GenerationError: if the supplied variable is not a \
+            scalar integer.
+
+        '''
+        if not isinstance(variable, DataSymbol):
+            raise GenerationError(
+                "variable property in Loop class should be a DataSymbol but "
+                "found '{0}'.".format(type(variable).__name__))
+        if not isinstance(variable.datatype, ScalarType):
+            raise GenerationError(
+                "variable property in Loop class should be a ScalarType but "
+                "found '{0}'.".format(type(variable.datatype).__name__))
+        if variable.datatype.intrinsic != ScalarType.Intrinsic.INTEGER:
+            raise GenerationError(
+                "variable property in Loop class should be a scalar integer "
+                "but found '{0}'.".format(variable.datatype.intrinsic.name))
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return (position in (0, 1, 2) and isinstance(child, DataNode)) or (
+            position == 3 and isinstance(child, Schedule))
+
+    @staticmethod
+    def create(variable, start, stop, step, children):
+        '''Create a Loop instance given valid instances of a variable,
         start, stop and step nodes, and a list of child nodes for the
         loop body.
 
-        :param str var_name: the PSyIR node containing the variable \
-            name of the loop iterator.
+        :param variable: the PSyIR node containing the variable \
+            of the loop iterator.
+        :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param start: the PSyIR node determining the value for the \
             start of the loop.
         :type start: :py:class:`psyclone.psyir.nodes.Node`
@@ -138,39 +188,22 @@ class Loop(Node):
             are not of the expected type.
 
         '''
-        if not isinstance(var_name, str):
-            raise GenerationError(
-                "var_name argument in create method of Loop class "
-                "should be a string but found '{0}'."
-                "".format(type(var_name).__name__))
-        for name, instance in [("start", start), ("stop", stop),
-                               ("step", step)]:
-            if not isinstance(instance, Node):
-                raise GenerationError(
-                    "{0} argument in create method of Loop class should "
-                    "be a PSyIR Node but found '{1}'."
-                    "".format(name, type(instance).__name__))
+        Loop._check_variable(variable)
+
         if not isinstance(children, list):
             raise GenerationError(
                 "children argument in create method of Loop class "
                 "should be a list but found '{0}'."
                 "".format(type(children).__name__))
-        for child in children:
-            if not isinstance(child, Node):
-                raise GenerationError(
-                    "child of children argument in create method of Loop "
-                    "class should be a PSyIR Node but found '{0}'."
-                    "".format(type(child).__name__))
 
-        loop = Loop()
+        loop = Loop(variable=variable)
+        schedule = Schedule(parent=loop, children=children)
+        loop.children = [start, stop, step, schedule]
+        for child in children:
+            child.parent = schedule
         start.parent = loop
         stop.parent = loop
         step.parent = loop
-        schedule = Schedule(parent=loop, children=children)
-        for child in children:
-            child.parent = schedule
-        loop.children = [start, stop, step, schedule]
-        loop._variable_name = var_name
         return loop
 
     def _check_completeness(self):
@@ -184,14 +217,8 @@ class Loop(Node):
         # (because loop bounds are evaluated dynamically).
         if len(self.children) < 4:
             raise InternalError(
-                "Loop malformed or incomplete. It should have exactly 4 "
+                "Loop is incomplete. It should have exactly 4 "
                 "children, but found loop with '{0}'.".format(
-                    ", ".join([str(child) for child in self.children])))
-
-        if not isinstance(self.children[3], Schedule):
-            raise InternalError(
-                "Loop malformed or incomplete. Fourth child should be a "
-                "Schedule node, but found loop with '{0}'.".format(
                     ", ".join([str(child) for child in self.children])))
 
     @property
@@ -211,13 +238,7 @@ class Loop(Node):
         :param expr: New PSyIR start expression.
         :type expr: :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises TypeError: if expr is not a PSyIR node.
-
         '''
-        if not isinstance(expr, Node):
-            raise TypeError(
-                "Only PSyIR nodes can be assigned as the Loop start expression"
-                ", but found '{0}' instead".format(type(expr)))
         self._check_completeness()
         self._children[0] = expr
 
@@ -238,13 +259,7 @@ class Loop(Node):
         :param expr: New PSyIR stop expression.
         :type expr: :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises TypeError: if expr is not a PSyIR node.
-
         '''
-        if not isinstance(expr, Node):
-            raise TypeError(
-                "Only PSyIR nodes can be assigned as the Loop stop expression"
-                ", but found '{0}' instead".format(type(expr)))
         self._check_completeness()
         self._children[1] = expr
 
@@ -265,13 +280,7 @@ class Loop(Node):
         :param expr: New PSyIR step expression.
         :type expr: :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises TypeError: if expr is not a PSyIR node.
-
         '''
-        if not isinstance(expr, Node):
-            raise TypeError(
-                "Only PSyIR nodes can be assigned as the Loop step expression"
-                ", but found '{0}' instead".format(type(expr)))
         self._check_completeness()
         self._children[2] = expr
 
@@ -382,19 +391,32 @@ class Loop(Node):
         self._kern = kern
 
     @property
-    def variable_name(self):
+    def variable(self):
         '''
-        :returns: the name of the control variable for this loop.
-        :rtype: str
+        :returns: a reference to the control variable for this loop.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
-        return self._variable_name
+        self._check_variable(self._variable)
+        return self._variable
+
+    @variable.setter
+    def variable(self, var):
+        '''
+        Setter for the variable associated with this loop.
+
+        :param var: the control variable reference.
+        :type var: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        '''
+        self._check_variable(var)
+        self._variable = var
 
     def __str__(self):
         # Give Loop sub-classes a specialised name
         name = self.__class__.__name__
         result = name + "["
         result += "id:'" + self._id
-        result += "', variable:'" + self._variable_name
+        result += "', variable:'" + self.variable.name
         if self.loop_type:
             result += "', loop_type:'" + self._loop_type
         result += "']\n"
@@ -419,8 +441,8 @@ class Loop(Node):
         # the dependency analysis for declaring openmp private variables
         # will automatically declare the loop variables to be private
         # (write access before read)
-        var_accesses.add_access(self.variable_name, AccessType.WRITE, self)
-        var_accesses.add_access(self.variable_name, AccessType.READ, self)
+        var_accesses.add_access(self.variable.name, AccessType.WRITE, self)
+        var_accesses.add_access(self.variable.name, AccessType.READ, self)
 
         # Accesses of the start/stop/step expressions
         self.start_expr.reference_accesses(var_accesses)
@@ -455,12 +477,32 @@ class Loop(Node):
         args = []
         for call in self.kernels():
             for arg in call.arguments.args:
-                if arg.type.lower() == arg_type:
+                if arg.argument_type.lower() == arg_type:
                     if arg.access != AccessType.READ:
                         if arg.name not in arg_names:
                             arg_names.append(arg.name)
                             args.append(arg)
         return args
+
+    def unique_fields_with_halo_reads(self):
+        ''' Returns all fields in this loop that require at least some
+        of their halo to be clean to work correctly.
+
+        :returns: fields in this loop that require at least some of their \
+            halo to be clean to work correctly.
+        :rtype: list of :py:class:`psyclone.psyGen.Argument`
+        '''
+
+        unique_fields = []
+        unique_field_names = []
+
+        for call in self.kernels():
+            for arg in call.arguments.args:
+                if self._halo_read_access(arg):
+                    if arg.name not in unique_field_names:
+                        unique_field_names.append(arg.name)
+                        unique_fields.append(arg)
+        return unique_fields
 
     def args_filter(self, arg_types=None, arg_accesses=None, unique=False):
         '''Return all arguments of type arg_types and arg_accesses. If these
@@ -521,15 +563,33 @@ class Loop(Node):
             else:
                 step_str = fwriter(self.step_expr)
 
-            do = DoGen(parent, self._variable_name,
-                       fwriter(self.start_expr),
-                       fwriter(self.stop_expr),
-                       step_str)
+            do_stmt = DoGen(parent, self.variable.name,
+                            fwriter(self.start_expr),
+                            fwriter(self.stop_expr),
+                            step_str)
             # need to add do loop before children as children may want to add
             # info outside of do loop
-            parent.add(do)
+            parent.add(do_stmt)
             for child in self.loop_body:
-                child.gen_code(do)
+                child.gen_code(do_stmt)
             my_decl = DeclGen(parent, datatype="integer",
-                              entity_decls=[self._variable_name])
+                              entity_decls=[self.variable.name])
             parent.add(my_decl)
+
+    def _halo_read_access(self, arg):
+        '''Determines whether the supplied argument has (or might have) its
+        halo data read within this loop. Returns True if it does, or if
+        it might and False if it definitely does not.
+
+        :param arg: an argument contained within this loop.
+        :type arg: :py:class:`psyclone.psyGen.KernelArgument`
+
+        :return: True if the argument reads, or might read from the \
+                 halo and False otherwise.
+        :rtype: bool
+
+        :raises NotImplementedError: This is an abstract method.
+
+        '''
+        raise NotImplementedError("This method needs to be implemented by the "
+                                  "APIs that support distributed memory.")

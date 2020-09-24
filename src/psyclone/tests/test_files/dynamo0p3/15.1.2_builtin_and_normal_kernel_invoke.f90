@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council.
+! Copyright (c) 2017-2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,10 +37,11 @@
 program single_invoke_builtin_then_kernel
 
   ! Description: single invoke call with a builtin followed by a kernel call
-  use testkern_mod,        only: testkern_type
-  use testkern_wtheta_mod, only: testkern_wtheta_type
-  use testkern_w2_only,    only: testkern_w2_only_type
-  use inf,                 only: field_type
+  use constants_mod,        only: r_def
+  use field_mod,            only: field_type
+  use testkern_mod,         only: testkern_type
+  use testkern_wtheta_mod,  only: testkern_wtheta_type
+  use testkern_w2_only_mod, only: testkern_w2_only_type
 
   implicit none
 
@@ -50,14 +51,14 @@ program single_invoke_builtin_then_kernel
   call invoke(                               &
        setval_c(f5, 0.0),                    &
        setval_c(f2, 0.0),                    &
-       ! f3 function space w2, write
+       ! f3 function space w2, inc
        ! f2 function space w2, read
        testkern_w2_only_type(f3, f2),        &
        ! f4 function space wtheta, write
        ! f5 function space any_discontinuous_space_1, read
        testkern_wtheta_type(f4, f5),         &
        ! scalar, read
-       ! f1 function space w1, write
+       ! f1 function space w1, inc
        ! f2 function space w2, read
        ! f3 function space w2, read
        ! f4 function space w3, read

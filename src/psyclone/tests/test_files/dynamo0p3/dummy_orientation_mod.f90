@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,13 +29,21 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
+! Author R. W. Ford STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
 
 module dummy_orientation_mod
+
+  use argument_mod
+  use fs_continuity_mod
+  use kernel_mod
+  use constants_mod
+
+  implicit none
+
   type, extends(kernel_type) :: dummy_orientation_type
      type(arg_type), meta_args(4) =                       &
-          (/ arg_type(gh_field,    gh_write,     w0),     &
+          (/ arg_type(gh_field,    gh_inc,       w0),     &
              arg_type(gh_operator, gh_readwrite, w1, w1), &
              arg_type(gh_field,    gh_read,      w2),     &
              arg_type(gh_operator, gh_write,     w3, w3)  &
@@ -46,12 +54,14 @@ module dummy_orientation_mod
              func_type(w2, gh_orientation), &
              func_type(w3, gh_orientation)  &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
-     procedure() :: code => dummy_orientation_code
+     procedure, nopass :: code => dummy_orientation_code
   end type dummy_orientation_type
 contains
+
   subroutine dummy_orientation_code()
   end subroutine dummy_orientation_code
+
 end module dummy_orientation_mod
 

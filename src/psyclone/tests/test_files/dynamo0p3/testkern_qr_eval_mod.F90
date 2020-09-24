@@ -30,21 +30,25 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: A. R. Porter, STFC Daresbury Lab.
+! Modified: I. Kavcic, Met Office
 
 !> Test kernel requiring both quadrature and an evaluator.
 
 module testkern_qr_eval_mod
+
+  use constants_mod
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
 
   implicit none
 
   type, extends(kernel_type) :: testkern_qr_eval_type
      type(arg_type), dimension(4) :: meta_args =    &
-          (/ arg_type(gh_field,  gh_inc,  w1), &
-             arg_type(gh_field,  gh_read, w2), &
-             arg_type(gh_field,  gh_read, w2), &
-             arg_type(gh_field,  gh_read, w3)  &
+          (/ arg_type(gh_field,  gh_inc,  w1),      &
+             arg_type(gh_field,  gh_read, w2),      &
+             arg_type(gh_field,  gh_read, w2),      &
+             arg_type(gh_field,  gh_read, w3)       &
            /)
      type(func_type), dimension(3) :: meta_funcs =  &
           (/ func_type(w1, gh_basis),               &
@@ -66,16 +70,19 @@ contains
           ndf_w3, undf_w3, map_w3, basis_w3_qr_face, basis_w3_on_w1,           &
           diff_basis_w3_qr_face, diff_basis_w3_on_w1,                          &
           nfaces_qr_face, np_xyz_qr_face, weights_qr_face)
-    use constants_mod, only: r_def, i_def
-    
+
     implicit none
     
     integer(kind=i_def), intent(in) :: nlayers, ndf_w1, undf_w1, ndf_w2, &
-                                       undf_w2, ndf_w3, undf_w3,         &
-                                       np_xyz_qr_face, nfaces_qr_face
-    real(kind=r_def) :: ascalar
-    real(kind=r_def), dimension(:) :: f1, f2, f3, f4
-    integer(kind=i_def), dimension(:) :: map_w1, map_w2, map_w3
+                                       undf_w2, ndf_w3, undf_w3
+    integer(kind=i_def), intent(in) :: np_xyz_qr_face, nfaces_qr_face
+    integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1
+    integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2
+    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
+    real(kind=r_def), intent(inout), dimension(undf_w1) :: f1
+    real(kind=r_def), intent(in), dimension(undf_w2)    :: f2
+    real(kind=r_def), intent(in), dimension(undf_w2)    :: f3
+    real(kind=r_def), intent(in), dimension(undf_w3)    :: f4
     real(kind=r_def), dimension(np_xyz_qr_face,nfaces_qr_face) :: weights_qr_face
     real(kind=r_def), dimension(3,ndf_w1,np_xyz_qr_face,nfaces_qr_face) :: basis_w1_qr_face
     real(kind=r_def), dimension(3,ndf_w2,np_xyz_qr_face,nfaces_qr_face) :: diff_basis_w2_qr_face

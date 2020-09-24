@@ -33,6 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors: L. Mitchell Imperial College
 #          R. W. Ford and A. R. Porter STFC Daresbury Lab
+# Modified: C.M. Maynard, Met Office / University of Reading,
+#           I. Kavcic, Met Office
 
 '''Module that uses the Fortran parser fparser1 to parse
 PSyclone-conformant kernel code.
@@ -415,22 +417,28 @@ def get_stencil(metadata, valid_types):
 
 
 class Descriptor(object):
-    '''A description of how a kernel argument is accessed
+    '''
+    A description of how a kernel argument is accessed, constructed from
+    the kernel metadata.
 
     :param str access: whether argument is read/write etc.
     :param str space: which function space/grid-point type argument is \
-    on
-    :param dict stencil: type of stencil access for this \
-    argument. Defaults to None if the argument is not supplied.
-    :param string mesh: which mesh this argument is on. Defaults to \
-    None if the argument is not supplied.
+                      on.
+    :param dict stencil: type of stencil access for this argument. \
+                         Defaults to None if the argument is not supplied.
+    :param str mesh: which mesh this argument is on. Defaults to None \
+                     if the argument is not supplied.
+    :param str argument_type: the type of this argument. Defaults to \
+                              None if the argument is not supplied.
 
     '''
-    def __init__(self, access, space, stencil=None, mesh=None):
+    def __init__(self, access, space, stencil=None, mesh=None,
+                 argument_type=None):
         self._access = access
         self._space = space
         self._stencil = stencil
         self._mesh = mesh
+        self._argument_type = argument_type
 
     @property
     def access(self):
@@ -468,6 +476,16 @@ class Descriptor(object):
         '''
         return self._mesh
 
+    @property
+    def argument_type(self):
+        '''
+        :returns: the type of the argument depending on the specific \
+                  API (e.g. scalar, field, grid property, operator).
+        :rtype: str or NoneType
+
+        '''
+        return self._argument_type
+
     def __repr__(self):
         return "Descriptor({0}, {1})".format(self.access, self.function_space)
 
@@ -494,11 +512,13 @@ class KernelProcedure(object):
     def get_procedure(ast, name, modast):
         '''
         Get the name of the subroutine associated with the Kernel. This is
-        a type-bound procedure in the meta-data which may take one of two
+        a type-bound procedure in the meta-data which may take one of three
         forms:
                 PROCEDURE, nopass :: code => <proc_name>
         or
                 PROCEDURE, nopass :: <proc_name>
+        or if there is no type-bound procedure, an interface may be used:
+                INTERFACE <proc_name>
 
         :param ast: the fparser1 parse tree for the Kernel meta-data.
         :type ast: :py:class:`fparser.one.block_statements.Type`
@@ -513,9 +533,10 @@ class KernelProcedure(object):
         :rtype: (:py:class:`fparser1.block_statements.Subroutine`, str)
 
         :raises ParseError: if the supplied Kernel meta-data does not \
-                            have a type-bound procedure.
+                            have a type-bound procedure or interface.
         :raises ParseError: if no implementation is found for the \
-                             type-bound procedure.
+                             type-bound procedure or interface module \
+                             procedures.
         :raises ParseError: if the type-bound procedure specifies a binding \
                             name but the generic name is not "code".
         :raises InternalError: if we get an empty string for the name of the \
@@ -534,27 +555,44 @@ class KernelProcedure(object):
                             "Kernel type {0} binds to a specific procedure but"
                             " does not use 'code' as the generic name.".
                             format(name))
-                    bname = statement.bname
+                    bname = statement.bname.lower()
                 else:
-                    bname = statement.name
+                    bname = statement.name.lower()
                 break
         if bname is None:
-            raise ParseError(
-                "Kernel type {0} does not bind a specific procedure".
-                format(name))
-        if bname == '':
+            # If no type-bound procedure found, search for an explicit
+            # interface that has module procedures.
+            bname, subnames = get_kernel_interface(name, modast)
+            if bname is None:
+                # no interface found either
+                raise ParseError(
+                    "Kernel type {0} does not bind a specific procedure or \
+                    provide an explicit interface".format(name))
+        elif bname == '':
             raise InternalError(
                 "Empty Kernel name returned for Kernel type {0}.".format(name))
-        code = None
-        for statement, _ in fpapi.walk(modast, -1):
-            if isinstance(statement, fparser1.block_statements.Subroutine) \
-               and statement.name == bname:
-                code = statement
-                break
-        if not code:
-            raise ParseError(
-                "kernel.py:KernelProcedure:get_procedure: Kernel subroutine "
-                "'{0}' not found.".format(bname))
+        else:
+            # add the name of the tbp to the list of strings to search for.
+            subnames = [bname]
+        # walk the AST to check the subroutine names exist.
+        procedure_count = 0
+        for subname in subnames:
+            for statement, _ in fpapi.walk(modast):
+                if isinstance(statement,
+                              fparser1.block_statements.Subroutine) \
+                              and statement.name.lower() \
+                              == subname:
+                    procedure_count = procedure_count + 1
+                    if procedure_count == 1:
+                        # set code to statement if there is one procedure.
+                        code = statement
+                    else:
+                        code = None  # set to None if there is more than one.
+                    break
+            else:
+                raise ParseError(
+                    "kernel.py:KernelProcedure:get_procedure: Kernel "
+                    "subroutine '{0}' not found.".format(subname))
         return code, bname
 
     @property
@@ -602,7 +640,7 @@ def get_kernel_metadata(name, ast):
 
     '''
     ktype = None
-    for statement, _ in fpapi.walk(ast, -1):
+    for statement, _ in fpapi.walk(ast):
         if isinstance(statement, fparser1.block_statements.Type) \
            and statement.name.lower() == name.lower():
             ktype = statement
@@ -610,6 +648,46 @@ def get_kernel_metadata(name, ast):
     if ktype is None:
         raise ParseError("Kernel type {0} does not exist".format(name))
     return ktype
+
+
+def get_kernel_interface(name, ast):
+    '''Takes the kernel module parse tree and returns the interface part
+    of the parse tree.
+
+    :param str name: The kernel name
+    :param ast: parse tree of the kernel module code
+    :type ast: :py:class:`fparser.one.block_statements.BeginSource`
+
+    :returns: Name of the interface block and the names of the module \
+              procedures (lower case). Or None, None if there is no \
+              interface or the interface has no nodule procedures.
+    :rtype: : `str`, list of str`.
+
+    :raises ParseError: if more than one interface is found.
+    '''
+
+    iname = None
+    sname = None
+    count = 0
+    for statement, _ in fpapi.walk(ast):
+        if isinstance(statement, fparser1.block_statements.Interface):
+            # count the interfaces, then can be only one!
+            count = count + 1
+            if count >= 2:
+                raise ParseError("Module containing kernel {0} has more than "
+                                 "one interface, this is forbidden in the "
+                                 "LFRic API.".format(name))
+            # Check the interfaces assigns one or more module procedures.
+            if statement.a.module_procedures:
+                iname = statement.name.lower()
+                # If implicit interface (no name) set to none as there is no
+                # procedure name for PSyclone to use.
+                if iname == '':
+                    iname = None
+                else:
+                    sname = [str(sname).lower() for sname
+                             in statement.a.module_procedures]
+    return iname, sname
 
 
 def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
@@ -645,7 +723,8 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
         # INTEGER in above 'if' test is an fparser1 hack as get_variable()
         # returns an integer if the variable is not found.
         raise ParseError(
-            "No kernel metadata with type name '{0}' found.".format(var_name))
+            "No variable named '{0}' found in the metadata for kernel "
+            "'{1}': '{2}'.".format(var_name, name, str(ast).strip()))
     try:
         nargs = int(descs.shape[0])
     except AttributeError:
@@ -669,9 +748,9 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
     nargs = int(descs.shape[0])
     if len(inits) != nargs:
         raise ParseError(
-            "In the '{0}' metadata, the number of args '{1}' and extent of the"
-            " dimension '{2}' do not match.".format(var_name, nargs,
-                                                    len(inits)))
+            "In the '{0}' metadata, the number of items in the array "
+            "constructor ({1}) does not match the extent of the "
+            "array ({2}).".format(var_name, len(inits), nargs))
     if var_type:
         # Check that each element in the list is of the correct type
         if not all([init.name == var_type for init in inits]):
@@ -707,7 +786,7 @@ class KernelType(object):
             # the module is called <name/>_mod and the type is called
             # <name/>_type
             found = False
-            for statement, _ in fpapi.walk(ast, -1):
+            for statement, _ in fpapi.walk(ast):
                 if isinstance(statement, fparser1.block_statements.Module):
                     module_name = statement.name
                     found = True
@@ -735,7 +814,27 @@ class KernelType(object):
         self._name = name
         self._ast = ast
         self._ktype = get_kernel_metadata(name, ast)
-        self._iterates_over = self.get_integer_variable("iterates_over")
+        operates_on = self.get_integer_variable("operates_on")
+        # The GOcean API still uses the 'iterates_over' metadata entry
+        # although this is deprecated in the LFRic API.
+        # Validation is left to the API-specific code in either dynamo0p3.py
+        # or gocean1p0.py.
+        iterates_over = self.get_integer_variable("iterates_over")
+        if operates_on:
+            self._iterates_over = operates_on
+        elif iterates_over:
+            self._iterates_over = iterates_over
+        else:
+            # We don't raise an error here - we leave it to the API-specific
+            # validation code.
+            self._iterates_over = None
+        # Although validation of the value given to operates_on or
+        # iterates_over is API-specifc, we can check that the metadata doesn't
+        # specify both of them because that doesn't make sense.
+        if operates_on and iterates_over:
+            raise ParseError("The metadata for kernel '{0}' contains both "
+                             "'operates_on' and 'iterates_over'. Only one of "
+                             "these is permitted.".format(name))
         self._procedure = KernelProcedure(self._ktype, name, ast)
         self._inits = getkerneldescriptors(name, self._ktype)
         self._arg_descriptors = []  # this is set up by the subclasses
@@ -808,7 +907,7 @@ class KernelType(object):
         # Fortran is not case sensitive so nor is our matching
         lower_name = name.lower()
 
-        for statement, _ in fpapi.walk(self._ktype, -1):
+        for statement, _ in fpapi.walk(self._ktype):
             if isinstance(statement, fparser1.typedecl_statements.Integer):
                 # fparser only goes down to the statement level. We use
                 # fparser2 to parse the statement itself (eventually we'll
@@ -851,7 +950,7 @@ class KernelType(object):
         # Fortran is not case sensitive so nor is our matching
         lower_name = name.lower()
 
-        for statement, _ in fpapi.walk(self._ktype, -1):
+        for statement, _ in fpapi.walk(self._ktype):
             if not isinstance(statement, fparser1.typedecl_statements.Integer):
                 # This isn't an integer declaration so skip it
                 continue

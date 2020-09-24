@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,31 +32,36 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program multi_functions_multi_invokes
 
   ! Description: multiple invoke calls, each with a single function
-  use testkern_mod, only: testkern_type
-  use testkern_qr,  only: testkern_qr_type
-  use inf,      only: field_type
-  implicit none
-  type(field_type) :: f1, f2, m1, m2
-  type(quadrature_rule_type) :: qr
-  real(r_def) :: a
-  integer :: istp
+  use constants_mod,       only: r_def, i_def
+  use field_mod,           only: field_type
+  use quadrature_xyoz_mod, only: quadrature_xyoz_type
+  use testkern_mod,        only: testkern_type
+  use testkern_qr,         only: testkern_qr_type
 
-  call invoke(                                 &
-       name="my first",                        &
-       testkern_type(a,f1,f2,m1,m2),           &
-       testkern_type(a,f1,f2,m1,m2),           &
-       testkern_qr_type(f1,f2,m1,a,m2,istp,qr) &
+  implicit none
+
+  type(field_type)           :: f1, f2, m1, m2
+  type(quadrature_xyoz_type) :: qr
+  real(r_def)                :: a
+  integer(i_def)             :: istp
+
+  call invoke(                                      &
+       name="my first",                             &
+       testkern_type(a, f1, f2, m1, m2),            &
+       testkern_type(a, f1, f2, m1, m2),            &
+       testkern_qr_type(f1, f2, m1,a, m2, istp, qr) &
        )
 
-  call invoke(                                  &
-       testkern_qr_type(f1,f2,m1,a,m2,istp,qr), &
-       testkern_qr_type(f1,f2,m1,a,m2,istp,qr), &
-       name="my second",                        &
-       testkern_qr_type(f1,f2,m1,a,m2,istp,qr)  &
+  call invoke(                                        &
+       testkern_qr_type(f1, f2, m1, a, m2, istp, qr), &
+       testkern_qr_type(f1, f2, m1, a, m2, istp, qr), &
+       name="my second",                              &
+       testkern_qr_type(f1, f2, m1, a, m2, istp, qr)  &
        )
 
 end program multi_functions_multi_invokes

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
@@ -40,9 +40,9 @@ from __future__ import absolute_import
 
 import re
 import pytest
-
-from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
+from psyclone.errors import InternalError, GenerationError
+from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
+from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans
 from psyclone.tests.utilities import get_invoke
 
@@ -91,7 +91,7 @@ def test_psy_data_node_tree_correct():
 
     # 2. Parent, but no children:
     # ===========================
-    parent = Node()
+    parent = Schedule()
     psy_node = PSyDataNode(parent=parent)
 
     # We must have a single node connected to the parent, and an
@@ -105,7 +105,7 @@ def test_psy_data_node_tree_correct():
 
     # 3. No parent, but children:
     # ===========================
-    children = [Node(), Node()]
+    children = [Statement(), Statement()]
     psy_node = PSyDataNode(children=children)
 
     # The children must be connected to the schedule, which is
@@ -122,12 +122,12 @@ def test_psy_data_node_tree_correct():
 
     # 4. Parent and children:
     # =======================
-    parent = Node()
+    parent = Schedule()
     # The children must be added to the parent before creating the ExtractNode
-    parent.addchild(Node())
-    parent.addchild(Node())
+    parent.addchild(Statement())
+    parent.addchild(Statement())
     # Add another child that must stay with the parent node
-    third_child = Node(parent=parent)
+    third_child = Statement(parent=parent)
     parent.addchild(third_child)
     assert parent.children[2] is third_child
     # Only move the first two children, leave the third where it is
@@ -169,7 +169,7 @@ def test_psy_data_node_invokes_gocean1p0():
     '''Check that an invoke is instrumented correctly
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0)
+                           "gocean1.0", idx=0, dist_mem=False)
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 
@@ -210,7 +210,7 @@ def test_psy_data_node_options():
     '''Check that the options for PSyData work as expected.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0)
+                           "gocean1.0", idx=0, dist_mem=False)
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 
@@ -264,3 +264,29 @@ def test_psy_data_node_options():
     assert "PreEnd" not in out
     assert "PostStart" not in out
     assert "PostEnd" in out
+
+
+def test_psy_data_node_children_validation():
+    '''Test that children added to PSyDataNode are validated. PSyDataNode
+    accepts just one Schedule as children.
+
+    '''
+    psy_node = PSyDataNode()
+    schedule = Schedule()
+    del psy_node.children[0]
+
+    # Invalid children (e.g. Return Statement)
+    ret = Return()
+    with pytest.raises(GenerationError) as excinfo:
+        psy_node.addchild(ret)
+    assert ("Item 'Return' can't be child 0 of 'PSyData'. The valid format"
+            " is: 'Schedule'." in str(excinfo.value))
+
+    # Valid children
+    psy_node.addchild(schedule)
+
+    # Additional children
+    with pytest.raises(GenerationError) as excinfo:
+        psy_node.addchild(schedule)
+    assert ("Item 'Schedule' can't be child 1 of 'PSyData'. The valid format"
+            " is: 'Schedule'." in str(excinfo.value))

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Australian Bureau of Meteorology
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,5 +44,5 @@ libdummy.a: dummy_lib.f90
 	ar rs libdummy.a dummy_lib.o
 
 clean:
-	rm -f libdummy.a dummy_lib.o profile_mod.mod
+	rm -f libdummy.a dummy_lib.o profile_psy_data_mod.mod
 

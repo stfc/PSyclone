@@ -121,8 +121,8 @@ def test_no_loops(parser):
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children[0:1],
                                {"default_present": True})
-    assert ("must enclose at least one loop but none were found"
-            in str(err.value))
+    assert ("must enclose at least one loop or array range but none were "
+            "found" in str(err.value))
 
 
 def test_implicit_loop(parser):
@@ -230,7 +230,7 @@ def test_no_code_block_kernels(parser):
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children)
-    assert ("CodeBlock'>' cannot be enclosed by a ACCKernelsTrans "
+    assert ("'CodeBlock' cannot be enclosed by a ACCKernelsTrans "
             in str(err.value))
 
 

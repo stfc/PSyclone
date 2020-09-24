@@ -45,7 +45,7 @@ from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, \
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
-    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType
+    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Symbol
 from psyclone.psyir.nodes import Container, Literal, Reference, \
     BinaryOperation, Return
 
@@ -85,32 +85,30 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
     assert isinstance(DataSymbol('a', REAL_SINGLE_TYPE), DataSymbol)
     assert isinstance(DataSymbol('a', REAL8_TYPE), DataSymbol)
-    assert isinstance(DataSymbol('a', REAL_SINGLE_TYPE,
-                                 interface=ArgumentInterface()), DataSymbol)
-    assert isinstance(
-        DataSymbol('a', REAL_SINGLE_TYPE,
-                   interface=ArgumentInterface(
-                       ArgumentInterface.Access.READWRITE)), DataSymbol)
-    assert isinstance(
-        DataSymbol('a', REAL_SINGLE_TYPE,
-                   interface=ArgumentInterface(
-                       ArgumentInterface.Access.READ)), DataSymbol)
-    my_mod = ContainerSymbol("my_mod")
-    assert isinstance(
-        DataSymbol('a', DeferredType(), interface=GlobalInterface(my_mod)),
-        DataSymbol)
     dim = DataSymbol('dim', INTEGER_SINGLE_TYPE)
     array_type = ArrayType(REAL_SINGLE_TYPE, [dim])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
     array_type = ArrayType(REAL_SINGLE_TYPE,
                            [3, dim, ArrayType.Extent.ATTRIBUTE])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
+    assert isinstance(
+        DataSymbol('a', REAL_SINGLE_TYPE,
+                   interface=ArgumentInterface(
+                       ArgumentInterface.Access.READWRITE)), DataSymbol)
+    assert isinstance(
+        DataSymbol('a', REAL_SINGLE_TYPE,
+                   visibility=Symbol.Visibility.PRIVATE), DataSymbol)
 
 
 def test_datasymbol_init_errors():
     ''' Test that the Symbol constructor raises appropriate errors if supplied
     with invalid arguments. '''
-    # Test with invalid arguments
+
+    with pytest.raises(TypeError) as error:
+        DataSymbol(None, None)
+    assert ("DataSymbol 'name' attribute should be of type 'str' but "
+            "'NoneType' found." in str(error.value))
+
     with pytest.raises(TypeError) as error:
         DataSymbol('a', 'invalidtype')
     assert ("datatype of a DataSymbol must be specified using a DataType "
@@ -261,73 +259,6 @@ def test_datasymbol_scalar_array():
     assert sym2.is_array
 
 
-def test_datasymbol_invalid_interface():
-    ''' Check that the DataSymbol.interface setter rejects the supplied value
-    if it is not a DataSymbolInterface. '''
-    sym = DataSymbol("some_var", REAL_SINGLE_TYPE)
-    with pytest.raises(TypeError) as err:
-        sym.interface = "invalid interface spec"
-    assert "interface to a DataSymbol must be a DataSymbolInterface but" \
-        in str(err.value)
-
-
-def test_datasymbol_interface():
-    ''' Check the interface getter on a DataSymbol. '''
-    my_mod = ContainerSymbol("my_mod")
-    symbol = DataSymbol("some_var", REAL_SINGLE_TYPE,
-                        interface=GlobalInterface(my_mod))
-    assert symbol.interface.container_symbol.name == "my_mod"
-
-
-def test_datasymbol_interface_setter():
-    ''' Check the interface setter on a DataSymbol. '''
-    my_mod = ContainerSymbol("my_mod")
-    symbol = DataSymbol("some_var", REAL_SINGLE_TYPE,
-                        interface=GlobalInterface(my_mod))
-    assert symbol.interface.container_symbol.name == "my_mod"
-
-    with pytest.raises(TypeError) as err:
-        symbol.interface = "not valid"
-    assert ("interface to a DataSymbol must be a DataSymbolInterface but "
-            "got 'str'" in str(err.value))
-
-
-def test_datasymbol_interface_access():
-    ''' Tests for the DataSymbolInterface.access setter. '''
-    symbol = DataSymbol("some_var", REAL_SINGLE_TYPE,
-                        interface=ArgumentInterface())
-    symbol.interface.access = ArgumentInterface.Access.READ
-    assert symbol.interface.access == ArgumentInterface.Access.READ
-    # Force the error by supplying a string instead of a SymbolAccess type.
-    with pytest.raises(TypeError) as err:
-        symbol.interface.access = "read"
-    assert "must be a 'ArgumentInterface.Access' but got " in str(err.value)
-
-
-def test_datasymbol_argument_str():
-    ''' Check the __str__ method of the ArgumentInterface class. '''
-    # An ArgumentInterface represents a routine argument by default.
-    interface = ArgumentInterface()
-    assert str(interface) == "Argument(pass-by-value=False)"
-
-
-def test_fortranglobal_str():
-    ''' Test the __str__ method of GlobalInterface. '''
-    # If it's not an argument then we have nothing else to say about it (since
-    # other options are language specific and are implemented in sub-classes).
-    my_mod = ContainerSymbol("my_mod")
-    interface = GlobalInterface(my_mod)
-    assert str(interface) == "Global(container='my_mod')"
-
-
-def test_global_modname():
-    ''' Test the GlobalInterface.module_name setter error conditions. '''
-    with pytest.raises(TypeError) as err:
-        _ = GlobalInterface(None)
-    assert ("Global container_symbol parameter must be of type"
-            " ContainerSymbol, but found ") in str(err.value)
-
-
 def test_datasymbol_copy():
     '''Test that the DataSymbol copy method produces a faithful separate copy
     of the original symbol.
@@ -398,57 +329,26 @@ def test_datasymbol_copy_properties():
             symbol.datatype.precision)
 
 
-def test_datasymbol_resolve_deferred():
+def test_datasymbol_resolve_deferred(monkeypatch):
     ''' Test the datasymbol resolve_deferred method '''
-
-    container = Container("dummy_module")
-    container.symbol_table.add(DataSymbol('a', INTEGER_SINGLE_TYPE))
-    container.symbol_table.add(DataSymbol('b', REAL_SINGLE_TYPE))
-    container.symbol_table.add(DataSymbol('c', REAL_DOUBLE_TYPE,
-                                          constant_value=3.14))
+    symbola = DataSymbol('a', INTEGER_SINGLE_TYPE)
+    new_sym = symbola.resolve_deferred()
+    # For a DataSymbol (unlike a Symbol), resolve_deferred should always
+    # return the object on which it was called.
+    assert new_sym is symbola
     module = ContainerSymbol("dummy_module")
-    module._reference = container  # Manually linking the container
-
-    symbol = DataSymbol('a', DeferredType(),
-                        interface=GlobalInterface(module))
-    symbol.resolve_deferred()
-    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert symbol.datatype.precision == ScalarType.Precision.SINGLE
-
-    symbol = DataSymbol('b', DeferredType(),
-                        interface=GlobalInterface(module))
-    symbol.resolve_deferred()
-    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    assert symbol.datatype.precision == ScalarType.Precision.SINGLE
-
-    symbol = DataSymbol('c', DeferredType(),
-                        interface=GlobalInterface(module))
-    symbol.resolve_deferred()
-    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    assert symbol.datatype.precision == ScalarType.Precision.DOUBLE
-    assert isinstance(symbol.constant_value, Literal)
-    assert (symbol.constant_value.datatype.intrinsic ==
-            symbol.datatype.intrinsic)
-    assert (symbol.constant_value.datatype.precision ==
-            symbol.datatype.precision)
-    assert symbol.constant_value.value == "3.14"
-
-    # Test with a symbol not defined in the linked container
-    symbol = DataSymbol('d', DeferredType(),
-                        interface=GlobalInterface(module))
-    with pytest.raises(SymbolError) as err:
-        symbol.resolve_deferred()
-    assert ("Error trying to resolve symbol 'd' properties. The interface "
-            "points to module 'dummy_module' but could not find the definition"
-            " of 'd' in that module." in str(err.value))
-
-    # Test with a symbol which does not have a Global interface
-    symbol = DataSymbol('e', DeferredType(), interface=LocalInterface())
-    with pytest.raises(NotImplementedError) as err:
-        symbol.resolve_deferred()
-    assert ("Error trying to resolve symbol 'e' properties, the lazy "
-            "evaluation of 'Local' interfaces is not supported."
-            in str(err.value))
+    symbolb = DataSymbol('b', visibility=Symbol.Visibility.PRIVATE,
+                         datatype=DeferredType(),
+                         interface=GlobalInterface(module))
+    # Monkeypatch the get_external_symbol() method so that it just returns
+    # a new DataSymbol
+    monkeypatch.setattr(symbolb, "get_external_symbol",
+                        lambda: DataSymbol("b", INTEGER_SINGLE_TYPE))
+    new_sym = symbolb.resolve_deferred()
+    assert new_sym is symbolb
+    assert new_sym.datatype == INTEGER_SINGLE_TYPE
+    assert new_sym.visibility == Symbol.Visibility.PRIVATE
+    assert isinstance(new_sym.interface, GlobalInterface)
 
 
 def test_datasymbol_shape():
@@ -457,9 +357,9 @@ def test_datasymbol_shape():
     assert data_symbol.shape == []
 
 
-def test_datasymbol_unresolved_interface():
-    '''Test that unresolved_interface returns the expected value.'''
-    data_symbol = DataSymbol("a", REAL4_TYPE)
-    assert not data_symbol.unresolved_interface
-    data_symbol = DataSymbol("a", REAL4_TYPE, interface=UnresolvedInterface())
-    assert data_symbol.unresolved_interface
+def test_datasymbol_str():
+    '''Test that the DataSymbol __str__ method returns the expected string'''
+    data_symbol = DataSymbol("a", INTEGER4_TYPE, constant_value=3)
+    assert (data_symbol.__str__() ==
+            "a: <Scalar<INTEGER, 4>, Local, constant_value=Literal[value:'3', "
+            "Scalar<INTEGER, 4>]>")

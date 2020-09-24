@@ -1,6 +1,7 @@
+# -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +34,7 @@
 # Author R. W. Ford STFC Daresbury Lab
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by I. Kavcic, Met Office
 
 
 '''
@@ -52,6 +54,10 @@ from psyclone.configuration import Config
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
+NEMO_BASE_PATH =  os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "nemo", "test_files")
+DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "test_files", "dynamo0p3")
 
 
 def delete_module(modname):
@@ -306,30 +312,30 @@ def test_script_null_trans_relative():
 
 
 def test_script_trans():
-    ''' checks that generator.py works correctly when a
+    ''' Checks that generator.py works correctly when a
         transformation is provided as a script, i.e. it applies the
         transformations correctly. We use loop fusion as an
-        example.'''
+        example.
+
+    '''
     from psyclone.parse.algorithm import parse
     from psyclone.psyGen import PSyFactory
     from psyclone.transformations import LoopFuseTrans
     root_path = os.path.dirname(os.path.abspath(__file__))
     base_path = os.path.join(root_path, "test_files", "dynamo0p3")
-    # first loop fuse explicitly (without using generator.py)
+    # First loop fuse explicitly (without using generator.py)
     parse_file = os.path.join(base_path, "4_multikernel_invokes.f90")
     _, invoke_info = parse(parse_file, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
-    loop1 = schedule.children[3]
-    loop2 = schedule.children[4]
+    loop1 = schedule.children[4]
+    loop2 = schedule.children[5]
     trans = LoopFuseTrans()
-    schedule.view()
     schedule, _ = trans.apply(loop1, loop2)
     invoke.schedule = schedule
     generated_code_1 = psy.gen
-    schedule.view()
-    # second loop fuse using generator.py and a script
+    # Second loop fuse using generator.py and a script
     _, generated_code_2 = generate(parse_file, api="dynamo0.3",
                                    script_name=os.path.join(
                                        base_path, "loop_fuse_trans.py"))
@@ -337,10 +343,6 @@ def test_script_trans():
     delete_module("loop_fuse_trans")
     # third - check that the results are the same ...
     assert str(generated_code_1) == str(generated_code_2)
-
-
-DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "test_files", "dynamo0p3")
 
 
 def test_alg_lines_too_long_tested():
@@ -540,12 +542,12 @@ def test_main_expected_fatal_error(capsys):
 
 
 def test_main_unexpected_fatal_error(capsys, monkeypatch):
-    '''Tests that we get the expected output and the code exits with an
+    ''' Tests that we get the expected output and the code exits with an
     error when an unexpected fatal error is returned from the generate
-    function.'''
+    function. '''
     # sabotage the code so one of our constant lists is now an int
-    from psyclone import dynamo0p3
-    monkeypatch.setattr(dynamo0p3, "CONTINUOUS_FUNCTION_SPACES",
+    from psyclone.domain.lfric import LFRicArgDescriptor
+    monkeypatch.setattr(LFRicArgDescriptor, "VALID_ARG_TYPE_NAMES",
                         value=1)
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
@@ -565,14 +567,44 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     assert expected_output in output
 
 
-def test_main_fort_line_length(capsys):
-    '''Tests that the fortran line length object works correctly. Without
+@pytest.mark.parametrize("limit", ['all', 'output'])
+def test_main_fort_line_length(capsys, limit):
+    '''Tests that the Fortran line length object works correctly. Without
     the -l option one of the generated psy-layer lines would be longer
-    than 132 characters'''
+    than 132 characters. Since it is in the output code, both the 'all' and
+   'output' options should cause the limit to be applied. '''
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
                              "10.3_operator_different_spaces.f90"))
-    main([filename, '-api', 'dynamo0.3', '-l'])
+    main([filename, '-api', 'dynamo0.3', '-l', limit])
+    output, _ = capsys.readouterr()
+    assert all(len(line) <= 132 for line in output.split('\n'))
+
+
+@pytest.mark.parametrize("limit", [[], ['-l', 'off']])
+def test_main_fort_line_length_off(capsys, limit):
+    '''Tests that the Fortran line-length limiting is off by default and is
+    also disabled by `-l off`. One of the generated psy-layer lines should be
+    longer than 132 characters. '''
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p3",
+                             "10.3_operator_different_spaces.f90"))
+    main([filename, '-api', 'dynamo0.3'] + limit)
+    output, _ = capsys.readouterr()
+    assert not all(len(line) <= 132 for line in output.split('\n'))
+
+
+def test_main_fort_line_length_output_only(capsys):
+    ''' Check that the '-l output' option disables the line-length check on
+    input files but still limits the line lengths in the output. '''
+    alg_filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    # If line-length checking is enabled then we should abort
+    with pytest.raises(SystemExit):
+        main([alg_filename, '-api', 'nemo', '-l', 'all'])
+    _, error = capsys.readouterr()
+    assert "does not conform to the specified 132 line length limit" in error
+    # If we only mandate that the output be limited then we should be fine
+    main([alg_filename, '-api', 'nemo', '-l', 'output'])
     output, _ = capsys.readouterr()
     for line in output.split('\n'):
         assert len(line) <= 132
@@ -701,6 +733,11 @@ def test_main_kern_output_dir(tmpdir):
     # The specified kernel output directory should have been stored in
     # the configuration object
     assert Config.get().kernel_output_dir == str(tmpdir)
+
+    # If no kernel_output_dir is set, it should default to the
+    # current directory
+    Config.get().kernel_output_dir = None
+    assert Config.get().kernel_output_dir == str(os.getcwd())
 
 
 def test_invalid_kern_naming():

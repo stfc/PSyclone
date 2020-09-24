@@ -47,6 +47,8 @@ import pytest
 import fparser
 
 from fparser import api as fpapi
+from psyclone.errors import InternalError
+from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -123,7 +125,7 @@ def test_invalid_mesh_specifier():
 
 def test_all_args_same_mesh_error():
     ''' Check that we reject a kernel if all arguments are specified
-    as being on the same mesh (coarse or fine) '''
+    as being on the same mesh (coarse or fine). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Both on fine mesh
     code = RESTRICT_MDATA.replace("GH_COARSE", "GH_FINE", 1)
@@ -132,18 +134,18 @@ def test_all_args_same_mesh_error():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
-            "one field argument on each of the mesh types (['gh_coarse', "
-            "'gh_fine']). However, kernel restrict_kernel_type has arguments "
-            "only on ['gh_fine']" in str(excinfo.value))
+            "one field argument on each of the mesh types ({0}). However, "
+            "kernel restrict_kernel_type has arguments only on ['gh_fine']".
+            format(LFRicArgDescriptor.VALID_MESH_TYPES) in str(excinfo.value))
     # Both on coarse mesh
     code = RESTRICT_MDATA.replace("GH_FINE", "GH_COARSE", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
-            "one field argument on each of the mesh types (['gh_coarse', "
-            "'gh_fine']). However, kernel restrict_kernel_type has arguments "
-            "only on ['gh_coarse']" in str(excinfo.value))
+            "one field argument on each of the mesh types ({0}). However, "
+            "kernel restrict_kernel_type has arguments only on ['gh_coarse']".
+            format(LFRicArgDescriptor.VALID_MESH_TYPES) in str(excinfo.value))
 
 
 def test_all_fields_have_mesh():
@@ -195,7 +197,7 @@ def test_only_field_args():
         "mesh_arg=GH_FINE  )  &",
         "       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, "
         "mesh_arg=GH_FINE  ),  &\n"
-        "       arg_type(GH_REAL, GH_READ) &", 1)
+        "       arg_type(GH_SCALAR, GH_REAL, GH_READ) &", 1)
     code = code.replace("(2)", "(3)", 1)
 
     ast = fpapi.parse(code, ignore_comments=False)
@@ -204,7 +206,7 @@ def test_only_field_args():
         _ = DynKernMetadata(ast, name=name)
     assert ("Inter-grid kernels in the Dynamo 0.3 API are only permitted to "
             "have field arguments but kernel restrict_kernel_type also has "
-            "arguments of type ['gh_real']" in str(excinfo.value))
+            "arguments of type ['gh_scalar']" in str(excinfo.value))
 
 
 def test_field_vector():
@@ -228,17 +230,21 @@ def test_field_vector():
 
 def test_two_grid_types(monkeypatch):
     ''' Check that PSyclone raises an error if the number of grid types
-    supported for inter-grid kernels is not two '''
-    from psyclone import dynamo0p3
-    # Change VALID_MESH_TYPES so that it contains three values
-    monkeypatch.setattr(dynamo0p3, "VALID_MESH_TYPES",
-                        value=["gh_coarse", "gh_fine", "gh_medium"])
+    supported for inter-grid kernels is not two. '''
+    # Change LFRicArgDescriptor.VALID_MESH_TYPES so that it contains
+    # three values
+    monkeypatch.setattr(
+        target=LFRicArgDescriptor, name="VALID_MESH_TYPES",
+        value=["gh_coarse", "gh_fine", "gh_medium"])
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(RESTRICT_MDATA, ignore_comments=False)
     name = "restrict_kernel_type"
-    with pytest.raises(ParseError) as err:
+    with pytest.raises(InternalError) as err:
         _ = DynKernMetadata(ast, name=name)
-    assert "but dynamo0p3.VALID_MESH_TYPES contains 3: [" in str(err.value)
+    assert ("The implementation of inter-grid support in the LFRic "
+            "API assumes there are exactly two mesh types but "
+            "LFRicArgDescriptor.VALID_MESH_TYPES contains 3: "
+            "['gh_coarse', 'gh_fine', 'gh_medium']" in str(err.value))
 
 
 def test_field_prolong(tmpdir):
@@ -320,8 +326,8 @@ def test_field_prolong(tmpdir):
             assert set_dirty in gen_code
 
 
-def test_field_restrict(tmpdir, monkeypatch, annexed):
-    '''Test that we generate correct code for an invoke containing a
+def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
+    ''' Test that we generate correct code for an invoke containing a
     single restriction operation (read from fine, write to
     coarse). Check when annexed is False and True as we produce a
     different number of halo exchanges.
@@ -335,118 +341,110 @@ def test_field_restrict(tmpdir, monkeypatch, annexed):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.1_intergrid_restrict.f90"),
                            api=API)
-    for distmem in [False, True]:
-        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
-        output = str(psy.gen)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    output = str(psy.gen)
 
-        assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
-        defs = (
-            "      USE restrict_test_kernel_mod, "
-            "ONLY: restrict_test_kernel_code\n"
-            "      USE mesh_map_mod, ONLY: mesh_map_type\n"
-            "      USE mesh_mod, ONLY: mesh_type\n"
-            "      TYPE(field_type), intent(in) :: field1, field2\n")
-        assert defs in output
+    defs = (
+        "      USE restrict_test_kernel_mod, "
+        "ONLY: restrict_test_kernel_code\n"
+        "      USE mesh_map_mod, ONLY: mesh_map_type\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
+        "      TYPE(field_type), intent(in) :: field1, field2\n")
+    assert defs in output
 
-        defs2 = (
-            "      INTEGER(KIND=i_def) nlayers\n"
-            "      TYPE(field_proxy_type) field1_proxy, field2_proxy\n"
-            "      INTEGER(KIND=i_def), pointer :: "
-            "map_any_space_1_field1(:,:) => null(), "
-            "map_any_space_2_field2(:,:) => null()\n"
-            "      INTEGER(KIND=i_def) ndf_any_space_1_field1, "
-            "undf_any_space_1_field1, ndf_any_space_2_field2, "
-            "undf_any_space_2_field2\n"
-            "      INTEGER(KIND=i_def) ncell_field2, ncpc_field2_field1\n"
-            "      INTEGER(KIND=i_def), pointer :: "
-            "cell_map_field1(:,:) => null()\n"
-            "      TYPE(mesh_map_type), pointer :: mmap_field2_field1 => "
-            "null()\n"
-            "      TYPE(mesh_type), pointer :: mesh_field2 => null()\n"
-            "      TYPE(mesh_type), pointer :: mesh_field1 => null()\n")
-        assert defs2 in output
+    defs2 = (
+        "      INTEGER(KIND=i_def) nlayers\n"
+        "      TYPE(field_proxy_type) field1_proxy, field2_proxy\n"
+        "      INTEGER(KIND=i_def), pointer :: "
+        "map_aspc1_field1(:,:) => null(), map_aspc2_field2(:,:) => null()\n"
+        "      INTEGER(KIND=i_def) ndf_aspc1_field1, undf_aspc1_field1, "
+        "ndf_aspc2_field2, undf_aspc2_field2\n"
+        "      INTEGER(KIND=i_def) ncell_field2, ncpc_field2_field1\n"
+        "      INTEGER(KIND=i_def), pointer :: "
+        "cell_map_field1(:,:) => null()\n"
+        "      TYPE(mesh_map_type), pointer :: mmap_field2_field1 => "
+        "null()\n"
+        "      TYPE(mesh_type), pointer :: mesh_field2 => null()\n"
+        "      TYPE(mesh_type), pointer :: mesh_field1 => null()\n")
+    assert defs2 in output
 
-        inits = (
-            "      !\n"
-            "      ! Look-up mesh objects and loop limits for inter-grid "
-            "kernels\n"
-            "      !\n"
-            "      mesh_field2 => field2_proxy%vspace%get_mesh()\n"
-            "      mesh_field1 => field1_proxy%vspace%get_mesh()\n"
-            "      mmap_field2_field1 => mesh_field1%get_mesh_map("
-            "mesh_field2)\n"
-            "      cell_map_field1 => mmap_field2_field1%"
-            "get_whole_cell_map()\n")
-        if distmem:
-            inits += ("      ncell_field2 = mesh_field2%"
-                      "get_last_halo_cell(depth=2)\n")
+    inits = (
+        "      !\n"
+        "      ! Look-up mesh objects and loop limits for inter-grid kernels\n"
+        "      !\n"
+        "      mesh_field2 => field2_proxy%vspace%get_mesh()\n"
+        "      mesh_field1 => field1_proxy%vspace%get_mesh()\n"
+        "      mmap_field2_field1 => mesh_field1%get_mesh_map(mesh_field2)\n"
+        "      cell_map_field1 => mmap_field2_field1%get_whole_cell_map()\n")
+    if dist_mem:
+        inits += ("      ncell_field2 = mesh_field2%"
+                  "get_last_halo_cell(depth=2)\n")
+    else:
+        inits += "      ncell_field2 = field2_proxy%vspace%get_ncell()\n"
+    inits += (
+        "      ncpc_field2_field1 = mmap_field2_field1%"
+        "get_ntarget_cells_per_source_cell()\n"
+        "      !\n"
+        "      ! Look-up dofmaps for each function space\n"
+        "      !\n"
+        "      map_aspc1_field1 => field1_proxy%vspace%get_whole_dofmap()\n"
+        "      map_aspc2_field2 => field2_proxy%vspace%get_whole_dofmap()\n")
+    assert inits in output
+
+    if dist_mem:
+        # We write out to the L1 halo on the coarse mesh which means
+        # we require up-to-date values out to the L2 halo on the fine.
+        # Since we are incrementing the coarse field we also need
+        # up-to-date values for it in the L1 halo.
+        if not annexed:
+            halo_exchs = (
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      IF (field1_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL field1_proxy%halo_exchange(depth=1)\n"
+                "      END IF\n"
+                "      !\n"
+                "      IF (field2_proxy%is_dirty(depth=2)) THEN\n"
+                "        CALL field2_proxy%halo_exchange(depth=2)\n"
+                "      END IF\n"
+                "      !\n"
+                "      DO cell=1,mesh_field1%get_last_halo_cell(1)\n")
         else:
-            inits += ("      ncell_field2 = field2_proxy%vspace%"
-                      "get_ncell()\n")
-        inits += (
-            "      ncpc_field2_field1 = mmap_field2_field1%"
-            "get_ntarget_cells_per_source_cell()\n"
-            "      !\n"
-            "      ! Look-up dofmaps for each function space\n"
-            "      !\n"
-            "      map_any_space_1_field1 => field1_proxy%vspace%"
-            "get_whole_dofmap()\n"
-            "      map_any_space_2_field2 => field2_proxy%vspace%"
-            "get_whole_dofmap()\n")
-        assert inits in output
+            halo_exchs = (
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      IF (field2_proxy%is_dirty(depth=2)) THEN\n"
+                "        CALL field2_proxy%halo_exchange(depth=2)\n"
+                "      END IF\n"
+                "      !\n"
+                "      DO cell=1,mesh_field1%get_last_halo_cell(1)\n")
+        assert halo_exchs in output
 
-        if distmem:
-            # We write out to the L1 halo on the coarse mesh which means
-            # we require up-to-date values out to the L2 halo on the fine.
-            # Since we are incrementing the coarse field we also need
-            # up-to-date values for it in the L1 halo.
-            if not annexed:
-                halo_exchs = (
-                    "      ! Call kernels and communication routines\n"
-                    "      !\n"
-                    "      IF (field1_proxy%is_dirty(depth=1)) THEN\n"
-                    "        CALL field1_proxy%halo_exchange(depth=1)\n"
-                    "      END IF\n"
-                    "      !\n"
-                    "      IF (field2_proxy%is_dirty(depth=2)) THEN\n"
-                    "        CALL field2_proxy%halo_exchange(depth=2)\n"
-                    "      END IF\n"
-                    "      !\n"
-                    "      DO cell=1,mesh_field1%get_last_halo_cell(1)\n")
-            else:
-                halo_exchs = (
-                    "      ! Call kernels and communication routines\n"
-                    "      !\n"
-                    "      IF (field2_proxy%is_dirty(depth=2)) THEN\n"
-                    "        CALL field2_proxy%halo_exchange(depth=2)\n"
-                    "      END IF\n"
-                    "      !\n"
-                    "      DO cell=1,mesh_field1%get_last_halo_cell(1)\n")
-            assert halo_exchs in output
+    # We pass the whole dofmap for the fine mesh (we are reading from).
+    # This is associated with the second kernel argument.
+    kern_call = (
+        "        !\n"
+        "        CALL restrict_test_kernel_code(nlayers, "
+        "cell_map_field1(:,cell), ncpc_field2_field1, ncell_field2, "
+        "field1_proxy%data, field2_proxy%data, undf_aspc1_field1, "
+        "map_aspc1_field1(:,cell), ndf_aspc2_field2, undf_aspc2_field2, "
+        "map_aspc2_field2)\n"
+        "      END DO\n"
+        "      !\n")
+    assert kern_call in output
 
-        # We pass the whole dofmap for the fine mesh (we are reading from).
-        # This is associated with the second kernel argument.
-        kern_call = (
-            "        !\n"
-            "        CALL restrict_test_kernel_code(nlayers, "
-            "cell_map_field1(:,cell), ncpc_field2_field1, ncell_field2, "
-            "field1_proxy%data, field2_proxy%data, "
-            "undf_any_space_1_field1, map_any_space_1_field1(:,cell), "
-            "ndf_any_space_2_field2, undf_any_space_2_field2, "
-            "map_any_space_2_field2)\n"
-            "      END DO\n"
-            "      !\n")
-        assert kern_call in output
-
-        if distmem:
-            set_dirty = "      CALL field1_proxy%set_dirty()\n"
-            assert set_dirty in output
+    if dist_mem:
+        set_dirty = "      CALL field1_proxy%set_dirty()\n"
+        assert set_dirty in output
 
 
 def test_restrict_prolong_chain(tmpdir, dist_mem):
     ''' Test when we have a single invoke containing a chain of
-    restrictions and prolongations '''
+    restrictions and prolongations.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.2_intergrid_3levels.f90"),
                            api=API)
@@ -569,17 +567,15 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "        !\n"
             "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_m"
             "(:,cell), ncpc_fld_f_fld_m, ncell_fld_f, fld_m_proxy%data, "
-            "fld_f_proxy%data, undf_any_space_1_fld_m, "
-            "map_any_space_1_fld_m(:,cell), ndf_any_space_2_fld_f, "
-            "undf_any_space_2_fld_f, map_any_space_2_fld_f)\n"
+            "fld_f_proxy%data, undf_aspc1_fld_m, map_aspc1_fld_m(:,cell), "
+            "ndf_aspc2_fld_f, undf_aspc2_fld_f, map_aspc2_fld_f)\n"
             "      END DO\n"
             "      DO cell=1,fld_c_proxy%vspace%get_ncell()\n"
             "        !\n"
             "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_c"
             "(:,cell), ncpc_fld_m_fld_c, ncell_fld_m, fld_c_proxy%data, "
-            "fld_m_proxy%data, undf_any_space_1_fld_c, "
-            "map_any_space_1_fld_c(:,cell), ndf_any_space_2_fld_m, "
-            "undf_any_space_2_fld_m, map_any_space_2_fld_m)\n")
+            "fld_m_proxy%data, undf_aspc1_fld_c, map_aspc1_fld_c(:,cell), "
+            "ndf_aspc2_fld_m, undf_aspc2_fld_m, map_aspc2_fld_m)\n")
         assert expected in output
 
 
@@ -615,7 +611,7 @@ def test_prolong_with_gp_error():
     from psyclone.errors import GenerationError
     with pytest.raises(GenerationError) as err:
         _ = PSyFactory(API).create(invoke_info)
-    assert ("no other kernel types but kernels 'testkern_code_w2_only' in "
+    assert ("no other kernel types but kernels 'testkern_w2_only_code' in "
             "invoke 'invoke_0' are not inter-grid" in str(err.value))
 
 
@@ -663,8 +659,9 @@ def test_no_stub_gen():
 
 def test_restrict_prolong_chain_anyd(tmpdir):
     ''' Test that we generate correct code for an invoke containing a
-    chain of discontinuous restrictions and continuous prolongations '''
+    chain of discontinuous restrictions and continuous prolongations.
 
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.2.1_intergrid_3levels_anyd.f90"),
                            api=API)
@@ -673,33 +670,23 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     output = str(psy.gen)
     # Check maps for any_discontinuous_space
     expected = (
-        "      map_any_discontinuous_space_1_fld_m => "
-        "fld_m_proxy%vspace%get_whole_dofmap()\n"
-        "      map_any_discontinuous_space_2_fld_f => "
-        "fld_f_proxy%vspace%get_whole_dofmap()\n"
-        "      map_any_discontinuous_space_1_fld_c => "
-        "fld_c_proxy%vspace%get_whole_dofmap()\n"
-        "      map_any_discontinuous_space_2_fld_m => "
-        "fld_m_proxy%vspace%get_whole_dofmap()\n")
+        "      map_adspc1_fld_m => fld_m_proxy%vspace%get_whole_dofmap()\n"
+        "      map_adspc2_fld_f => fld_f_proxy%vspace%get_whole_dofmap()\n"
+        "      map_adspc1_fld_c => fld_c_proxy%vspace%get_whole_dofmap()\n"
+        "      map_adspc2_fld_m => fld_m_proxy%vspace%get_whole_dofmap()\n")
     assert expected in output
     # Check ndf and undf initialisations the second restrict kernel
     # (fld_m to fld_c)
     expected = (
-        "      ! Initialise number of DoFs for "
-        "any_discontinuous_space_1_fld_c\n"
+        "      ! Initialise number of DoFs for adspc1_fld_c\n"
         "      !\n"
-        "      ndf_any_discontinuous_space_1_fld_c = "
-        "fld_c_proxy%vspace%get_ndf()\n"
-        "      undf_any_discontinuous_space_1_fld_c = "
-        "fld_c_proxy%vspace%get_undf()\n"
+        "      ndf_adspc1_fld_c = fld_c_proxy%vspace%get_ndf()\n"
+        "      undf_adspc1_fld_c = fld_c_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise number of DoFs for "
-        "any_discontinuous_space_2_fld_m\n"
+        "      ! Initialise number of DoFs for adspc2_fld_m\n"
         "      !\n"
-        "      ndf_any_discontinuous_space_2_fld_m = "
-        "fld_m_proxy%vspace%get_ndf()\n"
-        "      undf_any_discontinuous_space_2_fld_m = "
-        "fld_m_proxy%vspace%get_undf()\n")
+        "      ndf_adspc2_fld_m = fld_m_proxy%vspace%get_ndf()\n"
+        "      undf_adspc2_fld_m = fld_m_proxy%vspace%get_undf()\n")
     assert expected in output
     # Check an example of restrict loop and all upper loop bounds
     expected = (
@@ -709,11 +696,8 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         "        !\n"
         "        CALL restrict_kernel_code(nlayers, cell_map_fld_m(:,cell), "
         "ncpc_fld_f_fld_m, ncell_fld_f, fld_m_proxy%data, fld_f_proxy%data, "
-        "undf_any_discontinuous_space_1_fld_m, "
-        "map_any_discontinuous_space_1_fld_m(:,cell), "
-        "ndf_any_discontinuous_space_2_fld_f, "
-        "undf_any_discontinuous_space_2_fld_f, "
-        "map_any_discontinuous_space_2_fld_f)\n"
+        "undf_adspc1_fld_m, map_adspc1_fld_m(:,cell), ndf_adspc2_fld_f, "
+        "undf_adspc2_fld_f, map_adspc2_fld_f)\n"
         "      END DO\n")
     assert expected in output
     assert "DO cell=1,mesh_fld_c%get_last_edge_cell()" in output

@@ -41,43 +41,37 @@
 ! Modified I. Kavcic, Met Office
 !          A. R. Porter, STFC Daresbury Laboratory
 
-!> @brief The argument type to hold kernel metadata required by the psy layer.
+!> @brief The argument type to hold kernel metadata required by the PSy layer.
 
 module argument_mod
 
   implicit none
 
+  private
+
   ! Argument types
   integer, public, parameter :: GH_FIELD               = 1
   integer, public, parameter :: GH_OPERATOR            = 2
   integer, public, parameter :: GH_COLUMNWISE_OPERATOR = 3
-  integer, public, parameter :: GH_REAL                = 4
-  integer, public, parameter :: GH_INTEGER             = 5
+  integer, public, parameter :: GH_SCALAR              = 4
+
+  ! Primitive Fortran types of argument data
+  integer, public, parameter :: GH_REAL    = 11
+  integer, public, parameter :: GH_INTEGER = 12
 
   ! Access descriptors
-  integer, public, parameter :: GH_READ      = 11
-  integer, public, parameter :: GH_WRITE     = 12
-  integer, public, parameter :: GH_READWRITE = 13
-  integer, public, parameter :: GH_INC       = 14
-  integer, public, parameter :: GH_SUM       = 15
-  integer, public, parameter :: GH_MIN       = 16
-  integer, public, parameter :: GH_MAX       = 17
+  integer, public, parameter :: GH_READ      = 21
+  integer, public, parameter :: GH_WRITE     = 22
+  integer, public, parameter :: GH_READWRITE = 23
+  integer, public, parameter :: GH_INC       = 24
+  integer, public, parameter :: GH_SUM       = 25
+  integer, public, parameter :: GH_MIN       = 26
+  integer, public, parameter :: GH_MAX       = 27
 
-  ! Function-space labels
-  integer, public, parameter :: W0        = 100
-  integer, public, parameter :: W1        = 101
-  integer, public, parameter :: W2        = 102
-  integer, public, parameter :: W2V       = 103
-  integer, public, parameter :: W2H       = 104
-  integer, public, parameter :: W2broken  = 105
-  integer, public, parameter :: W2trace   = 106
-  integer, public, parameter :: W3        = 107
-  integer, public, parameter :: Wtheta    = 108
-  integer, public, parameter :: Wchi      = 109
-  integer, public, parameter :: ANY_W2    = 110
-
-  ! Distinct any_space IDs. Separate IDs required as we may have
-  ! groups of fields that must be on the same space within a kernel
+  ! General function space IDs. Distinct IDs required as we may
+  ! have groups of fields that must be on the same space within
+  ! a kernel.
+  ! IDs for any space regardless of continuity.
   integer, public, parameter :: ANY_SPACE_1  = 201
   integer, public, parameter :: ANY_SPACE_2  = 202
   integer, public, parameter :: ANY_SPACE_3  = 203
@@ -88,9 +82,12 @@ module argument_mod
   integer, public, parameter :: ANY_SPACE_8  = 208
   integer, public, parameter :: ANY_SPACE_9  = 209
   integer, public, parameter :: ANY_SPACE_10 = 210
-  ! Distinct any_discontinuous_space IDs. Separate IDs required
-  ! as we may have groups of fields that must be on the same space
-  ! within a kernel
+  ! IDs for any vector W2-type space regardless of continuity
+  ! (w2, w2h, w2v, w2broken but not w2*trace spaces of scalar
+  ! functions). Issue #540 will resolve what W2* spaces should
+  ! be included in ANY_W2 list and how they should be treated.
+  integer, public, parameter :: ANY_W2       = 112
+  ! IDs for any discontinuous space
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_1  = 251
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_2  = 252
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_3  = 253
@@ -110,8 +107,10 @@ module argument_mod
   integer, public, parameter :: GH_COLUMN_INDIRECTION_DOFMAP = 305
 
   ! Kernel iterator
-  integer, public, parameter :: CELLS     = 401
-  integer, public, parameter :: ALL_DOFS  = 402
+  ! TODO #870 remove CELLS
+  integer, public, parameter :: CELLS       = 401
+  integer, public, parameter :: CELL_COLUMN = 402
+  integer, public, parameter :: ALL_DOFS    = 403
 
   ! Quadrature metadata
   integer, public, parameter :: QUADRATURE_XYZ      = 501
@@ -138,6 +137,9 @@ module argument_mod
   integer, public, parameter :: GH_FINE = 701
   integer, public, parameter :: GH_COARSE = 702
 
+  ! Mesh properties
+  integer, public, parameter :: adjacent_face = 533
+
   ! Reference-element properties
   integer, public, parameter :: normals_to_horizontal_faces = 171
   integer, public, parameter :: outward_normals_to_horizontal_faces = 007
@@ -147,7 +149,7 @@ module argument_mod
   integer, public, parameter :: outward_normals_to_faces = 009
 
   type, public :: arg_type
-     integer :: arg_type         ! {GH_FIELD, GH_OPERATOR, GH_REAL, GH_INTEGER}
+     integer :: arg_type         ! {GH_FIELD, GH_OPERATOR, GH_COLUMNWISE_OPERATOR, GH_SCALAR}
      integer :: arg_intent       ! {GH_READ, GH_WRITE, GH_READWRITE, GH_INC, GH_SUM, GH_MIN, GH_MAX}
      integer :: wspace      = -1 ! {W0, W1, W2, W3, ANY_SPACE_[0-9]+}
      integer :: from_wspace = -1 ! { " } only required for gh_operator
@@ -160,6 +162,10 @@ module argument_mod
      integer :: wproperties2 = -1 ! { " } optional and must be a distinct property
      integer :: wproperties3 = -1 ! { " } optional and must be a distinct property
   end type func_type
+
+  type, public :: mesh_data_type
+    integer :: mesh_data_item ! {adjacent_face}
+  end type mesh_data_type
 
   type, public :: reference_element_data_type
     ! {normals_to_<horizontal/vertical/all>_faces, &

@@ -39,7 +39,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
-    ArrayType, DataSymbol
+    ArrayType, UnknownType, DataSymbol
 from psyclone.errors import InternalError
 
 
@@ -222,7 +222,7 @@ def test_arraytype_invalid_shape():
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, None)
-    assert ("ArrayType expected 'shape' argument to be of type list but "
+    assert ("ArrayType 'shape' must be of type list but "
             "found 'NoneType'." in str(excinfo.value))
 
 
@@ -293,3 +293,16 @@ def test_arraytype_immutable():
         data_type.precision = 8
     with pytest.raises(AttributeError):
         data_type.shape = []
+
+
+def test_unknown_type():
+    ''' Check the constructor and 'declaration' property of the
+    UnknownType class. '''
+    with pytest.raises(TypeError) as err:
+        UnknownType(1)
+    assert ("constructor expects the original variable declaration as a "
+            "string but got an argument of type 'int'" in str(err.value))
+    decl = "type(some_type) :: var"
+    utype = UnknownType(decl)
+    assert str(utype) == "UnknownType('" + decl + "')"
+    assert utype.declaration == decl

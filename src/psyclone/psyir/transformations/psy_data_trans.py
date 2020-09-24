@@ -38,7 +38,7 @@
 '''
 
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
+from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
@@ -69,7 +69,7 @@ class PSyDataTrans(RegionTrans):
     >>> newschedule.view()
     >>> # Or to use a class-prefix string and different region name:
     >>> newschedule, _ = data_trans.apply(schedule.children,
-    >>>                                   {"class": "my_prefix",
+    >>>                                   {"prefix": "my_prefix",
     >>>                                    "region_name": ("module","region")})
 
     :param node_class: The Node class of which an instance will be inserted \
@@ -80,7 +80,7 @@ class PSyDataTrans(RegionTrans):
     # Unlike other transformations we can be fairly relaxed about the nodes
     # that a region can contain as we don't have to understand them.
     # TODO: #415 Support different classes of PSyData calls.
-    valid_node_types = (Node,)
+    excluded_node_types = (Return,)
 
     def __init__(self, node_class=PSyDataNode):
         super(PSyDataTrans, self).__init__()
@@ -108,7 +108,7 @@ class PSyDataTrans(RegionTrans):
 
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
-        :param str options["class"]: a prefix to use for the PSyData module \
+        :param str options["prefix"]: a prefix to use for the PSyData module \
             name (``PREFIX_psy_data_mod``) and the PSyDataType \
             (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
             It defaults to "".
@@ -148,13 +148,13 @@ class PSyDataTrans(RegionTrans):
                         "tuple containing two non-empty strings."
                         "".format(self.name))
                 # pylint: enable=too-many-boolean-expressions
-            if "class" in options:
-                prefix = options["class"]
-                if prefix not in Config.get().valid_psy_data_prefix:
+            if "prefix" in options:
+                prefix = options["prefix"]
+                if prefix not in Config.get().valid_psy_data_prefixes:
                     raise TransformationError(
-                        "Error in 'class' parameter: found '{0}', expected "
+                        "Error in 'prefix' parameter: found '{0}', expected "
                         "one of {1} as defined in {2}"
-                        .format(prefix, Config.get().valid_psy_data_prefix,
+                        .format(prefix, Config.get().valid_psy_data_prefixes,
                                 Config.get().filename))
 
         super(PSyDataTrans, self).validate(node_list, options)
@@ -189,7 +189,7 @@ class PSyDataTrans(RegionTrans):
                      :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
-        :param str options["class"]: a prefix to use for the PSyData module \
+        :param str options["prefix"]: a prefix to use for the PSyData module \
             name (``PREFIX_psy_data_mod``) and the PSyDataType \
             (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
             It defaults to "".

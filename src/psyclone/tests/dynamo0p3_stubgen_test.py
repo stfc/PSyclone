@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the Dynamo 0.3 kernel-stub generator using pytest. '''
 
@@ -43,8 +44,9 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, KernStubArgList
-from psyclone.errors import InternalError, GenerationError
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.gen_kernel_stub import generate
 
@@ -60,112 +62,43 @@ def setup():
     Config.get().api = "dynamo0.3"
 
 
-def test_kernel_stub_invalid_scalar_argument():
-    '''Check that we raise an exception if an unexpected datatype is found
-    when using the KernStubArgList scalar method'''
+def test_kernel_stub_invalid_iteration_space():
+    ''' Check that we raise an exception if we attempt to generate kernel
+    stub for a kernel with an unsupported iteration space. '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
+                                   "testkern_dofs_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    # Sabotage the scalar argument to make it have an invalid type.
-    arg = kernel.arguments.args[1]
-    arg._type = "invalid"
-    # Now call KernStubArgList to raise an exception
-    create_arg_list = KernStubArgList(kernel)
     with pytest.raises(InternalError) as excinfo:
-        create_arg_list.scalar(arg)
-    assert (
-        "Expected argument type to be one of '['gh_real', "
-        "'gh_integer']' but got 'invalid'") in str(excinfo.value)
+        _ = kernel.gen_stub
+    assert ("Expected the kernel to operate on one of "
+            "['cells', 'cell_column'] but found 'dof' in kernel "
+            "'testkern_dofs_code'." in str(excinfo.value))
 
 
-def test_dynscalars_err(monkeypatch):
-    ''' Check that the DynScalarArgs constructor raises the expected error
-    if it encounters an unrecognised type of scalar. '''
+def test_dynscalars_stub_err():
+    ''' Check that the DynScalarArgs constructor raises the expected
+    internal error if it encounters an unrecognised intrinsic type of
+    scalar when generating a kernel stub.
+
+    '''
     from psyclone.dynamo0p3 import DynScalarArgs
-    from psyclone import dynamo0p3
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    # Sabotage the scalar argument to make it have an invalid type.
+    # Sabotage the scalar argument to make it have an invalid intrinsic type
     arg = kernel.arguments.args[1]
-    arg._type = "invalid-scalar-type"
-    # Monkeypatch the list of supported scalar types to include this one
-    monkeypatch.setattr(dynamo0p3, "GH_VALID_SCALAR_NAMES",
-                        ["gh_real", "gh_integer", "invalid-scalar-type"])
+    arg._intrinsic_type = "invalid-scalar-type"
     with pytest.raises(InternalError) as err:
         _ = DynScalarArgs(kernel)
-    assert ("Scalar type 'invalid-scalar-type' is in GH_VALID_SCALAR_NAMES "
-            "but not handled" in str(err.value))
-
-
-def test_kernel_stub_ind_dofmap_errors():
-    '''Check that we raise the expected exceptions if the wrong arguments
-    are supplied to KernelStubArgList.indirection_dofmap() '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Now call KernStubArgList to raise an exception
-    create_arg_list = KernStubArgList(kernel)
-    # First call it without an argument object
-    with pytest.raises(GenerationError) as excinfo:
-        create_arg_list.indirection_dofmap("w3")
-    assert "no CMA operator supplied" in str(excinfo.value)
-    # Second, call it with an argument object but one that is not
-    # an operator
-    with pytest.raises(GenerationError) as excinfo:
-        create_arg_list.indirection_dofmap("w3", kernel.arguments.args[1])
-    assert ("a CMA operator (gh_columnwise_operator) must be supplied but "
-            "got") in str(excinfo.value)
-
-
-def test_kernstubarglist_arglist_error():
-    '''Check that we raise an exception if we call the arglist method in
-    kernstubarglist without first calling the generate method'''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Now call KernStubArgList to raise an exception
-    create_arg_list = KernStubArgList(kernel)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = create_arg_list.arglist
-    assert (
-        "Internal error. The argument list in KernStubArgList:arglist() is "
-        "empty. Has the generate() method been "
-        "called?") in str(excinfo.value)
-
-
-def test_kernstubarglist_eval_shape_error():
-    ''' Check that we raise the expected exception if we call the basis() or
-    diff_basis() methods and one of the kernel's evaluator shapes is
-    invalid. '''
-    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr_faces_mod.F90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    create_arg_list = KernStubArgList(kernel)
-    # Break the list of qr rules
-    kernel.eval_shapes.insert(0, "broken")
-    with pytest.raises(InternalError) as err:
-        create_arg_list.basis(None)
-    assert ("Unrecognised evaluator shape ('broken'). Expected one of: "
-            "['gh_quadrature_xyoz'" in str(err.value))
-    with pytest.raises(InternalError) as err:
-        create_arg_list.diff_basis(None)
-    assert ("Unrecognised evaluator shape ('broken'). Expected one of: "
-            "['gh_quadrature_xyoz'" in str(err.value))
+    assert ("DynScalarArgs.__init__(): Found an unsupported intrinsic type "
+            "'invalid-scalar-type' for the scalar argument 'iscalar_2'. "
+            "Supported types are ['real', 'integer']." in str(err.value))
 
 
 def test_stub_generate_with_anyw2():
@@ -195,14 +128,14 @@ SIMPLE = (
     "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
     "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
     "      INTEGER(KIND=i_def), intent(in) :: undf_w1\n"
-    "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
-    " field_1_w1\n"
+    "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
+    "field_1_w1\n"
     "    END SUBROUTINE simple_code\n"
     "  END MODULE simple_mod")
 
 
 def test_stub_generate_working():
-    ''' check that the stub generate produces the expected output '''
+    ''' Check that the stub generate produces the expected output '''
     result = generate(os.path.join(BASE_PATH, "simple.f90"),
                       api=TEST_API)
     assert SIMPLE in str(result)
@@ -229,7 +162,7 @@ SIMPLE_WITH_SCALARS = (
     "      INTEGER(KIND=i_def), intent(in) :: undf_w1\n"
     "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
     "      INTEGER(KIND=i_def), intent(in) :: iscalar_3\n"
-    "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
+    "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) ::"
     " field_2_w1\n"
     "    END SUBROUTINE simple_with_scalars_code\n"
     "  END MODULE simple_with_scalars_mod")
@@ -272,12 +205,12 @@ def test_stub_generate_with_scalar_sums():
             os.path.join(BASE_PATH, "simple_with_reduction.f90"),
             api=TEST_API)
     assert (
-        "user-supplied Dynamo 0.3 kernel must not write/update a scalar "
-        "argument but kernel simple_with_reduction_type has gh_real with "
-        "gh_sum access" in str(err.value))
+        "A user-supplied LFRic kernel must not write/update a scalar "
+        "argument but kernel 'simple_with_reduction_type' has a scalar "
+        "argument with 'gh_sum' access." in str(err.value))
 
 
-# fields : intent
+# Fields : intent
 INTENT = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
@@ -299,16 +232,18 @@ end module dummy_mod
 
 def test_load_meta_wrong_type():
     ''' Test that the load_meta function raises an appropriate error
-    if the meta-data contains an un-recognised type '''
+    if the meta-data contains an un-recognised type. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(INTENT, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     # Break the meta-data
-    metadata.arg_descriptors[0]._type = "gh_hedge"
+    metadata.arg_descriptors[0]._argument_type = "gh_hedge"
     with pytest.raises(GenerationError) as excinfo:
         kernel.load_meta(metadata)
-    assert "load_meta expected one of '['gh_field'," in str(excinfo.value)
+    assert ("DynKern.load_meta() expected one of {0} but found "
+            "'gh_hedge'".format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            in str(excinfo.value))
 
 
 def test_intent():
@@ -343,18 +278,23 @@ def test_intent():
     assert output in str(generated_code)
 
 
-# fields : spaces
+# Fields : spaces
 SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(7) =                &
-          (/ arg_type(gh_field, gh_inc,   w0),     &
-             arg_type(gh_field, gh_inc,   w1),     &
-             arg_type(gh_field, gh_inc,   w2),     &
-             arg_type(gh_field, gh_write, w3),     &
-             arg_type(gh_field, gh_write, wtheta), &
-             arg_type(gh_field, gh_inc,   w2h),    &
-             arg_type(gh_field, gh_write, w2v)     &
+     type(arg_type), meta_args(12) =                 &
+          (/ arg_type(gh_field, gh_inc,   w0),       &
+             arg_type(gh_field, gh_inc,   w1),       &
+             arg_type(gh_field, gh_inc,   w2),       &
+             arg_type(gh_field, gh_write, w2broken), &
+             arg_type(gh_field, gh_inc,   w2trace),  &
+             arg_type(gh_field, gh_write, w3),       &
+             arg_type(gh_field, gh_write, wtheta),   &
+             arg_type(gh_field, gh_inc,   w2h),      &
+             arg_type(gh_field, gh_write, w2v),      &
+             arg_type(gh_field, gh_inc,   w2htrace), &
+             arg_type(gh_field, gh_write, w2vtrace), &
+             arg_type(gh_field, gh_read,  wchi)      &
            /)
      integer :: iterates_over = cells
    contains
@@ -368,7 +308,9 @@ end module dummy_mod
 
 
 def test_spaces():
-    ''' test that field spaces are handled correctly for kernel stubs '''
+    ''' Test that field spaces are handled correctly for kernel stubs.
+
+    '''
     ast = fpapi.parse(SPACES, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -379,11 +321,16 @@ def test_spaces():
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code(nlayers, field_1_w0, field_2_w1, "
-        "field_3_w2, field_4_w3, field_5_wtheta, field_6_w2h, field_7_w2v, "
-        "ndf_w0, undf_w0, map_w0, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, "
-        "map_w2, ndf_w3, undf_w3, map_w3, ndf_wtheta, undf_wtheta, "
-        "map_wtheta, ndf_w2h, undf_w2h, map_w2h, ndf_w2v, undf_w2v, "
-        "map_w2v)\n"
+        "field_3_w2, field_4_w2broken, field_5_w2trace, field_6_w3, "
+        "field_7_wtheta, field_8_w2h, field_9_w2v, field_10_w2htrace, "
+        "field_11_w2vtrace, field_12_wchi, "
+        "ndf_w0, undf_w0, map_w0, ndf_w1, undf_w1, map_w1, "
+        "ndf_w2, undf_w2, map_w2, ndf_w2broken, undf_w2broken, map_w2broken, "
+        "ndf_w2trace, undf_w2trace, map_w2trace, ndf_w3, undf_w3, map_w3, "
+        "ndf_wtheta, undf_wtheta, map_wtheta, ndf_w2h, undf_w2h, map_w2h, "
+        "ndf_w2v, undf_w2v, map_w2v, ndf_w2htrace, undf_w2htrace, "
+        "map_w2htrace, ndf_w2vtrace, undf_w2vtrace, map_w2vtrace, "
+        "ndf_wchi, undf_wchi, map_wchi)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
@@ -393,33 +340,59 @@ def test_spaces():
         "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
         "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2broken\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2broken) "
+        ":: map_w2broken\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2h\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w2h) :: map_w2h\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2h) "
+        ":: map_w2h\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2htrace\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2htrace) "
+        ":: map_w2htrace\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2trace\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2trace) "
+        ":: map_w2trace\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w2v) :: map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) "
+        ":: map_w2v\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2vtrace\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2vtrace) "
+        ":: map_w2vtrace\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
         "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_wchi\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) "
+        ":: map_wchi\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_wtheta) :: map_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) "
+        ":: map_wtheta\n"
         "      INTEGER(KIND=i_def), intent(in) :: undf_w0, undf_w1, undf_w2, "
-        "undf_w3, undf_wtheta, undf_w2h, undf_w2v\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
-        "field_1_w0\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
-        "field_2_w1\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2) :: "
-        "field_3_w2\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: "
-        "field_4_w3\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: "
-        "field_5_wtheta\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2h) :: "
-        "field_6_w2h\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w2v) :: "
-        "field_7_w2v\n"
+        "undf_w2broken, undf_w2trace, undf_w3, undf_wtheta, undf_w2h, "
+        "undf_w2v, undf_w2htrace, undf_w2vtrace, undf_wchi\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) "
+        ":: field_1_w0\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) "
+        ":: field_2_w1\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2) "
+        ":: field_3_w2\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w2broken) "
+        ":: field_4_w2broken\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2trace) "
+        ":: field_5_w2trace\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w3) "
+        ":: field_6_w3\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) "
+        ":: field_7_wtheta\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2h) "
+        ":: field_8_w2h\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w2v) "
+        ":: field_9_w2v\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2htrace) "
+        ":: field_10_w2htrace\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w2vtrace) "
+        ":: field_11_w2vtrace\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_wchi) "
+        ":: field_12_wchi\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code
@@ -445,8 +418,10 @@ end module dummy_mod
 
 
 def test_any_spaces():
-    ''' Test that any_*_space metadata are handled correctly
-    for kernel stubs '''
+    ''' Test that any_space and any_discontinuous_space metadata are handled
+    correctly for kernel stubs.
+
+    '''
     ast = fpapi.parse(ANY_SPACES, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -456,50 +431,37 @@ def test_any_spaces():
         "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code(nlayers, "
-        "field_1_any_discontinuous_space_1_field_1, "
-        "field_2_any_space_7_field_2, "
-        "field_3_any_discontinuous_space_4_field_3, "
-        "ndf_any_discontinuous_space_1_field_1, "
-        "undf_any_discontinuous_space_1_field_1, "
-        "map_any_discontinuous_space_1_field_1, ndf_any_space_7_field_2, "
-        "undf_any_space_7_field_2, map_any_space_7_field_2, "
-        "ndf_any_discontinuous_space_4_field_3, "
-        "undf_any_discontinuous_space_4_field_3, "
-        "map_any_discontinuous_space_4_field_3)\n"
+        "    SUBROUTINE dummy_code(nlayers, field_1_adspc1_field_1, "
+        "field_2_aspc7_field_2, field_3_adspc4_field_3, "
+        "ndf_adspc1_field_1, undf_adspc1_field_1, map_adspc1_field_1, "
+        "ndf_aspc7_field_2, undf_aspc7_field_2, map_aspc7_field_2, "
+        "ndf_adspc4_field_3, undf_adspc4_field_3, map_adspc4_field_3)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: "
-        "ndf_any_discontinuous_space_1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_adspc1_field_1\n"
         "      INTEGER(KIND=i_def), intent(in), dimension("
-        "ndf_any_discontinuous_space_1_field_1) :: "
-        "map_any_discontinuous_space_1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: "
-        "ndf_any_discontinuous_space_4_field_3\n"
+        "ndf_adspc1_field_1) :: map_adspc1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_adspc4_field_3\n"
         "      INTEGER(KIND=i_def), intent(in), dimension("
-        "ndf_any_discontinuous_space_4_field_3) :: "
-        "map_any_discontinuous_space_4_field_3\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_7_field_2\n"
+        "ndf_adspc4_field_3) :: map_adspc4_field_3\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc7_field_2\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_7_field_2) :: map_any_space_7_field_2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: "
-        "undf_any_discontinuous_space_1_field_1, undf_any_space_7_field_2, "
-        "undf_any_discontinuous_space_4_field_3\n"
+        "dimension(ndf_aspc7_field_2) :: map_aspc7_field_2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_adspc1_field_1, "
+        "undf_aspc7_field_2, undf_adspc4_field_3\n"
         "      REAL(KIND=r_def), intent(in), dimension"
-        "(undf_any_discontinuous_space_1_field_1) :: "
-        "field_1_any_discontinuous_space_1_field_1\n"
+        "(undf_adspc1_field_1) :: field_1_adspc1_field_1\n"
         "      REAL(KIND=r_def), intent(inout), dimension"
-        "(undf_any_space_7_field_2) :: field_2_any_space_7_field_2\n"
+        "(undf_aspc7_field_2) :: field_2_aspc7_field_2\n"
         "      REAL(KIND=r_def), intent(inout), dimension"
-        "(undf_any_discontinuous_space_4_field_3) :: "
-        "field_3_any_discontinuous_space_4_field_3\n"
+        "(undf_adspc4_field_3) :: field_3_adspc4_field_3\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code
 
 
-# fields : vectors
+# Fields : vectors
 VECTORS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
@@ -548,22 +510,23 @@ def test_vectors():
 
 
 def test_arg_descriptor_vec_str():
-    ''' Tests that the string method for DynArgDescriptor03 works as
-    expected when we have a vector quantity '''
+    ''' Tests that the string method for LFRicArgDescriptor works as
+    expected when we have a vector quantity. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(VECTORS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
     expected_output = (
-        "DynArgDescriptor03 object\n"
+        "LFRicArgDescriptor object\n"
         "  argument_type[0]='gh_field'*3\n"
-        "  access_descriptor[1]='gh_inc'\n"
-        "  function_space[2]='w0'")
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_inc'\n"
+        "  function_space[3]='w0'")
     assert expected_output in result
 
 
-# orientation : spaces
+# Orientation : spaces
 ORIENTATION_OUTPUT = (
     "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
     "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
@@ -578,7 +541,7 @@ ORIENTATION_OUTPUT = (
     "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
     "      INTEGER(KIND=i_def), intent(in) :: "
     "undf_w0, ndf_w1, undf_w2, ndf_w3\n"
-    "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+    "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
     "field_1_w0\n"
     "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
     "field_3_w2\n"
@@ -621,7 +584,9 @@ def test_orientation_stubs():
 
 def test_enforce_bc_kernel_stub_gen():
     ''' Test that the enforce_bc_kernel boundary layer argument modification
-    is handled correctly for kernel stubs '''
+    is handled correctly for kernel stubs.
+
+    '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -632,21 +597,20 @@ def test_enforce_bc_kernel_stub_gen():
         "  MODULE enforce_bc_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE enforce_bc_code(nlayers, field_1_any_space_1_field_1, "
-        "ndf_any_space_1_field_1, undf_any_space_1_field_1, "
-        "map_any_space_1_field_1, boundary_dofs_field_1)\n"
+        "    SUBROUTINE enforce_bc_code(nlayers, field_1_aspc1_field_1, "
+        "ndf_aspc1_field_1, undf_aspc1_field_1, map_aspc1_field_1, "
+        "boundary_dofs_field_1)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_field_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_1_field_1) :: map_any_space_1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_any_space_1_field_1\n"
+        "dimension(ndf_aspc1_field_1) :: map_aspc1_field_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_aspc1_field_1\n"
         "      REAL(KIND=r_def), intent(inout), "
-        "dimension(undf_any_space_1_field_1)"
-        " :: field_1_any_space_1_field_1\n"
+        "dimension(undf_aspc1_field_1) :: field_1_aspc1_field_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_1_field_1,2) :: boundary_dofs_field_1\n"
+        "dimension(ndf_aspc1_field_1,2) :: boundary_dofs_field_1\n"
         "    END SUBROUTINE enforce_bc_code\n"
         "  END MODULE enforce_bc_mod")
     assert output in str(generated_code)
@@ -654,7 +618,9 @@ def test_enforce_bc_kernel_stub_gen():
 
 def test_enforce_op_bc_kernel_stub_gen():
     ''' Test that the enforce_operator_bc_kernel boundary dofs argument
-    modification is handled correctly for kernel stubs '''
+    modification is handled correctly for kernel stubs.
+
+    '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "enforce_operator_bc_kernel_mod.F90"),
                       ignore_comments=False)
@@ -667,19 +633,19 @@ def test_enforce_op_bc_kernel_stub_gen():
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE enforce_operator_bc_code(cell, nlayers, "
-        "op_1_ncell_3d, op_1, ndf_any_space_1_op_1, ndf_any_space_2_op_1, "
+        "op_1_ncell_3d, op_1, ndf_aspc1_op_1, ndf_aspc2_op_1, "
         "boundary_dofs_op_1)\n"
         "      USE constants_mod, ONLY: r_def, i_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_any_space_1_op_1, "
-        "ndf_any_space_2_op_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_op_1, "
+        "ndf_aspc2_op_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension("
-        "ndf_any_space_1_op_1,ndf_any_space_2_op_1,op_1_ncell_3d) :: op_1\n"
+        "ndf_aspc1_op_1,ndf_aspc2_op_1,op_1_ncell_3d) :: op_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_any_space_1_op_1,2) :: boundary_dofs_op_1\n"
+        "dimension(ndf_aspc1_op_1,2) :: boundary_dofs_op_1\n"
         "    END SUBROUTINE enforce_operator_bc_code\n"
         "  END MODULE enforce_operator_bc_mod")
     assert output in generated_code

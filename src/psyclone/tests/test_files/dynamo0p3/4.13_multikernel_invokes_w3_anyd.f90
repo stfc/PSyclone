@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2019, Science and Technology Facilities Council
+! Copyright (c) 2018-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,14 +38,15 @@ program multikernel_invokes_w3
   ! Description: multiple kernel calls within an invoke iterating over
   ! discontinuous readwriters on w3 and any_discontinuous_space_1 and
   ! reading from continuous fields
-  use inf,                         only: field_type
+  use constants_mod,               only: r_def
+  use field_mod,                   only: field_type
   use testkern_w3_mod,             only: testkern_w3_type
   use testkern_anyd_any_space_mod, only: testkern_anyd_any_space_type
 
   implicit none
 
   type(field_type) :: f1, f2, m1, m2, m3
-  real(r_def) :: a
+  real(r_def)      :: a
 
   call invoke(                                  &
        testkern_w3_type(a, f1, f2, m1, m2),     &

@@ -38,8 +38,8 @@
 
 from __future__ import absolute_import
 import abc
-import six
 from enum import Enum
+import six
 from psyclone.errors import InternalError
 
 
@@ -66,6 +66,40 @@ class DeferredType(DataType):
 
         '''
         return "DeferredType"
+
+
+class UnknownType(DataType):
+    '''
+    Indicates that the type declaration is not supported by the PSyIR.
+
+    :param str declaration_txt: string containing the original variable \
+                                declaration.
+
+    :raises TypeError: if the supplied declaration_txt is not a str.
+
+    '''
+    def __init__(self, declaration_txt):
+        if not isinstance(declaration_txt, str):
+            raise TypeError(
+                "UnknownType constructor expects the original variable "
+                "declaration as a string but got an argument of type '{0}'".
+                format(type(declaration_txt).__name__))
+        self._declaration = declaration_txt
+
+    def __str__(self):
+        '''
+        :returns: a description of this unknown type.
+        :rtype: str
+        '''
+        return "UnknownType('{0}')".format(self._declaration)
+
+    @property
+    def declaration(self):
+        '''
+        :returns: the original declaration of the symbol.
+        :rtype: str
+        '''
+        return self._declaration
 
 
 class ScalarType(DataType):
@@ -173,8 +207,8 @@ class ArrayType(DataType):
         system (e.g. using the SIZE intrinsic in Fortran). If it is \
         DataSymbol.Extent.DEFERRED then the extent is also unknown and may or \
         may not be defined at run-time (e.g. the array is ALLOCATABLE in \
-        Fortran). Otherwise it holds an integer literal or a reference to an \
-        integer symbol with the extent.
+        Fortran). Otherwise it holds an integer literal or a reference to a \
+        symbol (of integer or unknown/deferred type) that specifies the extent.
 
     :raises TypeError: if the arguments are of the wrong type.
 
@@ -193,33 +227,14 @@ class ArrayType(DataType):
 
     def __init__(self, datatype, shape):
 
-        from psyclone.psyir.symbols.datasymbol import DataSymbol
         if not isinstance(datatype, DataType):
             raise TypeError(
                 "ArrayType expected 'datatype' argument to be of type "
                 "DataType but found '{0}'."
                 "".format(type(datatype).__name__))
-        if not isinstance(shape, list):
-            raise TypeError(
-                "ArrayType expected 'shape' argument to be of type "
-                "list but found '{0}'."
-                "".format(type(shape).__name__))
-
-        for dimension in shape:
-            if isinstance(dimension, DataSymbol):
-                if not (dimension.is_scalar and
-                        dimension.datatype.intrinsic ==
-                        ScalarType.Intrinsic.INTEGER):
-                    raise TypeError(
-                        "DataSymbols that are part of another symbol shape can"
-                        " only be scalar integers, but found '{0}'."
-                        "".format(str(dimension)))
-            elif not isinstance(dimension, (self.Extent, int)):
-                raise TypeError(
-                    "DataSymbol shape list elements can only be "
-                    "'DataSymbol', 'integer' or ArrayType.Extent, but "
-                    "found '{0}'.".format(type(dimension).__name__))
-
+        # We do not have a setter for shape as it is an immutable property,
+        # therefore we have a separate validation routine.
+        self._validate_shape(shape)
         self._shape = shape
         self._intrinsic = datatype.intrinsic
         self._precision = datatype.precision
@@ -263,6 +278,46 @@ class ArrayType(DataType):
             int or :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return self._shape
+
+    def _validate_shape(self, extents):
+        '''
+        Check that the supplied shape specification is valid. This is not
+        implemented as a setter because the shape property is immutable.
+
+        :param extents: list of extents, one for each array dimension.
+        :type extents: list of :py:class:`psyclone.psyir.symbols.DataSymbol`, \
+            :py:class:`psyclone.psyir.symbols.ArrayType.Extent` or int
+
+        :raises TypeError: if extents is not a list.
+        :raises TypeError: if one or more of the supplied extents is a \
+            DataSymbol that is not a scalar integer or of Unknown/DeferredType.
+        :raises TypeError: if one or more of the supplied extents is not a \
+            DataSymbol, int or ArrayType.Extent.
+
+        '''
+        from psyclone.psyir.symbols.datasymbol import DataSymbol
+        if not isinstance(extents, list):
+            raise TypeError(
+                "ArrayType 'shape' must be of type list but found '{0}'."
+                "".format(type(extents).__name__))
+
+        for dimension in extents:
+            if isinstance(dimension, DataSymbol):
+                if isinstance(dimension.datatype, (UnknownType, DeferredType)):
+                    # We allow symbols of Unknown or Deferred Type
+                    continue
+                if not (dimension.is_scalar and
+                        dimension.datatype.intrinsic ==
+                        ScalarType.Intrinsic.INTEGER):
+                    raise TypeError(
+                        "DataSymbols that are part of another symbol shape can"
+                        " only be scalar integers, but found '{0}'."
+                        "".format(str(dimension)))
+            elif not isinstance(dimension, (self.Extent, int)):
+                raise TypeError(
+                    "DataSymbol shape list elements can only be "
+                    "'DataSymbol', 'integer' or ArrayType.Extent, but "
+                    "found '{0}'.".format(type(dimension).__name__))
 
     def __str__(self):
         '''

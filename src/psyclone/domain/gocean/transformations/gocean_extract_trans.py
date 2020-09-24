@@ -124,8 +124,8 @@ class GOceanExtractTrans(ExtractTrans):
         schedule - i.e. enclose the specified Nodes in the schedule within
         a single PSyData region. Note that this implementation just calls
         the base class, it is only added here to provide the documentation
-        for this function, since it accepts different options parameters
-        than the baseclass (e.g. create_driver, which is passed to the
+        for this function, since it accepts different options
+        to the base class (e.g. create_driver, which is passed to the
         GOceanExtractNode instance that will be inserted.).
 
         :param nodes: can be a single node or a list of nodes.
@@ -133,7 +133,7 @@ class GOceanExtractTrans(ExtractTrans):
                      :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
-        :param str options["class"]: a prefix to use for the PSyData module \
+        :param str options["prefix"]: a prefix to use for the PSyData module \
             name (``prefix_psy_data_mod``) and the PSyDataType \
             (``prefix_PSyDataType``) - a "_" will be added automatically. \
             It defaults to "extract", resulting in e.g. \

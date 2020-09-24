@@ -112,7 +112,7 @@ The easiest way to use the stub generator is to run the supplied
 
     > genkernelstub
     usage: genkernelstub [-h] [-o OUTFILE] [-api API] [-l] filename
-    genkernelstub: error: too few arguments
+    genkernelstub: error: the following arguments are required: filename
 
 You can get information about the ``genkernelstub`` arguments using
 ``-h`` or ``--help``:
@@ -161,17 +161,17 @@ directory where ``<PSYCLONEHOME>`` refers to the location where you
 download or clone PSyclone (:ref:`Getting Going <getting-going>`).
 
 In the ``tests/test_files/dynamo0p3`` directory the majority of examples
-start with ``testkern``. The exceptions are: ``simple.f90``,
-``ru_kernel_mod.f90`` and ``matrix_vector_mod.F90``. The following test
-kernels can be used to generate kernel stub code (running stub
+start with ``testkern``. Amongst the exceptions are: ``simple.f90``,
+``ru_kernel_mod.f90`` and ``matrix_vector_kernel_mod.F90``. The following
+test kernels can be used to generate kernel stub code (running stub
 generation from the ``<PSYCLONEHOME>/src/psyclone`` directory):
 ::
 
-    tests/test_files/dynamo0p3/testkern_chi_2.F90
-    tests/test_files/dynamo0p3/testkern_chi.F90
+    tests/test_files/dynamo0p3/testkern_chi_read_mod.F90
+    tests/test_files/dynamo0p3/testkern_coord_w0_mod.F90
     tests/test_files/dynamo0p3/testkern_operator_mod.f90
     tests/test_files/dynamo0p3/testkern_operator_nofield_mod.f90
-    tests/test_files/dynamo0p3/testkern_orientation.F90
+    tests/test_files/dynamo0p3/testkern_orientation_mod.F90
     tests/test_files/dynamo0p3/testkern_operator_orient_mod.f90
     tests/test_files/dynamo0p3/ru_kernel_mod.f90
     tests/test_files/dynamo0p3/simple.f90
@@ -186,18 +186,29 @@ stub generator is found in ``tests/test_files/dynamo0p3/simple.f90`` and
 is shown below:
 ::
 
-    module simple_mod
+  module simple_mod
+
+    use argument_mod
+    use fs_continuity_mod
+    use kernel_mod
+    use constants_mod
+
+    implicit none
+
     type, extends(kernel_type) :: simple_type
-        type(arg_type), dimension(1) :: meta_args =  &
-            (/ arg_type(gh_field, gh_write, w1) /)
-        integer :: iterates_over = cells
-      contains
-        procedure, nopass :: code => simple_code
-    end type simple_type
+      type(arg_type), dimension(1) :: meta_args = &
+           (/ arg_type(gh_field, gh_inc, w1) /)
+      integer :: operates_on = cell_column
     contains
+      procedure, nopass :: code => simple_code
+    end type simple_type
+
+  contains
+
     subroutine simple_code()
     end subroutine
-    end module simple_mod
+
+  end module simple_mod
 
 .. note:: The module name ``simple_mod`` and the type name ``simple_type``
           share the same root ``simple`` and have the extensions ``_mod``
@@ -225,13 +236,13 @@ we get the following kernel stub output:
     IMPLICIT NONE
     CONTAINS
     SUBROUTINE simple_code(nlayers, field_1_w1, ndf_w1, undf_w1, map_w1)
-      USE constants_mod, ONLY: r_def
+      USE constants_mod, ONLY: r_def, i_def
       IMPLICIT NONE
-      INTEGER, intent(in) :: nlayers
-      INTEGER, intent(in) :: ndf_w1
-      INTEGER, intent(in) :: undf_w1
-      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: field_1_w1
-      INTEGER, intent(in), dimension(ndf_w1) :: map_w1
+      INTEGER(KIND=i_def), intent(in) :: nlayers
+      INTEGER(KIND=i_def), intent(in) :: ndf_w1
+      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1
+      INTEGER(KIND=i_def), intent(in) :: undf_w1
+      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: field_1_w1
     END SUBROUTINE simple_code
   END MODULE simple_mod
 
@@ -274,30 +285,42 @@ that there are four fields passed by the algorithm layer, the fourth
 of which is a vector field of size three. All three of the spaces
 require a basis function and the ``W0`` and ``W2`` function spaces
 additionally require a differential basis function. The content of the
-Kernel is given below.
+Kernel, excluding the subroutine body, is given below.
 ::
 
   module ru_kernel_mod
+
+  use argument_mod
+  use fs_continuity_mod
+  use kernel_mod
+  use constants_mod
+
+  implicit none
+
+  private
+
   type, public, extends(kernel_type) :: ru_kernel_type
     private
     type(arg_type) :: meta_args(6) = (/                                  &
-         arg_type(GH_FIELD,   GH_INC,  W2),                              &
-         arg_type(GH_FIELD,   GH_READ, W3),                              &
-         arg_type(GH_INTEGER, GH_READ),                                  &
-         arg_type(GH_REAL,    GH_READ),                                  &
-         arg_type(GH_FIELD,   GH_READ, W0),                              &
-         arg_type(GH_FIELD*3, GH_READ, W0)                               &
+         arg_type(GH_FIELD,               GH_INC,  W2),                  &
+         arg_type(GH_FIELD,               GH_READ, W3),                  &
+         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                      &
+         arg_type(GH_SCALAR,  GH_REAL,    GH_READ),                      &
+         arg_type(GH_FIELD,               GH_READ, W0),                  &
+         arg_type(GH_FIELD*3,             GH_READ, W0)                   &
          /)
     type(func_type) :: meta_funcs(3) = (/                                &
          func_type(W2, GH_BASIS, GH_DIFF_BASIS),                         &
          func_type(W3, GH_BASIS),                                        &
          func_type(W0, GH_BASIS, GH_DIFF_BASIS)                          &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
     procedure, nopass :: ru_code
   end type
+
+  public ru_code
 
   contains
 
@@ -306,50 +329,48 @@ Kernel is given below.
 
   end module ru_kernel_mod
 
-If we run the kernel stub generator on this example:
-::
+If we run the kernel stub generator on this example::
 
   > genkernelstub tests/test_files/dynamo0p3/ru_kernel_mod.f90
 
-we obtain the following output:
-::
+we obtain the following output::
 
-  MODULE ru_mod
+   MODULE ru_mod
     IMPLICIT NONE
     CONTAINS
     SUBROUTINE ru_code(nlayers, field_1_w2, field_2_w3, iscalar_3, rscalar_4, &
-      field_5_w0, field_6_w0_v1, field_6_w0_v2, field_6_w0_v3, ndf_w2, &
-      undf_w2, map_w2, basis_w2, diff_basis_w2, ndf_w3, undf_w3, map_w3, &
-      basis_w3, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, np_xy, &
-      np_z, weights_xy, weights_z)
-      USE constants_mod, ONLY: r_def
+                       field_5_w0, field_6_w0_v1, field_6_w0_v2, field_6_w0_v3, &
+                       ndf_w2, undf_w2, map_w2, basis_w2_qr_xyoz, &
+                       diff_basis_w2_qr_xyoz, ndf_w3, undf_w3, map_w3, &
+                       basis_w3_qr_xyoz, ndf_w0, undf_w0, map_w0, &
+                       basis_w0_qr_xyoz, diff_basis_w0_qr_xyoz, &
+                       np_xy_qr_xyoz, np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)
+      USE constants_mod, ONLY: r_def, i_def
       IMPLICIT NONE
-      INTEGER, intent(in) :: nlayers
-      INTEGER, intent(in) :: ndf_w2
-      INTEGER, intent(in) :: undf_w2
-      INTEGER, intent(in) :: ndf_w3
-      INTEGER, intent(in) :: undf_w3
-      INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in) :: undf_w0
+      INTEGER(KIND=i_def), intent(in) :: nlayers
+      INTEGER(KIND=i_def), intent(in) :: ndf_w0
+      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0
+      INTEGER(KIND=i_def), intent(in) :: ndf_w2
+      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2
+      INTEGER(KIND=i_def), intent(in) :: ndf_w3
+      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3
+      INTEGER(KIND=i_def), intent(in) :: undf_w2, undf_w3, undf_w0
+      REAL(KIND=r_def), intent(in) :: rscalar_4
+      INTEGER(KIND=i_def), intent(in) :: iscalar_3
       REAL(KIND=r_def), intent(inout), dimension(undf_w2) :: field_1_w2
       REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3
-      INTEGER, intent(in) :: iscalar_3
-      REAL(KIND=r_def), intent(in) :: rscalar_4
       REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_5_w0
       REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_6_w0_v1
       REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_6_w0_v2
       REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_6_w0_v3
-      INTEGER, intent(in), dimension(ndf_w2) :: map_w2
-      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,np_xy,np_z) :: basis_w2
-      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,np_xy,np_z) :: diff_basis_w2
-      INTEGER, intent(in), dimension(ndf_w3) :: map_w3
-      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,np_xy,np_z) :: basis_w3
-      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
-      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,np_xy,np_z) :: basis_w0
-      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,np_xy,np_z) :: diff_basis_w0
-      INTEGER, intent(in) :: np_xy, np_z
-      REAL(KIND=r_def), intent(in), dimension(np_xy) :: weights_xy
-      REAL(KIND=r_def), intent(in), dimension(np_z) :: weights_z
+      INTEGER(KIND=i_def), intent(in) :: np_xy_qr_xyoz, np_z_qr_xyoz
+      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w2_qr_xyoz
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2_qr_xyoz
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w3_qr_xyoz
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w0_qr_xyoz
+      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w0_qr_xyoz
+      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) :: weights_xy_qr_xyoz
+      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) :: weights_z_qr_xyoz
     END SUBROUTINE ru_code
   END MODULE ru_mod
 
@@ -386,24 +407,30 @@ they are invalid or because they contain functionality that is not
 supported in the stub generator.
 ::
 
-    tests/test_files/dynamo0p3/matrix_vector_mod.F90
     tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
     tests/test_files/dynamo0p3/testkern_any_space_4_mod.f90
     tests/test_files/dynamo0p3/testkern_any_discontinuous_space_op_2_mod.f90
+    tests/test_files/dynamo0p3/testkern_dofs_mod.f90
     tests/test_files/dynamo0p3/testkern_invalid_fortran.F90
     tests/test_files/dynamo0p3/testkern_short_name.F90
     tests/test_files/dynamo0p3/testkern_no_datatype.F90
-    tests/test_files/dynamo0p3/testkern.F90
     tests/test_files/dynamo0p3/testkern_qr.F90
 
 ``testkern_invalid_fortran.F90``, ``testkern_no_datatype.F90``,
-``testkern_short_name.F90``, ``testkern.F90`` and
-``matrix_vector_mod.F90`` are designed to be invalid for PSyclone
-testing purposes and should produce appropriate errors. For example:
+``testkern_short_name.F90`` and ``testkern_qr.F90`` are designed to be
+invalid for PSyclone stub generation testing purposes and should produce
+appropriate errors. Two examples are below:
 ::
 
     > genkernelstub tests/test_files/dynamo0p3/testkern_invalid_fortran.F90
     Error: 'Parse Error: Code appears to be invalid Fortran'
+
+    > genkernelstub tests/test_files/dynamo0p3/testkern_no_datatype.F90
+    Error: 'Parse Error: Kernel type testkern_type does not exist'
+
+``testkern_dofs_mod.f90`` is an example with an unsupported feature, as the
+``operates_on`` metadata specifies ``dof``. Currently only kernels with
+``operates_on=CELL_COLUMN`` are supported by the stub generator.
 
 Generic function space metadata ``any_space`` and ``any_discontinuous_space``
 (see Section :ref:`Supported Function Spaces <dynamo0.3-function-space>`
@@ -419,14 +446,14 @@ appropriate warnings because of that. For example:
 
     > genkernelstub tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
     Error: "Generation Error: Unsupported space for basis function, expecting
-    one of ['w3', 'wtheta', 'w2v', 'w2broken', 'w0', 'w1', 'w2', 'w2h',
-    'w2trace', 'any_w2'] but found 'any_space_1'"
+    one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2',
+    'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi'] but found 'any_space_1'"
 
 As noted above, if the Dynamo0.3 API naming convention for module and type
 names is not followed, the stub generator will return with an error
 message. For example:
 ::
 
-    > genkernelstub tests/test_files/dynamo0p3/testkern.F90
-    Error: "Parse Error: Error, module name 'testkern' does not have
+    > genkernelstub tests/test_files/dynamo0p3/testkern_qr.F90
+    Error: "Parse Error: Error, module name 'testkern_qr' does not have
     '_mod' as an extension. This convention is assumed."
