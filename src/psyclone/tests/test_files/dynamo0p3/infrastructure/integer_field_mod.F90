@@ -1,14 +1,14 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
+! (C) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-----------------------------------------------------------------------------
-! LICENCE.original is available from the Met Office Science Repository Service:
-! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! LICENCE is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities
+! Modifications copyright (c) 2020, Science and Technology Facilities
 ! Council
 ! All rights reserved.
 !
@@ -38,13 +38,14 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 !
-!> @brief A module providing field related classes.
+!> @brief A module providing integer field related classes.
 !>
-!> @details Both a representation of a field which provides no access to the
-!> underlying data (to be used in the algorithm layer) and an accessor class
-!> (to be used in the PSy layer) are provided.
+!> @details This is a version of a field object that can hold integer data
+!> values. It contains both a representation of an integer field which provides
+!> no access to the underlying data (to be used in the algorithm layer) and an
+!> accessor class (to be used in the PSy layer) are provided.
 
-module field_mod
+module integer_field_mod
 
   use constants_mod,      only: r_def, i_def, l_def
   use function_space_mod, only: function_space_type
@@ -59,19 +60,19 @@ module field_mod
 
 ! Public types
 
-!______field_type_____________________________________________________________
+!______integer_field_type_____________________________________________________
 
-  !> Algorithm layer representation of a field.
+  !> Algorithm layer representation of an integer field.
   !>
   !> Objects of this type hold all the data of the field privately.
   !> Unpacking the data is done via the proxy type accessed by the PSy
   !> layer alone.
   !>
-  type, extends(field_parent_type), public :: field_type
+  type, extends(field_parent_type), public :: integer_field_type
     private
 
-    !> The floating point values of the field
-    real(kind=r_def), allocatable :: data( : )
+    !> The integer values of the field
+    integer(kind=i_def), allocatable :: data( : )
 
   contains
 
@@ -79,21 +80,21 @@ module field_mod
     !! field_type.
     procedure, public :: get_proxy
 
-  end type field_type
+  end type integer_field_type
 
-!______field_proxy_type_______________________________________________________
+!______integer_field_proxy_type_______________________________________________
 
   !> PSy layer representation of a field.
   !>
   !> This is an accessor class that allows access to the actual field
   !> information with each element accessed via a public pointer.
   !>
-  type, extends(field_parent_proxy_type), public :: field_proxy_type
+  type, extends(field_parent_proxy_type), public :: integer_field_proxy_type
 
     private
 
-    !> Allocatable array of type real which holds the values of the field
-    real(kind=r_def), public, pointer :: data( : ) => null()
+    !> Allocatable array of type integer which holds the values of the field
+    integer(kind=i_def), public, pointer :: data( : ) => null()
 
   contains
 
@@ -109,26 +110,27 @@ module field_mod
     !> guarantees are made for in-bound data elements at this stage.
     !! @param[in] depth The depth to which the halos should be exchanged
     procedure, public :: halo_exchange_start
+
     !> Wait (i.e. block) until the transfer of data in a halo exchange
     !> (started by a call to halo_exchange_start) has completed.
     !! @param[in] depth The depth to which the halos have been exchanged
     procedure, public :: halo_exchange_finish
 
-  end type field_proxy_type
+  end type integer_field_proxy_type
 
 !______end of type declarations_______________________________________________
 
 contains
 
-!______field_type procedures__________________________________________________
+!______integer_field_type procedures__________________________________________
 
   !> Function to create a proxy with access to the data in the field_type.
   !>
   !> @return The proxy type with public pointers to the elements of
   !> field_type
-  type(field_proxy_type ) function get_proxy(self)
+  type(integer_field_proxy_type) function get_proxy(self)
     implicit none
-    class(field_type), target, intent(in)  :: self
+    class(integer_field_type), target, intent(in)  :: self
 
     ! Call the routine that initialises the proxy for data held in the parent
     call self%field_parent_proxy_initialiser(get_proxy)
@@ -137,7 +139,7 @@ contains
 
   end function get_proxy
 
-!______field_proxy_type procedures____________________________________________
+!______integer_field_proxy_type procedures____________________________________
 
   !! Perform a blocking halo exchange operation on the field
   !!
@@ -145,7 +147,7 @@ contains
 
     implicit none
 
-    class( field_proxy_type ), target, intent(inout) :: self
+    class( integer_field_proxy_type ), target, intent(inout) :: self
     integer(i_def), intent(in) :: depth
 
   end subroutine halo_exchange
@@ -156,7 +158,7 @@ contains
 
     implicit none
 
-    class( field_proxy_type ), target, intent(inout) :: self
+    class( integer_field_proxy_type ), target, intent(inout) :: self
     integer(i_def), intent(in) :: depth
 
   end subroutine halo_exchange_start
@@ -167,9 +169,9 @@ contains
 
     implicit none
 
-    class( field_proxy_type ), target, intent(inout) :: self
+    class( integer_field_proxy_type ), target, intent(inout) :: self
     integer(i_def), intent(in) :: depth
 
   end subroutine halo_exchange_finish
 
-end module field_mod
+end module integer_field_mod
