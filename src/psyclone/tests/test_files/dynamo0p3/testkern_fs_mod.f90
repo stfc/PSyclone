@@ -47,22 +47,22 @@ module testkern_fs_mod
   !              and one discontinuous (wtheta) field writer
   type, public, extends(kernel_type) :: testkern_fs_type
      private
-     type(arg_type), dimension(13) :: meta_args = (/ &
-          arg_type(gh_field, gh_inc,   w1),          &
-          arg_type(gh_field, gh_read,  w2),          &
-          arg_type(gh_field, gh_read,  w0),          &
-          arg_type(gh_field, gh_read,  w3),          &
-          arg_type(gh_field, gh_write, wtheta),      &
-          arg_type(gh_field, gh_read,  w2h),         &
-          arg_type(gh_field, gh_read,  w2v),         &
-          arg_type(gh_field, gh_read,  w2broken),    &
-          arg_type(gh_field, gh_read,  w2trace),     &
-          arg_type(gh_field, gh_read,  w2htrace),    &
-          arg_type(gh_field, gh_read,  w2vtrace),    &
-          arg_type(gh_field, gh_read,  wchi),        &
-          arg_type(gh_field, gh_read,  any_w2)       &
+     type(arg_type), dimension(13) :: meta_args = (/       &
+          arg_type(gh_field, gh_real, gh_inc,   w1),       &
+          arg_type(gh_field, gh_real, gh_read,  w2),       &
+          arg_type(gh_field, gh_real, gh_read,  w0),       &
+          arg_type(gh_field, gh_real, gh_read,  w3),       &
+          arg_type(gh_field, gh_real, gh_write, wtheta),   &
+          arg_type(gh_field, gh_real, gh_read,  w2h),      &
+          arg_type(gh_field, gh_real, gh_read,  w2v),      &
+          arg_type(gh_field, gh_real, gh_read,  w2broken), &
+          arg_type(gh_field, gh_real, gh_read,  w2trace),  &
+          arg_type(gh_field, gh_real, gh_read,  w2htrace), &
+          arg_type(gh_field, gh_real, gh_read,  w2vtrace), &
+          arg_type(gh_field, gh_real, gh_read,  wchi),     &
+          arg_type(gh_field, gh_real, gh_read,  any_w2)    &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, public, nopass :: code => testkern_fs_code
   end type testkern_fs_type
