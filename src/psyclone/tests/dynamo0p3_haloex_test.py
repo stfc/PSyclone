@@ -45,6 +45,7 @@ from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.dynamo0p3 import DynLoop, DynHaloExchange
 from psyclone.transformations import Dynamo0p3RedundantComputationTrans
 from psyclone.configuration import Config
+from psyclone.errors import InternalError
 
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -451,9 +452,8 @@ def test_setval_x_then_user(tmpdir, monkeypatch):
     assert first_invoke.schedule[0].field.name == "f1"
     assert isinstance(first_invoke.schedule[1], DynLoop)
     # There should only be one halo exchange for field f1
-    assert len([node for node in first_invoke.schedule.children
-                if isinstance(node, DynHaloExchange)
-                and node.field.name == "f1"]) == 1
+    assert len([node for node in first_invoke.schedule.walk(DynHaloExchange)
+                if node.field.name == "f1"]) == 1
     code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -465,12 +465,13 @@ def test_compute_halo_read_info_read_dep(monkeypatch):
     '''Check that _compute_halo_read_info() in DynHaloExchange raises the
     expected exception when there is more than one read dependence
     associated with a halo exchange in the read dependence list. This
-    should never happen as the access to a halo exchange is readwrite,
-    therefore the first access will stop any further accesses (due to
-    the write). Also check that the expected exception is raised when
-    there is a read dependence associated with a halo exchange but it
-    is not the last entry in the list. Again this should never happen
-    as the access to a halo exchange is readwrite.
+    should never happen as the field access for a halo exchange is
+    readwrite, therefore the first access will stop any further
+    accesses (due to the write). Also check that the expected
+    exception is raised when there is a read dependence associated
+    with a halo exchange which is not the last entry in the
+    list. Again this should never happen as the field access for a
+    halo exchange is readwrite.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -488,7 +489,7 @@ def test_compute_halo_read_info_read_dep(monkeypatch):
     schedule[2].field._name = "f1"
     from psyclone.core.access_info import AccessType
     schedule[2].field.access = AccessType.READ
-    with pytest.raises(GenerationError) as info:
+    with pytest.raises(InternalError) as info:
         hex_f1._compute_halo_read_info(ignore_hex_dep=True)
     assert ("If there is a read dependency associated with a halo exchange "
             "in the list of read dependencies then it should be the last "
@@ -497,7 +498,7 @@ def test_compute_halo_read_info_read_dep(monkeypatch):
     # Now modify a 3rd halo exchange to reference field f1 making more
     # than one dependency associated with a halo exchange.
     schedule[3].field._name = "f1"
-    with pytest.raises(GenerationError) as info:
+    with pytest.raises(InternalError) as info:
         hex_f1._compute_halo_read_info(ignore_hex_dep=True)
     assert ("There should only ever be at most one read dependency associated "
             "with a halo exchange in the read dependency list, but found 2 "

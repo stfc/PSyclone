@@ -5008,11 +5008,11 @@ def _create_depth_list(halo_info_list):
     needs_clean_outer, which indicates whether the outermost halo
     needs to be clean (and therefore whether there is a dependence).
 
-    :param: a list containing halo access information derived from
-    all read fields dependent on this halo exchange
+    :param halo_info_list: a list containing halo access information \
+        derived from all read fields dependent on this halo exchange.
     :type: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloReadAccess`
-    :return: a list containing halo depth information derived from
-    the halo access information
+    :return: a list containing halo depth information derived from \
+        the halo access information
     :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
 
     '''
@@ -5180,14 +5180,16 @@ class DynHaloExchange(HaloExchange):
         information e.g. depth=1 is not required if we have a depth=2.
         If the optional ignore_hex_dep argument is set to True then
         any read accesses contained in halo exchange nodes are
-        ignored.
+        ignored. This option can therefore be used to filter out any
+        halo exchange dependencies and only return non-halo exchange
+        dependencies if and when required.
 
         :param bool ignore_hex_dep: if True then ignore any read \
-        accesses contained in halo exchanges. This is an optional \
-        arguments that defaults to False.
+            accesses contained in halo exchanges. This is an optional \
+            argument that defaults to False.
 
         :return: a list containing halo depth information derived from \
-        all fields dependent on this halo exchange
+            all fields dependent on this halo exchange.
         :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
 
         '''
@@ -5202,31 +5204,32 @@ class DynHaloExchange(HaloExchange):
         required halo information (i.e. halo depth and stencil type)
         in a list of HaloReadAccess objects. If the optional
         ignore_hex_dep argument is set to True then any read accesses
-        contained in halo exchange nodes are ignored.
+        contained in halo exchange nodes are ignored. This option can
+        therefore be used to filter out any halo exchange dependencies
+        and only return non-halo exchange dependencies if and when
+        required.
 
         :param bool ignore_hex_dep: if True then ignore any read \
-        accesses contained in halo exchanges. This is an optional \
-        arguments that defaults to False.
+            accesses contained in halo exchanges. This is an optional \
+            argument that defaults to False.
 
-        :return: a list containing halo information for each read dependency
+        :return: a list containing halo information for each read dependency.
         :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloReadAccess`
 
-        :raises GenerationError: if there is more than one read \
-        dependency associated with a halo exchange.
+        :raises InternalError: if there is more than one read \
+            dependency associated with a halo exchange.
+        :raises InternalError: if there is a read dependency \
+            associated with a halo exchange and it is not the last \
+            entry in the read dependency list.
         :raises GenerationError: if there is a read dependency \
-        associated with a halo exchange and it is not the last entry \
-        in the read dependency list.
-
-        :raises GenerationError: if there is a read dependency \
-        associated with an asynchronous halo exchange.
-
-        :raises GenerationError: if no read dependencies are found.
+            associated with an asynchronous halo exchange.
+        :raises InternalError: if no read dependencies are found.
 
         '''
         read_dependencies = self.field.forward_read_dependencies()
         hex_deps = [dep for dep in read_dependencies
                     if isinstance(dep.call, DynHaloExchange)]
-        if ignore_hex_dep and hex_deps:
+        if hex_deps:
             # There is a field accessed by a halo exchange that is
             # a read dependence. As ignore_hex_dep is True this should
             # be ignored so this is removed from the list.
@@ -5239,8 +5242,8 @@ class DynHaloExchange(HaloExchange):
 
             # There can only be one field accessed by a
             # halo exchange that is a read dependence.
-            if not len(hex_deps) == 1:
-                raise GenerationError(
+            if len(hex_deps) != 1:
+                raise InternalError(
                     "There should only ever be at most one read dependency "
                     "associated with a halo exchange in the read dependency "
                     "list, but found {0} for field {1}."
@@ -5248,15 +5251,17 @@ class DynHaloExchange(HaloExchange):
             # For sanity, check that the field accessed by the halo
             # exchange is the last dependence in the list.
             if not isinstance(read_dependencies[-1].call, DynHaloExchange):
-                raise GenerationError(
+                raise InternalError(
                     "If there is a read dependency associated with a halo "
                     "exchange in the list of read dependencies then it should "
                     "be the last one in the list.")
-            # Remove the last entry in the list (the field accessed by
-            # the halo exchange).
-            del read_dependencies[-1]
+            if ignore_hex_dep:
+                # Remove the last entry in the list (the field accessed by
+                # the halo exchange).
+                del read_dependencies[-1]
+
         if not read_dependencies:
-            raise GenerationError(
+            raise InternalError(
                 "Internal logic error. There should be at least one read "
                 "dependence for a halo exchange.")
         return [HaloReadAccess(read_dependency) for read_dependency
@@ -5287,16 +5292,13 @@ class DynHaloExchange(HaloExchange):
     def required(self, ignore_hex_dep=False):
         '''Determines whether this halo exchange is definitely required (True,
         True), might be required (True, False) or is definitely not
-        required (False, *). The first return value is used to decide
-        whether a halo exchange should exist. If it is True then the
-        halo is required or might be required. If it is False then the
-        halo exchange is definitely not required. The second return
-        value is used to specify whether we definitely know that it is
-        required or are not sure.
+        required (False, *).
 
         If the optional ignore_hex_dep argument is set to True then
         any read accesses contained in halo exchange nodes are
-        ignored.
+        ignored. This option can therefore be used to filter out any
+        halo exchange dependencies and only consider non-halo exchange
+        dependencies if and when required.
 
         Whilst a halo exchange is generally only ever added if it is
         required, or if it may be required, this situation can change
@@ -5318,14 +5320,14 @@ class DynHaloExchange(HaloExchange):
         would just return more unknown results than it should).
 
         :param bool ignore_hex_dep: if True then ignore any read \
-        accesses contained in halo exchanges. This is an optional \
-        arguments that defaults to False.
+            accesses contained in halo exchanges. This is an optional \
+            argument that defaults to False.
 
         :return: Returns (x, y) where x specifies whether this halo \
-        exchange is (or might be) required - True, or is not required \
-        - False. If the first tuple item is True then the second \
-        argument specifies whether we definitely know that we need the \
-        HaloExchange - True, or are not sure - False.
+            exchange is (or might be) required - True, or is not \
+            required - False. If the first tuple item is True then the \
+            second argument specifies whether we definitely know that \
+            we need the HaloExchange - True, or are not sure - False.
         :rtype: (bool, bool)
 
         '''
@@ -6518,7 +6520,7 @@ class DynLoop(Loop):
         # Access is neither a read nor an inc so does not need halo
         return False
 
-    def _add_halo_exchange_code(self, halo_field, idx=None):
+    def _add_field_component_halo_exchange(self, halo_field, idx=None):
         '''An internal helper method to add the halo exchange call immediately
         before this loop using the halo_field argument for the
         associated field information and the optional idx argument if
@@ -6537,8 +6539,9 @@ class DynLoop(Loop):
         there is one and None if not. Defaults to None.
         :type index: int or None
 
-        :raises GenerationError: if there are two forward write \
-        dependencies and they are both associated with halo exchanges.
+        :raises InternalError: if there are two forward write \
+            dependencies and they are both associated with halo \
+            exchanges.
 
         '''
         exchange = DynHaloExchange(halo_field,
@@ -6547,8 +6550,13 @@ class DynLoop(Loop):
         self.parent.children.insert(self.position,
                                     exchange)
 
-        # Is this halo exchange required (ignoring any subsequent halo
-        # exchange dependence)?
+        # Is this halo exchange required? The halo exchange being
+        # adding may replace an existing halo exchange, which would
+        # then be returned as a halo exchange dependence and an
+        # exception raised (as a halo exchange should not have another
+        # halo exchange as a dependence). Therefore, halo exchange
+        # dependencies are ignored here by setting the ignore_hex_dep
+        # optional argument.
         required, _ = exchange.required(ignore_hex_dep=True)
         if not required:
             exchange.parent.children.remove(exchange)
@@ -6568,7 +6576,7 @@ class DynLoop(Loop):
                     if next_results and any(tmp for tmp in next_results
                                             if isinstance(tmp.call,
                                                           HaloExchange)):
-                        raise GenerationError(
+                        raise InternalError(
                             "When replacing a halo exchange with another one "
                             "for field {0}, a subsequent dependent halo "
                             "exchange was found. This should never happen."
@@ -6590,9 +6598,9 @@ class DynLoop(Loop):
             # 1 to the vector size which is what we
             # require in our Fortran code
             for idx in range(1, halo_field.vector_size+1):
-                self._add_halo_exchange_code(halo_field, idx)
+                self._add_field_component_halo_exchange(halo_field, idx)
         else:
-            self._add_halo_exchange_code(halo_field)
+            self._add_field_component_halo_exchange(halo_field)
 
     def update_halo_exchanges(self):
         '''add and/or remove halo exchanges due to changes in the loops
@@ -6630,8 +6638,8 @@ class DynLoop(Loop):
         whether it is required or not so a halo exchange needs to
         exist in order to find out. The appropriate logic is coded in
         the _add_halo_exchange helper method. In some cases a new halo
-        exchange will replace an existing one. In this situation this
-        routine removes the old one.
+        exchange will replace an existing one. In this situation that
+        routine also removes the old one.
 
         '''
         for halo_field in self.unique_fields_with_halo_reads():

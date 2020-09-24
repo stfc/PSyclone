@@ -703,9 +703,8 @@ Halo Exchanges and Loop transformations
 
 When a transformation (such as redundant computation) is applied to a
 loop containing a kernel, it can affect the surrounding halo
-exchanges. Consider the following example:
+exchanges. Consider the following example::
 
-::
     0: Loop[type='dofs', upper_bound='nannexed']
         0: BuiltIn setval_x(f2,f1)
     1: HaloExchange[field='f1', check_dirty=True]
@@ -716,9 +715,8 @@ A potential halo exchange for field ``f1`` is required as the
 ``testkern_code`` kernel reads field ``f1`` in its level 1 halo.
 
 If we transform the code so that the ``setval_c`` kernel computes
-redundantly to the level 1 halo:
+redundantly to the level 1 halo::
 
-::
     0: HaloExchange[field='f1', check_dirty=True]
     1: Loop[type='dofs', upper_bound='dof_halo(1)']
         0: BuiltIn setval_x(f2,f1)
@@ -728,16 +726,15 @@ redundantly to the level 1 halo:
 then a potential halo exchange for field `f1` is now required before
 the ``setval_c`` kernel and the halo exchange before the
 ``testkern_code`` kernel is not required (as it is covered by the
-first halo exchange.
+first halo exchange).
 
 After such a transformation is applied then halo exchanges are managed
-by checking whether 1) any fields in the modified kernel now
-require a halo exchange before the kernel and adding any if
-so and 2) any existing halo exchanges after the loop that were
-required due to fields being modified in the loop are then checked to
-see if they are still required and are removed if not. Performing
-these 2 steps maintains halo exchange correctness and continues to
-minimise the number of required halo exchanges.
+by checking whether 1) any fields in the modified kernel now require a
+halo exchange before the kernel and adding them if so and 2) any
+existing halo exchanges after the loop that were required due to
+fields being modified in the loop are then checked and are removed if
+not. Performing these 2 steps maintains halo exchange correctness and
+continues to minimise the number of required halo exchanges.
 
 Note, the actual halo exchange extents (their depths) are computed
 dynamically so are not a concern at this point.
@@ -751,9 +748,9 @@ However, due to the two step halo exchange management process, there
 can be a transient situation after the first step where a halo
 exchange can temporarily depend on another halo exchange. If we
 revisit the previous example and consider the state of the system once
-the first step has completed:
+the first step (checking whether halo exchanges are required `before`
+the modified kernel) has completed::
 
-::
     0: HaloExchange[field='f1', check_dirty=True]
     1: Loop[type='dofs', upper_bound='dof_halo(1)']
         0: BuiltIn setval_x(f2,f1)
