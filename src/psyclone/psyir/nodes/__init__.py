@@ -50,7 +50,6 @@ from psyclone.psyir.nodes.reference import Reference, Array
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.nan_test_node import NanTestNode
 from psyclone.psyir.nodes.extract_node import ExtractNode
 from psyclone.psyir.nodes.profile_node import ProfileNode
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
