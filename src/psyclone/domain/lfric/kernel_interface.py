@@ -76,76 +76,82 @@ class KernelInterface(ArgOrdering):
     '''
     def __init__(self, kern):
         ArgOrdering.__init__(self, kern)
-        self.read_access = ArgumentInterface(ArgumentInterface.Access.READ)
+        self._read_access = ArgumentInterface(ArgumentInterface.Access.READ)
         self._symbol_table = SymbolTable()
-        self._ndofs_map = {}
-        self._undfs_map = {}
-        self._operator_dims_map = {}
         self._arglist = []
-        self._dofmaps_list = []
-        self._fields_list = []
-        self._operators_list = []
 
     def generate(self, var_accesses=None):
-        '''Call the generate base class then call the connect method after it
-        has completed.'''
-        super(KernelInterface, self).generate()
-        self.connect()
-
-    def connect(self):
-        '''Add the symbol table argument list and connect the interface
-        arguments together. This is performed at the end once all
-        interface arguments have been created.
-
-        Here we must know the number of dimensions that a array object
-        has but not the order of the dimensions.
+        '''Call the generate base class then add the argument list as it can't
+        be appended as we go along.
 
         '''
+        super(KernelInterface, self).generate()
         # Set the argument list for the symbol table
         self._symbol_table.specify_argument_list(self._arglist)
 
-        # dofmaps are dimensioned by ndofs
-        for dofmap in self._dofmaps_list:
-            function_space = dofmap.fs
-            ndofs = self._ndofs_map[function_space]
-            dofmap.datatype.shape[0] = ndofs
+    def _create_undf_symbol(self, function_space):
+        ''' xxx '''
+        fs_name = function_space.orig_name
+        undf_tag = ("undf_{0}".format(fs_name))
+        try:
+            undf_symbol = self._symbol_table.lookup_with_tag(undf_tag)
+        except KeyError:
+            undf_name = self._symbol_table.new_symbol_name(undf_tag)
+            undf_symbol = NumberOfUniqueDofsDataSymbol(
+                undf_name, fs_name, interface=self._read_access)
+            self._symbol_table.add(undf_symbol, tag=undf_tag)
+        return undf_symbol
 
-        # fields are dimensioned by undf
-        for field in self._fields_list:
-            function_space = field.fs
-            undf = self._undfs_map[function_space]
-            field.datatype.shape[0] = undf
+    def _create_ndf_symbol(self, function_space):
+        ''' xxx '''
+        fs_name = function_space.orig_name
+        ndf_tag = ("ndf_{0}".format(fs_name))
+        try:
+            ndf_symbol = self._symbol_table.lookup_with_tag(ndf_tag)
+        except KeyError:
+            ndf_name = self._symbol_table.new_symbol_name(ndf_tag)
+            ndf_symbol = NumberOfDofsDataSymbol(
+                ndf_name, fs_name, interface=self._read_access)
+            self._symbol_table.add(ndf_symbol, tag=ndf_tag)
+        return ndf_symbol
 
-        # operators have 3 dimensions, 2 of which are ndf and one of
-        # which is ncell_3d
-        for operator in self._operators_list:
-            fs_from = operator.fs_from
-            fs_to = operator.fs_to
-            ndf_from = self._ndofs_map[fs_from]
-            ndf_to = self._ndofs_map[fs_to]
-            op_dim = self._operator_dims_map[operator]
-            # RF hard code array ordering until we work out how to
-            # encode it (perhaps store it within the class)?
-            operator.datatype.shape[0] = ndf_from
-            operator.datatype.shape[1] = ndf_to
-            operator.datatype.shape[2] = op_dim
+    def _create_symbol_fs(self, tag, data_symbol, function_space, interface=None):
+        ''' xxx '''
+        fs_name = function_space.orig_name
+        try:
+            symbol = self._symbol_table.lookup_with_tag(tag)
+        except KeyError:
+            if interface is None:
+                interface = self._read_access
+            name = self._symbol_table.new_symbol_name(tag)
+            symbol = data_symbol(
+                name, fs_name, interface=interface)
+            self._symbol_table.add(ndf_symbol, tag=tag)
+        return symbol
 
-        # Basis functions are ignored for the moment as their
-        # dimensions are complicated, see issue #XXX
+    def _create_symbol(self, tag, data_symbol, dims=None, interface=None):
+        ''' xxx '''
+        try:
+            symbol = self._symbol_table.lookup_with_tag(tag)
+        except KeyError:
+            if interface is None:
+                interface = self._read_access
+            name = self._symbol_table.new_symbol_name(tag)
+            if dims:
+                symbol = data_symbol(name, dims, interface=interface)
+            else:
+                symbol = data_symbol(name, interface=interface)
+            self._symbol_table.add(symbol, tag=tag)
+            self._arglist.append(symbol)
+        return symbol
 
     def cell_position(self, var_accesses=None):
         ''' Create an LFRic cell position object '''
-
-        arg = CellPositionDataSymbol("cell", interface=self.read_access)
-        self._symbol_table.add(arg)
-        self._arglist.append(arg)
+        self._create_symbol("cell", CellPositionDataSymbol)
 
     def mesh_height(self, var_accesses=None):
         ''' Create an LFRic mesh height object '''
-
-        arg = MeshHeightDataSymbol("nlayers", interface=self.read_access)
-        self._symbol_table.add(arg)
-        self._arglist.append(arg)
+        self._create_symbol("nlayers", MeshHeightDataSymbol)
 
     def mesh_ncell2d(self, var_accesses=None):
         ''' Not implemented '''
@@ -161,10 +167,15 @@ class KernelInterface(ArgOrdering):
             "integer": IntegerVectorFieldDataDataSymbol,
             "real": RealVectorFieldDataDataSymbol,
             "logical": LogicalVectorFieldDataDataSymbol}
+        # Create and add a undf symbol to the symbol table if one does
+        # not already exist or return the existing one if one does.
+        undf_symbol = self._create_undf_symbol(argvect.function_space)
         for idx in range(argvect.vector_size):
+            tag = "{0}_v{1}".format(argvect.name, idx)
+            name = self._symbol_table.new_symbol_name(tag)
             try:
                 field_data = mapping[argvect.intrinsic_type](
-                    "{0}_v{1}".format(argvect.name, idx), [1],
+                    name, [undf_symbol],
                     argvect.function_space.orig_name,
                     interface=ArgumentInterface(
                         INTENT_MAPPING[argvect.intent]))
@@ -172,10 +183,8 @@ class KernelInterface(ArgOrdering):
                 raise NotImplementedError(
                     "vector field of type {0} not implemented"
                     "".format(argvect.intrinsic_type))
-
-            self._symbol_table.add(field_data)
+            self._symbol_table.add(field_data, tag=tag)
             self._arglist.append(field_data)
-            self._fields_list.append(field_data)
 
     def field(self, arg, var_accesses=None):
         ''' Create an LFRic field data object '''
@@ -183,18 +192,19 @@ class KernelInterface(ArgOrdering):
             "integer": IntegerFieldDataDataSymbol,
             "real": RealFieldDataDataSymbol,
             "logical": LogicalFieldDataDataSymbol}
+        # Create and add a undf symbol to the symbol table if one does
+        # not already exist or return the existing one if one does.
+        undf_symbol = self._create_undf_symbol(arg.function_space)
         try:
             field_data = mapping[arg.intrinsic_type](
-                arg.name, [1], arg.function_space.orig_name,
+                arg.name, [undf_symbol], arg.function_space.orig_name,
                 interface=ArgumentInterface(INTENT_MAPPING[arg.intent]))
         except KeyError:
             raise NotImplementedError(
                 "field of type {0} not implemented"
                 "".format(arg.intrinsic_type))
-
         self._symbol_table.add(field_data)
         self._arglist.append(field_data)
-        self._fields_list.append(field_data)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         ''' Not implemented '''
@@ -211,19 +221,22 @@ class KernelInterface(ArgOrdering):
     def operator(self, arg, var_accesses=None):
         ''' Create LFRic size and operator data objects '''
 
+        # Create and add ndf symbols to the symbol table if they do
+        # not already exist or return the existing ones if they do.
+        ndf_symbol_from = self._create_ndf_symbol(arg.function_space_from)
+        ndf_symbol_to = self._create_ndf_symbol(arg.function_space_to)
+
         op_size = OperatorSizeDataSymbol(
-            "ncell_3d", interface=self.read_access)
+            "ncell_3d", interface=self._read_access)
         self._symbol_table.add(op_size)
         self._arglist.append(op_size)
         op_arg = OperatorDataSymbol(
-            arg.name, [1, 1, 1],
+            arg.name, [ndf_symbol_from, ndf_symbol_to, op_size],
             arg.function_space_from.orig_name,
             arg.function_space_to.orig_name,
             interface=ArgumentInterface(INTENT_MAPPING[arg.intent]))
         self._symbol_table.add(op_arg)
         self._arglist.append(op_arg)
-        self._operators_list.append(op_arg)
-        self._operator_dims_map[op_arg] = op_size
 
     def cma_operator(self, arg, var_accesses=None):
         ''' Not implemented '''
@@ -249,12 +262,10 @@ class KernelInterface(ArgOrdering):
     def fs_common(self, function_space, var_accesses=None):
         ''' Create LFRic Number of Dofs object '''
 
-        fs_name = function_space.orig_name
-        arg = NumberOfDofsDataSymbol("ndf_{0}".format(fs_name), fs_name,
-                                     interface=self.read_access)
-        self._symbol_table.add(arg)
-        self._arglist.append(arg)
-        self._ndofs_map[fs_name] = arg
+        # Create and add an ndf symbol to the symbol table if one does
+        # not already exist or return the existing one if one does.
+        ndf_symbol = self._create_ndf_symbol(function_space)
+        self._arglist.append(ndf_symbol)
 
     def fs_intergrid(self, function_space, var_accesses=None):
         ''' Not implemented '''
@@ -263,20 +274,19 @@ class KernelInterface(ArgOrdering):
     def fs_compulsory_field(self, function_space, var_accesses=None):
         '''Create LFRic Number of Unique dofs and dofmap objects'''
 
-        fs_name = function_space.orig_name
-        arg = NumberOfUniqueDofsDataSymbol("undf_{0}".format(fs_name), fs_name,
-                                           interface=self.read_access)
-        self._symbol_table.add(arg)
-        self._arglist.append(arg)
-        self._undfs_map[fs_name] = arg
+        # create and add a undf symbol to the symbol table if one does
+        # not already exist or return the existing one if one does.
+        undf_symbol = self._create_undf_symbol(function_space)
+        self._arglist.append(undf_symbol)
 
-        # The dimension argument may not have been declared yet so use
-        # an integer as a placeholder.
-        arg = DofMapDataSymbol("dofmap_{0}".format(fs_name), [1], fs_name,
-                               interface=self.read_access)
+        # Create and add an ndf symbol to the symbol table if one does
+        # not already exist or return the existing one if one does.
+        ndf_symbol = self._create_ndf_symbol(function_space)
+        fs_name = function_space.orig_name
+        arg = DofMapDataSymbol("dofmap_{0}".format(fs_name), [ndf_symbol],
+                               fs_name, interface=self._read_access)
         self._symbol_table.add(arg)
         self._arglist.append(arg)
-        self._dofmaps_list.append(arg)
 
     def banded_dofmap(self, function_space, var_accesses=None):
         ''' Not implemented '''
@@ -302,7 +312,7 @@ class KernelInterface(ArgOrdering):
                 fs_name = function_space.orig_name
                 arg = BasisFunctionDataSymbol(
                     basis_name, [1, 1, 1], fs_name, quad_name,
-                    interface=self.read_access)
+                    interface=self._read_access)
                 self._symbol_table.add(arg)
                 self._arglist.append(arg)
             elif shape in VALID_EVALUATOR_SHAPES:
@@ -333,7 +343,7 @@ class KernelInterface(ArgOrdering):
                 fs_name = function_space.orig_name
                 arg = DiffBasisFunctionDataSymbol(
                     diff_basis_name, [1, 1, 1], fs_name, quad_name,
-                    interface=self.read_access)
+                    interface=self._read_access)
                 self._symbol_table.add(arg)
                 self._arglist.append(arg)
 
@@ -372,41 +382,27 @@ class KernelInterface(ArgOrdering):
         # This callback does not contribute any kernel arguments
 
     def quad_rule(self, var_accesses=None):
-        ''' Not implemented '''
-        args = []
+        ''' Implemented '''
         for shape in self._kern.qr_rules:
             if shape == "gh_quadrature_xyoz":
-                nqp_h = NumberOfQrPointsInHorizontalDataSymbol(
-                    "nqp_h", interface=self.read_access)
-                nqp_v = NumberOfQrPointsInVerticalDataSymbol(
-                    "nqp_v", interface=self.read_access)
-                args.extend(
-                    [nqp_h, nqp_v,
-                     QrWeightsInHorizontalDataSymbol(
-                         "weights_h", [nqp_h], interface=self.read_access),
-                     QrWeightsInVerticalDataSymbol(
-                         "weights_v", [nqp_v], interface=self.read_access)])
+                nqp_h = self._create_symbol(
+                    "nqp_h", NumberOfQrPointsInHorizontalDataSymbol)
+                nqp_v = self._create_symbol(
+                    "nqp_v", NumberOfQrPointsInVerticalDataSymbol)
+                _ = self._create_symbol(
+                    "weights_h", QrWeightsInHorizontalDataSymbol, dims=[nqp_h])
+                _ = self._create_symbol(
+                    "weights_v", QrWeightsInVerticalDataSymbol, dims=[nqp_v])
             elif shape == "gh_quadrature_face":
-                nfaces = NumberOfFacesDataSymbol(
-                    "nfaces", interface=self.read_access)
-                nqp = NumberOfQrPointsDataSymbol(
-                    "nqp", interface=self.read_access)
-                args.extend(
-                    [nfaces, nqp,
-                     QrWeightsDataSymbol(
-                         "weights", [nqp], interface=self.read_access)])
+                _ = self._create_symbol("nfaces", NumberOfFacesDataSymbol)
+                nqp = self._create_symbol("nqp", NumberOfQrPointsDataSymbol)
+                _ = self._create_symbol(
+                    "weights", QrWeightsDataSymbol, dims=[nqp])
             elif shape == "gh_quadrature_edge":
-                nedges = NumberOfEdgesDataSymbol(
-                    "nedges", interface=self.read_access)
-                nqp = NumberOfQrPointsDataSymbol(
-                    "nqp", interface=self.read_access)
-                args.extend(
-                    [nedges, nqp,
-                     QrWeightsDataSymbol(
-                         "weights", [nqp], interface=self.read_access)])
+                _ = self._create_symbol("nfaces", NumberOfEdgesDataSymbol)
+                nqp = self._create_symbol("nqp", NumberOfQrPointsDataSymbol)
+                _ = self._create_symbol(
+                    "weights", QrWeightsDataSymbol, dims=[nqp])
             else:
                 raise InternalError("Unsupported quadrature shape ('{0}') "
                                     "found in kernel_interface".format(shape))
-        for arg in args:
-            self._symbol_table.add(arg)
-            self._arglist.append(arg)
