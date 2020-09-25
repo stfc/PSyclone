@@ -1632,9 +1632,9 @@ def test_dynscalars_call_err():
     first_argument._intrinsic_type = "double-type"
     with pytest.raises(InternalError) as err:
         _ = DynScalarArgs(first_kernel)
-    assert ("DynScalarArgs.__init__(): Found an unsupported intrinsic "
-            "type 'double-type' for the scalar argument 'a'. Supported "
-            "types are ['real', 'integer']." in str(err.value))
+    assert ("Found an unsupported intrinsic type 'double-type' for the "
+            "scalar argument 'a'. Supported types are ['real', 'integer']."
+            in str(err.value))
 
 
 def test_vector_field(tmpdir):

@@ -3044,9 +3044,8 @@ class DynScalarArgs(DynCollection):
                     self._int_scalar_names[intent].append(declname)
                 else:
                     raise InternalError(
-                        "DynScalarArgs.__init__(): Found an unsupported "
-                        "intrinsic type '{0}' for the scalar argument "
-                        "'{1}'. Supported types are {2}.".
+                        "Found an unsupported intrinsic type '{0}' for the "
+                        "scalar argument '{1}'. Supported types are {2}.".
                         format(arg.intrinsic_type, declname,
                                list(MAPPING_DATA_TYPES.values())))
 
