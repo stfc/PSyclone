@@ -521,8 +521,8 @@ def test_transform(capsys):
     schedule._const_loop_bounds = True
 
     prt = ProfileTrans()
-    assert str(prt) == "Create a sub-tree of the PSyIR that has a " \
-                       "ProfileNode at its root."
+    assert str(prt) == "Create a sub-tree of the PSyIR that has " \
+                       "a node of type ProfileNode at its root."
     assert prt.name == "ProfileTrans"
 
     # Try applying it to a list

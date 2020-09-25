@@ -57,8 +57,8 @@ def test_psy_data_trans_basic(capsys):
     schedule._const_loop_bounds = True
 
     data_trans = PSyDataTrans()
-    assert "Create a sub-tree of the PSyIR that has a PSyDataNode "\
-           "at its root" in str(data_trans)
+    assert "Create a sub-tree of the PSyIR that has a node of type " \
+           "PSyDataNode at its root" in str(data_trans)
 
     assert data_trans.name == "PSyDataTrans"
     data_trans.apply(schedule)

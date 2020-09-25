@@ -58,7 +58,7 @@ def test_extract_trans():
     '''Tests basic functions in ReadOnlyVerifyTrans.'''
     read_only = ReadOnlyVerifyTrans()
     assert str(read_only) == "Create a sub-tree of the PSyIR that has " \
-                             "a ReadOnlyVerifyNode at its root."
+                             "a node of type ReadOnlyVerifyNode at its root."
     assert read_only.name == "ReadOnlyVerifyTrans"
 
 
