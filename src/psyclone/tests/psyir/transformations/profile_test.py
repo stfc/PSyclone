@@ -45,8 +45,8 @@ import pytest
 
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler
-from psyclone.psyir.nodes import ProfileNode
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import (colored, Node, ProfileNode, Loop,
+                                  SCHEDULE_COLOUR_MAP)
 from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import ProfileTrans
@@ -66,7 +66,6 @@ def teardown_function():
 def test_malformed_profile_node(monkeypatch):
     ''' Check that we raise the expected error if a ProfileNode does not have
     a single Schedule node as its child. '''
-    from psyclone.psyir.nodes import Node
     pnode = ProfileNode()
     monkeypatch.setattr(pnode, "_children", [])
     with pytest.raises(InternalError) as err:
@@ -95,7 +94,6 @@ def test_profile_node_invalid_name(value):
 def test_profile_basic(capsys):
     '''Check basic functionality: node names, schedule view.
     '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     Profiler.set_options([Profiler.INVOKES])
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
@@ -431,7 +429,7 @@ def test_profile_invokes_dynamo0p3():
     assert "TYPE(profile_PSyDataType), target, save :: profile_psy_data" \
         in code
     assert "CALL profile_psy_data%PreStart(\"single_invoke_psy\", "\
-           "\"invoke_0:x_plus_y:r0\", 0, 0)"in code
+           "\"invoke_0:x_plus_y:r0\", 0, 0)" in code
     assert "CALL profile_psy_data%PostEnd" in code
 
     Profiler.set_options(None)
@@ -523,7 +521,8 @@ def test_transform(capsys):
     schedule._const_loop_bounds = True
 
     prt = ProfileTrans()
-    assert str(prt) == "Insert a profile start and end call."
+    assert str(prt) == "Create a sub-tree of the PSyIR that has a " \
+                       "ProfileNode at its root."
     assert prt.name == "ProfileTrans"
 
     # Try applying it to a list
@@ -645,7 +644,6 @@ End Schedule""")
     sched3.view()
     out, _ = capsys.readouterr()
 
-    from psyclone.psyir.nodes.node import SCHEDULE_COLOUR_MAP, colored
     gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     prof = colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
     sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])

@@ -38,7 +38,7 @@
 
 ''' PSyIR nodes package module '''
 
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.node import colored, Node, SCHEDULE_COLOUR_MAP
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.return_stmt import Return
 from psyclone.psyir.nodes.assignment import Assignment
@@ -50,6 +50,7 @@ from psyclone.psyir.nodes.reference import Reference, Array
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.nan_test_node import NanTestNode
 from psyclone.psyir.nodes.extract_node import ExtractNode
 from psyclone.psyir.nodes.profile_node import ProfileNode
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
@@ -63,6 +64,8 @@ from psyclone.psyir.nodes.call import Call
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
 __all__ = [
         'Node',
+        'colored',
+        'SCHEDULE_COLOUR_MAP',
         'DataNode',
         'Statement',
         'Schedule',

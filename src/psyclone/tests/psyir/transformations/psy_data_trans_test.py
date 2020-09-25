@@ -40,7 +40,7 @@ from __future__ import absolute_import
 
 import pytest
 
-from psyclone.psyir.nodes import PSyDataNode
+from psyclone.psyir.nodes import colored, PSyDataNode, SCHEDULE_COLOUR_MAP
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyGen import Loop
 from psyclone.tests.utilities import get_invoke
@@ -48,10 +48,8 @@ from psyclone.tests.utilities import get_invoke
 
 # -----------------------------------------------------------------------------
 def test_psy_data_trans_basic(capsys):
-    # pylint: disable=too-many-locals
     '''Check basic functionality: node names, schedule view.
     '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
     schedule = invoke.schedule
@@ -59,7 +57,9 @@ def test_psy_data_trans_basic(capsys):
     schedule._const_loop_bounds = True
 
     data_trans = PSyDataTrans()
-    assert "Insert a PSyData node" in str(data_trans)
+    assert "Create a sub-tree of the PSyIR that has a PSyDataNode "\
+           "at its root" in str(data_trans)
+
     assert data_trans.name == "PSyDataTrans"
     data_trans.apply(schedule)
 
