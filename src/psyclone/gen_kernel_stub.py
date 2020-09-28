@@ -109,8 +109,8 @@ def generate(filename, api=""):
     if (api == "dynamo0.3" and kernel.iterates_over not in
             USER_KERNEL_ITERATION_SPACES):
         raise GenerationError(
-            "The LFRic API kernel stub generator supports kernels that have "
-            "one of {0} as iteration space, but found '{1}' in kernel '{2}'.".
+            "The LFRic API kernel stub generator supports kernels that operate"
+            " on one of {0}, but found '{1}' in kernel '{2}'.".
             format(USER_KERNEL_ITERATION_SPACES, kernel.iterates_over,
                    kernel.name))
 

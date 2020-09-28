@@ -662,9 +662,9 @@ def test_scope():
     assert container.scope is container
 
     anode = Literal("x", INTEGER_TYPE)
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(SymbolError) as excinfo:
         _ = anode.scope
-    assert ("PSyclone internal error: Unable to find the scope of node "
+    assert ("Unable to find the scope of node "
             "'Literal[value:'x', Scalar<INTEGER, UNDEFINED>]' as "
             "none of its ancestors are Container or Schedule nodes."
             in str(excinfo.value))
@@ -783,7 +783,7 @@ def test_find_or_create_new_symbol():
     new_symbol = assign.find_or_create_symbol("undefined")
     assert new_symbol.name == "undefined"
     assert isinstance(new_symbol.interface, UnresolvedInterface)
-    assert isinstance(new_symbol.datatype, DeferredType)
+    assert type(new_symbol) == Symbol
     assert "undefined" not in container.symbol_table
     assert kernel1.symbol_table.lookup("undefined") is new_symbol
 

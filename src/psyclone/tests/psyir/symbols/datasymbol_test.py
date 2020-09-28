@@ -329,69 +329,26 @@ def test_datasymbol_copy_properties():
             symbol.datatype.precision)
 
 
-def test_datasymbol_resolve_deferred():
+def test_datasymbol_resolve_deferred(monkeypatch):
     ''' Test the datasymbol resolve_deferred method '''
-
-    container = Container("dummy_module")
-    container.symbol_table.add(DataSymbol('a', INTEGER_SINGLE_TYPE))
-    container.symbol_table.add(DataSymbol('b', REAL_SINGLE_TYPE))
-    container.symbol_table.add(DataSymbol('c', REAL_DOUBLE_TYPE,
-                                          constant_value=3.14))
-    container.symbol_table.add(DataSymbol(
-        'f', INTEGER_SINGLE_TYPE, visibility=Symbol.Visibility.PRIVATE))
+    symbola = DataSymbol('a', INTEGER_SINGLE_TYPE)
+    new_sym = symbola.resolve_deferred()
+    # For a DataSymbol (unlike a Symbol), resolve_deferred should always
+    # return the object on which it was called.
+    assert new_sym is symbola
     module = ContainerSymbol("dummy_module")
-    module._reference = container  # Manually linking the container
-
-    symbol = DataSymbol('a', DeferredType(),
-                        interface=GlobalInterface(module))
-    symbol.resolve_deferred()
-    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert symbol.datatype.precision == ScalarType.Precision.SINGLE
-
-    symbol = DataSymbol('b', DeferredType(),
-                        interface=GlobalInterface(module))
-    symbol.resolve_deferred()
-    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    assert symbol.datatype.precision == ScalarType.Precision.SINGLE
-
-    symbol = DataSymbol('c', DeferredType(),
-                        interface=GlobalInterface(module))
-    symbol.resolve_deferred()
-    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    assert symbol.datatype.precision == ScalarType.Precision.DOUBLE
-    assert isinstance(symbol.constant_value, Literal)
-    assert (symbol.constant_value.datatype.intrinsic ==
-            symbol.datatype.intrinsic)
-    assert (symbol.constant_value.datatype.precision ==
-            symbol.datatype.precision)
-    assert symbol.constant_value.value == "3.14"
-
-    # Test with a symbol not defined in the linked container
-    symbol = DataSymbol('d', DeferredType(),
-                        interface=GlobalInterface(module))
-    with pytest.raises(SymbolError) as err:
-        symbol.resolve_deferred()
-    assert ("Error trying to resolve the properties of symbol 'd'. The "
-            "interface points to module 'dummy_module' but could not find the"
-            " definition of 'd' in that module." in str(err.value))
-
-    # Test with a symbol which does not have a Global interface
-    symbol = DataSymbol('e', DeferredType(), interface=LocalInterface())
-    with pytest.raises(NotImplementedError) as err:
-        symbol.resolve_deferred()
-    assert ("Error trying to resolve symbol 'e' properties, the lazy "
-            "evaluation of 'Local' interfaces is not supported."
-            in str(err.value))
-
-    # Test with a symbol that is private to the linked container
-    symbol = DataSymbol('f', DeferredType(), interface=GlobalInterface(module))
-    with pytest.raises(SymbolError) as err:
-        symbol.resolve_deferred()
-    assert ("Error trying to resolve the properties of symbol 'f' in module "
-            "'dummy_module': PSyclone " in str(err.value))
-    assert ("'f' exists in the Symbol Table but has visibility 'PRIVATE' "
-            "which does not match with the requested visibility: ['PUBLIC']"
-            in str(err.value))
+    symbolb = DataSymbol('b', visibility=Symbol.Visibility.PRIVATE,
+                         datatype=DeferredType(),
+                         interface=GlobalInterface(module))
+    # Monkeypatch the get_external_symbol() method so that it just returns
+    # a new DataSymbol
+    monkeypatch.setattr(symbolb, "get_external_symbol",
+                        lambda: DataSymbol("b", INTEGER_SINGLE_TYPE))
+    new_sym = symbolb.resolve_deferred()
+    assert new_sym is symbolb
+    assert new_sym.datatype == INTEGER_SINGLE_TYPE
+    assert new_sym.visibility == Symbol.Visibility.PRIVATE
+    assert isinstance(new_sym.interface, GlobalInterface)
 
 
 def test_datasymbol_shape():
