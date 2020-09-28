@@ -38,6 +38,9 @@
 
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import DataType
+from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.symbols.symboltable import SymbolTable
+from psyclone.errors import GenerationError
 
 
 class Routine(Schedule):
@@ -46,8 +49,8 @@ class Routine(Schedule):
     program unit.
 
     :param str name: the name of this routine.
-    :param bool entry_point: whether this Routine represents the entry point \
-                             into a program (i.e. Fortran Program or C main()).
+    :param bool is_program: whether this Routine represents the entry point \
+                            into a program (i.e. Fortran Program or C main()).
     :param return_type: the return-type of this routine.
     :type return_type: :py:class:`psyclone.psyir.symbols.DataType` or NoneType
     :param children: the PSyIR nodes that are children of this Routine.
@@ -59,30 +62,97 @@ class Routine(Schedule):
             NoneType
 
     :raises TypeError: if the supplied routine name is not a str.
-    :raises TypeError: if the supplied entry_point is not a bool.
+    :raises TypeError: if the supplied is_program is not a bool.
     :raises TypeError: if the supplied return_type is not a DataType.
 
     '''
     # Textual description of the node.
     _children_valid_format = "[Statement]*"
-    _text_name = "Schedule"
+    _text_name = "Routine"
     _colour_key = "Schedule"
 
-    def __init__(self, name, entry_point=False, return_type=None,
+    def __init__(self, name, is_program=False, return_type=None,
                  children=None, parent=None, symbol_table=None):
         super(Routine, self).__init__(children=children, parent=parent,
                                       symbol_table=symbol_table)
         self.name = name
 
-        if not isinstance(entry_point, bool):
-            raise TypeError("Routine 'entry_point' must be a bool but got "
-                            "'{0}'".format(type(entry_point).__name__))
-        self._entry_point = entry_point
+        if not isinstance(is_program, bool):
+            raise TypeError("Routine 'is_program' must be a bool but got "
+                            "'{0}'".format(type(is_program).__name__))
+        self._is_program = is_program
 
         if return_type and not isinstance(return_type, DataType):
             raise TypeError("Routine 'return_type' must be of type DataType "
                             "but got '{0}'".format(type(return_type).__name__))
         self._return_type = return_type
+
+    @classmethod
+    def create(cls, name, symbol_table, children, is_program=False,
+               return_type=None):
+        '''Create an instance of the supplied class given a name, a symbol
+        table and a list of child nodes.
+
+        :param str name: the name of the Routine (or subclass).
+        :param symbol_table: the symbol table associated with this Routine.
+        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :param children: a list of PSyIR nodes contained in the Routine.
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param bool is_program: whether this Routine represents the entry \
+            point into a program (i.e. Fortran Program or C main()).
+        :param return_type: the return-type of this routine.
+        :type return_type: :py:class:`psyclone.psyir.symbols.DataType` or \
+            NoneType
+
+        :returns: an instance of `cls`.
+        :rtype: :py:class:`psyclone.psyGen.Routine` or subclass
+
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
+        '''
+        if not isinstance(name, str):
+            raise GenerationError(
+                "name argument in create method of Routine class "
+                "should be a string but found '{0}'."
+                "".format(type(name).__name__))
+        if not isinstance(symbol_table, SymbolTable):
+            raise GenerationError(
+                "symbol_table argument in create method of Routine "
+                "class should be a SymbolTable but found '{0}'."
+                "".format(type(symbol_table).__name__))
+        if not isinstance(children, list):
+            raise GenerationError(
+                "children argument in create method of Routine class "
+                "should be a list but found '{0}'."
+                "".format(type(children).__name__))
+        for child in children:
+            if not isinstance(child, Node):
+                raise GenerationError(
+                    "child of children argument in create method of "
+                    "Routine class should be a PSyIR Node but "
+                    "found '{0}'.".format(type(child).__name__))
+
+        kern = cls(name)
+        kern._is_program = is_program
+        kern._return_type = return_type
+        kern._symbol_table = symbol_table
+        symbol_table._node = kern
+        for child in children:
+            child.parent = kern
+        kern.children = children
+        return kern
+
+    def node_str(self, colour=True):
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + "[name:'" + self.name + "']"
 
     @property
     def dag_name(self):
@@ -113,20 +183,20 @@ class Routine(Schedule):
         self._name = new_name
 
     def __str__(self):
-        result = "{0}[{1}]:\n".format(self.coloured_name(False), self.name)
+        result = self.node_str(False) + ":\n"
         for entity in self._children:
             result += str(entity) + "\n"
         result += "End " + self.coloured_name(False)
         return result
 
     @property
-    def entry_point(self):
+    def is_program(self):
         '''
         :returns: whether this Routine represents the entry point into a \
                   program (i.e. is a Fortran Program or a C main()).
         :rtype: bool
         '''
-        return self._entry_point
+        return self._is_program
 
     @property
     def return_type(self):

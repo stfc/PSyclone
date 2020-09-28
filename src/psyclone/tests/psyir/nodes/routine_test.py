@@ -37,8 +37,12 @@
 ''' This module contains the pytest tests for the Routine class. '''
 
 import pytest
-from psyclone.psyir.nodes import Routine, Assignment
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal
+from psyclone.psyir.symbols import (INTEGER_TYPE, REAL_TYPE, DataSymbol,
+                                    SymbolTable)
+from psyclone.errors import GenerationError
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.tests.utilities import check_links
 
 
 def test_routine_constructor():
@@ -47,8 +51,8 @@ def test_routine_constructor():
         Routine(1)
     assert "must be a str but got" in str(err.value)
     with pytest.raises(TypeError) as err:
-        Routine("hello", entry_point=1)
-    assert "'entry_point' must be a bool" in str(err.value)
+        Routine("hello", is_program=1)
+    assert "'is_program' must be a bool" in str(err.value)
     with pytest.raises(TypeError) as err:
         Routine("hello", return_type=1)
     assert "'return_type' must be of type DataType" in str(err.value)
@@ -61,26 +65,82 @@ def test_routine_properties():
     node1 = Routine("hello")
     assert node1.dag_name == "routine_hello_0"
     assert node1.return_type is None
-    assert node1.entry_point is False
+    assert node1.is_program is False
     assert node1.name == "hello"
     # Give the Routine a child to get full coverage of __str__ method
     node1.addchild(Assignment())
-    assert "Schedule[hello]:\nAssignment" in str(node1)
+    assert "Routine[name:'hello']:\nAssignment" in str(node1)
 
     node2 = Routine("bonjour", return_type=INTEGER_TYPE)
     assert node2.return_type == INTEGER_TYPE
-    assert node2.entry_point is False
+    assert node2.is_program is False
 
-    node3 = Routine("gutentag", entry_point=True)
+    node3 = Routine("gutentag", is_program=True)
     assert node3.return_type is None
-    assert node3.entry_point
+    assert node3.is_program
 
-    node4 = Routine("welcome", entry_point=True, return_type=INTEGER_TYPE)
+    node4 = Routine("welcome", is_program=True, return_type=INTEGER_TYPE)
     assert node4.return_type == INTEGER_TYPE
-    assert node4.entry_point
+    assert node4.is_program
 
     with pytest.raises(TypeError) as err:
         node4.name = node3
     assert "must be a str but got" in str(err.value)
     node4.name = "goodbye"
     assert node4.name == "goodbye"
+
+
+def test_routine_create_invalid():
+    '''Test that the create method in the Routine class raises the
+    expected exception if the provided input is invalid.
+
+    '''
+    symbol_table = SymbolTable()
+    symbol = DataSymbol("x", REAL_TYPE)
+    symbol_table.add(symbol)
+    children = [Assignment.create(Reference(symbol),
+                                  Literal("1", REAL_TYPE))]
+
+    # name is not a string.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Routine.create(1, symbol_table, children)
+    assert ("name argument in create method of Routine class "
+            "should be a string but found 'int'.") in str(excinfo.value)
+
+    # symbol_table not a SymbolTable.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Routine.create("mod_name", "invalid", children)
+    assert ("symbol_table argument in create method of Routine class "
+            "should be a SymbolTable but found 'str'.") in str(excinfo.value)
+
+    # children not a list.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Routine.create("mod_name", symbol_table, "invalid")
+    assert ("children argument in create method of Routine class "
+            "should be a list but found 'str'." in str(excinfo.value))
+
+    # contents of children list are not Node.
+    with pytest.raises(GenerationError) as excinfo:
+        _ = Routine.create("mod_name", symbol_table, ["invalid"])
+    assert (
+        "child of children argument in create method of Routine class "
+        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
+
+
+def test_routine_create():
+    '''Test that the create method correctly creates a Routine instance. '''
+    symbol_table = SymbolTable()
+    symbol = DataSymbol("tmp", REAL_TYPE)
+    symbol_table.add(symbol)
+    assignment = Assignment.create(Reference(symbol),
+                                   Literal("0.0", REAL_TYPE))
+    kschedule = Routine.create("mod_name", symbol_table, [assignment])
+    assert isinstance(kschedule, Routine)
+    check_links(kschedule, [assignment])
+    assert kschedule.symbol_table is symbol_table
+    result = FortranWriter().kernelschedule_node(kschedule)
+    assert result == (
+        "subroutine mod_name()\n"
+        "  real :: tmp\n\n"
+        "  tmp=0.0\n\n"
+        "end subroutine mod_name\n")

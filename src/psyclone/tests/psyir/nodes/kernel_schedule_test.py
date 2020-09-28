@@ -37,8 +37,6 @@
 
 ''' Performs py.test tests on the KernelSchedule class. '''
 
-import pytest
-from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Assignment, Reference, Literal, KernelSchedule
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE, \
     REAL_TYPE
@@ -57,7 +55,7 @@ def test_kernelschedule_view(capsys):
     assignment = Assignment.create(lhs, rhs)
     kschedule = KernelSchedule.create("kname", symbol_table, [assignment])
     kschedule.view()
-    coloredtext = colored("Schedule",
+    coloredtext = colored("KernelSchedule",
                           SCHEDULE_COLOUR_MAP["Schedule"])
     output, _ = capsys.readouterr()
     assert coloredtext+"[name:'kname']" in output
@@ -90,6 +88,10 @@ def test_kernelschedule_create():
     assignment = Assignment.create(Reference(symbol),
                                    Literal("0.0", REAL_TYPE))
     kschedule = KernelSchedule.create("mod_name", symbol_table, [assignment])
+    assert isinstance(kschedule, KernelSchedule)
+    # A KernelSchedule is not a main program and has no return type.
+    assert not kschedule.is_program
+    assert kschedule.return_type is None
     check_links(kschedule, [assignment])
     assert kschedule.symbol_table is symbol_table
     result = FortranWriter().kernelschedule_node(kschedule)
@@ -98,40 +100,3 @@ def test_kernelschedule_create():
         "  real :: tmp\n\n"
         "  tmp=0.0\n\n"
         "end subroutine mod_name\n")
-
-
-def test_kernelschedule_create_invalid():
-    '''Test that the create method in a KernelSchedule class raises the
-    expected exception if the provided input is invalid.
-
-    '''
-    symbol_table = SymbolTable()
-    symbol = DataSymbol("x", REAL_TYPE)
-    symbol_table.add(symbol)
-    children = [Assignment.create(Reference(symbol),
-                                  Literal("1", REAL_TYPE))]
-
-    # name is not a string.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create(1, symbol_table, children)
-    assert ("name argument in create method of KernelSchedule class "
-            "should be a string but found 'int'.") in str(excinfo.value)
-
-    # symbol_table not a SymbolTable.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create("mod_name", "invalid", children)
-    assert ("symbol_table argument in create method of KernelSchedule class "
-            "should be a SymbolTable but found 'str'.") in str(excinfo.value)
-
-    # children not a list.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create("mod_name", symbol_table, "invalid")
-    assert ("children argument in create method of KernelSchedule class "
-            "should be a list but found 'str'." in str(excinfo.value))
-
-    # contents of children list are not Node.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create("mod_name", symbol_table, ["invalid"])
-    assert (
-        "child of children argument in create method of KernelSchedule class "
-        "should be a PSyIR Node but found 'str'." in str(excinfo.value))

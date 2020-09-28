@@ -39,9 +39,6 @@
 ''' This module contains the KernelSchedule node implementation.'''
 
 from psyclone.psyir.nodes.routine import Routine
-from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols.symboltable import SymbolTable
-from psyclone.errors import GenerationError
 
 
 class KernelSchedule(Routine):
@@ -53,13 +50,16 @@ class KernelSchedule(Routine):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
+    _text_name = "KernelSchedule"
+
     def __init__(self, name, parent=None):
-        super(KernelSchedule, self).__init__(name, entry_point=False,
+        # A kernel does not return anything and is not a main program
+        super(KernelSchedule, self).__init__(name, is_program=False,
                                              return_type=None,
                                              children=None, parent=parent)
 
-    @staticmethod
-    def create(name, symbol_table, children):
+    @classmethod
+    def create(cls, name, symbol_table, children):
         '''Create a KernelSchedule instance given a name, a symbol table and a
         list of child nodes.
 
@@ -74,57 +74,10 @@ class KernelSchedule(Routine):
         :returns: a KernelSchedule instance.
         :rtype: :py:class:`psyclone.psyGen.KernelInstance`
 
-        :raises GenerationError: if the arguments to the create method \
-            are not of the expected type.
-
         '''
-        if not isinstance(name, str):
-            raise GenerationError(
-                "name argument in create method of KernelSchedule class "
-                "should be a string but found '{0}'."
-                "".format(type(name).__name__))
-        if not isinstance(symbol_table, SymbolTable):
-            raise GenerationError(
-                "symbol_table argument in create method of KernelSchedule "
-                "class should be a SymbolTable but found '{0}'."
-                "".format(type(symbol_table).__name__))
-        if not isinstance(children, list):
-            raise GenerationError(
-                "children argument in create method of KernelSchedule class "
-                "should be a list but found '{0}'."
-                "".format(type(children).__name__))
-        for child in children:
-            if not isinstance(child, Node):
-                raise GenerationError(
-                    "child of children argument in create method of "
-                    "KernelSchedule class should be a PSyIR Node but "
-                    "found '{0}'.".format(type(child).__name__))
-
-        kern = KernelSchedule(name)
-        kern._symbol_table = symbol_table
-        symbol_table._node = kern
-        for child in children:
-            child.parent = kern
-        kern.children = children
-        return kern
-
-    def node_str(self, colour=True):
-        ''' Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[name:'" + self._name + "']"
-
-    def __str__(self):
-        result = self.node_str(False) + ":\n"
-        for entity in self._children:
-            result += str(entity)
-        result += "End KernelSchedule\n"
-        return result
+        return super(cls, KernelSchedule).create(name, symbol_table, children,
+                                                 is_program=False,
+                                                 return_type=None)
 
 
 # For automatic documentation generation
