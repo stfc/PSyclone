@@ -1191,8 +1191,8 @@ class Fparser2Reader(object):
                     sym_name = str(name).lower()
                     if sym_name not in parent.symbol_table:
                         # We're dealing with a symbol named in a use statement
-                        # in the *current* scope therefore we don't need to
-                        # check any ancestor symbol tables; we just create a
+                        # in the *current* scope therefore we do not check
+                        # any ancestor symbol tables; we just create a
                         # new symbol. Since we don't yet know anything about
                         # this symbol apart from its name we create a generic
                         # Symbol.

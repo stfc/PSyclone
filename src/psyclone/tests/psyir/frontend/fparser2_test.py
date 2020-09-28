@@ -2704,6 +2704,8 @@ def test_named_and_wildcard_use_var(f2008_parser):
     # due to the access in "test_sub1".
     container = psy.invokes.container
     avar1 = container.symbol_table.lookup("a_var")
+    # It must be a generic Symbol since we don't know anything about it
+    # pylint: disable=unidiomatic-typecheck
     assert type(avar1) == Symbol
     # There should be no entry for "a_var" in the symbol table for the
     # "test_sub1" routine as it is not declared there.
