@@ -1537,7 +1537,7 @@ class Fparser2Reader(object):
         '''
         name = str(walk(decl.children[0], Fortran2003.Type_Name)[0])
         # Create a new StructureType for this derived type
-        dtype = StructureType(parent=parent.symbol_table)
+        dtype = StructureType()
 
         # Look for any private-components-stmt (R447) within the type
         # decln. In the absence of this, the default visibility of type
@@ -1551,12 +1551,20 @@ class Fparser2Reader(object):
         # The visibility of the symbol representing this derived type
         dtype_symbol_vis = visibility_map.get(name, default_visibility)
 
-        # Populate the SymbolTable of this StructureType by processing the
-        # components of the derived type
+        # Populate this StructureType by processing the components of
+        # the derived type
+        from psyclone.psyir.symbols import SymbolTable
         try:
+            # Re-use the existing code for processing symbols
+            local_table = SymbolTable()
             for child in walk(decl, Fortran2003.Data_Component_Def_Stmt):
-                self._process_decln(parent, dtype.symbol_table, child,
+                self._process_decln(parent, local_table, child,
                                     default_compt_visibility)
+            # Convert from Symbols to type information
+            for symbol in local_table.symbols:
+                dtype.add(StructureType.ComponentType(symbol.name,
+                                                      symbol.datatype,
+                                                      symbol.visibility))
             parent.symbol_table.add(TypeSymbol(name, dtype,
                                                visibility=dtype_symbol_vis))
         except NotImplementedError:
@@ -1639,7 +1647,8 @@ class Fparser2Reader(object):
                     # successfully and thus be in the symbol table.
                     try:
                         parent.symbol_table.add(
-                            DataSymbol(symbol_name, UnknownType(str(decl))))
+                            DataSymbol(symbol_name,
+                                       UnknownFortranType(str(decl))))
                     except KeyError:
                         if len(orig_children) == 1:
                             raise SymbolError(

@@ -38,6 +38,7 @@
 
 from __future__ import absolute_import
 import abc
+from collections import OrderedDict, namedtuple
 from enum import Enum
 import six
 from psyclone.errors import InternalError
@@ -364,26 +365,38 @@ class ArrayType(DataType):
 class StructureType(DataType):
     '''
     Describes a 'structure' or 'derived' datatype that is itself composed
-    of a table of symbols.
+    of an OrderedDict of namedtuples.
 
     :param parent: enclosing symbol table containing this datatype.
     :type parent: :py:class:`psyclone.psyir.symbols.SymbolType`
 
     '''
-    def __init__(self, parent=None):
-        from psyclone.psyir.symbols.symboltable import SymbolTable
-        self._symbol_table = SymbolTable(parent=parent)
+    ComponentType = namedtuple("ComponentType", ["name", "datatype",
+                                                 "visibility"])
+
+    def __init__(self):
+        self._components = OrderedDict()
 
     def __str__(self):
         return "StructureType<>"
 
     @property
-    def symbol_table(self):
+    def components(self):
         '''
-        :returns: the symbol table describing the contents of this type.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :returns:
+        :rtype: 
         '''
-        return self._symbol_table
+        return self._components
+
+    def add(self, component):
+        self._components[component.name] = component
+
+    def lookup(self, name):
+        '''
+        :returns:
+        :rtype: 
+        '''
+        return self._components[name]
 
 
 # Create common scalar datatypes

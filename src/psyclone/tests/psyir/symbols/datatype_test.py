@@ -39,8 +39,8 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
-    ArrayType, UnknownFortranType, DataSymbol, StructureType, SymbolTable, \
-    TypeSymbol, SymbolError
+    ArrayType, UnknownFortranType, DataSymbol, StructureType, \
+    INTEGER_TYPE, Symbol
 from psyclone.errors import InternalError
 
 
@@ -315,16 +315,8 @@ def test_structure_type():
     ''' Check that we can create a StructureType object. '''
     stype = StructureType()
     assert str(stype) == "StructureType<>"
-    assert isinstance(stype.symbol_table, SymbolTable)
-    assert not stype.symbol_table.symbols
-
-
-def test_structure_parent():
-    ''' Check the parental relationship between symbol tables when a
-    SymbolTable contains the definition of a derived type. '''
-    parent_table = SymbolTable()
-    parent_table.add(TypeSymbol("my_type", DeferredType()))
-    # parent_table contains a definition of a derived type
-    my_dtype = StructureType(parent=parent_table)
-    assert isinstance(my_dtype.symbol_table.lookup("my_type"),
-                      TypeSymbol)
+    assert not stype.components
+    stype.add(StructureType.ComponentType("flag", INTEGER_TYPE,
+                                          Symbol.Visibility.PUBLIC))
+    flag = stype.lookup("flag")
+    assert isinstance(flag, StructureType.ComponentType)

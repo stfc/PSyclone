@@ -118,17 +118,16 @@ def test_parse_derived_type(use_stmt):
     sym = symtab.lookup("my_type")
     assert isinstance(sym, TypeSymbol)
     assert isinstance(sym.datatype, StructureType)
-    flag_sym = sym.datatype.symbol_table.lookup("flag")
-    assert isinstance(flag_sym, DataSymbol)
-    assert isinstance(flag_sym.datatype, ScalarType)
-    grid_sym = sym.datatype.symbol_table.lookup("grid")
-    assert isinstance(grid_sym, DataSymbol)
-    assert isinstance(grid_sym.datatype, DeferredType)
-    posn_sym = sym.datatype.symbol_table.lookup("posn")
-    assert isinstance(posn_sym, DataSymbol)
-    assert isinstance(posn_sym.datatype, ArrayType)
+    flag = sym.datatype.lookup("flag")
+    assert isinstance(flag.datatype, ScalarType) # isinstance(flag_sym, DataSymbol)
+    assert flag.visibility == Symbol.Visibility.PUBLIC
+    grid = sym.datatype.lookup("grid")
+    assert isinstance(grid.datatype, DeferredType)
+    posn = sym.datatype.lookup("posn")
+    assert isinstance(posn.datatype, ArrayType)
 
 
+@pytest.mark.usefixtures("f2008_parser")
 def test_derived_type_accessibility():
     '''
     Check that accessibility statements/attributes within a derived type
@@ -145,7 +144,8 @@ def test_derived_type_accessibility():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
-    flag_sym = sym.datatype.symbol_table.lookup("flag")
-    assert flag_sym.visibility == Symbol.Visibility.PRIVATE
-    scale_sym = sym.datatype.symbol_table.lookup("scale")
-    assert scale_sym.visibility == Symbol.Visibility.PUBLIC
+    assert isinstance(sym, TypeSymbol)
+    flag = sym.datatype.lookup("flag")
+    assert flag.visibility == Symbol.Visibility.PRIVATE
+    scale = sym.datatype.lookup("scale")
+    assert scale.visibility == Symbol.Visibility.PUBLIC
