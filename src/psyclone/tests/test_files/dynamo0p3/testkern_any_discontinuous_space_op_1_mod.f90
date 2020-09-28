@@ -61,7 +61,7 @@ module testkern_any_discontinuous_space_op_1_mod
                                                       ANY_DISCONTINUOUS_SPACE_7), &
          arg_type(GH_SCALAR,   GH_REAL, GH_READ)                                  &
          /)
-    integer :: operates_on = CELL_COLUMN
+    integer :: operates_on = cell_column
   contains
     procedure, public, nopass :: testkern_any_discontinuous_space_op_1_code
   end type testkern_any_discontinuous_space_op_1_type

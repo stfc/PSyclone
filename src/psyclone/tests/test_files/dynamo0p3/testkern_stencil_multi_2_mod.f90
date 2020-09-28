@@ -51,7 +51,7 @@ module testkern_stencil_multi_2_mod
           arg_type(gh_field, gh_read, any_discontinuous_space_1, &
                                           stencil(xory1d))       &
           /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_stencil_multi_2_code
   end type testkern_stencil_multi_2_type

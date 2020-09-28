@@ -66,7 +66,7 @@ type, public, extends(kernel_type) :: columnwise_op_mul_kernel_type
        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,      ANY_SPACE_2, ANY_SPACE_3),  &
        arg_type(GH_COLUMNWISE_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_3)   &
        /)
-  integer :: operates_on = CELL_COLUMN
+  integer :: operates_on = cell_column
 contains
   procedure, nopass :: columnwise_op_mul_kernel_code
 end type columnwise_op_mul_kernel_type

@@ -44,7 +44,7 @@ module testkern_operator_2_mod
   type, extends(kernel_type) :: testkern_operator_2_type
      type(arg_type), dimension(1) :: meta_args = &
           (/ arg_type(gh_operator, gh_write, w2, w3) /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_operator_2_code
   end type testkern_operator_2_type

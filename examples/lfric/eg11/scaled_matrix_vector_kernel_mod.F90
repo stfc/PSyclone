@@ -68,7 +68,7 @@ module scaled_matrix_vector_kernel_mod
         arg_type(GH_FIELD,    GH_READ, W2),     &
         arg_type(GH_FIELD,    GH_READ, W2)      &
         /)
-    integer :: operates_on = CELL_COLUMN
+    integer :: operates_on = cell_column
   contains
     procedure, nopass :: scaled_matrix_vector_code
   end type
@@ -82,7 +82,7 @@ module scaled_matrix_vector_kernel_mod
         arg_type(GH_FIELD,    GH_READ, W2),     &
         arg_type(GH_FIELD,    GH_READ, W2)      &
           /)
-    integer :: operates_on = CELL_COLUMN
+    integer :: operates_on = cell_column
   contains
     procedure, nopass :: opt_scaled_matrix_vector_code
   end type

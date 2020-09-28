@@ -63,7 +63,7 @@ module matrix_vector_kernel_mod
          arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                    &
          arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)        &
          /)
-    integer :: operates_on = CELL_COLUMN
+    integer :: operates_on = cell_column
   contains
     procedure, nopass :: matrix_vector_kernel_code
   end type

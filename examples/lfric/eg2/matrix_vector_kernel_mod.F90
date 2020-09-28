@@ -68,7 +68,7 @@ type, public, extends(kernel_type) :: matrix_vector_kernel_type
        arg_type(gh_inc,v2,fe,.true.,.false.,.false.,.true.),               &
        arg_type(gh_read ,v2,fe,.false.,.false.,.false.,.false.)            &
        ]
-  integer :: operates_on = CELL_COLUMN
+  integer :: operates_on = cell_column
 contains
   procedure, nopass :: matrix_vector_code
 end type

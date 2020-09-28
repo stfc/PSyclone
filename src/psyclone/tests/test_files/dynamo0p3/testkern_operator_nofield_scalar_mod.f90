@@ -49,7 +49,7 @@ module testkern_operator_nofield_scalar_mod
      type(func_type) :: meta_funcs(1) =                           &
           (/ func_type(w2, gh_basis)                              &
           /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => testkern_operator_code

@@ -69,7 +69,7 @@ type, public, extends(kernel_type) :: conservative_flux_kernel_type
        arg_type(GH_FIELD,   GH_READ,  W3, STENCIL(XORY1D)),            &
        arg_type(GH_FIELD,   GH_READ,  W3, STENCIL(XORY1D))             &
        /)
-  integer :: operates_on = CELL_COLUMN
+  integer :: operates_on = cell_column
 contains
   procedure, nopass :: conservative_flux_code
 end type

@@ -48,7 +48,7 @@ module testkern_any_space_3_mod
     type(arg_type) :: meta_args(1) = (/                                &
          arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2) &
          /)
-    integer :: operates_on = CELL_COLUMN
+    integer :: operates_on = cell_column
   contains
     procedure, public, nopass :: testkern_any_space_3_code
   end type testkern_any_space_3_type

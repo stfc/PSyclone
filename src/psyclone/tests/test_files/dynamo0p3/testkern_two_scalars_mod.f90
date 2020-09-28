@@ -53,7 +53,7 @@ module testkern_two_scalars_mod
              arg_type(gh_field,              gh_read, w3), &
              arg_type(gh_scalar, gh_integer, gh_read    )  &
            /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_two_scalars_code
   end type testkern_two_scalars_type

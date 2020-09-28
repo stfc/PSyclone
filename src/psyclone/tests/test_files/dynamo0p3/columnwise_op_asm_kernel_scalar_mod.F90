@@ -69,7 +69,7 @@ type, public, extends(kernel_type) :: columnwise_op_asm_kernel_scalar_type
        arg_type(GH_COLUMNWISE_OPERATOR,          GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
        arg_type(GH_SCALAR,              GH_REAL, GH_READ) &
        /)
-  integer :: operates_on = CELL_COLUMN
+  integer :: operates_on = cell_column
 contains
   procedure, nopass :: columnwise_op_asm_kernel_scalar_code
 end type

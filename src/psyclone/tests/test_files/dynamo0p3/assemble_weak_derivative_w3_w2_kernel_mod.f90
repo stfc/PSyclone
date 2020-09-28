@@ -61,7 +61,7 @@ module assemble_weak_derivative_w3_w2_kernel_mod
          func_type(W3, GH_BASIS),                              &
          func_type(W2, GH_DIFF_BASIS, GH_ORIENTATION)          &
          /)
-    integer :: operates_on = CELL_COLUMN
+    integer :: operates_on = cell_column
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
     procedure, nopass :: assemble_weak_derivative_w3_w2_kernel_code

@@ -46,7 +46,7 @@ module testkern_eval_op_mod
        func_type(W2, GH_BASIS),                 &
        func_type(W3, GH_DIFF_BASIS)             &
        /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_evaluator
    contains
      procedure, nopass :: code => testkern_eval_op_code

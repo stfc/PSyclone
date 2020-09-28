@@ -45,7 +45,7 @@ module testkern_w0_mod
           (/ arg_type(gh_field, gh_inc,  w0),    &
              arg_type(gh_field, gh_read, w0)     &
            /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_w0_code
   end type testkern_w0_type

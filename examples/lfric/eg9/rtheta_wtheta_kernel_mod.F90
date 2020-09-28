@@ -73,7 +73,7 @@ type, public, extends(kernel_type) :: rtheta_wtheta_kernel_type
        func_type(Wtheta, GH_BASIS, GH_DIFF_BASIS),                     &
        func_type(W2, GH_BASIS, GH_DIFF_BASIS)                          &
        /)
-  integer :: operates_on = CELL_COLUMN
+  integer :: operates_on = cell_column
   integer :: gh_shape = GH_QUADRATURE_XYoZ
 contains
   procedure, nopass :: rtheta_wtheta_code

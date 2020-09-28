@@ -66,7 +66,7 @@ type, public, extends(kernel_type) :: columnwise_op_app_w2v_kernel_type
        arg_type(GH_FIELD,               GH_READ,  ANY_SPACE_2),     &
        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  W2V, ANY_SPACE_2) &
        /)
-  integer :: operates_on = CELL_COLUMN
+  integer :: operates_on = cell_column
 contains
   procedure, nopass :: columnwise_op_app_w2v_kernel_code
 end type columnwise_op_app_w2v_kernel_type

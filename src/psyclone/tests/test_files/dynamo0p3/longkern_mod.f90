@@ -50,7 +50,7 @@ module longkern_mod
              arg_type(gh_field, gh_read, w2),    &
              arg_type(gh_field, gh_read, w3)     &
            /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => longkern_code
   end type longkern_type

@@ -47,7 +47,7 @@ module testkern_w2_only_mod
           (/ arg_type(gh_field, gh_inc,  w2),    &
              arg_type(gh_field, gh_read, w2)     &
            /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_w2_only_code
   end type testkern_w2_only_type

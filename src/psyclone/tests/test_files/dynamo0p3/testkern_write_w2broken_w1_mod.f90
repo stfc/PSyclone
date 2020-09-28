@@ -61,7 +61,7 @@ module testkern_write_w2broken_w1_mod
           arg_type(gh_field,   gh_read,  w2htrace),  &
           arg_type(gh_field,   gh_read,  w2vtrace)   &
           /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_write_w2broken_w1_code
   end type testkern_write_w2broken_w1_type

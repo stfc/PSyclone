@@ -72,7 +72,7 @@ type, public, extends(kernel_type) :: apply_variable_hx_kernel_type
        arg_type(GH_SCALAR,   GH_REAL, GH_READ),                        &
        arg_type(GH_SCALAR,   GH_REAL, GH_READ)                         &
        /)
-  integer :: operates_on = CELL_COLUMN
+  integer :: operates_on = cell_column
 contains
   procedure, nopass :: apply_variable_hx_code
 end type
@@ -90,7 +90,7 @@ type, public, extends(kernel_type) :: opt_apply_variable_hx_kernel_type
        arg_type(GH_SCALAR,   GH_REAL, GH_READ),                        &
        arg_type(GH_SCALAR,   GH_REAL, GH_READ)                         &
        /)
-  integer :: operates_on = CELL_COLUMN
+  integer :: operates_on = cell_column
 contains
   procedure, nopass :: opt_apply_variable_hx_code
 end type

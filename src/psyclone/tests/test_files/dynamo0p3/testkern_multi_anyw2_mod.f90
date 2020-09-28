@@ -51,7 +51,7 @@ module testkern_multi_anyw2_mod
          arg_type(gh_field, gh_read, any_w2),      &
          arg_type(gh_field, gh_read, any_w2)       &
          /)
-    integer :: operates_on = CELL_COLUMN
+    integer :: operates_on = cell_column
   contains
     procedure, nopass :: code => testkern_multi_anyw2_code
   end type testkern_multi_anyw2_type

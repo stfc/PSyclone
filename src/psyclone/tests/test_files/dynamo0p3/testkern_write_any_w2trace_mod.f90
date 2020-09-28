@@ -57,7 +57,7 @@ module testkern_write_any_w2trace_mod
           arg_type(gh_field, gh_read, w2v),         &
           arg_type(gh_field, gh_read, w2htrace)     &
           /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_write_any_w2trace_code
   end type testkern_write_any_w2trace_type

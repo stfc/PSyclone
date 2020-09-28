@@ -76,7 +76,7 @@ type, public, extends(kernel_type) :: w3_solver_kernel_type
        func_type(Wchi, GH_DIFF_BASIS)                 &
        /)
   integer :: gh_shape = GH_QUADRATURE_XYoZ
-  integer :: operates_on = CELL_COLUMN
+  integer :: operates_on = cell_column
 contains
   procedure, nopass :: solver_w3_code
 end type

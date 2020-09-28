@@ -51,7 +51,7 @@ module restrict_test_kernel_mod
           arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1, mesh_arg=GH_COARSE), &
           arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, mesh_arg=GH_FINE   ) &
           /)
-    integer :: operates_on = CELL_COLUMN
+    integer :: operates_on = cell_column
   contains
     procedure, nopass :: restrict_test_kernel_code
   end type restrict_test_kernel_type
