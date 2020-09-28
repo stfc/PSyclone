@@ -134,13 +134,11 @@ def test_routine_create():
     symbol_table.add(symbol)
     assignment = Assignment.create(Reference(symbol),
                                    Literal("0.0", REAL_TYPE))
-    kschedule = Routine.create("mod_name", symbol_table, [assignment])
+    kschedule = Routine.create("mod_name", symbol_table, [assignment],
+                               is_program=True, return_type=INTEGER_TYPE)
     assert isinstance(kschedule, Routine)
     check_links(kschedule, [assignment])
     assert kschedule.symbol_table is symbol_table
-    result = FortranWriter().kernelschedule_node(kschedule)
-    assert result == (
-        "subroutine mod_name()\n"
-        "  real :: tmp\n\n"
-        "  tmp=0.0\n\n"
-        "end subroutine mod_name\n")
+    assert kschedule.is_program
+    assert kschedule.return_type == INTEGER_TYPE
+    # TODO #899 test the Fortran backend for the Routine node.
