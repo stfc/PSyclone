@@ -45,8 +45,8 @@ class KernelSchedule(Routine):
     '''
     A KernelSchedule is the parent node of the PSyIR for Kernel source code.
 
-    :param str name: Kernel subroutine name.
-    :param parent: Parent of the KernelSchedule, defaults to None.
+    :param str name: kernel subroutine name.
+    :param parent: parent of the KernelSchedule, defaults to None.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
