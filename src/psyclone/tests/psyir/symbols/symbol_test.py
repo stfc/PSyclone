@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
 # Modified by R. W. Ford, STFC Daresbury Lab
+#             A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Perform py.test tests on the psygen.psyir.symbols.symbol module.
@@ -51,8 +52,7 @@ from psyclone.psyir.symbols import Symbol, LocalInterface, GlobalInterface, \
                                    ContainerSymbol, DataSymbol, SymbolError, \
                                    SymbolTable, INTEGER_SINGLE_TYPE
 from psyclone.psyir.symbols.symbol import SymbolInterface
-from psyclone.psyir.nodes import Container, Literal
-from psyclone.psyGen import KernelSchedule
+from psyclone.psyir.nodes import Container, Literal, KernelSchedule
 
 
 def test_symbol_initialisation():
