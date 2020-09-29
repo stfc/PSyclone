@@ -625,14 +625,14 @@ def test_lfric_stub_args():
     var_info = str(var_accesses)
     assert "field_1_w1: READ+WRITE" in var_info
     assert "field_2_stencil_dofmap: READ" in var_info
-    assert "field_2_stencil_size: READ" in var_info
+    assert "field_2_stencil_sizes: READ" in var_info
     assert "field_2_w2: READ" in var_info
     assert "field_3_direction: READ" in var_info
     assert "field_3_stencil_dofmap: READ" in var_info
-    assert "field_3_stencil_size: READ" in var_info
+    assert "field_3_stencil_sizes: READ" in var_info
     assert "field_3_w2: READ" in var_info
     assert "field_4_stencil_dofmap: READ" in var_info
-    assert "field_4_stencil_size: READ" in var_info
+    assert "field_4_stencil_sizes: READ" in var_info
     assert "field_4_w3: READ" in var_info
     assert "map_w1: READ" in var_info
     assert "map_w2: READ" in var_info
