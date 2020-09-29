@@ -6467,7 +6467,7 @@ def test_comp_halo_intern_err(monkeypatch):
     halo_exchange = schedule.children[0]
     field = halo_exchange.field
     monkeypatch.setattr(field, "forward_read_dependencies", lambda: [])
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         halo_exchange._compute_halo_read_info()
     assert ("Internal logic error. There should be at least one read "
             "dependence for a halo exchange") in str(excinfo.value)
@@ -6783,7 +6783,7 @@ def test_halo_req_no_read_deps(monkeypatch):
 
     monkeypatch.setattr(field, "_name", "unique")
 
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _, _ = halo_exchange.required()
     assert ("Internal logic error. There should be at least one read "
             "dependence for a halo exchange" in str(excinfo.value))

@@ -100,7 +100,7 @@
 
         34) #823 for #471. Updates the access from INC to READWRITE for
         those kernels that loop over DoFs.
-	
+
 	35) #872 for #736 and #858. Routine Symbols are captured by the Fortran
 	front-end when parsing a Container.
 
@@ -125,6 +125,12 @@
 	41) #887 for #876. Create a generic symbol when no better information is
 	provided about a symbol and replace the symbol latter on if more information
 	if found.
+
+	42) #904 for #903. Fixed an error in handling use statements (a
+	symbol clash when there should not be one).
+
+        43) #877 for #867. Bug fix to enable dependencies on HaloExchange
+        objects to be ignored while updating the dependency information.
 
 release 1.9.0 20th May 2020
 
