@@ -72,7 +72,7 @@ from psyclone.psyGen import PSyFactory, TransInfo
 
 API = "gocean1.0"
 _, INVOKEINFO = parse("shallow_alg.f90", api=API)
-PSY = PSyFactory(API).create(INVOKEINFO)
+PSY = PSyFactory(API, distributed_memory=False).create(INVOKEINFO)
 print(PSY.gen)
 
 print(PSY.invokes.names)

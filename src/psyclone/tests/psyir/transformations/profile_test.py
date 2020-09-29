@@ -98,7 +98,9 @@ def test_profile_basic(capsys):
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     Profiler.set_options([Profiler.INVOKES])
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0)
+                           "gocean1.0", idx=0, dist_mem=False)
+    # This test expects constant loop bounds
+    invoke.schedule._const_loop_bounds = True
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     assert isinstance(invoke.schedule[0], ProfileNode)
@@ -515,8 +517,10 @@ def test_transform(capsys):
 
     # pylint: disable=too-many-locals
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
-                           name="invoke_loop1")
+                           name="invoke_loop1", dist_mem=False)
     schedule = invoke.schedule
+    # This test expects constant loop bounds
+    schedule._const_loop_bounds = True
 
     prt = ProfileTrans()
     assert str(prt) == "Insert a profile start and end call."
@@ -670,7 +674,7 @@ def test_transform_errors(capsys):
     # This has been imported and tested before, so we can assume
     # here that this all works as expected/
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
-                           name="invoke_loop1")
+                           name="invoke_loop1", dist_mem=False)
 
     schedule = invoke.schedule
     prt = ProfileTrans()
@@ -694,7 +698,7 @@ def test_transform_errors(capsys):
     # Test that we don't add a profile node inside a OMP do loop (which
     # would be invalid syntax):
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
-                           name="invoke_loop1")
+                           name="invoke_loop1", dist_mem=False)
     schedule = invoke.schedule
 
     prt = ProfileTrans()
@@ -758,8 +762,10 @@ def test_omp_transform():
      parallelisation.'''
 
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
-                           name="invoke_loop1")
+                           name="invoke_loop1", dist_mem=False)
     schedule = invoke.schedule
+    # This test expects constant loop bounds
+    schedule._const_loop_bounds = True
 
     prt = ProfileTrans()
     omp_loop = GOceanOMPLoopTrans()

@@ -54,6 +54,7 @@ from psyclone.parse.utils import ParseError
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
+from psyclone.dynamo0p3_builtins import BUILTIN_ITERATION_SPACES
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor)
@@ -135,16 +136,22 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
                            + HALO_ACCESS_LOOP_BOUNDS)
 
 
-# Valid Dynamo0.3 loop types. The default is "" which is over cells (in the
+# Valid LFRic loop types. The default is "" which is over cells (in the
 # horizontal plane).
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
+# Valid LFRic iteration spaces for user-supplied kernels and built-in kernels
+# TODO #870 rm 'cells' from list below.
+USER_KERNEL_ITERATION_SPACES = ["cells", "cell_column"]
+VALID_ITERATION_SPACES = USER_KERNEL_ITERATION_SPACES + \
+    BUILTIN_ITERATION_SPACES
+
 # ---------- psyGen mappings ------------------------------------------------ #
-# Mappings used by non-API-Specific code in psyGen.
-# psyGen ["iscalar", "rscalar"] translate to LFRic scalar names.
-psyGen.MAPPING_SCALARS = dict(zip(psyGen.MAPPING_SCALARS_LIST,
-                                  LFRicArgDescriptor.VALID_SCALAR_NAMES))
-# psyGen argument types translate to LFRic argument types
+# Mappings used by non-API-specific code in psyGen.
+# psyGen ["rscalar", "iscalar"] translate to LFRic scalar names.
+psyGen.VALID_SCALAR_NAMES = LFRicArgDescriptor.VALID_SCALAR_NAMES
+
+# psyGen argument types translate to LFRic argument types.
 psyGen.VALID_ARG_TYPE_NAMES = LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
 
 # ---------- Functions ------------------------------------------------------ #
@@ -432,6 +439,14 @@ class DynKernMetadata(KernelType):
 
         KernelType.__init__(self, ast, name=name)
 
+        # Currently we permit old-style 'iterates_over' kernel metadata
+        # so here we map from the old-style names to the new ones.
+        # TODO #870 remove this mapping from old values to new values
+        if self.iterates_over == "cells":
+            self._iterates_over = "cell_column"
+        if self.iterates_over == "dofs":
+            self._iterates_over = "dof"
+
         # The type of CMA operation this kernel performs (or None if
         # no CMA operators are involved)
         self._cma_operation = None
@@ -459,7 +474,8 @@ class DynKernMetadata(KernelType):
         # parse the arg_type metadata
         self._arg_descriptors = []
         for arg_type in self._inits:
-            self._arg_descriptors.append(LFRicArgDescriptor(arg_type))
+            self._arg_descriptors.append(
+                LFRicArgDescriptor(arg_type, self.iterates_over))
 
         # Get a list of the Type declarations in the metadata
         type_declns = [cline for cline in self._ktype.content if
@@ -585,12 +601,10 @@ class DynKernMetadata(KernelType):
                 if self.name not in BUILTIN_MAP and \
                    arg.argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES:
                     raise ParseError(
-                        "A user-supplied Dynamo 0.3 kernel must not "
-                        "write/update a scalar argument but kernel {0} has "
-                        "{1} with {2} access"
-                        .format(self.name,
-                                arg.argument_type,
-                                arg.access.api_specific_name()))
+                        "A user-supplied LFRic kernel must not write/update "
+                        "a scalar argument but kernel '{0}' has a scalar "
+                        "argument with '{1}' access."
+                        .format(self.name, arg.access.api_specific_name()))
         if write_count == 0:
             raise ParseError("A Dynamo 0.3 kernel must have at least one "
                              "argument that is updated (written to) but "
@@ -1058,9 +1072,9 @@ class DynCollection(object):
                                     type(node)))
 
         # Whether or not the associated Invoke contains only kernels that
-        # iterate over dofs.
+        # operate on dofs.
         if self._invoke:
-            self._dofs_only = self._invoke.iterate_over_dofs_only
+            self._dofs_only = self._invoke.operates_on_dofs_only
         else:
             self._dofs_only = False
 
@@ -2147,8 +2161,8 @@ class DynDofmaps(DynCollection):
         self._unique_indirection_maps = OrderedDict()
 
         for call in self._calls:
-            # We only need a dofmap if the kernel iterates over cells
-            if call.iterates_over == "cells":
+            # We only need a dofmap if the kernel operates on a cell_column
+            if call.iterates_over == "cell_column":
                 for unique_fs in call.arguments.unique_fss:
                     # We only need a dofmap if there is a *field* on this
                     # function space. If there is then we use it to look
@@ -2439,7 +2453,7 @@ class DynFunctionSpaces(DynCollection):
         # Loop over all unique function spaces used by our kernel(s)
         for function_space in self._function_spaces:
 
-            # We need ndf for a space if a kernel iterates over cells,
+            # We need ndf for a space if a kernel operates on cell-columns,
             # has a field or operator on that space and is not a
             # CMA kernel performing a matrix-matrix operation.
             if self._invoke and not self._dofs_only or \
@@ -2448,7 +2462,7 @@ class DynFunctionSpaces(DynCollection):
 
             # If there is a field on this space then add undf to list
             # to declare later. However, if the invoke contains only
-            # kernels that iterate over dofs and distributed memory is
+            # kernels that operate on dofs and distributed memory is
             # enabled then the number of dofs is obtained from the
             # field proxy and undf is not required.
             if self._invoke and self._invoke.field_on_space(function_space):
@@ -2505,7 +2519,7 @@ class DynFunctionSpaces(DynCollection):
         # the invoke
         for function_space in self._function_spaces:
             # Initialise information associated with this function space.
-            # If we have 1+ kernels that iterate over cells then we
+            # If we have 1+ kernels that operate on cell-columns then we
             # will need ndf and undf. If we don't then we only need undf
             # (for the upper bound of the loop over dofs) if we're not
             # doing DM.
@@ -2528,7 +2542,7 @@ class DynFunctionSpaces(DynCollection):
                                      "%get_ndf()"))
             # If there is a field on this space then initialise undf
             # for this function space. However, if the invoke contains
-            # only kernels that iterate over dofs and distributed
+            # only kernels that operate on dofs and distributed
             # memory is enabled then the number of dofs is obtained
             # from the field proxy and undf is not required.
             if not (self._dofs_only and Config.get().distributed_memory):
@@ -2855,7 +2869,7 @@ class DynProxies(DynCollection):
 
 class DynCellIterators(DynCollection):
     '''
-    Handles all entities required by kernels that iterate over cells.
+    Handles all entities required by kernels that operate on cell-columns.
 
     :param kern_or_invoke: the Kernel or Invoke for which to manage cell \
                            iterators.
@@ -2896,7 +2910,7 @@ class DynCellIterators(DynCollection):
         api_config = Config.get().api_conf("dynamo0.3")
 
         # We only need the number of layers in the mesh if we are calling
-        # one or more kernels that iterate over cells
+        # one or more kernels that operate on cell-columns.
         if not self._dofs_only:
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
@@ -2904,7 +2918,8 @@ class DynCellIterators(DynCollection):
 
     def _stub_declarations(self, parent):
         '''
-        Declare entities required for a kernel stub that iterates over cells.
+        Declare entities required for a kernel stub that operates on
+        cell-columns.
 
         :param parent: the f2pygen node representing the Kernel stub.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
@@ -3378,13 +3393,13 @@ class DynMeshes(object):
 
         # If we didn't have any inter-grid kernels but distributed memory
         # is enabled then we will still need a mesh object if we have one or
-        # more kernels that iterate over cells. We also require a mesh object
-        # if any of the kernels require properties of either the reference
-        # element or the mesh. (Colourmaps also require a mesh object but that
-        # is handled in _colourmap_init().)
+        # more kernels that operate on cell-columns. We also require a mesh
+        # object if any of the kernels require properties of either the
+        # reference element or the mesh. (Colourmaps also require a mesh
+        # object but that is handled in _colourmap_init().)
         if not _name_set:
             if (requires_mesh or (Config.get().distributed_memory and
-                                  not invoke.iterate_over_dofs_only)):
+                                  not invoke.operates_on_dofs_only)):
                 _name_set.add(
                     self._schedule.symbol_table.name_from_tag("mesh"))
 
@@ -4703,7 +4718,7 @@ class DynInvoke(Invoke):
         # Run-time checks for this invoke
         self.run_time_checks = LFRicRunTimeChecks(self)
 
-        # Information required by kernels that iterate over cells
+        # Information required by kernels that operate on cell-columns
         self.cell_iterators = DynCellIterators(self)
 
         # Information on any orientation arrays required by this invoke
@@ -4833,16 +4848,14 @@ class DynInvoke(Invoke):
         return False
 
     @property
-    def iterate_over_dofs_only(self):
+    def operates_on_dofs_only(self):
         '''
         :returns: whether or not this Invoke consists only of kernels that \
-                  iterate over DoFs.
+                  operate on DoFs.
         :rtype: bool
         '''
-        for kern_call in self.schedule.kernels():
-            if kern_call.iterates_over.lower() != "dofs":
-                return False
-        return True
+        return all(call.iterates_over.lower() == "dof" for call in
+                   self.schedule.kernels())
 
     def field_on_space(self, func_space):
         ''' If a field exists on this space for any kernel in this
@@ -5864,7 +5877,7 @@ class HaloWriteAccess(HaloDepth):
         # over cells
         self._dirty_outer = (
             not field.discontinuous and
-            loop.iteration_space == "cells" and
+            loop.iteration_space == "cell_column" and
             loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS)
         depth = 0
         max_depth = False
@@ -6152,7 +6165,7 @@ class DynLoop(Loop):
         self._field = kern.arguments.iteration_space_arg()
         self._field_name = self._field.name
         self._field_space = self._field.function_space
-        self._iteration_space = kern.iterates_over  # cells etc.
+        self._iteration_space = kern.iterates_over  # cell_columns etc.
 
         # Loop bounds
         self.set_lower_bound("start")
@@ -6178,12 +6191,12 @@ class DynLoop(Loop):
                     # Iterate to ncells for all discontinuous quantities,
                     # including any_discontinuous_space
                     self.set_upper_bound("ncells")
-                elif self.field_space.orig_name in \
-                        FunctionSpace.CONTINUOUS_FUNCTION_SPACES:
+                elif (self.field_space.orig_name in
+                      FunctionSpace.CONTINUOUS_FUNCTION_SPACES):
                     # Must iterate out to L1 halo for continuous quantities
                     self.set_upper_bound("cell_halo", index=1)
-                elif self.field_space.orig_name in \
-                        FunctionSpace.VALID_ANY_SPACE_NAMES:
+                elif (self.field_space.orig_name in
+                      FunctionSpace.VALID_ANY_SPACE_NAMES):
                     # We don't know whether any_space is continuous or not
                     # so we have to err on the side of caution and assume that
                     # it is.
@@ -6408,21 +6421,6 @@ class DynLoop(Loop):
             raise GenerationError(
                 "Unsupported upper bound name '{0}' found in dynloop.upper_"
                 "bound_fortran()".format(self._upper_bound_name))
-
-    def unique_fields_with_halo_reads(self):
-        ''' Returns all fields in this loop that require at least some
-        of their halo to be clean to work correctly. '''
-
-        unique_fields = []
-        unique_field_names = []
-
-        for call in self.kernels():
-            for arg in call.arguments.args:
-                if self._halo_read_access(arg):
-                    if arg.name not in unique_field_names:
-                        unique_field_names.append(arg.name)
-                        unique_fields.append(arg)
-        return unique_fields
 
     def _halo_read_access(self, arg):
         '''
@@ -6842,8 +6840,13 @@ class DynKern(CodedKern):
 
         :param ktype: the kernel meta-data object produced by the parser
         :type ktype: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
+
+        :raises InternalError: for an invalid data type of a scalar argument.
+        :raises GenerationError: if an invalid argument type is found \
+                                 in the kernel.
+
         '''
-        # create a name for each argument
+        # Create a name for each argument
         from psyclone.parse.algorithm import Arg
         args = []
         for idx, descriptor in enumerate(ktype.arg_descriptors):
@@ -6854,10 +6857,18 @@ class DynKern(CodedKern):
                 pre = "cma_op_"
             elif descriptor.argument_type.lower() == "gh_field":
                 pre = "field_"
-            elif descriptor.argument_type.lower() == "gh_real":
-                pre = "rscalar_"
-            elif descriptor.argument_type.lower() == "gh_integer":
-                pre = "iscalar_"
+            elif (descriptor.argument_type.lower() in
+                  LFRicArgDescriptor.VALID_SCALAR_NAMES):
+                if descriptor.data_type.lower() == "gh_real":
+                    pre = "rscalar_"
+                elif descriptor.data_type.lower() == "gh_integer":
+                    pre = "iscalar_"
+                else:
+                    raise InternalError(
+                        "DynKern.load_meta(): expected one of {0} data types "
+                        "for a scalar argument but found '{1}'.".
+                        format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES,
+                               descriptor.data_type))
             else:
                 raise GenerationError(
                     "DynKern.load_meta() expected one of {0} but found '{1}'".
@@ -6867,11 +6878,11 @@ class DynKern(CodedKern):
 
             if descriptor.stencil:
                 if not descriptor.stencil["extent"]:
-                    # stencil size (in cells) is passed in
+                    # Stencil size (in cells) is passed in
                     args.append(Arg("variable",
                                     pre+str(idx+1)+"_stencil_size"))
                 if descriptor.stencil["type"] == "xory1d":
-                    # direction is passed in
+                    # Direction is passed in
                     args.append(Arg("variable", pre+str(idx+1)+"_direction"))
 
         # Initialise basis/diff basis so we can test whether quadrature
@@ -7171,9 +7182,20 @@ class DynKern(CodedKern):
         Create the fparser1 AST for a kernel stub.
 
         :returns: root of fparser1 AST for the stub routine.
-        :rtype: :py:class:`fparser.one.XXXX`
+        :rtype: :py:class:`fparser.one.block_statements.Module`
+
+        :raises InternalError: if the supplied kernel stub does not operate \
+            on a supported subset of the domain (currently only "cell_column").
 
         '''
+        # Check operates-on (iteration space) before generating code
+        if self.iterates_over not in USER_KERNEL_ITERATION_SPACES:
+            raise InternalError(
+                "Expected the kernel to operate on one of {0} but found '{1}' "
+                "in kernel '{2}'.".format(USER_KERNEL_ITERATION_SPACES,
+                                          self.iterates_over, self.name))
+
+        # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Create an empty PSy layer module
@@ -7207,19 +7229,33 @@ class DynKern(CodedKern):
         return psy_module.root
 
     def gen_code(self, parent):
-        '''Generates dynamo version 0.3 specific psy code for a call to
-           the dynamo kernel instance.
+        '''
+        Generates LFRic (Dynamo 0.3) specific PSy layer code for a call
+        to this user-supplied LFRic kernel.
 
         :param parent: an f2pygen object that will be the parent of \
                        f2pygen objects created in this method.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        :raises GenerationError: if this kernel does not have a supported \
+                        operates-on (currently only "cell_column").
         :raises GenerationError: if the loop goes beyond the level 1 \
-                                 halo and an operator is accessed.
+                        halo and an operator is accessed.
         :raises GenerationError: if a kernel in the loop has an inc access \
-                                 and the loop is not coloured but is within \
-                                 an OpenMP parallel region.
+                        and the loop is not coloured but is within an OpenMP \
+                        parallel region.
 
         '''
+        # Check operates-on (iteration space) before generating code
+        if self.iterates_over not in USER_KERNEL_ITERATION_SPACES:
+            raise GenerationError(
+                "The LFRic API supports calls to user-supplied kernels "
+                "that operate on one of {0}, but kernel '{1}' "
+                "operates on '{2}'.".
+                format(USER_KERNEL_ITERATION_SPACES, self.name,
+                       self.iterates_over))
+
+        # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")
 
         parent.add(DeclGen(parent, datatype="integer",

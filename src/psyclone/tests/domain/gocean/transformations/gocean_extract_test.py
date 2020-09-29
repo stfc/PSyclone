@@ -48,6 +48,7 @@ from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.psyir.nodes import ExtractNode
 from psyclone.psyGen import Loop
 from psyclone.psyir.transformations import TransformationError
+from psyclone.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.utilities import get_invoke
 
 # API names
@@ -197,6 +198,8 @@ def test_single_node_ompparalleldo_gocean1p0():
     psy, invoke = get_invoke("single_invoke_three_kernels.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
+    # This test expects constant loop bounds
+    schedule._const_loop_bounds = True
 
     # Apply GOceanOMPParallelLoopTrans to the second Loop
     schedule, _ = otrans.apply(schedule.children[1])
@@ -246,12 +249,15 @@ def test_node_list_ompparallel_gocean1p0():
     etrans = GOceanExtractTrans()
     ltrans = GOceanOMPLoopTrans()
     otrans = OMPParallelTrans()
+    ctrans = GOConstLoopBoundsTrans()
 
     # Test a Loop nested within the OMP Parallel DO Directive
     psy, invoke = get_invoke("single_invoke_three_kernels.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
+    # Apply GOConstLoopBoundsTrans
+    schedule, _ = ctrans.apply(schedule)
     # Apply GOceanOMPParallelLoopTrans to the first two Loops
     schedule, _ = ltrans.apply(schedule.children[0])
     schedule, _ = ltrans.apply(schedule.children[1])
@@ -351,9 +357,12 @@ def test_driver_creation(tmpdir):
     tmpdir.chdir()
 
     etrans = GOceanExtractTrans()
+    ctrans = GOConstLoopBoundsTrans()
     psy, invoke = get_invoke("driver_test.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
+    # This test expects constant loop bounds
+    schedule, _ = ctrans.apply(schedule)
 
     schedule, _ = etrans.apply(schedule.children[0],
                                {'create_driver': True})

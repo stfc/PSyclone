@@ -71,7 +71,7 @@ PROGRAM single_invoke_two_kernels
   DO ncycle=1,100
     
     call invoke( compute_cu(cu_fld, p_fld, u_fld),      &
-                 compute_cu(cu_fld, p_fld, u_fld)   )
+                 compute_cu(p_fld, cu_fld, u_fld)   )
 
   END DO
 

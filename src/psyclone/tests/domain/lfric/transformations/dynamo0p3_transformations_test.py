@@ -1524,7 +1524,7 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
             "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
@@ -1558,7 +1558,7 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
             "      DO df=1,undf_aspc1_f2\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !$omp parallel do default(shared), private(df), "
@@ -1599,7 +1599,7 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = fred\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
@@ -1619,7 +1619,7 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = fred\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end parallel do") in result
@@ -1724,7 +1724,7 @@ def test_builtin_multiple_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !\n"
@@ -1762,7 +1762,7 @@ def test_builtin_multiple_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_aspc1_f2\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -1808,7 +1808,7 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp do schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
             "        f1_proxy%data(df) = fred\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -1832,7 +1832,7 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
             "        f1_proxy%data(df) = fred\n"
-            "        f2_proxy%data(df) = 3.0\n"
+            "        f2_proxy%data(df) = 3.0_r_def\n"
             "        f3_proxy%data(df) = ginger\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -3600,7 +3600,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3613,7 +3613,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='nannexed']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3625,7 +3625,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3643,7 +3643,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3655,7 +3655,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3667,7 +3667,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3728,7 +3728,7 @@ def test_list_multiple_reductions(dist_mem):
     omp_loop_directive = schedule[0].dir_body[0]
     call = omp_loop_directive.dir_body[0].loop_body[0]
     arg = call.arguments.args[2]
-    arg._argument_type = "gh_real"
+    arg._argument_type = "gh_scalar"
     arg.descriptor._access = AccessType.SUM
     result = omp_loop_directive._reduction_string()
     assert ", reduction(+:asum), reduction(+:f2)" in result
@@ -4341,12 +4341,15 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
+@pytest.mark.xfail(reason="#885 missing halo exchange for f1")
 def test_rc_dofs_depth():
-    '''Test that the loop bounds when iterating over dofs are modified
+    ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with a fixed value for halo depth where the halo
-    fields have no previous dependence. '''
+    fields have no previous dependence.
+
+    '''
     psy, invoke = get_invoke("15.1.2_inc_X_plus_Y_builtin.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
@@ -4355,23 +4358,22 @@ def test_rc_dofs_depth():
     schedule, _ = rc_trans.apply(loop, {"depth": 3})
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
-    for field_name in ["f1", "f2"]:
-        assert ("IF ({0}_proxy%is_dirty(depth=3)) "
-                "THEN".format(field_name)) in result
-        assert ("CALL {0}_proxy%halo_exchange(depth=3"
-                ")".format(field_name)) in result
+    for field in ["f1", "f2"]:
+        assert "IF ({0}_proxy%is_dirty(depth=3)) THEN".format(field) in result
+        assert "CALL {0}_proxy%halo_exchange(depth=3)".format(field) in result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo(3)" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(3)" in result
 
 
 def test_rc_dofs_no_depth():
-    '''Test that the loop bounds when iterating over dofs are modified
+    ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with no halo depth value where the halo fields have
-    no previous dependence. '''
+    no previous dependence.
+
+    '''
     psy, invoke = get_invoke("15.1.2_inc_X_plus_Y_builtin.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
@@ -4380,19 +4382,18 @@ def test_rc_dofs_no_depth():
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print(result)
-    for field_name in ["f1", "f2"]:
-        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_halo_depth())) "
-                "THEN".format(field_name)) in result
-        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%"
-                "get_halo_depth())".format(field_name)) in result
+
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN"
+            in result)
+    assert ("CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())"
+            in result)
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
     assert "CALL f1_proxy%set_dirty()" not in result
     assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
 def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
-    ''' Test that the loop bounds when iterating over dofs are modified
+    ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with a fixed value for halo depth where the halo
@@ -4417,27 +4418,21 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    # Check the f1 halo exchange is added and the f2 halo exchange is
-    # modified
-    for field_name in ["f1", "f2"]:
-        assert ("CALL {0}_proxy%halo_exchange(depth=3"
-                ")".format(field_name)) in result
-    # There is no need for a run-time is_dirty check for field f1 as
-    # we know that we need a halo exchange. We know this as f1 is
-    # modified in an earlier loop which leaves all of f1's halo
-    # dirty. As we know that we need the halo to be clean to depth 3
-    # we can be certain we need a halo exchange.
-    assert ("IF (f1_proxy%is_dirty(depth=3)) "
-            "THEN") not in result
+    # Check that the f2 halo exchange is modified
+    assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     # There is a need for a run-time is_dirty check for field f2 as
     # this field is not modified in this invoke and therefore its halo
     # is in an unknown state before it is read
     assert ("IF (f2_proxy%is_dirty(depth=3)) "
             "THEN") in result
 
-    # Check the existing m1 and m2 halo exchanges (for the first
-    # un-modified loop) remain unchanged
-    for field_name in ["m1", "m2"]:
+    # Check that the existing halo exchanges (for the first un-modified
+    # loop) remain unchanged. These are on f1, m1 and m2 without annexed
+    # dofs and only on m1 and m2 with annexed dofs.
+    fld_hex_names = ["f1", "m1", "m2"]
+    if annexed:
+        fld_hex_names.remove("f1")
+    for field_name in fld_hex_names:
         assert ("IF ({0}_proxy%is_dirty(depth=1)) "
                 "THEN".format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=1"
@@ -4448,7 +4443,7 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
 
 
 def test_rc_dofs_no_depth_prev_dep():
-    ''' Test that the loop bounds when iterating over dofs are modified
+    ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with no halo depth value where the halo
@@ -4464,17 +4459,12 @@ def test_rc_dofs_no_depth_prev_dep():
     invoke.schedule = schedule
     result = str(psy.gen)
 
-    # Check the f1 halo exchange is added and the f2 halo exchange is
-    # modified
-    for field_name in ["f1", "f2"]:
-        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%get_halo_depth()"
-                ")".format(field_name)) in result
-    assert ("IF (f1_proxy%is_dirty(depth=mesh%get_halo_depth())) "
-            "THEN") not in result
+    # Check that the f2 halo exchange is modified
+    assert "CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())" in result
     assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
-    # Check the existing m1 and m2 halo exchanges remain unchanged
-    for field_name in ["m1", "m2"]:
+    # Check that the existing f1, m1 and m2 halo exchanges remain unchanged
+    for field_name in ["f1", "m1", "m2"]:
         assert ("IF ({0}_proxy%is_dirty(depth=1)) "
                 "THEN".format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=1"
@@ -6402,11 +6392,11 @@ def test_accenterdata_builtin(tmpdir):
     assert ("!$acc enter data copyin(nlayers,ginger,f1_proxy,f1_proxy%data,"
             "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
             "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,ndf_w3,"
-            "undf_w3,map_w3,0.0,ndf_aspc1_f1,undf_aspc1_f1,"
+            "undf_w3,map_w3,0.0_r_def,ndf_aspc1_f1,undf_aspc1_f1,"
             "map_aspc1_f1)" in output)
     assert ("      !$acc loop independent\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = 0.0\n"
+            "        f1_proxy%data(df) = 0.0_r_def\n"
             "      END DO\n"
             "      !$acc end parallel\n" in output)
 

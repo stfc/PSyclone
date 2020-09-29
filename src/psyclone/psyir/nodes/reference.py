@@ -41,10 +41,10 @@ nodes.'''
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes import BinaryOperation, Literal
+from psyclone.psyir.nodes import Operation, BinaryOperation, Literal
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.core.access_info import AccessType
-from psyclone.psyir.symbols import Symbol, ScalarType
+from psyclone.psyir.symbols import Symbol, DataSymbol, ScalarType
 from psyclone.errors import GenerationError
 
 
@@ -125,7 +125,17 @@ class Reference(DataNode):
             information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
         '''
+        if (self.parent and isinstance(self.parent, Operation) and
+                self.parent.operator in [BinaryOperation.Operator.LBOUND,
+                                         BinaryOperation.Operator.UBOUND] and
+                self.parent.children.index(self) == 0):
+            # This reference is the first argument to a lbound or
+            # ubound intrinsic. These intrinsics do not access the
+            # array elements, they determine the array
+            # bounds. Therefore there is no data dependence.
+            return
         var_accesses.add_access(self.name, AccessType.READ, self)
 
 
@@ -170,7 +180,6 @@ class Array(Reference):
             are not of the expected type.
 
         '''
-        from psyclone.psyir.symbols import DataSymbol
         if not isinstance(symbol, DataSymbol):
             raise GenerationError(
                 "symbol argument in create method of Array class should be a "

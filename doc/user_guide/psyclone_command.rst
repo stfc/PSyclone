@@ -1,35 +1,35 @@
-.. _psyclone_script:
+.. _psyclone_command:
 
-PSyclone Script
-===============
+The psyclone command
+====================
 
-The simplest way to run PSyclone is to use the ``psyclone`` script. If
-you installed PSyclone using ``pip`` then this script should be available
+The simplest way to run PSyclone is to use the ``psyclone`` command. If
+you installed PSyclone using ``pip`` then this command should be available
 on your PATH (see :ref:`getting_going_env` for more
 details). Alternatively it can be found in the ``<PSYCLONEHOME>/bin``
-directory. The script takes an algorithm file as input and outputs
+directory. The command takes an algorithm file as input and outputs
 modified algorithm code and generated PSy code. This section walks
 through its functionality.
 
 Running
 -------
 
-The ``psyclone`` script is executable and designed to be run from the command
-line, e.g.:
+The ``psyclone`` command is an executable script designed to be run from the
+command line, e.g.:
 ::
 
   > psyclone <args>
 
 The optional ``-h`` argument gives a description of the options provided
-by the script:
+by the command:
 
 .. parsed-literal::
 		
   > psyclone -h
 
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
-                  [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l] [-dm] [-nodm]
-                  [--kernel-renaming {multiple,single}]
+                  [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
+		  [-dm] [-nodm] [--kernel-renaming {multiple,single}]
 		  [--profile {invokes,kernels}] [--config CONFIG] [-v]
 		  filename
 
@@ -53,7 +53,11 @@ by the script:
                           source code
     -I INCLUDE, --include INCLUDE
                           path to Fortran INCLUDE files (nemo API only)
-    -l, --limit           limit the fortran line length to 132 characters
+    -l {off,all,output}, --limit {off,all,output}
+                          limit the Fortran line length to 132 characters
+                          (default 'off'). Use 'on' to apply limit to both input
+                          and output Fortran. Use 'output' to apply line-length
+                          limit to output Fortran only.
     -dm, --dist_mem       generate distributed memory code
     -nodm, --no_dist_mem  do not generate distributed memory code
     --kernel-renaming {single,multiple}
@@ -72,7 +76,7 @@ algorithm file::
 
     > psyclone alg.f90
 
-If the algorithm file is invalid for some reason, the script should
+If the algorithm file is invalid for some reason, the command should
 return with an appropriate error. For example, if we use the Python
 ``genkernelstub`` script as an algorithm file we get the following::
 
@@ -89,7 +93,7 @@ Choosing the API
 
 In the previous section we relied on PSyclone using the default
 API. The default API, along with the supported APIs can be seen by
-running the ``psyclone`` script with the ``-h`` option.
+running the ``psyclone`` command with the ``-h`` option.
 
 If you use a particular API frequently and it is not the default then
 you can change the default by creating a copy of the default
@@ -97,7 +101,7 @@ you can change the default by creating a copy of the default
 more details.
 
 If your code uses an API that is different to the default then you can
-specify this as an argument to the ``psyclone`` script.
+specify this as an argument to the ``psyclone`` command.
 ::
 
     > psyclone -api dynamo0.1 alg.f90
@@ -126,8 +130,8 @@ already present in the output directory.
 Algorithm files with no invokes
 -------------------------------
 
-If the ``psyclone`` script is provided with a file that contains no
-``invoke`` calls then the script outputs a warning to ``stdout`` and
+If ``psyclone`` is provided with a file that contains no
+``invoke`` calls then the command outputs a warning to ``stdout`` and
 copies the input file to ``stdout``, or to the specified algorithm
 file (if the ``-oalg <file>`` option is used). No PSy code will be
 output. If a file is specified using the ``-opsy <file>`` option this file
@@ -183,7 +187,7 @@ file. If this file is not found then an error is reported.
     Kernel file 'testkern.[fF]90' not found in <location>
 
 The ``-d`` option can be used to tell ``psyclone`` where to look for
-kernel files by supplying it with a directory. The script will recurse
+kernel files by supplying it with a directory. The execution will recurse
 from the specified directory path to look for the required file. There
 must be only one instance of the specified file within (or below) the
 specified directory:
@@ -205,7 +209,7 @@ specified directory:
 Transformation script
 ---------------------
 
-By default the ``psyclone`` script will generate 'vanilla' PSy layer
+By default the ``psyclone`` command will generate 'vanilla' PSy layer
 code. The -s option allows a Python script to be specified which can
 transform the PSy layer. This option is discussed in more detail in
 the :ref:`sec_transformations_script` section.
@@ -215,7 +219,7 @@ the :ref:`sec_transformations_script` section.
 Fortran line length
 -------------------
 
-By default the ``psyclone`` script will generate fortran code with no
+By default the ``psyclone`` command will generate Fortran code with no
 consideration of Fortran line-length limits. As the line-length limit
 for free-format Fortran is 132 characters, the code that is output may
 be non-conformant.
@@ -224,11 +228,11 @@ Line length is not an issue for many compilers as they
 allow compiler flags to be set which allow lines longer than the
 Fortran standard. However this is not the case for all compilers.
 
-When the ``-l`` option is specified to the ``psyclone`` script, the output
-will be line wrapped so that the output lines are always within
-the 132 character limit.
+When either the ``-l all`` or ``-l output`` option is specified to
+the ``psyclone`` command, the output will be line wrapped so that the
+output lines are always within the 132 character limit.
 
-The ``-l`` option also checks the parsed algorithm and kernel files for
+The ``-l all`` additionally checks the parsed algorithm and kernel files for
 conformance and raises an error if they do not conform.
 
 Line wrapping is not performed by default. There are two reasons for
@@ -241,11 +245,11 @@ limitations of line wrapping are discussed in the
 Distributed memory
 ------------------
 
-By default the ``psyclone`` script will generate distributed
+By default the ``psyclone`` command will generate distributed
 memory (DM) code (i.e. parallelised using MPI). As with the choice of
 API, this default may be configured by editing ``psyclone.cfg`` - see
 :ref:`configuration`.  Alternatively, whether or not to generate DM
-code can be specified as an argument to the ``psyclone`` script using
+code can be specified as an argument to the ``psyclone`` command using
 the ``-dm``/``--dist_mem`` or ``-nodm``/``--no_dist_mem`` flags,
 respectively.
 

@@ -120,7 +120,7 @@ def test_accroutine_rejects_transformed_kernel():
     rtrans = ACCRoutineTrans()
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].loop_body[0].loop_body[0]
+    kern = sched.coded_kernels()[0]
     # Pretend that this kernel has previously been transformed
     kern.modified = True
     with pytest.raises(TransformationError) as err:
@@ -136,7 +136,7 @@ def test_accroutine():
     from fparser.two import Fortran2003
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].loop_body[0].loop_body[0]
+    kern = sched.coded_kernels()[0]
     assert isinstance(kern, GOKern)
     rtrans = ACCRoutineTrans()
     assert rtrans.name == "ACCRoutineTrans"
@@ -179,7 +179,7 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch):
     monkeypatch.setattr(config, "_kernel_naming", "multiple")
     psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].loop_body[0].loop_body[0]
+    kern = sched.coded_kernels()[0]
     rtrans = ACCRoutineTrans()
     _, _ = rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
@@ -220,7 +220,7 @@ def test_new_kernel_dir(kernel_outputdir):
     directory. '''
     psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].loop_body[0].loop_body[0]
+    kern = sched.coded_kernels()[0]
     rtrans = ACCRoutineTrans()
     _, _ = rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)

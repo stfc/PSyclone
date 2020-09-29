@@ -38,9 +38,9 @@ include ../../common.mk
 GENERATED_FILES += invoke_0_dag invoke_0_dag.png *.cl
 ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
-.PHONY: basic openmp loop_fuse dag openacc opencl
+.PHONY: basic openmp mpi loop_fuse dag openacc opencl
 
-transform: basic openmp loop_fuse dag openacc opencl
+transform: basic openmp mpi loop_fuse dag openacc opencl
 
 compile: transform
 
@@ -49,6 +49,9 @@ basic:
 
 openmp:
 	$(ENV) ${PYTHON} ./runme_openmp.py
+
+mpi:
+	${PSYCLONE} -api gocean1.0 shallow_alg.f90
 
 loop_fuse:
 	$(ENV) ${PYTHON} ./runme_loop_fuse.py
@@ -62,5 +65,5 @@ openacc:
 # The "--kernel-renaming single" parameter avoids generating duplicate
 # versions of OpenCL kernels called multiple times.
 opencl:
-	${PSYCLONE} -s ./opencl_transformation.py --kernel-renaming single \
+	${PSYCLONE} -nodm -s ./opencl_transformation.py --kernel-renaming single \
 		-api gocean1.0 shallow_alg.f90
