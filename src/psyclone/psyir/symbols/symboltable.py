@@ -61,6 +61,8 @@ class SymbolTable(object):
     :type node: :py:class:`psyclone.psyir.nodes.Schedule`, \
         :py:class:`psyclone.psyir.nodes.Container` or NoneType
 
+    :raises TypeError: if node argument is not a Schedule or a Container.
+
     '''
     def __init__(self, node=None):
         # Dict of Symbol objects with the symbol names as keys. Make
@@ -92,6 +94,19 @@ class SymbolTable(object):
         return self._node
 
     @property
+    def parent(self):
+        '''
+        :returns: the 'parent' SymbolTable of the current SymbolTable (i.e.
+                  the one that encloses this one in the PSyIR hierarchy).
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
+        '''
+        # We use the Node with which this table is associated in order to
+        # move up the Node hierarchy
+        if self.node and self.node.parent:
+            return self.node.parent.scope.symbol_table
+        return None
+
+    @property
     def _all_symbols(self):
         '''Return symbols from this symbol table and all symbol tables
         associated with ancestors of the node that this symbol table
@@ -104,9 +119,8 @@ class SymbolTable(object):
         '''
         all_symbols = OrderedDict(self._symbols)
         current = self
-        while current.node and current.node.parent:
-            # Use node.parent to get out of the current scope
-            current = current.node.parent.scope.symbol_table
+        while current.parent:
+            current = current.parent
             for symbol_name in current.symbols_dict:
                 if symbol_name not in all_symbols:
                     all_symbols[symbol_name] = current.symbols_dict[
@@ -126,9 +140,8 @@ class SymbolTable(object):
         '''
         all_tags = OrderedDict(self._tags)
         current = self
-        while current.node and current.node.parent:
-            # Use node.parent to get out of the current scope
-            current = current.node.parent.scope.symbol_table
+        while current.parent:
+            current = current.parent
             for tag in current.tags_dict:
                 if tag not in all_tags:
                     all_tags[tag] = current.tags_dict[tag]
@@ -329,7 +342,7 @@ class SymbolTable(object):
             table (False) or in this and all ancestor symbol tables \
             (True). Defaults to True.
 
-        :returns: symbol with the given name and, if specified, visibility.
+        :returns: the symbol with the given name and, if specified, visibility.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if the name argument is not a string.
@@ -499,9 +512,42 @@ class SymbolTable(object):
         return [symbol for symbol in self.global_symbols if
                 symbol.interface.container_symbol is csymbol]
 
+    def swap(self, old_symbol, new_symbol):
+        '''
+        Remove the `old_symbol` from the table and replace it with the
+        `new_symbol`.
+
+        :param old_symbol: the symbol to remove from the table.
+        :type old_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param new_symbol: the symbol to add to the table.
+        :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :raises TypeError: if either old/new_symbol are not Symbols.
+        :raises SymbolError: if `old_symbol` and `new_symbol` don't have \
+                             the same name.
+        '''
+        if not isinstance(old_symbol, Symbol):
+            raise TypeError("Symbol to remove must be of type Symbol but "
+                            "got '{0}'".format(type(old_symbol).__name__))
+        if not isinstance(new_symbol, Symbol):
+            raise TypeError("Symbol to add must be of type Symbol but "
+                            "got '{0}'".format(type(new_symbol).__name__))
+        if old_symbol.name != new_symbol.name:
+            raise SymbolError(
+                "Cannot swap symbols that have different names, got: '{0}' "
+                "and '{1}'".format(old_symbol.name, new_symbol.name))
+        # TODO #898 remove() does not currently check for any uses of
+        # old_symbol.
+        self.remove(old_symbol)
+        self.add(new_symbol)
+
     def remove(self, symbol):
-        ''' Remove the supplied ContainerSymbol from the Symbol Table.
+        '''
+        Remove the supplied Symbol or ContainerSymbol from the Symbol Table.
         Support for removing other types of Symbol will be added as required.
+
+        TODO #898. This method should check for any references/uses of
+        the target symbol, even if it's not a ContainerSymbol.
 
         :param symbol: the container symbol to remove.
         :type symbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
@@ -513,9 +559,12 @@ class SymbolTable(object):
         :raises InternalError: if the supplied symbol is not the same as the \
                                entry with that name in this SymbolTable.
         '''
-        if not isinstance(symbol, ContainerSymbol):
-            raise TypeError("remove() expects a ContainerSymbol object but "
-                            "got: '{0}'".format(type(symbol).__name__))
+        # pylint: disable=unidiomatic-typecheck
+        if not (isinstance(symbol, ContainerSymbol) or type(symbol) == Symbol):
+            raise TypeError("remove() expects a ContainerSymbol or Symbol "
+                            "object but got: '{0}'".format(
+                                type(symbol).__name__))
+        # pylint: enable=unidiomatic-typecheck
         if symbol.name not in self._symbols:
             raise KeyError("Cannot remove Symbol '{0}' from symbol table "
                            "because it does not exist.".format(symbol.name))
@@ -528,7 +577,8 @@ class SymbolTable(object):
                 "remove() method.".format(symbol.name))
         # We can only remove a ContainerSymbol if no DataSymbols are
         # being imported from it
-        if self.imported_symbols(symbol):
+        if (isinstance(symbol, ContainerSymbol) and
+                self.imported_symbols(symbol)):
             raise ValueError(
                 "Cannot remove ContainerSymbol '{0}' because symbols "
                 "{1} are imported from it - remove them first.".format(

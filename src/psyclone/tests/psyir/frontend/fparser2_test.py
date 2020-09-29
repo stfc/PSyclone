@@ -53,9 +53,9 @@ from psyclone.psyir.symbols import (
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE,
     REAL_TYPE, UnknownType, DeferredType, Symbol, UnresolvedInterface)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
-    _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
+    _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
-    default_integer_type, default_real_type
+    default_integer_type, default_real_type, _kind_symbol_from_name
 
 
 def process_declarations(code):
@@ -805,7 +805,8 @@ def test_unsupported_decln_duplicate_symbol():
     fake_parent = KernelSchedule("dummy_schedule")
     fake_parent.symbol_table.add(Symbol("var"))
     processor = Fparser2Reader()
-    reader = FortranStringReader("type(my_type) :: var")
+    # Note leading white space to ensure fparser doesn't identify a comment
+    reader = FortranStringReader(" complex var")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, [fparser2spec], [])
@@ -1186,13 +1187,25 @@ def test_process_declarations_kind_use():
 @pytest.mark.usefixtures("f2008_parser")
 def test_wrong_type_kind_param():
     ''' Check that we raise the expected error if a variable used as a KIND
-    specifier has already been declared with non-integer type.
+    specifier is not a DataSymbol or has already been declared with non-integer
+    type.
 
     '''
+    fake_parent, _ = process_declarations("integer :: r_def\n"
+                                          "real(kind=r_def) :: var2")
+    r_def = fake_parent.symbol_table.lookup("r_def")
+    # Monkeypatch this DataSymbol so that it appears to be a RoutineSymbol
+    r_def.__class__ = RoutineSymbol
+    with pytest.raises(TypeError) as err:
+        _kind_symbol_from_name("r_def", fake_parent.symbol_table)
+    assert ("found an entry of type 'RoutineSymbol' for variable 'r_def'" in
+            str(err.value))
+    # Repeat but declare r_def as real
     with pytest.raises(TypeError) as err:
         process_declarations("real :: r_def\n"
                              "real(kind=r_def) :: var2")
-    assert "already contains an entry for variable 'r_def'" in str(err.value)
+    assert ("already contains a DataSymbol for variable 'r_def'" in
+            str(err.value))
 
 
 @pytest.mark.parametrize("vartype, kind, precision",
@@ -1359,13 +1372,11 @@ def test_parse_array_dimensions_attributes():
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec],
                                    [Name("array3")])
-    assert fake_parent.symbol_table.lookup("array3").name == "array3"
-    assert fake_parent.symbol_table.lookup("array3").datatype.intrinsic == \
-        ScalarType.Intrinsic.REAL
-    assert fake_parent.symbol_table.lookup("array3").shape == \
-        [ArrayType.Extent.ATTRIBUTE]
-    assert fake_parent.symbol_table.lookup("array3").interface.access is \
-        ArgumentInterface.Access.READ
+    array3 = fake_parent.symbol_table.lookup("array3")
+    assert array3.name == "array3"
+    assert array3.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert array3.shape == [ArrayType.Extent.ATTRIBUTE]
+    assert array3.interface.access is ArgumentInterface.Access.READ
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -2646,38 +2657,6 @@ def test_nodes_to_code_block_4():
             in str(excinfo.value))
 
 
-def test_get_symbol_table():
-    '''Test that the utility function _get_symbol_table() works and fails
-    as expected. '''
-    # invalid argument
-    with pytest.raises(TypeError) as excinfo:
-        _ = _get_symbol_table("invalid")
-    assert ("node argument to _get_symbol_table() should be of type Node, "
-            "but found 'str'." in str(excinfo.value))
-
-    # no symbol table
-    lhs = Reference(DataSymbol("x", REAL_TYPE))
-    rhs = Literal("1.0", REAL_TYPE)
-    assignment = Assignment.create(lhs, rhs)
-    for node in [lhs, rhs, assignment]:
-        assert not _get_symbol_table(node)
-
-    # symbol table
-    symbol_table = SymbolTable()
-    kernel_schedule = KernelSchedule.create("test", symbol_table, [assignment])
-    for node in [lhs, rhs, assignment, kernel_schedule]:
-        assert _get_symbol_table(node) is symbol_table
-
-    # expected symbol table
-    symbol_table2 = SymbolTable()
-    container = Container.create("test_container", symbol_table2,
-                                 [kernel_schedule])
-    assert symbol_table is not symbol_table2
-    for node in [lhs, rhs, assignment, kernel_schedule]:
-        assert _get_symbol_table(node) is symbol_table
-    assert _get_symbol_table(container) is symbol_table2
-
-
 def test_loop_var_exception(parser):
     '''Checks that the expected exception is raised in class
     Fparser2Reader method generate_schedule if a loop variable is not
@@ -2699,3 +2678,42 @@ def test_loop_var_exception(parser):
         "Loop-variable name 'i' is not declared and there are no unqualified "
         "use statements. This is currently unsupported."
         in str(excinfo.value))
+
+
+def test_named_and_wildcard_use_var(f2008_parser):
+    ''' Check that we handle the case where a variable is accessed first by
+    a wildcard import and then by a named import. '''
+    reader = FortranStringReader('''
+        module test_mod
+          use some_mod
+        contains
+          subroutine test_sub1()
+            ! a_var here must be being brought into scope by the
+            ! `use some_mod` in the module.
+            a_var = 1.0
+          end subroutine test_sub1
+          subroutine test_sub2()
+            use some_mod, only: a_var
+            a_var = 2.0
+          end subroutine test_sub2
+        end module test_mod
+        ''')
+    prog = f2008_parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    # We should have an entry for "a_var" in the Container symbol table
+    # due to the access in "test_sub1".
+    container = psy.invokes.container
+    avar1 = container.symbol_table.lookup("a_var")
+    # It must be a generic Symbol since we don't know anything about it
+    # pylint: disable=unidiomatic-typecheck
+    assert type(avar1) == Symbol
+    # There should be no entry for "a_var" in the symbol table for the
+    # "test_sub1" routine as it is not declared there.
+    schedule = psy.invokes.invoke_list[0].schedule
+    assert "a_var" not in schedule.symbol_table
+    # There should be another, distinct entry for "a_var" in the symbol table
+    # for "test_sub2" as it has a use statement that imports it.
+    schedule = psy.invokes.invoke_list[1].schedule
+    avar2 = schedule.symbol_table.lookup("a_var")
+    assert type(avar2) == Symbol
+    assert avar2 is not avar1
