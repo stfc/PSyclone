@@ -94,10 +94,14 @@ class PSyDataTrans(RegionTrans):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string.
-        This is using the python2/3 compatible way of returning the
-        class name, which means that the same function can be used
-        for any derived classes.'''
+        '''This function returns the name of the transformation.
+        It uses the Python 2/3 compatible way of returning the
+        class name as a string, which means that the same function can
+        be used for all derived classes.
+
+        :returns: the name of this transformation as a string.
+        :rtype: str
+        '''
 
         return self.__class__.__name__
 
