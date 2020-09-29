@@ -3714,7 +3714,7 @@ class Argument(object):
         :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 
         :param bool ignore_halos: if `True` then any write dependencies \
-            involving a halo exchange are ignored. Defaults to `False.
+            involving a halo exchange are ignored. Defaults to `False`.
         :returns: a list of arguments that have a write dependence with \
             this argument.
         :rtype: list of :py:class:`psyclone.psyGen.Argument`
