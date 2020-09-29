@@ -553,7 +553,7 @@ def test_lfric_stencils():
     '''
     _, invoke_info = get_invoke("14.4_halo_vector.f90", "dynamo0.3", idx=0)
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
-    assert "f2_stencil_size: READ" in var_info
+    assert "f2_stencil_sizes: READ" in var_info
     assert "f2_stencil_dofmap: READ" in var_info
 
 
