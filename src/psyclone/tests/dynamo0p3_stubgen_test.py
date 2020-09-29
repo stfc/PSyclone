@@ -807,15 +807,15 @@ def test_stub_stencil_extent():
     generated_code = str(kernel.gen_stub)
     result1 = (
         "SUBROUTINE testkern_stencil_code(nlayers, field_1_w1, "
-        "field_2_w2, field_2_stencil_size, field_2_stencil_dofmap, "
+        "field_2_w2, field_2_stencil_sizes, field_2_stencil_dofmap, "
         "field_3_w2, field_4_w3, ndf_w1, undf_w1, map_w1, ndf_w2, "
         "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
     assert result1 in generated_code
-    result2 = "INTEGER(KIND=i_def), intent(in) :: field_2_stencil_size"
+    result2 = "INTEGER(KIND=i_def), intent(in) :: field_2_stencil_sizes"
     assert result2 in generated_code
     assert (
         "INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w2,field_2_stencil_size) :: field_2_stencil_dofmap"
+        "dimension(ndf_w2,field_2_stencil_sizes) :: field_2_stencil_dofmap"
         in generated_code)
 
 
@@ -831,15 +831,15 @@ def test_stub_stencil_direction():
     generated_code = str(kernel.gen_stub)
     result1 = (
         "    SUBROUTINE testkern_stencil_xory1d_code(nlayers, field_1_w1, "
-        "field_2_w2, field_2_stencil_size, field_2_direction, "
+        "field_2_w2, field_2_stencil_sizes, field_2_direction, "
         "field_2_stencil_dofmap, field_3_w2, field_4_w3, ndf_w1, undf_w1, "
         "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
     assert result1 in generated_code
     result2 = (
-        "      INTEGER(KIND=i_def), intent(in) :: field_2_stencil_size\n"
+        "      INTEGER(KIND=i_def), intent(in) :: field_2_stencil_sizes\n"
         "      INTEGER(KIND=i_def), intent(in) :: field_2_direction\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w2,field_2_stencil_size) :: field_2_stencil_dofmap")
+        "dimension(ndf_w2,field_2_stencil_sizes) :: field_2_stencil_dofmap")
     assert result2 in generated_code
 
 
@@ -856,14 +856,14 @@ def test_stub_stencil_vector():
     result1 = (
         "    SUBROUTINE testkern_stencil_vector_code(nlayers, field_1_w0_v1, "
         "field_1_w0_v2, field_1_w0_v3, field_2_w3_v1, field_2_w3_v2, "
-        "field_2_w3_v3, field_2_w3_v4, field_2_stencil_size, "
+        "field_2_w3_v3, field_2_w3_v4, field_2_stencil_sizes, "
         "field_2_stencil_dofmap, ndf_w0, undf_w0, map_w0, ndf_w3, undf_w3, "
         "map_w3)")
     assert result1 in generated_code
     result2 = (
-        "      INTEGER(KIND=i_def), intent(in) :: field_2_stencil_size\n"
+        "      INTEGER(KIND=i_def), intent(in) :: field_2_stencil_sizes\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w3,field_2_stencil_size) :: field_2_stencil_dofmap")
+        "dimension(ndf_w3,field_2_stencil_sizes) :: field_2_stencil_dofmap")
     assert result2 in generated_code
 
 
@@ -879,9 +879,9 @@ def test_stub_stencil_multi():
     generated_code = str(kernel.gen_stub)
     result1 = (
         "    SUBROUTINE testkern_stencil_multi_code(nlayers, field_1_w1, "
-        "field_2_w2, field_2_stencil_size, field_2_stencil_dofmap, field_3_w2,"
-        " field_3_stencil_size, field_3_direction, field_3_stencil_dofmap, "
-        "field_4_w3, field_4_stencil_size, field_4_stencil_dofmap, ndf_w1, "
+        "field_2_w2, field_2_stencil_sizes, field_2_stencil_dofmap, field_3_w2,"
+        " field_3_stencil_sizes, field_3_direction, field_3_stencil_dofmap, "
+        "field_4_w3, field_4_stencil_sizes, field_4_stencil_dofmap, ndf_w1, "
         "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
     assert result1 in generated_code
     result2 = (
@@ -889,14 +889,14 @@ def test_stub_stencil_multi():
         "field_3_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: "
         "field_4_w3\n"
-        "      INTEGER(KIND=i_def), intent(in) :: field_2_stencil_size, "
-        "field_3_stencil_size, field_4_stencil_size\n"
+        "      INTEGER(KIND=i_def), intent(in) :: field_2_stencil_sizes, "
+        "field_3_stencil_sizes, field_4_stencil_sizes\n"
         "      INTEGER(KIND=i_def), intent(in) :: field_3_direction\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w2,field_2_stencil_size) :: field_2_stencil_dofmap\n"
+        "dimension(ndf_w2,field_2_stencil_sizes) :: field_2_stencil_dofmap\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w2,field_3_stencil_size) :: field_3_stencil_dofmap\n"
+        "dimension(ndf_w2,field_3_stencil_sizes) :: field_3_stencil_dofmap\n"
         "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w3,field_4_stencil_size) :: field_4_stencil_dofmap")
+        "dimension(ndf_w3,field_4_stencil_sizes) :: field_4_stencil_dofmap")
 
     assert result2 in generated_code
