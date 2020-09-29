@@ -60,18 +60,11 @@ class SymbolTable(object):
         symbol table belongs.
     :type node: :py:class:`psyclone.psyir.nodes.Schedule`, \
         :py:class:`psyclone.psyir.nodes.Container` or NoneType
-    :param parent: parent SymbolTable or None. Used when a SymbolTable is \
-        directly nested within another SymbolTable (as is the case for the \
-        definition of a structure type).
-    :type parent: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-    :raises TypeError: if node argument is not a Schedule or a Container.
-    :raises TypeError: if parent argument is not a SymbolTable.
 
     :raises TypeError: if node argument is not a Schedule or a Container.
 
     '''
-    def __init__(self, node=None, parent=None):
+    def __init__(self, node=None):
         # Dict of Symbol objects with the symbol names as keys. Make
         # this ordered so that different versions of Python always
         # produce code with declarations in the same order.
@@ -88,9 +81,6 @@ class SymbolTable(object):
                 "Schedule or a Container but found '{0}'."
                 "".format(type(node).__name__))
         self._node = node
-        if parent and not isinstance(parent, SymbolTable):
-            raise TypeError("TODO")
-        self._parent_symbol_table = parent
 
     @property
     def node(self):
@@ -110,12 +100,8 @@ class SymbolTable(object):
                   the one that encloses this one in the PSyIR hierarchy).
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
         '''
-        # If this table is directly nested within another then that table
-        # takes precedence.
-        if self._parent_symbol_table:
-            return self._parent_symbol_table
-        # Otherwise we use the Node with which this table is associated in
-        # order to move up the Node hierarchy
+        # We use the Node with which this table is associated in order to
+        # move up the Node hierarchy
         if self.node and self.node.parent:
             return self.node.parent.scope.symbol_table
         return None
@@ -177,7 +163,6 @@ class SymbolTable(object):
         new_st._argument_list = copy(self._argument_list)
         new_st._tags = copy(self._tags)
         new_st._node = self.node
-        new_st._parent_symbol_table = self._parent_symbol_table
         return new_st
 
     @staticmethod
@@ -760,13 +745,11 @@ class SymbolTable(object):
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        from psyclone.psyir.symbols import DeferredType, UnknownType
-
         # Accumulate into a set so as to remove any duplicates
         precision_symbols = set()
-
+        from psyclone.psyir.symbols import DeferredType
         for sym in self.datasymbols:
-            if (not isinstance(sym.datatype, (DeferredType, UnknownType)) and
+            if (not isinstance(sym.datatype, DeferredType) and
                     isinstance(sym.datatype.precision, DataSymbol)):
                 precision_symbols.add(sym.datatype.precision)
         return list(precision_symbols)
