@@ -92,23 +92,6 @@ class KernelInterface(ArgOrdering):
         # Set the argument list for the symbol table
         self._symbol_table.specify_argument_list(self._arglist)
 
-    def _create_symbol(self, tag, data_symbol, extra_args=None, dims=None, interface=None):
-        ''' xxx '''
-        try:
-            symbol = self._symbol_table.lookup_with_tag(tag)
-        except KeyError:
-            if interface is None:
-                interface = self._read_access
-            name = self._symbol_table.new_symbol_name(tag)
-            args = [name]
-            if dims:
-                args.append(dims)
-            if extra_args:
-                args.extend(extra_args)
-            symbol = data_symbol(*args, interface=interface)
-            self._symbol_table.add(symbol, tag=tag)
-        return symbol
-
     def cell_position(self, var_accesses=None):
         ''' Create an LFRic cell position object '''
         symbol = self._create_symbol("cell", CellPositionDataSymbol)
@@ -129,36 +112,40 @@ class KernelInterface(ArgOrdering):
 
     def field_vector(self, argvect, var_accesses=None):
         ''' Implemented '''
-        mapping = {
-            "integer": IntegerVectorFieldDataDataSymbol,
-            "real": RealVectorFieldDataDataSymbol,
-            "logical": LogicalVectorFieldDataDataSymbol}
         # Create and add a undf symbol to the symbol table if one does
         # not already exist or return the existing one if one does.
         fs_name = argvect.function_space.orig_name
         undf_symbol = self._create_symbol(
             "undf_{0}".format(fs_name), NumberOfUniqueDofsDataSymbol,
             extra_args=[fs_name])
+
+        mapping = {
+            "integer": IntegerVectorFieldDataDataSymbol,
+            "real": RealVectorFieldDataDataSymbol,
+            "logical": LogicalVectorFieldDataDataSymbol}
+        interface = ArgumentInterface(INTENT_MAPPING[argvect.intent])
+        field_class = mapping[argvect.intrinsic_type]
         for idx in range(argvect.vector_size):
             tag = "{0}_v{1}".format(argvect.name, idx)
             field_data_symbol = self._create_symbol(
-                tag, mapping[argvect.intrinsic_type], dims=[undf_symbol],
-                extra_args=[fs_name],
-                interface=ArgumentInterface(INTENT_MAPPING[argvect.intent]))
+                tag, field_class, dims=[undf_symbol], extra_args=[fs_name],
+                interface=interface)
             self._arglist.append(field_data_symbol)
 
     def field(self, arg, var_accesses=None):
         ''' Create an LFRic field data object '''
-        mapping = {
-            "integer": IntegerFieldDataDataSymbol,
-            "real": RealFieldDataDataSymbol,
-            "logical": LogicalFieldDataDataSymbol}
+
         # Create and add a undf symbol to the symbol table if one does
         # not already exist or return the existing one if one does.
         fs_name = arg.function_space.orig_name
         undf_symbol = self._create_symbol(
             "undf_{0}".format(fs_name), NumberOfUniqueDofsDataSymbol,
             extra_args=[fs_name])
+
+        mapping = {
+            "integer": IntegerFieldDataDataSymbol,
+            "real": RealFieldDataDataSymbol,
+            "logical": LogicalFieldDataDataSymbol}
         field_data_symbol = self._create_symbol(
             arg.name, mapping[arg.intrinsic_type], dims=[undf_symbol],
             extra_args=[fs_name],
@@ -269,122 +256,15 @@ class KernelInterface(ArgOrdering):
         ''' Not implemented '''
         raise NotImplementedError("indirection_dofmap not implemented")
 
-    @staticmethod
-    def basis_first_dim_value(function_space):
-        '''
-        Get the size of the first dimension of a basis function.
-
-        :param function_space: the function space the basis function is for
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :return: an integer length.
-        :rtype: string
-
-        :raises GenerationError: if an unsupported function space is supplied \
-                                 (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
-        '''
-        if function_space.has_scalar_basis:
-            first_dim = "1"
-        elif function_space.has_vector_basis:
-            first_dim = "3"
-        else:
-            # It is not possible to determine explicitly the first basis
-            # function array dimension from the metadata for any_space or
-            # any_discontinuous_space. This information needs to be passed
-            # from the PSy layer to the kernels (see issue #461).
-            raise GenerationError(
-                "Unsupported space for basis function, "
-                "expecting one of {0} but found "
-                "'{1}'".format(FunctionSpace.VALID_FUNCTION_SPACES,
-                               function_space.orig_name))
-        return first_dim
-
-    @staticmethod
-    def diff_basis_first_dim_value(function_space):
-        '''
-        Get the size of the first dimension of an array for a
-        differential basis function.
-
-        :param function_space: the function space the diff-basis function \
-                               is for.
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :return: an integer length.
-        :rtype: str
-
-        :raises GenerationError: if an unsupported function space is \
-                                 supplied (e.g. ANY_SPACE_*, \
-                                 ANY_DISCONTINUOUS_SPACE_*)
-
-        '''
-        if function_space.has_scalar_diff_basis:
-            first_dim = "1"
-        elif function_space.has_vector_diff_basis:
-            first_dim = "3"
-        else:
-            # It is not possible to determine explicitly the first
-            # differential basis function array dimension from the metadata
-            # for any_space or any_discontinuous_space. This information
-            # needs to be passed from the PSy layer to the kernels
-            # (see issue #461).
-            raise GenerationError(
-                "Unsupported space for differential basis function, expecting "
-                "one of {0} but found '{1}'"
-                .format(FunctionSpace.VALID_FUNCTION_SPACES,
-                        function_space.orig_name))
-        return first_dim
-
     def basis(self, function_space, var_accesses=None):
         ''' Implemented '''
-        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
-            VALID_QUADRATURE_SHAPES
-        for shape in self._kern.eval_shapes:
-            # A kernel stub won't have a name for the corresponding
-            # quadrature argument so we create one by appending the last
-            # part of the shape name to "qr_".
-            quad_name = shape.split("_")[-1]
-            basis_name = function_space.get_basis_name(
-                qr_var="qr_"+quad_name)
-            fs_name = function_space.orig_name
-            # Create and add an ndf symbol to the symbol table if one does
-            # not already exist or return the existing one if one does.
-            ndf_symbol = self._create_symbol(
-                "ndf_{0}".format(fs_name), NumberOfDofsDataSymbol,
-                extra_args=[fs_name])
-            if shape == "gh_quadrature_xyoz":
-                nqp_h = self._create_symbol(
-                    "nqp_h", NumberOfQrPointsInHorizontalDataSymbol)
-                nqp_v = self._create_symbol(
-                    "nqp_v", NumberOfQrPointsInVerticalDataSymbol)
-                arg = BasisFunctionQrXyozDataSymbol(
-                    basis_name, [int(self.basis_first_dim_value(function_space)),
-                                 ndf_symbol, nqp_h, nqp_v],
-                    fs_name, interface=self._read_access)
-            elif shape == "gh_quadrature_face":
-                nfaces = self._create_symbol("nfaces", NumberOfFacesDataSymbol)
-                nqp = self._create_symbol("nqp", NumberOfQrPointsDataSymbol)
-                arg = BasisFunctionQrFaceDataSymbol(
-                    basis_name, [int(self.basis_first_dim_value(function_space)),
-                                 ndf_symbol, nqp, nfaces],
-                    fs_name, interface=self._read_access)
-            elif shape == "gh_quadrature_edge":
-                nedges = self._create_symbol("nfaces", NumberOfEdgesDataSymbol)
-                nqp = self._create_symbol("nqp", NumberOfQrPointsDataSymbol)
-                arg = BasisFunctionQrEdgeDataSymbol(
-                    basis_name, [int(self.basis_first_dim_value(function_space)),
-                                 ndf_symbol, nqp, nedges],
-                    fs_name, interface=self._read_access)
-            elif shape in VALID_EVALUATOR_SHAPES:
-                # Need a basis array for each target space upon which the basis
-                # functions have been evaluated. _kern.eval_targets is a dict
-                # where the values are 2-tuples of (FunctionSpace, argument).
-                for _, _ in self._kern.eval_targets.items():
-                    raise NotImplementedError(
-                        "evaluator shapes not implemented")
-            else:
-                raise InternalError(
-                    "Unrecognised quadrature or evaluator shape ('{0}'). Expected one of: "
-                    "{1}".format(shape, VALID_QUADRATURE_SHAPES+VALID_EVALUATOR_SHAPES))
-            self._symbol_table.add(arg)
-            self._arglist.append(arg)
+        mapping = {
+            "gh_quadrature_xyoz": BasisFunctionQrXyozDataSymbol,
+            "gh_quadrature_face": BasisFunctionQrFaceDataSymbol,
+            "gh_quadrature_Edge": BasisFunctionQrEdgeDataSymbol}
+        basis_name_func = function_space.get_basis_name
+        first_dim_value_func = self._basis_first_dim_value
+        self._create_basis(function_space, mapping, basis_name_func, first_dim_value_func)
 
     def diff_basis(self, function_space, var_accesses=None):
         ''' Implemented '''
@@ -393,60 +273,8 @@ class KernelInterface(ArgOrdering):
             "gh_quadrature_face": DiffBasisFunctionQrFaceDataSymbol,
             "gh_quadrature_Edge": DiffBasisFunctionQrEdgeDataSymbol}
         basis_name_func = function_space.get_diff_basis_name
-        first_dim_value_func = self.diff_basis_first_dim_value
-        # call generic basis/diff basis method here with the above arguments.
-        
-        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
-            VALID_QUADRATURE_SHAPES
-        for shape in self._kern.eval_shapes:
-            # A kernel stub won't have a name for the corresponding
-            # quadrature argument so we create one by appending the last
-            # part of the shape name to "qr_".
-            quad_name = shape.split("_")[-1]
-            basis_name = function_space.get_diff_basis_name(
-                qr_var="qr_"+quad_name)
-            fs_name = function_space.orig_name
-            # Create and add an ndf symbol to the symbol table if one does
-            # not already exist or return the existing one if one does.
-            ndf_symbol = self._create_symbol(
-                "ndf_{0}".format(fs_name), NumberOfDofsDataSymbol,
-                extra_args=[fs_name])
-            if shape == "gh_quadrature_xyoz":
-                nqp_h = self._create_symbol(
-                    "nqp_h", NumberOfQrPointsInHorizontalDataSymbol)
-                nqp_v = self._create_symbol(
-                    "nqp_v", NumberOfQrPointsInVerticalDataSymbol)
-                arg = DiffBasisFunctionQrXyozDataSymbol(
-                    basis_name, [int(self.diff_basis_first_dim_value(function_space)),
-                                 ndf_symbol, nqp_h, nqp_v],
-                    fs_name, interface=self._read_access)
-            elif shape == "gh_quadrature_face":
-                nfaces = self._create_symbol("nfaces", NumberOfFacesDataSymbol)
-                nqp = self._create_symbol("nqp", NumberOfQrPointsDataSymbol)
-                arg = DiffBasisFunctionQrFaceDataSymbol(
-                    basis_name, [int(self.diff_basis_first_dim_value(function_space)),
-                                 ndf_symbol, nqp, nfaces],
-                    fs_name, interface=self._read_access)
-            elif shape == "gh_quadrature_edge":
-                nedges = self._create_symbol("nfaces", NumberOfEdgesDataSymbol)
-                nqp = self._create_symbol("nqp", NumberOfQrPointsDataSymbol)
-                arg = DiffBasisFunctionQrEdgeDataSymbol(
-                    basis_name, [int(self.diff_basis_first_dim_value(function_space)),
-                                 ndf_symbol, nqp, nedges],
-                    fs_name, interface=self._read_access)
-            elif shape in VALID_EVALUATOR_SHAPES:
-                # Need a diff basis array for each target space upon which the basis
-                # functions have been evaluated. _kern.eval_targets is a dict
-                # where the values are 2-tuples of (FunctionSpace, argument).
-                for _, _ in self._kern.eval_targets.items():
-                    raise NotImplementedError(
-                        "evaluator shapes not implemented")
-            else:
-                raise InternalError(
-                    "Unrecognised quadrature or evaluator shape ('{0}'). Expected one of: "
-                    "{1}".format(shape, VALID_QUADRATURE_SHAPES+VALID_EVALUATOR_SHAPES))
-            self._symbol_table.add(arg)
-            self._arglist.append(arg)
+        first_dim_value_func = self._diff_basis_first_dim_value
+        self._create_basis(function_space, mapping, basis_name_func, first_dim_value_func)
 
     def orientation(self, function_space, var_accesses=None):
         ''' Not implemented '''
@@ -496,3 +324,136 @@ class KernelInterface(ArgOrdering):
             else:
                 raise InternalError("Unsupported quadrature shape ('{0}') "
                                     "found in kernel_interface".format(shape))
+
+    def _create_symbol(self, tag, data_symbol, extra_args=None, dims=None, interface=None):
+        ''' xxx '''
+        try:
+            symbol = self._symbol_table.lookup_with_tag(tag)
+        except KeyError:
+            if interface is None:
+                interface = self._read_access
+            name = self._symbol_table.new_symbol_name(tag)
+            args = [name]
+            if dims:
+                args.append(dims)
+            if extra_args:
+                args.extend(extra_args)
+            symbol = data_symbol(*args, interface=interface)
+            self._symbol_table.add(symbol, tag=tag)
+        return symbol
+
+    def _create_basis(self, function_space, mapping, basis_name_func, first_dim_value_func):
+        ''' xxx '''
+        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
+            VALID_QUADRATURE_SHAPES
+        for shape in self._kern.eval_shapes:
+            # Create and add an ndf symbol to the symbol table if one does
+            # not already exist or return the existing one if one does.
+            fs_name = function_space.orig_name
+            ndf_symbol = self._create_symbol(
+                "ndf_{0}".format(fs_name), NumberOfDofsDataSymbol,
+                extra_args=[fs_name])
+
+            # Create the qr tag by appending the last part of the shape
+            # name to "qr_".
+            quad_name = shape.split("_")[-1]
+            basis_tag = basis_name_func(qr_var="qr_"+quad_name)
+            if shape == "gh_quadrature_xyoz":
+                nqp_h = self._create_symbol(
+                    "nqp_h", NumberOfQrPointsInHorizontalDataSymbol)
+                nqp_v = self._create_symbol(
+                    "nqp_v", NumberOfQrPointsInVerticalDataSymbol)
+                arg = mapping["gh_quadrature_xyoz"](
+                    basis_tag, [int(first_dim_value_func(function_space)),
+                                 ndf_symbol, nqp_h, nqp_v],
+                    fs_name, interface=self._read_access)
+            elif shape == "gh_quadrature_face":
+                nfaces = self._create_symbol("nfaces", NumberOfFacesDataSymbol)
+                nqp = self._create_symbol("nqp", NumberOfQrPointsDataSymbol)
+                arg = mapping["gh_quadrature_face"](
+                    basis_tag, [int(first_dim_value_func(function_space)),
+                                ndf_symbol, nqp, nfaces],
+                    fs_name, interface=self._read_access)
+            elif shape == "gh_quadrature_edge":
+                nedges = self._create_symbol("nfaces", NumberOfEdgesDataSymbol)
+                nqp = self._create_symbol("nqp", NumberOfQrPointsDataSymbol)
+                arg = mapping["gh_quadrature_edge"](
+                    basis_tag, [int(first_dim_value_func(function_space)),
+                                ndf_symbol, nqp, nedges],
+                    fs_name, interface=self._read_access)
+            elif shape in VALID_EVALUATOR_SHAPES:
+                # Need a diff basis array for each target space upon which the basis
+                # functions have been evaluated. _kern.eval_targets is a dict
+                # where the values are 2-tuples of (FunctionSpace, argument).
+                for _, _ in self._kern.eval_targets.items():
+                    raise NotImplementedError(
+                        "evaluator shapes not implemented")
+            else:
+                raise InternalError(
+                    "Unrecognised quadrature or evaluator shape ('{0}'). Expected one of: "
+                    "{1}".format(shape, VALID_QUADRATURE_SHAPES+VALID_EVALUATOR_SHAPES))
+            self._symbol_table.add(arg)
+            self._arglist.append(arg)
+
+    @staticmethod
+    def _basis_first_dim_value(function_space):
+        '''
+        Get the size of the first dimension of a basis function.
+
+        :param function_space: the function space the basis function is for
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
+        :return: an integer length.
+        :rtype: string
+
+        :raises GenerationError: if an unsupported function space is supplied \
+                                 (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
+        '''
+        if function_space.has_scalar_basis:
+            first_dim = "1"
+        elif function_space.has_vector_basis:
+            first_dim = "3"
+        else:
+            # It is not possible to determine explicitly the first basis
+            # function array dimension from the metadata for any_space or
+            # any_discontinuous_space. This information needs to be passed
+            # from the PSy layer to the kernels (see issue #461).
+            raise GenerationError(
+                "Unsupported space for basis function, "
+                "expecting one of {0} but found "
+                "'{1}'".format(FunctionSpace.VALID_FUNCTION_SPACES,
+                               function_space.orig_name))
+        return first_dim
+
+    @staticmethod
+    def _diff_basis_first_dim_value(function_space):
+        '''
+        Get the size of the first dimension of an array for a
+        differential basis function.
+
+        :param function_space: the function space the diff-basis function \
+                               is for.
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
+        :return: an integer length.
+        :rtype: str
+
+        :raises GenerationError: if an unsupported function space is \
+                                 supplied (e.g. ANY_SPACE_*, \
+                                 ANY_DISCONTINUOUS_SPACE_*)
+
+        '''
+        if function_space.has_scalar_diff_basis:
+            first_dim = "1"
+        elif function_space.has_vector_diff_basis:
+            first_dim = "3"
+        else:
+            # It is not possible to determine explicitly the first
+            # differential basis function array dimension from the metadata
+            # for any_space or any_discontinuous_space. This information
+            # needs to be passed from the PSy layer to the kernels
+            # (see issue #461).
+            raise GenerationError(
+                "Unsupported space for differential basis function, expecting "
+                "one of {0} but found '{1}'"
+                .format(FunctionSpace.VALID_FUNCTION_SPACES,
+                        function_space.orig_name))
+        return first_dim
