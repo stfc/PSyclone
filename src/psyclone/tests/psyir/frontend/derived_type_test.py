@@ -41,7 +41,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyGen import KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
-    TypeSymbol, DataSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType
+    TypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from fparser.two.Fortran2003 import Specification_Part
 from fparser.common.readfortran import FortranStringReader
@@ -60,6 +60,8 @@ def test_deferred_derived_type():
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     vsym = symtab.lookup("var")
     assert isinstance(vsym.datatype, DeferredType)
+    tsym = symtab.lookup("my_type")
+    assert isinstance(tsym, TypeSymbol)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -119,7 +121,7 @@ def test_parse_derived_type(use_stmt):
     assert isinstance(sym, TypeSymbol)
     assert isinstance(sym.datatype, StructureType)
     flag = sym.datatype.lookup("flag")
-    assert isinstance(flag.datatype, ScalarType) # isinstance(flag_sym, DataSymbol)
+    assert isinstance(flag.datatype, ScalarType)
     assert flag.visibility == Symbol.Visibility.PUBLIC
     grid = sym.datatype.lookup("grid")
     assert isinstance(grid.datatype, DeferredType)
