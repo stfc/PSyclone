@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -731,8 +731,8 @@ first halo exchange).
 After such a transformation is applied then halo exchanges are managed
 by checking whether 1) any fields in the modified kernel now require a
 halo exchange before the kernel and adding them if so and 2) any
-existing halo exchanges after the loop that were required due to
-fields being modified in the loop are then checked and are removed if
+existing halo exchanges after the loop, that were added due to fields
+being modified in the loop, are still required and removing them if
 not. Performing these 2 steps maintains halo exchange correctness and
 continues to minimise the number of required halo exchanges.
 
@@ -741,7 +741,7 @@ dynamically so are not a concern at this point.
 
 A general rule is that a halo exchange must not have a dependence with
 another halo exchange, as this would mean that one of them is not
-required. PSyclone should raise an exeption if it finds this
+required. PSyclone should raise an exception if it finds this
 situation.
 
 However, due to the two step halo exchange management process, there

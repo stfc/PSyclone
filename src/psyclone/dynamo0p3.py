@@ -5011,8 +5011,8 @@ def _create_depth_list(halo_info_list):
     :param halo_info_list: a list containing halo access information \
         derived from all read fields dependent on this halo exchange.
     :type: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloReadAccess`
-    :return: a list containing halo depth information derived from \
-        the halo access information
+    :returns: a list containing halo depth information derived from \
+        the halo access information.
     :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
 
     '''
@@ -6551,7 +6551,7 @@ class DynLoop(Loop):
                                     exchange)
 
         # Is this halo exchange required? The halo exchange being
-        # adding may replace an existing halo exchange, which would
+        # added may replace an existing halo exchange, which would
         # then be returned as a halo exchange dependence and an
         # exception raised (as a halo exchange should not have another
         # halo exchange as a dependence). Therefore, halo exchange

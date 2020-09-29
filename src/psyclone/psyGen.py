@@ -3573,7 +3573,7 @@ class Argument(object):
         exist in a call, a haloexchange, or a globalsum.
 
         :returns: the first preceding argument that has a dependence \
-            with this argument.
+            on this argument.
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -3587,13 +3587,12 @@ class Argument(object):
         none are found then return an empty list. If self is not a
         reader then return an empty list.
 
-        :param ignore_halos: if `True` then any write dependencies \
-            involving a halo exchange are ignored. Defaults to `False.
-        :type ignore_halos: bool
+        :param bool ignore_halos: if `True` then any write dependencies \
+            involving a halo exchange are ignored. Defaults to `False`.
 
         :returns: a list of arguments that have a following write \
-            dependence with this argument.
-        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+            dependence on this argument.
+        :rtype: list of :py:class:`psyclone.psyGen.Argument`
 
         '''
         nodes = self._call.following()
@@ -3612,8 +3611,8 @@ class Argument(object):
         :type ignore_halos: bool
 
         :returns: a list of arguments that have a preceding write \
-            dependence with this argument.
-        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+            dependence on this argument.
+        :rtype: list of :py:class:`psyclone.psyGen.Argument`
 
         '''
         nodes = self._call.preceding(reverse=True)
@@ -3622,11 +3621,11 @@ class Argument(object):
 
     def forward_dependence(self):
         '''Returns the following argument that this argument has a direct
-        dependence with, or `None` if there is not one. The argument may
+        dependence on, or `None` if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum.
 
         :returns: the first following argument that has a dependence \
-            with this argument.
+            on this argument.
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -3641,8 +3640,8 @@ class Argument(object):
         empty list.
 
         :returns: a list of following arguments that have a read \
-            dependence with this argument.
-        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+            dependence on this argument.
+        :rtype: list of :py:class:`psyclone.psyGen.Argument`
 
         '''
         nodes = self._call.following()
@@ -3653,7 +3652,7 @@ class Argument(object):
         dependency with self. If one is not found return None
 
         :param nodes: the list of nodes that this method examines.
-        :type nodes: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
+        :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: An argument object or None.
         :rtype: :py:class:`psyclone.psyGen.Argument`
@@ -3673,11 +3672,11 @@ class Argument(object):
         list. If self is not a writer then return an empty list.
 
         :param nodes: the list of nodes that this method examines.
-        :type nodes: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
+        :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: a list of arguments that have a read dependence with \
+        :returns: a list of arguments that have a read dependence on \
             this argument.
-        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+        :rtype: list of :py:class:`psyclone.psyGen.Argument`
 
         '''
         if self.access not in AccessType.all_write_accesses():
@@ -3712,14 +3711,13 @@ class Argument(object):
         list. If self is not a reader then return an empty list.
 
         :param nodes: the list of nodes that this method examines.
-        :type nodes: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
-        :param ignore_halos: if `True` then any write dependencies \
-            involving a halo exchange are ignored. Defaults to `False.
-        :type ignore_halos: bool
+        :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: a list of arguments that have a write dependece with \
+        :param bool ignore_halos: if `True` then any write dependencies \
+            involving a halo exchange are ignored. Defaults to `False.
+        :returns: a list of arguments that have a write dependence with \
             this argument.
-        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+        :rtype: list of :py:class:`psyclone.psyGen.Argument`
 
         '''
         if self.access not in AccessType.all_read_accesses():
@@ -3790,7 +3788,7 @@ class Argument(object):
         communication and computation.
 
         :param argument: the argument we will check to see whether \
-            there is a dependence with this argument instance (self).
+            there is a dependence on this argument instance (self).
         :type argument: :py:class:`psyclone.psyGen.Argument`
 
         :returns: True if there is a dependence and False if not.
