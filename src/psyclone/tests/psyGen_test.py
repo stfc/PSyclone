@@ -1845,10 +1845,11 @@ def test_haloexchange_vector_index_depend():
 
 
 def test_find_write_arguments_for_write():
-    ''' When backward_write_dependencies is called from a field argument
-    that does not read then we should return an empty list. This test
-    checks this functionality. We use the LFRic (Dynamo0.3) API to create
-    the required objects.
+    '''When backward_write_dependencies or forward_write_dependencies in
+    class Argument are called from a field argument that does not read
+    then we should return an empty list. This test checks this
+    functionality. We use the LFRic (Dynamo0.3) API to create the
+    required objects.
 
     '''
     _, invoke_info = parse(
@@ -1863,15 +1864,18 @@ def test_find_write_arguments_for_write():
     field_writer = kernel.arguments.args[7]
     node_list = field_writer.backward_write_dependencies()
     assert node_list == []
+    node_list = field_writer.forward_write_dependencies()
+    assert node_list == []
 
 
 def test_find_w_args_hes_no_vec(monkeypatch, annexed):
-    ''' When backward_write_dependencies, or forward_read_dependencies, are
-    called and a dependence is found between two halo exchanges, then
-    the field must be a vector field. If the field is not a vector
-    then an exception is raised. This test checks that the exception
-    is raised correctly. Also test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''When backward_write_dependencies, forward_read_dependencies, or
+    forward_write_dependencies are called and a dependence is found
+    between two halo exchanges, then the field must be a vector
+    field. If the field is not a vector then an exception is
+    raised. This test checks that the exception is raised
+    correctly. Also test with and without annexed dofs being computed
+    as this affects the generated code.
 
     '''
     config = Config.get()
@@ -1895,16 +1899,26 @@ def test_find_w_args_hes_no_vec(monkeypatch, annexed):
         _ = field_e_v3.backward_write_dependencies()
     assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
             "halo exchange calls. Found '1' and '3'" in str(excinfo.value))
+    halo_exchange_e_v2 = schedule.children[index-1]
+    field_e_v2 = halo_exchange_e_v2.field
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_read_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
+            "halo exchange calls. Found '3' and '1'" in str(excinfo.value))
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_write_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
+            "halo exchange calls. Found '3' and '1'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
-    ''' When backward_write_dependencies, or forward_read_dependencies, are
-    called and a dependence is found between two halo exchanges, then
-    the associated fields must be equal size vectors . If the fields
-    are not vectors of equal size then an exception is raised. This
-    test checks that the exception is raised correctly. Also test with
-    and without annexed dofs being computed as this affects the
-    generated code.
+    '''When backward_write_dependencies, forward_read_dependencies, or
+    forward_write_dependencies are called and a dependence is found
+    between two halo exchanges, then the associated fields must be
+    equal size vectors. If the fields are not vectors of equal size
+    then an exception is raised. This test checks that the exception
+    is raised correctly. Also test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
     config = Config.get()
@@ -1928,16 +1942,26 @@ def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
         _ = field_e_v3.backward_write_dependencies()
     assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
             "halo exchange calls. Found '2' and '3'" in str(excinfo.value))
+    halo_exchange_e_v2 = schedule.children[index-1]
+    field_e_v2 = halo_exchange_e_v2.field
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_read_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
+            "halo exchange calls. Found '3' and '2'" in str(excinfo.value))
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_write_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
+            "halo exchange calls. Found '3' and '2'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
-    ''' When backward_write_dependencies, or forward_read_dependencies are
-    called, and a dependence is found between two halo exchanges, then
-    the vector indices of the two halo exchanges must be different. If
-    the vector indices have the same value then an exception is
-    raised. This test checks that the exception is raised
-    correctly. Also test with and without annexed dofs being computed
-    as this affects the generated code.
+    '''When backward_write_dependencies, forward_read_dependencies or
+    forward_write_dependencies are called, and a dependence is found
+    between two halo exchanges, then the vector indices of the two
+    halo exchanges must be different. If the vector indices have the
+    same value then an exception is raised. This test checks that the
+    exception is raised correctly. Also test with and without annexed
+    dofs being computed as this affects the generated code.
 
     '''
     config = Config.get()
@@ -1963,15 +1987,31 @@ def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
     assert ("DataAccess:update_coverage() The halo exchange vector indices "
             "for 'e' are the same. This should never happen"
             in str(excinfo.value))
+    halo_exchange_e_v2 = schedule.children[index-1]
+    field_e_v2 = halo_exchange_e_v2.field
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_read_dependencies()
+    assert ("DataAccess:update_coverage() The halo exchange vector indices "
+            "for 'e' are the same. This should never happen"
+            in str(excinfo.value))
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_write_dependencies()
+    assert ("DataAccess:update_coverage() The halo exchange vector indices "
+            "for 'e' are the same. This should never happen"
+            in str(excinfo.value))
 
 
-def test_find_w_args_hes_vec_no_dep():
+def test_find_w_args_hes_vec_no_dep(monkeypatch, annexed):
     ''' When _find_write_arguments, or _find_read_arguments, are called,
     halo exchanges with the same field but a different index should
     not depend on each other. This test checks that this behaviour is
-    working correctly
-    '''
+    working correctly. Also test with and without annexed
+    dofs being computed as this affects the generated code.
 
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         api="dynamo0.3")
@@ -1979,11 +2019,28 @@ def test_find_w_args_hes_vec_no_dep():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    halo_exchange_e_v3 = schedule.children[5]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    halo_exchange_e_v3 = schedule.children[index]
     field_e_v3 = halo_exchange_e_v3.field
-    # there are two halo exchanges before d_v3 which should not count
-    # as dependencies
+    # There are two halo exchanges before e_v3 which should not count
+    # as dependencies.
     node_list = field_e_v3.backward_write_dependencies()
+    assert node_list == []
+    halo_exchange_e_v1 = schedule.children[index-2]
+    field_e_v1 = halo_exchange_e_v1.field
+    # There are two halo exchanges after e_v1 which should not count
+    # as dependencies. We should only get the read access from a
+    # kernel.
+    node_list = field_e_v1.forward_read_dependencies()
+    assert len(node_list) == 1
+    assert isinstance(node_list[0].call, DynKern)
+    # There are two halo exchanges after e_v1 which should not count
+    # as dependencies and a read access from a kernel, so there should
+    # be no write dependencies.
+    node_list = field_e_v1.forward_write_dependencies()
     assert node_list == []
 
 
