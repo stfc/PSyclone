@@ -55,54 +55,69 @@ for module in modules:
              "GlobalInterface({2}))".format(
                  module_var.upper(), module_var, MODULE_NAME.upper()))
 
-scalar_datatypes = [
+generic_scalar_datatypes = [
     {"name": "lfric integer scalar", "intrinsic": "integer",
-     "precision": "i_def", "vars": [], "short_name": "integer_scalar"},
+     "precision": "i_def"},
     {"name": "lfric real scalar", "intrinsic": "real",
-     "precision": "r_def", "vars": [], "short_name": "real_scalar"},
+     "precision": "r_def"},
     {"name": "lfric logical scalar", "intrinsic": "boolean",
-     "precision": "l_def", "vars": [], "short_name": "logical_scalar"},
-    {"name": "cell position", "intrinsic": "integer",
-     "precision": "i_def", "vars": [], "short_name": "nlayers"},
-    {"name": "mesh height", "intrinsic": "integer",
-     "precision": "i_def", "vars": [], "short_name": "nlayers"},
-    {"name": "operator size", "intrinsic": "integer",
-     "precision": "i_def", "vars": [], "short_name": "ncell_3d"},
-    {"name": "number of dofs", "intrinsic": "integer",
-     "precision": "i_def", "vars": ["fs"], "short_name": "ndf"},
-    {"name": "number of unique dofs", "intrinsic": "integer",
-     "precision": "i_def", "vars": ["fs"], "short_name": "undf"},
-    {"name": "number of faces", "intrinsic": "integer",
-     "precision": "i_def", "vars": [], "short_name": "nfaces"},
-    {"name": "number of edges", "intrinsic": "integer",
-     "precision": "i_def", "vars": [], "short_name": "nedges"},
-    {"name": "number of qr points in horizontal", "intrinsic": "integer",
-     "precision": "i_def", "vars": [], "short_name": "nqp_h"},
-    {"name": "number of qr points in vertical", "intrinsic": "integer",
-     "precision": "i_def", "vars": [], "short_name": "nqp_v"},
-    {"name": "number of qr points", "intrinsic": "integer",
-     "precision": "i_def", "vars": [], "short_name": "nqp"}]
+     "precision": "l_def"}]
 
-for info in scalar_datatypes:
+for info in generic_scalar_datatypes:
     NAME = "".join(info["name"].title().split())
     INTRINSIC = info["intrinsic"].upper()
     PRECISION = info["precision"]
+    ARGS = ["self", "name", "interface=None"]
+    exec(
+        "class {0}DataType(ScalarType):\n"
+        "    def __init__(self):\n"
+        "        super({0}DataType, self).__init__(\n"
+        "            ScalarType.Intrinsic.{1}, {2})\n"
+        "".format(NAME, INTRINSIC, PRECISION.upper()))
+    exec(
+        "class {0}DataSymbol(DataSymbol):\n"
+        "    def __init__(self, name, interface=None):\n"
+        "        super({0}DataSymbol, self).__init__(\n"
+        "            name, {0}DataType(), interface=interface)\n"
+        "".format(NAME))
+
+specific_scalar_datatypes = [
+    {"name": "cell position", "type": "lfric integer scalar", "vars": []},
+    {"name": "mesh height", "type": "lfric integer scalar", "vars": []},
+    {"name": "number of cells", "type": "lfric integer scalar", "vars": []},
+    {"name": "number of dofs", "type": "lfric integer scalar", "vars": ["fs"]},
+    {"name": "number of unique dofs", "type": "lfric integer scalar",
+     "vars": ["fs"]},
+    {"name": "number of faces", "type": "lfric integer scalar", "vars": []},
+    {"name": "number of edges", "type": "lfric integer scalar", "vars": []},
+    {"name": "number of qr points in horizontal",
+     "type": "lfric integer scalar", "vars": []},
+    {"name": "number of qr points in vertical",
+     "type": "lfric integer scalar", "vars": []},
+    {"name": "number of qr points", "type": "lfric integer scalar",
+     "vars": []}]
+
+for info in specific_scalar_datatypes:
+    NAME = "".join(info["name"].title().split())
+    TYPE = "".join(info["type"].title().split())
     ARGS = ["self", "name"] + info["vars"] + ["interface=None"]
     VARS = ["        self.{0} = {0}".format(var) for var in info["vars"]]
-    exec('''
-class {0}DataType(ScalarType):
-    def __init__(self):
-        super({0}DataType, self).__init__(
-            ScalarType.Intrinsic.{1}, {2})
-    '''.format(NAME, INTRINSIC, PRECISION.upper()))
-    exec('''
-class {0}DataSymbol(DataSymbol):
-    def __init__({1}):
-{2}
-        super({0}DataSymbol, self).__init__(
-            name, {0}DataType(), interface=interface)
-    '''.format(NAME, ", ".join(ARGS), "\n".join(VARS)))
+    exec(
+        "class {0}DataType({1}DataType):\n"
+        "    pass\n"
+        "".format(NAME, TYPE))
+    exec(
+        "class {0}DataSymbol({1}DataSymbol):\n"
+        "    def __init__({2}):\n"
+        "{3}\n"
+        "        super({0}DataSymbol, self).__init__(\n"
+        "            name, interface=interface)\n"
+        "".format(NAME, TYPE, ", ".join(ARGS), "\n".join(VARS)))
 
+# Note, field_datatypes are no different to array_datatypes and are
+# treated in the same way. They are only separated into a different
+# list because they are used to create vector field datatypes and
+# symbols.
 field_datatypes = [
     {"name": "real field data", "scalar_type": "lfric real scalar",
      "dims": ["number of unique dofs"], "vars": ["fs"]},
@@ -111,20 +126,43 @@ field_datatypes = [
     {"name": "logical field data", "scalar_type": "lfric logical scalar",
      "dims": ["number of unique dofs"], "vars": ["fs"]}]
 
-# TBD: #xxx Sort out how to deal with multi-dimensional array
-# information. (diff) basis function dimensions change depending on
-# the type of quadrature and we also want to capture the ordering of
-# the datatypes somehow (see operator:dim_info for example).
+# TBD: #xxx the dimension datatypes and their ordering is captured in
+# field_datatypes and array_datatypes but is not stored in the
+# generated classes. This reduces the number of validation checks that
+# can be performed.
 array_datatypes = [
     {"name": "operator", "scalar_type": "lfric real scalar",
-     "dims": ["ndf", "ndf", "ncell_3d"], "vars": ["fs_from", "fs_to"],
+     "dims": ["number of dofs", "number of dofs", "number of cells"],
+     "vars": ["fs_from", "fs_to"],
      "dim_info": {"fs_from": 0, "fs_to": 1, "ncells": 2}},
     {"name": "dof map", "scalar_type": "lfric integer scalar",
-     "dims": ["ndf"], "vars": ["fs"]},
-    {"name": "basis function", "scalar_type": "lfric real scalar",
-     "dims": [1, 1, 1], "vars": ["fs", "quad"]},
-    {"name": "diff basis function", "scalar_type": "lfric real scalar",
-     "dims": [1, 1, 1], "vars": ["fs", "quad"]},
+     "dims": ["number of dofs"], "vars": ["fs"]},
+    {"name": "basis function qr xyoz", "scalar_type": "lfric real scalar",
+     "dims": ["lfric integer scalar", "number of dofs",
+              "number of qr points in horizontal",
+              "number of qr points in vertical"],
+     "vars": ["fs"]},
+    {"name": "basis function qr face", "scalar_type": "lfric real scalar",
+     "dims": ["lfric integer scalar", "number of dofs", "number of qr points",
+              "number of faces"],
+     "vars": ["fs"]},
+    {"name": "basis function qr edge", "scalar_type": "lfric real scalar",
+     "dims": ["lfric integer scalar", "number of dofs", "number of qr points",
+              "number of edges"],
+     "vars": ["fs"]},
+    {"name": "diff basis function qr xyoz", "scalar_type": "lfric real scalar",
+     "dims": ["lfric integer scalar", "number of dofs",
+              "number of qr points in horizontal",
+              "number of qr points in vertical"],
+     "vars": ["fs"]},
+    {"name": "diff basis function qr face", "scalar_type": "lfric real scalar",
+     "dims": ["lfric integer scalar", "number of dofs", "number of qr points",
+              "number of faces"],
+     "vars": ["fs"]},
+    {"name": "diff basis function qr edge", "scalar_type": "lfric real scalar",
+     "dims": ["lfric integer scalar", "number of dofs", "number of qr points",
+              "number of edges"],
+     "vars": ["fs"]},
     {"name": "qr weights in horizontal", "scalar_type": "lfric real scalar",
      "dims": ["number of qr points in horizontal"], "vars": []},
     {"name": "qr weights in vertical", "scalar_type": "lfric real scalar",
@@ -144,13 +182,18 @@ class {0}DataType(ArrayType):
         super({0}DataType, self).__init__(
             {1}DataType(), dims)
     '''.format(NAME, SCALAR_TYPE))
-    exec('''
-class {0}DataSymbol(DataSymbol):
-    def __init__({1}):
-{2}
-        super({0}DataSymbol, self).__init__(
-            name, {0}DataType(dims), interface=interface)
-    '''.format(NAME, ", ".join(ARGS), "\n".join(VARS)))
+    exec(
+        "class {0}DataSymbol(DataSymbol):\n"
+        "    def __init__({1}):\n"
+        "        if (len(dims) != {3}):\n"
+        "            raise Exception(\n"
+        "                \"{0}DataSymbol expected the number of supplied \"\n"
+        "                \"dimensions to be {3} but found {{0}}\"\n"
+        "                \"\".format(len(dims)))\n"
+        "{2}\n"
+        "        super({0}DataSymbol, self).__init__(\n"
+        "            name, {0}DataType(dims), interface=interface)\n"
+        "".format(NAME, ", ".join(ARGS), "\n".join(VARS), len(DIMS)))
 
 # Generate LFRic vector-field-data symbols as subclasses of field-data symbols
 for array_type in field_datatypes:

@@ -7360,6 +7360,9 @@ class DynKern(CodedKern):
     def validate_kernel_code_arg(self, kern_code_arg, interface_arg):
         '''Check that the supplied datatypes match'''
 
+        print (type(kern_code_arg))
+        print (kern_code_arg)
+        print (type(interface_arg))
         # 1: intrinsic datatype
         actual_datatype = kern_code_arg.datatype.intrinsic
         expected_datatype = interface_arg.datatype.intrinsic
@@ -7403,11 +7406,16 @@ class DynKern(CodedKern):
             # 4.1 array arguments
             # Skip the checking of dimensions for the moment as we
             # don't yet create all of them correctly.
-            # for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
-            #     interface_arg_dim = interface_arg.shape[dim_idx]
-            #     print ("  Checking dim {0}".format(dim_idx))
-            #     self.validate_kernel_code_arg(
-            #         kern_code_arg_dim, interface_arg_dim)
+            for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
+                interface_arg_dim = interface_arg.shape[dim_idx]
+                if isinstance(kern_code_arg_dim, DataSymbol):
+                    # Only check when there is a symbol. Unspecified
+                    # dimensions, dimensions with scalar values,
+                    # offsets, or dimensions that include arithmetic
+                    # are skipped. Perhaps a warning should be output
+                    # here to say that the code does not comply.
+                    self.validate_kernel_code_arg(
+                        kern_code_arg_dim, interface_arg_dim)
         else:
             raise InternalError(
                 "unexpected interface type found for '{0}'. Expecting a "
