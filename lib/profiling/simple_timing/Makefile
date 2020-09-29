@@ -35,7 +35,7 @@
 
 
 F90?=gfortran
-F90FLAGS?=-g
+F90FLAGS?=
 
 name=simple_timing
 libname:=lib$(name).a

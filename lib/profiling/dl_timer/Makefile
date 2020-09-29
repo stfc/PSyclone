@@ -40,7 +40,7 @@ DL_TIMER_ROOT?=../../../../apeg-dl_timer
 DL_TIMER_INCLUDE?=$(DL_TIMER_ROOT)/src
 
 F90?=gfortran
-F90FLAGS?=-g
+F90FLAGS?=
 F90FLAGS += -I$(DL_TIMER_INCLUDE)
 
 OBJS = dl_timer.o psy_data_base.o

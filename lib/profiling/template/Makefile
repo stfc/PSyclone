@@ -35,7 +35,7 @@
 
 
 F90?=gfortran
-FFLAGS?=-g
+FFLAGS?=
 
 OBJS = dummy_lib.o psy_data_base.o
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
@@ -55,3 +55,4 @@ psy_data_base.f90: ../../psy_data_base.jinja
 
 clean:
 	rm -f libdummy.a $(OBJS) *.mod psy_data_base.f90
+

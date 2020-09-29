@@ -41,7 +41,7 @@ DRHOOK_INCLUDE?=$(DRHOOK_ROOT)/drhook/include
 DRHOOK_MODULES?=$(DRHOOK_ROOT)/build/module
 
 F90?=gfortran
-F90FLAGS ?= -g
+F90FLAGS ?=
 F90FLAGS += -I$(DRHOOK_INCLUDE) -I$(DRHOOK_MODULES)
 OBJS = drhook_psy.o
 
