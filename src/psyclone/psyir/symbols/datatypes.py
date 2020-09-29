@@ -371,6 +371,8 @@ class StructureType(DataType):
     :type parent: :py:class:`psyclone.psyir.symbols.SymbolType`
 
     '''
+    # Each member of a StructureType is represented by a ComponentType
+    # (named tuple).
     ComponentType = namedtuple("ComponentType", ["name", "datatype",
                                                  "visibility"])
 
@@ -383,18 +385,33 @@ class StructureType(DataType):
     @property
     def components(self):
         '''
-        :returns:
-        :rtype: 
+        :returns: Ordered dictionary of the components of this type.
+        :rtype: :py:class:`collections.OrderedDict`
         '''
         return self._components
 
     def add(self, component):
+        '''
+        Add the supplied component to this StructureType.
+
+        :param component: the component to add.
+        :type component: \
+            :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
+
+        :raises TypeError: if the supplied component is not of ComponentType.
+
+        '''
+        if not isinstance(component, self.ComponentType):
+            raise TypeError(
+                "Components of a StructureType must be of type StructureType."
+                "ComponentType but got '{0}'".format(type(component).__name__))
         self._components[component.name] = component
 
     def lookup(self, name):
         '''
-        :returns:
-        :rtype: 
+        :returns: the ComponentType tuple describing the named member of this \
+                  StructureType.
+        :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
         '''
         return self._components[name]
 

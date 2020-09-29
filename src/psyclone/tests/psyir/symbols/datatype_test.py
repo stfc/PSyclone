@@ -320,3 +320,9 @@ def test_structure_type():
                                           Symbol.Visibility.PUBLIC))
     flag = stype.lookup("flag")
     assert isinstance(flag, StructureType.ComponentType)
+    with pytest.raises(TypeError) as err:
+        stype.add("hello")
+    assert ("must be of type StructureType.ComponentType but got 'str'" in
+            str(err.value))
+    with pytest.raises(KeyError):
+        stype.lookup("missing")

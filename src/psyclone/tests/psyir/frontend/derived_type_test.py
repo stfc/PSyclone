@@ -112,7 +112,7 @@ def test_parse_derived_type(use_stmt):
     reader = FortranStringReader("{0}\n"
                                  "type :: my_type\n"
                                  "  integer :: flag\n"
-                                 "  type(grid_type) :: grid\n"
+                                 "  type(grid_type), private :: grid\n"
                                  "  real, dimension(3) :: posn\n"
                                  "end type my_type\n".format(use_stmt))
     fparser2spec = Specification_Part(reader)
@@ -125,6 +125,7 @@ def test_parse_derived_type(use_stmt):
     assert flag.visibility == Symbol.Visibility.PUBLIC
     grid = sym.datatype.lookup("grid")
     assert isinstance(grid.datatype, DeferredType)
+    assert grid.visibility == Symbol.Visibility.PRIVATE
     posn = sym.datatype.lookup("posn")
     assert isinstance(posn.datatype, ArrayType)
 
