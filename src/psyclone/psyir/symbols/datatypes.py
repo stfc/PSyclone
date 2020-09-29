@@ -365,10 +365,8 @@ class ArrayType(DataType):
 class StructureType(DataType):
     '''
     Describes a 'structure' or 'derived' datatype that is itself composed
-    of an OrderedDict of namedtuples.
-
-    :param parent: enclosing symbol table containing this datatype.
-    :type parent: :py:class:`psyclone.psyir.symbols.SymbolType`
+    of a list of other datatypes. Those datatypes are stored as an
+    OrderedDict of namedtuples.
 
     '''
     # Each member of a StructureType is represented by a ComponentType
