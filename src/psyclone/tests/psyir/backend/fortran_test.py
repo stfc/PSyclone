@@ -51,7 +51,7 @@ from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
-    DeferredType, RoutineSymbol, Symbol
+    DeferredType, RoutineSymbol, Symbol, UnknownType, UnknownFortranType
 from psyclone.psyGen import KernelSchedule
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -1541,3 +1541,24 @@ def test_fw_call_node(fort_writer):
     result = fort_writer(schedule)
     expected = "  call my_sub(a * b, MAX(a, b))\n"
     assert expected in result
+
+
+def test_fw_unknown_decln_error(monkeypatch, fort_writer):
+    ''' Check that the FortranWriter raises the expected error if it
+    encounters an UnknownType that is not an UnknownFortranType. '''
+    # We can't create an UnknownType() object directly as it is abstract.
+    # Therefore we create a symbol of UnknownFortranType and then
+    # monkeypatch it.
+    sym = DataSymbol("b", UnknownFortranType("int b;"))
+    monkeypatch.setattr(sym.datatype, "__class__", UnknownType)
+    with pytest.raises(VisitorError) as err:
+        fort_writer.gen_vardecl(sym)
+    assert ("cannot handle the declaration of a symbol of 'UnknownType'" in
+            str(err.value))
+
+
+def test_fw_unknown_decln(fort_writer):
+    ''' Check that the FortranWriter recreates a declaration that is of
+    UnknownFortranType. '''
+    sym = DataSymbol("b", UnknownFortranType("integer, value :: b"))
+    assert "integer, value :: b" in fort_writer.gen_vardecl(sym)
