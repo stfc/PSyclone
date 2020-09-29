@@ -42,16 +42,23 @@ from psyclone.psyir.symbols.symbol import Symbol
 
 class TypeSymbol(Symbol):
     '''
-    Symbol identifying a user-defined type.
+    Symbol identifying a user-defined type (e.g. a derived type in Fortran).
 
-    TODO
+    :param str name: the name of this symbol.
+    :param datatype: the type represented by this symbol.
+    :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
+    :param visibility: the visibility of this symbol.
+    :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+    :param interface: the interface to this symbol.
+    :type interface: :py:class:`psyclone.psyir.symbols.SymbolInterface`
+
     '''
     def __init__(self, name, datatype,
                  visibility=Symbol.DEFAULT_VISIBILITY,
                  interface=None):
         super(TypeSymbol, self).__init__(name, visibility, interface)
 
-        # The following attributes have setter methods (with error checking)
+        # The following attribute has a setter method (with error checking)
         self._datatype = None
         self.datatype = datatype
 
@@ -62,7 +69,9 @@ class TypeSymbol(Symbol):
     def datatype(self):
         '''
         :returns: datatype that this TypeSymbol represents.
-        :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
+        :rtype: :py:class:`psyclone.psyir.symbols.StructureType` or \
+                :py:class:`psyclone.psyir.symbols.DeferredType` or \
+                :py:class:`psyclone.psyir.symbols.UnknownType`
         '''
         return self._datatype
 
@@ -71,7 +80,10 @@ class TypeSymbol(Symbol):
         ''' Setter for TypeSymbol datatype.
 
         :param value: new value for datatype.
-        :type value: :py:class:`psyclone.psyir.symbols.StructureType`
+        :type value: :py:class:`psyclone.psyir.symbols.StructureType` or \
+                     :py:class:`psyclone.psyir.symbols.DeferredType` or \
+                     :py:class:`psyclone.psyir.symbols.UnknownType`
+
 
         :raises TypeError: if value is not of the correct type.
 
