@@ -956,10 +956,10 @@ class DynKernMetadata(KernelType):
 
 class DynamoPSy(PSy):
     '''
-    The Dynamo specific PSy class. This creates a Dynamo specific
-    invokes object (which controls all the required invocation calls).
-    It also overrides the PSy gen method so that we generate dynamo
-    specific PSy module code.
+    The LFRic-specific PSy class. This creates an LFRic-specific
+    Invokes object (which controls all the required invocation calls).
+    It also overrides the PSy gen method so that we generate
+    LFRic-specific PSy module code.
 
     :param invoke_info: object containing the required invocation information \
                         for code optimisation and generation.
@@ -969,18 +969,18 @@ class DynamoPSy(PSy):
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
         self._invokes = DynamoInvokes(invoke_info.calls, self)
-        # Initialise the dictionary that holds names of required LFRic data
-        # structures and their proxies for "use" statements in modules
+        # Initialise the dictionary that holds the names of required
+        # LFRic data structures and their proxies for the "use"
+        # statements in *_mod_psy.f90 modules
         infmod_list = ["field_mod", "operator_mod"]
         self._infmod_dict = OrderedDict((k, set()) for k in infmod_list)
 
     @property
     def name(self):
         '''
-        :returns: returns a name for the PSy layer. This is used as \
-                  the PSy module name. We override the default value \
-                  as the Met Office prefer _psy to be appended, rather \
-                  than prepended.
+        :returns: a name for the PSy layer. This is used as the PSy module \
+                  name. We override the default value as the Met Office \
+                  prefer "_psy" to be appended, rather than prepended.
         :rtype: str
 
         '''
@@ -998,9 +998,9 @@ class DynamoPSy(PSy):
     @property
     def infmod_dict(self):
         '''
-        :returns: the dictionary that holds names of required LFRic \
-                  data structures and their proxies for "use" \
-                  statements in modules.
+        :returns: the dictionary that holds the names of required \
+                  LFRic data structures and their proxies to create \
+                  "use" statements in the PSy-layer modules.
         :rtype: dict of set
 
         '''
@@ -1009,7 +1009,7 @@ class DynamoPSy(PSy):
     @property
     def gen(self):
         '''
-        Generate PSy code for the Dynamo0.3 API.
+        Generate PSy code for the LFRic (Dynamo0.3) API.
 
         :returns: root node of generated Fortran AST.
         :rtype: :py:class:`psyir.nodes.Node`
@@ -1028,7 +1028,7 @@ class DynamoPSy(PSy):
         # Include required infrastructure modules. The sets of required
         # LFRic data structures and their proxies are updated in the
         # relevant field and operator subclasses of DynCollection.
-        # Here we sort the inputs in reverse to have "_type" before
+        # Here we sort the inputs in reverse order to have "_type" before
         # "_proxy_type" and "operator_" before "columnwise_operator_".
         # We also iterate through the dictionary in reverse order so
         # the field statements are bubbled up higher.
