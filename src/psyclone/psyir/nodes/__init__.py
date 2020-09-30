@@ -38,7 +38,7 @@
 
 ''' PSyIR nodes package module '''
 
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.node import colored, Node, SCHEDULE_COLOUR_MAP
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.return_stmt import Return
 from psyclone.psyir.nodes.assignment import Assignment
@@ -64,6 +64,8 @@ from psyclone.psyir.nodes.call import Call
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
 __all__ = [
+        'colored',
+        'SCHEDULE_COLOUR_MAP',
         'Array',
         'Assignment',
         'BinaryOperation',

@@ -132,6 +132,9 @@
         43) #877 for #867. Bug fix to enable dependencies on HaloExchange
         objects to be ignored while updating the dependency information.
 
+        44) #907 for #906. Refactor PSyDataTrans and subclasses to reduce
+        code duplication (especially in the __str__ and name methods).
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
