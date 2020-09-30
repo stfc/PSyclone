@@ -52,8 +52,8 @@ from psyclone.psyir.symbols import RoutineSymbol, SymbolTable, \
     ArgumentInterface
 from psyclone.domain.lfric.psyir import CONSTANTS_MOD, \
     NumberOfDofsDataSymbol, RealFieldDataDataSymbol, I_DEF, R_DEF, \
-    OperatorSizeDataSymbol, OperatorDataSymbol, NumberOfUniqueDofsDataSymbol, \
-    BasisFunctionDataSymbol, DiffBasisFunctionDataSymbol, \
+    NumberOfCellsDataSymbol, OperatorDataSymbol, NumberOfUniqueDofsDataSymbol, \
+    BasisFunctionQrXyozDataSymbol, DiffBasisFunctionQrXyozDataSymbol, \
     NumberOfQrPointsInHorizontalDataSymbol, \
     NumberOfQrPointsInVerticalDataSymbol, QrWeightsInHorizontalDataSymbol, \
     QrWeightsInVerticalDataSymbol
@@ -82,7 +82,7 @@ for symbol in [FIELD1, FIELD2]:
 SYMBOL_TABLE.specify_argument_list([FIELD2])
 
 # Create an LFRic operator and it to the symbol table
-NCELL_3D = OperatorSizeDataSymbol("ncell_3d")
+NCELL_3D = NumberOfCellsDataSymbol("ncell_3d")
 OPERATOR = OperatorDataSymbol("oper1", [NDF_W3, NDF_W3, NCELL_3D],
                               fs_from="w3", fs_to="w3")
 for symbol in [NCELL_3D, OPERATOR]:
@@ -95,10 +95,10 @@ NQP_H = NumberOfQrPointsInHorizontalDataSymbol("nqp_h")
 NQP_V = NumberOfQrPointsInVerticalDataSymbol("nqp_v")
 WEIGHTS_H = QrWeightsInHorizontalDataSymbol("wh", [NQP_H])
 WEIGHTS_V = QrWeightsInVerticalDataSymbol("wv", [NQP_V])
-BASIS_W3 = BasisFunctionDataSymbol(
-    "basis_w3", [1, NDF_W3, NQP_H, NQP_V], "w3", "xyoz")
-DIFF_BASIS_W3 = DiffBasisFunctionDataSymbol(
-    "diff_basis_w3", [3, NDF_W3, NQP_H, NQP_V], "w3", "xyoz")
+BASIS_W3 = BasisFunctionQrXyozDataSymbol(
+    "basis_w3", [1, NDF_W3, NQP_H, NQP_V], "w3")
+DIFF_BASIS_W3 = DiffBasisFunctionQrXyozDataSymbol(
+    "diff_basis_w3", [3, NDF_W3, NQP_H, NQP_V], "w3")
 for symbol in [NQP_H, NQP_V, WEIGHTS_H, WEIGHTS_V, BASIS_W3, DIFF_BASIS_W3]:
     SYMBOL_TABLE.add(symbol)
 
