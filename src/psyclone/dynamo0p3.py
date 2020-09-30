@@ -1030,7 +1030,9 @@ class DynamoPSy(PSy):
         # relevant field and operator subclasses of DynCollection.
         # Here we sort the inputs in reverse to have "_type" before
         # "_proxy_type" and "operator_" before "columnwise_operator_".
-        for infmod in self._infmod_dict:
+        # We also iterate through the dictionary in reverse order so
+        # the field statements are bubbled up higher.
+        for infmod in reversed(self._infmod_dict):
             if self._infmod_dict[infmod]:
                 infmod_types = sorted(list(self._infmod_dict[infmod]),
                                       reverse=True)
