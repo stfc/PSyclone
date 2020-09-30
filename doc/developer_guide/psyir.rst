@@ -244,7 +244,7 @@ KernelSchedule
 
 The `KernelSchedule` is a PSyIR node that represents a Kernel
 subroutine. As such it is a subclass of `psyclone.psyir.nodes.Routine`
-with `return_type` set to `None` `is_program` set to `False`.
+with `return_type` set to `None` and `is_program` set to `False`.
 
 .. note:: This class will be renamed to `KernelRoutine` in issue #909.
 

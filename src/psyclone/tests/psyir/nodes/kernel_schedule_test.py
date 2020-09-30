@@ -38,43 +38,9 @@
 ''' Performs py.test tests on the KernelSchedule class. '''
 
 from psyclone.psyir.nodes import Assignment, Reference, Literal, KernelSchedule
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE, \
-    REAL_TYPE
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
-
-
-def test_kernelschedule_view(capsys):
-    '''Test the view method of the KernelSchedule part.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    symbol_table = SymbolTable()
-    symbol = DataSymbol("x", INTEGER_TYPE)
-    symbol_table.add(symbol)
-    lhs = Reference(symbol)
-    rhs = Literal("1", INTEGER_TYPE)
-    assignment = Assignment.create(lhs, rhs)
-    kschedule = KernelSchedule.create("kname", symbol_table, [assignment])
-    kschedule.view()
-    coloredtext = colored("KernelSchedule",
-                          SCHEDULE_COLOUR_MAP["Schedule"])
-    output, _ = capsys.readouterr()
-    assert coloredtext+"[name:'kname']" in output
-    assert "Assignment" in output  # Check child view method is called
-
-
-def test_kernelschedule_can_be_printed():
-    '''Test that a KernelSchedule instance can always be printed (i.e. is
-    initialised fully)'''
-    symbol = DataSymbol("x", INTEGER_TYPE)
-    symbol_table = SymbolTable()
-    symbol_table.add(symbol)
-    lhs = Reference(symbol)
-    rhs = Literal("1", INTEGER_TYPE)
-    assignment = Assignment.create(lhs, rhs)
-    kschedule = KernelSchedule.create("kname", symbol_table, [assignment])
-    assert "Schedule[name:'kname']:\n" in str(kschedule)
-    assert "Assignment" in str(kschedule)  # Check children are printed
-    assert "End KernelSchedule" in str(kschedule)
 
 
 def test_kernelschedule_create():

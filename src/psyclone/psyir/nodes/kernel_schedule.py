@@ -56,12 +56,14 @@ class KernelSchedule(Routine):
         # A kernel does not return anything and is not a main program
         super(KernelSchedule, self).__init__(name, is_program=False,
                                              return_type=None,
-                                             children=None, parent=parent)
+                                             parent=parent)
 
     @classmethod
     def create(cls, name, symbol_table, children):
         '''Create a KernelSchedule instance given a name, a symbol table and a
-        list of child nodes.
+        list of child nodes. This is a classmethod so that no instance
+        of KernelSchedule is required in order to call it and the classmethod
+        in the base class can be called straightforwardly.
 
         :param str name: the name of the KernelSchedule.
         :param symbol_table: the symbol table associated with this \

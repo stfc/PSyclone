@@ -50,20 +50,13 @@ class Routine(Schedule):
 
     :param str name: the name of this routine.
     :param bool is_program: whether this Routine represents the entry point \
-                            into a program (i.e. Fortran Program or C main()).
+                            into a program (e.g. Fortran Program or C main()).
     :param return_type: the return-type of this routine.
     :type return_type: :py:class:`psyclone.psyir.symbols.DataType` or NoneType
-    :param children: the PSyIR nodes that are children of this Routine.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-    :param parent: the parent node of this Schedule in the PSyIR.
+    :param parent: the parent node of this Routine node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
-    :param symbol_table: initialise the Schedule with a given symbol table.
-    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable` or \
-            NoneType
 
-    :raises TypeError: if the supplied routine name is not a str.
-    :raises TypeError: if the supplied is_program is not a bool.
-    :raises TypeError: if the supplied return_type is not a DataType.
+    :raises TypeError: if any of the supplied arguments are of the wrong type.
 
     '''
     # Textual description of the node.
@@ -71,27 +64,28 @@ class Routine(Schedule):
     _text_name = "Routine"
     _colour_key = "Schedule"
 
-    def __init__(self, name, is_program=False, return_type=None,
-                 children=None, parent=None, symbol_table=None):
-        super(Routine, self).__init__(children=children, parent=parent,
-                                      symbol_table=symbol_table)
+    def __init__(self, name, is_program=False, return_type=None, parent=None):
+        super(Routine, self).__init__(parent=parent)
         self.name = name
 
         if not isinstance(is_program, bool):
-            raise TypeError("Routine 'is_program' must be a bool but got "
-                            "'{0}'".format(type(is_program).__name__))
+            raise TypeError("Routine argument 'is_program' must be a bool but "
+                            "got '{0}'".format(type(is_program).__name__))
         self._is_program = is_program
 
         if return_type and not isinstance(return_type, DataType):
-            raise TypeError("Routine 'return_type' must be of type DataType "
-                            "but got '{0}'".format(type(return_type).__name__))
+            raise TypeError("Routine argument 'return_type' must be of type "
+                            "DataType but got '{0}'".format(
+                                type(return_type).__name__))
         self._return_type = return_type
 
     @classmethod
     def create(cls, name, symbol_table, children, is_program=False,
                return_type=None):
         '''Create an instance of the supplied class given a name, a symbol
-        table and a list of child nodes.
+        table and a list of child nodes. This is implemented as a classmethod
+        so that it is able to act as a Factory for subclasses - e.g. it
+        will create a KernelSchedule if called from KernelSchedule.create().
 
         :param str name: the name of the Routine (or subclass).
         :param symbol_table: the symbol table associated with this Routine.
@@ -107,33 +101,34 @@ class Routine(Schedule):
         :returns: an instance of `cls`.
         :rtype: :py:class:`psyclone.psyGen.Routine` or subclass
 
-        :raises GenerationError: if the arguments to the create method \
+        :raises TypeError: if the arguments to the create method \
             are not of the expected type.
 
         '''
         if not isinstance(name, str):
-            raise GenerationError(
+            raise TypeError(
                 "name argument in create method of Routine class "
                 "should be a string but found '{0}'."
                 "".format(type(name).__name__))
         if not isinstance(symbol_table, SymbolTable):
-            raise GenerationError(
+            raise TypeError(
                 "symbol_table argument in create method of Routine "
                 "class should be a SymbolTable but found '{0}'."
                 "".format(type(symbol_table).__name__))
         if not isinstance(children, list):
-            raise GenerationError(
+            raise TypeError(
                 "children argument in create method of Routine class "
                 "should be a list but found '{0}'."
                 "".format(type(children).__name__))
         for child in children:
             if not isinstance(child, Node):
-                raise GenerationError(
+                raise TypeError(
                     "child of children argument in create method of "
                     "Routine class should be a PSyIR Node but "
                     "found '{0}'.".format(type(child).__name__))
 
         kern = cls(name)
+        # pylint: disable=protected-access
         kern._is_program = is_program
         kern._return_type = return_type
         kern._symbol_table = symbol_table
@@ -175,7 +170,7 @@ class Routine(Schedule):
         '''
         Sets a new name for the Routine.
 
-        :param str new_name: New name for the Routine.
+        :param str new_name: new name for the Routine.
         '''
         if not isinstance(new_name, str):
             raise TypeError("Routine name must be a str but got "
@@ -193,7 +188,7 @@ class Routine(Schedule):
     def is_program(self):
         '''
         :returns: whether this Routine represents the entry point into a \
-                  program (i.e. is a Fortran Program or a C main()).
+                  program (e.g. is a Fortran Program or a C main()).
         :rtype: bool
         '''
         return self._is_program

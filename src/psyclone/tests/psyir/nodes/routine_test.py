@@ -40,8 +40,6 @@ import pytest
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal
 from psyclone.psyir.symbols import (INTEGER_TYPE, REAL_TYPE, DataSymbol,
                                     SymbolTable)
-from psyclone.errors import GenerationError
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
 
 
@@ -92,7 +90,7 @@ def test_routine_properties():
 
 def test_routine_create_invalid():
     '''Test that the create method in the Routine class raises the
-    expected exception if the provided input is invalid.
+    expected exceptions if the provided input is invalid.
 
     '''
     symbol_table = SymbolTable()
@@ -102,25 +100,25 @@ def test_routine_create_invalid():
                                   Literal("1", REAL_TYPE))]
 
     # name is not a string.
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TypeError) as excinfo:
         _ = Routine.create(1, symbol_table, children)
     assert ("name argument in create method of Routine class "
             "should be a string but found 'int'.") in str(excinfo.value)
 
     # symbol_table not a SymbolTable.
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TypeError) as excinfo:
         _ = Routine.create("mod_name", "invalid", children)
     assert ("symbol_table argument in create method of Routine class "
             "should be a SymbolTable but found 'str'.") in str(excinfo.value)
 
     # children not a list.
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TypeError) as excinfo:
         _ = Routine.create("mod_name", symbol_table, "invalid")
     assert ("children argument in create method of Routine class "
             "should be a list but found 'str'." in str(excinfo.value))
 
     # contents of children list are not Node.
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TypeError) as excinfo:
         _ = Routine.create("mod_name", symbol_table, ["invalid"])
     assert (
         "child of children argument in create method of Routine class "
@@ -141,4 +139,4 @@ def test_routine_create():
     assert kschedule.symbol_table is symbol_table
     assert kschedule.is_program
     assert kschedule.return_type == INTEGER_TYPE
-    # TODO #899 test the Fortran backend for the Routine node.
+    # TODO #910 test the Fortran backend for the Routine node.
