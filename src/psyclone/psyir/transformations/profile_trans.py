@@ -76,11 +76,3 @@ class ProfileTrans(PSyDataTrans):
 
     def __init__(self):
         super(ProfileTrans, self).__init__(ProfileNode)
-
-    def __str__(self):
-        return "Insert a profile start and end call."
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string '''
-        return "ProfileTrans"
