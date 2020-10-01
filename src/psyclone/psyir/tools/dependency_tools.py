@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides tools that are based on the code
@@ -350,7 +351,7 @@ class DependencyTools(object):
             variables_to_ignore = []
 
         # Collect all variables used as loop variable:
-        loop_vars = [l.variable.name for l in loop.walk(Loop)]
+        loop_vars = [loop.variable.name for loop in loop.walk(Loop)]
 
         result = True
         # Now check all variables used in the loop
