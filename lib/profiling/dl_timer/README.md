@@ -31,7 +31,7 @@ DL_TIMER_ROOT=path_to_dl_timer make
 ```
 
 In order to use the wrapper with your application, you must provide the
-location of the wrapper as include path (so that the module file is found),
+location of the wrapper as an include path (so that the module file is found),
 and link first with the wrapper library, then the dl_timer library:
 
 ```sh
@@ -39,7 +39,7 @@ gfortran -c ... -I PATH-TO-PSYCLONE/lib/profiling/dl_timer somefile.f90
 gfortran -o a.out ... -L PATH-TO-PSYCLONE/lib/profiling/dl_timer -ldl_timer
          -L PATH-TO-DLTIMER -ldltimer
 ```
-The name of the dltimer library will depend on the way it was compiled
+The name of the dl_timer library will depend on the way it was compiled
 (shared memory or distributed memory parallel).
 
 Example output:

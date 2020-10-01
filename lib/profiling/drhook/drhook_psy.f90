@@ -117,14 +117,14 @@ contains
   end subroutine profile_PSyDataShutdown
 
   ! ---------------------------------------------------------------------------
-  !> Disable DrHook by setting the lhook variable in DrHook
+  !> Enable DrHook by setting the lhook variable in DrHook
   subroutine profile_PSyDataStart()
     use yomhook, only : lhook
     lhook = .true.
   end subroutine profile_PSyDataStart
 
   ! ---------------------------------------------------------------------------
-  !> Enable DrHook by setting the lhook variable in DrHook
+  !> Disable DrHook by setting the lhook variable in DrHook
   subroutine profile_PSyDataStop()
     use yomhook, only : lhook
     lhook = .false.

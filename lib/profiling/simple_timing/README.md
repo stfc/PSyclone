@@ -29,7 +29,7 @@ F90=gfortran F90FLAGS=-g make
 ```
 
 In order to link this timer library with your application, you must provide the
-location of this library as include path (so that the module file is found),
+location of this library as an include path (so that the module file is found),
 and specify the library at link time:
 
 ```sh

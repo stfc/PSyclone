@@ -6,7 +6,7 @@ to the DrHook API.
 
 ## Dependencies
 
-The Dr Hook library  must be installed. Note that it is at this stage
+The Dr Hook library  must be installed. Note that this is currently
 not available on any public repository, you need to contact ECMWF to
 obtain a copy of DrHook.
 
@@ -25,7 +25,7 @@ DRHOOK_ROOT=path_to_drhook make
 ```
 
 In order to use the wrapper with your application, you must provide the
-location of the wrapper as include path (so that the module file is found),
+location of the wrapper as an include path (so that the module file is found),
 and link first with the wrapper library, then the DrHook library:
 
 ```sh

@@ -27,7 +27,7 @@ F90=gfortran F90FLAGS=-g make
 ```
 
 In order to link this library with your application, you must provide
-its location as include path (so that the module file is found),
+its location as an include path (so that the module file is found),
 and specify the library at link time:
 
 ```sh
