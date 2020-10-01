@@ -36,15 +36,19 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the abstract Node implementation.'''
+'''
+This module contains the abstract Node implementation.
+
+'''
 
 import abc
 from psyclone.psyir.symbols import SymbolError, Symbol, UnresolvedInterface
 from psyclone.errors import GenerationError, InternalError
 
-# Colour map to use when writing Invoke schedule to terminal. (Requires
-# that the termcolor package be installed. If it isn't then output is not
-# coloured.) See https://pypi.python.org/pypi/termcolor for details.
+
+#: Colour map to use when writing Invoke schedule to terminal. (Requires
+#: that the termcolor package be installed. If it isn't then output is not
+#: coloured.) See https://pypi.python.org/pypi/termcolor for details.
 SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Loop": "red",
                        "GlobalSum": "cyan",
@@ -69,7 +73,10 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "CodeBlock": "red",
                        "Container": "green",
                        "Call": "cyan"}
-
+'''
+.. autoattribute:: SCHEDULE_COLOUR_MAP
+    :type: dict
+'''
 
 # Default indentation string
 INDENTATION_STRING = "    "
@@ -89,7 +96,7 @@ except ImportError:
 
         :param text: Text to return
         :type text: string
-        :param _: Fake argument, only required to match interface
+        :param _: Fake argument, only required to match interface \
                   provided by termcolor.colored
         :returns: The supplied text, unchanged
         :rtype: string
@@ -903,7 +910,7 @@ class Node(object):
         :param my_type: the class(es) for which the instances are collected.
         :type my_type: either a single :py:class:`psyclone.Node` class \
             or a tuple of such classes
-        :param stop_type: class(es) at which recursion is halted (optional)."
+        :param stop_type: class(es) at which recursion is halted (optional).
 
         :type stop_type: None or a single :py:class:`psyclone.Node` \
             class or a tuple of such classes
