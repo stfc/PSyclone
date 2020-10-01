@@ -53,7 +53,7 @@ module testkern_any_space_2_mod
          arg_type(GH_OPERATOR,             GH_READ, ANY_SPACE_1, ANY_SPACE_1), &
          arg_type(GH_SCALAR,   GH_INTEGER, GH_READ)                            &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, public, nopass :: testkern_any_space_2_code
   end type testkern_any_space_2_type

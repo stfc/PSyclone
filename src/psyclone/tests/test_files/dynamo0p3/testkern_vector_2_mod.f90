@@ -45,7 +45,7 @@ module testkern_vector_2_mod
      type(arg_type), dimension(1) :: meta_args = &
           (/ arg_type(gh_field*3, gh_inc, w0)    &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_vector_2_code
   end type testkern_vector_2_type

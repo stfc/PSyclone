@@ -49,7 +49,8 @@ use fs_continuity_mod,       only : W2
 use argument_mod,            only : arg_type, func_type,   &
                                     GH_OPERATOR, GH_FIELD, &
                                     GH_READ, GH_WRITE,     &
-                                    ANY_SPACE_9, CELLS,    &
+                                    ANY_SPACE_9,           &
+                                    CELL_COLUMN,           &
                                     GH_BASIS, GH_DIFF_BASIS
 use constants_mod,           only : r_def, i_def
 
@@ -71,7 +72,7 @@ type, public, extends(kernel_type) :: weighted_proj_theta2_kernel_type
        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS),                &
        func_type(W2, GH_BASIS)                                         &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_QUADRATURE_XYoZ
 contains
   procedure, nopass :: weighted_proj_theta2_code

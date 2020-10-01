@@ -47,8 +47,8 @@ module prolong_kernel_mod
 use constants_mod,           only: i_def, r_def
 use kernel_mod,              only: kernel_type
 use argument_mod,            only: arg_type,                     &
-                                   GH_FIELD,                     &
-                                   GH_READ, GH_READWRITE, CELLS, &
+                                   GH_FIELD, CELL_COLUMN,        &
+                                   GH_READ, GH_READWRITE,        &
                                    ANY_DISCONTINUOUS_SPACE_1,    &
                                    ANY_DISCONTINUOUS_SPACE_2,    &
                                    GH_COARSE, GH_FINE
@@ -63,7 +63,7 @@ type, public, extends(kernel_type) :: prolong_kernel_type
         arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, mesh_arg=GH_FINE),   &
         arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, mesh_arg=GH_COARSE ) &
         /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: prolong_kernel_code
 end type prolong_kernel_type

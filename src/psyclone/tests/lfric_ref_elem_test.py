@@ -66,7 +66,7 @@ module testkern_refelem_mod
         (/ reference_element_data_type(outward_normals_to_faces),    &
            reference_element_data_type(normals_to_horizontal_faces), &
            reference_element_data_type(normals_to_vertical_faces) /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_refelem_code
   end type testkern_refelem_type

@@ -525,7 +525,8 @@ def test_kerneltype_operates_on(operates):
 
 @pytest.mark.parametrize("iterates", ["cells", "dofs"])
 def test_kerneltype_iterates_over(iterates):
-    ''' Test the parsing of the 'iterates_over' metadata element. '''
+    ''' Test the parsing of the 'iterates_over' metadata element.
+        TODO #870 remove this test. '''
     code = ITERATES_OVER_CODE.replace("cells", iterates)
     parse_tree = parse(code)
     ktype = KernelType(parse_tree)
