@@ -49,7 +49,7 @@ use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,               &
                                     GH_FIELD, GH_READ, GH_INC,         &
                                     GH_BASIS, GH_DIFF_BASIS,           &
-                                    CELLS, GH_QUADRATURE_XYoZ
+                                    CELL_COLUMN, GH_QUADRATURE_XYoZ
 use fs_continuity_mod,       only : W0, W2
 use constants_mod,           only : r_def, i_def
 
@@ -72,7 +72,7 @@ type, public, extends(kernel_type) :: rtheta_kernel_type
        func_type(W0, GH_BASIS, GH_DIFF_BASIS),                         &
        func_type(W2, GH_BASIS)                                         &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_QUADRATURE_XYoZ
 contains
   procedure, nopass :: rtheta_code

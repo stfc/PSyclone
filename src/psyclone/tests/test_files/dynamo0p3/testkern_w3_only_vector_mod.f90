@@ -49,7 +49,7 @@ module testkern_w3_only_vector_mod
           (/  arg_type(gh_field*3, gh_write, w3), &
               arg_type(gh_field*3, gh_read,  w3)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_w3_only_vector_code
   end type testkern_w3_only_vector_type

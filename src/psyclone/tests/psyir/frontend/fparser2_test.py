@@ -87,7 +87,7 @@ module dummy_mod
              arg_type(gh_field, gh_readwrite, wtheta), &
              arg_type(gh_field, gh_inc,       w1)      &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -462,7 +462,7 @@ def test_generate_schedule_dummy_subroutine(parser):
                  arg_type(gh_field, gh_readwrite, wtheta), &
                  arg_type(gh_field, gh_inc,       w1)      &
                /)
-         integer :: iterates_over = cells
+         integer :: operates_on = cell_column
        contains
          procedure, nopass :: code => dummy_code
       end type dummy_type
@@ -506,7 +506,7 @@ def test_generate_schedule_no_args_subroutine(parser):
                  arg_type(gh_field, gh_readwrite, wtheta), &
                  arg_type(gh_field, gh_inc,       w1)      &
                /)
-         integer :: iterates_over = cells
+         integer :: operates_on = cell_column
        contains
          procedure, nopass :: code => dummy_code
       end type dummy_type
@@ -539,7 +539,7 @@ def test_generate_schedule_unmatching_arguments(parser):
                  arg_type(gh_field, gh_readwrite, wtheta), &
                  arg_type(gh_field, gh_inc,       w1)      &
                /)
-         integer :: iterates_over = cells
+         integer :: operates_on = cell_column
        contains
          procedure, nopass :: code => dummy_code
       end type dummy_type

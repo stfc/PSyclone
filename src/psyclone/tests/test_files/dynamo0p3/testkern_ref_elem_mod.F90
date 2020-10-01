@@ -53,7 +53,7 @@ module testkern_ref_elem_mod
           meta_reference_element =                                     &
           (/ reference_element_data_type(normals_to_horizontal_faces), &
              reference_element_data_type(normals_to_vertical_faces) /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_ref_elem_code
   end type testkern_ref_elem_type
