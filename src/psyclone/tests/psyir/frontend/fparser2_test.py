@@ -87,7 +87,7 @@ module dummy_mod
              arg_type(gh_field, gh_readwrite, wtheta), &
              arg_type(gh_field, gh_inc,       w1)      &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -462,7 +462,7 @@ def test_generate_schedule_dummy_subroutine(parser):
                  arg_type(gh_field, gh_readwrite, wtheta), &
                  arg_type(gh_field, gh_inc,       w1)      &
                /)
-         integer :: iterates_over = cells
+         integer :: operates_on = cell_column
        contains
          procedure, nopass :: code => dummy_code
       end type dummy_type
@@ -506,7 +506,7 @@ def test_generate_schedule_no_args_subroutine(parser):
                  arg_type(gh_field, gh_readwrite, wtheta), &
                  arg_type(gh_field, gh_inc,       w1)      &
                /)
-         integer :: iterates_over = cells
+         integer :: operates_on = cell_column
        contains
          procedure, nopass :: code => dummy_code
       end type dummy_type
@@ -539,7 +539,7 @@ def test_generate_schedule_unmatching_arguments(parser):
                  arg_type(gh_field, gh_readwrite, wtheta), &
                  arg_type(gh_field, gh_inc,       w1)      &
                /)
-         integer :: iterates_over = cells
+         integer :: operates_on = cell_column
        contains
          procedure, nopass :: code => dummy_code
       end type dummy_type
@@ -2678,3 +2678,42 @@ def test_loop_var_exception(parser):
         "Loop-variable name 'i' is not declared and there are no unqualified "
         "use statements. This is currently unsupported."
         in str(excinfo.value))
+
+
+def test_named_and_wildcard_use_var(f2008_parser):
+    ''' Check that we handle the case where a variable is accessed first by
+    a wildcard import and then by a named import. '''
+    reader = FortranStringReader('''
+        module test_mod
+          use some_mod
+        contains
+          subroutine test_sub1()
+            ! a_var here must be being brought into scope by the
+            ! `use some_mod` in the module.
+            a_var = 1.0
+          end subroutine test_sub1
+          subroutine test_sub2()
+            use some_mod, only: a_var
+            a_var = 2.0
+          end subroutine test_sub2
+        end module test_mod
+        ''')
+    prog = f2008_parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    # We should have an entry for "a_var" in the Container symbol table
+    # due to the access in "test_sub1".
+    container = psy.invokes.container
+    avar1 = container.symbol_table.lookup("a_var")
+    # It must be a generic Symbol since we don't know anything about it
+    # pylint: disable=unidiomatic-typecheck
+    assert type(avar1) == Symbol
+    # There should be no entry for "a_var" in the symbol table for the
+    # "test_sub1" routine as it is not declared there.
+    schedule = psy.invokes.invoke_list[0].schedule
+    assert "a_var" not in schedule.symbol_table
+    # There should be another, distinct entry for "a_var" in the symbol table
+    # for "test_sub2" as it has a use statement that imports it.
+    schedule = psy.invokes.invoke_list[1].schedule
+    avar2 = schedule.symbol_table.lookup("a_var")
+    assert type(avar2) == Symbol
+    assert avar2 is not avar1

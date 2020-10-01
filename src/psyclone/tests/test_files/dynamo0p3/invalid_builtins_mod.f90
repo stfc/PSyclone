@@ -54,7 +54,7 @@ module dynamo0p3_builtins_mod
           arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1),        &
           arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1)         &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: aX_plus_Y_code
   end type aX_plus_Y
@@ -68,7 +68,7 @@ module dynamo0p3_builtins_mod
           arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1),    &
           arg_type(GH_FIELD,  GH_REAL, GH_READ,      ANY_SPACE_1)     &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: inc_aX_plus_Y_code
   end type inc_aX_plus_Y
@@ -83,7 +83,7 @@ module dynamo0p3_builtins_mod
           arg_type(GH_SCALAR, GH_REAL, GH_READ             ),         &
           arg_type(GH_FIELD,  GH_REAL, GH_READ, ANY_SPACE_1)          &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: aX_plus_bY_code
   end type aX_plus_bY
@@ -98,7 +98,7 @@ module dynamo0p3_builtins_mod
           arg_type(GH_SCALAR, GH_REAL, GH_READ                  ),    &
           arg_type(GH_FIELD,  GH_REAL, GH_WRITE,     ANY_SPACE_1)     &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: inc_aX_plus_bY_code
   end type inc_aX_plus_bY
@@ -110,7 +110,7 @@ module dynamo0p3_builtins_mod
           arg_type(GH_SCALAR, GH_REAL, GH_SUM),                       &
           arg_type(GH_SCALAR, GH_REAL, GH_READ)                       &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: setval_X_code
   end type setval_X
@@ -123,7 +123,7 @@ module dynamo0p3_builtins_mod
           arg_type(GH_SCALAR,   GH_REAL, GH_READ                           ), &
           arg_type(GH_OPERATOR, GH_REAL, GH_READ,  ANY_SPACE_1, ANY_SPACE_1)  &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: a_times_X_code
   end type a_times_X
@@ -135,7 +135,7 @@ module dynamo0p3_builtins_mod
           arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_SPACE_1),     &
           arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_SPACE_2)      &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: inc_X_divideby_Y_code
   end type inc_X_divideby_Y

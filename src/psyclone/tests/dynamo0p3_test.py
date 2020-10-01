@@ -105,7 +105,7 @@ module testkern_qr
              func_type(w2, gh_diff_basis),          &
              func_type(w3, gh_basis, gh_diff_basis) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => testkern_qr_code
@@ -2683,7 +2683,7 @@ module stencil_mod
           (/ arg_type(gh_field, gh_real, gh_inc, w1),                 &
              arg_type(gh_field, gh_real, gh_read, w2, stencil(cross)) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => stencil_code
   end type stencil_type
@@ -2918,7 +2918,7 @@ def test_dynkernmetadata_read_fs_error():
         "          (/ arg_type(gh_field, gh_real, gh_write, wchi), &\n"
         "             arg_type(gh_field, gh_real, gh_read,  wchi)  &\n"
         "           /)\n"
-        "     integer :: iterates_over = cells\n"
+        "     integer :: operates_on = cell_column\n"
         "   contains\n"
         "     procedure, nopass :: code => testkern_chi_write_code\n"
         "  end type testkern_chi_write_type\n"
@@ -3838,10 +3838,10 @@ def test_fs_anyspace_cells_write_or_readwrite_error():
 
 def test_fs_anyspace_dofs_inc_error():
     ''' Test that an error is raised if a field on 'any_space' with
-    'gh_inc' access is specified for a kernel that iterates over DoFs. '''
+    'gh_inc' access is specified for a kernel that operates on DoFs. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    dof_code = CODE.replace("integer :: iterates_over = cells",
-                            "integer :: iterates_over = dofs", 1)
+    dof_code = CODE.replace("integer :: operates_on = cell_column",
+                            "integer :: operates_on = dof", 1)
     for fspace in FunctionSpace.VALID_ANY_SPACE_NAMES:
         code = dof_code.replace(
             "arg_type(gh_field,    gh_real,    gh_inc,  w1)",
@@ -5795,7 +5795,7 @@ module testkern
           (/ arg_type(gh_scalar, gh_real,    gh_read), &
              arg_type(gh_scalar, gh_integer, gh_read)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_code
   end type testkern_type
@@ -6446,7 +6446,7 @@ def test_comp_halo_intern_err(monkeypatch):
     halo_exchange = schedule.children[0]
     field = halo_exchange.field
     monkeypatch.setattr(field, "forward_read_dependencies", lambda: [])
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         halo_exchange._compute_halo_read_info()
     assert ("Internal logic error. There should be at least one read "
             "dependence for a halo exchange") in str(excinfo.value)
@@ -6762,7 +6762,7 @@ def test_halo_req_no_read_deps(monkeypatch):
 
     monkeypatch.setattr(field, "_name", "unique")
 
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _, _ = halo_exchange.required()
     assert ("Internal logic error. There should be at least one read "
             "dependence for a halo exchange" in str(excinfo.value))

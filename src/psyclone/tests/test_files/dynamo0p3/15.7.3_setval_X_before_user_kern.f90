@@ -1,7 +1,8 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2020, Science and Technology Facilities Council.
+! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -30,33 +31,20 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Author A. R. Porter STFC Daresbury Lab
 
-module jo
+program single_invoke
 
-  use argument_mod
-  use fs_continuity_mod
-  use kernel_mod
-  use constants_mod
-
+  ! Description: single point-wise operation (set field values to another field)
+  ! called before a user-defined kernel.
+  use field_mod, only: field_type
+  use testkern_mod, only: testkern_type
+  
   implicit none
 
-  type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(4) :: meta_args = &
-          (/ arg_type(gh_field, gh_inc,  w1),    &
-             arg_type(gh_field, gh_read, w2),    &
-             arg_type(gh_field, gh_read, w2),    &
-             arg_type(gh_field, gh_read, w3)     &
-           /)
-     integer :: operates_on = CELL_COLUMN
-   contains
-     procedure, nopass :: code => testkern_code
-  end type testkern_type
+  type(field_type) :: f1, f2, f3, f4
 
-contains
+  call invoke( setval_X(f2, f1),                  &
+               testkern_type(aval, f2, f1, f3, f4) )
 
-  subroutine testkern_code()
-  end subroutine testkern_code
-
-end module jo
+end program single_invoke

@@ -43,9 +43,10 @@ from __future__ import absolute_import
 
 import pytest
 
-from psyclone.psyir.nodes import ExtractNode
-from psyclone.psyir.transformations import ExtractTrans
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import ExtractNode, Node
+from psyclone.psyir.transformations import ExtractTrans
 
 # --------------------------------------------------------------------------- #
 # ================== Extract Transformation tests =========================== #
@@ -56,18 +57,17 @@ def test_extract_trans():
     '''Tests basic functions in ExtractTrans.'''
     etrans = ExtractTrans()
     assert str(etrans) == "Create a sub-tree of the PSyIR that has " \
-                          "ExtractNode at its root."
+                          "a node of type ExtractNode at its root."
     assert etrans.name == "ExtractTrans"
 
     ltrans = LFRicExtractTrans()
-    assert str(ltrans) == "Inserts an ExtractNode in an LFRic Schedule."
+    assert str(ltrans) == "Create a sub-tree of the PSyIR that has " \
+                          "a node of type ExtractNode at its root."
 
 
 def test_malformed_extract_node(monkeypatch):
     ''' Check that we raise the expected error if an ExtractNode does not have
     a single Schedule node as its child. '''
-    from psyclone.psyir.nodes import Node
-    from psyclone.errors import InternalError
     enode = ExtractNode()
     monkeypatch.setattr(enode, "_children", [])
     with pytest.raises(InternalError) as err:

@@ -72,7 +72,7 @@ module testkern_eval
          /)
     integer :: gh_shape = gh_evaluator
     integer :: gh_evaluator_targets(2) = [W0, W1]
-    integer :: iterates_over = cells
+    integer :: operates_on = cell_column
   contains
     procedure, nopass :: code => testkern_eval_code
   end type testkern_eval_type
@@ -1354,7 +1354,7 @@ module dummy_mod
              func_type(w2vtrace, gh_basis), &
              func_type(w2htrace, gh_basis)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_evaluator
    contains
      procedure, nopass :: code => dummy_code
@@ -1480,7 +1480,7 @@ module dummy_mod
      type(func_type), meta_funcs(1) =         &
           (/ func_type(any_space_1, gh_basis) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => dummy_code
@@ -1556,7 +1556,7 @@ module dummy_mod
              func_type(w2htrace, gh_diff_basis), &
              func_type(w2vtrace, gh_diff_basis)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => dummy_code
@@ -1722,7 +1722,7 @@ module dummy_mod
              func_type(w2vtrace, gh_diff_basis), &
              func_type(w2htrace, gh_diff_basis)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_evaluator
    contains
      procedure, nopass :: code => dummy_code
@@ -1947,7 +1947,7 @@ module dummy_mod
      type(func_type), meta_funcs(1) =              &
           (/ func_type(any_space_1, gh_diff_basis) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => dummy_code

@@ -72,7 +72,7 @@ module testkern_cma
              arg_type(gh_field, gh_real, gh_read, any_space_1),    &
              arg_type(gh_scalar, gh_real, gh_read)                 &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_cma_code
   end type testkern_cma_type
@@ -349,7 +349,7 @@ module testkern_cma_apply
        arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, &
                                 ANY_SPACE_1, ANY_SPACE_2) &
        /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_cma_code
   end type testkern_cma_type
@@ -565,7 +565,7 @@ module testkern_cma_matrix_matrix
        arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_WRITE, &
                                 ANY_SPACE_1, ANY_SPACE_2)  &
        /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_cma_code
   end type testkern_cma_type
