@@ -971,9 +971,10 @@ class DynamoPSy(PSy):
         self._invokes = DynamoInvokes(invoke_info.calls, self)
         # Initialise the dictionary that holds the names of required
         # LFRic data structures and their proxies for the "use"
-        # statements in *_mod_psy.f90 modules
+        # statements in modules that contain PSy-layer routines.
         infmod_list = ["field_mod", "operator_mod"]
-        self._infmod_dict = OrderedDict((k, set()) for k in infmod_list)
+        self._infrastructure_modules = OrderedDict(
+            (k, set()) for k in infmod_list)
 
     @property
     def name(self):
@@ -996,7 +997,7 @@ class DynamoPSy(PSy):
         return self._name
 
     @property
-    def infmod_dict(self):
+    def infrastructure_modules(self):
         '''
         :returns: the dictionary that holds the names of required \
                   LFRic data structures and their proxies to create \
@@ -1004,7 +1005,7 @@ class DynamoPSy(PSy):
         :rtype: dict of set
 
         '''
-        return self._infmod_dict
+        return self._infrastructure_modules
 
     @property
     def gen(self):
@@ -1030,12 +1031,13 @@ class DynamoPSy(PSy):
         # relevant field and operator subclasses of DynCollection.
         # Here we sort the inputs in reverse order to have "_type" before
         # "_proxy_type" and "operator_" before "columnwise_operator_".
-        # We also iterate through the dictionary in reverse order so
-        # the field statements are bubbled up higher.
-        for infmod in reversed(self._infmod_dict):
-            if self._infmod_dict[infmod]:
-                infmod_types = sorted(list(self._infmod_dict[infmod]),
-                                      reverse=True)
+        # We also iterate through the dictionary in reverse order so the
+        # "use" statements for field types are before the "use" statements
+        # for operator types.
+        for infmod in reversed(self._infrastructure_modules):
+            if self._infrastructure_modules[infmod]:
+                infmod_types = sorted(
+                    list(self._infrastructure_modules[infmod]), reverse=True)
                 psy_module.add(UseGen(psy_module, name=infmod,
                                       only=True, funcnames=infmod_types))
         psy_module.add(
@@ -2580,7 +2582,8 @@ class DynFields(DynCollection):
             parent.add(TypeDeclGen(parent, datatype=dtype,
                                    entity_decls=fld_arg_list,
                                    intent="in"))
-            self._invoke.invokes.psy.infmod_dict["field_mod"].add(dtype)
+            (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
+             add(dtype))
 
     def _stub_declarations(self, parent):
         '''
@@ -2823,7 +2826,8 @@ class DynProxies(DynCollection):
             parent.add(TypeDeclGen(parent,
                                    datatype=dtype,
                                    entity_decls=field_proxy_decs))
-            self._invoke.invokes.psy.infmod_dict["field_mod"].add(dtype)
+            (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
+             add(dtype))
 
         op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_operator"])
@@ -2832,7 +2836,8 @@ class DynProxies(DynCollection):
             parent.add(TypeDeclGen(parent,
                                    datatype=dtype,
                                    entity_decls=op_proxy_decs))
-            self._invoke.invokes.psy.infmod_dict["operator_mod"].add(dtype)
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
 
         cma_op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_columnwise_operator"])
@@ -2841,7 +2846,8 @@ class DynProxies(DynCollection):
             parent.add(TypeDeclGen(parent,
                                    datatype=dtype,
                                    entity_decls=cma_op_proxy_decs))
-            self._invoke.invokes.psy.infmod_dict["operator_mod"].add(dtype)
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
 
     def initialise(self, parent):
         '''
@@ -3103,7 +3109,8 @@ class DynLMAOperators(DynCollection):
             parent.add(TypeDeclGen(parent, datatype=dtype,
                                    entity_decls=op_arg_list,
                                    intent="in"))
-            self._invoke.invokes.psy.infmod_dict["operator_mod"].add(dtype)
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
 
 
 class DynCMAOperators(DynCollection):
@@ -3248,7 +3255,8 @@ class DynCMAOperators(DynCollection):
                                    datatype=dtype,
                                    entity_decls=cma_op_arg_list,
                                    intent="in"))
-            self._invoke.invokes.psy.infmod_dict["operator_mod"].add(dtype)
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
 
         for op_name in self._cma_ops:
             # Declare the operator matrix itself
