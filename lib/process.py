@@ -100,7 +100,7 @@ all_types = [TYPE_DATA[my_type] for my_type in types]
 # check dimension
 dims = args.dims.split(",")
 
-# Convert to empty list if am empty dims argument was given:
+# Convert to empty list if an empty dims argument was given:
 if dims == ['']:
   dims = []
 
