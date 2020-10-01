@@ -207,10 +207,10 @@ should include implementations of these routines, even if they are
 empty.
 
  .. note::
-    Currently only the NVIDIA profiling wrapper library and all
+    Currently only the profiling wrapper libraries and
     read-only-verification libraries implement the Start and Stop
     routines. Wider support for all PSyData-based APIs will be addressed
-    in Issue #832.
+    in Issue #824.
 
 
 Init and Shutdown Functions
@@ -241,7 +241,7 @@ Start and Stop Functions
 ++++++++++++++++++++++++
 .. method:: PREFIX_PSyDataStart()
 
-   Currently only implemented in the NVIDIA profiling wrapper.
+   Currently not implemented in the kernel extraction wrapper.
 
    Starts or enables the PSyData library so that subsequent calls to
    the API cause data to be output. For instance, if we have a time-stepping
@@ -260,7 +260,7 @@ Start and Stop Functions
 
 .. method:: PREFIX_PSyDataStop()
 
-   Currently only implemented in the NVIDIA profiling wrapper.
+   Currently not implemented in the kernel extraction wrapper.
 
    Stops or disables the PSyData library so that subsequent calls to
    the PSyData API have no effect. Continuing the above time-stepping
@@ -909,6 +909,9 @@ with existing profiling tools - for example by storing
 an index used by the profiling tool in ``profile_PSyDataType``, or
 by storing pointers to the profiling data to be able to
 print all results in a ProfileFinalise() subroutine.
+Some of the wrapper libraries use the PSyData base class (e.g. dl_timer,
+simple_timing, template), others do not (e.g. NVIDIA profiling,
+DrHook wrapper).
 
 
 Kernel Extraction (PSyKE)
