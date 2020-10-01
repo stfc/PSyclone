@@ -73,10 +73,6 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "CodeBlock": "red",
                        "Container": "green",
                        "Call": "cyan"}
-'''
-.. autoattribute:: SCHEDULE_COLOUR_MAP
-    :type: dict
-'''
 
 # Default indentation string
 INDENTATION_STRING = "    "
@@ -1265,3 +1261,11 @@ class Node(object):
         # match and there are no wildcard imports so raise an exception.
         raise SymbolError(
             "No Symbol found for name '{0}'.".format(name))
+
+
+# For automatic documentation generation
+# TODO #913 the 'colored' routine shouldn't be in this module.
+__all__ = ["colored",
+           "SCHEDULE_COLOUR_MAP",
+           "ChildrenList",
+           "Node"]
