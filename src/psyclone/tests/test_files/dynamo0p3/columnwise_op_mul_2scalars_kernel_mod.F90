@@ -72,7 +72,7 @@ type, public, extends(kernel_type) :: columnwise_op_mul_2scalars_kernel_type
        arg_type(GH_SCALAR,              GH_REAL, GH_READ),                                &
        arg_type(GH_COLUMNWISE_OPERATOR,          GH_READWRITE, ANY_SPACE_1, ANY_SPACE_3)  &
        /)
-  integer :: operates_on = cell_column
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: columnwise_op_mul_2scalars_kernel_code
 end type columnwise_op_mul_2scalars_kernel_type

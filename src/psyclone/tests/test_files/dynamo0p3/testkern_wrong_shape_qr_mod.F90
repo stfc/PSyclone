@@ -55,7 +55,7 @@ module testkern_wrong_shape_qr_mod
              func_type(w2, gh_diff_basis),                 &
              func_type(w3, gh_basis, gh_diff_basis)        &
            /)
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
      integer :: gh_shape = gh_quadrature_wrong
    contains
      procedure, nopass :: code => testkern_wrong_shape_qr_code

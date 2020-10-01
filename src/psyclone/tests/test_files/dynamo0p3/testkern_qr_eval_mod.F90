@@ -55,7 +55,7 @@ module testkern_qr_eval_mod
              func_type(w2, gh_diff_basis),          &
              func_type(w3, gh_basis, gh_diff_basis) &
            /)
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
      integer :: gh_shape(2) = (/ gh_quadrature_face, gh_evaluator /)
    contains
      procedure, nopass :: code => testkern_qr_eval_code

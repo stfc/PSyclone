@@ -48,7 +48,7 @@ module testkern_w2v_mod
           (/ arg_type(gh_field, gh_readwrite, w2v),   &
              arg_type(gh_field, gh_read,      wtheta) &
            /)
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_w2v_code
   end type testkern_w2v_type

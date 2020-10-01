@@ -50,7 +50,7 @@ module testkern_mesh_prop_face_qr_mod
           (/ func_type(w1, gh_basis) /)
      type(mesh_data_type), dimension(1) :: meta_mesh = &
           (/ mesh_data_type(adjacent_face) /)
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
      integer :: gh_shape = gh_quadrature_face
    contains
      procedure, nopass :: code => testkern_mesh_prop_face_qr_code

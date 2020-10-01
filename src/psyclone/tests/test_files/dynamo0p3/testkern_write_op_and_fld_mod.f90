@@ -50,7 +50,7 @@ module testkern_write_op_and_fld_mod
              arg_type(gh_scalar,   gh_integer, gh_read),         &
              arg_type(gh_operator,             gh_write, w0, w0) &
           /)
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_write_op_and_fld_code
   end type testkern_write_op_and_fld_type

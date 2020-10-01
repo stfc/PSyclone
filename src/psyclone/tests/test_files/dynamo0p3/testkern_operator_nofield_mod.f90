@@ -50,7 +50,7 @@ module testkern_operator_nofield_mod
           (/ func_type(w2, gh_basis),                 &
              func_type(w0, gh_diff_basis)             &
           /)
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => testkern_operator_nofield_code

@@ -46,7 +46,7 @@ module testkern_anyw2_stencil_mod
              arg_type(gh_field, gh_read, any_w2, stencil(cross)), &
              arg_type(gh_field, gh_read, any_w2, stencil(cross))  &
           /)
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_anyw2_stencil_code
   end type testkern_anyw2_stencil_type

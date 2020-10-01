@@ -49,7 +49,7 @@ module testkern_mod
              arg_type(gh_field, gh_read, w2),    &
              arg_type(gh_field, gh_read, w3)     &
            /)
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_code
   end type teskern_type

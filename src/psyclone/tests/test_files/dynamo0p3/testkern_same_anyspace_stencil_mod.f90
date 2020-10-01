@@ -47,7 +47,7 @@ module testkern_same_anyspace_stencil_mod
          arg_type(gh_field, gh_read, any_space_1, stencil(cross)), &
          arg_type(gh_field, gh_read, any_space_1, stencil(cross))  &
          /)
-    integer :: operates_on = cell_column
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: code => testkern_same_anyspace_stencil_code
   end type testkern_same_anyspace_stencil_type

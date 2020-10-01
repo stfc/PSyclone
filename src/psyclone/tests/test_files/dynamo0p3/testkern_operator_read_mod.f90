@@ -50,7 +50,7 @@ module testkern_operator_read_mod
      type(func_type) :: meta_funcs(1) =                           &
           (/ func_type(w3, gh_basis, gh_diff_basis)               &
           /)
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => testkern_operator_read_code

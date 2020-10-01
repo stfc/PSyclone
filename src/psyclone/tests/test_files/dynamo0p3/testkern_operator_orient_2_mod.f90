@@ -51,7 +51,7 @@ module testkern_operator_orient_2_mod
              func_type(W1, gh_basis, gh_orientation), &
              func_type(W2, gh_orientation)            &
           /)
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => testkern_operator_orient_2_code

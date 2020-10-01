@@ -44,7 +44,7 @@ module testkern_chi_read_mod
           (/ arg_type(gh_field,   gh_inc,  w0),   &
              arg_type(gh_field*3, gh_read, wchi)  &
            /)
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_chi_read_code
   end type testkern_chi_read_type

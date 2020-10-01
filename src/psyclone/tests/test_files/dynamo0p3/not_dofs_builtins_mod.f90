@@ -49,7 +49,7 @@ module dynamo0p3_builtins_mod
           /)
      ! Deliberately BREAK the meta-data - we only support operates_on
      ! DOFS for built-ins in the LFRic (Dynamo 0.3) API
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: setval_c_code
   end type setval_c

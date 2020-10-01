@@ -68,7 +68,7 @@ module dg_matrix_vector_kernel_mod
                                              ANY_SPACE_1)                &
          /)
 
-    integer :: operates_on = cell_column
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: dg_matrix_vector_kernel_code
   end type

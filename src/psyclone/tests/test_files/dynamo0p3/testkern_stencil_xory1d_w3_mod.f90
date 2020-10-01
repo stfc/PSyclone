@@ -47,7 +47,7 @@ module testkern_stencil_xory1d_w3_mod
           (/ arg_type(gh_field, gh_write, w3),                 &
              arg_type(gh_field, gh_read,  w2, stencil(xory1d)) &
            /)
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_stencil_xory1d_w3_code
   end type testkern_stencil_xory1d_w3_type

@@ -54,7 +54,7 @@ module testkern_ref_elem_out_mod
           (/ reference_element_data_type(outward_normals_to_vertical_faces),   &
              reference_element_data_type(normals_to_vertical_faces),           &
              reference_element_data_type(outward_normals_to_horizontal_faces) /)
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_ref_elem_out_code
   end type testkern_ref_elem_out_type

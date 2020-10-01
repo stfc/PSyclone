@@ -93,7 +93,7 @@ module rtheta_bd_kernel_mod
          reference_element_data_type( normals_to_horizontal_faces ),        &
          reference_element_data_type( outward_normals_to_horizontal_faces ) &
          /)
-    integer :: operates_on = cell_column
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_face
   contains
     procedure, nopass :: rtheta_bd_code

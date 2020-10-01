@@ -57,7 +57,7 @@ module testkern_any_space_1_mod
          func_type(ANY_SPACE_2, GH_BASIS),                    &
          func_type(W0,          GH_DIFF_BASIS)                &
        /)
-    integer :: operates_on = cell_column
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
     procedure, nopass :: testkern_any_space_1_code

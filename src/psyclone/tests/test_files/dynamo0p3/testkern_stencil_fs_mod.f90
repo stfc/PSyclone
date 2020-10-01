@@ -64,7 +64,7 @@ module testkern_stencil_fs_mod
           arg_type(gh_field, gh_read, any_discontinuous_space_1,    &
                                       stencil(cross))               &
            /)
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_stencil_fs_code
   end type testkern_stencil_fs_type

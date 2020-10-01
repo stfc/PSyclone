@@ -50,7 +50,7 @@ use constants_mod,           only: dp
 use kernel_mod,              only: kernel_type
 use gaussian_quadrature_mod, only: gaussian_quadrature_type, &
                                    ngp_h,ngp_v
-use argument_mod,            only: arg_type, &                 ! the type
+use argument_mod,            only: arg_type, &          ! the type
                                    gh_inc, v2, fe, cell_column ! the enums
 
 
@@ -67,7 +67,7 @@ type, public, extends(kernel_type) :: v2_kernel_type
   type(arg_type) :: meta_args(1) = (/ &
        arg_type(gh_inc,v2,fe,.true.,.false.,.false.,.true.) &
        /)
-  integer :: operates_on = cell_column
+  integer :: operates_on = CELL_COLUMN
 
 contains
   procedure, nopass :: rhs_v2_code

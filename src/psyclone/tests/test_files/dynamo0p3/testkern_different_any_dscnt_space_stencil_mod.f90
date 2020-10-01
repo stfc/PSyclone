@@ -51,7 +51,7 @@ module testkern_different_any_dscnt_space_stencil_mod
           arg_type(gh_field, gh_read,  any_discontinuous_space_2, &
                                        stencil(cross))            &
           /)
-     integer :: operates_on = cell_column
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_different_any_dscnt_space_stencil_code
   end type testkern_different_any_dscnt_space_stencil_type

@@ -94,7 +94,7 @@ type, public, extends(kernel_type) :: subgrid_coeffs_kernel_type
        arg_type(GH_FIELD, GH_WRITE, W3),                               &
        arg_type(GH_FIELD, GH_READ,  W3, STENCIL(CROSS))                &
        /)
-  integer :: operates_on = cell_column
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: subgrid_coeffs_code
 end type
