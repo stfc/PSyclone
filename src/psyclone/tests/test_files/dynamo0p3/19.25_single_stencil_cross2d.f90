@@ -30,11 +30,10 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Author A. Coughtrie, Met Office
 
 program single_stencil_cross2d
-  ! Description: single stencil specified in an invoke call
+  ! Description: single 2D stencil specified in an invoke call
   use constants_mod,                only: i_def
   use field_mod,                    only: field_type
   use testkern_stencil_cross2d_mod, only: testkern_stencil_cross2d_type

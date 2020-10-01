@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified by I. Kavcic, Met Office
+.. Modified by I. Kavcic and A. Coughtrie, Met Office
 
 .. highlight:: fortran
 
@@ -259,7 +259,7 @@ Stencils
 Kernel metadata may specify that a Kernel performs a stencil operation
 on a field. Any such metadata must provide a stencil type. See the
 :ref:`dynamo0.3-api-meta-args` section for more details. The supported
-stencil types are ``X1D``, ``Y1D``, ``XORY1D`` or ``CROSS``.
+stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS`` or ``CROSS2D``.
 
 If a stencil operation is specified by the Kernel metadata the
 algorithm layer must provide the ``extent`` of the stencil (the
@@ -1068,8 +1068,8 @@ Stencil metadata is written in the following format::
 
   STENCIL(type)
 
-where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D`` or
-``CROSS``.  As the stencil ``extent`` (the maximum distance from the
+where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D``,
+``CROSS`` or ``CROSS2D``.  As the stencil ``extent`` (the maximum distance from the
 central cell that the stencil extends) is not provided in the metadata,
 it is expected to be provided by the algorithm writer as part of the
 ``invoke`` call (see Section :ref:`dynamo0.3-alg-stencil`). As there
@@ -1084,11 +1084,16 @@ algorithm developer to specify which of these it is from the algorithm
 layer as part of the ``invoke`` call (see Section
 :ref:`dynamo0.3-alg-stencil`).
 
+The ``CROSS2D`` stencil type provides a stencil with built in directional information.
+The dofmap array passed in the kernel call provides an additional dimension for
+the direction (ordered W, S, E, N as is standard in LFRic) from which the cells
+in that branch of the stencil can be obtained.
+
 For example, the following stencil (with ``extent=2``):
 
 .. code-block:: none
 
-  | 4 | 2 | 1 | 3 | 5 |
+  | 3 | 2 | 1 | 4 | 5 |
 
 would be declared as::
 
@@ -1099,10 +1104,10 @@ and the following stencil (with ``extent=2``):
 .. code-block:: none
 
   |   |   | 9 |   |   |
-  |   |   | 5 |   |   |
-  | 6 | 2 | 1 | 3 | 7 |
-  |   |   | 4 |   |   |
   |   |   | 8 |   |   |
+  | 3 | 2 | 1 | 6 | 7 |
+  |   |   | 4 |   |   |
+  |   |   | 5 |   |   |
 
 would be declared as::
 

@@ -31,7 +31,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Modified I. Kavcic and A. Coughtrie, Met Office
 
 program single_stencil
   ! Description: single stencil with an xory1d stencil specified in

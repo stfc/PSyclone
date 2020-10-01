@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter and R. W. Ford  STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and A. Coughtrie, Met Office
 
 
 ''' Module containing py.test tests for dependency analysis.'''
