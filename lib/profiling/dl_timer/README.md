@@ -36,7 +36,7 @@ and link first with the wrapper library, then the dl_timer library:
 
 ```sh
 gfortran -c ... -I PATH-TO-PSYCLONE/lib/profiling/dl_timer somefile.f90
-gfortran -o a.out ... -L PATH-TO-PSYCLONE/lib/profiling/dl_timer -ldl_timer
+gfortran -o a.out ... -L PATH-TO-PSYCLONE/lib/profiling/dl_timer -ldl_timer_psy
          -L PATH-TO-DLTIMER -ldltimer
 ```
 The name of the dl_timer library will depend on the way it was compiled

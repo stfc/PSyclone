@@ -46,7 +46,7 @@ F90FLAGS += -I$(DL_TIMER_INCLUDE)
 OBJS = dl_timer.o psy_data_base.o
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
 
-name=dl_timer
+name=dl_timer_psy
 libname=lib$(name).a
 
 default: $(libname)
@@ -63,5 +63,6 @@ psy_data_base.f90: ../../psy_data_base.jinja
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f $(libname) $(OBJS) profile_mod.mod psy_data_base.f90
+	rm -f $(libname) $(OBJS) profile_psy_data_mod.mod \
+		psy_data_base_mod.mod psy_data_base.f90
 
