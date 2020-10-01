@@ -53,11 +53,6 @@ contains
     endif
 
     call this%PSyDataBaseType%PreStart(module_name, region_name, 0, 0)
-    if (num_pre_vars /= 0 .or. num_post_vars /= 0) then
-        print *,"[PSyData] Profile interface got ", num_pre_vars, num_post_vars
-        print *,"          as number of variables, but should only get 0."
-        call this%Abort("Invalid number of variables")
-    endif
     if (is_enabled) then
         print *, "PreStart called for module '", module_name,  &
                  "' region '", region_name, "'"
