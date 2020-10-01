@@ -177,7 +177,7 @@ Some important details:
                                (``:py:class:`psyclone.filename.Class```, 'int'
                                etc), or can also be a full sentence, then starting
                                with a capital letter and full punctuation.
-         raises                These must start with a lower case letter, and end
+         exceptions            These must start with a lower case letter, and end
                                with a full stop.
          ===================== ======================================================
 
