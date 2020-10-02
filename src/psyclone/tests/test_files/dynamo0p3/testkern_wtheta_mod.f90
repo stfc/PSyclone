@@ -50,7 +50,7 @@ module testkern_wtheta_mod
           arg_type(gh_field, gh_write, wtheta),                   &
           arg_type(gh_field, gh_read,  any_discontinuous_space_1) &
           /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_wtheta_code
   end type testkern_wtheta_type

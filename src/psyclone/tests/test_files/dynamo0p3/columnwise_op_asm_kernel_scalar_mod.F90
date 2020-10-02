@@ -50,7 +50,7 @@ use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,                   &
                                     GH_OPERATOR, GH_COLUMNWISE_OPERATOR,   &
                                     GH_SCALAR, GH_REAL, GH_READ, GH_WRITE, &
-                                    ANY_SPACE_1, ANY_SPACE_2, CELLS
+                                    ANY_SPACE_1, ANY_SPACE_2, CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
 
@@ -69,7 +69,7 @@ type, public, extends(kernel_type) :: columnwise_op_asm_kernel_scalar_type
        arg_type(GH_COLUMNWISE_OPERATOR,          GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
        arg_type(GH_SCALAR,              GH_REAL, GH_READ) &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: columnwise_op_asm_kernel_scalar_code
 end type

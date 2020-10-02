@@ -66,7 +66,7 @@ module ru_kernel_mod
          func_type(W3, GH_BASIS),                                        &
          func_type(W0, GH_BASIS, GH_DIFF_BASIS)                          &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
     procedure, nopass :: ru_code
