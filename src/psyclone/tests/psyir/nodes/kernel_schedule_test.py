@@ -31,16 +31,42 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#          I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the KernelSchedule class. '''
 
-from psyclone.psyir.nodes import Assignment, Reference, Literal, KernelSchedule
+from __future__ import absolute_import
+from psyclone.psyir.nodes import Assignment, Reference, Literal, \
+    KernelSchedule, Container
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
+
+
+def test_kernelschedule_constructor():
+    ''' Check that we can construct a KernelSchedule and that it has the
+    expected properties. '''
+    ksched = KernelSchedule("timetable")
+    assert ksched.name == "timetable"
+    # A KernelSchedule does not represent a program
+    assert not ksched.is_program
+    # A KernelSchedule does not return anything
+    assert ksched.return_type is None
+    assert ksched.parent is None
+    # Now create a KernelSchedule with a parent
+    cnode = Container("BigBox")
+    ksched2 = KernelSchedule("plan", parent=cnode)
+    assert ksched2.parent is cnode
+
+
+def test_kernelschedule_str():
+    ''' Check that the __str__ property correctly picks up the 'text_name'
+    of the KernelSchedule. '''
+    ksched = KernelSchedule("timetable")
+    assert str(ksched) == ("KernelSchedule[name:'timetable']:\n"
+                           "End KernelSchedule")
 
 
 def test_kernelschedule_create():
