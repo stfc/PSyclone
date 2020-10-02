@@ -71,7 +71,7 @@ module testkern_refelem_quad_mod
       meta_reference_element =                                  &
         (/ reference_element_data_type(normals_to_faces),       &
            reference_element_data_type(outward_normals_to_faces) /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_quadrature_xyoz
    contains
      procedure, nopass :: code => testkern_refelem_quad_code

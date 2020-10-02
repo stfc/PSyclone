@@ -219,7 +219,7 @@ module dummy_mod
              arg_type(gh_field, gh_inc,   w1), &
              arg_type(gh_field, gh_read,  w1)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -296,7 +296,7 @@ module dummy_mod
              arg_type(gh_field, gh_write, w2vtrace), &
              arg_type(gh_field, gh_read,  wchi)      &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -406,7 +406,7 @@ module dummy_mod
              arg_type(gh_field, gh_inc,       any_space_7),               &
              arg_type(gh_field, gh_readwrite, any_discontinuous_space_4)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -468,7 +468,7 @@ module dummy_mod
      type(arg_type), meta_args(1) =           &
           (/ arg_type(gh_field*3, gh_inc, w0) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -742,7 +742,7 @@ module dummy_mod
      type(arg_type), meta_args(1) =         &
           (/ arg_type(gh_field, gh_inc, w1) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy
   end type dummy_type

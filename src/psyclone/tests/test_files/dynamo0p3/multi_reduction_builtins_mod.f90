@@ -45,7 +45,7 @@ module dynamo0p3_builtins_mod
           arg_type(GH_SCALAR, GH_REAL, GH_SUM               ),        &
           arg_type(GH_SCALAR, GH_REAL, GH_SUM               )         &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: setval_c_code
   end type X_innerproduct_Y
