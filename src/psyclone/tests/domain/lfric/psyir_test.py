@@ -42,10 +42,9 @@ import pytest
 from psyclone.domain.lfric.psyir import \
     CONSTANTS_MOD, I_DEF, R_DEF, L_DEF, \
     \
-    LfricIntegerScalarDataType, LfricRealScalarDataType, \
-    LfricLogicalScalarDataType, \
-    LfricIntegerScalarDataSymbol, LfricRealScalarDataSymbol, \
-    LfricLogicalScalarDataSymbol, \
+    LfricRealScalarDataType, LfricRealScalarDataSymbol, \
+    LfricIntegerScalarDataType, LfricIntegerScalarDataSymbol, \
+    LfricLogicalScalarDataType, LfricLogicalScalarDataSymbol, \
     \
     CellPositionDataType, CellPositionDataSymbol, \
     MeshHeightDataType, MeshHeightDataSymbol, \
@@ -57,10 +56,26 @@ from psyclone.domain.lfric.psyir import \
     NumberOfQrPointsInHorizontalDataType, \
     NumberOfQrPointsInHorizontalDataSymbol, \
     NumberOfQrPointsInVerticalDataType, NumberOfQrPointsInVerticalDataSymbol, \
-    NumberOfQrPointsDataType, NumberOfQrPointsDataSymbol
-
+    NumberOfQrPointsDataType, NumberOfQrPointsDataSymbol, \
+    \
+    RealFieldDataDataType, RealFieldDataDataSymbol, \
+    IntegerFieldDataDataType, IntegerFieldDataDataSymbol, \
+    LogicalFieldDataDataType, LogicalFieldDataDataSymbol, \
+    \
+    OperatorDataType, OperatorDataSymbol, \
+    DofMapDataType, DofMapDataSymbol, \
+    BasisFunctionQrXyozDataType, BasisFunctionQrXyozDataSymbol, \
+    BasisFunctionQrFaceDataType, BasisFunctionQrFaceDataSymbol, \
+    BasisFunctionQrEdgeDataType, BasisFunctionQrEdgeDataSymbol, \
+    DiffBasisFunctionQrXyozDataType, DiffBasisFunctionQrXyozDataSymbol, \
+    DiffBasisFunctionQrFaceDataType, DiffBasisFunctionQrFaceDataSymbol, \
+    DiffBasisFunctionQrEdgeDataType, DiffBasisFunctionQrEdgeDataSymbol, \
+    QrWeightsInHorizontalDataType, QrWeightsInHorizontalDataSymbol, \
+    QrWeightsInVerticalDataType, QrWeightsInVerticalDataSymbol, \
+    QrWeightsDataType, QrWeightsDataSymbol
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
-    GlobalInterface, ScalarType, LocalInterface, ArgumentInterface
+    GlobalInterface, ScalarType, LocalInterface, ArgumentInterface, \
+    ArrayType
 
 
 # Modules and their arguments
@@ -145,15 +160,94 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
     created correctly.
 
     '''
-    args = ["symbol"]
-    args.extend(attribute_map.values())
+    args = ["symbol"] + list(attribute_map.values())
     lfric_symbol = symbol(*args)
     assert isinstance(lfric_symbol, generic_symbol)
     assert lfric_symbol.name == "symbol"
+    assert isinstance(lfric_symbol.interface, LocalInterface)
     for attribute in attribute_map:
         assert getattr(lfric_symbol, attribute) == attribute_map[attribute]
+    lfric_symbol = symbol(
+        *args, interface=ArgumentInterface(ArgumentInterface.Access.READ))
+    assert isinstance(lfric_symbol.interface, ArgumentInterface)
+    assert lfric_symbol.interface.access == ArgumentInterface.Access.READ
+
+
+# Check the LFRic field/array datatypes and symbols are created correctly
+# Specific scalar datatypes
+@pytest.mark.parametrize(
+    "data_type, symbol, scalar_type, dims, attribute_map",
+    [(RealFieldDataDataType, RealFieldDataDataSymbol, LfricRealScalarDataType,
+      [NumberOfUniqueDofsDataSymbol("ndofs", "w0")], {"fs": "w0"}),
+     (IntegerFieldDataDataType, IntegerFieldDataDataSymbol, LfricIntegerScalarDataType,
+      [NumberOfUniqueDofsDataSymbol("ndofs", "w1")], {"fs": "w1"}),
+     (LogicalFieldDataDataType, LogicalFieldDataDataSymbol, LfricLogicalScalarDataType,
+      [NumberOfUniqueDofsDataSymbol("ndofs", "w2")], {"fs": "w2"}),
+     (OperatorDataType, OperatorDataSymbol, LfricRealScalarDataType,
+      [NumberOfDofsDataSymbol("ndofs", "w3"),
+       NumberOfDofsDataSymbol("ndofs", "w3"),
+       NumberOfCellsDataSymbol("ncells")], {"fs_from": "w3", "fs_to": "w3"}),
+     (DofMapDataType, DofMapDataSymbol, LfricIntegerScalarDataType,
+      [NumberOfDofsDataSymbol("ndofs", "w3")], {"fs": "w0"}),
+     (BasisFunctionQrXyozDataType, BasisFunctionQrXyozDataSymbol, LfricRealScalarDataType,
+      [1, NumberOfDofsDataSymbol("ndofs", "w3"),
+       NumberOfQrPointsInHorizontalDataSymbol("qr_h"),
+       NumberOfQrPointsInVerticalDataSymbol("qr_v")], {"fs": "w0"}),
+     (BasisFunctionQrFaceDataType, BasisFunctionQrFaceDataSymbol, LfricRealScalarDataType,
+      [3, NumberOfDofsDataSymbol("ndofs", "w3"),
+       NumberOfQrPointsDataSymbol("qr"),
+       NumberOfFacesDataSymbol("nfaces")], {"fs": "w0"}),
+     (BasisFunctionQrEdgeDataType, BasisFunctionQrEdgeDataSymbol, LfricRealScalarDataType,
+      [1, NumberOfDofsDataSymbol("ndofs", "w3"),
+       NumberOfQrPointsDataSymbol("qr"),
+       NumberOfEdgesDataSymbol("nedges")], {"fs": "w0"}),
+     (DiffBasisFunctionQrXyozDataType, DiffBasisFunctionQrXyozDataSymbol, LfricRealScalarDataType,
+      [3, NumberOfDofsDataSymbol("ndofs", "w3"),
+       NumberOfQrPointsInHorizontalDataSymbol("qr_h"),
+       NumberOfQrPointsInVerticalDataSymbol("qr_v")], {"fs": "w0"}),
+     (DiffBasisFunctionQrFaceDataType, DiffBasisFunctionQrFaceDataSymbol, LfricRealScalarDataType,
+      [3, NumberOfDofsDataSymbol("ndofs", "w3"),
+       NumberOfQrPointsDataSymbol("qr"),
+       NumberOfFacesDataSymbol("nfaces")], {"fs": "w0"}),
+     (DiffBasisFunctionQrEdgeDataType, DiffBasisFunctionQrEdgeDataSymbol, LfricRealScalarDataType,
+      [1, NumberOfDofsDataSymbol("ndofs", "w3"),
+       NumberOfQrPointsDataSymbol("qr"),
+       NumberOfEdgesDataSymbol("nedges")], {"fs": "w0"}),
+     (QrWeightsInHorizontalDataType, QrWeightsInHorizontalDataSymbol, LfricRealScalarDataType,
+      [NumberOfQrPointsInHorizontalDataSymbol("qr_h")], {}),
+     (QrWeightsInVerticalDataType, QrWeightsInVerticalDataSymbol, LfricRealScalarDataType,
+      [NumberOfQrPointsInVerticalDataSymbol("qr_v")], {}),
+     (QrWeightsDataType, QrWeightsDataSymbol, LfricRealScalarDataType,
+      [NumberOfQrPointsDataSymbol("qr")], {})])
+def test_array_types(data_type, symbol, scalar_type, dims, attribute_map):
+    '''Test the generated array (including field) datatypes are created
+    correctly.
+
+    '''
+    # Datatype creation
+    lfric_datatype = data_type(dims)
+    assert isinstance(lfric_datatype, ArrayType)
+    assert isinstance(lfric_datatype._datatype, scalar_type)
+    assert lfric_datatype.shape is dims
+    # Wrong number of dims
+    with pytest.raises(TypeError) as info:
+        _ = data_type([])
+    assert ("{0} expected the number of supplied dimensions to be {1} but "
+            "found 0.".format(type(lfric_datatype).__name__, len(dims))
+            in str(info.value))
+    # Datasymbol creation
+    args = list(attribute_map.values())
+    lfric_symbol = symbol("symbol", dims, *args)
+    assert isinstance(lfric_symbol, DataSymbol)
+    assert lfric_symbol.name == "symbol"
+    assert isinstance(lfric_symbol.interface, LocalInterface)
+    assert isinstance(lfric_symbol.datatype, data_type)
+    lfric_symbol = symbol(
+        "symbol", dims, *args,
+        interface=ArgumentInterface(ArgumentInterface.Access.READ))
+    assert isinstance(lfric_symbol.interface, ArgumentInterface)
+    assert lfric_symbol.interface.access == ArgumentInterface.Access.READ
 
 
 # TBD
-# Check the LFRic field/array datatypes and symbols are created correctly
 # Check the LFRic vector-field-data symbols are created correctly

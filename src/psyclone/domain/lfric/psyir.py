@@ -171,6 +171,18 @@ field_datatypes = [
 # field_datatypes and array_datatypes but is not stored in the
 # generated classes.
 
+# TBD: #926 attributes will be constrained to certain datatypes and
+# values. For example, a function space attribute should be a string
+# containing the name of a supported function space. These are not
+# currently checked.
+
+# TBD: #927 in some cases the values of attributes can be inferred, or
+# at least must be consistent. For example, a field datatype has an
+# associated function space attribute, its dimension symbol (if there
+# is one) must be a NumberOfUniqueDofsDataSymbol which also has a
+# function space attribute and the two function spaces must be
+# the same. This is not curently checked.
+
 array_datatypes = [
     Array("operator", "lfric real scalar",
           ["number of dofs", "number of dofs", "number of cells"],
@@ -214,22 +226,22 @@ for array_type in array_datatypes + field_datatypes:
     exec(
         "class {0}DataType(ArrayType):\n"
         "    def __init__(self, dims):\n"
+        "        if (len(dims) != {2}):\n"
+        "            raise TypeError(\n"
+        "                \"{0}DataType expected the number of supplied \"\n"
+        "                \"dimensions to be {2} but found {{0}}.\"\n"
+        "                \"\".format(len(dims)))\n"
         "        super({0}DataType, self).__init__(\n"
         "            {1}DataType(), dims)\n"
-        "".format(NAME, SCALAR_TYPE))
+        "".format(NAME, SCALAR_TYPE, len(DIMS)))
     # Create the specific symbol
     exec(
         "class {0}DataSymbol(DataSymbol):\n"
         "    def __init__({1}):\n"
-        "        if (len(dims) != {3}):\n"
-        "            raise Exception(\n"
-        "                \"{0}DataSymbol expected the number of supplied \"\n"
-        "                \"dimensions to be {3} but found {{0}}\"\n"
-        "                \"\".format(len(dims)))\n"
         "{2}\n"
         "        super({0}DataSymbol, self).__init__(\n"
         "            name, {0}DataType(dims), interface=interface)\n"
-        "".format(NAME, ", ".join(ARGS), "\n".join(VARS), len(DIMS)))
+        "".format(NAME, ", ".join(ARGS), "\n".join(VARS)))
 
 # Generate LFRic vector-field-data symbols as subclasses of field-data symbols
 for array_type in field_datatypes:
