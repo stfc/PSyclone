@@ -1681,8 +1681,32 @@ Rules for General-Purpose Kernels: operates_on = DOMAIN
 
 The arguments to general-purpose kernels (those that do not involve
 either CMA operators or prolongation/restriction operations) that
-operate on a domain cell-columns are similar to those that operate on
+operate on a domain of cell-columns are similar to those that operate on
 a single cell-column but with some simplifications:
+
+1) If an LMA operator is passed then include the ``cells`` argument.
+   ``cells`` is an integer and has intent ``in``.
+2) Include ``nlayers``, the number of layers in a column. ``nlayers``
+   is an integer of type ``i_def`` and has intent ``in``.
+3) For each scalar/field/vector_field/operator in the order specified by
+   the meta_args metadata:
+
+   1) If the current entry is a scalar quantity then include the Fortran
+      variable in the argument list. The intent is determined from the
+      metadata (see :ref:`dynamo0.3-api-meta-args` for an explanation).
+   2) If the current entry is a field then include the field array. The
+      field array name is currently specified as being
+      ``"field_"<argument_position>"_"<field_function_space>``. A field
+      array is a real array of type ``r_def`` and dimensioned as the
+      unique degrees of freedom for the space that the field is on.
+      This value is passed in separately. Again, the intent is determined
+      from the metadata (see :ref:`dynamo0.3-api-meta-args`).
+
+      1) If the field entry has a stencil access then add an integer
+         stencil-size argument with intent ``in``. This will supply
+         the number of cells in the stencil.
+      2) If the field entry stencil access is of type ``XORY1D`` then
+         add an integer direction argument with intent ``in``.
 
 
 Rules for CMA Kernels
