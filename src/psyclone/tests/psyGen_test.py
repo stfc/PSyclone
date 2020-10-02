@@ -50,7 +50,7 @@ import os
 import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
-from psyclone.psyir.nodes import Assignment, Reference, BinaryOperation, \
+from psyclone.psyir.nodes import Assignment, BinaryOperation, \
     Literal, Node, Schedule, KernelSchedule
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     OMPParallelDoDirective, InlinedKern, \

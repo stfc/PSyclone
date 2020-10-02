@@ -40,7 +40,6 @@ from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import DataType
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols.symboltable import SymbolTable
-from psyclone.errors import GenerationError
 
 
 class Routine(Schedule):

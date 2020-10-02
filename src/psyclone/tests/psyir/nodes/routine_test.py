@@ -36,6 +36,7 @@
 
 ''' This module contains the pytest tests for the Routine class. '''
 
+from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal
 from psyclone.psyir.symbols import (INTEGER_TYPE, REAL_TYPE, DataSymbol,
