@@ -123,8 +123,8 @@
 	"iterates_over" in LFRic kernel metadata.
 
 	41) #887 for #876. Create a generic symbol when no better information is
-	provided about a symbol and replace the symbol latter on if more information
-	if found.
+	provided about a symbol and replace the symbol later on if more
+        information is found.
 
 	42) #904 for #903. Fixed an error in handling use statements (a
 	symbol clash when there should not be one).
@@ -137,6 +137,16 @@
 
 	45) #902 for #866. Update (virtually) all LFRic test kernels and
 	examples to use "operates_on" instead of "iterates_over" metadata.
+
+	46) #914 for #897. Update Coding Style in Dev guide with details
+	on raising Exceptions.
+
+        47) #878 for #832. Use Jinja and the PSyDataBase class for building
+        most of the PSyData profiling wrapper libraries.
+
+        48) #915 for #908. Alters the module generation for the LFRic PSy
+        layer so that use statements for LFRic field and operator modules are
+        only generated if required.
 
 release 1.9.0 20th May 2020
 

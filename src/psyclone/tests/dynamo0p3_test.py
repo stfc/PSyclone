@@ -678,8 +678,6 @@ def test_field(tmpdir):
     output = (
         "  MODULE single_invoke_psy\n"
         "    USE constants_mod, ONLY: r_def, i_def\n"
-        "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-        "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
@@ -888,8 +886,6 @@ def test_field_fs(tmpdir):
     output = (
         "  MODULE single_invoke_fs_psy\n"
         "    USE constants_mod, ONLY: r_def, i_def\n"
-        "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-        "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
