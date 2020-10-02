@@ -1360,17 +1360,16 @@ operates_on
 The fourth type of metadata provided is ``OPERATES_ON``. This
 specifies that the Kernel has been written with the assumption that it
 is supplied with the specified data for each field/operator argument.
-For user-supplied kernels this currently only has one valid value
-which is ``CELL_COLUMN``, i.e. the kernel expects to be passed the
-data for a single column of cells for each field or operator argument.
-The possible values for ``OPERATES_ON`` and their interpretation are
-summarised in the following table:
+For user-supplied kernels this is currently only permitted to be
+``CELL_COLUMN`` or ``DOMAIN``. The possible values for ``OPERATES_ON``
+and their interpretation are summarised in the following table:
 
 ===========  =========================================================
 operates_on  Data passed for each field/operator argument
 ===========  =========================================================
 cell_column  Single column of cells
 dof          Single DoF (currently :ref:`built-ins` only)
+domain       All columns of cells
 ===========  =========================================================
 
 procedure
@@ -1391,15 +1390,16 @@ Subroutine
 
 .. _dynamo0.3-stub-generation-rules:
 
-Rules for General-Purpose Kernels
-#################################
+Rules for General-Purpose Kernels: operates_on = CELL_COLUMN
+############################################################
 
 The arguments to general-purpose kernels (those that do not involve
-either CMA operators or prolongation/restriction operations) follow a
-set of rules which have been specified for the Dynamo0.3 API. These
-rules are encoded in the ``generate()`` method within the
-``ArgOrdering`` abstract class in the ``dynamo0p3.py`` file. The
-rules, along with PSyclone's naming conventions, are:
+either CMA operators or prolongation/restriction operations) that
+operate on cell-columns follow a set of rules which have been
+specified for the Dynamo0.3 API. These rules are encoded in the
+``generate()`` method within the ``ArgOrdering`` abstract class in the
+``dynamo0p3.py`` file. The rules, along with PSyclone's naming
+conventions, are:
 
 1) If an LMA operator is passed then include the ``cells`` argument.
    ``cells`` is an integer and has intent ``in``.
@@ -1675,6 +1675,15 @@ and the array of face normals in the specified direction (here horizontal)::
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
        nfaces_re_h, normals_face_h)
+
+Rules for General-Purpose Kernels: operates_on = DOMAIN
+#######################################################
+
+The arguments to general-purpose kernels (those that do not involve
+either CMA operators or prolongation/restriction operations) that
+operate on a domain cell-columns are similar to those that operate on
+a single cell-column but with some simplifications:
+
 
 Rules for CMA Kernels
 #####################
@@ -2579,17 +2588,18 @@ processors will have continuous fields which contain DoFs that the
 processor does not own. These unowned DoFs are called `annexed` in the
 Dynamo0.3 API and are a separate, but related, concept to field halos.
 
-When a kernel that operates on a cell-column needs to read a continuous
-field then the annexed DoFs must be up-to-date on all processors. If
-they are not then a halo exchange must be added. Currently PSyclone
-defaults, for kernels which iterate over DoFs, to iterating over only
-owned DoFs. This behaviour can be changed by setting
-`COMPUTE_ANNEXED_DOFS` to ``true`` in the `dynamo0.3` section of the
-configuration file (see the :ref:`configuration` section). PSyclone
-will then generate code to iterate over both owned and annexed DoFs,
-thereby reducing the number of halo exchanges required (at the expense
-of redundantly computing annexed DoFs). For more details please refer
-to the :ref:`dynamo0.3-developers` developers section.
+When a kernel that operates on either a cell-column or the whole
+domain needs to read a continuous field then the annexed DoFs must be
+up-to-date on all processors. If they are not then a halo exchange
+must be added. Currently PSyclone defaults, for kernels which iterate
+over DoFs, to iterating over only owned DoFs. This behaviour can be
+changed by setting `COMPUTE_ANNEXED_DOFS` to ``true`` in the
+`dynamo0.3` section of the configuration file (see the
+:ref:`configuration` section). PSyclone will then generate code to
+iterate over both owned and annexed DoFs, thereby reducing the number
+of halo exchanges required (at the expense of redundantly computing
+annexed DoFs). For more details please refer to the
+:ref:`dynamo0.3-developers` developers section.
 
 .. _lfric-run-time-checks:
 

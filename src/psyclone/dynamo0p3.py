@@ -142,7 +142,7 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
 # Valid LFRic iteration spaces for user-supplied kernels and built-in kernels
 # TODO #870 rm 'cells' from list below.
-USER_KERNEL_ITERATION_SPACES = ["cells", "cell_column"]
+USER_KERNEL_ITERATION_SPACES = ["cells", "cell_column", "domain"]
 VALID_ITERATION_SPACES = USER_KERNEL_ITERATION_SPACES + \
     BUILTIN_ITERATION_SPACES
 
