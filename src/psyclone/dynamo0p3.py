@@ -955,41 +955,64 @@ class DynKernMetadata(KernelType):
 
 
 class DynamoPSy(PSy):
-    ''' The Dynamo specific PSy class. This creates a Dynamo specific
-    invokes object (which controls all the required invocation calls).
-    It also overrides the PSy gen method so that we generate dynamo
-    specific PSy module code.
+    '''
+    The LFRic-specific PSy class. This creates an LFRic-specific
+    Invokes object (which controls all the required invocation calls).
+    It also overrides the PSy gen method so that we generate
+    LFRic-specific PSy module code.
 
     :param invoke_info: object containing the required invocation information \
                         for code optimisation and generation.
     :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
+
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
         self._invokes = DynamoInvokes(invoke_info.calls, self)
+        # Initialise the dictionary that holds the names of required
+        # LFRic data structures and their proxies for the "use"
+        # statements in modules that contain PSy-layer routines.
+        infmod_list = ["field_mod", "operator_mod"]
+        self._infrastructure_modules = OrderedDict(
+            (k, set()) for k in infmod_list)
 
     @property
     def name(self):
-        '''Returns a name for the psy layer. This is used as the psy module
-        name. We override the default value as the Met Office prefer
-        _psy to be appended, rather than prepended'''
+        '''
+        :returns: a name for the PSy layer. This is used as the PSy module \
+                  name. We override the default value as the Met Office \
+                  prefer "_psy" to be appended, rather than prepended.
+        :rtype: str
+
+        '''
         return self._name + "_psy"
 
     @property
     def orig_name(self):
         '''
-        :returns: the unmodified psy-layer name.
+        :returns: the unmodified PSy-layer name.
         :rtype: str
 
         '''
         return self._name
 
     @property
+    def infrastructure_modules(self):
+        '''
+        :returns: the dictionary that holds the names of required \
+                  LFRic data structures and their proxies to create \
+                  "use" statements in the PSy-layer modules.
+        :rtype: dict of set
+
+        '''
+        return self._infrastructure_modules
+
+    @property
     def gen(self):
         '''
-        Generate PSy code for the Dynamo0.3 api.
+        Generate PSy code for the LFRic (Dynamo0.3) API.
 
-        :return: Root node of generated Fortran AST
+        :returns: root node of generated Fortran AST.
         :rtype: :py:class:`psyir.nodes.Node`
 
         '''
@@ -997,23 +1020,31 @@ class DynamoPSy(PSy):
 
         # Create an empty PSy layer module
         psy_module = ModuleGen(self.name)
-        # Include required infrastructure modules
-        psy_module.add(UseGen(psy_module, name="field_mod", only=True,
-                              funcnames=["field_type", "field_proxy_type"]))
-        psy_module.add(UseGen(psy_module, name="operator_mod", only=True,
-                              funcnames=["operator_type",
-                                         "operator_proxy_type",
-                                         "columnwise_operator_type",
-                                         "columnwise_operator_proxy_type"]))
+
+        # Add all invoke-specific information
+        self.invokes.gen_code(psy_module)
+        # Inline kernels where requested
+        self.inline(psy_module)
+
+        # Include required infrastructure modules. The sets of required
+        # LFRic data structures and their proxies are updated in the
+        # relevant field and operator subclasses of DynCollection.
+        # Here we sort the inputs in reverse order to have "_type" before
+        # "_proxy_type" and "operator_" before "columnwise_operator_".
+        # We also iterate through the dictionary in reverse order so the
+        # "use" statements for field types are before the "use" statements
+        # for operator types.
+        for infmod in reversed(self._infrastructure_modules):
+            if self._infrastructure_modules[infmod]:
+                infmod_types = sorted(
+                    list(self._infrastructure_modules[infmod]), reverse=True)
+                psy_module.add(UseGen(psy_module, name=infmod,
+                                      only=True, funcnames=infmod_types))
         psy_module.add(
             UseGen(psy_module, name="constants_mod", only=True,
                    funcnames=[api_config.default_kind["real"],
                               api_config.default_kind["integer"]]))
 
-        # add all invoke specific information
-        self.invokes.gen_code(psy_module)
-        # inline kernels where requested
-        self.inline(psy_module)
         # Return the root node of the generated code
         return psy_module.root
 
@@ -2547,9 +2578,12 @@ class DynFields(DynCollection):
         # Create a list of field names
         fld_arg_list = [arg.declaration_name for arg in fld_args]
         if fld_arg_list:
-            parent.add(TypeDeclGen(parent, datatype="field_type",
+            dtype = "field_type"
+            parent.add(TypeDeclGen(parent, datatype=dtype,
                                    entity_decls=fld_arg_list,
                                    intent="in"))
+            (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
+             add(dtype))
 
     def _stub_declarations(self, parent):
         '''
@@ -2788,21 +2822,32 @@ class DynProxies(DynCollection):
         field_proxy_decs = self._invoke.unique_proxy_declarations(
             LFRicArgDescriptor.VALID_FIELD_NAMES)
         if field_proxy_decs:
+            dtype = "field_proxy_type"
             parent.add(TypeDeclGen(parent,
-                                   datatype="field_proxy_type",
+                                   datatype=dtype,
                                    entity_decls=field_proxy_decs))
+            (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
+             add(dtype))
+
         op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_operator"])
         if op_proxy_decs:
+            dtype = "operator_proxy_type"
             parent.add(TypeDeclGen(parent,
-                                   datatype="operator_proxy_type",
+                                   datatype=dtype,
                                    entity_decls=op_proxy_decs))
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
+
         cma_op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_columnwise_operator"])
         if cma_op_proxy_decs:
+            dtype = "columnwise_operator_proxy_type"
             parent.add(TypeDeclGen(parent,
-                                   datatype="columnwise_operator_proxy_type",
+                                   datatype=dtype,
                                    entity_decls=cma_op_proxy_decs))
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
 
     def initialise(self, parent):
         '''
@@ -3060,9 +3105,12 @@ class DynLMAOperators(DynCollection):
         # Create a list of operator names
         op_arg_list = [arg.declaration_name for arg in op_args]
         if op_arg_list:
-            parent.add(TypeDeclGen(parent, datatype="operator_type",
+            dtype = "operator_type"
+            parent.add(TypeDeclGen(parent, datatype=dtype,
                                    entity_decls=op_arg_list,
                                    intent="in"))
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
 
 
 class DynCMAOperators(DynCollection):
@@ -3202,10 +3250,13 @@ class DynCMAOperators(DynCollection):
         # Create a list of column-wise operator names
         cma_op_arg_list = [arg.declaration_name for arg in cma_op_args]
         if cma_op_arg_list:
+            dtype = "columnwise_operator_type"
             parent.add(TypeDeclGen(parent,
-                                   datatype="columnwise_operator_type",
+                                   datatype=dtype,
                                    entity_decls=cma_op_arg_list,
                                    intent="in"))
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
 
         for op_name in self._cma_ops:
             # Declare the operator matrix itself

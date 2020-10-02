@@ -144,6 +144,10 @@
         47) #878 for #832. Use Jinja and the PSyDataBase class for building
         most of the PSyData profiling wrapper libraries.
 
+        48) #915 for #908. Alters the module generation for the LFRic PSy
+        layer so that use statements for LFRic field and operator modules are
+        only generated if required.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
