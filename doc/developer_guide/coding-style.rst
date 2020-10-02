@@ -120,15 +120,15 @@ Exceptions
 When raising an exception, every effort must be made to ensure that
 the associated message is clear and provides as much information as
 possible. However, it should *not* contain the name of the current
-routine/class etc. as this is provided in the Python stacktrace.
+routine/class etc. as this is provided in the Python stack trace.
 Where it makes sense to do so, the past tense should be used,
 e.g. "expected a str but got an object of type 'blah'."
 
-In the event that code that is handling an exception
-then needs to raise a new exception, 'raise from' should be used so as
-to retain contextual information. Since this functionality
-is only available in Python3, the `raise_from` routine
-provided by the `six` interoperability package must be used, e.g.::
+In the event that code that is handling an exception then needs to
+raise a new exception, the `raise_from` routine provided by the `six`
+Python 2/3 interoperability package must be used. (This ensures that
+contextual information about the source of the error is
+retained.). For example::
 
     import six
     try:
