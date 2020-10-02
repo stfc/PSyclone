@@ -54,7 +54,7 @@ module dummy_orientation_mod
              func_type(w2, gh_orientation), &
              func_type(w3, gh_orientation)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => dummy_orientation_code
   end type dummy_orientation_type

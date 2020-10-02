@@ -50,7 +50,7 @@ use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,               &
                                     GH_FIELD, GH_INC,                  &
                                     ANY_SPACE_1,                       &
-                                    CELLS
+                                    CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 
 implicit none
@@ -66,7 +66,7 @@ type, public, extends(kernel_type) :: enforce_bc_kernel_type
   type(arg_type) :: meta_args(1) = (/                                  &
        arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1)                      &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: enforce_bc_code
 end type

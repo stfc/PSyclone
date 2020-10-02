@@ -43,7 +43,7 @@ module matrix_vector_kernel_mod
 use argument_mod,            only : arg_type,                               &
                                     GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
-                                    CELLS
+                                    CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
@@ -62,7 +62,7 @@ type, public, extends(kernel_type) :: matrix_vector_kernel_type
        arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                    &
        arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)        &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: matrix_vector_code
 end type
