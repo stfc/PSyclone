@@ -1056,7 +1056,7 @@ class DynamoPSy(PSy):
         # Initialise the dictionary that holds the names of required
         # LFRic data structures and their proxies for the "use"
         # statements in modules that contain PSy-layer routines.
-        infmod_list = ["field_mod", "operator_mod"]
+        infmod_list = ["field_mod", "integer_field_mod", "operator_mod"]
         self._infrastructure_modules = OrderedDict(
             (k, set()) for k in infmod_list)
 
@@ -2655,19 +2655,44 @@ class DynFields(DynCollection):
                        routine to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises InternalError: for an unsupported intrinsic type of field \
+                               argument data (other than "real" or "integer").
+
         '''
         # Add the Invoke subroutine argument declarations for fields
         fld_args = self._invoke.unique_declarations(
             argument_types=LFRicArgDescriptor.VALID_FIELD_NAMES)
-        # Create a list of field names
-        fld_arg_list = [arg.declaration_name for arg in fld_args]
-        if fld_arg_list:
+        # Create lists of field names for real- and integer-valued fields
+        real_fld_arg_list = []
+        int_fld_arg_list = []
+        for fld in fld_args:
+            declname = fld.declaration_name
+            if fld.intrinsic_type == "real":
+                real_fld_arg_list.append(declname)
+            elif fld.intrinsic_type == "integer":
+                int_fld_arg_list.append(declname)
+            else:
+                raise InternalError(
+                    "Found an unsupported intrinsic type '{0}' in Invoke "
+                    "declarations for the field argument '{1}'. Supported "
+                    "types are {2}.".
+                    format(fld.intrinsic_type, declname,
+                           list(MAPPING_DATA_TYPES.values())))
+        # Declare real and integer fields
+        if real_fld_arg_list:
             dtype = "field_type"
             parent.add(TypeDeclGen(parent, datatype=dtype,
-                                   entity_decls=fld_arg_list,
+                                   entity_decls=real_fld_arg_list,
                                    intent="in"))
-            (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
-             add(dtype))
+            (self._invoke.invokes.psy.
+             infrastructure_modules["field_mod"].add(dtype))
+        if int_fld_arg_list:
+            dtype = "integer_field_type"
+            parent.add(TypeDeclGen(parent, datatype=dtype,
+                                   entity_decls=int_fld_arg_list,
+                                   intent="in"))
+            (self._invoke.invokes.psy.
+             infrastructure_modules["integer_field_mod"].add(dtype))
 
     def _stub_declarations(self, parent):
         '''
@@ -2676,6 +2701,9 @@ class DynFields(DynCollection):
         :param parent: the node in the f2pygen AST representing the Kernel \
                        stub to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises InternalError: for an unsupported intrinsic type of field \
+                               argument data (other than "real" or "integer").
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
@@ -2686,6 +2714,15 @@ class DynFields(DynCollection):
             undf_name = fld.function_space.undf_name
             intent = fld.intent
             dtype = fld.intrinsic_type
+
+            # Check for invalid intrinsic type
+            if dtype not in MAPPING_DATA_TYPES.values():
+                raise InternalError(
+                    "Found an unsupported intrinsic type '{0}' in kernel "
+                    "stub declarations for the field argument '{1}'. "
+                    "Supported types are {2}.".
+                    format(dtype, fld.declaration_name,
+                           list(MAPPING_DATA_TYPES.values())))
 
             if fld.vector_size > 1:
                 for idx in range(1, fld.vector_size+1):
@@ -2903,16 +2940,27 @@ class DynProxies(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        field_proxy_decs = self._invoke.unique_proxy_declarations(
-            LFRicArgDescriptor.VALID_FIELD_NAMES)
-        if field_proxy_decs:
+        # Declarations of real and integer field proxies
+        real_field_proxy_decs = self._invoke.unique_proxy_declarations(
+            LFRicArgDescriptor.VALID_FIELD_NAMES, intrinsic_type="real")
+        if real_field_proxy_decs:
             dtype = "field_proxy_type"
             parent.add(TypeDeclGen(parent,
                                    datatype=dtype,
-                                   entity_decls=field_proxy_decs))
+                                   entity_decls=real_field_proxy_decs))
             (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
              add(dtype))
+        int_field_proxy_decs = self._invoke.unique_proxy_declarations(
+            LFRicArgDescriptor.VALID_FIELD_NAMES, intrinsic_type="integer")
+        if int_field_proxy_decs:
+            dtype = "integer_field_proxy_type"
+            parent.add(TypeDeclGen(parent,
+                                   datatype=dtype,
+                                   entity_decls=int_field_proxy_decs))
+            (self._invoke.invokes.psy.
+             infrastructure_modules["integer_field_mod"].add(dtype))
 
+        # Declarations of LMA operator proxies
         op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_operator"])
         if op_proxy_decs:
@@ -2923,6 +2971,7 @@ class DynProxies(DynCollection):
             (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
              add(dtype))
 
+        # Declarations of CMA operator proxies
         cma_op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_columnwise_operator"])
         if cma_op_proxy_decs:
@@ -4869,17 +4918,21 @@ class DynInvoke(Invoke):
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
-    def unique_proxy_declarations(self, argument_types, access=None):
+    def unique_proxy_declarations(self, argument_types, access=None,
+                                  intrinsic_type=None):
         '''
         Returns a list of all required proxy declarations for the specified
-        argument type. If access is supplied (e.g. "AccessType.WRITE")
-        then only declarations with that access are returned.
+        argument types. If access is supplied (e.g. "AccessType.WRITE")
+        then only declarations with that access are returned. If data type
+        is supplied then only declarations with that data type are returned.
 
         :param argument_types: argument types that proxy declarations are \
                                searched for.
         :type argument_types: list of str
         :param access: optional AccessType for the specified argument type.
         :type access: :py:class:`psyclone.core.access_type.AccessType`
+        :param data_type: optional intrinsic type of argument data.
+        :type data_type: str
 
         :returns: a list of all required proxy declarations for the \
                   specified argument type.
@@ -4888,31 +4941,39 @@ class DynInvoke(Invoke):
         :raises InternalError: if the supplied argument types are invalid.
         :raises InternalError: if an invalid access is specified, i.e. \
                                not of type AccessType.
+        :raises InternalError: if an invalid intrinsic type is specified.
 
         '''
-        # First check for invalid argument types and invalid access
+        # First check for invalid argument types, access and data type
         if any(argtype not in LFRicArgDescriptor.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
-                "DynInvoke.unique_proxy_declarations() called with at least "
-                "one invalid argument type. Expected one of {0} but found {1}."
-                .format(str(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES),
-                        str(argument_types)))
+                "Expected one of {0} as a valid argument type but found {1}.".
+                format(str(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES),
+                       str(argument_types)))
         if access and not isinstance(access, AccessType):
             api_config = Config.get().api_conf("dynamo0.3")
             valid_names = api_config.get_valid_accesses_api()
             raise InternalError(
-                "DynInvoke.unique_proxy_declarations() called with an invalid "
-                "access type. Expected one of {0} but found '{1}'.".
+                "Expected one of {0} as a valid access type but found '{1}'.".
                 format(valid_names, access))
+        if (intrinsic_type and intrinsic_type not in
+                MAPPING_DATA_TYPES.values()):
+            raise InternalError(
+                "Expected one of {0} as a valid intrinsic type but found "
+                "'{1}'.".format(str(MAPPING_DATA_TYPES.values()),
+                                intrinsic_type))
         # Create declarations list
         declarations = []
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
-                if not access or arg.access == access:
-                    if arg.text and arg.argument_type in argument_types:
-                        if arg.proxy_declaration_name not in declarations:
-                            declarations.append(arg.proxy_declaration_name)
+                if (not arg.intrinsic_type or
+                        arg.intrinsic_type == intrinsic_type):
+                    if not access or arg.access == access:
+                        if arg.text and arg.argument_type in argument_types:
+                            if arg.proxy_declaration_name not in declarations:
+                                declarations.append(
+                                    arg.proxy_declaration_name)
         return declarations
 
     def arg_for_funcspace(self, fspace):
