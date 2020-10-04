@@ -95,7 +95,7 @@ def test_dynscalars_stub_err():
     arg = kernel.arguments.args[1]
     arg._intrinsic_type = "invalid-scalar-type"
     with pytest.raises(InternalError) as err:
-        _ = DynScalarArgs(kernel)
+        DynScalarArgs(kernel)
     assert ("Found an unsupported intrinsic type 'invalid-scalar-type' "
             "for the scalar argument 'iscalar_2'. Supported types are "
             "['real', 'integer']." in str(err.value))

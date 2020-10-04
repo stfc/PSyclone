@@ -1627,7 +1627,7 @@ def test_dynscalars_call_err():
     first_argument = first_kernel.arguments.args[0]
     first_argument._intrinsic_type = "double-type"
     with pytest.raises(InternalError) as err:
-        _ = DynScalarArgs(first_kernel)
+        DynScalarArgs(first_kernel)
     assert ("Found an unsupported intrinsic type 'double-type' for the "
             "scalar argument 'a'. Supported types are ['real', 'integer']."
             in str(err.value))
@@ -1960,8 +1960,7 @@ def test_invoke_uniq_proxy_declns():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations(["not_a_type"])
-    assert ("DynInvoke.unique_proxy_declarations() called with at least "
-            "one invalid argument type. Expected one of {0} but found "
+    assert ("Expected one of {0} as a valid argument type but found "
             "['not_a_type'].".format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
             in str(excinfo.value))
 
@@ -1979,9 +1978,24 @@ def test_uniq_proxy_declns_invalid_access():
         psy.invokes.invoke_list[0].unique_proxy_declarations(
             ["gh_field"],
             access="invalid_acc")
-    assert ("DynInvoke.unique_proxy_declarations() called with an invalid "
-            "access type. Expected one of {0} but found 'invalid_acc'.".
-            format(valid_access_names) in str(excinfo.value))
+    assert ("Expected one of {0} as a valid access type but found "
+            "'invalid_acc'.".format(valid_access_names) in str(excinfo.value))
+
+
+def test_uniq_proxy_declns_invalid_intrinsic_type():
+    ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
+    is called for an invalid intrinsic type. '''
+    from psyclone.dynamo0p3 import MAPPING_DATA_TYPES
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    with pytest.raises(InternalError) as excinfo:
+        psy.invokes.invoke_list[0].unique_proxy_declarations(
+            ["gh_field"], intrinsic_type="not_intrinsic_type")
+    assert ("Expected one of {0} as a valid intrinsic type but found "
+            "'not_intrinsic_type'.".format(MAPPING_DATA_TYPES.values())
+            in str(excinfo.value))
 
 
 def test_dyninvoke_first_access():
@@ -3346,7 +3360,6 @@ def test_arg_descriptor_init_error(monkeypatch):
     ast = fpapi.parse(code, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[1]
-    print("field_descriptor = ", field_descriptor)
     # Extract an arg_type object that we can use to create an
     # LFRicArgDescriptor object
     arg_type = field_descriptor._arg_type
