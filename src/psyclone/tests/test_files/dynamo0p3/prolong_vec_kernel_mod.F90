@@ -52,7 +52,7 @@ module prolong_vec_kernel_mod
           arg_type(GH_FIELD*3, GH_INC,  W1, mesh_arg=GH_FINE),  &
           arg_type(GH_FIELD*3, GH_READ, W2, mesh_arg=GH_COARSE) &
           /)
-     integer :: iterates_over = CELLS
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => prolong_vec_kernel_code
   end type prolong_vec_kernel_type

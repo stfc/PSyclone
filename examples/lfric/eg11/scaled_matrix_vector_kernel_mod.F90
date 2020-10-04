@@ -46,7 +46,7 @@ module scaled_matrix_vector_kernel_mod
   use argument_mod,      only : arg_type,              &
                                 GH_FIELD, GH_OPERATOR, &
                                 GH_READ, GH_INC,       &
-                                CELLS
+                                CELL_COLUMN
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W3
   use kernel_mod,        only : kernel_type
@@ -68,7 +68,7 @@ module scaled_matrix_vector_kernel_mod
         arg_type(GH_FIELD,    GH_READ, W2),     &
         arg_type(GH_FIELD,    GH_READ, W2)      &
         /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: scaled_matrix_vector_code
   end type
@@ -82,7 +82,7 @@ module scaled_matrix_vector_kernel_mod
         arg_type(GH_FIELD,    GH_READ, W2),     &
         arg_type(GH_FIELD,    GH_READ, W2)      &
           /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: opt_scaled_matrix_vector_code
   end type

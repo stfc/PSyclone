@@ -59,7 +59,7 @@ module testkern_write_any_anyd_mod
           arg_type(gh_field, gh_read,  w2h),                       &
           arg_type(gh_field, gh_read,  w2v)                        &
           /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_write_any_anyd_code
   end type testkern_write_any_anyd_type

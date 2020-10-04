@@ -82,6 +82,12 @@ TYPE_DATA = {"real": ("Real", "real(kind=real32)", 32),
 # ---------------------------------------------------------
 # Check type information:
 types = [type.lower() for type in args.types.split(",")]
+
+# If types is empty (e.g. in profiling no types are actually
+# required), the parsers assigns ['']. Convert to an empty list:
+if types == ['']:
+    types = []
+
 for my_type in types:
     if my_type not in TYPE_DATA:
         print("Type '{0}' is not supported.".format(my_type), file=sys.stderr)
@@ -93,6 +99,11 @@ all_types = [TYPE_DATA[my_type] for my_type in types]
 # ---------------------------------------------------------
 # check dimension
 dims = args.dims.split(",")
+
+# Convert to empty list if an empty dims argument was given:
+if dims == ['']:
+  dims = []
+
 for dim in dims:
     try:
         int_dim = int(dim)
