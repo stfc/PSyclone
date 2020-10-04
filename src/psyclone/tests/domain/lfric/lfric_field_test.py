@@ -45,7 +45,8 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import DynKernMetadata
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynFields
+from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.utils import ParseError
@@ -153,6 +154,56 @@ def test_ad_field_init_wrong_data_type(monkeypatch):
             str(excinfo.value))
 
 
+def test_dynfields_call_err():
+    ''' Check that the DynFields constructor raises the expected internal
+    error if it encounters an unrecognised intrinsic type of a field
+    argument when generating a kernel call.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.5_single_invoke_fs.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernel = invoke.schedule.coded_kernels()[0]
+    # Create PSy module and Invoke subroutine objects
+    psy_module = ModuleGen(psy.name)
+    invoke_sub = SubroutineGen(psy_module, name=invoke.name,
+                               args=invoke.psy_unique_var_names)
+    # Sabotage the field argument to make it have an invalid intrinsic type
+    fld_arg = kernel.arguments.args[0]
+    fld_arg._intrinsic_type = "triple-type"
+    with pytest.raises(InternalError) as err:
+        DynFields(invoke)._invoke_declarations(invoke_sub)
+    assert ("Found an unsupported intrinsic type 'triple-type' in Invoke "
+            "declarations for the field argument 'f1'. Supported types "
+            "are ['real', 'integer']." in str(err.value))
+
+
+def test_dynfields_stub_err():
+    ''' Check that the DynFields constructor raises the expected internal
+    error if it encounters an unrecognised intrinsic type of a field
+    argument when generating a kernel stub.
+
+    '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    # Create an empty PSy layer module and Kernel stub subroutine objects
+    psy_module = ModuleGen("testkern_field_mod")
+    sub_stub = SubroutineGen(psy_module, name="testkern_field_code",
+                             implicitnone=True)
+    # Sabotage the field argument to make it have an invalid intrinsic type
+    fld_arg = kernel.arguments.args[1]
+    fld_arg._intrinsic_type = "invalid-field-type"
+    with pytest.raises(InternalError) as err:
+        DynFields(kernel)._stub_declarations(sub_stub)
+    assert ("Found an unsupported intrinsic type 'invalid-field-type' in "
+            "kernel stub declarations for the field argument 'field_2'. "
+            "Supported types are ['real', 'integer']." in str(err.value))
+
+
 # Tests for integer-valued fields
 
 
@@ -171,9 +222,8 @@ def test_int_field_fs(tmpdir):
     output = (
         "  MODULE single_invoke_fs_int_field_psy\n"
         "    USE constants_mod, ONLY: r_def, i_def\n"
-        "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-        "columnwise_operator_type, columnwise_operator_proxy_type\n"
-        "    USE field_mod, ONLY: field_type, field_proxy_type\n"
+        "    USE integer_field_mod, ONLY: integer_field_type, "
+        "integer_field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_testkern_fs_int_field_type(f1, f2, m1, m2, "
