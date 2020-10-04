@@ -7514,9 +7514,9 @@ class DynKern(CodedKern):
     def validate_kernel_code_arg(self, kern_code_arg, interface_arg):
         '''Check that the supplied datatypes match'''
 
-        print (type(kern_code_arg))
-        print (kern_code_arg)
-        print (type(interface_arg))
+        # print (type(kern_code_arg))
+        # print (kern_code_arg)
+        # print (type(interface_arg))
         # 1: intrinsic datatype
         actual_datatype = kern_code_arg.datatype.intrinsic
         expected_datatype = interface_arg.datatype.intrinsic

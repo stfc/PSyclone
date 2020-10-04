@@ -7353,17 +7353,12 @@ def test_kern_const_invalid_quad(monkeypatch):
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
 
     kctrans = Dynamo0p3KernelConstTrans()
-    import psyclone
-    # Add an unsupported quadrature to the list of valid ones.
-    monkeypatch.setattr(psyclone.dynamo0p3, "VALID_QUADRATURE_SHAPES",
-                        ["gh_quadrature_xyoz", "monkey"])
-    # Set the kernel to use the unsupported quadrature.
-    monkeypatch.setattr(kernel, "_eval_shapes", ["monkey"])
+    monkeypatch.setattr(kernel, "_eval_shapes", ["gh_quadrature_face"])
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"element_order": 0, "quadrature": True})
     assert (
         "Support is currently limited to 'xyoz' quadrature but found "
-        "['monkey'].") in str(excinfo.value)
+        "['gh_quadrature_face'].") in str(excinfo.value)
 
 
 def test_kern_const_invalid_make_constant1():
