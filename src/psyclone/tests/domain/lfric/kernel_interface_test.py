@@ -38,11 +38,20 @@ correctly'''
 
 # pylint: disable=no-name-in-module
 from __future__ import absolute_import
+import os
 import pytest
 from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 from psyclone.domain.lfric import KernelInterface
 from psyclone.domain.lfric.psyir import \
-    MeshHeightDataSymbol, CellPositionDataSymbol
+    MeshHeightDataSymbol, CellPositionDataSymbol, \
+    RealVectorFieldDataDataSymbol, NumberOfUniqueDofsDataSymbol, \
+    RealFieldDataDataSymbol
+from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
+from psyclone.psyGen import PSyFactory
+from psyclone.parse.algorithm import parse
+
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "..", "..", "test_files", "dynamo0p3")
 
 
 def test_init():
@@ -58,18 +67,6 @@ def test_init():
     assert kernel_interface._arglist == []
 
 
-def _check_scalar_symbol(kernel_interface, data_type, tag):
-    '''Utility function that tests that a particular class is created,
-    added to the kernel_interface symbol table and _arglist
-    attribute.
-
-    '''
-    assert kernel_interface._symbol_table.lookup(tag)
-    arglist = kernel_interface._arglist
-    assert len(arglist) == 1
-    assert isinstance(arglist[0], data_type)
-    assert arglist[0].name == tag
-
 # TBD
 # def test_generate():
 #     pass
@@ -82,7 +79,12 @@ def test_cell_position():
     '''
     kernel_interface = KernelInterface(None)
     kernel_interface.cell_position()
-    _check_scalar_symbol(kernel_interface, CellPositionDataSymbol, "cell")
+    symbol = kernel_interface._symbol_table.lookup("cell")
+    assert isinstance(symbol, CellPositionDataSymbol)
+    assert isinstance(symbol.interface, ArgumentInterface)
+    assert (symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-1] is symbol
 
 
 def test_mesh_height():
@@ -92,10 +94,15 @@ def test_mesh_height():
     '''
     kernel_interface = KernelInterface(None)
     kernel_interface.mesh_height()
-    _check_scalar_symbol(kernel_interface, MeshHeightDataSymbol, "nlayers")
+    symbol = kernel_interface._symbol_table.lookup("nlayers")
+    assert isinstance(symbol, MeshHeightDataSymbol)
+    assert isinstance(symbol.interface, ArgumentInterface)
+    assert (symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-1] is symbol
 
 
-@pytest.mark.xfail(reason="Issue #xxx: this callback is not yet implemented")
+@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_mesh_ncell2d():
     '''Test that the KernelInterface class mesh_ncell2d method adds the
     expected class(es) to the symbol table and the _arglist list.
@@ -105,7 +112,7 @@ def test_mesh_ncell2d():
     kernel_interface.mesh_ncell2d()
 
 
-@pytest.mark.xfail(reason="Issue #xxx: this callback is not yet implemented")
+@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_cell_map():
     '''Test that the KernelInterface class cell_map method adds the
     expected class(es) to the symbol table and the _arglist list.
@@ -114,14 +121,81 @@ def test_cell_map():
     kernel_interface = KernelInterface(None)
     kernel_interface.cell_map()
 
-# TBD
-# def test_field_vector():
-#     pass
-# def test_field():
-#     pass
+
+def test_field_vector():
+    '''Test that the KernelInterface class field_vector. We want to check
+    that the correct symbol is referenced for the dimension of the
+    vector field symbols so the simplest solution is to use one of the
+    Fortran test examples.
+
+    '''
+    kernel_interface = KernelInterface(None)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+    vector_arg = kernel.args[1]
+    kernel_interface.field_vector(vector_arg)
+
+    # undf symbol declared
+    undf_tag = "undf_{0}".format(vector_arg.function_space.orig_name)
+    undf_symbol = kernel_interface._symbol_table.lookup(undf_tag)
+    assert isinstance(undf_symbol, NumberOfUniqueDofsDataSymbol)
+
+    # vector fields declared, added to argument list, correct function
+    # space specified and dimensioned correctly
+    for idx in range(vector_arg.vector_size):
+        tag = "{0}_v{1}".format(vector_arg.name, idx)
+        symbol = kernel_interface._symbol_table.lookup(tag)
+        assert isinstance(symbol, RealVectorFieldDataDataSymbol)
+        assert isinstance(symbol.interface, ArgumentInterface)
+        assert (symbol.interface.access ==
+                ArgumentInterface(INTENT_MAPPING[vector_arg.intent]).access)
+        assert kernel_interface._arglist[idx-3] is symbol
+        assert symbol.fs == vector_arg.function_space.orig_name
+        assert len(symbol.shape) == 1
+        assert symbol.shape[0] is undf_symbol
 
 
-@pytest.mark.xfail(reason="Issue #xxx: this callback is not yet implemented")
+def test_field():
+    '''Test that the KernelInterface class field. We want to check
+    that the correct symbol is referenced for the dimension of the
+    field symbol so the simplest solution is to use one of the
+    Fortran test examples.
+
+    '''
+    kernel_interface = KernelInterface(None)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+    field_arg = kernel.args[1]
+    kernel_interface.field(field_arg)
+
+    # undf symbol declared
+    undf_tag = "undf_{0}".format(field_arg.function_space.orig_name)
+    undf_symbol = kernel_interface._symbol_table.lookup(undf_tag)
+    assert isinstance(undf_symbol, NumberOfUniqueDofsDataSymbol)
+
+    # field declared, added to argument list, correct function
+    # space specified and dimensioned correctly
+    tag = field_arg.name
+    symbol = kernel_interface._symbol_table.lookup(tag)
+    assert isinstance(symbol, RealFieldDataDataSymbol)
+    assert isinstance(symbol.interface, ArgumentInterface)
+    assert (symbol.interface.access ==
+            ArgumentInterface(INTENT_MAPPING[field_arg.intent]).access)
+    assert kernel_interface._arglist[-1] is symbol
+    assert symbol.fs == field_arg.function_space.orig_name
+    assert len(symbol.shape) == 1
+    assert symbol.shape[0] is undf_symbol
+
+
+@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_stencil_unknown_extent():
     '''Test that the KernelInterface class stencil_unknown_extent method
     adds the expected class(es) to the symbol table and the _arglist
@@ -132,7 +206,7 @@ def test_stencil_unknown_extent():
     kernel_interface.stencil_unknown_extent(None)
 
 
-@pytest.mark.xfail(reason="Issue #xxx: this callback is not yet implemented")
+@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_stencil_unknown_direction():
     '''Test that the KernelInterface class stencil_unknown_direction method
     adds the expected class(es) to the symbol table and the _arglist
@@ -143,7 +217,7 @@ def test_stencil_unknown_direction():
     kernel_interface.stencil_unknown_direction(None)
 
 
-@pytest.mark.xfail(reason="Issue #xxx: this callback is not yet implemented")
+@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_stencil():
     '''Test that the KernelInterface class stencil method adds the
     expected class(es) to the symbol table and the _arglist list.
@@ -157,7 +231,7 @@ def test_stencil():
 #     pass
 
 
-@pytest.mark.xfail(reason="Issue #xxx: this callback is not yet implemented")
+@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_cma_operator():
     '''Test that the KernelInterface class cma_operator method adds the
     expected class(es) to the symbol table and the _arglist list.
@@ -173,7 +247,7 @@ def test_cma_operator():
 #     pass
 
 
-@pytest.mark.xfail(reason="Issue #xxx: this callback is not yet implemented")
+@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_fs_intergrid():
     '''Test that the KernelInterface class fs_intergrid method adds the
     expected class(es) to the symbol table and the _arglist list.
@@ -187,7 +261,7 @@ def test_fs_intergrid():
 #     pass
 
 
-@pytest.mark.xfail(reason="Issue #xxx: this callback is not yet implemented")
+@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_banded_dofmap():
     '''Test that the KernelInterface class banded_dofmap method adds the
     expected class(es) to the symbol table and the _arglist list.
@@ -197,7 +271,7 @@ def test_banded_dofmap():
     kernel_interface.banded_dofmap(None)
 
 
-@pytest.mark.xfail(reason="Issue #xxx: this callback is not yet implemented")
+@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_indirection_dofmap():
     '''Test that the KernelInterface class indirection_dofmap method adds the
     expected class(es) to the symbol table and the _arglist list.
@@ -213,7 +287,7 @@ def test_indirection_dofmap():
 #     pass
 
 
-@pytest.mark.xfail(reason="Issue #xxx: this callback is not yet implemented")
+@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_orientation():
     '''Test that the KernelInterface class orientation method adds the
     expected class(es) to the symbol table and the _arglist list.
@@ -223,7 +297,7 @@ def test_orientation():
     kernel_interface.orientation(None)
 
 
-@pytest.mark.xfail(reason="Issue #xxx: this callback is not yet implemented")
+@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_field_bcs_kernel():
     '''Test that the KernelInterface class field_bcs_kernel method adds the
     expected class(es) to the symbol table and the _arglist list.
@@ -233,7 +307,7 @@ def test_field_bcs_kernel():
     kernel_interface.field_bcs_kernel(None)
 
 
-@pytest.mark.xfail(reason="Issue #xxx: this callback is not yet implemented")
+@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_operator_bcs_kernel():
     '''Test that the KernelInterface class operator_bcs_kernel method adds the
     expected class(es) to the symbol table and the _arglist list.
