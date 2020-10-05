@@ -4967,8 +4967,7 @@ class DynInvoke(Invoke):
         declarations = []
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
-                if (not arg.intrinsic_type or
-                        arg.intrinsic_type == intrinsic_type):
+                if not intrinsic_type or arg.intrinsic_type == intrinsic_type:
                     if not access or arg.access == access:
                         if arg.text and arg.argument_type in argument_types:
                             if arg.proxy_declaration_name not in declarations:
