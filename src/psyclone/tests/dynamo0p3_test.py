@@ -7050,7 +7050,7 @@ def test_kerncallarglist_positions_quad(dist_mem):
 # Class DynKernelArguments start
 
 
-# (1/4) Method acc_args
+# (1/5) Method acc_args
 def test_dynkernelarguments_acc_args_1():
     '''Test that the acc_args method in the DynKernelArguments class
     returns the expected arguments.
@@ -7069,7 +7069,7 @@ def test_dynkernelarguments_acc_args_1():
         'map_w2', 'ndf_w3', 'undf_w3', 'map_w3']
 
 
-# (2/4) Method acc_args
+# (2/5) Method acc_args
 def test_dynkernelarguments_acc_args_2():
     '''Test that the acc_args method in the DynKernelArguments class
     returns the expected arguments when there is a field vector.
@@ -7090,7 +7090,7 @@ def test_dynkernelarguments_acc_args_2():
         'ndf_w3', 'undf_w3', 'map_w3']
 
 
-# (3/4) Method acc_args
+# (3/5) Method acc_args
 def test_dynkernelarguments_acc_args_3():
     '''Test that the acc_args method in the DynKernelArguments class
     returns the expected arguments when there is a stencil.
@@ -7109,9 +7109,27 @@ def test_dynkernelarguments_acc_args_3():
         'f4_proxy', 'f4_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1', 'ndf_w2',
         'undf_w2', 'map_w2', 'ndf_w3', 'undf_w3', 'map_w3']
 
-
-# (4/4) Method acc_args
+# (4/5) Method acc_args
 def test_dynkernelarguments_acc_args_4():
+    '''Test that the acc_args method in the DynKernelArguments class
+    returns the expected arguments when there is a stencil.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "19.25_single_stencil_cross2d.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_stencil_cross2d_type').schedule
+    kern = sched.kernels()[0]
+    kern_args = kern.arguments
+    acc_args = kern_args.acc_args
+    assert acc_args == [
+        'nlayers', 'f1_proxy', 'f1_proxy%data', 'f2_proxy', 'f2_proxy%data',
+        'f2_stencil_sizes', 'f2_stencil_dofmap', 'f3_proxy', 'f3_proxy%data',
+        'f4_proxy', 'f4_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1', 'ndf_w2',
+        'undf_w2', 'map_w2', 'ndf_w3', 'undf_w3', 'map_w3']
+
+# (5/5) Method acc_args
+def test_dynkernelarguments_acc_args_5():
     ''' Test that the acc_args method in the DynKernelArguments class
     returns the expected arguments when there is an operator.
 

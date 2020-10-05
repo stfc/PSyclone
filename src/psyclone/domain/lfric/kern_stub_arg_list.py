@@ -197,7 +197,7 @@ class KernStubArgList(ArgOrdering):
         self.append(name, var_accesses)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
-        '''Add stencil information to the argument list associated with the
+        '''Add 2D stencil information to the argument list associated with the
         argument 'arg' if the extent is unknown. If supplied it also stores
         this access in var_accesses.
 
@@ -249,7 +249,7 @@ class KernStubArgList(ArgOrdering):
         self.append(var_name, var_accesses)
 
     def stencil_2d(self, arg, var_accesses=None):
-        '''Add general stencil information associated with the argument 'arg'
+        '''Add 2D general stencil information associated with the argument 'arg'
         to the argument list. If supplied it also stores this access in
         var_accesses.
 
