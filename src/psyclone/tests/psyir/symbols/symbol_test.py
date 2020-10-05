@@ -281,6 +281,7 @@ def test_get_external_symbol(monkeypatch):
     _ = Container.create("test", ctable, [KernelSchedule("dummy")])
     # Monkeypatch the container's FortranModuleInterface so that it always
     # appears to be unable to find the "some_mod" module
+
     def fake_import(name):
         raise SymbolError("Oh dear")
     monkeypatch.setattr(other_container._interface, "import_container",

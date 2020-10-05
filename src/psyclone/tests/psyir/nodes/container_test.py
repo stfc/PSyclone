@@ -150,7 +150,7 @@ def test_container_create_invalid():
         _ = Container.create("mod_name", symbol_table, ["invalid"])
     assert ("Item 'str' can't be child 0 of 'Container'. The valid format is:"
             " '[Container | KernelSchedule | InvokeSchedule]*'."
-            ""in str(excinfo.value))
+            in str(excinfo.value))
 
 
 def test_container_children_validation():
