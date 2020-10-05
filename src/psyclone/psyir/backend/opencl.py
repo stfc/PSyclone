@@ -177,7 +177,7 @@ class OpenCLWriter(CWriter):
         the PSyIR tree.
 
         :param node: A KernelSchedule PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.KernelSchedule`
+        :type node: :py:class:`psyclone.psyir.nodes.KernelSchedule`
 
         :returns: The OpenCL code as a string.
         :rtype: str
