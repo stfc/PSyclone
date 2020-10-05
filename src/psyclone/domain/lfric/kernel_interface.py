@@ -261,7 +261,7 @@ class KernelInterface(ArgOrdering):
         mapping = {
             "gh_quadrature_xyoz": BasisFunctionQrXyozDataSymbol,
             "gh_quadrature_face": BasisFunctionQrFaceDataSymbol,
-            "gh_quadrature_Edge": BasisFunctionQrEdgeDataSymbol}
+            "gh_quadrature_edge": BasisFunctionQrEdgeDataSymbol}
         basis_name_func = function_space.get_basis_name
         first_dim_value_func = self._basis_first_dim_value
         self._create_basis(function_space, mapping, basis_name_func, first_dim_value_func)
@@ -271,7 +271,7 @@ class KernelInterface(ArgOrdering):
         mapping = {
             "gh_quadrature_xyoz": DiffBasisFunctionQrXyozDataSymbol,
             "gh_quadrature_face": DiffBasisFunctionQrFaceDataSymbol,
-            "gh_quadrature_Edge": DiffBasisFunctionQrEdgeDataSymbol}
+            "gh_quadrature_edge": DiffBasisFunctionQrEdgeDataSymbol}
         basis_name_func = function_space.get_diff_basis_name
         first_dim_value_func = self._diff_basis_first_dim_value
         self._create_basis(function_space, mapping, basis_name_func, first_dim_value_func)
@@ -375,7 +375,7 @@ class KernelInterface(ArgOrdering):
                                 ndf_symbol, nqp, nfaces],
                     fs_name, interface=self._read_access)
             elif shape == "gh_quadrature_edge":
-                nedges = self._create_symbol("nfaces", NumberOfEdgesDataSymbol)
+                nedges = self._create_symbol("nedges", NumberOfEdgesDataSymbol)
                 nqp = self._create_symbol("nqp", NumberOfQrPointsDataSymbol)
                 arg = mapping["gh_quadrature_edge"](
                     basis_tag, [int(first_dim_value_func(function_space)),

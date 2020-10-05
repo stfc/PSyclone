@@ -33,8 +33,11 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
 
-'''Test that the LFRic-specific PSyIR classes are created and declared
-correctly'''
+'''Test that the expected kernel arguments, based on the kernel
+metadata, are created and declared within a symbol table using
+LFRic-specific PSyIR classes.
+
+'''
 
 # pylint: disable=no-name-in-module
 from __future__ import absolute_import
@@ -47,7 +50,14 @@ from psyclone.domain.lfric.psyir import \
     RealVectorFieldDataDataSymbol, NumberOfUniqueDofsDataSymbol, \
     RealFieldDataDataSymbol, NumberOfDofsDataSymbol, \
     OperatorDataSymbol, NumberOfCellsDataSymbol, \
-    LfricIntegerScalarDataSymbol, DofMapDataSymbol
+    LfricIntegerScalarDataSymbol, DofMapDataSymbol, \
+    NumberOfQrPointsInHorizontalDataSymbol, \
+    NumberOfQrPointsInVerticalDataSymbol, \
+    BasisFunctionQrXyozDataSymbol, NumberOfFacesDataSymbol, \
+    NumberOfQrPointsDataSymbol, BasisFunctionQrFaceDataSymbol, \
+    DiffBasisFunctionQrXyozDataSymbol, NumberOfEdgesDataSymbol, \
+    QrWeightsDataSymbol, QrWeightsInHorizontalDataSymbol, \
+    QrWeightsInVerticalDataSymbol, BasisFunctionQrEdgeDataSymbol
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse
@@ -57,6 +67,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 
 def test_init():
+
     '''Test that we can create an instance of the KernelInterface class
     and that any defaults are set as expected
 
@@ -415,11 +426,223 @@ def test_indirection_dofmap():
     kernel_interface = KernelInterface(None)
     kernel_interface.indirection_dofmap(None)
 
-# TBD
-# def test_basis():
-#     pass
-# def test_diff_basis():
-#     pass
+
+def test_basis_xyoz():
+    '''Test that the KernelInterface class basis method adds the expected
+    classes to the symbol table and the _arglist list for xyoz quadrature
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1.1.0_single_invoke_xyoz_qr.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+
+    # "w1" requires a basis function and is the first entry in the
+    # unique function spaces list
+    w1_fs = kernel.arguments.unique_fss[0]
+    fs_name = w1_fs.orig_name
+
+    kernel_interface = KernelInterface(kernel)
+    kernel_interface.basis(w1_fs)
+
+    # ndf declared
+    ndf_symbol = kernel_interface._symbol_table.lookup(
+        "ndf_{0}".format(fs_name))
+    assert isinstance(ndf_symbol, NumberOfDofsDataSymbol)
+    assert isinstance(ndf_symbol.interface, ArgumentInterface)
+    assert (ndf_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    # nqp_h declared
+    nqph_symbol = kernel_interface._symbol_table.lookup("nqp_h")
+    assert isinstance(nqph_symbol, NumberOfQrPointsInHorizontalDataSymbol)
+    assert isinstance(nqph_symbol.interface, ArgumentInterface)
+    assert (nqph_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    # nqp_v declared
+    nqpv_symbol = kernel_interface._symbol_table.lookup("nqp_v")
+    assert isinstance(nqpv_symbol, NumberOfQrPointsInVerticalDataSymbol)
+    assert isinstance(nqpv_symbol.interface, ArgumentInterface)
+    assert (nqpv_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    # basis declared and added to argument list
+    basis_symbol = kernel_interface._symbol_table.lookup("basis_w1_qr_xyoz")
+    assert isinstance(basis_symbol, BasisFunctionQrXyozDataSymbol)
+    assert isinstance(basis_symbol.interface, ArgumentInterface)
+    assert (basis_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-1] is basis_symbol
+    assert len(basis_symbol.shape) == 4
+    assert basis_symbol.shape[0] == 3
+    assert basis_symbol.shape[1] is ndf_symbol
+    assert basis_symbol.shape[2] is nqph_symbol
+    assert basis_symbol.shape[3] is nqpv_symbol
+
+
+def test_basis_face():
+    '''Test that the KernelInterface class basis method adds the expected
+    classes to the symbol table and the _arglist list for face quadrature
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1.1.6_face_qr.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+
+    # "w1" requires a basis function and is the first entry in the
+    # unique function spaces list
+    w1_fs = kernel.arguments.unique_fss[0]
+    fs_name = w1_fs.orig_name
+
+    kernel_interface = KernelInterface(kernel)
+    kernel_interface.basis(w1_fs)
+
+    # ndf declared
+    ndf_symbol = kernel_interface._symbol_table.lookup(
+        "ndf_{0}".format(fs_name))
+    assert isinstance(ndf_symbol, NumberOfDofsDataSymbol)
+    assert isinstance(ndf_symbol.interface, ArgumentInterface)
+    assert (ndf_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    # nfaces declared
+    nfaces_symbol = kernel_interface._symbol_table.lookup("nfaces")
+    assert isinstance(nfaces_symbol, NumberOfFacesDataSymbol)
+    assert isinstance(nfaces_symbol.interface, ArgumentInterface)
+    assert (nfaces_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    # nqp declared
+    nqp_symbol = kernel_interface._symbol_table.lookup("nqp")
+    assert isinstance(nqp_symbol, NumberOfQrPointsDataSymbol)
+    assert isinstance(nqp_symbol.interface, ArgumentInterface)
+    assert (nqp_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    # basis declared and added to argument list
+    basis_symbol = kernel_interface._symbol_table.lookup("basis_w1_qr_face")
+    assert isinstance(basis_symbol, BasisFunctionQrFaceDataSymbol)
+    assert isinstance(basis_symbol.interface, ArgumentInterface)
+    assert (basis_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-1] is basis_symbol
+    assert len(basis_symbol.shape) == 4
+    assert basis_symbol.shape[0] == 3
+    assert basis_symbol.shape[1] is ndf_symbol
+    assert basis_symbol.shape[2] is nqp_symbol
+    assert basis_symbol.shape[3] is nfaces_symbol
+
+
+def test_basis_edge():
+    '''Test that the KernelInterface class basis method adds the expected
+    classes to the symbol table and the _arglist list for edge quadrature
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1.1.5_edge_qr.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+
+    # "w1" requires a basis function and is the first entry in the
+    # unique function spaces list
+    w1_fs = kernel.arguments.unique_fss[0]
+    fs_name = w1_fs.orig_name
+
+    kernel_interface = KernelInterface(kernel)
+    kernel_interface.basis(w1_fs)
+
+    # ndf declared
+    ndf_symbol = kernel_interface._symbol_table.lookup(
+        "ndf_{0}".format(fs_name))
+    assert isinstance(ndf_symbol, NumberOfDofsDataSymbol)
+    assert isinstance(ndf_symbol.interface, ArgumentInterface)
+    assert (ndf_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    # nedges declared
+    nedges_symbol = kernel_interface._symbol_table.lookup("nedges")
+    assert isinstance(nedges_symbol, NumberOfEdgesDataSymbol)
+    assert isinstance(nedges_symbol.interface, ArgumentInterface)
+    assert (nedges_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    # nqp declared
+    nqp_symbol = kernel_interface._symbol_table.lookup("nqp")
+    assert isinstance(nqp_symbol, NumberOfQrPointsDataSymbol)
+    assert isinstance(nqp_symbol.interface, ArgumentInterface)
+    assert (nqp_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    # basis declared and added to argument list
+    basis_symbol = kernel_interface._symbol_table.lookup("basis_w1_qr_edge")
+    assert isinstance(basis_symbol, BasisFunctionQrEdgeDataSymbol)
+    assert isinstance(basis_symbol.interface, ArgumentInterface)
+    assert (basis_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-1] is basis_symbol
+    assert len(basis_symbol.shape) == 4
+    assert basis_symbol.shape[0] == 3
+    assert basis_symbol.shape[1] is ndf_symbol
+    assert basis_symbol.shape[2] is nqp_symbol
+    assert basis_symbol.shape[3] is nedges_symbol
+
+
+def test_diff_basis():
+    '''Test that the KernelInterface class basis method adds the expected
+    classes to the symbol table and the _arglist list. We use xyoz
+    quadrature for this test, but other quadrature could equally have
+    been used.
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1.1.0_single_invoke_xyoz_qr.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+
+    # "w2" requires a diff basis function and is the second entry in the
+    # unique function spaces list
+    w2_fs = kernel.arguments.unique_fss[1]
+    fs_name = w2_fs.orig_name
+
+    kernel_interface = KernelInterface(kernel)
+    kernel_interface.diff_basis(w2_fs)
+
+    # ndf declared
+    ndf_symbol = kernel_interface._symbol_table.lookup(
+        "ndf_{0}".format(fs_name))
+    assert isinstance(ndf_symbol, NumberOfDofsDataSymbol)
+    assert isinstance(ndf_symbol.interface, ArgumentInterface)
+    assert (ndf_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    # nqp_h declared
+    nqph_symbol = kernel_interface._symbol_table.lookup("nqp_h")
+    assert isinstance(nqph_symbol, NumberOfQrPointsInHorizontalDataSymbol)
+    assert isinstance(nqph_symbol.interface, ArgumentInterface)
+    assert (nqph_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    # nqp_v declared
+    nqpv_symbol = kernel_interface._symbol_table.lookup("nqp_v")
+    assert isinstance(nqpv_symbol, NumberOfQrPointsInVerticalDataSymbol)
+    assert isinstance(nqpv_symbol.interface, ArgumentInterface)
+    assert (nqpv_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    # diff basis declared and added to argument list
+    diff_basis_symbol = kernel_interface._symbol_table.lookup("diff_basis_w2_qr_xyoz")
+    assert isinstance(diff_basis_symbol, DiffBasisFunctionQrXyozDataSymbol)
+    assert isinstance(diff_basis_symbol.interface, ArgumentInterface)
+    assert (diff_basis_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-1] is diff_basis_symbol
+    assert len(diff_basis_symbol.shape) == 4
+    assert diff_basis_symbol.shape[0] == 1
+    assert diff_basis_symbol.shape[1] is ndf_symbol
+    assert diff_basis_symbol.shape[2] is nqph_symbol
+    assert diff_basis_symbol.shape[3] is nqpv_symbol
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
@@ -474,6 +697,134 @@ def test_mesh_properties():
 # TBD
 # def test_quad_rule():
 #     pass
+def test_quad_rule_xyoz():
+    '''Test that the KernelInterface class quad_rule method adds the expected
+    classes to the symbol table and the _arglist list for xyoz quadrature
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1.1.0_single_invoke_xyoz_qr.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+    kernel_interface = KernelInterface(kernel)
+    kernel_interface.quad_rule()
+
+    # nqp_h declared and added to argument list
+    nqph_symbol = kernel_interface._symbol_table.lookup("nqp_h")
+    assert isinstance(nqph_symbol, NumberOfQrPointsInHorizontalDataSymbol)
+    assert isinstance(nqph_symbol.interface, ArgumentInterface)
+    assert (nqph_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-4] is nqph_symbol
+    # nqp_v declared and added to argument list
+    nqpv_symbol = kernel_interface._symbol_table.lookup("nqp_v")
+    assert isinstance(nqpv_symbol, NumberOfQrPointsInVerticalDataSymbol)
+    assert isinstance(nqpv_symbol.interface, ArgumentInterface)
+    assert (nqpv_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-3] is nqpv_symbol
+    # weights_h declared and added to argument list
+    weightsh_symbol = kernel_interface._symbol_table.lookup("weights_h")
+    assert isinstance(weightsh_symbol, QrWeightsInHorizontalDataSymbol)
+    assert isinstance(weightsh_symbol.interface, ArgumentInterface)
+    assert (weightsh_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-2] is weightsh_symbol
+    assert len(weightsh_symbol.shape) == 1
+    assert weightsh_symbol.shape[0] is nqph_symbol
+    # weights_v declared and added to argument list
+    weightsv_symbol = kernel_interface._symbol_table.lookup("weights_v")
+    assert isinstance(weightsv_symbol, QrWeightsInVerticalDataSymbol)
+    assert isinstance(weightsv_symbol.interface, ArgumentInterface)
+    assert (weightsv_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-1] is weightsv_symbol
+    assert len(weightsv_symbol.shape) == 1
+    assert weightsv_symbol.shape[0] is nqpv_symbol
+
+
+def test_quad_rule_face():
+    '''Test that the KernelInterface class quad_rule method adds the expected
+    classes to the symbol table and the _arglist list for face quadrature
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1.1.6_face_qr.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+    kernel_interface = KernelInterface(kernel)
+    kernel_interface.quad_rule()
+
+    # nfaces declared and added to argument list
+    nfaces_symbol = kernel_interface._symbol_table.lookup("nfaces")
+    assert isinstance(nfaces_symbol, NumberOfFacesDataSymbol)
+    assert isinstance(nfaces_symbol.interface, ArgumentInterface)
+    assert (nfaces_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-3] is nfaces_symbol
+    # nqp declared and added to argument list
+    nqp_symbol = kernel_interface._symbol_table.lookup("nqp")
+    assert isinstance(nqp_symbol, NumberOfQrPointsDataSymbol)
+    assert isinstance(nqp_symbol.interface, ArgumentInterface)
+    assert (nqp_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-2] is nqp_symbol
+    # weights declared and added to argument list
+    weights_symbol = kernel_interface._symbol_table.lookup("weights")
+    assert isinstance(weights_symbol, QrWeightsDataSymbol)
+    assert isinstance(weights_symbol.interface, ArgumentInterface)
+    assert (weights_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-1] is weights_symbol
+    assert len(weights_symbol.shape) == 1
+    assert weights_symbol.shape[0] is nqp_symbol
+
+
+def test_quad_rule_edge():
+    '''Test that the KernelInterface class quad_rule method adds the expected
+    classes to the symbol table and the _arglist list for edge quadrature
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1.1.5_edge_qr.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+    kernel_interface = KernelInterface(kernel)
+    kernel_interface.quad_rule()
+
+    # nedges declared and added to argument list
+    nedges_symbol = kernel_interface._symbol_table.lookup("nedges")
+    assert isinstance(nedges_symbol, NumberOfEdgesDataSymbol)
+    assert isinstance(nedges_symbol.interface, ArgumentInterface)
+    assert (nedges_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-3] is nedges_symbol
+    # nqp declared and added to argument list
+    nqp_symbol = kernel_interface._symbol_table.lookup("nqp")
+    assert isinstance(nqp_symbol, NumberOfQrPointsDataSymbol)
+    assert isinstance(nqp_symbol.interface, ArgumentInterface)
+    assert (nqp_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-2] is nqp_symbol
+    # weights declared and added to argument list
+    weights_symbol = kernel_interface._symbol_table.lookup("weights")
+    assert isinstance(weights_symbol, QrWeightsDataSymbol)
+    assert isinstance(weights_symbol.interface, ArgumentInterface)
+    assert (weights_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    assert kernel_interface._arglist[-1] is weights_symbol
+    assert len(weights_symbol.shape) == 1
+    assert weights_symbol.shape[0] is nqp_symbol
+
 
 # TBD
 # def test_create_symbol():
