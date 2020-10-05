@@ -191,8 +191,8 @@ def test_dynfields_stub_err():
     kernel = DynKern()
     kernel.load_meta(metadata)
     # Create an empty PSy layer module and Kernel stub subroutine objects
-    psy_module = ModuleGen("testkern_field_mod")
-    sub_stub = SubroutineGen(psy_module, name="testkern_field_code",
+    psy_module = ModuleGen("testkern_2qr_int_field_mod")
+    sub_stub = SubroutineGen(psy_module, name="testkern_2qr_int_field_code",
                              implicitnone=True)
     # Sabotage the field argument to make it have an invalid intrinsic type
     fld_arg = kernel.arguments.args[1]
@@ -204,11 +204,11 @@ def test_dynfields_stub_err():
             "Supported types are ['real', 'integer']." in str(err.value))
 
 
-# Tests for integer-valued fields
+# Tests for invokes calling kernels that contain integer-valued fields
 
 
 def test_int_field_fs(tmpdir):
-    ''' Tests that a call with a set of integer-vaued fields making use of
+    ''' Tests that a call with a set of integer-valued fields making use of
     all function spaces and no basis functions produces correct code. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -464,4 +464,239 @@ def test_int_field_fs(tmpdir):
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_fs_int_field_type\n"
         "  END MODULE single_invoke_fs_int_field_psy")
+    assert output in generated_code
+
+
+def test_int_field_2qr_shapes(dist_mem, tmpdir):
+    ''' Check that we can generate correct call for a kernel that requires
+    two types of quadrature (here XYoZ and face) for integer fields
+    Note: Basis and differential basis functions for all fields (real and
+    integer) are real-valued.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.1.9_single_invoke_2qr_shapes_int_field.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+    gen_code = str(psy.gen)
+    # Check that the qr-related variables are all declared
+    assert ("      TYPE(quadrature_xyoz_type), intent(in) :: qr_xyoz\n"
+            "      TYPE(quadrature_face_type), intent(in) :: qr_face\n"
+            in gen_code)
+    assert ("REAL(KIND=r_def), allocatable :: basis_w2_qr_xyoz(:,:,:,:), "
+            "basis_w2_qr_face(:,:,:,:), diff_basis_wchi_qr_xyoz(:,:,:,:), "
+            "diff_basis_wchi_qr_face(:,:,:,:), "
+            "basis_adspc1_f3_qr_xyoz(:,:,:,:), "
+            "diff_basis_adspc1_f3_qr_xyoz(:,:,:,:), "
+            "basis_adspc1_f3_qr_face(:,:,:,:), "
+            "diff_basis_adspc1_f3_qr_face(:,:,:,:)\n" in gen_code)
+    assert ("      REAL(KIND=r_def), pointer :: weights_xyz_qr_face(:,:) "
+            "=> null()\n"
+            "      INTEGER(KIND=i_def) np_xyz_qr_face, nfaces_qr_face\n"
+            "      REAL(KIND=r_def), pointer :: weights_xy_qr_xyoz(:) => "
+            "null(), weights_z_qr_xyoz(:) => null()\n"
+            "      INTEGER(KIND=i_def) np_xy_qr_xyoz, np_z_qr_xyoz\n"
+
+            in gen_code)
+    assert ("      TYPE(quadrature_face_proxy_type) qr_face_proxy\n"
+            "      TYPE(quadrature_xyoz_proxy_type) qr_xyoz_proxy\n"
+            in gen_code)
+    # Allocation and computation of (some of) the basis/differential
+    # basis functions
+    assert ("      ALLOCATE (basis_adspc1_f3_qr_xyoz(dim_adspc1_f3, "
+            "ndf_adspc1_f3, np_xy_qr_xyoz, np_z_qr_xyoz))\n"
+            "      ALLOCATE (diff_basis_adspc1_f3_qr_xyoz(diff_dim_adspc1_f3, "
+            "ndf_adspc1_f3, np_xy_qr_xyoz, np_z_qr_xyoz))\n"
+            "      ALLOCATE (basis_adspc1_f3_qr_face(dim_adspc1_f3, "
+            "ndf_adspc1_f3, np_xyz_qr_face, nfaces_qr_face))\n"
+            "      ALLOCATE (diff_basis_adspc1_f3_qr_face(diff_dim_adspc1_f3, "
+            "ndf_adspc1_f3, np_xyz_qr_face, nfaces_qr_face))\n"
+            in gen_code)
+    assert ("      CALL qr_xyoz%compute_function(BASIS, f3_proxy%vspace, "
+            "dim_adspc1_f3, ndf_adspc1_f3, basis_adspc1_f3_qr_xyoz)\n"
+            "      CALL qr_xyoz%compute_function(DIFF_BASIS, "
+            "f3_proxy%vspace, diff_dim_adspc1_f3, ndf_adspc1_f3, "
+            "diff_basis_adspc1_f3_qr_xyoz)\n"
+            "      CALL qr_face%compute_function(BASIS, f3_proxy%vspace, "
+            "dim_adspc1_f3, ndf_adspc1_f3, basis_adspc1_f3_qr_face)\n"
+            "      CALL qr_face%compute_function(DIFF_BASIS, "
+            "f3_proxy%vspace, diff_dim_adspc1_f3, ndf_adspc1_f3, "
+            "diff_basis_adspc1_f3_qr_face)\n" in gen_code)
+    # Check that the kernel call itself is correct
+    assert (
+        "testkern_2qr_int_field_code(nlayers, f1_proxy%data, "
+        "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, f3_proxy%data, "
+        "istp, ndf_w2, undf_w2, map_w2(:,cell), basis_w2_qr_xyoz, "
+        "basis_w2_qr_face, ndf_wchi, undf_wchi, map_wchi(:,cell), "
+        "diff_basis_wchi_qr_xyoz, diff_basis_wchi_qr_face, ndf_adspc1_f3, "
+        "undf_adspc1_f3, map_adspc1_f3(:,cell), basis_adspc1_f3_qr_xyoz, "
+        "basis_adspc1_f3_qr_face, diff_basis_adspc1_f3_qr_xyoz, "
+        "diff_basis_adspc1_f3_qr_face, np_xy_qr_xyoz, np_z_qr_xyoz, "
+        "weights_xy_qr_xyoz, weights_z_qr_xyoz, nfaces_qr_face, "
+        "np_xyz_qr_face, weights_xyz_qr_face)\n" in gen_code)
+
+
+# Tests for kernel stubs containing integer-valued fields
+
+
+INTEGER_FIELD_CODE = '''
+module testkern_int_field_mod
+  type, extends(kernel_type) :: testkern_int_field_type
+     type(arg_type), meta_args(3) =                             &
+         (/ arg_type(gh_field,   gh_integer, gh_write, wtheta), &
+            arg_type(gh_field*3, gh_integer, gh_read,  w3),     &
+            arg_type(gh_field,   gh_integer, gh_read,  w2trace, &
+                                                stencil(cross)) &
+          /)
+     type(func_type), dimension(2) :: meta_funcs =     &
+         (/ func_type(wtheta, gh_basis),               &
+            func_type(w3,     gh_basis, gh_diff_basis) &
+          /)
+     integer :: operates_on = cell_column
+     integer :: gh_shape = gh_quadrature_XYoZ
+   contains
+     procedure, nopass :: code => testkern_int_field_code
+  end type testkern_int_field_type
+contains
+  subroutine testkern_int_field_code()
+  end subroutine testkern_int_field_code
+end module testkern_int_field_mod
+'''
+
+
+def test_int_field_gen_stub():
+    ''' Test that we generate correct code for kernel stubs that
+    contain integer-valued fields with stencils and basis/differential
+    basis functions.
+
+    '''
+    ast = fpapi.parse(INTEGER_FIELD_CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    output = (
+        "  MODULE testkern_int_field_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE testkern_int_field_code(nlayers, field_1_wtheta, "
+        "field_2_w3_v1, field_2_w3_v2, field_2_w3_v3, field_3_w2trace, "
+        "field_3_stencil_size, field_3_stencil_dofmap, ndf_wtheta, "
+        "undf_wtheta, map_wtheta, basis_wtheta_qr_xyoz, ndf_w3, undf_w3, "
+        "map_w3, basis_w3_qr_xyoz, diff_basis_w3_qr_xyoz, ndf_w2trace, "
+        "undf_w2trace, map_w2trace, np_xy_qr_xyoz, np_z_qr_xyoz, "
+        "weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
+        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      IMPLICIT NONE\n"
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2trace\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2trace) :: "
+        "map_w2trace\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) :: "
+        "map_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_wtheta, undf_w3, "
+        "undf_w2trace\n"
+        "      INTEGER(KIND=i_def), intent(out), dimension(undf_wtheta) :: "
+        "field_1_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(undf_w3) :: "
+        "field_2_w3_v1\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(undf_w3) :: "
+        "field_2_w3_v2\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(undf_w3) :: "
+        "field_2_w3_v3\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(undf_w2trace) :: "
+        "field_3_w2trace\n"
+        "      INTEGER(KIND=i_def), intent(in) :: field_3_stencil_size\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2trace,"
+        "field_3_stencil_size) :: field_3_stencil_dofmap\n"
+        "      INTEGER(KIND=i_def), intent(in) :: "
+        "np_xy_qr_xyoz, np_z_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_wtheta_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w3_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w3_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) :: "
+        "weights_xy_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) :: "
+        "weights_z_qr_xyoz\n"
+        "    END SUBROUTINE testkern_int_field_code\n"
+        "  END MODULE testkern_int_field_mod")
+    assert output in generated_code
+
+
+# Tests for invokes calling kernels that contain real- and
+# integer-valued fields
+
+
+def test_real_int_field_gen_stub():
+    ''' Test that we generate correct code for kernel stubs that
+    contain real- and integer-valued fields with basis and differential
+    basis functions on one real- and one integer-valued field.
+
+    '''
+    code = FIELD_CODE.replace(
+        "func_type(w1, gh_basis),",
+        "func_type(w1, gh_basis, gh_diff_basis),", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    output = (
+        "  MODULE testkern_field_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE testkern_field_code(nlayers, rscalar_1, field_2_w1, "
+        "field_3_w2, field_4_wtheta, field_5_w3, iscalar_6, ndf_w1, undf_w1, "
+        "map_w1, basis_w1_qr_xyoz, diff_basis_w1_qr_xyoz, ndf_w2, undf_w2, "
+        "map_w2, ndf_wtheta, undf_wtheta, map_wtheta, ndf_w3, undf_w3, "
+        "map_w3, basis_w3_qr_xyoz, diff_basis_w3_qr_xyoz, np_xy_qr_xyoz, "
+        "np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
+        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      IMPLICIT NONE\n"
+        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
+        "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) :: "
+        "map_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in) :: undf_w1, undf_w2, "
+        "undf_wtheta, undf_w3\n"
+        "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
+        "      INTEGER(KIND=i_def), intent(in) :: iscalar_6\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
+        "field_2_w1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+        "field_3_w2\n"
+        "      INTEGER(KIND=i_def), intent(out), dimension(undf_wtheta) :: "
+        "field_4_wtheta\n"
+        "      INTEGER(KIND=i_def), intent(in), dimension(undf_w3) :: "
+        "field_5_w3\n"
+        "      INTEGER(KIND=i_def), intent(in) :: np_xy_qr_xyoz, "
+        "np_z_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w1_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w1_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w3_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w3_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) :: "
+        "weights_xy_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) :: "
+        "weights_z_qr_xyoz\n"
+        "    END SUBROUTINE testkern_field_code\n"
+        "  END MODULE testkern_field_mod")
     assert output in generated_code
