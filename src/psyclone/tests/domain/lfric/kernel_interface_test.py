@@ -61,6 +61,7 @@ from psyclone.domain.lfric.psyir import \
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse
+from psyclone.errors import InternalError
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "..", "..", "test_files", "dynamo0p3")
@@ -694,9 +695,7 @@ def test_mesh_properties():
     kernel_interface = KernelInterface(None)
     kernel_interface.mesh_properties()
 
-# TBD
-# def test_quad_rule():
-#     pass
+
 def test_quad_rule_xyoz():
     '''Test that the KernelInterface class quad_rule method adds the expected
     classes to the symbol table and the _arglist list for xyoz quadrature
@@ -826,13 +825,73 @@ def test_quad_rule_edge():
     assert weights_symbol.shape[0] is nqp_symbol
 
 
-# TBD
-# def test_create_symbol():
-#     pass
+def test_create_symbol_tag():
+    ''' Test that an existing symbol with the same tag as this is returned '''
+    symbol1 = CellPositionDataSymbol("test")
+    kernel_interface = KernelInterface(None)
+    kernel_interface._symbol_table.add(symbol1, tag="test")
+    symbol2 = kernel_interface._create_symbol("test", CellPositionDataSymbol)
+    assert symbol2 is symbol1
+
+
+def test_create_symbol_tag_error():
+    '''Test that an existing symbol with the same tag as this raises an
+    exception if its type differs from the supplied type.
+
+    '''
+    symbol1 = CellPositionDataSymbol("test")
+    kernel_interface = KernelInterface(None)
+    kernel_interface._symbol_table.add(symbol1, tag="test")
+    with pytest.raises(InternalError) as info:
+        _ = kernel_interface._create_symbol("test", MeshHeightDataSymbol)
+    assert (
+        "Expected symbol with tag 'test' to be of type 'MeshHeightDataSymbol' "
+        "but found type 'CellPositionDataSymbol'." in str(info.value))
+
+
+def test_create_symbol_new():
+    '''Test that a new symbol is created correctly and added to the symbol
+    table succesfuly with the supplied tag and the default interface
+    if one is not supplied. Also check the symbol is returned from the
+    method.
+
+    '''
+    kernel_interface = KernelInterface(None)
+    symbol1 = kernel_interface._create_symbol("test", CellPositionDataSymbol)
+    symbol2 = kernel_interface._symbol_table.lookup_with_tag("test")
+    assert symbol2 is symbol1
+    assert isinstance(symbol1.interface, ArgumentInterface)
+    assert (symbol1.interface.access ==
+            kernel_interface._read_access.access)
+
+
+def test_create_symbol_args():
+    '''Test that a new symbol is created correctly and added to the symbol
+    table successfully when it makes use of the extra_args, dims and
+    interface optional arguments. We don't check or test for errors in
+    argument types and values as this is an internal method.
+
+    '''
+    kernel_interface = KernelInterface(None)
+    size_symbol = NumberOfUniqueDofsDataSymbol("ndofs", "w3")
+    symbol1 = kernel_interface._create_symbol(
+        "test", RealFieldDataDataSymbol, extra_args=["w3"], dims=[size_symbol],
+        interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
+
+    symbol2 = kernel_interface._symbol_table.lookup_with_tag("test")
+    assert symbol2 is symbol1
+    assert symbol1.fs == "w3"
+    assert len(symbol1.shape) == 1
+    assert symbol1.shape[0] == size_symbol
+    assert isinstance(symbol1.interface, ArgumentInterface)
+    assert symbol1.interface.access == ArgumentInterface.Access.READWRITE
+
 
 # TBD
 # def test_create_basis():
 #     pass
+# mostly already covered by previous tests xxx and yyy. Just need to check errors 1) NotImplementedError and 2) internalerror
+
 
 # TBD
 # def test_basis_first_dim_value():

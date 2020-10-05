@@ -326,9 +326,29 @@ class KernelInterface(ArgOrdering):
                                     "found in kernel_interface".format(shape))
 
     def _create_symbol(self, tag, data_symbol, extra_args=None, dims=None, interface=None):
-        ''' xxx '''
+        '''Internal utility to create a symbol. If a symbol is found in the
+        symbol table with the supplied tag then that symbol is
+        returned, otherwise a new symbol of type 'data_symbol' is
+        created and added to the symbol table with the supplied
+        tag. If the symbol requires any arguments then these are
+        supplied via the extra_args and dims arguments. The latter
+        specifies the dimensions of the symbol if it is an array. By
+        default it is assumed that the access to the symbol will be
+        read only. If the access is different to this then the
+        interface argument must be provided with the appropriate
+        access type.
+
+        As this is an internal utility we assume that the argument
+        datatypes and content are correct.
+
+        '''
         try:
             symbol = self._symbol_table.lookup_with_tag(tag)
+            if not isinstance(symbol, data_symbol):
+                raise InternalError(
+                    "Expected symbol with tag '{0}' to be of type '{1}' but "
+                    "found type '{2}'.".format(
+                        tag, data_symbol.__name__, type(symbol).__name__))
         except KeyError:
             if interface is None:
                 interface = self._read_access
