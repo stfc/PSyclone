@@ -91,8 +91,8 @@ prescriptive and are independent of a particular PSyclone
 frontend. These nodes are designed to be used with PSyIR backends. Two
 PSy-layer classes (``Loop`` and ``Schedule``) can also be used as
 Kernel-layer classes. Additionally, the ``Schedule`` class is further
-subclassed into a kernel-layer ``KernelSchedule``. In addition to
-``KernelSchedule``, Kernel-layer PSyIR nodes are: ``Loop``,
+subclassed into a ``Routine`` and then a kernel-layer ``KernelSchedule``.
+In addition to ``KernelSchedule``, Kernel-layer PSyIR nodes are: ``Loop``,
 ``IfBlock``, ``CodeBlock``, ``Assignment``, ``Range``, ``Reference``,
 ``Operation``, ``Literal``, ``Call``, ``Return`` and
 ``Container``. The ``Reference`` class is further subclassed into

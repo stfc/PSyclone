@@ -150,6 +150,9 @@
 
         49) #922 for #921. Fixes pycodestyle errors in the code base.
 
+	50) #899 for #896. Adds a new PSyIR Routine Node that subclasses
+	Schedule and is subclassed by KernelSchedule.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include

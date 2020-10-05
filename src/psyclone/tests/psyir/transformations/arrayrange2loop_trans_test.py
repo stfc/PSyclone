@@ -41,8 +41,8 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
-    Range, Array, Assignment, Node, DataNode
-from psyclone.psyGen import KernelSchedule, Transformation
+    Range, Array, Assignment, Node, DataNode, KernelSchedule
+from psyclone.psyGen import Transformation
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
     INTEGER_TYPE, REAL_TYPE
 from psyclone.psyir.transformations import ArrayRange2LoopTrans, \
