@@ -9,20 +9,24 @@
 !> @details This object holds the connectivities that fully
 !>          describe the 2D topology of the global mesh
 
-module global_mesh_mod
+module global_mesh_base_mod
 
   use constants_mod,                  only: r_def, i_def, str_max_filename, &
                                             str_def, degrees_to_radians, l_def
   use linked_list_data_mod,           only: linked_list_data_type
   use log_mod,                        only: log_event, log_scratch_space, &
                                             LOG_LEVEL_ERROR, LOG_LEVEL_TRACE
+
   implicit none
 
   private
 
-  type, extends(linked_list_data_type), public :: global_mesh_type
+  type, extends(linked_list_data_type), public :: global_mesh_base_type
+
     private
 
+  ! Tag name of mesh
+    character(str_def) :: mesh_name
   ! Type of mesh that the global mesh describes
     character(str_def) :: mesh_class
   ! Periodic in E-W direction
@@ -62,7 +66,13 @@ module global_mesh_mod
   ! maximum number of cells around a vertex
     integer(i_def)       :: max_cells_per_vertex
 
+
+  ! Target of global mesh name
+    integer(i_def) :: ntarget_meshes
+    character(str_def), allocatable :: target_global_mesh_names(:)
+
   contains
+    procedure, public :: get_mesh_name
     procedure, public :: get_mesh_class
     procedure, public :: get_mesh_periodicity
     procedure, public :: get_cell_id
@@ -84,15 +94,17 @@ module global_mesh_mod
     procedure, public :: get_vert_coords
     procedure, public :: get_vert_cell_owner
     procedure, public :: get_edge_cell_owner
+    procedure, public :: get_target_mesh_names
+    procedure, public :: get_nmaps
     procedure, public :: clear
 
-    final :: global_mesh_destructor
+    final :: global_mesh_base_destructor
 
-  end type global_mesh_type
+  end type global_mesh_base_type
 
-  interface global_mesh_type
-    module procedure global_mesh_constructor
-    module procedure global_mesh_constructor_unit_test_data
+  interface global_mesh_base_type
+    module procedure global_mesh_base_constructor
+    module procedure global_mesh_base_constructor_unit_test_data
   end interface
 
   ! -------------------------------------------------------------------------
@@ -118,16 +130,118 @@ contains
   !>
   !> @return Freshly minted global_mesh_type object.
   !>
-  function global_mesh_constructor( filename, global_mesh_name ) result(self)
+  function global_mesh_base_constructor(global_mesh_name, nvert_in, nedge_in,   &
+          nface_in, max_num_faces_per_node, num_nodes_per_face, &
+          num_nodes_per_edge, num_edges_per_face, & 
+          mesh_class, periodic_x, periodic_y, ntarget_meshes,                   &
+          target_global_mesh_names, vert_coords, cell_coords , cell_next_2d,    &
+          vert_on_cell_2d, edge_on_cell_2d&
+   ) result(self)
 
     implicit none
-    character(*), intent(in) :: filename
-    character(*), intent(in) :: global_mesh_name
-    type(global_mesh_type) :: self
 
-    self = global_mesh_constructor_unit_test_data()
-    
-  end function global_mesh_constructor
+    character(*), intent(in) :: global_mesh_name
+
+    type(global_mesh_base_type) :: self
+    integer(i_def), intent(in) :: nvert_in, nedge_in, nface_in, num_nodes_per_face, &
+        num_nodes_per_edge, num_edges_per_face, max_num_faces_per_node
+
+  ! Type of mesh that the global mesh describes
+    character(str_def), intent(in) :: mesh_class
+    logical(l_def), intent(in)     :: periodic_x
+  ! Periodic in N-S direction
+    logical(l_def), intent(in)     :: periodic_y
+
+  ! Target of global mesh name
+    integer(i_def), intent(in) :: ntarget_meshes
+    character(str_def) :: target_global_mesh_names(:)
+    real(r_def), allocatable, intent(in) :: vert_coords(:,:)
+    real(r_def), allocatable, intent(in) :: cell_coords(:,:)
+    integer(i_def), allocatable, intent(in) :: cell_next_2d(:,:)
+    integer(i_def), allocatable, intent(in) :: vert_on_cell_2d(:,:)
+    integer(i_def), allocatable, intent(in) :: edge_on_cell_2d(:,:)
+
+
+    ! loop counter over entities (vertices or edges)
+    integer(i_def) :: ientity
+
+    print *,"BOMJH, constructor base starting"
+
+    global_mesh_id_counter = global_mesh_id_counter + 1
+    call self%set_id(global_mesh_id_counter)
+
+    self%mesh_name                = trim(global_mesh_name)
+    self%nverts                   = nvert_in
+    self%nedges                   = nedge_in
+    self%ncells                   = nface_in
+    self%nverts_per_cell          = num_nodes_per_face
+    self%nverts_per_edge          = num_nodes_per_edge
+    self%nedges_per_cell          = num_edges_per_face
+    self%max_cells_per_vertex     = max_num_faces_per_node
+    self%mesh_class               = mesh_class
+    self%periodic_x               = periodic_x
+    self%periodic_y               = periodic_y
+    self%ntarget_meshes           = ntarget_meshes
+    self%target_global_mesh_names = target_global_mesh_names
+
+    allocate( self%vert_coords(2, self%nverts) )
+    self%vert_coords = vert_coords
+
+    allocate( self%cell_coords(2, self%ncells) )
+    self%cell_coords =  cell_coords
+
+    ! CF Standard for longitude/latitude is in degrees
+    ! though many functions assume radians. Convert
+    ! coords to radians before going any further into
+    ! code
+    if (trim(self%mesh_class) == 'sphere') then
+      self%vert_coords(:,:) = self%vert_coords(:,:) * degrees_to_radians
+      self%cell_coords(:,:) = self%cell_coords(:,:) * degrees_to_radians
+    end if
+
+    allocate( self%cell_next_2d( num_edges_per_face, nface_in ) )
+    self%cell_next_2d = cell_next_2d
+
+    allocate( self%vert_on_cell_2d( num_nodes_per_face, nface_in ) )
+    self%vert_on_cell_2d = vert_on_cell_2d
+
+    allocate( self%edge_on_cell_2d( num_edges_per_face, nface_in ) )
+    self%edge_on_cell_2d = edge_on_cell_2d
+
+    allocate( self%cell_on_vert_2d( self%max_cells_per_vertex, nvert_in ) )
+    call calc_cell_on_vertex( self%vert_on_cell_2d, &
+                              num_nodes_per_face, &
+                              nface_in, &
+                              self%cell_on_vert_2d, &
+                              self%max_cells_per_vertex, &
+                              nvert_in)
+
+    ! Populate cells either side of each edge
+    ! There can only ever be 2 cells incident on an edge (whatever the
+    ! topography!)
+    allocate( self%cell_on_edge_2d(2,nedge_in) )
+    call calc_cell_on_edge( self%edge_on_cell_2d, &
+                            num_edges_per_face, &
+                            nface_in, &
+                            self%cell_on_edge_2d, &
+                            nedge_in )
+
+    ! Allocate each vertex to the cell with the highest global cell index
+    ! of the cells neighbouring the vertex
+    allocate( self%vert_cell_owner(nvert_in) )
+    do ientity=1,nvert_in
+      self%vert_cell_owner(ientity)=maxval( self%cell_on_vert_2d(:,ientity) )
+    end do
+
+    ! Allocate each edge to the cell with the highest global cell index
+    ! of the cells neighbouring the edge
+    allocate( self%edge_cell_owner(nedge_in) )
+    do ientity=1,nedge_in
+      self%edge_cell_owner(ientity)=maxval( self%cell_on_edge_2d(:,ientity) )
+    end do
+
+    print *,"BOMJH, constructor base finished"
+  end function global_mesh_base_constructor
 
   !===========================================================================
   !> @brief Constructs a small example mesh for unit testing purposes.
@@ -135,11 +249,11 @@ contains
   !> @return 2D global mesh object based on a 9-cell global mesh. 3x3 cell
   !>         arrangement of quadrilateral cells.
   !>
-  function global_mesh_constructor_unit_test_data() result (self)
+  function global_mesh_base_constructor_unit_test_data() result (self)
 
     implicit none
 
-    type(global_mesh_type) :: self
+    type(global_mesh_base_type) :: self
 
     integer(i_def) :: nverts = 16
     integer(i_def) :: nedges = 24
@@ -151,6 +265,7 @@ contains
     ! The feigner in the mesh unit test sets geometry to spherical,
     ! so make the global mesh used in the mesh unit tests consistent
     self%mesh_class = 'sphere'
+    self%mesh_name  = 'cubed-sphere:unit-test'
 
     ! Returns global_mesh_object of size 3x3 quad reference cell.
     ! As per reference cell, direction of numbering is anti-clockwise
@@ -159,7 +274,7 @@ contains
     ! Edges:    Left        (west)
     ! Faces:    Left        (west)
     self%ncells = 9
-    self%nverts = nverts
+
     self%nverts_per_cell = 4
     self%nedges_per_cell = 4
 
@@ -269,22 +384,22 @@ contains
     self%edge_cell_owner(:) = [1, 2, 3, 1, 2, 3, 3, 4, 5, 6, 4, 5, 6, 6,         &
                               7, 8, 9, 7, 8, 9, 9, 7, 8, 9]
 
-  end function global_mesh_constructor_unit_test_data
+  end function global_mesh_base_constructor_unit_test_data
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Destroys a global_mesh object when it is finished with.
   !>
-  subroutine global_mesh_destructor(self)
+  subroutine global_mesh_base_destructor(self)
 
     implicit none
 
-    type (global_mesh_type), intent(inout) :: self
+    type (global_mesh_base_type), intent(inout) :: self
 
     !> @todo Is there a reason why this is a separate function? It seems
     !>       like a global mesh should be immutable.
     call self%clear()
 
-  end subroutine global_mesh_destructor
+  end subroutine global_mesh_base_destructor
 
   !-------------------------------------------------------------------------------
   ! Returns the cells on vertices. PRIVATE subroutine.
@@ -400,13 +515,31 @@ contains
 
     implicit none
 
-    class(global_mesh_type), intent(in) :: self
+    class(global_mesh_base_type), intent(in) :: self
 
     character(str_def) :: mesh_class
 
     mesh_class = self%mesh_class
 
   end function get_mesh_class
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief  Returns mesh tag name.
+  !> @return mesh_name  Tag name of mesh that identifies it in the
+  !>                    UGRID file that it was read in from.
+  !>
+  function get_mesh_name( self ) result ( mesh_name )
+
+    implicit none
+
+    class(global_mesh_base_type), intent(in) :: self
+
+    character(str_def) :: mesh_name
+
+    mesh_name = self%mesh_name
+
+  end function get_mesh_name
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief  Returns values for the X and Y periodicity.
@@ -425,7 +558,7 @@ contains
   subroutine get_mesh_periodicity( self, periodic_x, periodic_y )
     implicit none
 
-    class(global_mesh_type), intent(in) :: self
+    class(global_mesh_base_type), intent(in) :: self
     logical(l_def), intent(out) :: periodic_x
     logical(l_def), intent(out) :: periodic_y
 
@@ -457,7 +590,7 @@ contains
 
   implicit none
 
-  class(global_mesh_type), intent(in) :: self
+  class(global_mesh_base_type), intent(in) :: self
 
   integer(i_def), intent(in) :: cell_number
   integer(i_def), intent(in) :: x_cells, y_cells
@@ -508,7 +641,7 @@ contains
 
   implicit none
 
-  class(global_mesh_type), intent(in) :: self
+  class(global_mesh_base_type), intent(in) :: self
 
   integer(i_def), intent(in)  :: vertex_number
   integer(i_def), intent(out) :: cells(:)
@@ -520,14 +653,14 @@ contains
   !---------------------------------------------------------------------------
   !> @brief Gets the cells that are incident on a particular edge.
   !>
-  !> @param[in] edge_number Number of the edge being queried.
-  !> @param[out] cells Cells either side of the given edge.
+  !> @param[in]  edge_number  Number of the edge being queried.
+  !> @param[out] cells        Cells either side of the given edge.
   !>
   subroutine get_cell_on_edge( self, edge_number, cells)
 
   implicit none
 
-  class(global_mesh_type), intent(in) :: self
+  class(global_mesh_base_type), intent(in) :: self
   integer(i_def), intent(in)  :: edge_number
   integer(i_def), intent(out) :: cells(:)
 
@@ -544,13 +677,60 @@ contains
 
   implicit none
 
-  class(global_mesh_type), intent(in) :: self
+  class(global_mesh_base_type), intent(in) :: self
 
   integer(i_def) :: nverts
 
   nverts = self%nverts
 
   end function get_nverts
+
+  !---------------------------------------------------------------------------
+  !> @brief Retruns the number of intergrid maps that exist for this mesh
+  !>        where this mesh is the source mesh.
+  !>
+  !> @return Number of intergrid maps present in the UGRID file which use
+  !>         this mesh as the source mesh.
+  !>
+  function get_nmaps( self ) result (nmaps)
+
+  implicit none
+
+  class(global_mesh_base_type), intent(in) :: self
+
+  integer(i_def) :: nmaps
+
+  nmaps = self%ntarget_meshes
+
+  end function get_nmaps
+
+  !---------------------------------------------------------------------------
+  !> @brief   Gets the array of names of target meshes.
+  !> @details The global mesh may have intergrid maps contained within the
+  !>          mesh inputs file. These maps provide a cell mapping from this
+  !>          mesh (source) to another mesh (target) in the mesh inputs file.
+  !>          The returned array of mesh names are the names of the meshes
+  !>          that this global mesh has maps to.
+  !>
+  !> @param[out] target_mesh_names  String array of target mesh topology names.
+  !>
+  subroutine get_target_mesh_names( self, target_mesh_names)
+
+    implicit none
+
+    class(global_mesh_base_type), intent(in) :: self
+
+    character(str_def), intent(out), &
+                            allocatable :: target_mesh_names(:)
+
+    if (self%ntarget_meshes > 0) then
+      allocate( target_mesh_names(self%ntarget_meshes) )
+      target_mesh_names = self%target_global_mesh_names
+    else
+
+    end if
+
+  end subroutine get_target_mesh_names
 
   !---------------------------------------------------------------------------
   !> @brief Gets the total number of edges in the global domain.
@@ -561,7 +741,7 @@ contains
 
   implicit none
 
-  class(global_mesh_type), intent(in) :: self
+  class(global_mesh_base_type), intent(in) :: self
 
   integer(i_def) :: nedges
 
@@ -578,7 +758,7 @@ contains
 
   implicit none
 
-  class(global_mesh_type), intent(in) :: self
+  class(global_mesh_base_type), intent(in) :: self
 
   integer(i_def) :: ncells
 
@@ -602,7 +782,7 @@ contains
 
   implicit none
 
-  class(global_mesh_type), intent(in) :: self
+  class(global_mesh_base_type), intent(in) :: self
 
   integer(i_def) :: max_cells_per_vertex
 
@@ -619,9 +799,9 @@ contains
   subroutine get_edge_on_cell(self, cell_gid, edges)
 
     implicit none
-    class (global_mesh_type), intent(in)  :: self
-    integer (i_def),          intent(in)  :: cell_gid
-    integer (i_def),          intent(out) :: edges(:)
+    class (global_mesh_base_type), intent(in)  :: self
+    integer (i_def),               intent(in)  :: cell_gid
+    integer (i_def),               intent(out) :: edges(:)
 
     edges(:) = self%edge_on_cell_2d(:,cell_gid)
 
@@ -635,7 +815,7 @@ contains
 
     implicit none
 
-    class(global_mesh_type), intent(in)  :: self
+    class(global_mesh_base_type), intent(in)  :: self
 
     integer(i_def), allocatable :: edges(:,:)
 
@@ -652,9 +832,9 @@ contains
   subroutine get_vert_on_cell(self, cell_gid, verts)
 
     implicit none
-    class (global_mesh_type), intent(in)  :: self
-    integer (i_def),          intent(in)  :: cell_gid
-    integer (i_def),          intent(out) :: verts(:)
+    class (global_mesh_base_type), intent(in)  :: self
+    integer (i_def),               intent(in)  :: cell_gid
+    integer (i_def),               intent(out) :: verts(:)
 
     verts(:) = self%vert_on_cell_2d(:,cell_gid)
 
@@ -668,7 +848,7 @@ contains
 
     implicit none
 
-    class (global_mesh_type), intent(in)  :: self
+    class (global_mesh_base_type), intent(in)  :: self
 
     integer(i_def), allocatable :: verts(:,:)
 
@@ -684,7 +864,7 @@ contains
   function get_nverts_per_cell( self ) result (nverts_per_cell)
 
     implicit none
-    class(global_mesh_type), intent(in) :: self
+    class(global_mesh_base_type), intent(in) :: self
     integer(i_def)                      :: nverts_per_cell
 
     nverts_per_cell = self%nverts_per_cell
@@ -699,7 +879,7 @@ contains
   function get_nverts_per_edge( self ) result (nverts_per_edge)
 
     implicit none
-    class(global_mesh_type), intent(in) :: self
+    class(global_mesh_base_type), intent(in) :: self
     integer(i_def)                      :: nverts_per_edge
 
     nverts_per_edge = self%nverts_per_edge
@@ -715,7 +895,7 @@ contains
   function get_nedges_per_cell( self ) result (nedges_per_cell)
 
     implicit none
-    class(global_mesh_type), intent(in) :: self
+    class(global_mesh_base_type), intent(in) :: self
     integer(i_def)                      :: nedges_per_cell
 
     nedges_per_cell = self%nedges_per_cell
@@ -731,9 +911,10 @@ contains
   subroutine get_cell_next (self, cell_gid, cell_next)
 
     implicit none
-    class (global_mesh_type), intent(in)  :: self
-    integer (i_def),          intent(in)  :: cell_gid
-    integer (i_def),          intent(out) :: cell_next(:)
+    class (global_mesh_base_type), intent(in)  :: self
+    integer (i_def),               intent(in)  :: cell_gid
+    integer (i_def),               intent(out) :: cell_next(:)
+
     cell_next(:) = self%cell_next_2d(:,cell_gid)
 
   end subroutine get_cell_next
@@ -746,7 +927,7 @@ contains
 
     implicit none
 
-    class(global_mesh_type), intent(in)  :: self
+    class(global_mesh_base_type), intent(in)  :: self
 
     integer(i_def), allocatable :: cell_next(:,:)
 
@@ -763,9 +944,9 @@ contains
   subroutine get_vert_coords (self, vert_gid, vert_coords)
 
     implicit none
-    class (global_mesh_type), intent(in)  :: self
-    integer(i_def),           intent(in)  :: vert_gid
-    real(r_def),              intent(out) :: vert_coords(:)
+    class (global_mesh_base_type), intent(in)  :: self
+    integer(i_def),                intent(in)  :: vert_gid
+    real(r_def),                   intent(out) :: vert_coords(:)
 
     vert_coords(1:2) = self%vert_coords(1:2,vert_gid)
 
@@ -781,9 +962,9 @@ contains
   function get_vert_cell_owner ( self, vert ) result ( cell )
 
     implicit none
-    class (global_mesh_type), intent(in)  :: self
-    integer (i_def),          intent(in)  :: vert
-    integer (i_def)                       :: cell
+    class (global_mesh_base_type), intent(in)  :: self
+    integer (i_def),               intent(in)  :: vert
+    integer (i_def)                            :: cell
 
     cell = self%vert_cell_owner( vert )
 
@@ -799,14 +980,14 @@ contains
   function get_edge_cell_owner ( self, edge ) result ( cell )
 
     implicit none
-    class (global_mesh_type), intent(in)  :: self
-    integer (i_def),          intent(in)  :: edge
-    integer (i_def)                       :: cell
+    class (global_mesh_base_type), intent(in)  :: self
+    integer (i_def),               intent(in)  :: edge
+    integer (i_def)                            :: cell
+
     cell = self%edge_cell_owner( edge )
 
   end function get_edge_cell_owner
 
-  
   !---------------------------------------------------------------------------
   !> @brief Forced clear of all this oject from memory.
   !>
@@ -820,7 +1001,7 @@ contains
 
     implicit none
 
-    class (global_mesh_type), intent(inout) :: self
+    class (global_mesh_base_type), intent(inout) :: self
 
     if (allocated(self%vert_coords))       deallocate( self%vert_coords )
     if (allocated(self%cell_next_2d))      deallocate( self%cell_next_2d )
@@ -834,4 +1015,4 @@ contains
     return
   end subroutine clear
 
-end module global_mesh_mod
+end module global_mesh_base_mod

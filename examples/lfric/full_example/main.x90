@@ -1,5 +1,5 @@
 program main
-    use global_mesh_mod,       only : global_mesh_type
+    use global_mesh_base_mod,       only : global_mesh_type => global_mesh_base_type
     use mesh_mod, only : mesh_type, PLANE
     use partition_mod, only: partition_type, partitioner_planar, partitioner_interface
     use extrusion_mod, only: uniform_extrusion_type
@@ -27,7 +27,8 @@ program main
     integer :: lfric_fs = W0   ! W0
     integer :: element_order = 1
 
-    global_mesh = global_mesh_type("ignore-filename","ignore-mesh-name")
+    ! Use the unit-testing constructor:
+    global_mesh = global_mesh_type()
     global_mesh_ptr => global_mesh
 
     partitioner_ptr => partitioner_planar

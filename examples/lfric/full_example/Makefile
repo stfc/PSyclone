@@ -1,7 +1,7 @@
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g $$(nf-config --fflags) -fcheck=bound
 
-OBJ = main_psy.o main_alg.o global_mesh_mod.o mesh_mod.o linked_list_data_mod.o \
+OBJ = main_psy.o main_alg.o global_mesh_base_mod.o mesh_mod.o linked_list_data_mod.o \
 		extrusion_mod.o mesh_colouring_mod.o mesh_constructor_helper_functions_mod.o \
 		domain_size_config_mod.o coord_transform_mod.o matrix_invert_mod.o \
 		cross_product_mod.o partition_mod.o mpi_mod.o linked_list_int_mod.o \
@@ -20,11 +20,11 @@ $(EXEC): $(OBJ)
 
 
 # Dependencies
-main_psy.o:	global_mesh_mod.o mesh_mod.o function_space_mod.o field_mod.o \
+main_psy.o:	global_mesh_base_mod.o mesh_mod.o function_space_mod.o field_mod.o \
 	operator_mod.o testkern_w0_mod.o
 testkern_w0_mod.o: argument_mod.o kernel_mod.o
 
-global_mesh_mod.o:	linked_list_data_mod.o log_mod.o reference_element_mod.o
+global_mesh_base_mod.o:	linked_list_data_mod.o log_mod.o reference_element_mod.o
 linked_list_data_mod.o: constants_mod.o
 mesh_mod.o: extrusion_mod.o linked_list_mod.o mesh_colouring_mod.o \
 	mesh_constructor_helper_functions_mod.o partition_mod.o
@@ -34,7 +34,7 @@ domain_size_config_mod.o: mpi_mod.o
 log_mod.o:	constants_mod.o
 field_mod.o: field_parent_mod.o scalar_mod.o count_mod.o
 field_parent_mod.o: pure_abstract_field_mod.o
-extrusion_mod.o:	global_mesh_mod.o
+extrusion_mod.o:	global_mesh_base_mod.o
 coord_transform_mod.o: matrix_invert_mod.o cross_product_mod.o
 partition_mod.o:	mpi_mod.o linked_list_int_mod.o
 linked_list_mod.o: linked_list_data_mod.o
@@ -60,4 +60,4 @@ function_space_constructor_helper_functions_mod.o: mesh_mod.o
 	psyclone --config ../../../config/psyclone.cfg -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 clean:
-	rm -f *.o *.mod  $(EXEC)
+	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90

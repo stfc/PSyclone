@@ -16,7 +16,7 @@ module mesh_mod
 
   use constants_mod,         only : i_def, i_native, r_def, l_def, pi, imdi
   use extrusion_mod,         only : extrusion_type
-  use global_mesh_mod,       only : global_mesh_type
+  use global_mesh_base_mod,  only : global_mesh_type => global_mesh_base_type
   !JHuse global_mesh_map_mod,   only : global_mesh_map_type
   !JHuse global_mesh_map_collection_mod , only: global_mesh_map_collection_type
   use linked_list_mod,       only : linked_list_type, &

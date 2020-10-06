@@ -18,7 +18,7 @@
 module extrusion_mod
 
   use constants_mod,         only : i_def, r_def
-  use global_mesh_mod,       only : global_mesh_type
+  use global_mesh_base_mod,  only : global_mesh_type => global_mesh_base_type
   use log_mod,               only : log_scratch_space, log_event, &
                                     log_level_error
   use reference_element_mod, only : reference_element_type

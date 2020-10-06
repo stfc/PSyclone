@@ -21,7 +21,7 @@
 
 module partition_mod
 
-  use global_mesh_mod, only : global_mesh_type
+  use global_mesh_base_mod, only : global_mesh_type => global_mesh_base_type
   use log_mod,         only : log_event,         &
                               LOG_LEVEL_ERROR
   use constants_mod,   only: i_def, i_halo_index, r_def, l_def, integer_type
