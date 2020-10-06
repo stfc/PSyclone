@@ -187,11 +187,12 @@ def test_cell_map():
     kernel_interface.cell_map()
 
 
-def test_field_vector():
+def test_field_vector(monkeypatch):
     '''Test the KernelInterface class field_vector method. We want to
     check that the correct symbol is referenced for the dimension of
     the vector field symbols so the simplest solution is to use one of
-    the Fortran test examples.
+    the Fortran test examples. Also check that the expected exception
+    is raised if the type of the vector field is not supported.
 
     '''
     kernel_interface = KernelInterface(None)
@@ -226,8 +227,15 @@ def test_field_vector():
         assert len(symbol.shape) == 1
         assert symbol.shape[0] is undf_symbol
 
+    # Force an exception by setting the intrinsic type to an unsupported value
+    monkeypatch.setattr(vector_arg, "_intrinsic_type", "unsupported")
+    with pytest.raises(NotImplementedError) as info:
+        kernel_interface.field_vector(vector_arg)
+    assert ("kernel interface does not support a vector field of type "
+            "'unsupported'." in str(info.value))
 
-def test_field():
+
+def test_field(monkeypatch):
     '''Test the KernelInterface class field method. We want to check that
     the correct symbol is referenced for the dimension of the field
     symbol so the simplest solution is to use one of the Fortran test
@@ -264,6 +272,13 @@ def test_field():
     assert symbol.fs == field_arg.function_space.orig_name
     assert len(symbol.shape) == 1
     assert symbol.shape[0] is undf_symbol
+
+    # Force an exception by setting the intrinsic type to an unsupported value
+    monkeypatch.setattr(field_arg, "_intrinsic_type", "unsupported")
+    with pytest.raises(NotImplementedError) as info:
+        kernel_interface.field(field_arg)
+    assert ("kernel interface does not support a field of type "
+            "'unsupported'." in str(info.value))
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")

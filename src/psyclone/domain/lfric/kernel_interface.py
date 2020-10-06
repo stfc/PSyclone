@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
 
-'''This module creates information about the expected arguments for a
-generated LFRic kernel.
+'''This module creates the expected arguments for an LFRic kernel
+based on the kernel metadata.
 
 '''
 # pylint: disable=no-name-in-module, too-many-public-methods
@@ -64,18 +64,27 @@ from psyclone.domain.lfric import FunctionSpace
 
 
 class KernelInterface(ArgOrdering):
-    '''Create a kernel interface as specified by kernel metadata and the
-    LFRic kernel rules.
+    '''Create the kernel arguments for the supplied kernel as specified by
+    the associated kernel metadata and the kernel ordering rules
+    encoded in the ArgOrdering base class as method callbacks.
 
-    LFRic PSyIR symbols are used to specify the arguments. This class
-    is responsible for 1) creating the required symbols, 2) creating
-    the symbol argument order and 3) connecting related arguments. For
-    example, the dimension of a field array is passed as a separate
-    argument. Therefore the field argument should have a reference to
-    the appropriate dimension size argument.
+    A PSyIR symbol table is created containing appropriate LFRic PSyIR
+    symbols to specify the arguments. If an argument is an array with
+    one or more dimension sizes specified by another argument, then
+    the associated array symbol is created so that it references the
+    appropriate symbol.
 
-    TBD: This should replace the current kernel stub gen
-    implementation when , see issue #XXX
+    Related arguments - e.g. a field has an associated dofmap - are
+    not directly connected, they must be inferred from the function
+    space names. It is not yet clear whether this would be useful or
+    not.
+
+    TBD: This class should replace the current kernel stub generation
+    code when all of its methods are implemented, see issue #928.
+
+    :param kern: the kernel that requires its kernel arguments to be \
+        created.
+    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
 
     '''
     def __init__(self, kern):
@@ -88,31 +97,87 @@ class KernelInterface(ArgOrdering):
         '''Call the generate base class then add the argument list as it can't
         be appended as we go along.
 
+        :param var_accesses: an unused optional argument that stores \
+            information about variable accesses.
+        :type var_accesses: :\
+            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
         '''
         super(KernelInterface, self).generate()
-        # Set the argument list for the symbol table
+        # Set the argument list for the symbol table. This is done at
+        # the end after incrementally adding symbols to the _arglist
+        # list, as it is not possible to add symbols to the symbol
+        # table argument list.
         self._symbol_table.specify_argument_list(self._arglist)
 
     def cell_position(self, var_accesses=None):
-        ''' Create an LFRic cell position object '''
+        '''Create an LFRic cell position object and add it to the argument
+        list.
+
+        :param var_accesses: an unused optional argument that stores \
+            information about variable accesses.
+        :type var_accesses: :\
+            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
         symbol = self._create_symbol("cell", CellPositionDataSymbol)
         self._arglist.append(symbol)
 
     def mesh_height(self, var_accesses=None):
-        ''' Create an LFRic mesh height object '''
+        '''Create an LFRic mesh height object and add it to the argument list.
+
+        :param var_accesses: an unused optional argument that stores \
+            information about variable accesses.
+        :type var_accesses: :\
+            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
         symbol = self._create_symbol("nlayers", MeshHeightDataSymbol)
         self._arglist.append(symbol)
 
     def mesh_ncell2d(self, var_accesses=None):
-        ''' Not implemented '''
+        '''Not implemented.
+
+        :param var_accesses: an unused optional argument that stores \
+            information about variable accesses.
+        :type var_accesses: :\
+            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        :raises NoImplementedError: as this method is not implemented.
+
+        '''
         raise NotImplementedError("mesh_ncell2d not implemented")
 
     def cell_map(self, var_accesses=None):
-        ''' Not implemented '''
+        '''Not implemented.
+
+        :param var_accesses: an unused optional argument that stores \
+            information about variable accesses.
+        :type var_accesses: :\
+            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        :raises NoImplementedError: as this method is not implemented.
+
+        '''
         raise NotImplementedError("cell_map not implemented")
 
     def field_vector(self, argvect, var_accesses=None):
-        ''' Implemented '''
+        '''Create LFRic field vector arguments and add them to the argument
+        list. Also declare the associated "undf" symbol if it has not
+        already been declared so that it can be used to dimension the
+        field vector arguments.
+
+        :param argvect: the field vector to add.
+        :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: an unused optional argument that stores \
+            information about variable accesses.
+        :type var_accesses: :\
+            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        :raises NotImplementedError: if the datatype of the vector \
+            field is not supported.
+
+        '''
         # Create and add a undf symbol to the symbol table if one does
         # not already exist or return the existing one if one does.
         fs_name = argvect.function_space.orig_name
@@ -125,7 +190,12 @@ class KernelInterface(ArgOrdering):
             "real": RealVectorFieldDataDataSymbol,
             "logical": LogicalVectorFieldDataDataSymbol}
         interface = ArgumentInterface(INTENT_MAPPING[argvect.intent])
-        field_class = mapping[argvect.intrinsic_type]
+        try:
+            field_class = mapping[argvect.intrinsic_type]
+        except KeyError:
+            raise NotImplementedError(
+                "kernel interface does not support a vector field of type "
+                "'{0}'.".format(argvect.intrinsic_type))
         for idx in range(argvect.vector_size):
             tag = "{0}_v{1}".format(argvect.name, idx)
             field_data_symbol = self._create_symbol(
@@ -134,8 +204,22 @@ class KernelInterface(ArgOrdering):
             self._arglist.append(field_data_symbol)
 
     def field(self, arg, var_accesses=None):
-        ''' Create an LFRic field data object '''
+        '''Create LFRic a field argument and add it to the argument
+        list. Also declare the associated "undf" symbol if it has not
+        already been declared so that it can be used to dimension the
+        field argument.
 
+        :param arg: the field to add.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: an unused optional argument that stores \
+            information about variable accesses.
+        :type var_accesses: :\
+            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        :raises NotImplementedError: if the datatype of the field is \
+            not supported.
+
+        '''
         # Create and add a undf symbol to the symbol table if one does
         # not already exist or return the existing one if one does.
         fs_name = arg.function_space.orig_name
@@ -147,22 +231,54 @@ class KernelInterface(ArgOrdering):
             "integer": IntegerFieldDataDataSymbol,
             "real": RealFieldDataDataSymbol,
             "logical": LogicalFieldDataDataSymbol}
+        try:
+            field_class = mapping[arg.intrinsic_type]
+        except KeyError:
+            raise NotImplementedError(
+                "kernel interface does not support a field of type "
+                "'{0}'.".format(arg.intrinsic_type))
         field_data_symbol = self._create_symbol(
-            arg.name, mapping[arg.intrinsic_type], dims=[undf_symbol],
-            extra_args=[fs_name],
+            arg.name, field_class, dims=[undf_symbol], extra_args=[fs_name],
             interface=ArgumentInterface(INTENT_MAPPING[arg.intent]))
         self._arglist.append(field_data_symbol)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
-        ''' Not implemented '''
+        '''Not implemented.
+
+        :param var_accesses: an unused optional argument that stores \
+            information about variable accesses.
+        :type var_accesses: :\
+            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        :raises NoImplementedError: as this method is not implemented.
+
+        '''
         raise NotImplementedError("stencil_unknown_extent not implemented")
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
-        ''' Not implemented '''
+        '''Not implemented.
+
+        :param var_accesses: an unused optional argument that stores \
+            information about variable accesses.
+        :type var_accesses: :\
+            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        :raises NoImplementedError: as this method is not implemented.
+
+        '''
         raise NotImplementedError("stencil_unknown_direction not implemented")
 
     def stencil(self, arg, var_accesses=None):
-        ''' Not implemented '''
+        '''Not implemented.
+
+        :param var_accesses: an unused optional argument that stores \
+            information about variable accesses.
+        :type var_accesses: :\
+            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        :raises NoImplementedError: as this method is not implemented.
+
+        '''
         raise NotImplementedError("stencil not implemented")
 
     def operator(self, arg, var_accesses=None):
@@ -178,7 +294,7 @@ class KernelInterface(ArgOrdering):
         ndf_symbol_to = self._create_symbol(
             "ndf_{0}".format(fs_to_name), NumberOfDofsDataSymbol,
             extra_args=[fs_to_name])
-        
+
         ncells = NumberOfCellsDataSymbol(
             "ncell_3d", interface=self._read_access)
         self._symbol_table.add(ncells)
@@ -265,7 +381,8 @@ class KernelInterface(ArgOrdering):
             "gh_quadrature_edge": BasisFunctionQrEdgeDataSymbol}
         basis_name_func = function_space.get_basis_name
         first_dim_value_func = self._basis_first_dim_value
-        self._create_basis(function_space, mapping, basis_name_func, first_dim_value_func)
+        self._create_basis(function_space, mapping, basis_name_func,
+                           first_dim_value_func)
 
     def diff_basis(self, function_space, var_accesses=None):
         ''' Implemented '''
@@ -275,7 +392,8 @@ class KernelInterface(ArgOrdering):
             "gh_quadrature_edge": DiffBasisFunctionQrEdgeDataSymbol}
         basis_name_func = function_space.get_diff_basis_name
         first_dim_value_func = self._diff_basis_first_dim_value
-        self._create_basis(function_space, mapping, basis_name_func, first_dim_value_func)
+        self._create_basis(function_space, mapping, basis_name_func,
+                           first_dim_value_func)
 
     def orientation(self, function_space, var_accesses=None):
         ''' Not implemented '''
@@ -326,7 +444,8 @@ class KernelInterface(ArgOrdering):
                 raise InternalError("Unsupported quadrature shape '{0}' "
                                     "found in kernel_interface.".format(shape))
 
-    def _create_symbol(self, tag, data_symbol, extra_args=None, dims=None, interface=None):
+    def _create_symbol(self, tag, data_symbol, extra_args=None, dims=None,
+                       interface=None):
         '''Internal utility to create a symbol. If a symbol is found in the
         symbol table with the supplied tag then that symbol is
         returned, otherwise a new symbol of type 'data_symbol' is
@@ -363,10 +482,10 @@ class KernelInterface(ArgOrdering):
             self._symbol_table.add(symbol, tag=tag)
         return symbol
 
-    def _create_basis(self, function_space, mapping, basis_name_func, first_dim_value_func):
+    def _create_basis(self, function_space, mapping, basis_name_func,
+                      first_dim_value_func):
         ''' xxx '''
-        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES, \
-            VALID_QUADRATURE_SHAPES
+        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES
         for shape in self._kern.eval_shapes:
             # Create and add an ndf symbol to the symbol table if one does
             # not already exist or return the existing one if one does.
@@ -386,7 +505,7 @@ class KernelInterface(ArgOrdering):
                     "nqp_v", NumberOfQrPointsInVerticalDataSymbol)
                 arg = mapping["gh_quadrature_xyoz"](
                     basis_tag, [int(first_dim_value_func(function_space)),
-                                 ndf_symbol, nqp_h, nqp_v],
+                                ndf_symbol, nqp_h, nqp_v],
                     fs_name, interface=self._read_access)
             elif shape == "gh_quadrature_face":
                 nfaces = self._create_symbol("nfaces", NumberOfFacesDataSymbol)
@@ -403,16 +522,19 @@ class KernelInterface(ArgOrdering):
                                 ndf_symbol, nqp, nedges],
                     fs_name, interface=self._read_access)
             elif shape in VALID_EVALUATOR_SHAPES:
-                # Need a diff basis array for each target space upon which the basis
-                # functions have been evaluated. _kern.eval_targets is a dict
-                # where the values are 2-tuples of (FunctionSpace, argument).
+                # Need a diff basis array for each target space upon
+                # which the basis functions have been
+                # evaluated. _kern.eval_targets is a dict where the
+                # values are 2-tuples of (FunctionSpace, argument).
                 for _, _ in self._kern.eval_targets.items():
                     raise NotImplementedError(
-                        "Evaluator shapes not implemented in kernel_interface class.")
+                        "Evaluator shapes not implemented in kernel_interface "
+                        "class.")
             else:
                 raise InternalError(
-                    "Unrecognised quadrature or evaluator shape '{0}'. Expected one of: "
-                    "{1}.".format(shape, VALID_EVALUATOR_SHAPES))
+                    "Unrecognised quadrature or evaluator shape '{0}'. "
+                    "Expected one of: {1}.".format(
+                        shape, VALID_EVALUATOR_SHAPES))
             self._symbol_table.add(arg)
             self._arglist.append(arg)
 
