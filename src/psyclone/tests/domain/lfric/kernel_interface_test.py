@@ -61,7 +61,7 @@ from psyclone.domain.lfric.psyir import \
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse
-from psyclone.errors import InternalError
+from psyclone.errors import InternalError, GenerationError
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "..", "..", "test_files", "dynamo0p3")
@@ -81,12 +81,63 @@ def test_init():
     assert kernel_interface._arglist == []
 
 
-# TBD
-# def test_generate():
-#     pass
+def test_generate():
+    '''Test that the KernelInterface class generate method creates the
+    expected symbols and adds them to the symbol table and its
+    argument list (in the required order).
+
+    '''
+    # Example 14.10 is chosen as it only has two fields in a kernel
+    # which reduces the number of arguments to check.
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"),
+        api="dynamo0.3")
+
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel0 = schedule[0].loop_body[0]
+    kernel_interface = KernelInterface(kernel0)
+    kernel_interface.generate()
+    # Check symbols
+    nlayers_symbol = kernel_interface._symbol_table.lookup("nlayers")
+    assert isinstance(nlayers_symbol, MeshHeightDataSymbol)
+    undf_w0_symbol = kernel_interface._symbol_table.lookup("undf_w0")
+    assert isinstance(undf_w0_symbol, NumberOfUniqueDofsDataSymbol)
+    f1_field_symbol = kernel_interface._symbol_table.lookup("f1")
+    assert isinstance(f1_field_symbol, RealFieldDataDataSymbol)
+    f2_field_symbol = kernel_interface._symbol_table.lookup("f2")
+    assert isinstance(f2_field_symbol, RealFieldDataDataSymbol)
+    ndf_w0_symbol = kernel_interface._symbol_table.lookup("ndf_w0")
+    assert isinstance(ndf_w0_symbol, NumberOfDofsDataSymbol)
+    dofmap_w0_symbol = kernel_interface._symbol_table.lookup("dofmap_w0")
+    assert isinstance(dofmap_w0_symbol, DofMapDataSymbol)
+    # Check function spaces
+    assert undf_w0_symbol.fs == "w0"
+    assert f1_field_symbol.fs == "w0"
+    assert f2_field_symbol.fs == "w0"
+    assert ndf_w0_symbol.fs == "w0"
+    assert dofmap_w0_symbol.fs == "w0"
+    # Check array dimensions
+    assert len(f1_field_symbol.shape) == 1
+    assert f1_field_symbol.shape[0] is undf_w0_symbol
+    assert len(f2_field_symbol.shape) == 1
+    assert f2_field_symbol.shape[0] is undf_w0_symbol
+    assert len(dofmap_w0_symbol.shape) == 1
+    assert dofmap_w0_symbol.shape[0] is ndf_w0_symbol
+    # Check argument list
+    arg_list = kernel_interface._symbol_table.argument_datasymbols
+    assert len(arg_list) == 6
+    assert arg_list[0] is nlayers_symbol
+    assert arg_list[1] is undf_w0_symbol
+    assert arg_list[2] is f1_field_symbol
+    assert arg_list[3] is f2_field_symbol
+    assert arg_list[4] is ndf_w0_symbol
+    assert arg_list[5] is dofmap_w0_symbol
 
 
 def test_cell_position():
+
     '''Test that the KernelInterface class cell_position method adds the
     expected class to the symbol table and the _arglist list.
 
@@ -318,9 +369,11 @@ def test_cma_operator():
     kernel_interface.cma_operator(None)
 
 
-def test_scalar():
-    '''Test that the KernelInterface class scalar method adds the
-    expected class to the symbol table and the _arglist list.
+def test_scalar(monkeypatch):
+    '''Test that the KernelInterface class scalar method adds the expected
+    class to the symbol table and the _arglist list. Also check that
+    it raises the expected exception if the scalar type is not
+    recognised.
 
     '''
     kernel_interface = KernelInterface(None)
@@ -340,6 +393,12 @@ def test_scalar():
     assert (symbol.interface.access ==
             INTENT_MAPPING[scalar_arg.intent])
     assert kernel_interface._arglist[-1] is symbol
+    # Force an error
+    monkeypatch.setattr(scalar_arg, "_intrinsic_type", "invalid")
+    with pytest.raises(NotImplementedError) as info:
+        kernel_interface.scalar(scalar_arg)
+    assert("scalar of type 'invalid' not implemented in KernelInterface "
+           "class." in str(info.value))
 
 
 def test_fs_common():
@@ -633,7 +692,8 @@ def test_diff_basis():
     assert (nqpv_symbol.interface.access ==
             kernel_interface._read_access.access)
     # diff basis declared and added to argument list
-    diff_basis_symbol = kernel_interface._symbol_table.lookup("diff_basis_w2_qr_xyoz")
+    diff_basis_symbol = kernel_interface._symbol_table.lookup(
+        "diff_basis_w2_qr_xyoz")
     assert isinstance(diff_basis_symbol, DiffBasisFunctionQrXyozDataSymbol)
     assert isinstance(diff_basis_symbol.interface, ArgumentInterface)
     assert (diff_basis_symbol.interface.access ==
@@ -825,6 +885,29 @@ def test_quad_rule_edge():
     assert weights_symbol.shape[0] is nqp_symbol
 
 
+def test_quad_rule_error(monkeypatch):
+    '''Test that the KernelInterface class quad_rule method raises the
+    expected exception when an unsupported quadrature shape is
+    provided.
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "6.1_eval_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+    kernel_interface = KernelInterface(kernel)
+    # Force an unsupported shape
+    monkeypatch.setattr(kernel, "_qr_rules", ["invalid_shape"])
+    with pytest.raises(InternalError) as info:
+        kernel_interface.quad_rule()
+    assert(
+        "Unsupported quadrature shape 'invalid_shape' found in "
+        "kernel_interface." in str(info.value))
+
+
 def test_create_symbol_tag():
     ''' Test that an existing symbol with the same tag as this is returned '''
     symbol1 = CellPositionDataSymbol("test")
@@ -887,16 +970,74 @@ def test_create_symbol_args():
     assert symbol1.interface.access == ArgumentInterface.Access.READWRITE
 
 
-# TBD
-# def test_create_basis():
-#     pass
-# mostly already covered by previous tests xxx and yyy. Just need to check errors 1) NotImplementedError and 2) internalerror
+def test_create_basis_errors(monkeypatch):
+    '''Check that the appropriate exceptions are raised when a) an
+    evaluator shape is provided, as they are not yet supported, and b)
+    an unrecognised quadrature or evaluator shape is found.
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "6.1_eval_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+    kernel_interface = KernelInterface(kernel)
+
+    # "w1" requires a basis function and is the first entry in the
+    # unique function spaces list
+    w1_fs = kernel.arguments.unique_fss[0]
+    # Evaluator shapes are not yet supported.
+    with pytest.raises(NotImplementedError) as info:
+        kernel_interface.basis(w1_fs)
+    assert ("Evaluator shapes not implemented in kernel_interface class."
+            in str(info.value))
+    # Force an unsupported shape
+    monkeypatch.setattr(kernel, "_eval_shapes", ["invalid_shape"])
+    with pytest.raises(InternalError) as info:
+        kernel_interface.basis(w1_fs)
+        assert (
+            "Unrecognised quadrature or evaluator shape 'invalid_shape'. "
+            "Expected one of: ['gh_quadrature_xyoz', 'gh_quadrature_face', "
+            "'gh_quadrature_edge', 'gh_evaluator']." in str(info.value))
 
 
-# TBD
-# def test_basis_first_dim_value():
-#     pass
+def test_basis_first_dim_value():
+    '''Check that the kernel_interface class basis_first_dim_value method
+    returns the expected results and raises the expected exception.
 
-# TBD
-# def test_diff_basis_first_dim_value():
-#     pass
+    '''
+    kernel_interface = KernelInterface(None)
+    w3_fs = FunctionSpace("w3", None)
+    assert kernel_interface._basis_first_dim_value(w3_fs) == "1"
+    w2_fs = FunctionSpace("w2", None)
+    assert kernel_interface._basis_first_dim_value(w2_fs) == "3"
+    any_space_fs = FunctionSpace("any_space_1", None)
+    with pytest.raises(GenerationError) as info:
+        _ = kernel_interface._basis_first_dim_value(any_space_fs)
+    assert (
+        "Unsupported space for basis function, expecting one of ['w3', "
+        "'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', "
+        "'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi'] but found "
+        "'any_space_1'" in str(info.value))
+
+
+def test_diff_basis_first_dim_value():
+    '''Check that the kernel_interface class diff_basis_first_dim_value method
+    returns the expected results and raises the expected exception.
+
+    '''
+    kernel_interface = KernelInterface(None)
+    w3_fs = FunctionSpace("w3", None)
+    assert kernel_interface._diff_basis_first_dim_value(w3_fs) == "3"
+    w2_fs = FunctionSpace("w2", None)
+    assert kernel_interface._diff_basis_first_dim_value(w2_fs) == "1"
+    any_space_fs = FunctionSpace("any_space_1", None)
+    with pytest.raises(GenerationError) as info:
+        _ = kernel_interface._diff_basis_first_dim_value(any_space_fs)
+    assert (
+        "Unsupported space for differential basis function, expecting one of "
+        "['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', "
+        "'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi'] but found "
+        "'any_space_1'" in str(info.value))

@@ -59,7 +59,8 @@ from psyclone.domain.lfric.psyir import CellPositionDataSymbol, \
     NumberOfFacesDataSymbol, QrWeightsDataSymbol, NumberOfEdgesDataSymbol
 from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
-from psyclone.errors import InternalError
+from psyclone.errors import InternalError, GenerationError
+from psyclone.domain.lfric import FunctionSpace
 
 
 class KernelInterface(ArgOrdering):
@@ -206,8 +207,8 @@ class KernelInterface(ArgOrdering):
                 interface=ArgumentInterface(INTENT_MAPPING[scalar_arg.intent]))
         except KeyError:
             raise NotImplementedError(
-                "scalar of type {0} not implemented"
-                "".format(scalar_arg.intrinsic_type))
+                "scalar of type '{0}' not implemented in KernelInterface "
+                "class.".format(scalar_arg.intrinsic_type))
         self._arglist.append(symbol)
 
     def fs_common(self, function_space, var_accesses=None):
@@ -322,8 +323,8 @@ class KernelInterface(ArgOrdering):
                     "weights", QrWeightsDataSymbol, dims=[nqp])
                 self._arglist.extend([nedges, nqp, weights])
             else:
-                raise InternalError("Unsupported quadrature shape ('{0}') "
-                                    "found in kernel_interface".format(shape))
+                raise InternalError("Unsupported quadrature shape '{0}' "
+                                    "found in kernel_interface.".format(shape))
 
     def _create_symbol(self, tag, data_symbol, extra_args=None, dims=None, interface=None):
         '''Internal utility to create a symbol. If a symbol is found in the
@@ -407,11 +408,11 @@ class KernelInterface(ArgOrdering):
                 # where the values are 2-tuples of (FunctionSpace, argument).
                 for _, _ in self._kern.eval_targets.items():
                     raise NotImplementedError(
-                        "evaluator shapes not implemented")
+                        "Evaluator shapes not implemented in kernel_interface class.")
             else:
                 raise InternalError(
-                    "Unrecognised quadrature or evaluator shape ('{0}'). Expected one of: "
-                    "{1}".format(shape, VALID_QUADRATURE_SHAPES+VALID_EVALUATOR_SHAPES))
+                    "Unrecognised quadrature or evaluator shape '{0}'. Expected one of: "
+                    "{1}.".format(shape, VALID_EVALUATOR_SHAPES))
             self._symbol_table.add(arg)
             self._arglist.append(arg)
 
