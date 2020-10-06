@@ -388,9 +388,10 @@ class StructureType(DataType):
         '''
         return self._components
 
-    def add(self, component):
+    def add(self, name, datatype, visibility):
         '''
-        Add the supplied component to this StructureType.
+        Create a component with te supplied attributes and add it to
+        this StructureType.
 
         :param component: the component to add.
         :type component: \
@@ -399,11 +400,11 @@ class StructureType(DataType):
         :raises TypeError: if the supplied component is not of ComponentType.
 
         '''
-        if not isinstance(component, self.ComponentType):
+        if not isinstance(name, str):
             raise TypeError(
-                "Components of a StructureType must be of type StructureType."
-                "ComponentType but got '{0}'".format(type(component).__name__))
-        self._components[component.name] = component
+                "The name of a component of a StructureType must be a 'str' "
+                "but got '{0}'".format(type(name).__name__))
+        self._components[name] = self.ComponentType(name, datatype, visibility)
 
     def lookup(self, name):
         '''
