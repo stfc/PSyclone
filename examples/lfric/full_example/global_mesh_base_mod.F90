@@ -132,7 +132,7 @@ contains
   !>
   function global_mesh_base_constructor(global_mesh_name, nvert_in, nedge_in,   &
           nface_in, max_num_faces_per_node, num_nodes_per_face, &
-          num_nodes_per_edge, num_edges_per_face, & 
+          num_nodes_per_edge, num_edges_per_face, &
           mesh_class, periodic_x, periodic_y, ntarget_meshes,                   &
           target_global_mesh_names, vert_coords, cell_coords , cell_next_2d,    &
           vert_on_cell_2d, edge_on_cell_2d&
@@ -164,8 +164,6 @@ contains
 
     ! loop counter over entities (vertices or edges)
     integer(i_def) :: ientity
-
-    print *,"BOMJH, constructor base starting"
 
     global_mesh_id_counter = global_mesh_id_counter + 1
     call self%set_id(global_mesh_id_counter)
@@ -240,7 +238,6 @@ contains
       self%edge_cell_owner(ientity)=maxval( self%cell_on_edge_2d(:,ientity) )
     end do
 
-    print *,"BOMJH, constructor base finished"
   end function global_mesh_base_constructor
 
   !===========================================================================
