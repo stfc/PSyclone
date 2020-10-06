@@ -955,41 +955,64 @@ class DynKernMetadata(KernelType):
 
 
 class DynamoPSy(PSy):
-    ''' The Dynamo specific PSy class. This creates a Dynamo specific
-    invokes object (which controls all the required invocation calls).
-    It also overrides the PSy gen method so that we generate dynamo
-    specific PSy module code.
+    '''
+    The LFRic-specific PSy class. This creates an LFRic-specific
+    Invokes object (which controls all the required invocation calls).
+    It also overrides the PSy gen method so that we generate
+    LFRic-specific PSy module code.
 
     :param invoke_info: object containing the required invocation information \
                         for code optimisation and generation.
     :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
+
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
         self._invokes = DynamoInvokes(invoke_info.calls, self)
+        # Initialise the dictionary that holds the names of required
+        # LFRic data structures and their proxies for the "use"
+        # statements in modules that contain PSy-layer routines.
+        infmod_list = ["field_mod", "operator_mod"]
+        self._infrastructure_modules = OrderedDict(
+            (k, set()) for k in infmod_list)
 
     @property
     def name(self):
-        '''Returns a name for the psy layer. This is used as the psy module
-        name. We override the default value as the Met Office prefer
-        _psy to be appended, rather than prepended'''
+        '''
+        :returns: a name for the PSy layer. This is used as the PSy module \
+                  name. We override the default value as the Met Office \
+                  prefer "_psy" to be appended, rather than prepended.
+        :rtype: str
+
+        '''
         return self._name + "_psy"
 
     @property
     def orig_name(self):
         '''
-        :returns: the unmodified psy-layer name.
+        :returns: the unmodified PSy-layer name.
         :rtype: str
 
         '''
         return self._name
 
     @property
+    def infrastructure_modules(self):
+        '''
+        :returns: the dictionary that holds the names of required \
+                  LFRic data structures and their proxies to create \
+                  "use" statements in the PSy-layer modules.
+        :rtype: dict of set
+
+        '''
+        return self._infrastructure_modules
+
+    @property
     def gen(self):
         '''
-        Generate PSy code for the Dynamo0.3 api.
+        Generate PSy code for the LFRic (Dynamo0.3) API.
 
-        :return: Root node of generated Fortran AST
+        :returns: root node of generated Fortran AST.
         :rtype: :py:class:`psyir.nodes.Node`
 
         '''
@@ -997,23 +1020,31 @@ class DynamoPSy(PSy):
 
         # Create an empty PSy layer module
         psy_module = ModuleGen(self.name)
-        # Include required infrastructure modules
-        psy_module.add(UseGen(psy_module, name="field_mod", only=True,
-                              funcnames=["field_type", "field_proxy_type"]))
-        psy_module.add(UseGen(psy_module, name="operator_mod", only=True,
-                              funcnames=["operator_type",
-                                         "operator_proxy_type",
-                                         "columnwise_operator_type",
-                                         "columnwise_operator_proxy_type"]))
+
+        # Add all invoke-specific information
+        self.invokes.gen_code(psy_module)
+        # Inline kernels where requested
+        self.inline(psy_module)
+
+        # Include required infrastructure modules. The sets of required
+        # LFRic data structures and their proxies are updated in the
+        # relevant field and operator subclasses of DynCollection.
+        # Here we sort the inputs in reverse order to have "_type" before
+        # "_proxy_type" and "operator_" before "columnwise_operator_".
+        # We also iterate through the dictionary in reverse order so the
+        # "use" statements for field types are before the "use" statements
+        # for operator types.
+        for infmod in reversed(self._infrastructure_modules):
+            if self._infrastructure_modules[infmod]:
+                infmod_types = sorted(
+                    list(self._infrastructure_modules[infmod]), reverse=True)
+                psy_module.add(UseGen(psy_module, name=infmod,
+                                      only=True, funcnames=infmod_types))
         psy_module.add(
             UseGen(psy_module, name="constants_mod", only=True,
                    funcnames=[api_config.default_kind["real"],
                               api_config.default_kind["integer"]]))
 
-        # add all invoke specific information
-        self.invokes.gen_code(psy_module)
-        # inline kernels where requested
-        self.inline(psy_module)
         # Return the root node of the generated code
         return psy_module.root
 
@@ -2547,9 +2578,12 @@ class DynFields(DynCollection):
         # Create a list of field names
         fld_arg_list = [arg.declaration_name for arg in fld_args]
         if fld_arg_list:
-            parent.add(TypeDeclGen(parent, datatype="field_type",
+            dtype = "field_type"
+            parent.add(TypeDeclGen(parent, datatype=dtype,
                                    entity_decls=fld_arg_list,
                                    intent="in"))
+            (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
+             add(dtype))
 
     def _stub_declarations(self, parent):
         '''
@@ -2788,21 +2822,32 @@ class DynProxies(DynCollection):
         field_proxy_decs = self._invoke.unique_proxy_declarations(
             LFRicArgDescriptor.VALID_FIELD_NAMES)
         if field_proxy_decs:
+            dtype = "field_proxy_type"
             parent.add(TypeDeclGen(parent,
-                                   datatype="field_proxy_type",
+                                   datatype=dtype,
                                    entity_decls=field_proxy_decs))
+            (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
+             add(dtype))
+
         op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_operator"])
         if op_proxy_decs:
+            dtype = "operator_proxy_type"
             parent.add(TypeDeclGen(parent,
-                                   datatype="operator_proxy_type",
+                                   datatype=dtype,
                                    entity_decls=op_proxy_decs))
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
+
         cma_op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_columnwise_operator"])
         if cma_op_proxy_decs:
+            dtype = "columnwise_operator_proxy_type"
             parent.add(TypeDeclGen(parent,
-                                   datatype="columnwise_operator_proxy_type",
+                                   datatype=dtype,
                                    entity_decls=cma_op_proxy_decs))
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
 
     def initialise(self, parent):
         '''
@@ -3060,9 +3105,12 @@ class DynLMAOperators(DynCollection):
         # Create a list of operator names
         op_arg_list = [arg.declaration_name for arg in op_args]
         if op_arg_list:
-            parent.add(TypeDeclGen(parent, datatype="operator_type",
+            dtype = "operator_type"
+            parent.add(TypeDeclGen(parent, datatype=dtype,
                                    entity_decls=op_arg_list,
                                    intent="in"))
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
 
 
 class DynCMAOperators(DynCollection):
@@ -3202,10 +3250,13 @@ class DynCMAOperators(DynCollection):
         # Create a list of column-wise operator names
         cma_op_arg_list = [arg.declaration_name for arg in cma_op_args]
         if cma_op_arg_list:
+            dtype = "columnwise_operator_type"
             parent.add(TypeDeclGen(parent,
-                                   datatype="columnwise_operator_type",
+                                   datatype=dtype,
                                    entity_decls=cma_op_arg_list,
                                    intent="in"))
+            (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
+             add(dtype))
 
         for op_name in self._cma_ops:
             # Declare the operator matrix itself
@@ -5008,11 +5059,11 @@ def _create_depth_list(halo_info_list):
     needs_clean_outer, which indicates whether the outermost halo
     needs to be clean (and therefore whether there is a dependence).
 
-    :param: a list containing halo access information derived from
-    all read fields dependent on this halo exchange
+    :param halo_info_list: a list containing halo access information \
+        derived from all read fields dependent on this halo exchange.
     :type: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloReadAccess`
-    :return: a list containing halo depth information derived from
-    the halo access information
+    :returns: a list containing halo depth information derived from \
+        the halo access information.
     :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
 
     '''
@@ -5172,38 +5223,98 @@ class DynHaloExchange(HaloExchange):
                           depth_info_list]
         return "max("+",".join(depth_str_list)+")"
 
-    def _compute_halo_read_depth_info(self):
+    def _compute_halo_read_depth_info(self, ignore_hex_dep=False):
         '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and
         create an equivalent list of `psyclone.dynamo0p3.HaloDepth`
         objects. Whilst doing this we simplify the
         `psyclone.dynamo0p3.HaloDepth` list to remove redundant depth
-        information e.g. depth=1 is not required if we have a depth=2
+        information e.g. depth=1 is not required if we have a depth=2.
+        If the optional ignore_hex_dep argument is set to True then
+        any read accesses contained in halo exchange nodes are
+        ignored. This option can therefore be used to filter out any
+        halo exchange dependencies and only return non-halo exchange
+        dependencies if and when required.
+
+        :param bool ignore_hex_dep: if True then ignore any read \
+            accesses contained in halo exchanges. This is an optional \
+            argument that defaults to False.
 
         :return: a list containing halo depth information derived from \
-        all fields dependent on this halo exchange
+            all fields dependent on this halo exchange.
         :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
 
         '''
         # get our halo information
-        halo_info_list = self._compute_halo_read_info()
+        halo_info_list = self._compute_halo_read_info(ignore_hex_dep)
         # use the halo information to generate depth information
         depth_info_list = _create_depth_list(halo_info_list)
         return depth_info_list
 
-    def _compute_halo_read_info(self):
+    def _compute_halo_read_info(self, ignore_hex_dep=False):
         '''Dynamically computes all halo read dependencies and returns the
-        required halo information (i.e. halo depth and stencil type) in a
-        list of HaloReadAccess objects
+        required halo information (i.e. halo depth and stencil type)
+        in a list of HaloReadAccess objects. If the optional
+        ignore_hex_dep argument is set to True then any read accesses
+        contained in halo exchange nodes are ignored. This option can
+        therefore be used to filter out any halo exchange dependencies
+        and only return non-halo exchange dependencies if and when
+        required.
 
-        :return: a list containing halo information for each read dependency
+        :param bool ignore_hex_dep: if True then ignore any read \
+            accesses contained in halo exchanges. This is an optional \
+            argument that defaults to False.
+
+        :return: a list containing halo information for each read dependency.
         :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloReadAccess`
+
+        :raises InternalError: if there is more than one read \
+            dependency associated with a halo exchange.
+        :raises InternalError: if there is a read dependency \
+            associated with a halo exchange and it is not the last \
+            entry in the read dependency list.
+        :raises GenerationError: if there is a read dependency \
+            associated with an asynchronous halo exchange.
+        :raises InternalError: if no read dependencies are found.
 
         '''
         read_dependencies = self.field.forward_read_dependencies()
+        hex_deps = [dep for dep in read_dependencies
+                    if isinstance(dep.call, DynHaloExchange)]
+        if hex_deps:
+            # There is a field accessed by a halo exchange that is
+            # a read dependence. As ignore_hex_dep is True this should
+            # be ignored so this is removed from the list.
+            if any(dep for dep in hex_deps
+                   if isinstance(dep.call, (DynHaloExchangeStart,
+                                            DynHaloExchangeEnd))):
+                raise GenerationError(
+                    "Please perform redundant computation transformations "
+                    "before asynchronous halo exchange transformations.")
+
+            # There can only be one field accessed by a
+            # halo exchange that is a read dependence.
+            if len(hex_deps) != 1:
+                raise InternalError(
+                    "There should only ever be at most one read dependency "
+                    "associated with a halo exchange in the read dependency "
+                    "list, but found {0} for field {1}."
+                    "".format(len(hex_deps), self.field.name))
+            # For sanity, check that the field accessed by the halo
+            # exchange is the last dependence in the list.
+            if not isinstance(read_dependencies[-1].call, DynHaloExchange):
+                raise InternalError(
+                    "If there is a read dependency associated with a halo "
+                    "exchange in the list of read dependencies then it should "
+                    "be the last one in the list.")
+            if ignore_hex_dep:
+                # Remove the last entry in the list (the field accessed by
+                # the halo exchange).
+                del read_dependencies[-1]
+
         if not read_dependencies:
-            raise GenerationError(
+            raise InternalError(
                 "Internal logic error. There should be at least one read "
-                "dependence for a halo exchange")
+                "dependence for a halo exchange.")
         return [HaloReadAccess(read_dependency) for read_dependency
                 in read_dependencies]
 
@@ -5229,15 +5340,16 @@ class DynHaloExchange(HaloExchange):
                 "'{0}'".format(str(len(write_dependencies))))
         return HaloWriteAccess(write_dependencies[0])
 
-    def required(self):
+    def required(self, ignore_hex_dep=False):
         '''Determines whether this halo exchange is definitely required (True,
         True), might be required (True, False) or is definitely not
-        required (False, *). The first return argument is used to
-        decide whether a halo exchange should exist. If it is True
-        then the halo is required or might be required. If it is False
-        then the halo exchange is definitely not required. The second
-        argument is used to specify whether we definitely know that it
-        is required or are not sure.
+        required (False, *).
+
+        If the optional ignore_hex_dep argument is set to True then
+        any read accesses contained in halo exchange nodes are
+        ignored. This option can therefore be used to filter out any
+        halo exchange dependencies and only consider non-halo exchange
+        dependencies if and when required.
 
         Whilst a halo exchange is generally only ever added if it is
         required, or if it may be required, this situation can change
@@ -5245,11 +5357,11 @@ class DynHaloExchange(HaloExchange):
         first argument can be used to remove such halo exchanges if
         required.
 
-        When the first argument is True, the second argument can be
-        used to see if we need to rely on the runtime (set_dirty and
-        set_clean calls) and therefore add a check_dirty() call around
-        the halo exchange or whether we definitely know that this halo
-        exchange is required.
+        When the first return value is True, the second return value
+        can be used to see if we need to rely on the runtime
+        (set_dirty and set_clean calls) and therefore add a
+        check_dirty() call around the halo exchange or whether we
+        definitely know that this halo exchange is required.
 
         This routine assumes that a stencil size provided via a
         variable may take the value 0. If a variables value is
@@ -5258,16 +5370,21 @@ class DynHaloExchange(HaloExchange):
         updated. Note, the routine would still be correct as is, it
         would just return more unknown results than it should).
 
+        :param bool ignore_hex_dep: if True then ignore any read \
+            accesses contained in halo exchanges. This is an optional \
+            argument that defaults to False.
+
         :return: Returns (x, y) where x specifies whether this halo \
-        exchange is (or might be) required - True, or is not required \
-        - False. If the first tuple item is True then the second \
-        argument specifies whether we definitely know that we need the \
-        HaloExchange - True, or are not sure - False.
+            exchange is (or might be) required - True, or is not \
+            required - False. If the first tuple item is True then the \
+            second argument specifies whether we definitely know that \
+            we need the HaloExchange - True, or are not sure - False.
         :rtype: (bool, bool)
 
         '''
         # get *aggregated* information about halo reads
-        required_clean_info = self._compute_halo_read_depth_info()
+        required_clean_info = self._compute_halo_read_depth_info(
+            ignore_hex_dep)
         # get information about the halo write
         clean_info = self._compute_halo_write_info()
 
@@ -5839,6 +5956,7 @@ class HaloWriteAccess(HaloDepth):
         '''
         call = halo_check_arg(field, AccessType.all_write_accesses())
         # no test required here as all calls exist within a loop
+
         loop = call.parent.parent
         # The outermost halo level that is written to is dirty if it
         # is a continuous field which writes into the halo in a loop
@@ -6453,7 +6571,7 @@ class DynLoop(Loop):
         # Access is neither a read nor an inc so does not need halo
         return False
 
-    def _add_halo_exchange_code(self, halo_field, idx=None):
+    def _add_field_component_halo_exchange(self, halo_field, idx=None):
         '''An internal helper method to add the halo exchange call immediately
         before this loop using the halo_field argument for the
         associated field information and the optional idx argument if
@@ -6472,17 +6590,49 @@ class DynLoop(Loop):
         there is one and None if not. Defaults to None.
         :type index: int or None
 
+        :raises InternalError: if there are two forward write \
+            dependencies and they are both associated with halo \
+            exchanges.
+
         '''
         exchange = DynHaloExchange(halo_field,
                                    parent=self.parent,
                                    vector_index=idx)
         self.parent.children.insert(self.position,
                                     exchange)
-        # check whether this halo exchange has been placed
-        # here correctly and if not, remove it.
-        required, _ = exchange.required()
+
+        # Is this halo exchange required? The halo exchange being
+        # added may replace an existing halo exchange, which would
+        # then be returned as a halo exchange dependence and an
+        # exception raised (as a halo exchange should not have another
+        # halo exchange as a dependence). Therefore, halo exchange
+        # dependencies are ignored here by setting the ignore_hex_dep
+        # optional argument.
+        required, _ = exchange.required(ignore_hex_dep=True)
         if not required:
             exchange.parent.children.remove(exchange)
+        else:
+            # The halo exchange we have added may be replacing an
+            # existing one. If so, the one being replaced will be the
+            # first and only write dependence encountered and must be
+            # removed.
+            results = exchange.field.forward_write_dependencies()
+            if results:
+                first_dep_call = results[0].call
+                if isinstance(first_dep_call, HaloExchange):
+                    # Sanity check. If the first dependence is a field
+                    # accessed within a halo exchange then the
+                    # subsequent one must not be.
+                    next_results = results[0].forward_write_dependencies()
+                    if next_results and any(tmp for tmp in next_results
+                                            if isinstance(tmp.call,
+                                                          HaloExchange)):
+                        raise InternalError(
+                            "When replacing a halo exchange with another one "
+                            "for field {0}, a subsequent dependent halo "
+                            "exchange was found. This should never happen."
+                            "".format(exchange.field.name))
+                    first_dep_call.parent.children.remove(first_dep_call)
 
     def _add_halo_exchange(self, halo_field):
         '''Internal helper method to add (a) halo exchange call(s) immediately
@@ -6499,9 +6649,9 @@ class DynLoop(Loop):
             # 1 to the vector size which is what we
             # require in our Fortran code
             for idx in range(1, halo_field.vector_size+1):
-                self._add_halo_exchange_code(halo_field, idx)
+                self._add_field_component_halo_exchange(halo_field, idx)
         else:
-            self._add_halo_exchange_code(halo_field)
+            self._add_field_component_halo_exchange(halo_field)
 
     def update_halo_exchanges(self):
         '''add and/or remove halo exchanges due to changes in the loops
@@ -6538,7 +6688,11 @@ class DynLoop(Loop):
         is implemented this way as the halo exchange class determines
         whether it is required or not so a halo exchange needs to
         exist in order to find out. The appropriate logic is coded in
-        the _add_halo_exchange helper method. '''
+        the _add_halo_exchange helper method. In some cases a new halo
+        exchange will replace an existing one. In this situation that
+        routine also removes the old one.
+
+        '''
         for halo_field in self.unique_fields_with_halo_reads():
             # for each unique field in this loop that has its halo
             # read (including annexed dofs), find the previous update

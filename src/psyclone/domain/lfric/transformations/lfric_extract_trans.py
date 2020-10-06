@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module contains the LFRic-specific implementation of the ExtractTrans
 transformation.
 '''
 
+from psyclone.dynamo0p3 import DynLoop
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
@@ -61,14 +63,6 @@ class LFRicExtractTrans(ExtractTrans):
     >>> newsched.view()
     '''
 
-    def __str__(self):
-        return "Inserts an ExtractNode in an LFRic Schedule."
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "LFRicExtractTrans"
-
     def validate(self, node_list, options=None):
         ''' Perform Dynamo0.3 API specific validation checks before applying
         the transformation.
@@ -88,7 +82,6 @@ class LFRicExtractTrans(ExtractTrans):
         super(LFRicExtractTrans, self).validate(node_list, options)
 
         # Check LFRicExtractTrans specific constraints
-        from psyclone.dynamo0p3 import DynLoop
         for node in node_list:
 
             # Check that ExtractNode is not inserted between a Loop

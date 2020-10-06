@@ -52,7 +52,7 @@ module testkern_ref_elem_all_faces_mod
           meta_reference_element =                                  &
           (/ reference_element_data_type(outward_normals_to_faces), &
              reference_element_data_type(normals_to_faces) /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_ref_elem_all_faces_code
   end type testkern_ref_elem_all_faces_type

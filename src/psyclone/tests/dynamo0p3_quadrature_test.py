@@ -729,7 +729,7 @@ module dummy_mod
              func_type(w2htrace, gh_basis), &
              func_type(w2vtrace, gh_basis)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_quadrature_xyoz
    contains
      procedure, nopass :: code => dummy_code
