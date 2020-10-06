@@ -11,6 +11,9 @@ program main
     !use field_mod,                 only : field_type
     !use finite_element_config_mod, only : element_order
     !use function_space_mod, only: function_space_type
+
+    implicit none
+
     type(global_mesh_type), target  :: global_mesh
     type(global_mesh_type), pointer :: global_mesh_ptr
     type(partition_type)                    :: partition
@@ -23,9 +26,9 @@ program main
     type(field_type) :: field1, field2
     type(field_proxy_type) :: proxy
 
-    integer :: ndata = 1
     integer :: lfric_fs = W0   ! W0
     integer :: element_order = 1
+    integer :: ndata_sz
 
     ! Use the unit-testing constructor:
     global_mesh = global_mesh_type()
