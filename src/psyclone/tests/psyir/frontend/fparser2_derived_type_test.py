@@ -39,7 +39,7 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyGen import KernelSchedule
+from psyclone.psyir.nodes import KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
     TypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
