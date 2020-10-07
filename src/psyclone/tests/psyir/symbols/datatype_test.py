@@ -40,7 +40,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
     ArrayType, UnknownFortranType, DataSymbol, StructureType, \
-    INTEGER_TYPE, Symbol
+    INTEGER_TYPE, REAL_TYPE, Symbol
 from psyclone.errors import InternalError
 
 
@@ -312,17 +312,40 @@ def test_unknown_fortran_type():
 # StructureType tests
 
 def test_structure_type():
-    ''' Check that we can create a StructureType object. '''
+    ''' Check the StructureType constructor and that we can add components. '''
     stype = StructureType()
     assert str(stype) == "StructureType<>"
     assert not stype.components
-    stype.add(StructureType.ComponentType("flag", INTEGER_TYPE,
-                                          Symbol.Visibility.PUBLIC))
+    stype.add("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC)
     flag = stype.lookup("flag")
     assert isinstance(flag, StructureType.ComponentType)
     with pytest.raises(TypeError) as err:
-        stype.add("hello")
-    assert ("must be of type StructureType.ComponentType but got 'str'" in
-            str(err.value))
+        stype.add("hello", "hello", "hello")
+    assert ("type of a component of a StructureType must be a 'DataType' "
+            "but got 'str'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add("hello", INTEGER_TYPE, "hello")
+    assert ("visibility of a component of a StructureType must be an instance "
+            "of 'Symbol.Visibility' but got 'str'" in str(err.value))
     with pytest.raises(KeyError):
         stype.lookup("missing")
+
+
+def test_create_structuretype():
+    ''' Test the create() method of StructureType. '''
+    stype = StructureType.create([
+        ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("george", REAL_TYPE, Symbol.Visibility.PRIVATE)])
+    assert len(stype.components) == 2
+    george = stype.lookup("george")
+    assert isinstance(george, StructureType.ComponentType)
+    assert george.name == "george"
+    assert george.datatype == REAL_TYPE
+    assert george.visibility == Symbol.Visibility.PRIVATE
+    with pytest.raises(TypeError) as err:
+        StructureType.create([
+            ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+            ("george", Symbol.Visibility.PRIVATE)])
+    assert ("Each component must be specified using a 3-tuple of (name, "
+            "type, visibility) but found a tuple with 2 members: ("
+            "'george', " in str(err))

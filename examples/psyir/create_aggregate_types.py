@@ -51,10 +51,9 @@ from psyclone.psyir.nodes import Reference, Literal, \
 from psyclone.psyGen import KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, TypeSymbol, \
-    GlobalInterface, REAL_TYPE, REAL_DOUBLE_TYPE, INTEGER_TYPE, \
-    INTEGER4_TYPE, INTEGER8_TYPE, DeferredType, Symbol
+    GlobalInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
+    DeferredType, Symbol
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.backend.c import CWriter
 
 
 # Symbol table for container (container itself created after kernel)
@@ -67,10 +66,9 @@ CONTAINER_SYMBOL_TABLE.add(REAL_KIND)
 SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
 
 # Derived-type definition in container
-# TODO give StructureType a create() method?
-GRID_TYPE = StructureType()
-GRID_TYPE.add("dx", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC)
-GRID_TYPE.add("dy", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC)
+GRID_TYPE = StructureType.create([
+    ("dx", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC),
+    ("dy", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC)])
 GRID_TYPE_SYMBOL = TypeSymbol("grid_type", GRID_TYPE)
 CONTAINER_SYMBOL_TABLE.add(GRID_TYPE_SYMBOL)
 
@@ -90,6 +88,15 @@ FIELD_SYMBOL = DataSymbol("wind", DTYPE_SYMBOL,
                               ArgumentInterface.Access.READWRITE))
 SYMBOL_TABLE.add(FIELD_SYMBOL)
 SYMBOL_TABLE.specify_argument_list([FIELD_SYMBOL])
+
+# For now we can't do much more than print out the symbol tables as
+# there's a lot of functionality still to implement.
+# TODO #363 remove these prints and update example to use the Fortran
+# backend.
+print("Kernel Symbol Table:")
+print(str(SYMBOL_TABLE))
+print("Container Symbol Table:")
+print(str(CONTAINER_SYMBOL_TABLE))
 
 INDEX_NAME = SYMBOL_TABLE.new_symbol_name(root_name="i")
 INDEX_SYMBOL = DataSymbol(INDEX_NAME, INTEGER4_TYPE)

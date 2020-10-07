@@ -380,6 +380,29 @@ class StructureType(DataType):
     def __str__(self):
         return "StructureType<>"
 
+    @staticmethod
+    def create(components):
+        '''
+        Creates a StructureType from the supplied list of properties.
+
+        :param components: the name, type and visibility of each component.
+        :type components: list of 3-tuples
+
+        :returns: the new type object.
+        :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
+
+        '''
+        stype = StructureType()
+        for component in components:
+            if len(component) != 3:
+                raise TypeError(
+                    "Each component must be specified using a 3-tuple of "
+                    "(name, type, visibility) but found a tuple with {0} "
+                    "members: {1}".format(
+                        len(component), str(component)))
+            stype.add(component[0], component[1], component[2])
+        return stype
+
     @property
     def components(self):
         '''
@@ -390,20 +413,30 @@ class StructureType(DataType):
 
     def add(self, name, datatype, visibility):
         '''
-        Create a component with te supplied attributes and add it to
+        Create a component with the supplied attributes and add it to
         this StructureType.
 
         :param component: the component to add.
         :type component: \
             :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
 
-        :raises TypeError: if the supplied component is not of ComponentType.
+        :raises TypeError: if any of the supplied values are of the wrong type.
 
         '''
+        from psyclone.psyir.symbols import Symbol
         if not isinstance(name, str):
             raise TypeError(
                 "The name of a component of a StructureType must be a 'str' "
                 "but got '{0}'".format(type(name).__name__))
+        if not isinstance(datatype, DataType):
+            raise TypeError(
+                "The type of a component of a StructureType must be a "
+                "'DataType' but got '{0}'".format(type(datatype).__name__))
+        if not isinstance(visibility, Symbol.Visibility):
+            raise TypeError(
+                "The visibility of a component of a StructureType must be "
+                "an instance of 'Symbol.Visibility' but got '{0}'".format(
+                    type(visibility).__name__))
         self._components[name] = self.ComponentType(name, datatype, visibility)
 
     def lookup(self, name):
