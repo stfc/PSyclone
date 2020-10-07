@@ -47,12 +47,12 @@ from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
     FortranWriter, gen_datatype, get_fortran_operator, _reverse_map, \
     is_fortran_intrinsic, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
-    UnaryOperation, BinaryOperation, NaryOperation, Reference, Call
+    UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
+    KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
     DeferredType, RoutineSymbol, Symbol, UnknownType, UnknownFortranType
-from psyclone.psyGen import KernelSchedule
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError

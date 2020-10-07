@@ -75,7 +75,7 @@ module testkern_mesh_prop_quad_mod
       meta_reference_element =                                       &
         (/ reference_element_data_type(normals_to_horizontal_faces), &
            reference_element_data_type(outward_normals_to_faces) /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_quadrature_xyoz
    contains
      procedure, nopass :: code => testkern_mesh_prop_quad_code

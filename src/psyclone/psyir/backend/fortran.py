@@ -49,7 +49,7 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
     SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
-    Reference, Literal
+    Reference, Literal, KernelSchedule
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.errors import InternalError
 
@@ -595,7 +595,6 @@ class FortranWriter(PSyIRVisitor):
 
         # All children must be KernelSchedules as modules within
         # modules are not supported.
-        from psyclone.psyGen import KernelSchedule
         if not all([isinstance(child, KernelSchedule)
                     for child in node.children]):
             raise VisitorError(
@@ -634,7 +633,7 @@ class FortranWriter(PSyIRVisitor):
         been addressed this module can be added only when required.
 
         :param node: a KernelSchedule PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.KernelSchedule`
+        :type node: :py:class:`psyclone.psyir.nodes.KernelSchedule`
 
         :returns: the Fortran code as a string.
         :rtype: str

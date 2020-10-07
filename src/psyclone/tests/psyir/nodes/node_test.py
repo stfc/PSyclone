@@ -46,11 +46,11 @@ import pytest
 from psyclone.psyir.nodes.node import (ChildrenList, Node,
                                        _graphviz_digraph_class)
 from psyclone.psyir.nodes import Schedule, Reference, Container, \
-    Assignment, Return, Loop, Literal, Statement, node
+    Assignment, Return, Loop, Literal, Statement, node, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
     INTEGER_TYPE, REAL_TYPE, SymbolTable, ContainerSymbol, \
     UnresolvedInterface, ScalarType, DeferredType, Symbol
-from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern, KernelSchedule
+from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.transformations import DynamoLoopFuseTrans

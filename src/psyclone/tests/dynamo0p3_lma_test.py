@@ -75,7 +75,7 @@ module testkern_qr
              func_type(w2, gh_diff_basis),           &
              func_type(w3, gh_basis, gh_diff_basis)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => testkern_qr_code
@@ -835,7 +835,7 @@ module dummy_mod
              arg_type(gh_operator, gh_read,      any_discontinuous_space_1, &
                                                  any_discontinuous_space_1) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -925,7 +925,7 @@ module dummy_mod
      type(arg_type), meta_args(1) =                  &
           (/ arg_type(gh_operator, gh_write, w0, w1) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type

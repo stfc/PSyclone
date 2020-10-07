@@ -48,7 +48,7 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
+from psyclone.psyir.symbols import DataSymbol, ArrayType, \
     Symbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
@@ -2629,7 +2629,7 @@ class CodedKern(Kern):
         (but will not adapt to transformations applied to the fparser2 AST).
 
         :returns: Schedule representing the kernel code.
-        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+        :rtype: :py:class:`psyclone.psyir.nodes.KernelSchedule`
         '''
         from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         if self._kern_schedule is None:
@@ -4122,102 +4122,3 @@ class ACCDataDirective(ACCDirective):
         '''
         self._add_region(start_text="DATA", end_text="END DATA",
                          data_movement="analyse")
-
-
-class KernelSchedule(Schedule):
-    '''
-    A kernelSchedule is the parent node of the PSyIR for Kernel source code.
-
-    :param str name: Kernel subroutine name.
-    :param parent: Parent of the KernelSchedule, defaults to None.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    def __init__(self, name, parent=None):
-        super(KernelSchedule, self).__init__(children=None, parent=parent)
-        self._name = name
-
-    @staticmethod
-    def create(name, symbol_table, children):
-        '''Create a KernelSchedule instance given a name, a symbol table and a
-        list of child nodes.
-
-        :param str name: the name of the KernelSchedule.
-        :param symbol_table: the symbol table associated with this \
-            KernelSchedule.
-        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
-        :param children: a list of PSyIR nodes contained in the \
-            KernelSchedule.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: a KernelSchedule instance.
-        :rtype: :py:class:`psyclone.psyGen.KernelInstance`
-
-        :raises GenerationError: if the arguments to the create method \
-            are not of the expected type.
-
-        '''
-        if not isinstance(name, str):
-            raise GenerationError(
-                "name argument in create method of KernelSchedule class "
-                "should be a string but found '{0}'."
-                "".format(type(name).__name__))
-        if not isinstance(symbol_table, SymbolTable):
-            raise GenerationError(
-                "symbol_table argument in create method of KernelSchedule "
-                "class should be a SymbolTable but found '{0}'."
-                "".format(type(symbol_table).__name__))
-        if not isinstance(children, list):
-            raise GenerationError(
-                "children argument in create method of KernelSchedule class "
-                "should be a list but found '{0}'."
-                "".format(type(children).__name__))
-        for child in children:
-            if not isinstance(child, Node):
-                raise GenerationError(
-                    "child of children argument in create method of "
-                    "KernelSchedule class should be a PSyIR Node but "
-                    "found '{0}'.".format(type(child).__name__))
-
-        kern = KernelSchedule(name)
-        kern._symbol_table = symbol_table
-        symbol_table._node = kern
-        for child in children:
-            child.parent = kern
-        kern.children = children
-        return kern
-
-    @property
-    def name(self):
-        '''
-        :returns: Name of the Kernel
-        :rtype: str
-        '''
-        return self._name
-
-    @name.setter
-    def name(self, new_name):
-        '''
-        Sets a new name for the kernel.
-
-        :param str new_name: New name for the kernel.
-        '''
-        self._name = new_name
-
-    def node_str(self, colour=True):
-        ''' Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[name:'" + self._name + "']"
-
-    def __str__(self):
-        result = self.node_str(False) + ":\n"
-        for entity in self._children:
-            result += str(entity)
-        result += "End KernelSchedule\n"
-        return result

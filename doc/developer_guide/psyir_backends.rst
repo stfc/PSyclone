@@ -118,7 +118,8 @@ called in the order that they appear in the tree.
 
 PSyIR nodes might not be direct subclasses of `Node`. For example,
 `GOKernelSchedule` subclasses `KernelSchedule` which subclasses
-`Schedule` which subclasses `Node`. This can cause a problem as a
+`Routine` which subclasses `Schedule` which subclasses `Node`. This can
+cause a problem as a
 back-end would need to have a different method for each class e.g. both
 a `gokernelschedule_node` and a `kernelschedule_node` method, even if the
 required behaviour is the same. Even worse, expecting someone to have
