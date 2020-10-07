@@ -404,7 +404,7 @@ Kernel
 -------
 
 The general requirements for the structure of a Kernel are explained
-in the :ref:`kernel-layer` section. In the Dynamo0.3 API there are four
+in the :ref:`kernel-layer` section. In the LFRic API there are four
 different Kernel types; general purpose, CMA, inter-grid and
 :ref:`dynamo0.3-built-ins`. In the case of built-ins, PSyclone generates
 the source of the kernels.  This section explains the rules for the
@@ -417,7 +417,8 @@ Rules for all User-Supplied Kernels
 +++++++++++++++++++++++++++++++++++
 
 In the following, 'operator' refers to both LMA and CMA operator
-types.
+types. Kernels with ``operates_on = DOMAIN`` are currently only
+permitted to accept scalar and field or field-vector arguments.
 
 1) A Kernel must have at least one argument that is a field, field
    vector, or operator. This rule reflects the fact that a Kernel
@@ -462,9 +463,10 @@ types.
 Rules specific to General-Purpose Kernels without CMA Operators
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-1) General-purpose kernels accept arguments of any of the following
-   types: field, field vector, LMA operator, scalar integer, scalar
-   real.
+1) General-purpose kernels with ``operates_on = CELL_COLUMN`` accept
+   arguments of any of the following types: field, field vector, LMA
+   operator, scalar integer, scalar real. Those with
+   ``operates_on = DOMAIN`` cannot be passed operator arguments.
 
 2) A Kernel is permitted to write to more than one
    quantity (field or operator) and these quantities may be on the
@@ -495,6 +497,8 @@ All three CMA-related kernel types must obey the following rules:
 
 2) No vector quantities (e.g. "GH_FIELD*3" - see below) are
    permitted as arguments.
+
+3) The kernel must operate on cell-columns.
 
 There are then additional rules specific to each of the three
 CMA kernel types. These are described below.
@@ -561,6 +565,8 @@ Rules for Inter-Grid Kernels
 6) Fields on different meshes must always live on different function spaces.
 
 7) All fields on a given mesh must be on the same function space.
+
+8) An inter-grid kernel must operate on cell-columns.
 
 A consequence of Rules 5-7 is that an inter-grid kernel will
 only involve two function spaces.
@@ -1390,13 +1396,13 @@ Subroutine
 
 .. _dynamo0.3-stub-generation-rules:
 
-Rules for General-Purpose Kernels: operates_on = CELL_COLUMN
-############################################################
+Rules for General-Purpose Kernels
+#################################
 
 The arguments to general-purpose kernels (those that do not involve
 either CMA operators or prolongation/restriction operations) that
 operate on cell-columns follow a set of rules which have been
-specified for the Dynamo0.3 API. These rules are encoded in the
+specified for the LFRic API. These rules are encoded in the
 ``generate()`` method within the ``ArgOrdering`` abstract class in the
 ``dynamo0p3.py`` file. The rules, along with PSyclone's naming
 conventions, are:
@@ -1675,38 +1681,6 @@ and the array of face normals in the specified direction (here horizontal)::
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
        nfaces_re_h, normals_face_h)
-
-Rules for General-Purpose Kernels: operates_on = DOMAIN
-#######################################################
-
-The arguments to general-purpose kernels (those that do not involve
-either CMA operators or prolongation/restriction operations) that
-operate on a domain of cell-columns are similar to those that operate on
-a single cell-column but with some simplifications:
-
-1) If an LMA operator is passed then include the ``cells`` argument.
-   ``cells`` is an integer and has intent ``in``.
-2) Include ``nlayers``, the number of layers in a column. ``nlayers``
-   is an integer of type ``i_def`` and has intent ``in``.
-3) For each scalar/field/vector_field/operator in the order specified by
-   the meta_args metadata:
-
-   1) If the current entry is a scalar quantity then include the Fortran
-      variable in the argument list. The intent is determined from the
-      metadata (see :ref:`dynamo0.3-api-meta-args` for an explanation).
-   2) If the current entry is a field then include the field array. The
-      field array name is currently specified as being
-      ``"field_"<argument_position>"_"<field_function_space>``. A field
-      array is a real array of type ``r_def`` and dimensioned as the
-      unique degrees of freedom for the space that the field is on.
-      This value is passed in separately. Again, the intent is determined
-      from the metadata (see :ref:`dynamo0.3-api-meta-args`).
-
-      1) If the field entry has a stencil access then add an integer
-         stencil-size argument with intent ``in``. This will supply
-         the number of cells in the stencil.
-      2) If the field entry stencil access is of type ``XORY1D`` then
-         add an integer direction argument with intent ``in``.
 
 
 Rules for CMA Kernels
