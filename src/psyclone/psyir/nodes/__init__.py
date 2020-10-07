@@ -51,10 +51,12 @@ from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.extract_node import ExtractNode
+from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
 from psyclone.psyir.nodes.profile_node import ProfileNode
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.read_only_verify_node import ReadOnlyVerifyNode
 from psyclone.psyir.nodes.ranges import Range
+from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.call import Call
@@ -62,28 +64,30 @@ from psyclone.psyir.nodes.call import Call
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
 __all__ = [
-        'Node',
         'colored',
         'SCHEDULE_COLOUR_MAP',
-        'DataNode',
-        'Statement',
-        'Schedule',
-        'Return',
-        'Assignment',
-        'Operation',
-        'UnaryOperation',
-        'BinaryOperation',
-        'NaryOperation',
-        'Range',
-        'Reference',
         'Array',
-        'IfBlock',
-        'Loop',
+        'Assignment',
+        'BinaryOperation',
+        'Call',
         'CodeBlock',
         'Container',
-        'Literal',
+        'DataNode',
         'ExtractNode',
+        'IfBlock',
+        'KernelSchedule',
+        'Literal',
+        'Loop',
+        'NaryOperation',
+        'Node',
+        'Operation',
         'ProfileNode',
         'PSyDataNode',
+        'Range',
         'ReadOnlyVerifyNode',
-        'Call']
+        'Reference',
+        'Return',
+        'Routine',
+        'Schedule',
+        'Statement',
+        'UnaryOperation']

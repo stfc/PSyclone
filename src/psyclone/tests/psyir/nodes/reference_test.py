@@ -41,10 +41,10 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Reference, Array, Assignment, Literal, \
-    BinaryOperation, Range
+    BinaryOperation, Range, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, ArrayType, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE
-from psyclone.psyGen import GenerationError, KernelSchedule
+from psyclone.psyGen import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
 from psyclone.core.access_info import VariablesAccessInfo

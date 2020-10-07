@@ -52,10 +52,10 @@ import six
 from psyclone.configuration import Config
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Node
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, KernelSchedule
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    KernelSchedule, AccessType, ACCEnterDataDirective, HaloExchange
+    AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, Symbol
@@ -1431,7 +1431,7 @@ class GOKern(CodedKern):
         Returns a PSyIR Schedule representing the GOcean kernel code.
 
         :return: Schedule representing the kernel code.
-        :rtype: :py:class:`psyclone.psyGen.GOKernelSchedule`
+        :rtype: :py:class:`psyclone.gocean1p0.GOKernelSchedule`
         '''
         if self._kern_schedule is None:
             astp = GOFparser2Reader()
