@@ -375,9 +375,9 @@ class KernelInterface(ArgOrdering):
 
     def fs_common(self, function_space, var_accesses=None):
         '''Create any arguments that are common to a particular function
-        space. At this time the only common argument is the number of degrees
-        of freedom. Create the associated LFRic symbol, and add it to the symbol table
-        and argument list.
+        space. At this time the only common argument is the number of
+        degrees of freedom. Create the associated LFRic symbol, and
+        add it to the symbol table and argument list.
 
         :param function_space: the function space for any common arguments.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
@@ -529,7 +529,6 @@ class KernelInterface(ArgOrdering):
         :raises NoImplementedError: as this method is not implemented.
 
         '''
-        ''' Not implemented '''
         raise NotImplementedError("orientation not implemented")
 
     def field_bcs_kernel(self, function_space, var_accesses=None):
@@ -641,8 +640,33 @@ class KernelInterface(ArgOrdering):
         interface argument must be provided with the appropriate
         access type.
 
-        As this is an internal utility we assume that the argument
+        As this is an internal utility, we assume that the argument
         datatypes and content are correct.
+
+        :param str tag: the name to use as a tag in the symbol table \
+            and also as the base name when creating a new symbol table \
+            name.
+        :param data_symbol: the symbol class that we are going to create.
+        :type data_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param extra_args: an optional list of strings specifying the \
+            values of any additional arguments to provide to the \
+            data_symbol class on creation or None if there are \
+            none. Defaults to None.
+        :type extra_args: list of str or NoneType
+        :param dims: an optional list of dimensions used to dimension \
+            the data_symbol class if it is an array, or None if it is \
+            not an array. Defaults to None.
+        :type dims: list of DataSymbol, int or ArrayType.Extent or NoneType
+        :param interface: an optional ArgumentInterface specifying the \
+            intent of the symbol, or None if the default it \
+            suitable. Defaults to read access.
+        :type interface: \
+            :py:class:`psyclone.psyir.symbols.ArgumentInterface` or \
+            NoneType
+
+        :returns: the appropriate symbol and properties as specified \
+            by this methods arguments.
+        :type: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         try:
@@ -667,7 +691,38 @@ class KernelInterface(ArgOrdering):
 
     def _create_basis(self, function_space, mapping, basis_name_func,
                       first_dim_value_func):
-        ''' xxx '''
+        '''Internal utility to create an LFRic basis or differential basis
+        function argument specific to the particular quadrature that
+        is being used and add it to the symbol table and argument
+        list. Also declare the associated "ndf" symbol and any
+        quadrature-specific symbols if they have not already been
+        declared so that they can be used to dimension the basis or
+        differential basis symbol.
+
+        This utility function is used to avoid code replication as the
+        structure of a basis function is very similar to the structure
+        of a differential basis function.
+
+        :param function_space: the function space that this basis or \
+            differential basis function is on.
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
+        :param dict mapping: a mapping from quadrature type to basis \
+            or differential basis class name.
+        :param method basis_name_func: a method that returns the name \
+            of the basis or differential basis function for the \
+            current function space.
+        :param function first_dim_value_func: a function that returns \
+            the size of the first dimension of the basis or \
+            differential basis function for the current function \
+            space.
+
+        :raises NotImplementedError: if an evaluator shape is found \
+            that is not a quadrature shape (currently just \
+            'gh_evaluator').
+        :raises InternalError: if the supplied evaluator shape is not \
+            recognised.
+
+        '''
         from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES
         for shape in self._kern.eval_shapes:
             # Create and add an ndf symbol to the symbol table if one does
@@ -723,16 +778,18 @@ class KernelInterface(ArgOrdering):
 
     @staticmethod
     def _basis_first_dim_value(function_space):
-        '''
-        Get the size of the first dimension of a basis function.
+        '''Internal utility to return the size of the first dimension of a
+        basis function.
 
-        :param function_space: the function space the basis function is for
+        :param function_space: the function space the basis function is on.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :return: an integer length.
-        :rtype: string
 
-        :raises GenerationError: if an unsupported function space is supplied \
-                                 (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
+        :returns: an integer size as a string.
+        :rtype: str
+
+        :raises GenerationError: if an unsupported function space is \
+            supplied (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
+
         '''
         if function_space.has_scalar_basis:
             first_dim = "1"
@@ -752,19 +809,18 @@ class KernelInterface(ArgOrdering):
 
     @staticmethod
     def _diff_basis_first_dim_value(function_space):
-        '''
-        Get the size of the first dimension of an array for a
+        '''Internal utility to return the size of the first dimension of a
         differential basis function.
 
-        :param function_space: the function space the diff-basis function \
-                               is for.
+        :param function_space: the function space the differential \
+            basis function is on.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :return: an integer length.
+
+        :returns: an integer length as a string.
         :rtype: str
 
         :raises GenerationError: if an unsupported function space is \
-                                 supplied (e.g. ANY_SPACE_*, \
-                                 ANY_DISCONTINUOUS_SPACE_*)
+            supplied (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
 
         '''
         if function_space.has_scalar_diff_basis:
