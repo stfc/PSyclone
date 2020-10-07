@@ -655,6 +655,9 @@ class DynKernMetadata(KernelType):
         # Perform checks for inter-grid kernels
         self._validate_inter_grid()
 
+        # Perform checks for a kernel with operates_on == domain
+        self._validate_operates_on_domain(need_evaluator)
+
     def _validate_inter_grid(self):
         '''
         Checks that the kernel meta-data obeys the rules for Dynamo 0.3
@@ -893,6 +896,46 @@ class DynKernMetadata(KernelType):
                 "A Dynamo 0.3 kernel cannot update more than one CMA "
                 "(column-wise) operator but kernel {0} updates {1}".
                 format(self.name, write_count))
+
+    def _validate_operates_on_domain(self, need_evaluator):
+        '''
+        Check whether a kernel that has operates_on == domain obeys
+        the rules for the LFRic API.
+
+        '''
+        if self.iterates_over != "domain":
+            return
+
+        # A kernel which operates on the 'domain' is currently restricted
+        # to only accepting scalar and field arguments.
+        valid_arg_types = [LFRicArgDescriptor.VALID_SCALAR_NAMES +
+                           LFRicArgDescriptor.VALID_FIELD_NAMES]
+        for arg in self._arg_descriptors:
+            if arg.argument_type not in valid_arg_types:
+                raise ParseError(
+                    "In the LFRic API a kernel which operates on the 'domain' "
+                    "is only permitted to accept scalar and field arguments "
+                    "but the metadata for kernel '{0}' includes an argument "
+                    "of type '{1}'".format(self.name, arg.argument_type))
+
+        if need_evaluator:
+            raise ParseError(
+                "In the LFRic API a kernel that operates on the 'domain' "
+                "cannot be passed basis/differential basis functions but the "
+                "metadata for kernel '{0}' contains an entry for 'meta_funcs'".
+                format(self.name))
+
+        if self.reference_element:
+            raise ParseError("Ni")
+
+        if self.mesh:
+            raise ParseError("No")
+
+        if self._cma_operation:
+            raise ParseError("Hohoho")
+
+        if self._is_intergrid:
+            raise ParseError("Hahaha")
 
     @property
     def func_descriptors(self):
