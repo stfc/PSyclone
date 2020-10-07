@@ -72,7 +72,7 @@ class DeferredType(DataType):
 @six.add_metaclass(abc.ABCMeta)
 class UnknownType(DataType):
     '''
-    Indicates that the type declaration is not supported by the PSyIR.
+    Indicates that a variable declaration is not supported by the PSyIR.
     This class is abstract and must be subclassed for each language
     supported by the PSyIR frontends.
 
@@ -106,7 +106,7 @@ class UnknownType(DataType):
 
 class UnknownFortranType(UnknownType):
     '''
-    Indicates that the Fortran type declaration is not supported by the PSyIR.
+    Indicates that a Fortran declaration is not supported by the PSyIR.
 
     :param str declaration_txt: string containing the original variable \
                                 declaration.
@@ -368,6 +368,11 @@ class StructureType(DataType):
     of a list of other datatypes. Those datatypes are stored as an
     OrderedDict of namedtuples.
 
+    Note, we could have chosen to use a SymbolTable to store the properties
+    of the constituents of the type. (Since they too have a name, a type,
+    and visibility.) If this class ends up duplicating a lot of the
+    SymbolTable functionality then this decision could be revisited.
+
     '''
     # Each member of a StructureType is represented by a ComponentType
     # (named tuple).
@@ -416,9 +421,12 @@ class StructureType(DataType):
         Create a component with the supplied attributes and add it to
         this StructureType.
 
-        :param component: the component to add.
-        :type component: \
-            :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
+        :param str name: the name of the new component.
+        :param datatype: the type of the new component.
+        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or \
+                        :py:class:`psyclone.psyir.symbols.TypeSymbol`
+        :param visibility: whether this component is public or private.
+        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
         :raises TypeError: if any of the supplied values are of the wrong type.
 
@@ -479,4 +487,5 @@ TYPE_MAP_TO_PYTHON = {ScalarType.Intrinsic.INTEGER: int,
 
 
 # For automatic documentation generation
-__all__ = [UnknownType, DeferredType, ScalarType, ArrayType, StructureType]
+__all__ = [UnknownType, UnknownFortranType, DeferredType, ScalarType,
+           ArrayType, StructureType]

@@ -51,7 +51,7 @@ from psyclone.psyGen import Directive, KernelSchedule
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
-    UnknownFortranType, StructureType, TypeSymbol, RoutineSymbol
+    UnknownFortranType, StructureType, TypeSymbol, RoutineSymbol, SymbolTable
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -1290,8 +1290,7 @@ class Fparser2Reader(object):
         base_type = None
         precision = None
 
-        # Parse type_spec, currently just 'real', 'double precision',
-        # 'integer', 'logical' and 'character' intrinsic types are supported.
+        # Parse the type_spec
 
         if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
             fort_type = str(type_spec.items[0]).lower()
@@ -1319,8 +1318,8 @@ class Fparser2Reader(object):
             # Do we already have a Symbol for this derived type?
             type_symbol = parent.find_or_create_symbol(type_name)
             if type(type_symbol) == Symbol:
-                # We do but we didn't know what it was. Create a TypeSymbol
-                # to replace it.
+                # We do but we didn't know what kind of symbol it was. Create
+                # a TypeSymbol to replace it.
                 new_symbol = TypeSymbol(type_name, DeferredType(),
                                         interface=type_symbol.interface)
                 table = type_symbol.find_symbol_table(parent)
@@ -1560,7 +1559,6 @@ class Fparser2Reader(object):
 
         # Populate this StructureType by processing the components of
         # the derived type
-        from psyclone.psyir.symbols import SymbolTable
         try:
             # Re-use the existing code for processing symbols
             local_table = SymbolTable()
@@ -1569,9 +1567,7 @@ class Fparser2Reader(object):
                                     default_compt_visibility)
             # Convert from Symbols to type information
             for symbol in local_table.symbols:
-                dtype.add(StructureType.ComponentType(symbol.name,
-                                                      symbol.datatype,
-                                                      symbol.visibility))
+                dtype.add(symbol.name, symbol.datatype, symbol.visibility)
             parent.symbol_table.add(TypeSymbol(name, dtype,
                                                visibility=dtype_symbol_vis))
         except NotImplementedError:
