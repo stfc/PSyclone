@@ -7509,14 +7509,22 @@ class DynKern(CodedKern):
         # 2: Check that the properties of each argument matches
         for idx, kern_code_arg in enumerate(kern_code_args):
             interface_arg = interface_args[idx]
-            self.validate_kernel_code_arg(kern_code_arg, interface_arg)
+            self._validate_kernel_code_arg(kern_code_arg, interface_arg)
 
-    def validate_kernel_code_arg(self, kern_code_arg, interface_arg):
-        '''Check that the supplied datatypes match'''
+    def _validate_kernel_code_arg(self, kern_code_arg, interface_arg):
+        '''Internal method to check that the supplied datatypes match and
+        raise appropriate exceptions if not.
 
-        # print (type(kern_code_arg))
-        # print (kern_code_arg)
-        # print (type(interface_arg))
+        :param kern_code_arg: kernel code argument.
+        :type kern_code_arg: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param interface_arg: expected argument.
+        :type interface_arg: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises GenerationError: if the contents of the arguments do \
+            not match.
+        :raises InternalError: if an unexpected datatype is found.
+
+        '''
         # 1: intrinsic datatype
         actual_datatype = kern_code_arg.datatype.intrinsic
         expected_datatype = interface_arg.datatype.intrinsic
@@ -7551,24 +7559,22 @@ class DynKern(CodedKern):
                     "Kernel argument '{0}' is expected to be a scalar "
                     "by the LFRic API but it is not."
                     "".format(kern_code_arg.name))
-        elif kern_code_arg.is_array:
-            if not interface_arg.is_array:
+        elif interface_arg.is_array:
+            if not kern_code_arg.is_array:
                 raise GenerationError(
                     "Kernel argument '{0}' is expected to be an array "
                     "by the LFRic API but it is not."
                     "".format(kern_code_arg.name))
             # 4.1 array arguments
-            # Skip the checking of dimensions for the moment as we
-            # don't yet create all of them correctly.
             for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
                 interface_arg_dim = interface_arg.shape[dim_idx]
-                if isinstance(kern_code_arg_dim, DataSymbol):
+                if (isinstance(kern_code_arg_dim, DataSymbol) and
+                        isinstance(interface_arg_dim, DataSymbol)):
                     # Only check when there is a symbol. Unspecified
                     # dimensions, dimensions with scalar values,
                     # offsets, or dimensions that include arithmetic
-                    # are skipped. Perhaps a warning should be output
-                    # here to say that the code does not comply.
-                    self.validate_kernel_code_arg(
+                    # are skipped.
+                    self._validate_kernel_code_arg(
                         kern_code_arg_dim, interface_arg_dim)
         else:
             raise InternalError(
