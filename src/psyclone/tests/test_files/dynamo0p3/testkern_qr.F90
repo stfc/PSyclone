@@ -31,6 +31,7 @@
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
+
 module testkern_qr
 
   use constants_mod
@@ -41,20 +42,20 @@ module testkern_qr
   implicit none
 
   type, extends(kernel_type) :: testkern_qr_type
-     type(arg_type), dimension(6) :: meta_args =    &
-          (/ arg_type(gh_field,   gh_write, w1),    &
-             arg_type(gh_field,   gh_read,  w2),    &
-             arg_type(gh_field,   gh_read,  w2),    &
-             arg_type(gh_real,    gh_read),         &
-             arg_type(gh_field,   gh_read,  w3),    &
-             arg_type(gh_integer, gh_read)          &
+     type(arg_type), dimension(6) :: meta_args =           &
+          (/ arg_type(gh_field,              gh_inc,  w1), &
+             arg_type(gh_field,              gh_read, w2), &
+             arg_type(gh_field,              gh_read, w2), &
+             arg_type(gh_scalar, gh_real,    gh_read),     &
+             arg_type(gh_field,              gh_read, w3), &
+             arg_type(gh_scalar, gh_integer, gh_read)      &
            /)
-     type(func_type), dimension(3) :: meta_funcs =  &
-          (/ func_type(w1, gh_basis),               &
-             func_type(w2, gh_diff_basis),          &
-             func_type(w3, gh_basis, gh_diff_basis) &
+     type(func_type), dimension(3) :: meta_funcs =         &
+          (/ func_type(w1, gh_basis),                      &
+             func_type(w2, gh_diff_basis),                 &
+             func_type(w3, gh_basis, gh_diff_basis)        &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => testkern_qr_code

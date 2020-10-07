@@ -37,9 +37,12 @@
 '''Contains the PSyData transformation.
 '''
 
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Node, PSyDataNode, Schedule
-from psyclone.psyGen import InvokeSchedule
+from psyclone.nemo import NemoInvoke
+from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
+from psyclone.psyGen import InvokeSchedule, OMPDoDirective, ACCLoopDirective
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -79,20 +82,28 @@ class PSyDataTrans(RegionTrans):
     '''
     # Unlike other transformations we can be fairly relaxed about the nodes
     # that a region can contain as we don't have to understand them.
-    # TODO: #415 Support different classes of PSyData calls.
-    valid_node_types = (Node,)
+    excluded_node_types = (Return,)
 
     def __init__(self, node_class=PSyDataNode):
         super(PSyDataTrans, self).__init__()
         self._node_class = node_class
 
     def __str__(self):
-        return "Insert a PSyData node."
+        return ("Create a sub-tree of the PSyIR that has a node of type "
+                "{0} at its root.").format(self._node_class.__name__)
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
-        return "PSyDataTrans"
+        '''This function returns the name of the transformation.
+        It uses the Python 2/3 compatible way of returning the
+        class name as a string, which means that the same function can
+        be used for all derived classes.
+
+        :returns: the name of this transformation as a string.
+        :rtype: str
+        '''
+
+        return self.__class__.__name__
 
     def validate(self, node_list, options=None):
         '''
@@ -124,10 +135,6 @@ class PSyDataTrans(RegionTrans):
             between an OpenMP/ACC directive and the loop(s) to which it \
             applies.
         '''
-        from fparser.two import Fortran2003
-        from fparser.two.utils import walk
-        from psyclone.nemo import NemoInvoke
-        from psyclone.psyGen import OMPDoDirective, ACCLoopDirective
 
         node_parent = node_list[0].parent
         if isinstance(node_parent, Schedule) and \

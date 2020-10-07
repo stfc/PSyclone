@@ -52,9 +52,10 @@ from psyclone.psyir.transformations.intrinsics.min2code_trans import \
     Min2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
     Sign2CodeTrans
+from psyclone.psyir.transformations.arrayrange2loop_trans import \
+    ArrayRange2LoopTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.psyir.transformations import ExtractTrans
@@ -68,4 +69,5 @@ __all__ = ['ExtractTrans',
            'Matmul2CodeTrans',
            'Min2CodeTrans',
            'Sign2CodeTrans',
-           'TransformationError']
+           'TransformationError',
+           'ArrayRange2LoopTrans']

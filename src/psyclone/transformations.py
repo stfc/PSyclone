@@ -43,15 +43,16 @@
 from __future__ import absolute_import, print_function
 import abc
 import six
+from psyclone import psyGen
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir import nodes
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 from psyclone.domain.lfric import FunctionSpace
 from psyclone.psyir.transformations import RegionTrans, TransformationError
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
-    INTEGER_TYPE, DataSymbol
+    INTEGER_TYPE, DataSymbol, Symbol
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -133,12 +134,10 @@ class KernelTrans(Transformation):
         # Check that all kernel symbols are declared in the kernel
         # symbol table(s). At this point they may be declared in a
         # container containing this kernel which is not supported.
-        from psyclone.psyir.nodes import Reference
-        from psyclone.psyGen import KernelSchedule
-        for var in kernel_schedule.walk(Reference):
+        for var in kernel_schedule.walk(nodes.Reference):
             try:
                 _ = var.find_or_create_symbol(
-                    var.name, scope_limit=var.ancestor(KernelSchedule))
+                    var.name, scope_limit=var.ancestor(nodes.KernelSchedule))
             except SymbolError:
                 raise TransformationError(
                     "Kernel '{0}' contains accesses to data (variable '{1}') "
@@ -555,9 +554,9 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                        node2.upper_bound_halo_depth))
 
         # 5) Check for reductions
-        from psyclone.psyGen import MAPPING_SCALARS
+        from psyclone.psyGen import VALID_SCALAR_NAMES
         from psyclone.core.access_type import AccessType
-        arg_types = MAPPING_SCALARS.values()
+        arg_types = VALID_SCALAR_NAMES
         all_reductions = AccessType.get_valid_reduction_modes()
         node1_red_args = node1.args_filter(arg_types=arg_types,
                                            arg_accesses=all_reductions)
@@ -615,6 +614,10 @@ class ParallelLoopTrans(Transformation):
     code-generation time.
 
     '''
+    # The types of node that must be excluded from the section of PSyIR
+    # being transformed.
+    excluded_node_types = (nodes.Return, psyGen.HaloExchange)
+
     @abc.abstractmethod
     def __str__(self):
         return  # pragma: no cover
@@ -1227,7 +1230,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # colouring.
         if node.field_space.orig_name not in \
            FunctionSpace.VALID_DISCONTINUOUS_NAMES:
-            if node.loop_type is not 'colour' and node.has_inc_arg():
+            if node.loop_type != 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     "Error in {0} transformation. The kernel has an "
                     "argument with INC access. Colouring is required.".
@@ -1330,7 +1333,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
         # If the loop is not already coloured then check whether or not
         # it should be
-        if node.loop_type is not 'colour' and node.has_inc_arg():
+        if node.loop_type != 'colour' and node.has_inc_arg():
             raise TransformationError(
                 "Error in {0} transformation. The kernel has an argument"
                 " with INC access. Colouring is required.".
@@ -1690,6 +1693,10 @@ class ParallelRegionTrans(RegionTrans):
     Base class for transformations that create a parallel region.
 
     '''
+    # The types of node that must be excluded from the section of PSyIR
+    # being transformed.
+    excluded_node_types = (nodes.Return, psyGen.HaloExchange)
+
     def __init__(self):
         # Holds the class instance for the type of parallel region
         # to generate
@@ -1716,19 +1723,12 @@ class ParallelRegionTrans(RegionTrans):
             or not the type of the nodes enclosed in the region should be \
             tested to avoid using unsupported nodes inside a region.
 
-        :raises TransformationError: if the nodes cannot be put into a \
-                                     parallel region.
+        :raises TransformationError: if the supplied node is an \
+            InvokeSchedule rather than being within an InvokeSchedule.
+        :raises TransformationError: if the supplied nodes are not all \
+            children of the same parent (siblings).
+
         '''
-
-        # Haloexchange calls existing within a parallel region are not
-        # supported.
-        from psyclone.psyGen import HaloExchange
-        for node in node_list:
-            if isinstance(node, HaloExchange):
-                raise TransformationError(
-                    "A halo exchange within a parallel region is not "
-                    "supported")
-
         if isinstance(node_list[0], InvokeSchedule):
             raise TransformationError(
                 "A {0} transformation cannot be applied to an InvokeSchedule "
@@ -1744,14 +1744,14 @@ class ParallelRegionTrans(RegionTrans):
                     "children of the same parent.".format(self.name))
         super(ParallelRegionTrans, self).validate(node_list, options)
 
-    def apply(self, nodes, options=None):
+    def apply(self, target_nodes, options=None):
         '''
         Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Loops in the
         schedule within a single parallel region.
 
-        :param nodes: a single Node or a list of Nodes.
-        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
+        :param target_nodes: a single Node or a list of Nodes.
+        :type target_nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["node-type-check"]: this flag controls if the \
@@ -1767,7 +1767,7 @@ class ParallelRegionTrans(RegionTrans):
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
-        node_list = self.get_node_list(nodes)
+        node_list = self.get_node_list(target_nodes)
         self.validate(node_list, options)
 
         # Keep a reference to the parent of the nodes that are to be
@@ -1847,18 +1847,14 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>> newschedule.view()
 
     '''
-    from psyclone import psyGen
-    from psyclone.psyir import nodes
-    # The types of node that this transformation can enclose
-    valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.OMPDirective, psyGen.GlobalSum,
-                        nodes.Literal, nodes.Reference)
+    # The types of node that this transformation cannot enclose
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, psyGen.ACCDirective,
+                           psyGen.HaloExchange)
 
     def __init__(self):
         super(OMPParallelTrans, self).__init__()
-        from psyclone.psyGen import OMPParallelDirective
         # Set the type of directive that the base class will use
-        self._pdirective = OMPParallelDirective
+        self._pdirective = psyGen.OMPParallelDirective
 
     def __str__(self):
         return "Insert an OpenMP Parallel region"
@@ -1923,19 +1919,16 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> # Add an enter-data directive
     >>> newschedule, _ = dtrans.apply(newschedule)
     >>> newschedule.view()
+
     '''
-    from psyclone import psyGen
-    from psyclone.psyir import nodes
-    valid_node_types = (
-        nodes.Loop, psyGen.Kern, nodes.IfBlock,
-        psyGen.ACCLoopDirective, nodes.Assignment, nodes.Reference,
-        nodes.Literal, nodes.BinaryOperation)
+    excluded_node_types = (nodes.CodeBlock, nodes.Return,
+                           psyGen.ACCDataDirective,
+                           psyGen.ACCEnterDataDirective)
 
     def __init__(self):
-        from psyclone.psyGen import ACCParallelDirective
         super(ACCParallelTrans, self).__init__()
         # Set the type of directive that the base class will use
-        self._pdirective = ACCParallelDirective
+        self._pdirective = psyGen.ACCParallelDirective
 
     def __str__(self):
         return "Insert an OpenACC Parallel region"
@@ -2005,7 +1998,7 @@ class GOConstLoopBoundsTrans(Transformation):
 
     def apply(self, node, options=None):
         '''Switches constant loop bounds on or off for all loops in a
-        GOInvokeSchedule. Default is 'on'.
+        GOInvokeSchedule. Default is 'off'.
 
         :param node: the GOInvokeSchedule of which all loops will get the
             constant loop bounds switched on or off.
@@ -2017,7 +2010,7 @@ class GOConstLoopBoundsTrans(Transformation):
             be used (True) or not (False). Default is True.
 
         :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
+        :rtype: (:py:class:`psyclone.gocean1p0.GOInvokeSchedule`, \
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''
@@ -2236,10 +2229,8 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
 
         '''
         # check node is a loop
-        from psyclone.psyGen import Directive
-        from psyclone.psyir.nodes import Loop
         from psyclone.dynamo0p3 import DynInvokeSchedule
-        if not isinstance(node, Loop):
+        if not isinstance(node, nodes.Loop):
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
                 "method the first argument is not a Loop")
@@ -2251,7 +2242,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         # it actually makes sense to require redundant computation
         # transformations to be applied before adding directives so it
         # is not particularly important.
-        dir_node = node.ancestor(Directive)
+        dir_node = node.ancestor(psyGen.Directive)
         if dir_node:
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
@@ -2259,13 +2250,13 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                 "type {0}. Redundant computation must be applied before "
                 "directives are added.".format(type(dir_node)))
         if not (isinstance(node.parent, DynInvokeSchedule) or
-                isinstance(node.parent.parent, Loop)):
+                isinstance(node.parent.parent, nodes.Loop)):
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation "
                 "apply method the parent of the supplied loop must be "
                 "the DynInvokeSchedule, or a Loop, but found {0}".
                 format(type(node.parent)))
-        if isinstance(node.parent.parent, Loop):
+        if isinstance(node.parent.parent, nodes.Loop):
             if node.loop_type != "colour":
                 raise TransformationError(
                     "In the Dynamo0p3RedundantComputation transformation "
@@ -2540,7 +2531,7 @@ class GOLoopSwapTrans(Transformation):
             child.parent = outer.loop_body
 
         # Move outer under inner (create new Schedule to remove old entries)
-        inner.children[3] = Schedule()
+        inner.children[3] = nodes.Schedule()
         inner.loop_body.parent = inner
         inner.loop_body.children.append(outer)
         outer.parent = inner.loop_body
@@ -2752,10 +2743,9 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
                          HaloExchange (or subclass thereof)
 
         '''
-        from psyclone.psyGen import HaloExchange
         from psyclone.dynamo0p3 import DynHaloExchangeStart, DynHaloExchangeEnd
 
-        if not isinstance(node, HaloExchange) or \
+        if not isinstance(node, psyGen.HaloExchange) or \
            isinstance(node, (DynHaloExchangeStart, DynHaloExchangeEnd)):
             raise TransformationError(
                 "Error in Dynamo0p3AsyncHaloExchange transformation. Supplied "
@@ -3192,7 +3182,7 @@ class ACCEnterDataTrans(Transformation):
 
         super(ACCEnterDataTrans, self).validate(sched, options)
 
-        if not isinstance(sched, Schedule):
+        if not isinstance(sched, nodes.Schedule):
             raise TransformationError("Cannot apply an OpenACC enter-data "
                                       "directive to something that is "
                                       "not a Schedule")
@@ -3389,12 +3379,7 @@ class ACCKernelsTrans(RegionTrans):
     >>> new_sched, _ = ktrans.apply(kernels)
 
     '''
-    from psyclone import nemo, psyGen, dynamo0p3
-    from psyclone.psyir import nodes
-    valid_node_types = (nodes.Loop, nemo.NemoKern, nodes.IfBlock,
-                        nodes.Operation, nodes.Literal,
-                        nodes.Assignment, nodes.Reference,
-                        dynamo0p3.DynLoop, dynamo0p3.DynKern, psyGen.BuiltIn)
+    excluded_node_types = (nodes.CodeBlock, nodes.Return)
 
     @property
     def name(self):
@@ -3471,7 +3456,8 @@ class ACCKernelsTrans(RegionTrans):
         '''
         from psyclone.nemo import NemoInvokeSchedule
         from psyclone.dynamo0p3 import DynInvokeSchedule
-        from psyclone.psyir.nodes import Loop
+        from psyclone.psyir.nodes import Loop, Assignment
+
         # Check that the front-end is valid
         sched = node_list[0].ancestor((NemoInvokeSchedule, DynInvokeSchedule))
         if not sched:
@@ -3480,14 +3466,17 @@ class ACCKernelsTrans(RegionTrans):
                 "nemo and dynamo0.3 front-ends")
         super(ACCKernelsTrans, self).validate(node_list, options)
 
-        # Check that we have at least one loop within the proposed region
+        # Check that we have at least one loop or array range within
+        # the proposed region
         for node in node_list:
-            if node.walk(Loop):
+            if (any(assign for assign in node.walk(Assignment)
+                    if assign.is_array_range) or node.walk(Loop)):
                 break
         else:
             # Branch executed if loop does not exit with a break
-            raise TransformationError("A kernels transformation must enclose "
-                                      "at least one loop but none were found.")
+            raise TransformationError(
+                "A kernels transformation must enclose at least one loop or "
+                "array range but none were found.")
 
 
 class ACCDataTrans(RegionTrans):
@@ -3514,12 +3503,7 @@ class ACCDataTrans(RegionTrans):
     >>> new_sched, _ = dtrans.apply(kernels)
 
     '''
-    from psyclone import psyGen
-    from psyclone.psyir import nodes
-    valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.Directive, nodes.IfBlock, nodes.Literal,
-                        nodes.Assignment, nodes.Reference,
-                        nodes.Operation)
+    excluded_node_types = (nodes.CodeBlock, nodes.Return)
 
     @property
     def name(self):
@@ -3597,237 +3581,6 @@ class ACCDataTrans(RegionTrans):
             raise TransformationError(
                 "Cannot add an OpenACC data region to a schedule that "
                 "already contains an 'enter data' directive.")
-
-
-class NemoExplicitLoopTrans(Transformation):
-    '''
-    Transforms the outermost array slice in an implicit loop in a
-    NEMOInvokeSchedule into an explicit loop. For example, if
-    "implicit_loop.f90" contained:
-
-    .. code-block:: fortran
-
-        my_array(:, :, :) = 1.0
-
-    then doing:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "nemo"
-    >>> filename = "implicit_loop.f90"
-    >>> ast, invokeInfo = parse(filename, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>>
-    >>> from psyclone.transformations import NemoExplicitLoopTrans
-    >>> rtrans = NemoExplicitLoopTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> loop = schedule.children[0]
-    >>> newloop, _ = rtrans.apply(loop)
-
-    will create a new NemoLoop object for an explicit loop over levels
-    (the outermost slice) that then contains an implicit loop:
-
-    .. code-block:: fortran
-
-        DO jk = 1, jpk
-          my_array(:, :, jk) = 1.0
-        END DO
-
-    Subsequently applying `rtrans` to `newloop` will create:
-
-    .. code-block:: fortran
-
-        DO jk = 1, jpk
-          DO jj = 1, jpj
-            my_array(:, jj, jk) = 1.0
-          END DO
-        END DO
-
-    '''
-    @property
-    def name(self):
-        '''
-        :returns: the name of this transformation class.
-        :rtype: str
-        '''
-        return "NemoExplicitLoopTrans"
-
-    def apply(self, loop, options=None):
-        '''
-        Transform the outermost array slice in the supplied implicit loop
-        into an explicit loop.
-
-        :param loop: the NemoImplicitLoop to transform.
-        :type loop: :py:class:`psyclone.nemo.NemoImplicitLoop`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :raises NotImplementedError: if the array slice has explicit bounds.
-        :raises TransformationError: if an array slice is not in dimensions \
-                                     1-3 of the array.
-
-        :returns: a new PSyIR loop object and a memento of the transformation.
-        :rtype: (:py:class:`psyclone.nemo.NemoLoop`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
-        '''
-        from fparser.two import Fortran2003
-        from fparser.two.utils import walk
-        from fparser.common.readfortran import FortranStringReader
-        from psyclone import nemo
-
-        self.validate(loop, options)
-
-        # Keep a record of this transformation
-        keep = Memento(loop, self)
-
-        # Find all uses of array syntax in the statement
-        subsections = walk(loop.ast.items, Fortran2003.Section_Subscript_List)
-        # Create a list identifying which dimensions contain a range
-        sliced_dimensions = []
-        # A Section_Subscript_List is a tuple with each item the
-        # array-index expressions for the corresponding dimension of the array.
-        for idx, item in enumerate(subsections[0].items):
-            if isinstance(item, Fortran2003.Subscript_Triplet):
-                # A Subscript_Triplet has a 3-tuple containing the expressions
-                # for the start, end and increment of the slice. If any of
-                # these are not None then we have an explicit range of some
-                # sort and we do not yet support that.
-                # TODO #278 allow for implicit loops with specified bounds
-                # (e.g. 2:jpjm1)
-                if [part for part in item.items if part]:
-                    raise NotImplementedError(
-                        "Support for implicit loops with specified bounds is "
-                        "not yet implemented: '{0}'".format(str(loop.ast)))
-                # If an array index is a Subscript_Triplet then it is a range
-                # and thus we need to create an explicit loop for this
-                # dimension.
-                outermost_dim = idx
-                # Store the fact that this array index is a range.
-                sliced_dimensions.append(idx)
-
-        if outermost_dim < 0 or outermost_dim > 2:
-            raise TransformationError(
-                "Array section in unsupported dimension ({0}) for code "
-                "'{1}'".format(outermost_dim+1, str(loop.ast)))
-
-        # Get a reference to the highest-level symbol table
-        symbol_table = loop.root.symbol_table
-        config = Config.get().api_conf("nemo")
-        index_order = config.get_index_order()
-        loop_type_data = config.get_loop_type_data()
-
-        loop_type = loop_type_data[index_order[outermost_dim]]
-        base_name = loop_type["var"]
-        loop_var = symbol_table.new_symbol_name(base_name)
-        symbol_table.add(DataSymbol(loop_var, INTEGER_TYPE))
-        loop_start = loop_type["start"]
-        loop_stop = loop_type["stop"]
-        loop_step = "1"
-
-        # TODO remove this as part of #435 (since we will no longer have to
-        # insert declarations into the fparser2 parse tree).
-        prog_unit = loop.ast.get_root()
-        spec_list = walk(prog_unit.content, Fortran2003.Specification_Part)
-        if not spec_list:
-            # Routine has no specification part so create one and add it
-            # in to the parse tree
-            from psyclone.psyGen import object_index
-            exe_part = walk(prog_unit.content,
-                            Fortran2003.Execution_Part)[0]
-            idx = object_index(exe_part.parent.content, exe_part)
-
-            spec = Fortran2003.Specification_Part(
-                FortranStringReader("integer :: {0}".format(loop_var)))
-            spec.parent = exe_part.parent
-            exe_part.parent.content.insert(idx, spec)
-        else:
-            from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-            reader = Fparser2Reader()
-            fake_parent = Schedule()
-            spec = spec_list[0]
-            reader.process_declarations(fake_parent, [spec], [])
-            if loop_var not in fake_parent.symbol_table:
-                decln = Fortran2003.Type_Declaration_Stmt(
-                    FortranStringReader("integer :: {0}".format(loop_var)))
-                decln.parent = spec
-                spec.content.append(decln)
-
-        name = Fortran2003.Name(FortranStringReader(loop_var))
-
-        # Modify the line containing the implicit do by replacing every
-        # occurrence of the outermost ':' with the new loop variable name.
-        for subsec in subsections:
-            # A tuple is immutable so work with a list
-            indices = list(subsec.items)
-            if outermost_dim >= len(indices):
-                raise InternalError(
-                    "Expecting a colon for index {0} but array only has {1} "
-                    "dimensions: {2}".format(outermost_dim+1, len(indices),
-                                             str(loop.ast)))
-            if not isinstance(indices[outermost_dim],
-                              Fortran2003.Subscript_Triplet):
-                raise TransformationError(
-                    "Currently implicit loops are restricted to cases where "
-                    "all array range specifications occur in the same "
-                    "dimension(s) of each array in an assignment.")
-            # Replace the colon with our new variable name
-            indices[outermost_dim] = name
-            # Replace the original tuple with a new one
-            subsec.items = tuple(indices)
-
-        # Create the fparser AST for an explicit loop
-        text = ("do {0}={1},{2},{3}\n"
-                "  replace = me\n"
-                "end do\n".format(loop_var, loop_start, loop_stop,
-                                  loop_step))
-        new_loop = Fortran2003.Block_Nonlabel_Do_Construct(
-            FortranStringReader(text))
-        # Insert it in the fparser2 AST at the location of the implicit
-        # loop
-        parent_index = loop.ast.parent.content.index(loop.ast)
-        loop.ast.parent.content.insert(parent_index, new_loop)
-        # Ensure it has the correct parent information
-        new_loop.parent = loop.ast.parent
-        # Replace the content of the loop with the (modified) implicit
-        # loop
-        new_loop.content[1] = loop.ast
-        # Remove the implicit loop from its original parent in the AST
-        loop.ast.parent.content.remove(loop.ast)
-        # Now set its parent to be the new loop instead
-        new_loop.content[1].parent = new_loop
-
-        # Now we must update the PSyIR to reflect the new AST
-        # First we update the parent of the loop we have transformed
-        psyir_parent = loop.parent
-        psyir_parent.children.remove(loop)
-        # Next, we simply process the transformed fparser2 AST to generate
-        # the new PSyIR of it
-        astprocessor = nemo.NemoFparser2Reader()
-        astprocessor.process_nodes(psyir_parent, [new_loop])
-        # Delete the old PSyIR node that we have transformed
-        del loop
-        # Return the new NemoLoop object that we have created
-        return psyir_parent.children[0], keep
-
-    def validate(self, loop, options=None):
-        '''
-        Check that the supplied loop is a valid target for this transformation.
-
-        :param loop: the loop node to validate.
-        :type loop: :py:class:`psyclone.nemo.NemoImplicitLoop`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :raises TransformationError: if the supplied loop is not a \
-                                     NemoImplicitLoop.
-        '''
-        from psyclone.nemo import NemoImplicitLoop
-        if not isinstance(loop, NemoImplicitLoop):
-            raise TransformationError(
-                "Cannot apply NemoExplicitLoopTrans to something that is "
-                "not a NemoImplicitLoop (got {0})".format(type(loop)))
 
 
 class KernelGlobalsToArguments(Transformation):
@@ -3929,49 +3682,56 @@ class KernelGlobalsToArguments(Transformation):
         for globalvar in kernel.symbol_table.global_symbols[:]:
 
             # Resolve the data type information if it is not available
-            if isinstance(globalvar.datatype, DeferredType):
-                globalvar.resolve_deferred()
+            # pylint: disable=unidiomatic-typecheck
+            if (type(globalvar) == Symbol or
+                    isinstance(globalvar.datatype, DeferredType)):
+                updated_sym = globalvar.resolve_deferred()
+                # If we have a new symbol then we must update the symbol table
+                if updated_sym is not globalvar:
+                    kernel.symbol_table.swap(globalvar, updated_sym)
+            # pylint: enable=unidiomatic-typecheck
 
             # Copy the global into the InvokeSchedule SymbolTable
             invoke_symtab.copy_external_global(
-                globalvar, tag="AlgArgs_" + globalvar.name)
+                updated_sym, tag="AlgArgs_" + updated_sym.name)
 
             # Keep a reference to the original container so that we can
             # update it after the interface has been updated.
-            container = globalvar.interface.container_symbol
+            container = updated_sym.interface.container_symbol
 
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
-            if globalvar.is_constant:
+            if updated_sym.is_constant:
                 # Global constants lose the constant value but are read-only
                 # TODO: When #633 and #11 are implemented, warn the user that
                 # they should transform the constants to literal values first.
-                globalvar.constant_value = None
-                globalvar.interface = ArgumentInterface(
+                updated_sym.constant_value = None
+                updated_sym.interface = ArgumentInterface(
                     ArgumentInterface.Access.READ)
             else:
-                globalvar.interface = ArgumentInterface(
+                updated_sym.interface = ArgumentInterface(
                     ArgumentInterface.Access.READWRITE)
-            current_arg_list.append(globalvar)
+            current_arg_list.append(updated_sym)
             symtab.specify_argument_list(current_arg_list)
 
             # Convert PSyIR DataTypes to Gocean VALID_SCALAR_TYPES
             # TODO #678: Ideally this strings should be provided by the GOcean
             # API configuration.
             go_space = ""
-            if globalvar.datatype.intrinsic == ScalarType.Intrinsic.REAL:
+            if updated_sym.datatype.intrinsic == ScalarType.Intrinsic.REAL:
                 go_space = "go_r_scalar"
-            elif globalvar.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
+            elif (updated_sym.datatype.intrinsic ==
+                  ScalarType.Intrinsic.INTEGER):
                 go_space = "go_i_scalar"
             else:
                 raise TypeError(
                     "The global variable '{0}' could not be promoted to an "
                     "argument because the GOcean infrastructure does not have"
                     " any scalar type equivalent to the PSyIR {1} type.".
-                    format(globalvar.name, globalvar.datatype))
+                    format(updated_sym.name, updated_sym.datatype))
 
             # Add the global variable in the call argument list
-            node.arguments.append(globalvar.name, go_space)
+            node.arguments.append(updated_sym.name, go_space)
 
             # Check whether we still need the Container symbol from which
             # this global was originally accessed

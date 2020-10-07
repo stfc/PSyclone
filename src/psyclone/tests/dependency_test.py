@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: A. R. Porter and R. W. Ford  STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
 
 
 ''' Module containing py.test tests for dependency analysis.'''
@@ -213,9 +214,10 @@ def test_do_loop(parser):
                                 "s: WRITE, t: READ"
 
 
-@pytest.mark.xfail(reason="Implicit loops are not supported. TODO #440")
-def test_nemo_implicit_loop(parser):
-    ''' Check the handling of ImplicitLoops access information.
+def test_nemo_array_range(parser):
+    '''Check the handling of the access information for Fortran
+    array notation (captured using Ranges in the PSyiR).
+
     '''
     reader = FortranStringReader('''program test_prog
                                  integer :: jj, n
@@ -231,31 +233,8 @@ def test_nemo_implicit_loop(parser):
     do_loop = schedule.children[0]
     assert isinstance(do_loop, nemo.NemoLoop)
     var_accesses = VariablesAccessInfo(do_loop)
-    assert str(var_accesses) == "jj: READ+WRITE, n: READ, a: READ"
-
-
-def test_nemo_implicit_loop_partial(parser):
-    ''' Check the handling of ImplicitLoops access information.
-    '''
-    # TODO #440: Same as the test above but does not check the
-    # variables in the implicit loop construct, this test can
-    # be deleted when the issue is fixed and the above test
-    # passes.
-    reader = FortranStringReader('''program test_prog
-                                 integer :: jj, n
-                                 real :: s(5,5), t(5,5), a
-                                 do jj=1, n
-                                    s(:, jj)=t(:, jj)+a
-                                 enddo
-                                 end program test_prog''')
-    ast = parser(reader)
-    psy = PSyFactory(API).create(ast)
-    schedule = psy.invokes.get("test_prog").schedule
-
-    do_loop = schedule.children[0]
-    assert isinstance(do_loop, nemo.NemoLoop)
-    var_accesses = VariablesAccessInfo(do_loop)
-    assert str(var_accesses) == "jj: READ+WRITE, n: READ"  # a is missing
+    assert (str(var_accesses) == "a: READ, jj: READ+WRITE, n: READ, "
+            "s: WRITE, t: READ")
 
 
 @pytest.mark.xfail(reason="Gocean loops boundaries are strings #440")
@@ -286,14 +265,14 @@ def test_goloop_partially():
     of the gocean variable access handling.
     '''
     _, invoke = get_invoke("single_invoke_two_kernels_scalars.f90",
-                           "gocean1.0", name="invoke_0")
+                           "gocean1.0", name="invoke_0", dist_mem=False)
     do_loop = invoke.schedule.children[0]
     assert isinstance(do_loop, Loop)
 
     # The third argument is GO_GRID_X_MAX_INDEX, which is scalar
-    assert do_loop.args[2].is_scalar()
+    assert do_loop.args[2].is_scalar
     # The fourth argument is GO_GRID_MASK_T, which is an array
-    assert not do_loop.args[3].is_scalar()
+    assert not do_loop.args[3].is_scalar
 
     var_accesses = VariablesAccessInfo(do_loop)
     assert "a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "\
@@ -302,11 +281,12 @@ def test_goloop_partially():
 
 
 def test_dynamo():
-    '''Test the handling of a dynamo0.3 loop. Note that the variable accesses
-    are reported based on the user's point of view, not the code actually
-    created by PSyclone, e.g. it shows a dependency on 'some_field', but not
-    on some_field_proxy etc. Also the dependency is at this stage taken
+    ''' Test the handling of an LFRic (Dynamo0.3) loop. Note that the variable
+    accesses are reported based on the user's point of view, not the code
+    actually created by PSyclone, e.g. it shows a dependency on 'some_field',
+    but not on some_field_proxy etc. Also the dependency is at this stage taken
     from the kernel metadata, not the actual kernel usage.
+
     '''
     from psyclone.parse.algorithm import parse
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -318,7 +298,7 @@ def test_dynamo():
     schedule = invoke.schedule
 
     var_accesses = VariablesAccessInfo(schedule)
-    assert str(var_accesses) == "a: READ, cell: READ+WRITE, f1: WRITE, "\
+    assert str(var_accesses) == "a: READ, cell: READ+WRITE, f1: READ+WRITE, "\
         "f2: READ, m1: READ, m2: READ, map_w1: READ, map_w2: READ, "\
         "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "\
         "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ"
@@ -577,15 +557,22 @@ def test_lfric_stencils():
     assert "f2_stencil_dofmap: READ" in var_info
 
 
-def test_lfric_operator_different_spaces():
-    ''' Tests that implicit parameters for an operator with different to
-    and from spaces are created correctly.
+def test_lfric_various_basis():
+    ''' Tests that implicit parameters for various basis related
+    functionality work as expected.
 
     '''
     _, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
                                 "dynamo0.3", idx=0)
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "orientation_w2: READ" in var_info
+    assert "basis_w3_qr: READ" in var_info
+    assert "diff_basis_w0_qr: READ" in var_info
+    assert "diff_basis_w2_qr: READ" in var_info
+    assert "np_xy_qr: READ" in var_info
+    assert "np_z_qr: READ" in var_info
+    assert "weights_xy_qr: READ" in var_info
+    assert "weights_z_qr: READ" in var_info
 
 
 def test_lfric_field_bc_kernel():
@@ -635,6 +622,28 @@ def test_lfric_stub_args():
     var_accesses = VariablesAccessInfo()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    assert "field_1_w1: READ+WRITE" in var_info
+    assert "field_2_stencil_dofmap: READ" in var_info
+    assert "field_2_stencil_size: READ" in var_info
+    assert "field_2_w2: READ" in var_info
+    assert "field_3_direction: READ" in var_info
+    assert "field_3_stencil_dofmap: READ" in var_info
+    assert "field_3_stencil_size: READ" in var_info
+    assert "field_3_w2: READ" in var_info
+    assert "field_4_stencil_dofmap: READ" in var_info
+    assert "field_4_stencil_size: READ" in var_info
+    assert "field_4_w3: READ" in var_info
+    assert "map_w1: READ" in var_info
+    assert "map_w2: READ" in var_info
+    assert "map_w3: READ" in var_info
+    assert "ndf_w1: READ" in var_info
+    assert "ndf_w2: READ" in var_info
+    assert "ndf_w3: READ" in var_info
+    assert "nlayers: READ" in var_info
+    assert "undf_w1: READ" in var_info
+    assert "undf_w2: READ" in var_info
+    assert "undf_w3: READ" in var_info
 
 
 def test_lfric_stub_args2():
@@ -661,7 +670,6 @@ def test_lfric_stub_args2():
 
 def test_lfric_stub_args3():
     '''Check variable usage detection for cell position, operator
-    .
 
     '''
     from psyclone.dynamo0p3 import DynKernMetadata, DynKern
@@ -829,7 +837,8 @@ def test_lfric_acc():
     '''Check variable usage detection when OpenACC is used.
 
     '''
-    # Use the OpenACC transforms to create the required kernels
+    # Use the OpenACC transforms to enclose the kernels
+    # with OpenACC directives.
     from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
     from psyclone.psyGen import CodedKern
     acc_par_trans = ACCParallelTrans()
@@ -846,7 +855,7 @@ def test_lfric_acc():
     var_accesses = VariablesAccessInfo()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "f1: WRITE" in var_info
+    assert "f1: READ+WRITE" in var_info
     assert "f2: READ" in var_info
     assert "m1: READ" in var_info
     assert "m2: READ" in var_info
@@ -863,7 +872,8 @@ def test_lfric_acc_operator():
     a kernel that uses an operator.
 
     '''
-    # Use the OpenACC transforms to create the required kernels
+    # Use the OpenACC transforms to enclose the kernels
+    # with OpenACC directives.
     from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
     from psyclone.psyGen import CodedKern
     acc_par_trans = ACCParallelTrans()

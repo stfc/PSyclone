@@ -44,11 +44,16 @@ from __future__ import absolute_import
 
 import pytest
 
+from psyclone.configuration import Config
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
-from psyclone.psyir.nodes import ExtractNode, Loop
+from psyclone.domain.lfric import FunctionSpace
+from psyclone.psyir.nodes import (colored, ExtractNode, Loop,
+                                  SCHEDULE_COLOUR_MAP)
 from psyclone.psyir.transformations import TransformationError
-from psyclone.tests.utilities import get_invoke
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
+from psyclone.transformations import (Dynamo0p3ColourTrans,
+                                      DynamoOMPParallelLoopTrans)
 
 # API names
 DYNAMO_API = "dynamo0.3"
@@ -119,14 +124,12 @@ def test_distmem_error(monkeypatch):
     # Try applying Extract transformation to Node(s) containing HaloExchange
     # We have to disable distributed memory, otherwise an earlier test
     # will be triggered
-    from psyclone.configuration import Config
     config = Config.get()
     monkeypatch.setattr(config, "distributed_memory", False)
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[2:4])
-    assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynHaloExchange'>' "
-            "cannot be enclosed by a LFRicExtractTrans "
-            "transformation") in str(excinfo.value)
+    assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
+            "LFRicExtractTrans transformation") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing GlobalSum
     # This will set config.distributed_mem to True again.
@@ -141,9 +144,8 @@ def test_distmem_error(monkeypatch):
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(glob_sum)
 
-    assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynGlobalSum'>' "
-            "cannot be enclosed by a LFRicExtractTrans "
-            "transformation") in str(excinfo.value)
+    assert ("Nodes of type 'DynGlobalSum' cannot be enclosed by a "
+            "LFRicExtractTrans transformation") in str(excinfo.value)
 
 
 def test_repeat_extract():
@@ -160,10 +162,8 @@ def test_repeat_extract():
     # Now try applying it again on the ExtractNode
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[0])
-    assert ("Nodes of type '<class "
-            "'psyclone.psyir.nodes.extract_node.ExtractNode'>' "
-            "cannot be enclosed by a LFRicExtractTrans "
-            "transformation") in str(excinfo.value)
+    assert ("Nodes of type 'ExtractNode' cannot be enclosed by a "
+            "LFRicExtractTrans transformation") in str(excinfo.value)
 
 
 def test_kern_builtin_no_loop():
@@ -179,8 +179,9 @@ def test_kern_builtin_no_loop():
     builtin_call = schedule.children[1].loop_body[0]
     with pytest.raises(TransformationError) as excinfo:
         _, _ = dynetrans.apply(builtin_call)
-    assert ("Extraction of a Kernel or a Built-in call without its "
-            "parent Loop is not allowed.") in str(excinfo.value)
+    assert "Error in LFRicExtractTrans: Application to a Kernel or a " \
+           "Built-in call without its parent Loop is not allowed." \
+           in str(excinfo.value)
 
 
 def test_loop_no_directive_dynamo0p3():
@@ -188,8 +189,6 @@ def test_loop_no_directive_dynamo0p3():
     parent Directive when optimisations are applied in Dynamo0.3 API
     raises a TransformationError. '''
     etrans = LFRicExtractTrans()
-
-    from psyclone.transformations import DynamoOMPParallelLoopTrans
 
     # Test a Loop nested within the OMP Parallel DO Directive
     _, invoke = get_invoke("4.13_multikernel_invokes_w3_anyd.f90",
@@ -202,16 +201,14 @@ def test_loop_no_directive_dynamo0p3():
     # Try extracting the Loop inside the OMP Parallel DO region
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(loop)
-    assert ("Extraction of a Loop without its parent Directive is not "
-            "allowed.") in str(excinfo.value)
+    assert "Error in LFRicExtractTrans: Application to a Loop without its " \
+           "parent Directive is not allowed." in str(excinfo.value)
 
 
 def test_no_colours_loop_dynamo0p3():
     ''' Test that applying LFRicExtractTrans on a Loop over cells
     in a colour without its parent Loop over colours in Dynamo0.3 API
     raises a TransformationError. '''
-    from psyclone.transformations import Dynamo0p3ColourTrans, \
-        DynamoOMPParallelLoopTrans
 
     etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
@@ -269,7 +266,6 @@ def test_extract_node_position():
 def test_extract_node_representation(capsys):
     ''' Test that representation properties and methods of the ExtractNode
     class: view, dag_name and __str__ produce the correct results. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
     etrans = LFRicExtractTrans()
     _, invoke = get_invoke("4.8_multikernel_invokes.f90", DYNAMO_API,
@@ -316,8 +312,9 @@ def test_single_node_dynamo0p3():
     output = """      ! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_psy", "invoke_0_testkern""" \
-      """_type:testkern_code:r0", 14, 2)
+      """_type:testkern_code:r0", 15, 2)
       CALL extract_psy_data%PreDeclareVariable("a", a)
+      CALL extract_psy_data%PreDeclareVariable("f1", f1)
       CALL extract_psy_data%PreDeclareVariable("f2", f2)
       CALL extract_psy_data%PreDeclareVariable("m1", m1)
       CALL extract_psy_data%PreDeclareVariable("m2", m2)
@@ -335,6 +332,7 @@ def test_single_node_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("f1_post", f1)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("a", a)
+      CALL extract_psy_data%ProvideVariable("f1", f1)
       CALL extract_psy_data%ProvideVariable("f2", f2)
       CALL extract_psy_data%ProvideVariable("m1", m1)
       CALL extract_psy_data%ProvideVariable("m2", m2)
@@ -382,8 +380,9 @@ def test_node_list_dynamo0p3():
     output = """! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
-      """"invoke_0:r0", 5, 3)
+      """"invoke_0:r0", 6, 3)
       CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreDeclareVariable("f3", f3)
       CALL extract_psy_data%PreDeclareVariable("map_w2", map_w2)
       CALL extract_psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
@@ -393,6 +392,7 @@ def test_node_list_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("f2", f2)
+      CALL extract_psy_data%ProvideVariable("f3", f3)
       CALL extract_psy_data%ProvideVariable("map_w2", map_w2)
       CALL extract_psy_data%ProvideVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
@@ -479,8 +479,6 @@ def test_extract_single_builtin_dynamo0p3():
     correct result in Dynamo0.3 API without and with optimisations.
 
     '''
-    from psyclone.transformations import DynamoOMPParallelLoopTrans
-
     etrans = LFRicExtractTrans()
 
     otrans = DynamoOMPParallelLoopTrans()
@@ -567,8 +565,9 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       ! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
-      """"invoke_0:r0", 5, 3)
+      """"invoke_0:r0", 6, 3)
       CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreDeclareVariable("f3", f3)
       CALL extract_psy_data%PreDeclareVariable("map_w2", map_w2)
       CALL extract_psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
@@ -578,6 +577,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("f2", f2)
+      CALL extract_psy_data%ProvideVariable("f3", f3)
       CALL extract_psy_data%ProvideVariable("map_w2", map_w2)
       CALL extract_psy_data%ProvideVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
@@ -619,9 +619,6 @@ def test_extract_colouring_omp_dynamo0p3():
     ''' Test that extraction of a Kernel in an Invoke after applying
     colouring and OpenMP optimisations produces the correct result
     in Dynamo0.3 API. '''
-    from psyclone.transformations import Dynamo0p3ColourTrans, \
-        DynamoOMPParallelLoopTrans
-    from psyclone.domain.lfric import FunctionSpace
 
     etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
@@ -637,7 +634,7 @@ def test_extract_colouring_omp_dynamo0p3():
     for child in schedule.children:
         if isinstance(child, Loop) and child.field_space.orig_name \
            not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
-           and child.iteration_space == "cells":
+           and child.iteration_space == "cell_column":
             cschedule, _ = ctrans.apply(child)
     # Then apply OpenMP to each of the colour loops
     schedule = cschedule

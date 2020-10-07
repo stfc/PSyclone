@@ -45,14 +45,14 @@ module testkern_w3_mod
 
   ! Description: discontinuous field (read)writer (w3)
   type, extends(kernel_type) :: testkern_w3_type
-     type(arg_type), dimension(5) :: meta_args = (/ &
-          arg_type(gh_real,  gh_read),              &
-          arg_type(gh_field, gh_read,      w0),     &
-          arg_type(gh_field, gh_read,      w1),     &
-          arg_type(gh_field, gh_read,      w2),     &
-          arg_type(gh_field, gh_readwrite, w3)      &
+     type(arg_type), dimension(5) :: meta_args = (/       &
+          arg_type(gh_scalar, gh_real, gh_read),          &
+          arg_type(gh_field,           gh_read,      w0), &
+          arg_type(gh_field,           gh_read,      w1), &
+          arg_type(gh_field,           gh_read,      w2), &
+          arg_type(gh_field,           gh_readwrite, w3)  &
           /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_w3_code
   end type testkern_w3_type

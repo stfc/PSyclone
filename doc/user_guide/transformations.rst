@@ -132,8 +132,7 @@ can be found in the API-specific sections).
 
 .. note:: PSyclone currently only supports OpenCL and
           KernelGlobalsToArguments transformations for the GOcean 1.0
-          API, the Abs, Min and Sign transformations are limited to
-          the NEMO API, the OpenACC Data transformation is limited to
+          API, the OpenACC Data transformation is limited to
           the NEMO and GOcean 1.0 APIs and the OpenACC Kernels
           transformation is limited to the NEMO and Dynamo0.3 APIs.
 
@@ -182,6 +181,16 @@ can be found in the API-specific sections).
     :members: apply
     :noindex:
 
+####
+
+.. autoclass:: psyclone.psyir.transformations.ArrayRange2LoopTrans
+    :members: apply
+    :noindex:
+
+.. note:: The ArrayRange2LoopTrans will have no effect when using the
+          NEMO API until it is updated to use the PSyIR back-ends to
+          generate code (see #435).
+  
 ####
 
 .. autoclass:: psyclone.transformations.ColourTrans
@@ -287,6 +296,12 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ProfileTrans
+    :members: apply
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.ReadOnlyVerifyTrans
     :members: apply
     :noindex:
 

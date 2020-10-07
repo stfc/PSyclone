@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,17 +38,20 @@ program single_invoke
 
   ! Description: multiply-field point-wise operation specified in an invoke call
   ! where the supplied fields can be deduced to be on the same space.
-  use testkern_fs, only: testkern_fs_type
-  use inf,         only: field_type
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
+  use testkern_fs,   only: testkern_fs_type
+
   implicit none
+
   type(field_type) :: f2, f3, f4, f5,f6, f7, f8
-  real :: a
+  real(r_def)      :: a
 
   a = 0.5
 
   call invoke(                                             &
               testkern_fs_type(f2, f3, f4, f5,f6, f7, f8), &
-              X_times_Y(f3, a, f4)                      &
+              X_times_Y(f3, a, f4)                         &
              )
 
 end program single_invoke

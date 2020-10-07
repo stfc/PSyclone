@@ -445,6 +445,7 @@ def test_profiling_mod_use_clash(parser):
                                       "program the_clash\n"
                                       "  use profile_psy_data_mod, only: "
                                       "some_var\n"
+                                      "  real :: my_array(20,10)\n"
                                       "  my_array(:,:) = 0.0\n"
                                       "end program the_clash\n")
     PTRANS.apply(schedule.children[0])
@@ -506,7 +507,7 @@ def test_profiling_var_clash(parser):
         _ = psy.gen
     assert ("Cannot add PSyData calls to 'my_test' because it already "
             "contains symbols that potentially clash with the variables "
-            "we will "in str(err.value))
+            "we will " in str(err.value))
 
 
 def test_only_profile():
@@ -524,3 +525,21 @@ def test_only_profile():
     correct_re = "PSyData.update is only supported for a ProfileNode, not " \
         "for a node of type .*DummyNode'>."
     assert re.search(correct_re, str(err.value))
+
+
+def test_no_return_in_profiling(parser):
+    ''' Check that the transformation refuses to include a Return node within
+    a profiled region. '''
+    _, schedule = get_nemo_schedule(
+        parser,
+        "function my_test()\n"
+        "  integer :: my_test\n"
+        "  real :: my_array(3,3)\n"
+        "  my_array(:,:) = 0.0\n"
+        "  my_test = 1\n"
+        "  return\n"
+        "end function my_test\n")
+    with pytest.raises(TransformationError) as err:
+        PTRANS.apply(schedule.children)
+    assert ("Nodes of type 'Return' cannot be enclosed by a ProfileTrans "
+            "transformation" in str(err.value))

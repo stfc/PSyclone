@@ -111,7 +111,11 @@ Example 3: OpenCL
 ^^^^^^^^^^^^^^^^^
 
 Example of the use of PSyclone to generate an OpenCL driver version of
-the PSy layer and OpenCL kernels.
+the PSy layer and OpenCL kernels. The Makefile in this example provides
+a target (`make compile-ocl`) to compile the generated OpenCL code. This
+requires an OpenCL implementation installed in the system. Read the README
+provided in the example folder for more details about how to compile and
+execute the generated OpenCL code.
 
 Example 4: Kernels containing use statements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -154,7 +158,7 @@ It instruments each of the two invokes in the example program
 with the PSyData-based kernel extraction code.
 It uses the dl_esm_inf-specific extraction library 'netcdf'
 (``lib/extract/dl_esm_inf/netcdf``), and needs NetCDF to be
-available (including ``nc-config`` to detect installation-specific
+available (including ``nf-config`` to detect installation-specific
 paths). You need to compile the NetCDF extraction library
 (see :ref:`psyke_netcdf`).
 The makefile in this example will link with the compiled NetCDF
@@ -196,7 +200,9 @@ It uses the dl_esm_inf-specific read-only-verification library
 The makefile in this example will link with the compiled 
 read-only-verification library. You can execute the created
 binary and it will print two warnings about modified
-read-only variables::
+read-only variables:
+
+.. code-block:: none
 
     --------------------------------------
     Double precision field b_fld has been modified in main : update

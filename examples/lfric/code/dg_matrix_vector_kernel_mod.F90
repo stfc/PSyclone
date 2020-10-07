@@ -46,7 +46,7 @@ module dg_matrix_vector_kernel_mod
                                 GH_READ, GH_WRITE,         &
                                 ANY_DISCONTINUOUS_SPACE_1, &
                                 ANY_SPACE_1,               &
-                                CELLS
+                                CELL_COLUMN
 
   use constants_mod,     only : r_def, i_def
   use kernel_mod,        only : kernel_type
@@ -68,7 +68,7 @@ module dg_matrix_vector_kernel_mod
                                              ANY_SPACE_1)                &
          /)
 
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: dg_matrix_vector_kernel_code
   end type

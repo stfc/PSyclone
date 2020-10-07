@@ -176,6 +176,10 @@ def test_field_xyoz(tmpdir):
         "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
+        "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f1_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
@@ -663,14 +667,14 @@ def test_dynbasisfns_dealloc(monkeypatch):
 
 def test_dynkern_setup(monkeypatch):
     ''' Check that internal-consistency checks in DynKern._setup() work
-    as expected '''
+    as expected. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     # Get hold of a DynKern object
     schedule = psy.invokes.invoke_list[0].schedule
-    kern = schedule.children[3].loop_body[0]
+    kern = schedule.children[4].loop_body[0]
     # Monkeypatch a couple of __init__ routines so that we can get past
     # them in the _setup() routine.
     from psyclone.psyGen import CodedKern
@@ -725,7 +729,7 @@ module dummy_mod
              func_type(w2htrace, gh_basis), &
              func_type(w2vtrace, gh_basis)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_quadrature_xyoz
    contains
      procedure, nopass :: code => dummy_code

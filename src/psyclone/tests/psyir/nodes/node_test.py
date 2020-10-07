@@ -46,11 +46,11 @@ import pytest
 from psyclone.psyir.nodes.node import (ChildrenList, Node,
                                        _graphviz_digraph_class)
 from psyclone.psyir.nodes import Schedule, Reference, Container, \
-    Assignment, Return, Loop, Literal, Statement, node
+    Assignment, Return, Loop, Literal, Statement, node, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
     INTEGER_TYPE, REAL_TYPE, SymbolTable, ContainerSymbol, \
-    UnresolvedInterface, ScalarType, DeferredType
-from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern, KernelSchedule
+    UnresolvedInterface, ScalarType, DeferredType, Symbol
+from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.transformations import DynamoLoopFuseTrans
@@ -63,7 +63,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
 def test_node_abstract_methods():
     ''' Tests that the abstract methods of the Node class raise appropriate
     errors. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     sched = invoke.schedule
     loop = sched.children[0].loop_body[0]
     with pytest.raises(NotImplementedError) as err:
@@ -357,9 +358,11 @@ def test_node_backward_dependence():
 
 
 def test_node_is_valid_location():
-    '''Test that the Node class is_valid_location method returns True if
+    ''' Test that the Node class is_valid_location method returns True if
     the new location does not break any data dependencies, otherwise it
-    returns False'''
+    returns False.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         api="dynamo0.3")
@@ -378,7 +381,7 @@ def test_node_is_valid_location():
     assert "method must be one of" in str(excinfo.value)
     # 3: parents of node and new_node are not the same
     with pytest.raises(GenerationError) as excinfo:
-        anode.is_valid_location(schedule.children[3].children[0])
+        anode.is_valid_location(schedule.children[4].children[0])
     assert ("the node and the location do not have the same "
             "parent") in str(excinfo.value)
     # 4: positions are the same
@@ -429,7 +432,8 @@ def test_node_is_valid_location():
 
 def test_node_ancestor():
     ''' Test the Node.ancestor() method. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     sched = invoke.schedule
     kern = sched[0].loop_body[0].loop_body[0]
     anode = kern.ancestor(Node)
@@ -450,8 +454,8 @@ def test_node_ancestor():
 
 
 def test_dag_names():
-    '''test that the dag_name method returns the correct value for the
-    node class and its specialisations'''
+    ''' Test that the dag_name method returns the correct value for the
+    node class and its specialisations. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         api="dynamo0.3")
@@ -460,13 +464,13 @@ def test_dag_names():
     schedule = invoke.schedule
     assert super(Schedule, schedule).dag_name == "node_0"
     assert schedule.dag_name == "schedule_0"
-    assert schedule.children[0].dag_name == "checkHaloExchange(f2)_0"
-    assert schedule.children[3].dag_name == "loop_4"
-    schedule.children[3].loop_type = "colour"
-    assert schedule.children[3].dag_name == "loop_[colour]_4"
-    schedule.children[3].loop_type = ""
-    assert (schedule.children[3].loop_body[0].dag_name ==
-            "kernel_testkern_code_9")
+    assert schedule.children[0].dag_name == "checkHaloExchange(f1)_0"
+    assert schedule.children[4].dag_name == "loop_5"
+    schedule.children[4].loop_type = "colour"
+    assert schedule.children[4].dag_name == "loop_[colour]_5"
+    schedule.children[4].loop_type = ""
+    assert (schedule.children[4].loop_body[0].dag_name ==
+            "kernel_testkern_code_10")
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         api="dynamo0.3")
@@ -658,9 +662,9 @@ def test_scope():
     assert container.scope is container
 
     anode = Literal("x", INTEGER_TYPE)
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(SymbolError) as excinfo:
         _ = anode.scope
-    assert ("PSyclone internal error: Unable to find the scope of node "
+    assert ("Unable to find the scope of node "
             "'Literal[value:'x', Scalar<INTEGER, UNDEFINED>]' as "
             "none of its ancestors are Container or Schedule nodes."
             in str(excinfo.value))
@@ -733,6 +737,21 @@ def test_find_or_create_symbol():
             "find_or_create_symbol method, is not an ancestor of this node "
             "'Reference[name:'alpha']'." in str(excinfo.value))
 
+    # find_or_create_symbol method with invalid visibility
+    with pytest.raises(TypeError) as excinfo:
+        _ = alpha.find_or_create_symbol(alpha.name, visibility="hello")
+    assert ("visibility argument 'hello' provided to the find_or_create_symbol"
+            " method should be of `Symbol.Visibility` type but instead is: "
+            "'str'" in str(excinfo.value))
+
+    # With a valid visibility
+    sym = alpha.find_or_create_symbol("very_private",
+                                      visibility=Symbol.Visibility.PRIVATE)
+    assert sym.name == "very_private"
+    assert sym.visibility == Symbol.Visibility.PRIVATE
+    assert sym is container.symbol_table.lookup("very_private",
+                                                check_ancestors=False)
+
 
 def test_find_or_create_new_symbol():
     ''' Check that the Node.find_or_create_symbol() method creates new
@@ -764,7 +783,7 @@ def test_find_or_create_new_symbol():
     new_symbol = assign.find_or_create_symbol("undefined")
     assert new_symbol.name == "undefined"
     assert isinstance(new_symbol.interface, UnresolvedInterface)
-    assert isinstance(new_symbol.datatype, DeferredType)
+    assert type(new_symbol) == Symbol
     assert "undefined" not in container.symbol_table
     assert kernel1.symbol_table.lookup("undefined") is new_symbol
 

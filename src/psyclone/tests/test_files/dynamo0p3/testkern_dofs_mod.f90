@@ -32,7 +32,7 @@
 ! Author R. W. Ford, STFC Daresbury Lab
 ! Modified I. Kavcic, Met Office
 
-module testkern_mod
+module testkern_dofs_mod
 
   use constants_mod
   use argument_mod
@@ -41,21 +41,22 @@ module testkern_mod
 
   implicit none
 
-  type, extends(kernel_type) :: testkern_type
+  ! User-defined single kernel that operates on DoFs (currently not supported)
+  type, extends(kernel_type) :: testkern_dofs_type
      type(arg_type), dimension(4) :: meta_args = &
-          (/ arg_type(gh_field, gh_inc,  w1),    &
-             arg_type(gh_field, gh_read, w2),    &
-             arg_type(gh_field, gh_read, w2),    &
-             arg_type(gh_field, gh_read, w3)     &
+          (/ arg_type(gh_field, gh_write, w1),   &
+             arg_type(gh_field, gh_read,  w2),   &
+             arg_type(gh_field, gh_read,  w2),   &
+             arg_type(gh_field, gh_read,  w3)    &
            /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
-     procedure, nopass :: code => testkern_code
-  end type testkern_type
+     procedure, nopass :: code => testkern_dofs_code
+  end type testkern_dofs_type
 
 contains
 
-  subroutine testkern_code(a, b, c, d)
-  end subroutine testkern_code
+  subroutine testkern_dofs_code(a, b, c, d)
+  end subroutine testkern_dofs_code
 
-end module testkern_mod
+end module testkern_dofs_mod

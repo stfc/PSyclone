@@ -41,18 +41,18 @@ module testkern_ref_elem_all_faces_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_ref_elem_all_faces_type
-     type(arg_type), dimension(5) :: meta_args = &
-          (/ arg_type(gh_real,  gh_read),        &
-             arg_type(gh_field, gh_inc,  w1),    &
-             arg_type(gh_field, gh_read, w2),    &
-             arg_type(gh_field, gh_read, w2),    &
-             arg_type(gh_field, gh_read, w3)     &
+     type(arg_type), dimension(5) :: meta_args =        &
+          (/ arg_type(gh_scalar, gh_real, gh_read),     &
+             arg_type(gh_field,           gh_inc,  w1), &
+             arg_type(gh_field,           gh_read, w2), &
+             arg_type(gh_field,           gh_read, w2), &
+             arg_type(gh_field,           gh_read, w3)  &
              /)
      type(reference_element_data_type), dimension(2) ::             &
           meta_reference_element =                                  &
           (/ reference_element_data_type(outward_normals_to_faces), &
              reference_element_data_type(normals_to_faces) /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_ref_elem_all_faces_code
   end type testkern_ref_elem_all_faces_type

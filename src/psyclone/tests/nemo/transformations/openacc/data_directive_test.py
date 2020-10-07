@@ -45,7 +45,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
 from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import get_invoke, Compile
 
 
 # Constants
@@ -243,13 +243,14 @@ def test_multi_data():
             "  END DO") in gen_code
 
 
-def test_replicated_loop(parser):
+def test_replicated_loop(parser, tmpdir):
     '''Check code generation with two loops that have the same
     structure.
 
     '''
     reader = FortranStringReader("subroutine replicate()\n"
                                  "   INTEGER :: dummy\n"
+                                 "   REAL :: zwx(10,10)\n"
                                  "   zwx(:,:) = 0.e0\n"
                                  "   zwx(:,:) = 0.e0\n"
                                  "END subroutine replicate\n")
@@ -267,6 +268,7 @@ def test_replicated_loop(parser):
             "  !$ACC DATA COPYOUT(zwx)\n"
             "  zwx(:, :) = 0.E0\n"
             "  !$ACC END DATA" in gen_code)
+    assert Compile(tmpdir).string_compiles(gen_code)
 
 
 @pytest.mark.xfail(reason="PSyIR does not support derived types (#363) and "
@@ -379,11 +381,11 @@ def test_no_code_blocks(parser):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children[0:1])
-    assert ("CodeBlock'>' cannot be enclosed by a ACCDataTrans"
+    assert ("'CodeBlock' cannot be enclosed by a ACCDataTrans"
             in str(err.value))
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children[1:2])
-    assert ("CodeBlock'>' cannot be enclosed by a ACCDataTrans"
+    assert ("'CodeBlock' cannot be enclosed by a ACCDataTrans"
             in str(err.value))
 
 

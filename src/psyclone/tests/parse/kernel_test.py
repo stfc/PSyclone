@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
+# Modified C.M. Maynard, Met Office / University of Reading
 
 '''A module to perform pytest unit tests on the parse/kernel.py
 file. Some tests for this file are in parse_test.py. This file adds
@@ -41,19 +43,24 @@ from __future__ import absolute_import
 import os
 import pytest
 from fparser.api import parse
-from psyclone.parse.kernel import KernelType, get_kernel_metadata, \
+from psyclone.parse.kernel import KernelType, get_kernel_metadata,\
+    get_kernel_interface,\
     KernelProcedure, Descriptor, BuiltInKernelTypeFactory, get_kernel_filepath
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError
 
 # pylint: disable=invalid-name
 
-
-CODE = (
+# Code fragment for testing standard kernel setup with
+# a type-bound procedure. This uses the 'iterates_over'
+# metadata rather than 'operates_on'.
+# TODO #870 remove this metadata fragment and update all tests to use CODE
+# below instead.
+ITERATES_OVER_CODE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
     "    type(arg_type), dimension(1) :: meta_args =    &\n"
-    "          (/ arg_type(gh_field,gh_write,w1) /)\n"
+    "          (/ arg_type(gh_field, gh_inc, w1) /)\n"
     "     integer :: iterates_over = cells\n"
     "   contains\n"
     "     procedure, nopass :: code => test_code\n"
@@ -62,8 +69,93 @@ CODE = (
     "  subroutine test_code()\n"
     "  end subroutine test_code\n"
     "end module test_mod\n"
+    )
+
+# Same code fragment but with the 'operates_on' metadata member.
+CODE = (
+    "module test_mod\n"
+    "  type, extends(kernel_type) :: test_type\n"
+    "    type(arg_type), dimension(1) :: meta_args =    &\n"
+    "          (/ arg_type(gh_field, gh_inc, w1) /)\n"
+    "     integer :: operates_on = cell_column\n"
+    "   contains\n"
+    "     procedure, nopass :: code => test_code\n"
+    "  end type test_type\n"
+    "contains\n"
+    "  subroutine test_code()\n"
+    "  end subroutine test_code\n"
+    "end module test_mod\n"
+    )
+
+# Code fragment for testing kernel which uses an interface
+# instead of a type-bound procedure
+CODE_INTERFACE = (
+    "module test_mod\n"
+    "  type, extends(kernel_type) :: test_type\n"
+    "    type(arg_type), dimension(1) :: meta_args =    &\n"
+    "          (/ arg_type(gh_field,gh_inc,w1) /)\n"
+    "     integer :: operates_on = cell_column\n"
+    "   contains\n"
+    "  end type test_type\n"
+    "  interface test_code\n"
+    "    module procedure sub_code\n"
+    "  end interface test_code\n"
+    "contains\n"
+    "  subroutine sub_code()\n"
+    "  end subroutine sub_code\n"
+    "end module test_mod\n"
 
     )
+
+# Code fragment for (failure) test for kernel with two
+# interfaces and no type-bound procedure.
+CODE_DOUBLE_INTERFACE = (
+    "module test_mod\n"
+    "  type, extends(kernel_type) :: test_type\n"
+    "    type(arg_type), dimension(1) :: meta_args =    &\n"
+    "          (/ arg_type(gh_field,gh_inc,w1) /)\n"
+    "     integer :: operates_on = cell_column\n"
+    "   contains\n"
+    "  end type test_type\n"
+    "  interface test_code\n"
+    "    module procedure sub_code\n"
+    "  end interface test_code\n"
+    "  interface test_code_again\n"
+    "    module procedure more_code\n"
+    "  end interface test_code_again\n"
+    "contains\n"
+    "  subroutine sub_code()\n"
+    "  end subroutine sub_code\n"
+    "end module test_mod\n"
+
+    )
+
+CODE_DOUBLE_PROCEDURE = (
+    "module test_mod\n"
+    "  type, extends(kernel_type) :: test_type\n"
+    "    type(arg_type), dimension(1) :: meta_args =    &\n"
+    "          (/ arg_type(gh_field,gh_inc,w1) /)\n"
+    "     integer :: operates_on = cell_column\n"
+    "   contains\n"
+    "  end type test_type\n"
+    "  interface test_code\n"
+    "    module procedure sub_code, more_code\n"
+    "  end interface test_code\n"
+    "contains\n"
+    "  subroutine sub_code()\n"
+    "  end subroutine sub_code\n"
+    "  subroutine more_code()\n"
+    "  end subroutine more_code\n"
+    "end module test_mod\n"
+
+    )
+
+
+@pytest.fixture(scope="module", params=[CODE, CODE_INTERFACE],
+                name="get_code_fragment")
+def get_code_fragment_fixture(request):
+    '''Fixture for testing two code versions'''
+    return request.param
 
 # function get_kernel_filepath
 
@@ -133,15 +225,74 @@ def test_getkernelfilepath_caseinsensitive2(tmpdir):
     assert "tmp" in result
     assert "test_mod.f90" in result
 
+
+def test_get_kernel_interface_no_match():
+    ''' Tests that get_kernel_interface() returns None when searching
+        a parse tree that does not contain an interface. '''
+    module_parse_tree = parse(CODE)
+    kernel_type_name = "no_interface_found"
+    meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
+    assert meta1 is None
+    assert meta2 is None
+
+
+def test_get_kernel_interface_match_caseinsensitive():
+    ''' Tests that the interface name is case insensitive'''
+    module_parse_tree = parse(CODE_INTERFACE.replace("test_code", "TeST_CoDe"))
+    kernel_type_name = "interface_found"
+    meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
+    assert meta1 == "test_code"
+    assert meta2 is not None
+
+
+def test_get_kernel_interface_match_no_name():
+    ''' Tests that the interface with no name returns None'''
+    module_parse_tree = parse(CODE_INTERFACE.replace("test_code", ""))
+    kernel_type_name = "interface_withnoname"
+    meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
+    assert meta1 is None
+    assert meta2 is None
+
+
+def test_get_kernel_interface_match_correct():
+    ''' Tests that the get_kernel_interface has correct return when searching
+        for an interface that defines more than one module procedure. '''
+    module_parse_tree = parse(CODE_DOUBLE_PROCEDURE)
+    kernel_type_name = "interface_procedures"
+    meta1, meta2 = get_kernel_interface(kernel_type_name, module_parse_tree)
+    assert meta1 == "test_code"
+    assert meta2[0] == "sub_code"
+    assert meta2[1] == "more_code"
+    assert len(meta2) == 2
+
+
+def test_two_module_procedures():
+    ''' Tests that 'None' is returned as the ast if there are more than
+        one module procedure.'''
+    kp = create_kernelprocedure(CODE_DOUBLE_PROCEDURE)
+    assert kp.name == "test_code"
+    assert kp.ast is None
+
+
+def test_get_kernel_interface_double_interface():
+    ''' Tests that parse error occurs when the parse tree
+        contains two interfaces.'''
+    module_parse_tree = parse(CODE_DOUBLE_INTERFACE)
+    kernel_type_name = "double_interface_kernel"
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = get_kernel_interface(kernel_type_name, module_parse_tree)
+    assert "Module containing kernel double_interface_kernel has more than "\
+           "one interface, this is forbidden in the LFRic API."\
+           in str(excinfo.value)
+
+
 # function get_kernel_metadata
-
-
-def test_get_kernel_metadata_no_match():
+def test_get_kernel_metadata_no_match(get_code_fragment):
     '''Test that we get a ParseError when searching for a kernel that does
     not exist in the parse tree.
 
     '''
-    module_parse_tree = parse(CODE)
+    module_parse_tree = parse(get_code_fragment)
     kernel_type_name = "no_matching_kernel"
     with pytest.raises(ParseError) as excinfo:
         get_kernel_metadata(
@@ -150,23 +301,12 @@ def test_get_kernel_metadata_no_match():
             in str(excinfo.value))
 
 
-def test_get_kernel_metadata_match():
-    '''Test that something (anything at this point) is returned when
-    searching for a kernel that exists in the parse tree.
-
-    '''
-    module_parse_tree = parse(CODE)
-    kernel_type_name = "test_type"
-    meta = get_kernel_metadata(kernel_type_name, module_parse_tree)
-    assert meta is not None
-
-
-def test_get_kernel_metadata_match_case_insensitive():
+def test_get_kernel_metadata_match_case_insensitive(get_code_fragment):
     '''Test that searching for a kernel is not dependent upon the
     case of the name.
 
     '''
-    module_parse_tree = parse(CODE)
+    module_parse_tree = parse(get_code_fragment)
     kernel_type_name = "TeSt_TyPe"
     meta = get_kernel_metadata(kernel_type_name, module_parse_tree)
     # Make sure we found it.
@@ -206,9 +346,8 @@ def test_descriptor_repr():
     tmp = Descriptor("gh_inc", "w1")
     assert repr(tmp) == "Descriptor(gh_inc, w1)"
 
+
 # class KernelProcedure() test utility
-
-
 def create_kernelprocedure(code):
     '''Support function that attempts to create an instance of the
     'KernelProcedure' class. It is assumed that the name of the
@@ -238,21 +377,35 @@ def test_kernelprocedure_notfound():
     module.
 
     '''
+    my_code = CODE.replace("=> test_code", "=> non_existant_code")
     with pytest.raises(ParseError) as excinfo:
-        my_code = CODE.replace("=> test_code", "=> non_existant_code")
         _ = create_kernelprocedure(my_code)
     assert "Kernel subroutine 'non_existant_code' not found." \
         in str(excinfo.value)
 
+
+def test_kernelinterface_notfound():
+    '''Test that the appropriate exception is raised if the kernel
+    subroutine specified in the kernel metadata does not exist in the
+    module.
+
+    '''
+    with pytest.raises(ParseError) as excinfo:
+        my_code = CODE_INTERFACE.replace(
+            "module procedure sub_code",
+            "module procedure sub_code, non_existant_code")
+        _ = create_kernelprocedure(my_code)
+    assert "Kernel subroutine 'non_existant_code' not found." \
+        in str(excinfo.value)
+
+
 # class KernelProcedure() tests
-
-
-def test_kernelprocedure_repr():
+def test_kernelprocedure_repr(get_code_fragment):
     '''Test that the __repr__ method in KernelProcedure() behaves as
     expected.
 
     '''
-    tmp = create_kernelprocedure(CODE)
+    tmp = create_kernelprocedure(get_code_fragment)
     assert repr(tmp) == ("KernelProcedure(test_code)")
 
 
@@ -343,11 +496,60 @@ def test_kerneltype_nargs():
 
 def test_kerneltype_repr():
     '''Test that the __repr__ method in KernelType() behaves as expected.'''
-
+    # With operates_on set
     parse_tree = parse(CODE)
 
     tmp = KernelType(parse_tree)
+    assert repr(tmp) == "KernelType(test_type, cell_column)"
+
+    # With iterates_over set
+    parse_tree = parse(ITERATES_OVER_CODE)
+
+    tmp = KernelType(parse_tree)
     assert repr(tmp) == "KernelType(test_type, cells)"
+
+
+@pytest.mark.parametrize('operates', ["cell_column", "dof"])
+def test_kerneltype_operates_on(operates):
+    ''' Test the parsing of the 'operates_on' metadata element. '''
+    code = CODE.replace("cell_column", operates)
+    parse_tree = parse(code)
+    ktype = KernelType(parse_tree)
+    assert ktype.iterates_over == operates
+    # Check that the parsing is not case sensitive
+    code = CODE.replace("cell_column", operates.upper())
+    parse_tree = parse(code)
+    ktype = KernelType(parse_tree)
+    assert ktype.iterates_over == operates
+
+
+@pytest.mark.parametrize("iterates", ["cells", "dofs"])
+def test_kerneltype_iterates_over(iterates):
+    ''' Test the parsing of the 'iterates_over' metadata element.
+        TODO #870 remove this test. '''
+    code = ITERATES_OVER_CODE.replace("cells", iterates)
+    parse_tree = parse(code)
+    ktype = KernelType(parse_tree)
+    assert ktype.iterates_over == iterates
+    # Check that the parsing is not case sensitive
+    code = ITERATES_OVER_CODE.replace("cells", iterates.upper())
+    parse_tree = parse(code)
+    ktype = KernelType(parse_tree)
+    assert ktype.iterates_over == iterates
+
+
+def test_kerneltype_both_operates_on_iterates_over():
+    ''' Check that KernelType raises the expected error if the kernel
+    metadata specifies *both* operates_on and iterates_over. '''
+    code = ITERATES_OVER_CODE.replace(
+        "   contains\n",
+        "     integer :: operates_on = cell_column\n"
+        "   contains\n")
+    parse_tree = parse(code)
+    with pytest.raises(ParseError) as err:
+        KernelType(parse_tree)
+    assert ("kernel 'test_type' contains both 'operates_on' and "
+            "'iterates_over'" in str(err.value))
 
 
 # Meta-data specifying quadrature
@@ -362,7 +564,7 @@ module dummy_mod
           (/ func_type(w0, gh_diff_basis),     &
              func_type(w1, gh_basis)           &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape(2) = (/gh_quadrature_XYoZ, gh_quadrature_edge/)
    contains
      procedure, nopass :: code => dummy_code
@@ -395,11 +597,11 @@ def test_get_integer_variable():
 def test_get_integer_variable_err():
     ''' Tests that we raise the expected error if the meta-data contains
     an integer literal instead of a name. '''
-    mdata = DIFF_BASIS.replace("= cells", "= 1")
+    mdata = DIFF_BASIS.replace("= cell_column", "= 1")
     ast = parse(mdata, ignore_comments=False)
     with pytest.raises(ParseError) as err:
         _ = KernelType(ast)
-    assert ("RHS of assignment is not a variable name: 'iterates_over = 1'" in
+    assert ("RHS of assignment is not a variable name: 'operates_on = 1'" in
             str(err.value))
 
 
@@ -514,7 +716,6 @@ def test_get_int_array_constructor_err(monkeypatch):
         ''' dummy class '''
         self.items = assign.items
     monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
-
     with pytest.raises(InternalError) as err:
         _ = ktype.get_integer_array("gh_evaluator_targets")
     assert ("Failed to parse array constructor: '[hello, goodbye]'"

@@ -48,7 +48,8 @@ from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
+from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, FunctionSpace
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -61,20 +62,20 @@ TEST_API = "dynamo0.3"
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
-     type(arg_type), meta_args(6) =                  &
-          (/ arg_type(gh_real,  gh_read),            &
-             arg_type(gh_field, gh_inc, w1),         &
-             arg_type(gh_field, gh_read, w2),        &
-             arg_type(gh_operator, gh_read, w2, w2), &
-             arg_type(gh_field, gh_read, w3),        &
-             arg_type(gh_integer, gh_read)           &
+     type(arg_type), meta_args(6) =                     &
+          (/ arg_type(gh_scalar,   gh_real,  gh_read),  &
+             arg_type(gh_field,    gh_inc, w1),         &
+             arg_type(gh_field,    gh_read, w2),        &
+             arg_type(gh_operator, gh_read, w2, w2),    &
+             arg_type(gh_field,    gh_read, w3),        &
+             arg_type(gh_scalar,   gh_integer, gh_read) &
            /)
      type(func_type), dimension(3) :: meta_funcs =   &
           (/ func_type(w1, gh_basis),                &
              func_type(w2, gh_diff_basis),           &
              func_type(w3, gh_basis, gh_diff_basis)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => testkern_qr_code
@@ -109,7 +110,10 @@ def test_ad_op_type_too_few_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
+    assert ("'meta_arg' entry must have 4 arguments if its first "
+            "argument is an operator (one of {0})".
+            format(LFRicArgDescriptor.VALID_OPERATOR_NAMES) in
+            str(excinfo.value))
 
 
 def test_ad_op_type_too_many_args():
@@ -121,7 +125,7 @@ def test_ad_op_type_too_many_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
+    assert "'meta_arg' entry must have 4 arguments" in str(excinfo.value)
 
 
 def test_ad_op_type_wrong_3rd_arg():
@@ -133,8 +137,8 @@ def test_ad_op_type_wrong_3rd_arg():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("dynamo0.3 API the 3rd argument of a meta_arg entry must be "
-            "a valid function space name" in str(excinfo.value))
+    assert ("LFRic API the 3rd argument of a 'meta_arg' operator entry "
+            "must be a valid function space name" in str(excinfo.value))
 
 
 def test_ad_op_type_1st_arg_not_space():
@@ -146,20 +150,84 @@ def test_ad_op_type_1st_arg_not_space():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'meta_arg entry must be a valid function space' in \
-        str(excinfo.value)
+    assert ("'meta_arg' operator entry must be a valid function space" in
+            str(excinfo.value))
+
+
+def test_no_vector_operator():
+    ''' Test that we raise an error when kernel metadata erroneously
+    specifies a vector operator argument. '''
+    code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
+                        "arg_type(gh_operator*3, gh_read, w2, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("vector notation is only supported for ['gh_field'] "
+            "argument types but found 'gh_operator * 3'" in
+            str(excinfo.value))
+
+
+def test_ad_op_type_init_wrong_type():
+    ''' Test that an error is raised if something other than an operator
+    is passed to the LFRicArgDescriptor._init_operator() method. '''
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    # Get an argument which is not an operator
+    wrong_arg = metadata._inits[1]
+    with pytest.raises(InternalError) as excinfo:
+        LFRicArgDescriptor(
+            wrong_arg, metadata.iterates_over)._init_operator(wrong_arg)
+    assert ("LFRicArgDescriptor._init_operator(): expected an "
+            "operator argument but got an argument of type 'gh_field'."
+            in str(excinfo.value))
 
 
 def test_ad_op_type_wrong_access():
-    ''' Test that an error is raised if an operator has gh_inc access. '''
+    ''' Test that an error is raised if an operator has 'gh_inc' access. '''
     code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
                         "arg_type(gh_operator, gh_inc, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the dynamo0.3 API operators cannot have a 'gh_inc' access"
-            in str(excinfo.value))
+    assert ("In the LFRic API, allowed accesses for operators are "
+            "['gh_read', 'gh_write', 'gh_readwrite'] because they behave "
+            "as discontinuous quantities, but found 'gh_inc'" in
+            str(excinfo.value))
+
+
+def test_arg_descriptor_op():
+    ''' Test that the LFRicArgDescriptor argument representation works
+    as expected when we have an operator. '''
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    operator_descriptor = metadata.arg_descriptors[3]
+
+    # Assert correct string representation from LFRicArgDescriptor
+    result = str(operator_descriptor)
+    expected_output = (
+        "LFRicArgDescriptor object\n"
+        "  argument_type[0]='gh_operator'\n"
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_read'\n"
+        "  function_space_to[3]='w2'\n"
+        "  function_space_from[4]='w2'\n")
+    assert expected_output in result
+
+    # Check LFRicArgDescriptor argument properties
+    assert operator_descriptor.argument_type == "gh_operator"
+    assert operator_descriptor.data_type == "gh_real"
+    assert operator_descriptor.function_space_to == "w2"
+    assert operator_descriptor.function_space_from == "w2"
+    assert operator_descriptor.function_space == "w2"
+    assert operator_descriptor.function_spaces == ['w2', 'w2']
+    assert str(operator_descriptor.access) == "READ"
+    assert operator_descriptor.mesh is None
+    assert operator_descriptor.stencil is None
+    assert operator_descriptor.vector_size == 1
 
 
 def test_fs_descriptor_wrong_type():
@@ -258,7 +326,7 @@ def test_fsdesc_fs_not_in_argdesc():
 
 
 def test_operator(tmpdir):
-    ''' Tests that a LMA operator is implemented correctly in the PSy
+    ''' Tests that an LMA operator is implemented correctly in the PSy
     layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api=TEST_API)
@@ -689,10 +757,10 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     arg = call.arguments.args[0]
     # Monkeypatch the argument object so that it thinks it is a
     # field rather than an operator
-    monkeypatch.setattr(arg, "_type", value="gh_field")
+    monkeypatch.setattr(arg, "_argument_type", value="gh_field")
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
-    assert ("Expected a LMA operator from which to look-up boundary dofs "
+    assert ("Expected an LMA operator from which to look-up boundary dofs "
             "but kernel enforce_operator_bc_code has argument gh_field") \
         in str(excinfo.value)
 
@@ -719,7 +787,7 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
             "should only have 1 (an LMA operator)") in str(excinfo.value)
     # And again but make the second argument a field this time
-    call.arguments.args[1]._type = "gh_field"
+    call.arguments.args[1]._argument_type = "gh_field"
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
@@ -767,7 +835,7 @@ module dummy_mod
              arg_type(gh_operator, gh_read,      any_discontinuous_space_1, &
                                                  any_discontinuous_space_1) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -851,29 +919,13 @@ def test_operators():
     assert output in generated_code
 
 
-def test_arg_descriptor_op_str():
-    ''' Tests that the string method for DynArgDescriptor03 works as
-    expected when we have an operator '''
-    ast = fpapi.parse(OPERATORS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    field_descriptor = metadata.arg_descriptors[0]
-    result = str(field_descriptor)
-    expected_output = (
-        "DynArgDescriptor03 object\n"
-        "  argument_type[0]='gh_operator'\n"
-        "  access_descriptor[1]='gh_write'\n"
-        "  function_space_to[2]='w0'\n"
-        "  function_space_from[3]='w0'\n")
-    assert expected_output in result
-
-
 OPERATOR_DIFFERENT_SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
      type(arg_type), meta_args(1) =                  &
           (/ arg_type(gh_operator, gh_write, w0, w1) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -912,5 +964,5 @@ def test_stub_operator_different_spaces():
     assert "dimension(ndf_w3,ndf_adspc2_op_1,op_1_ncell_3d)" in result
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
-    assert "function_space_to[2]='w3'" in result
-    assert "function_space_from[3]='any_discontinuous_space_2'" in result
+    assert "function_space_to[3]='w3'" in result
+    assert "function_space_from[4]='any_discontinuous_space_2'" in result

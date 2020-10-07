@@ -35,14 +35,14 @@
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-''' This module tests the Dynamo 0.3 ArgOrdering base class. '''
+''' This module tests the LFric classes based on ArgOrdering.'''
 
 from __future__ import absolute_import
 import os
 import pytest
 
-from psyclone.domain.lfric import (ArgOrdering, KernCallArgList,
-                                   KernStubArgList)
+from psyclone.domain.lfric import (KernCallArgList,
+                                   KernStubArgList, LFRicArgDescriptor)
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynLoop
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
@@ -53,77 +53,40 @@ from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 TEST_API = "dynamo0.3"
 
 
-def test_unexpected_type_error():
-    '''Check that we raise an exception if an unexpected datatype is found
+def test_unexpected_type_error(dist_mem):
+    ''' Check that we raise an exception if an unexpected datatype is found
     when running the ArgOrdering generate method. As it is abstract we use
-    the KernCallArgList sub class'''
-    for distmem in [False, True]:
-        full_path = os.path.join(get_base_path(TEST_API),
-                                 "1.0.1_single_named_invoke.f90")
-        _, invoke_info = parse(full_path, api=TEST_API)
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=distmem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        if distmem:
-            index = 3
-        else:
-            index = 0
-        loop = schedule.children[index]
-        kernel = loop.loop_body[0]
-        # sabotage one of the arguments to make it have an invalid type.
-        kernel.arguments.args[0]._type = "invalid"
-        # Now call KernCallArgList to raise an exception
-        create_arg_list = KernCallArgList(kernel)
-        with pytest.raises(GenerationError) as excinfo:
-            create_arg_list.generate()
-        assert (
-            "Unexpected arg type found in dynamo0p3.py:ArgOrdering:"
-            "generate()") in str(excinfo.value)
+    the KernCallArgList sub class.
 
-
-def test_argordering_exceptions():
-    '''Check that we raise an exception if the abstract methods are called
-    in an instance of the ArgOrdering class '''
-    for distmem in [False, True]:
-        full_path = os.path.join(get_base_path(TEST_API),
-                                 "1.0.1_single_named_invoke.f90")
-        _, invoke_info = parse(full_path, api=TEST_API)
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=distmem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        if distmem:
-            index = 3
-        else:
-            index = 0
-        loop = schedule.children[index]
-        kernel = loop.loop_body[0]
-        create_arg_list = ArgOrdering(kernel)
-        for method in [create_arg_list.cell_map,
-                       create_arg_list.cell_position,
-                       create_arg_list.mesh_height,
-                       create_arg_list.mesh_ncell2d]:
-            with pytest.raises(NotImplementedError):
-                method()
-        for method in [create_arg_list.field_vector,
-                       create_arg_list.field,
-                       create_arg_list.stencil_unknown_extent,
-                       create_arg_list.stencil_unknown_direction,
-                       create_arg_list.stencil,
-                       create_arg_list.operator,
-                       create_arg_list.fs_compulsory_field,
-                       create_arg_list.fs_intergrid,
-                       create_arg_list.basis,
-                       create_arg_list.diff_basis,
-                       create_arg_list.field_bcs_kernel,
-                       create_arg_list.operator_bcs_kernel,
-                       create_arg_list.cma_operator]:
-            with pytest.raises(NotImplementedError):
-                method(None)
+    '''
+    full_path = os.path.join(get_base_path(TEST_API),
+                             "1.0.1_single_named_invoke.f90")
+    _, invoke_info = parse(full_path, api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    if dist_mem:
+        index = 4
+    else:
+        index = 0
+    loop = schedule.children[index]
+    kernel = loop.loop_body[0]
+    # Sabotage one of the arguments to make it have an invalid type.
+    kernel.arguments.args[0]._argument_type = "invalid"
+    # Now call KernCallArgList to raise an exception
+    create_arg_list = KernCallArgList(kernel)
+    with pytest.raises(GenerationError) as excinfo:
+        create_arg_list.generate()
+    assert (
+        "ArgOrdering.generate(): Unexpected argument "
+        "type found. Expected one of '{0}' but found 'invalid'".
+        format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+        in str(excinfo.value))
 
 
 def test_kernel_stub_invalid_scalar_argument():
-    '''Check that we raise an exception if an unexpected datatype is found
-    when using the KernStubArgList scalar method'''
+    ''' Check that we raise an exception if an unexpected datatype is found
+    when using the KernStubArgList scalar method. '''
     ast = get_ast(TEST_API, "testkern_one_int_scalar_mod.f90")
 
     metadata = DynKernMetadata(ast)
@@ -131,14 +94,14 @@ def test_kernel_stub_invalid_scalar_argument():
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid type.
     arg = kernel.arguments.args[1]
-    arg._type = "invalid"
+    arg._argument_type = "invalid"
     # Now call KernStubArgList to raise an exception
     create_arg_list = KernStubArgList(kernel)
     with pytest.raises(InternalError) as excinfo:
         create_arg_list.scalar(arg)
-    assert (
-        "Expected argument type to be one of '['gh_real', "
-        "'gh_integer']' but got 'invalid'") in str(excinfo.value)
+    assert ("Expected argument type to be one of {0} but got "
+            "'invalid'".format(LFRicArgDescriptor.VALID_SCALAR_NAMES)
+            in str(excinfo.value))
 
 
 def test_kernel_stub_ind_dofmap_errors():
@@ -151,14 +114,14 @@ def test_kernel_stub_ind_dofmap_errors():
     # Now call KernStubArgList to raise an exception
     create_arg_list = KernStubArgList(kernel)
     # First call it without an argument object
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         create_arg_list.indirection_dofmap("w3")
-    assert "no CMA operator supplied" in str(excinfo.value)
+    assert "No CMA operator supplied" in str(excinfo.value)
     # Second, call it with an argument object but one that is not
     # an operator
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         create_arg_list.indirection_dofmap("w3", kernel.arguments.args[1])
-    assert ("a CMA operator (gh_columnwise_operator) must be supplied but "
+    assert ("A CMA operator (gh_columnwise_operator) must be supplied but "
             "got") in str(excinfo.value)
 
 
@@ -172,7 +135,7 @@ def test_kerncallarglist_args_error(dist_mem):
                         dist_mem=dist_mem, idx=0)
     schedule = psy.invokes.invoke_list[0].schedule
     if dist_mem:
-        loop = schedule.children[3]
+        loop = schedule.children[4]
     else:
         loop = schedule.children[0]
     create_arg_list = KernCallArgList(loop.loop_body[0])
@@ -202,8 +165,8 @@ def test_kerncallarglist_args_error(dist_mem):
     with pytest.raises(InternalError) as excinfo:
         _ = create_arg_list.arglist
     assert (
-        "Internal error. The argument list in KernStubArgList:"
-        "arglist() is empty. Has the generate() method been called?"
+        "The argument list in KernCallArgList "
+        "is empty. Has the generate() method been called?"
         ) in str(excinfo.value)
 
 
@@ -239,7 +202,7 @@ def test_kernstubarglist_arglist_error():
     with pytest.raises(InternalError) as excinfo:
         _ = create_arg_list.arglist
     assert (
-        "Internal error. The argument list in KernStubArgList:arglist() is "
+        "The argument list in KernStubArgList is "
         "empty. Has the generate() method been "
         "called?") in str(excinfo.value)
 

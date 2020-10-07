@@ -135,7 +135,7 @@ class UnaryOperation(Operation):
         # Other Maths Operators
         'ABS', 'CEIL',
         # Casting Operators
-        'REAL', 'INT'
+        'REAL', 'INT', 'NINT'
         ])
 
     @staticmethod

@@ -25,11 +25,10 @@ to point to the Fortran compiler and flags to use. They default to
 ``gfortran`` and the empty string. The NetCDF helper program
 ``nf-config`` is used to get the NetCDF-specific include paths.
 
-.. note::
-    Certain versions of Fedora have a broken ``nf-config`` script. In
-    this case you have to modify the Makefile to provide the required
-    information (you can try to see if ``nc-config`` can be used,
-    or you have to explicitly provide the required paths and options).
+**Note** Certain versions of Fedora have a broken ``nf-config`` script. In
+this case you have to modify the Makefile to provide the required
+information (you can try to see if ``nc-config`` can be used,
+or you have to explicitly provide the required paths and options).
 
 The application needs to provide the parameters to link in
 this netcdf-kernel-extraction library, the dl_esm_inf infrastructure library

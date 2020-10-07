@@ -41,12 +41,13 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Reference, Array, Assignment, Literal, \
-    BinaryOperation, Range
+    BinaryOperation, Range, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, ArrayType, \
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE
-from psyclone.psyGen import GenerationError, KernelSchedule
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE
+from psyclone.psyGen import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
+from psyclone.core.access_info import VariablesAccessInfo
 
 
 def test_reference_bad_init():
@@ -222,6 +223,109 @@ def test_array_children_validation():
     array.addchild(erange)
 
 
+def test_array_validate_index():
+    '''Test that the validate_index utility function behaves as expected.'''
+    array = Array.create(DataSymbol("test", ArrayType(REAL_TYPE, [10])),
+                         [Literal("1", INTEGER_TYPE)])
+    with pytest.raises(TypeError) as info:
+        array._validate_index("hello")
+    assert ("The index argument should be an integer but found 'str'."
+            in str(info.value))
+
+    with pytest.raises(ValueError) as info:
+        array._validate_index(1)
+    assert ("In Array 'test' the specified index '1' must be less than the "
+            "number of dimensions '1'." in str(info.value))
+
+    array._validate_index(0)
+    array._validate_index(-1)
+
+
+def test_array_is_lower_bound():
+    '''Test that the is_lower_bound method in the Array Node works as
+    expected.
+
+    '''
+    one = Literal("1", INTEGER_TYPE)
+    array = Array.create(DataSymbol("test", ArrayType(REAL_TYPE, [10])),
+                         [one])
+    with pytest.raises(TypeError) as info:
+        array.is_lower_bound("hello")
+    assert ("The index argument should be an integer but found 'str'."
+            in str(info.value))
+
+    # not a range node at index 0
+    assert not array.is_lower_bound(0)
+
+    # range node does not have a binary operator for its start value
+    array.children[0] = Range.create(one, one, one)
+    assert not array.is_lower_bound(0)
+
+    # range node lbound references a different array
+    array2 = Array.create(DataSymbol("test2", ArrayType(REAL_TYPE, [10])),
+                          [one])
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND, array2,
+        Literal("1", INTEGER_TYPE))
+    array.children[0] = Range.create(operator, one, one)
+    assert not array.is_lower_bound(0)
+
+    # range node lbound references a different index
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND, array,
+        Literal("2", INTEGER_TYPE))
+    array.children[0] = Range.create(operator, one, one)
+    assert not array.is_lower_bound(0)
+
+    # all is well
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND, array, one)
+    array.children[0] = Range.create(operator, one, one)
+    assert array.is_lower_bound(0)
+
+
+def test_array_is_upper_bound():
+    '''Test that the is_upper_bound method in the Array Node works as
+    expected.
+
+    '''
+    one = Literal("1", INTEGER_TYPE)
+    array = Array.create(DataSymbol("test", ArrayType(REAL_TYPE, [10])),
+                         [one])
+    with pytest.raises(TypeError) as info:
+        array.is_upper_bound("hello")
+    assert ("The index argument should be an integer but found 'str'."
+            in str(info.value))
+
+    # not a range node at index 0
+    assert not array.is_upper_bound(0)
+
+    # range node does not have a binary operator for its stop value
+    array.children[0] = Range.create(one, one, one)
+    assert not array.is_upper_bound(0)
+
+    # range node ubound references a different array
+    array2 = Array.create(DataSymbol("test2", ArrayType(REAL_TYPE, [10])),
+                          [one])
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND, array2, one)
+    array.children[0] = Range.create(one, operator, one)
+    assert not array.is_upper_bound(0)
+
+    # range node ubound references a different index
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND, array,
+        Literal("2", INTEGER_TYPE))
+    array.children[0] = Range.create(one, operator, one)
+    assert not array.is_upper_bound(0)
+
+    # all is well
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND, array, one)
+    array.children[0] = Range.create(one, operator, one)
+    assert array.is_upper_bound(0)
+
+
 def test_array_is_full_range():
     '''Test that the is_full_range method in the Array Node works as
     expected. '''
@@ -379,3 +483,46 @@ def test_array_is_full_range():
     my_range = Range.create(lbound, ubound, one)
     array_reference = Array.create(symbol, [my_range])
     assert array_reference.is_full_range(0)
+
+
+def test_reference_accesses():
+    '''Test that the reference_accesses method behaves as expected in the
+    usual case (see the next test for the unusual case).
+
+    '''
+    reference = Reference(DataSymbol("test", REAL_TYPE))
+    var_access_info = VariablesAccessInfo()
+    reference.reference_accesses(var_access_info)
+    assert (str(var_access_info)) == "test: READ"
+
+
+@pytest.mark.parametrize("operator_type", [BinaryOperation.Operator.LBOUND,
+                                           BinaryOperation.Operator.UBOUND])
+def test_reference_accesses_bounds(operator_type):
+    '''Test that the reference_accesses method behaves as expected when
+    the reference is the first argument to either the lbound or ubound
+    intrinsic as that is simply looking up the array bounds (therefore
+    var_access_info should be empty) and when the reference is the
+    second argument of either the lbound or ubound intrinsic (in which
+    case the access should be a read).
+
+    '''
+    # Note, one would usually expect UBOUND to provide the upper bound
+    # of a range but to simplify the test both LBOUND and UBOUND are
+    # used for the lower bound. This does not affect the test.
+    one = Literal("1", INTEGER_TYPE)
+    array_symbol = DataSymbol("test", ArrayType(REAL_TYPE, [10]))
+    array_ref1 = Reference(array_symbol)
+    array_ref2 = Reference(array_symbol)
+    array_access = Array.create(array_symbol, [one])
+
+    # test when first or second argument to LBOUND or UBOUND is an
+    # array reference
+    operator = BinaryOperation.create(operator_type, array_ref1, array_ref2)
+    array_access.children[0] = Range.create(operator, one, one)
+    var_access_info = VariablesAccessInfo()
+    array_ref1.reference_accesses(var_access_info)
+    assert str(var_access_info) == ""
+    var_access_info = VariablesAccessInfo()
+    array_ref2.reference_accesses(var_access_info)
+    assert str(var_access_info) == "test: READ"

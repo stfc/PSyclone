@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,10 @@
 '''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes import ReadOnlyVerifyNode, Schedule
+from psyclone.psyGen import (BuiltIn, Directive, Kern, OMPParallelDirective,
+                             ACCParallelDirective)
+from psyclone.psyir.nodes import (Literal, Loop, ReadOnlyVerifyNode,
+                                  Reference, Schedule)
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -49,37 +52,25 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
     '''This transformation inserts a ReadOnlyVerifyNode or a node derived
     from ReadOnlyVerifyNode into the PSyIR of a schedule. At code creation
     time this node will use the PSyData API to create code that will
-    verify if fields are modified.
+    verify that read-only quantities are not modified.
 
     After applying the transformation the Nodes marked for verification are
     children of the ReadOnlyVerifyNode.
     Nodes to verify can be individual constructs within an Invoke (e.g.
     Loops containing a Kernel or BuiltIn call) or entire Invokes.
 
-    :param node_class: The Node class of which an instance will be inserted \
+    :param node_class: The class of Node which will be inserted \
         into the tree (defaults to ReadOnlyVerifyNode), but can be any \
         derived class.
     :type node_class: :py:class:`psyclone.psyir.nodes.ReadOnlyVerifyNode` or \
         derived class
 
     '''
-    from psyclone.psyir import nodes
-    from psyclone import psyGen
     # The types of node that this transformation can enclose
-    valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.Directive, nodes.Literal, nodes.Reference)
+    valid_node_types = (Loop, Kern, BuiltIn, Directive, Literal, Reference)
 
     def __init__(self, node_class=ReadOnlyVerifyNode):
         super(ReadOnlyVerifyTrans, self).__init__(node_class=node_class)
-
-    def __str__(self):
-        return ("Create a sub-tree of the PSyIR that has a "
-                "ReadOnlyVerifyNode at its root.")
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "ReadOnlyVerifyTrans"
 
     def validate(self, node_list, options=None):
         '''Performs validation checks specific to read-only-based
@@ -88,9 +79,8 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
         :param node_list: the list of Node(s) we are checking.
         :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or NoneType
 
-        :raises TransformationError: if distributed memory is configured.
         :raises TransformationError: if transformation is applied to a \
                                      Kernel or a BuiltIn call without its \
                                      parent Loop.
@@ -100,16 +90,11 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
         :raises TransformationError: if transformation is applied to an \
                                      orphaned Directive without its parent \
                                      Directive.
+
         '''
-
         # Check ReadOnlyVerifyTrans specific constraints.
-
         # Check constraints not covered by valid_node_types for
         # individual Nodes in node_list.
-        from psyclone.psyir.nodes import Loop
-        from psyclone.psyGen import Directive, \
-            OMPParallelDirective, ACCParallelDirective
-
         for node in node_list:
 
             # Check that a ReadOnlyVerifyNode is not inserted between a Loop
@@ -119,20 +104,22 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
             if isinstance(node, Loop) and isinstance(node.parent, Schedule) \
                and isinstance(node.parent.parent, Directive):
                 raise TransformationError(
-                    "Error in {0}: Extraction of a Loop without its parent "
+                    "Error in {0}: Application to a Loop without its parent "
                     "Directive is not allowed.".format(str(self.name)))
 
-            # Check that the ReadOnlyVerifyNode is not inserted within a thread
-            # parallel region when optimisations are applied. For instance,
-            # this may be between an orphaned Directive (e.g. OMPDoDirective,
-            # ACCLoopDirective) and its ancestor Directive (e.g. ACC or OMP
-            # Parallel Directive) or within an OMPParallelDoDirective.
+            # Check that the ReadOnlyVerifyNode is not inserted within a
+            # thread parallel region when optimisations are applied.
             if node.ancestor((OMPParallelDirective, ACCParallelDirective)):
                 raise TransformationError(
-                    "Error in {0}: Extraction of Nodes enclosed within "
+                    "Error in {0}: Application to Nodes enclosed within "
                     "a thread-parallel region is not allowed."
                     .format(str(self.name)))
 
         # Performs validation checks specific to PSyData-based
         # transformations.
         super(ReadOnlyVerifyTrans, self).validate(node_list, options)
+
+
+# ============================================================================
+# For automatic documentation creation:
+__all__ = ["ReadOnlyVerifyTrans"]

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors I. Kavcic, Met Office
+# Authors: I. Kavcic, Met Office.
+#          A. R. Porter, STFC Daresbury Laboratory.
+#          J. Henrichs, Bureau of Meteorology
 
 '''This module contains the base class for extracting extracting a region
 of an Invoke into a stand-alone application."
@@ -39,7 +41,9 @@ of an Invoke into a stand-alone application."
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import ExtractNode, Schedule
+from psyclone.psyGen import (BuiltIn, Directive, Kern, OMPParallelDirective,
+                             ACCParallelDirective, HaloExchange, GlobalSum)
+from psyclone.psyir.nodes import CodeBlock, ExtractNode, Loop, Schedule
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -67,23 +71,12 @@ class ExtractTrans(PSyDataTrans):
         derived class
 
     '''
-    from psyclone.psyir import nodes
-    from psyclone import psyGen
-    # The types of node that this transformation can enclose
-    valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.Directive, nodes.Literal, nodes.Reference)
+    # The types of node that this transformation cannot enclose
+    excluded_node_types = (CodeBlock, ExtractNode,
+                           HaloExchange, GlobalSum)
 
     def __init__(self, node_class=ExtractNode):
         super(ExtractTrans, self).__init__(node_class=node_class)
-
-    def __str__(self):
-        return ("Create a sub-tree of the PSyIR that has ExtractNode "
-                "at its root.")
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "ExtractTrans"
 
     def validate(self, node_list, options=None):
         '''Performs validation checks specific to extract-based
@@ -118,12 +111,8 @@ class ExtractTrans(PSyDataTrans):
                 "Error in {0}: Distributed memory is not supported."
                 .format(str(self.name)))
 
-        # Check constraints not covered by valid_node_types for
+        # Check constraints not covered by excluded_node_types for
         # individual Nodes in node_list.
-        from psyclone.psyir.nodes import Loop
-        from psyclone.psyGen import BuiltIn, Directive, Kern, \
-            OMPParallelDirective, ACCParallelDirective
-
         for node in node_list:
 
             # Check that ExtractNode is not inserted between a Kernel or
@@ -131,7 +120,7 @@ class ExtractTrans(PSyDataTrans):
             if isinstance(node, (Kern, BuiltIn)) and \
                isinstance(node.parent.parent, Loop):
                 raise TransformationError(
-                    "Error in {0}: Extraction of a Kernel or a Built-in "
+                    "Error in {0}: Application to a Kernel or a Built-in "
                     "call without its parent Loop is not allowed."
                     .format(str(self.name)))
 
@@ -140,9 +129,9 @@ class ExtractTrans(PSyDataTrans):
             # result in including the end Directive for extraction but
             # not the beginning.
             if isinstance(node, Loop) and isinstance(node.parent, Schedule) \
-               and isinstance(node.parent.parent, Directive):
+                    and isinstance(node.parent.parent, Directive):
                 raise TransformationError(
-                    "Error in {0}: Extraction of a Loop without its parent "
+                    "Error in {0}: Application to a Loop without its parent "
                     "Directive is not allowed.".format(str(self.name)))
 
             # Check that ExtractNode is not inserted within a thread
@@ -152,7 +141,7 @@ class ExtractTrans(PSyDataTrans):
             # Parallel Directive) or within an OMPParallelDoDirective.
             if node.ancestor((OMPParallelDirective, ACCParallelDirective)):
                 raise TransformationError(
-                    "Error in {0}: Extraction of Nodes enclosed within "
+                    "Error in {0}: Application to Nodes enclosed within "
                     "a thread-parallel region is not allowed."
                     .format(str(self.name)))
 

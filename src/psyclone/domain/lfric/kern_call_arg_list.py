@@ -45,12 +45,13 @@ from collections import namedtuple
 
 from psyclone import psyGen
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import ArgOrdering
+from psyclone.domain.lfric import (ArgOrdering, LFRicArgDescriptor)
 from psyclone.errors import GenerationError, InternalError
 
 
 class KernCallArgList(ArgOrdering):
     # pylint: disable=too-many-public-methods
+    # TODO: #845 Check that all implicit variables have the right type.
     '''Creates the argument list required to call kernel "kern" from the
     PSy-layer and captures the positions of the following arguments in
     the argument list: nlayers, number of quadrature points and number
@@ -64,7 +65,7 @@ class KernCallArgList(ArgOrdering):
     NdfInfo = namedtuple("NdfInfo", ["position", "function_space"])
 
     def __init__(self, kern):
-        ArgOrdering.__init__(self, kern)
+        super(KernCallArgList, self).__init__(kern)
         self._nlayers_positions = []
         self._nqp_positions = []
         self._ndf_positions = []
@@ -100,21 +101,16 @@ class KernCallArgList(ArgOrdering):
         map_name = symtab.name_from_tag(base_name)
         # Add the cell map to our argument list
         self.append("{0}(:,{1})".format(map_name,
-                                        self._cell_ref_name(var_accesses)))
-        if var_accesses is not None:
-            var_accesses.add_access(map_name, AccessType.READ, self._kern)
+                                        self._cell_ref_name(var_accesses)),
+                    var_accesses=var_accesses)
         # No. of fine cells per coarse cell
         base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
         ncellpercell = symtab.name_from_tag(base_name)
-        self.append(ncellpercell)
-        if var_accesses is not None:
-            var_accesses.add_access(ncellpercell, AccessType.READ, self._kern)
+        self.append(ncellpercell, var_accesses)
         # No. of columns in the fine mesh
         base_name = "ncell_{0}".format(farg.name)
         ncell_fine = symtab.name_from_tag(base_name)
-        self.append(ncell_fine)
-        if var_accesses is not None:
-            var_accesses.add_access(ncell_fine, AccessType.READ, self._kern)
+        self.append(ncell_fine, var_accesses)
 
     def mesh_height(self, var_accesses=None):
         '''Add mesh height (nlayers) to the argument list and if supplied
@@ -128,9 +124,7 @@ class KernCallArgList(ArgOrdering):
         '''
         nlayers_name = \
             self._kern.root.symbol_table.name_from_tag("nlayers")
-        self.append(nlayers_name)
-        if var_accesses is not None:
-            var_accesses.add_access(nlayers_name, AccessType.READ, self._kern)
+        self.append(nlayers_name, var_accesses)
         self._nlayers_positions.append(self.num_args)
 
     # TODO uncomment this method when ensuring we only pass ncell3d once
@@ -154,9 +148,7 @@ class KernCallArgList(ArgOrdering):
         '''
         ncell2d_name = \
             self._kern.root.symbol_table.name_from_tag("ncell_2d")
-        self.append(ncell2d_name)
-        if var_accesses is not None:
-            var_accesses.add_access(ncell2d_name, AccessType.READ, self._kern)
+        self.append(ncell2d_name, var_accesses)
 
     def cma_operator(self, arg, var_accesses=None):
         '''Add the CMA operator and associated scalars to the argument
@@ -181,13 +173,12 @@ class KernCallArgList(ArgOrdering):
         for component in components:
             name = self._kern.root.symbol_table.\
                 name_from_tag(arg.name + "_" + component)
-            self.append(name)
-            if var_accesses is not None:
-                # Matrix is an output parameter, the rest are input
-                if component == "matrix":
-                    var_accesses.add_access(name, AccessType.WRITE, self._kern)
-                else:
-                    var_accesses.add_access(name, AccessType.READ, self._kern)
+            # Matrix is an output parameter, the rest are input
+            if component == "matrix":
+                mode = AccessType.WRITE
+            else:
+                mode = AccessType.READ
+            self.append(name, var_accesses, mode=mode)
 
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
@@ -210,9 +201,8 @@ class KernCallArgList(ArgOrdering):
             self.append(text)
         if var_accesses is not None:
             # We add the whole field-vector, not the individual accesses.
-            # Add an arbitrary index to mark this field as array.
             var_accesses.add_access(argvect.name, argvect.access,
-                                    self._kern, [1])
+                                    self._kern)
 
     def field(self, arg, var_accesses=None):
         '''Add the field array associated with the argument 'arg' to the
@@ -227,13 +217,10 @@ class KernCallArgList(ArgOrdering):
 
         '''
         text = arg.proxy_name + "%data"
-        self.append(text)
-        if var_accesses is not None:
-            # Add the field object, not just the proxy part as being read.
-            # It's an array, so add an arbitrary index value for the
-            # stored indices (which is at this stage the only way to
-            # indicate an array access).
-            var_accesses.add_access(arg.name, arg.access, self._kern, [1])
+        # Add the field object arg%name and not just the proxy part
+        # as being read.
+        self.append(text, var_accesses, var_access_name=arg.name,
+                    mode=arg.access)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -251,9 +238,7 @@ class KernCallArgList(ArgOrdering):
         # The extent is not specified in the metadata so pass the value in
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.dofmap_size_name(self._kern.root.symbol_table, arg)
-        self.append(name)
-        if var_accesses is not None:
-            var_accesses.add_access(name, AccessType.READ, self._kern, [1])
+        self.append(name, var_accesses)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -271,9 +256,7 @@ class KernCallArgList(ArgOrdering):
         '''
         # the direction of the stencil is not known so pass the value in
         name = arg.stencil.direction_arg.varname
-        self.append(name)
-        if var_accesses is not None:
-            var_accesses.add_access(name, AccessType.READ, self._kern)
+        self.append(name, var_accesses)
 
     def stencil(self, arg, var_accesses=None):
         '''Add general stencil information associated with the argument 'arg'
@@ -294,9 +277,7 @@ class KernCallArgList(ArgOrdering):
         var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
         name = "{0}(:,:,{1})".format(var_name,
                                      self._cell_ref_name(var_accesses))
-        self.append(name)
-        if var_accesses is not None:
-            var_accesses.add_access(var_name, AccessType.READ, self._kern, [1])
+        self.append(name, var_accesses, var_access_name=var_name)
 
     def operator(self, arg, var_accesses=None):
         '''Add the operator arguments to the argument list. If supplied it
@@ -312,13 +293,10 @@ class KernCallArgList(ArgOrdering):
         '''
         # TODO we should only be including ncell_3d once in the argument
         # list but this adds it for every operator
-        self.append(arg.proxy_name_indexed+"%ncell_3d")
-        self.append(arg.proxy_name_indexed+"%local_stencil")
-        if var_accesses is not None:
-            var_accesses.add_access(arg.proxy_name_indexed+"%ncell_3d",
-                                    AccessType.READ, self._kern)
-            var_accesses.add_access(arg.proxy_name_indexed+"%local_stencil",
-                                    AccessType.WRITE, self._kern, [1])
+        self.append(arg.proxy_name_indexed+"%ncell_3d", var_accesses,
+                    mode=AccessType.READ)
+        self.append(arg.proxy_name_indexed+"%local_stencil", var_accesses,
+                    mode=AccessType.WRITE)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
@@ -326,7 +304,7 @@ class KernCallArgList(ArgOrdering):
 
         :param function_space: the function space for which the related \
             arguments common to LMA operators and fields are added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -344,7 +322,7 @@ class KernCallArgList(ArgOrdering):
 
         :param function_space: the function space for which the compulsory \
             arguments are added.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -352,22 +330,20 @@ class KernCallArgList(ArgOrdering):
 
         '''
         undf_name = function_space.undf_name
-        self.append(undf_name)
+        self.append(undf_name, var_accesses)
         map_name = function_space.map_name
+        # We add the whole map variable,
+        # not just the dimension that is used in the call
         self.append("{0}(:,{1})".format(map_name,
-                                        self._cell_ref_name(var_accesses)))
-        if var_accesses is not None:
-            var_accesses.add_access(undf_name, AccessType.READ, self._kern)
-            # We add the whole map variable,
-            # not just the dimension that is used in the call
-            var_accesses.add_access(map_name, AccessType.READ, self._kern)
+                                        self._cell_ref_name(var_accesses)),
+                    var_accesses, var_access_name=map_name)
 
     def fs_intergrid(self, function_space, var_accesses=None):
         '''Add function-space related arguments for an intergrid kernel.
         If supplied it also stores this access in var_accesses.
 
         :param function_space: the function space for which to add arguments
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -382,14 +358,9 @@ class KernCallArgList(ArgOrdering):
             # dofmap
             self.fs_common(function_space, var_accesses=var_accesses)
             undf_name = function_space.undf_name
-            self.append(undf_name)
+            self.append(undf_name, var_accesses)
             map_name = function_space.map_name
-            self.append(map_name)
-            if var_accesses is not None:
-                var_accesses.add_access(undf_name, AccessType.READ,
-                                        self._kern)
-                var_accesses.add_access(map_name, AccessType.READ,
-                                        self._kern, [1])
+            self.append(map_name, var_accesses)
         else:
             # For the coarse mesh we only need undf and the dofmap for
             # the current column
@@ -402,7 +373,7 @@ class KernCallArgList(ArgOrdering):
 
         :param function_space: the function space for which the basis \
                                function is required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -411,10 +382,7 @@ class KernCallArgList(ArgOrdering):
         '''
         for rule in self._kern.qr_rules.values():
             basis_name = function_space.get_basis_name(qr_var=rule.psy_name)
-            self.append(basis_name)
-            if var_accesses is not None:
-                var_accesses.add_access(basis_name, AccessType.READ,
-                                        self._kern, [1])
+            self.append(basis_name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
             # We are dealing with an evaluator and therefore need as many
@@ -425,10 +393,7 @@ class KernCallArgList(ArgOrdering):
                 # function space
                 fspace = self._kern.eval_targets[fs_name][0]
                 basis_name = function_space.get_basis_name(on_space=fspace)
-                self.append(basis_name)
-                if var_accesses is not None:
-                    var_accesses.add_access(basis_name, AccessType.READ,
-                                            self._kern, [1])
+                self.append(basis_name, var_accesses)
 
     def diff_basis(self, function_space, var_accesses=None):
         '''Add differential basis information for the function space to the
@@ -437,7 +402,7 @@ class KernCallArgList(ArgOrdering):
 
         :param function_space: the function space for which the differential \
             basis functions are required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -447,10 +412,7 @@ class KernCallArgList(ArgOrdering):
         for rule in self._kern.qr_rules.values():
             diff_basis_name = function_space.get_diff_basis_name(
                 qr_var=rule.psy_name)
-            self.append(diff_basis_name)
-            if var_accesses is not None:
-                var_accesses.add_access(diff_basis_name, AccessType.READ,
-                                        self._kern, [1])
+            self.append(diff_basis_name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
             # We are dealing with an evaluator and therefore need as many
@@ -462,10 +424,7 @@ class KernCallArgList(ArgOrdering):
                 fspace = self._kern.eval_targets[fs_name][0]
                 diff_basis_name = function_space.get_diff_basis_name(
                     on_space=fspace)
-                self.append(diff_basis_name)
-                if var_accesses is not None:
-                    var_accesses.add_access(diff_basis_name, AccessType.READ,
-                                            self._kern, [1])
+                self.append(diff_basis_name, var_accesses)
 
     def field_bcs_kernel(self, function_space, var_accesses=None):
         '''Implement the boundary_dofs array fix for a field. If supplied it
@@ -473,11 +432,14 @@ class KernCallArgList(ArgOrdering):
 
         :param function_space: the function space for which boundary dofs \
             are required.
-        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        :raises GenerationError: if the bcs kernel does not contain \
+            a field as argument (but e.g. an operator).
 
         '''
         fspace = None
@@ -487,16 +449,16 @@ class KernCallArgList(ArgOrdering):
         farg = self._kern.arguments.get_arg_on_space(fspace)
         # Sanity check - expect the enforce_bc_code kernel to only have
         # a field argument.
-        if farg.type != "gh_field":
+        if not farg.is_field:
             raise GenerationError(
-                "Expected a gh_field from which to look-up boundary dofs "
-                "for kernel {0} but got {1}".format(self._kern.name,
-                                                    farg.type))
+                "Expected an argument of {0} type from which to look-up "
+                "boundary dofs for kernel {1} but got '{2}'".
+                format(LFRicArgDescriptor.VALID_FIELD_NAMES,
+                       self._kern.name, farg.argument_type))
+
         base_name = "boundary_dofs_" + farg.name
         name = self._kern.root.symbol_table.name_from_tag(base_name)
-        self.append(name)
-        if var_accesses is not None:
-            var_accesses.add_access(name, AccessType.READ, self._kern, [1])
+        self.append(name, var_accesses)
 
     def operator_bcs_kernel(self, function_space, var_accesses=None):
         '''Supply necessary additional arguments for the kernel that
@@ -516,9 +478,7 @@ class KernCallArgList(ArgOrdering):
         op_arg = self._kern.arguments.args[0]
         base_name = "boundary_dofs_"+op_arg.name
         name = self._kern.root.symbol_table.name_from_tag(base_name)
-        self.append(name)
-        if var_accesses is not None:
-            var_accesses.add_access(name, AccessType.READ, self._kern, [1])
+        self.append(name, var_accesses)
 
     def mesh_properties(self, var_accesses=None):
         '''Provide the kernel arguments required for the mesh properties
@@ -552,28 +512,22 @@ class KernCallArgList(ArgOrdering):
                                "gh_quadrature_face"]
 
         for shape, rule in self._kern.qr_rules.items():
-
-            if var_accesses is not None:
-                for var_name in rule.kernel_args:
-                    var_accesses.add_access(var_name, AccessType.READ,
-                                            self._kern)
-
             if shape == "gh_quadrature_xyoz":
                 # XYoZ quadrature requires the number of quadrature points in
                 # the horizontal and in the vertical.
                 self._nqp_positions.append(
                     {"horizontal": self.num_args + 1,
                      "vertical": self.num_args + 2})
-                self.extend(rule.kernel_args)
+                self.extend(rule.kernel_args, var_accesses)
 
             elif shape == "gh_quadrature_edge":
                 # TODO #705 support transformations supplying the number of
                 # quadrature points for edge quadrature.
-                self.extend(rule.kernel_args)
+                self.extend(rule.kernel_args, var_accesses)
             elif shape == "gh_quadrature_face":
                 # TODO #705 support transformations supplying the number of
                 # quadrature points for face quadrature.
-                self.extend(rule.kernel_args)
+                self.extend(rule.kernel_args, var_accesses)
             else:
                 raise NotImplementedError(
                     "quad_rule: no support implemented for quadrature with a "
@@ -587,8 +541,7 @@ class KernCallArgList(ArgOrdering):
             method must be called first.
         :rtype: list of int.
 
-        :raises InternalError: if the generate() method has not been
-        called.
+        :raises InternalError: if the generate() method has not been called.
 
         '''
         if not self._generate_called:
@@ -602,7 +555,7 @@ class KernCallArgList(ArgOrdering):
         ''':return: the positions in the argument list of the variables that \
             pass the number of quadrature points. The number and type of \
             these will change depending on the type of quadrature. A list \
-            of dictionaries is returned with the quadrature directions \
+            of dictionaries is returned with the quadrature types \
             being the keys to the dictionaries and their position in the \
             argument list being the values. At the moment only XYoZ is \
             supported (which has horizontal and vertical quadrature \
@@ -663,3 +616,8 @@ class KernCallArgList(ArgOrdering):
             var_accesses.add_access("cell", AccessType.READ, self._kern)
 
         return "cell"
+
+
+# ============================================================================
+# For automatic documentation creation:
+__all__ = ["KernCallArgList"]
