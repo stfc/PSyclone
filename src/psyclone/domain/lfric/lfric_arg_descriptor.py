@@ -443,7 +443,7 @@ class LFRicArgDescriptor(Descriptor):
                            rev_access_mapping[self._access_type],
                            self._function_space1.lower(), arg_type))
         # Check accesses for kernels that operate on cell-columns
-        elif operates_on == "cell_column":
+        elif operates_on in ["cell_column", "domain"]:
             # Fields on discontinuous function spaces
             if (self._function_space1.lower() in
                     FunctionSpace.VALID_DISCONTINUOUS_NAMES and

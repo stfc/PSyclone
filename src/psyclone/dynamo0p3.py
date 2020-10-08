@@ -908,8 +908,8 @@ class DynKernMetadata(KernelType):
 
         # A kernel which operates on the 'domain' is currently restricted
         # to only accepting scalar and field arguments.
-        valid_arg_types = [LFRicArgDescriptor.VALID_SCALAR_NAMES +
-                           LFRicArgDescriptor.VALID_FIELD_NAMES]
+        valid_arg_types = (LFRicArgDescriptor.VALID_SCALAR_NAMES +
+                           LFRicArgDescriptor.VALID_FIELD_NAMES)
         for arg in self._arg_descriptors:
             if arg.argument_type not in valid_arg_types:
                 raise ParseError(
@@ -925,11 +925,18 @@ class DynKernMetadata(KernelType):
                 "metadata for kernel '{0}' contains an entry for 'meta_funcs'".
                 format(self.name))
 
-        if self.reference_element:
-            raise ParseError("Ni")
+        if self.reference_element.properties:
+            raise ParseError(
+                "Kernel '{0}' operates on the domain but requests properties "
+                "of the reference element ({1}). This is not permitted in the "
+                "LFRic API.".format(self.name,
+                                    self.reference_element.properties))
 
-        if self.mesh:
-            raise ParseError("No")
+        if self.mesh.properties:
+            raise ParseError(
+                "Kernel '{0}' operates on the domain but requests properties "
+                "of the mesh ({1}). This is not permitted in the "
+                "LFRic API.".format(self.name, self.mesh.properties))
 
         if self._cma_operation:
             raise ParseError("Hohoho")
