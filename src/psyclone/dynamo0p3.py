@@ -902,6 +902,8 @@ class DynKernMetadata(KernelType):
         Check whether a kernel that has operates_on == domain obeys
         the rules for the LFRic API.
 
+        :raises ParseError: if the kernel metadata does not obey the rules \
+                            for an LFRic kernel with operates_on = domain.
         '''
         if self.iterates_over != "domain":
             return
@@ -938,11 +940,11 @@ class DynKernMetadata(KernelType):
                 "of the mesh ({1}). This is not permitted in the "
                 "LFRic API.".format(self.name, self.mesh.properties))
 
-        if self._cma_operation:
-            raise ParseError("Hohoho")
-
         if self._is_intergrid:
-            raise ParseError("Hahaha")
+            raise ParseError(
+                "Kernel '{0}' operates on the domain but has fields on "
+                "different mesh resolutions (multi-grid). This is not "
+                "permitted in the LFRic API.".format(self.name))
 
     @property
     def func_descriptors(self):

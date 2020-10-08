@@ -162,3 +162,59 @@ end module testkern_domain_mod
         DynKernMetadata(ast, name="testkern_domain_type")
     assert ("'testkern_domain_type' operates on the domain but requests "
             "properties of the mesh ([" in str(err.value))
+    assert "ADJACENT_FACE" in str(err.value)
+
+
+def test_invalid_ref_elem_props_domain_kernel():
+    ''' Check that we reject a kernel with operates_on=domain if it requires
+    properties of the reference element. '''
+    ast = fpapi.parse('''
+module testkern_domain_mod
+  type, extends(kernel_type) :: testkern_domain_type
+     type(arg_type), meta_args(2) =                     &
+          (/ arg_type(gh_scalar, gh_real, gh_read),     &
+             arg_type(gh_field, gh_inc, w1)             &
+           /)
+     type(reference_element_data_type), dimension(1) :: &
+         meta_reference_element =                       &
+            (/ reference_element_data_type(normals_to_horizontal_faces) /)
+     integer :: operates_on = domain
+   contains
+     procedure, nopass :: code => testkern_domain_code
+  end type testkern_domain_type
+contains
+  subroutine testkern_domain_code(a, b, c, d)
+  end subroutine testkern_domain_code
+end module testkern_domain_mod
+''')
+    with pytest.raises(ParseError) as err:
+        DynKernMetadata(ast, name="testkern_domain_type")
+    assert ("'testkern_domain_type' operates on the domain but requests "
+            "properties of the reference element ([" in str(err.value))
+    assert "NORMALS_TO_HORIZONTAL_FACES" in str(err.value)
+
+
+def test_invalid_mg_domain_kernel():
+    ''' Check that we reject a kernel with operates_on=domain if it involves
+    multi-grid (fields on different grids). '''
+    ast = fpapi.parse('''
+module restrict_mod
+type, public, extends(kernel_type) :: restrict_kernel_type
+   private
+   type(arg_type) :: meta_args(2) = (/                               &
+       arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1, mesh_arg=GH_COARSE), &
+       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, mesh_arg=GH_FINE  )  &
+       /)
+  integer :: operates_on = domain
+contains
+  procedure, nopass :: restrict_kernel_code
+end type restrict_kernel_type
+contains
+  subroutine restrict_kernel_code()
+  end subroutine restrict_kernel_code
+end module restrict_mod
+''')
+    with pytest.raises(ParseError) as err:
+        DynKernMetadata(ast, name="restrict_kernel_type")
+    assert ("'restrict_kernel_type' operates on the domain but has fields on "
+            "different mesh resolutions" in str(err.value))
