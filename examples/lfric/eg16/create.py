@@ -46,8 +46,7 @@ This should output a Fortran representation of the LFRic-PSyIR.
 '''
 # pylint: disable=no-name-in-module
 from __future__ import print_function
-from psyclone.psyGen import KernelSchedule
-from psyclone.psyir.nodes import Call, Reference, Container
+from psyclone.psyir.nodes import Call, Reference, Container, KernelSchedule
 from psyclone.psyir.symbols import RoutineSymbol, SymbolTable, \
     ArgumentInterface
 from psyclone.domain.lfric.psyir import CONSTANTS_MOD, \
