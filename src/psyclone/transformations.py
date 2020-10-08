@@ -123,10 +123,9 @@ class KernelTrans(Transformation):
         try:
             kernel_schedule = kern.get_kernel_schedule()
         except GenerationError as error:
-            raise TransformationError(
-                "Failed to create PSyIR version of kernel code for kernel "
-                "'{0}'. Error reported is {1}".format(kern.name,
-                                                      str(error.value)))
+            message = ("Failed to create PSyIR version of kernel code for "
+                       "kernel '{0}'".format(kern.name))
+            six.raise_from(TransformationError(message), error)
         except SymbolError as err:
             raise TransformationError(
                 "Kernel '{0}' contains accesses to data that are not captured "

@@ -7503,8 +7503,8 @@ class DynKern(CodedKern):
             raise GenerationError(
                 "The number of arguments expected by the psy-layer kernel "
                 "call '{0}' does not match the actual number of kernel "
-                "arguments '{1}'.".format(
-                    expected_n_args, actual_n_args))
+                "arguments '{1}' in kernel '{2}'.".format(
+                    expected_n_args, actual_n_args, self.name))
 
         # 2: Check that the properties of each argument matches
         for idx, kern_code_arg in enumerate(kern_code_args):
@@ -7531,40 +7531,40 @@ class DynKern(CodedKern):
         if actual_datatype != expected_datatype:
             raise GenerationError(
                 "Kernel argument '{0}' has datatype '{1}' "
-                "but the LFRic API expects '{2}'."
+                "in kernel '{2}' but the LFRic API expects '{3}'."
                 "".format(kern_code_arg.name, actual_datatype,
-                          expected_datatype))
+                          self.name, expected_datatype))
         # 2: precision
         actual_precision = kern_code_arg.datatype.precision
         expected_precision = interface_arg.datatype.precision
         if actual_precision.name != expected_precision.name:
             raise GenerationError(
                 "Kernel argument '{0}' has precision '{1}' "
-                "but the LFRic API expects '{2}'."
+                "in kernel '{2}' but the LFRic API expects '{3}'."
                 "".format(kern_code_arg.name, actual_precision.name,
-                          expected_precision.name))
+                          self.name, expected_precision.name))
         # 3: intent
         actual_intent = kern_code_arg.interface.access
         expected_intent = interface_arg.interface.access
         if actual_intent.name != expected_intent.name:
             raise GenerationError(
                 "Kernel argument '{0}' has intent '{1}' "
-                "but the LFRic API expects intent '{2}'."
+                "in kernel '{2}' but the LFRic API expects intent '{3}'."
                 "".format(kern_code_arg.name, actual_intent.name,
-                          expected_intent.name))
+                          self.name, expected_intent.name))
         # 4 scalar or array
         if interface_arg.is_scalar:
             if not kern_code_arg.is_scalar:
                 raise GenerationError(
                     "Kernel argument '{0}' is expected to be a scalar "
-                    "by the LFRic API but it is not."
-                    "".format(kern_code_arg.name))
+                    "by the LFRic API in kernel '{1}' but it is not."
+                    "".format(kern_code_arg.name, self.name))
         elif interface_arg.is_array:
             if not kern_code_arg.is_array:
                 raise GenerationError(
                     "Kernel argument '{0}' is expected to be an array "
-                    "by the LFRic API but it is not."
-                    "".format(kern_code_arg.name))
+                    "by the LFRic API in kernel '{1}' but it is not."
+                    "".format(kern_code_arg.name, self.name))
             # 4.1 array arguments
             for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
                 interface_arg_dim = interface_arg.shape[dim_idx]
@@ -7578,8 +7578,9 @@ class DynKern(CodedKern):
                         kern_code_arg_dim, interface_arg_dim)
         else:
             raise InternalError(
-                "unexpected interface type found for '{0}'. Expecting a "
-                "scalar or an array.".format(kern_code_arg.name))
+                "unexpected interface type found for '{0}' in kernel '{1}'. "
+                "Expecting a scalar or an array.".format(
+                    kern_code_arg.name, self.name))
 
 
 class FSDescriptor(object):

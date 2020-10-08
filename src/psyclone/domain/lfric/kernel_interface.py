@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
 
-'''This module creates the expected arguments for an LFRic kernel
-based on the kernel metadata.
+'''This module creates the expected arguments for an LFRic coded
+kernel based on the kernel metadata.
 
 '''
 # pylint: disable=no-name-in-module, too-many-public-methods

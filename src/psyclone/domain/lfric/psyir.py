@@ -56,10 +56,10 @@ modules = [
 # Generate LFRic module symbols from definitions
 for module in modules:
     MODULE_NAME = module.name
-    # Create the module (ContainerSymbol)
+    # Create the module (using a PSyIR ContainerSymbol)
     exec("{0} = ContainerSymbol('{1}')\n".format(
         MODULE_NAME.upper(), MODULE_NAME))
-    # Create the variables specified by the module (DataSymbols)
+    # Create the variables specified by the module (using PSyIR DataSymbols)
     for module_var in module.vars:
         exec("{0} = DataSymbol('{1}', DeferredType(), interface="
              "GlobalInterface({2}))".format(
@@ -105,10 +105,10 @@ for info in generic_scalar_datatypes:
 # The first Scalar named-tuple argument determines the names of the
 # resultant datatype and datasymbol classes, the second argument
 # references the generic scalar type classes declared above and the
-# third argument specifies any additional class variables that should
+# third argument specifies any additional class properties that should
 # be declared in the generated datasymbol class.
 
-Scalar = namedtuple('Scalar', ["name", "generic_type", "variables"])
+Scalar = namedtuple('Scalar', ["name", "generic_type", "properties"])
 specific_scalar_datatypes = [
     Scalar("cell position", "lfric integer scalar", []),
     Scalar("mesh height", "lfric integer scalar", []),
@@ -125,8 +125,8 @@ specific_scalar_datatypes = [
 for info in specific_scalar_datatypes:
     NAME = "".join(info.name.title().split())
     TYPE = "".join(info.generic_type.title().split())
-    ARGS = ["self", "name"] + info.variables + ["interface=None"]
-    VARS = ["        self.{0} = {0}".format(var) for var in info.variables]
+    ARGS = ["self", "name"] + info.properties + ["interface=None"]
+    VARS = ["        self.{0} = {0}".format(var) for var in info.properties]
     # Create the specific datatype
     exec(
         "class {0}DataType({1}DataType):\n"
@@ -153,10 +153,10 @@ for info in specific_scalar_datatypes:
 # references the generic scalar type classes declared above, the third
 # argument specifies the dimensions of the array by specifying a list
 # of scalar type classes declared above, and the fourth argument
-# specifies any additional class variables that should be declared in
+# specifies any additional class properties that should be declared in
 # the generated datasymbol class.
 
-Array = namedtuple('Array', ["name", "scalar_type", "dims", "variables"])
+Array = namedtuple('Array', ["name", "scalar_type", "dims", "properties"])
 field_datatypes = [
     Array("real field data", "lfric real scalar", ["number of unique dofs"],
           ["fs"]),
@@ -219,9 +219,9 @@ for array_type in array_datatypes + field_datatypes:
     NAME = "".join(array_type.name.title().split())
     DIMS = array_type.dims
     SCALAR_TYPE = "".join(array_type.scalar_type.title().split())
-    ARGS = ["self", "name", "dims"] + array_type.variables + ["interface=None"]
+    ARGS = ["self", "name", "dims"] + array_type.properties + ["interface=None"]
     VARS = ["        self.{0} = {0}".format(var) for var in
-            array_type.variables]
+            array_type.properties]
     # Create the specific datatype
     exec(
         "class {0}DataType(ArrayType):\n"

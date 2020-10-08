@@ -450,13 +450,13 @@ The LFRic PSyIR is a set of subclasses of the PSyIR which captures
 LFRic-specific datatypes and associated symbols. These subclasses are
 work in progress and at the moment are limited to a subset of the
 datatypes passed into LFRic kernels by argument and by use
-association. Over time these will be expanded to support all LFRic
-kernel datatypes, all LFRic PSyIR datatypes, LFRic calls (InvokeCall
-and KernCall), subroutines (KernRoutine etc), derived quantities
-e.g. iterator variables and eventually higher level LFRic PSyIR
-concepts which will not be conserned with symbol tables and datatypes.
+association. Over time these will be expanded to support a) all LFRic
+kernel datatypes, b) all LFRic PSyIR datatypes, c) LFRic calls (InvokeCall
+and KernCall), d) subroutines (KernRoutine etc), e) derived quantities
+e.g. iterator variables and eventually f) higher level LFRic PSyIR
+concepts, which will not be concerned with symbol tables and datatypes.
 
-These subclasses will be used to
+These subclasses will be used to:
 
 1) check that the data types, dimensions, intent etc. of a coded
    kernel's subroutine arguments conform to the expected datatypes,
