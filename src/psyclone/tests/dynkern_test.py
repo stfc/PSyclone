@@ -46,12 +46,13 @@ import pytest
 from fparser import api as fpapi
 
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, KernelSchedule
+from psyclone.psyGen import PSyFactory
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.errors import InternalError, GenerationError
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
     INTEGER_TYPE
+from psyclone.psyir.nodes import KernelSchedule
 from psyclone.domain.lfric.psyir import LfricRealScalarDataSymbol, \
     RealFieldDataDataSymbol, LfricIntegerScalarDataSymbol, \
     NumberOfUniqueDofsDataSymbol
@@ -191,8 +192,8 @@ def test_validate_kernel_code_args(monkeypatch):
         kernel.validate_kernel_code_args()
     assert (
         "The number of arguments expected by the psy-layer kernel call '8' "
-        "does not match the actual number of kernel arguments '9'."
-        in str(info.value))
+        "does not match the actual number of kernel arguments '9' in kernel "
+        "'matrix_vector_code'." in str(info.value))
 
 
 def test_validate_kernel_code_arg():
@@ -202,6 +203,8 @@ def test_validate_kernel_code_arg():
 
     '''
     kernel = DynKern()
+    # Kernel name needs to be set when testing exceptions.
+    kernel._name = "dummy"
     read_access = ArgumentInterface(ArgumentInterface.Access.READ)
 
     real_scalar_symbol = DataSymbol(
@@ -225,32 +228,35 @@ def test_validate_kernel_code_arg():
         kernel._validate_kernel_code_arg(
             lfric_real_scalar_symbol, lfric_int_scalar_symbol)
     assert (
-        "Kernel argument 'scalar' has datatype 'Intrinsic.REAL' but the "
-        "LFRic API expects 'Intrinsic.INTEGER'" in str(info.value))
+        "Kernel argument 'scalar' has datatype 'Intrinsic.REAL' in kernel "
+        "'dummy' but the LFRic API expects 'Intrinsic.INTEGER'"
+        in str(info.value))
 
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(lfric_real_scalar_symbol,
                                          real_scalar_symbol)
-    assert ("Kernel argument 'scalar' has precision 'r_def' but the LFRic "
-            "API expects 'UNDEFINED'." in str(info.value))
+    assert ("Kernel argument 'scalar' has precision 'r_def' in kernel "
+            "'dummy' but the LFRic API expects 'UNDEFINED'."
+            in str(info.value))
 
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(real_scalar_symbol,
                                          real_scalar_rw_symbol)
-    assert ("Kernel argument 'generic_real_scalar' has intent 'READ' but the "
-            "LFRic API expects intent 'READWRITE'." in str(info.value))
+    assert ("Kernel argument 'generic_real_scalar' has intent 'READ' in "
+            "kernel 'dummy' but the LFRic API expects intent "
+            "'READWRITE'." in str(info.value))
 
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(lfric_real_field_symbol,
                                          lfric_real_scalar_symbol)
     assert ("Kernel argument 'field' is expected to be a scalar by the LFRic "
-            "API but it is not." in str(info.value))
+            "API in kernel 'dummy' but it is not." in str(info.value))
 
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(lfric_real_scalar_symbol,
                                          lfric_real_field_symbol)
     assert ("Kernel argument 'scalar' is expected to be an array by the LFRic "
-            "API but it is not." in str(info.value))
+            "API in kernel 'dummy' but it is not." in str(info.value))
 
     undf = NumberOfUniqueDofsDataSymbol("undf", fs="w0", interface=read_access)
     lfric_real_field_symbol2 = RealFieldDataDataSymbol(
@@ -268,5 +274,5 @@ def test_validate_kernel_code_arg():
         kernel._validate_kernel_code_arg(lfric_real_field_symbol2,
                                          lfric_real_field_symbol3)
     assert (
-        "Kernel argument 'undf' has precision 'i_def' but the LFRic API "
-        "expects 'UNDEFINED'" in str(info.value))
+        "Kernel argument 'undf' has precision 'i_def' in kernel 'dummy' but "
+        "the LFRic API expects 'UNDEFINED'" in str(info.value))

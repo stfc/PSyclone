@@ -98,7 +98,7 @@ def test_accroutine_err(monkeypatch):
     assert(
         "Failed to create PSyIR version of kernel code for kernel "
         "'testkern_code'. Error reported is Generation Error: Unexpected "
-        "kernel AST. Could not find subroutine: testkern_code"
+        "kernel AST. Could not find subroutine: testkern_code."
         in str(err.value))
 
 
