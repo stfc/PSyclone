@@ -45,6 +45,7 @@ import pytest
 
 from fparser import api as fpapi
 
+import psyclone
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
@@ -196,7 +197,7 @@ def test_validate_kernel_code_args(monkeypatch):
         "'matrix_vector_code'." in str(info.value))
 
 
-def test_validate_kernel_code_arg():
+def test_validate_kernel_code_arg(monkeypatch):
     '''Test that this method returns successfully if its two arguments
     have identical content, otherwise test that the expected
     exceptions are raised.
@@ -261,7 +262,7 @@ def test_validate_kernel_code_arg():
     undf = NumberOfUniqueDofsDataSymbol("undf", fs="w0", interface=read_access)
     lfric_real_field_symbol2 = RealFieldDataDataSymbol(
         "field", dims=[undf], fs="w0", interface=read_access)
-    # if one of the dimensions is not a datasymbol then they arguments
+    # if one of the dimensions is not a datasymbol then the arguments
     # are not checked.
     kernel._validate_kernel_code_arg(lfric_real_field_symbol,
                                      lfric_real_field_symbol2)
@@ -276,3 +277,15 @@ def test_validate_kernel_code_arg():
     assert (
         "Kernel argument 'undf' has precision 'i_def' in kernel 'dummy' but "
         "the LFRic API expects 'UNDEFINED'" in str(info.value))
+
+    # monkeypatch lfric_real_scalar_symbol to return that it is not a
+    # scalar in order to force the required exception. We do this by
+    # changing the ScalarType as it is used when determining whether
+    # the symbol is a scalar.
+    monkeypatch.setattr(psyclone.psyir.symbols, "ScalarType", str)
+    with pytest.raises(InternalError) as info:
+        kernel._validate_kernel_code_arg(
+            lfric_real_scalar_symbol, lfric_real_scalar_symbol)
+    assert (
+        "unexpected interface type found for 'scalar' in kernel 'dummy'. "
+        "Expecting a scalar or an array." in str(info.value))

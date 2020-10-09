@@ -2522,7 +2522,6 @@ def test_mkern_invoke_multiple_any_spaces(tmpdir):
             in gen)
 
 
-@pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
 def test_loopfuse():
     ''' Tests whether loop fuse actually fuses and whether
     multiple maps are produced or not. Multiple maps are not an
@@ -2530,7 +2529,7 @@ def test_loopfuse():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4_multikernel_invokes.f90"),
                            api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
     loop1 = schedule.children[0]
