@@ -6540,36 +6540,48 @@ class DynLoop(Loop):
         if arg.is_operator:
             # Operators do not have halos
             return False
-        if arg.discontinuous and arg.access in \
-                [AccessType.READ, AccessType.READWRITE]:
-            # There are no shared dofs so access to inner and ncells are
-            # local so we only care about reads in the halo
-            return self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS
-        if arg.access in [AccessType.READ, AccessType.INC]:
-            # Argument  is either continuous or we don't know (any_space_x)
-            # and we need to assume it may be continuous for correctness
+        if arg.access in [AccessType.READ, AccessType.READWRITE,
+                          AccessType.INC]:
             if self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
-                # we read in the halo
                 return True
-            if self._upper_bound_name in ["ncells", "nannexed"]:
+            if not arg.discontinuous and \
+               self._upper_bound_name in ["ncells", "nannexed"]:
                 # We read annexed dofs. Return False if we always
                 # compute annexed dofs and True if we don't (as
                 # annexed dofs are part of the level 1 halo).
                 return not Config.get()\
                                  .api_conf("dynamo0.3").compute_annexed_dofs
-            if self._upper_bound_name in ["ndofs"]:
-                # Argument does not read from the halo
-                return False
-            # Nothing should get to here so raise an exception
-            raise InternalError(
-                "DynLoop._halo_read_access(): It should not be possible to "
-                "get to here. Loop upper bound name is '{0}' and arg '{1}' "
-                "access is '{2}'.".format(
-                    self._upper_bound_name, arg.name,
-                    arg.access.api_specific_name()))
-
-        # Access is neither a read nor an inc so does not need halo
         return False
+        #if arg.discontinuous and arg.access in \
+        #        [AccessType.READ, AccessType.READWRITE]:
+        #    # There are no shared dofs so access to inner and ncells are
+        #    # local so we only care about reads in the halo
+        #    return self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS
+        #if arg.access in [AccessType.READ, AccessType.INC]:
+        #    # Argument  is either continuous or we don't know (any_space_x)
+        #    # and we need to assume it may be continuous for correctness
+        #    if self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
+        #        # we read in the halo
+        #        return True
+        #    if self._upper_bound_name in ["ncells", "nannexed"]:
+        #        # We read annexed dofs. Return False if we always
+        #        # compute annexed dofs and True if we don't (as
+        #        # annexed dofs are part of the level 1 halo).
+        #        return not Config.get()\
+        #                         .api_conf("dynamo0.3").compute_annexed_dofs
+        #    if self._upper_bound_name in ["ndofs"]:
+        #        # Argument does not read from the halo
+        #        return False
+        #    # Nothing should get to here so raise an exception
+        #    raise InternalError(
+        #        "DynLoop._halo_read_access(): It should not be possible to "
+        #        "get to here. Loop upper bound name is '{0}' and arg '{1}' "
+        #        "access is '{2}'.".format(
+        #            self._upper_bound_name, arg.name,
+        #            arg.access.api_specific_name()))
+        #
+        ## Access is neither a read nor an inc so does not need halo
+        #return False
 
     def _add_field_component_halo_exchange(self, halo_field, idx=None):
         '''An internal helper method to add the halo exchange call immediately

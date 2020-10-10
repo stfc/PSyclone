@@ -6615,43 +6615,6 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_loop_cont_read_inv_bound(monkeypatch, annexed, tmpdir):
-    ''' When a continuous argument is read it may access the halo. The
-    logic for this is in _halo_read_access. If the loop type in this
-    routine is not known then an exception is raised. This test checks
-    that this exception is raised correctly. We test separately for
-    annexed dofs being computed or not as this affects the number of
-    halo exchanges produced.
-
-    '''
-    api_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1_single_invoke_any_discontinuous_space.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    # First test compilation ...
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    # and then proceed to checks
-    if annexed:
-        # no halo exchanges generated
-        loop = schedule.children[0]
-    else:
-        # 2 halo exchanges generated
-        loop = schedule.children[2]
-    kernel = loop.loop_body[0]
-    f2_arg = kernel.arguments.args[1]
-    #
-    monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
-    with pytest.raises(InternalError) as excinfo:
-        _ = loop._halo_read_access(f2_arg)
-    assert ("DynLoop._halo_read_access(): It should not be possible to "
-            "get to here. Loop upper bound name is 'invalid' and arg "
-            "'f2' access is 'gh_read'.") in str(excinfo.value)
-
-
 def test_new_halo_exch_vect_field(monkeypatch):
     '''If a field requires (or may require) a halo exchange before it is
     accessed and it has more than one backward write dependency then it
