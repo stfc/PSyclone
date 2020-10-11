@@ -7508,3 +7508,41 @@ def test_read_only_fields_hex(tmpdir):
         "        CALL f2_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n")
     assert expected in generated_code
+
+
+def test_dynloop_halo_read_access_error1(monkeypatch):
+    '''Test that the halo_read_access method in class DynLoop raises the
+    expected exception when an unsupported field access is found.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule[4]
+    kernel = loop.loop_body[0]
+    field = kernel.arguments.args[1]
+    monkeypatch.setattr(field, "_access", "unsupported")
+    with pytest.raises(InternalError) as info:
+        loop._halo_read_access(field)
+    assert ("Unexpected field access type 'unsupported' found."
+            in str(info.value))
+
+
+def test_dynloop_halo_read_access_error2(monkeypatch):
+    '''Test that the halo_read_access method in class DynLoop raises the
+    expected exception when an unsupported field type is found.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule[4]
+    kernel = loop.loop_body[0]
+    field = kernel.arguments.args[1]
+    monkeypatch.setattr(field, "_argument_type", "unsupported")
+    with pytest.raises(InternalError) as info:
+        loop._halo_read_access(field)
+    assert ("Expecting arg 'f1' to be an operator, scalar or field."
+            in str(info.value))
