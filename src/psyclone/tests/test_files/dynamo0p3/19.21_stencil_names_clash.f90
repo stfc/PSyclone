@@ -31,7 +31,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic and A. Coughtrie, Met Office
+! Modified I. Kavcic, Met Office
 
 program single_stencil
   ! Description: single stencil with an xory1d stencil specified in
@@ -45,7 +45,7 @@ program single_stencil
   implicit none
 
   type(field_type) :: f1, f2, f3, f4
-  integer(i_def)   :: f2_stencil_sizes = 1
+  integer(i_def)   :: f2_stencil_size = 1
   integer(i_def)   :: nlayers = x_direction
 
   ! Rename "f2_extent" to "f2_stencil_size" as this is an internally
@@ -53,7 +53,7 @@ program single_stencil
   ! "nlayers" as this is an internally generated name in the PSy-layer.
 
   call invoke(                                                                &
-       testkern_stencil_xory1d_type(f1, f2, f2_stencil_sizes, nlayers, f3, f4) &
+       testkern_stencil_xory1d_type(f1, f2, f2_stencil_size, nlayers, f3, f4) &
        )
 
 end program single_stencil

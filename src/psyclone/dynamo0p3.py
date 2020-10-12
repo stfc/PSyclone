@@ -1466,10 +1466,6 @@ class DynStencils(DynCollection):
                                 ","+self.extent_value(arg)+")"))
                         parent.add(if_then)
                 elif stencil_type == "cross2d":
-                    # raise GenerationError(
-                    #     "Test error for stencil type '{0}'".
-                    #     format(arg.descriptor.stencil['type'],
-                    #     str(LFRicArgDescriptor.STENCIL_MAPPING)))
                     parent.add(
                         AssignGen(parent, pointer=True, lhs=map_name,
                                   rhs=arg.proxy_name_indexed +
@@ -1529,15 +1525,19 @@ class DynStencils(DynCollection):
             stencil_map_names.append(map_name)
             stencil_type = arg.descriptor.stencil['type']
             if stencil_type == "cross2d":
-                parent.add(UseGen(parent, name="stencil_2D_dofmap_mod", only=True,
-                                  funcnames=["stencil_2D_dofmap_type"]))
+                parent.add(UseGen(parent, name="stencil_2D_dofmap_mod",
+                                  only=True,
+                                  funcnames=["stencil_2D_dofmap_type",
+                                             "STENCIL_2D_CROSS"]))
                 parent.add(TypeDeclGen(parent, pointer=True,
                                        datatype="stencil_2D_dofmap_type",
-                                       entity_decls=[map_name + " => null()"]))
+                                       entity_decls=[map_name +
+                                                     " => null()"]))
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    pointer=True,
-                                   entity_decls=[self.dofmap_name(symtab, arg) +
+                                   entity_decls=[self.dofmap_name(symtab,
+                                                                  arg) +
                                                  "(:,:,:,:) => null()"]))
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
@@ -1546,15 +1546,37 @@ class DynStencils(DynCollection):
                                                                        arg) +
                                                  "(:,:) => null()"]))
             else:
-                parent.add(UseGen(parent, name="stencil_dofmap_mod", only=True,
+                parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                                  only=True,
                                   funcnames=["stencil_dofmap_type"]))
+                if stencil_type == 'xory1d':
+                    parent.add(UseGen(parent, name="flux_direction_mod",
+                                      only=True, funcnames=["x_direction",
+                                                            "y_direction"]))
+                    parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                                      only=True, funcnames=["STENCIL_1DX",
+                                                            "STENCIL_1DY"]))
+                else:
+                    try:
+                        stencil_name = \
+                            LFRicArgDescriptor.STENCIL_MAPPING[stencil_type]
+                    except KeyError:
+                        raise GenerationError(
+                            "Unsupported stencil type '{0}' supplied. "
+                            "Supported mappings are {1}".
+                                format(arg.descriptor.stencil['type'],
+                                       str(LFRicArgDescriptor.STENCIL_MAPPING)))
+                    parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                                      only=True, funcnames=[stencil_name]))
+
                 parent.add(TypeDeclGen(parent, pointer=True,
                                        datatype="stencil_dofmap_type",
                                        entity_decls=[map_name+" => null()"]))
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    pointer=True,
-                                   entity_decls=[self.dofmap_name(symtab, arg) +
+                                   entity_decls=[self.dofmap_name(symtab,
+                                                                  arg) +
                                                  "(:,:,:) => null()"]))
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
@@ -1562,35 +1584,6 @@ class DynStencils(DynCollection):
                                    entity_decls=[self.dofmap_size_name(symtab,
                                                                        arg) +
                                                  "(:) => null()"]))
-
-            if stencil_type == "xory1d":
-                parent.add(UseGen(parent, name="flux_direction_mod",
-                                  only=True, funcnames=["x_direction",
-                                                        "y_direction"]))
-                parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                                  only=True, funcnames=["STENCIL_1DX",
-                                                        "STENCIL_1DY"]))
-            elif stencil_type == "cross2d":
-                parent.add(UseGen(parent, name="stencil_2D_dofmap_mod",
-                                  only=True, funcnames=["STENCIL_2D_CROSS"]))
-            else:
-                try:
-                    stencil_name = \
-                        LFRicArgDescriptor.STENCIL_MAPPING[stencil_type]
-                except KeyError:
-                    raise GenerationError(
-                        "Unsupported stencil type '{0}' supplied. "
-                        "Supported mappings are {1}".
-                        format(arg.descriptor.stencil['type'],
-                               str(LFRicArgDescriptor.STENCIL_MAPPING)))
-                parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                                  only=True, funcnames=[stencil_name]))
-                parent.add(
-                    DeclGen(parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            pointer=True,
-                            entity_decls=[self.dofmap_name(symtab, arg) +
-                                          "(:,:,:) => null()"]))
 
     def _declare_maps_stub(self, parent):
         '''

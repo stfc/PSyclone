@@ -114,9 +114,10 @@ class KernCallAccArgList(KernCallArgList):
         self.append(var_name, var_accesses)
 
     def stencil_2d(self, arg, var_accesses=None):
-        '''Add 2D general stencil information associated with the argument 'arg'
-        to the argument list. OpenACC requires the full dofmap to be
-        specified. If supplied it also stores this access in var_accesses.
+        '''Add general 2D stencil information associated with the argument
+        'arg' to the argument list. OpenACC requires the full dofmap to be
+        specified. If supplied it also stores this access in var_accesses.This
+        method passes through to the stencil method.
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
@@ -127,9 +128,7 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
-        self.append(var_name, var_accesses)
+        self.stencil(arg, var_accesses)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -152,7 +151,8 @@ class KernCallAccArgList(KernCallArgList):
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
         '''Add 2D stencil information to the argument list associated with the
         argument 'arg' if the extent is unknown. If supplied it also stores
-        this access in var_accesses.
+        this access in var_accesses. This method passes through to the
+        stencil_unknown_extent method.
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -162,10 +162,7 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        # The extent is not specified in the metadata so pass the value in
-        from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.dofmap_size_name(self._kern.root.symbol_table, arg)
-        self.append(name, var_accesses)
+        self.stencil_unknown_extent(arg, var_accesses)
 
     def operator(self, arg, var_accesses=None):
         '''Add the operator arguments if they have not already been

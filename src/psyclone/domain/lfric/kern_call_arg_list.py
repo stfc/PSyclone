@@ -239,8 +239,7 @@ class KernCallArgList(ArgOrdering):
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_size_name(self._kern.root.symbol_table,
                                                 arg)
-        name = "{0}({1})".format(var_name,
-                                     self._cell_ref_name(var_accesses))
+        name = "{0}({1})".format(var_name, self._cell_ref_name(var_accesses))
         self.append(name, var_accesses, var_access_name=var_name)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
@@ -261,7 +260,7 @@ class KernCallArgList(ArgOrdering):
         var_name = DynStencils.dofmap_size_name(self._kern.root.symbol_table,
                                                 arg)
         name = "{0}(:,{1})".format(var_name,
-                                     self._cell_ref_name(var_accesses))
+                                   self._cell_ref_name(var_accesses))
         self.append(name, var_accesses, var_access_name=var_name)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
@@ -321,7 +320,7 @@ class KernCallArgList(ArgOrdering):
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
         name = "{0}(:,:,:,{1})".format(var_name,
-                                     self._cell_ref_name(var_accesses))
+                                       self._cell_ref_name(var_accesses))
         self.append(name, var_accesses, var_access_name=var_name)
 
     def operator(self, arg, var_accesses=None):

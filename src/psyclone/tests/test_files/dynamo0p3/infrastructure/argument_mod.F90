@@ -38,7 +38,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified I. Kavcic, Met Office
+! Modified I. Kavcic and A. Coughtrie, Met Office
 !          A. R. Porter, STFC Daresbury Laboratory
 
 !> @brief The argument type to hold kernel metadata required by the PSy layer.
@@ -127,11 +127,12 @@ module argument_mod
   integer, public, parameter :: GH_EVALUATOR        = 510
 
   ! Stencil metadata
-  integer, public, parameter :: XORY1D = 1
-  integer, public, parameter :: X1D    = 2
-  integer, public, parameter :: Y1D    = 3
-  integer, public, parameter :: CROSS  = 4
-  integer, public, parameter :: STENCIL(4) = -1
+  integer, public, parameter :: XORY1D  = 1
+  integer, public, parameter :: X1D     = 2
+  integer, public, parameter :: Y1D     = 3
+  integer, public, parameter :: CROSS   = 4
+  integer, public, parameter :: CROSS2D = 5
+  integer, public, parameter :: STENCIL(5) = -1
 
   ! For inter-grid kernels
   integer, public, parameter :: GH_FINE = 701

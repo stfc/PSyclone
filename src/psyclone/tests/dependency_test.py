@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter and R. W. Ford  STFC Daresbury Lab
-# Modified: I. Kavcic and A. Coughtrie, Met Office
+# Modified: I. Kavcic, Met Office
 
 
 ''' Module containing py.test tests for dependency analysis.'''
@@ -553,7 +553,7 @@ def test_lfric_stencils():
     '''
     _, invoke_info = get_invoke("14.4_halo_vector.f90", "dynamo0.3", idx=0)
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
-    assert "f2_stencil_sizes: READ" in var_info
+    assert "f2_stencil_size: READ" in var_info
     assert "f2_stencil_dofmap: READ" in var_info
 
 
@@ -625,14 +625,14 @@ def test_lfric_stub_args():
     var_info = str(var_accesses)
     assert "field_1_w1: READ+WRITE" in var_info
     assert "field_2_stencil_dofmap: READ" in var_info
-    assert "field_2_stencil_sizes: READ" in var_info
+    assert "field_2_stencil_size: READ" in var_info
     assert "field_2_w2: READ" in var_info
     assert "field_3_direction: READ" in var_info
     assert "field_3_stencil_dofmap: READ" in var_info
-    assert "field_3_stencil_sizes: READ" in var_info
+    assert "field_3_stencil_size: READ" in var_info
     assert "field_3_w2: READ" in var_info
     assert "field_4_stencil_dofmap: READ" in var_info
-    assert "field_4_stencil_sizes: READ" in var_info
+    assert "field_4_stencil_size: READ" in var_info
     assert "field_4_w3: READ" in var_info
     assert "map_w1: READ" in var_info
     assert "map_w2: READ" in var_info

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@ module testkern_stencil_cross2d_mod
   use constants_mod
 
   implicit none
-
+  ! Test kernel for 2D Cross stencil use
   type, extends(kernel_type) :: testkern_stencil_cross2d_type
      type(arg_type), dimension(4) :: meta_args =              &
           (/ arg_type(gh_field, gh_inc,  w1),                 &
@@ -69,11 +69,11 @@ contains
     integer(kind=i_def), intent(in) :: ndf_w2
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: undf_w1, undf_w2, undf_w3
-    integer(kind=i_def), intent(in) :: fld2_st_size
+    integer(kind=i_def), intent(in), dimension(4) :: fld2_st_size
     integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1
     integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
-    integer(kind=i_def), intent(in), dimension(ndf_w2,fld2_st_size) :: fld2_st_dofmap
+    integer(kind=i_def), intent(in) :: fld2_st_dofmap(ndf_w2,size(fld2_st_size),4)
     real(kind=r_def), intent(inout), dimension(undf_w1) :: fld1
     real(kind=r_def), intent(in), dimension(undf_w2)    :: fld2
     real(kind=r_def), intent(in), dimension(undf_w2)    :: fld3
