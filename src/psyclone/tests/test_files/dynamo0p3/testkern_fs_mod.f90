@@ -62,7 +62,7 @@ module testkern_fs_mod
           arg_type(gh_field, gh_read,  wchi),        &
           arg_type(gh_field, gh_read,  any_w2)       &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, public, nopass :: code => testkern_fs_code
   end type testkern_fs_type

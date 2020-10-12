@@ -49,7 +49,7 @@ module testkern_multi_field_same_stencil_mod
              arg_type(gh_field, gh_read, w2, stencil(xory1d)), &
              arg_type(gh_field, gh_read, w2, stencil(xory1d))  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_multi_field_same_stencil_code
   end type testkern_multi_field_same_stencil_type

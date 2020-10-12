@@ -414,7 +414,7 @@ class NemoKern(InlinedKern):
         kernel_schedule is created in the constructor and always exists.
 
         :returns: the kernel schedule representing the inlined kernel code.
-        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+        :rtype: :py:class:`psyclone.psyir.nodes.KernelSchedule`
         '''
         return self.children[0]
 

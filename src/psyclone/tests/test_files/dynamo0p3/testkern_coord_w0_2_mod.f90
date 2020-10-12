@@ -48,7 +48,7 @@ module testkern_coord_w0_2_mod
           (/ arg_type(gh_field*3, gh_inc, w0),   &
              arg_type(gh_field,   gh_inc, w0)    &
           /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_coord_w0_2_code
   end type testkern_coord_w0_2_type

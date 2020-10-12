@@ -50,7 +50,7 @@ module testkern_anyd_any_space_mod
           arg_type(gh_field, gh_read,      any_space_1),               &
           arg_type(gh_field, gh_read,      any_w2)                     &
           /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, public, nopass :: code => testkern_anyd_any_space_code
   end type testkern_anyd_any_space_type

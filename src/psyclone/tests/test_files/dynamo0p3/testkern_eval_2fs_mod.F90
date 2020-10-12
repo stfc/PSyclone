@@ -44,7 +44,7 @@ module testkern_eval_2fs_mod
      type(func_type) :: meta_funcs(1) = (/ &
        func_type(W1, GH_DIFF_BASIS)        &
        /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
      integer :: gh_shape = gh_evaluator
      integer :: gh_evaluator_targets(2) = (/W0, W1/)
    contains

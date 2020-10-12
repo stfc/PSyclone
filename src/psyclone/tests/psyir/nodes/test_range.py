@@ -145,8 +145,7 @@ def test_range_literals_props():
 def test_range_references_props():
     ''' Test that the properties of a Range return what we expect
     when the start, stop and step are references or expressions. '''
-    from psyclone.psyGen import KernelSchedule
-    from psyclone.psyir.nodes import BinaryOperation
+    from psyclone.psyir.nodes import BinaryOperation, KernelSchedule
     sched = KernelSchedule("test_sched")
     sym_table = sched.symbol_table
     start_symbol = DataSymbol("istart", INTEGER_SINGLE_TYPE)

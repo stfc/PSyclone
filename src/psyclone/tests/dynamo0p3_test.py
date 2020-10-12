@@ -105,7 +105,7 @@ module testkern_qr
              func_type(w2, gh_diff_basis),          &
              func_type(w3, gh_basis, gh_diff_basis) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => testkern_qr_code
@@ -706,8 +706,6 @@ def test_field(tmpdir):
     output = (
         "  MODULE single_invoke_psy\n"
         "    USE constants_mod, ONLY: r_def, i_def\n"
-        "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-        "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
@@ -916,8 +914,6 @@ def test_field_fs(tmpdir):
     output = (
         "  MODULE single_invoke_fs_psy\n"
         "    USE constants_mod, ONLY: r_def, i_def\n"
-        "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-        "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
@@ -2711,7 +2707,7 @@ module stencil_mod
           (/ arg_type(gh_field, gh_inc, w1), &
              arg_type(gh_field, gh_read, w2, stencil(cross)) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => stencil_code
   end type stencil_type
@@ -2946,7 +2942,7 @@ def test_dynkernmetadata_read_fs_error():
         "          (/ arg_type(gh_field,gh_write,wchi),    &\n"
         "             arg_type(gh_field,gh_read,wchi)      &\n"
         "           /)\n"
-        "     integer :: iterates_over = cells\n"
+        "     integer :: operates_on = cell_column\n"
         "   contains\n"
         "     procedure, nopass :: code => testkern_chi_write_code\n"
         "  end type testkern_chi_write_type\n"
@@ -3861,10 +3857,10 @@ def test_fs_anyspace_cells_write_or_readwrite_error():
 
 def test_fs_anyspace_dofs_inc_error():
     ''' Test that an error is raised if a field on 'any_space' with
-    'gh_inc' access is specified for a kernel that iterates over DoFs. '''
+    'gh_inc' access is specified for a kernel that operates on DoFs. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    dof_code = CODE.replace("integer :: iterates_over = cells",
-                            "integer :: iterates_over = dofs", 1)
+    dof_code = CODE.replace("integer :: operates_on = cell_column",
+                            "integer :: operates_on = dof", 1)
     for fspace in FunctionSpace.VALID_ANY_SPACE_NAMES:
         code = dof_code.replace("arg_type(gh_field, gh_inc, w1)",
                                 "arg_type(gh_field, gh_inc, " +
@@ -5817,7 +5813,7 @@ module testkern
           (/ arg_type(gh_scalar, gh_real,    gh_read), &
              arg_type(gh_scalar, gh_integer, gh_read)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_code
   end type testkern_type
