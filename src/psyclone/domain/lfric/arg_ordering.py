@@ -215,6 +215,10 @@ class ArgOrdering(object):
                             # metadata so must be passed
                             self.stencil_2d_unknown_extent \
                                 (arg, var_accesses=var_accesses)
+                            # Due to the nature of the stencil extent array
+                            # the max size of a stencil branch must be passed
+                            self.stencil_2d_max_extent \
+                                (arg, var_accesses=var_accesses)
                         else:
                             # stencil extent is not provided in the
                             # metadata so must be passed
@@ -437,6 +441,21 @@ class ArgOrdering(object):
         '''Add 2D stencil information to the argument list associated with the
         argument 'arg' if the extent is unknown. If supplied it also stores
         this access in var_accesses.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+
+    # @abc.abstractmethod
+    def stencil_2d_max_extent(self, arg, var_accesses=None):
+        '''Add 2D stencil information to the argument list associated with the
+        argument 'arg' if the maximum branch extent is unknown. If supplied it
+        also stores this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`

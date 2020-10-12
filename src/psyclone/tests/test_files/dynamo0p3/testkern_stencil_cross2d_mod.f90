@@ -54,12 +54,13 @@ module testkern_stencil_cross2d_mod
 
 contains
 
-  subroutine testkern_stencil_cross2d_code(nlayers, fld1,           &
-                                   fld2, fld2_st_size,      &
-                                   fld2_st_dofmap,          &
-                                   fld3, fld4,              &
-                                   ndf_w1, undf_w1, map_w1, &
-                                   ndf_w2, undf_w2, map_w2, &
+  subroutine testkern_stencil_cross2d_code(nlayers, fld1,     &
+                                   fld2, fld2_st_size,        &
+                                   fld2_st_max_branch_length, &
+                                   fld2_st_dofmap,            &
+                                   fld3, fld4,                &
+                                   ndf_w1, undf_w1, map_w1,   &
+                                   ndf_w2, undf_w2, map_w2,   &
                                    ndf_w3, undf_w3, map_w3)
 
     implicit none
@@ -70,10 +71,11 @@ contains
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: undf_w1, undf_w2, undf_w3
     integer(kind=i_def), intent(in), dimension(4) :: fld2_st_size
+    integer(kind=i_def), intent(in) :: fld2_st_max_branch_length
     integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1
     integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
-    integer(kind=i_def), intent(in) :: fld2_st_dofmap(ndf_w2,size(fld2_st_size),4)
+    integer(kind=i_def), intent(in) :: fld2_st_dofmap(ndf_w2,fld2_st_max_branch_length,4)
     real(kind=r_def), intent(inout), dimension(undf_w1) :: fld1
     real(kind=r_def), intent(in), dimension(undf_w2)    :: fld2
     real(kind=r_def), intent(in), dimension(undf_w2)    :: fld3

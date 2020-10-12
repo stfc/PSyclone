@@ -4388,7 +4388,7 @@ def test_single_stencil_cross2d(dist_mem, tmpdir):
     result = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
+    print(result)
     output1 = (
         "SUBROUTINE invoke_0_testkern_stencil_cross2d_type(f1, f2, f3, f4, "
         "f2_extent)")
@@ -4399,7 +4399,9 @@ def test_single_stencil_cross2d(dist_mem, tmpdir):
     output3 = ("      INTEGER(KIND=i_def), intent(in) :: f2_extent\n")
     assert output3 in result
     output4 = (
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:,:) => null()\n"
+        "      INTEGER(KIND=i_def) f2_max_branch_length\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:,:) => "
+        "null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:,:) => "
         "null()\n"
         "      TYPE(stencil_2D_dofmap_type), pointer :: f2_stencil_map => "
@@ -4411,16 +4413,17 @@ def test_single_stencil_cross2d(dist_mem, tmpdir):
         "      !\n"
         "      f2_stencil_map => f2_proxy%vspace%get_stencil_2D_dofmap("
         "STENCIL_2D_CROSS,f2_extent)\n"
+        "      f2_max_branch_length = f2_extent + 1_i_def\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
         "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
         "      !\n")
     assert output5 in result
     output6 = (
         "        CALL testkern_stencil_cross2d_code(nlayers, f1_proxy%data,"
-        " f2_proxy%data, f2_stencil_size(:,cell), f2_stencil_dofmap(:,:,:,cell),"
-        " f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-        "map_w3(:,cell))")
+        " f2_proxy%data, f2_stencil_size(:,cell), f2_max_branch_length,"
+        " f2_stencil_dofmap(:,:,:,cell), f3_proxy%data, f4_proxy%data,"
+        " ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell),"
+        " ndf_w3, undf_w3, map_w3(:,cell))")
     assert output6 in result
 
 def test_single_stencil_xory1d_literal(dist_mem, tmpdir):
@@ -7125,9 +7128,10 @@ def test_dynkernelarguments_acc_args_4():
     acc_args = kern_args.acc_args
     assert acc_args == [
         'nlayers', 'f1_proxy', 'f1_proxy%data', 'f2_proxy', 'f2_proxy%data',
-        'f2_stencil_size', 'f2_stencil_dofmap', 'f3_proxy', 'f3_proxy%data',
-        'f4_proxy', 'f4_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1', 'ndf_w2',
-        'undf_w2', 'map_w2', 'ndf_w3', 'undf_w3', 'map_w3']
+        'f2_stencil_size', 'f2_max_branch_length', 'f2_stencil_dofmap',
+        'f3_proxy', 'f3_proxy%data', 'f4_proxy', 'f4_proxy%data', 'ndf_w1',
+        'undf_w1', 'map_w1', 'ndf_w2', 'undf_w2', 'map_w2', 'ndf_w3',
+        'undf_w3', 'map_w3']
 
 # (5/5) Method acc_args
 def test_dynkernelarguments_acc_args_5():

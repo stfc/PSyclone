@@ -1297,8 +1297,29 @@ class DynStencils(DynCollection):
         :returns: a Fortran variable name for the stencil size.
         :rtype: str
         '''
-        root_name = arg.name + "_stencil_sizes"
+        root_name = arg.name + "_stencil_size"
         unique = DynStencils.stencil_unique_str(arg, "size")
+        return symtab.name_from_tag(unique, root=root_name)
+
+    @staticmethod
+    def max_branch_length_name(symtab, arg):
+        '''
+        Create a valid unique name for the maximum length of a stencil branch
+        (in cells) of a 2D stencil dofmap in the PSy layer. This is required
+        in the kernels for defining the maximum possible length of one of the
+        dofmap array dimensions.
+
+        :param symtab: symbol table that will contain (or already contains) \
+            the symbol with this name.
+        :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :returns: a Fortran variable name for the max stencil branch length.
+        :rtype: str
+        '''
+        root_name = arg.name + "_max_branch_length"
+        unique = DynStencils.stencil_unique_str(arg, "length")
         return symtab.name_from_tag(unique, root=root_name)
 
     @staticmethod
@@ -1444,6 +1465,7 @@ class DynStencils(DynCollection):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
         parent.add(CommentGen(parent, ""))
+        api_config = Config.get().api_conf("dynamo0.3")
         stencil_map_names = []
         for arg in self._kern_args:
             map_name = self.map_name(arg)
@@ -1451,6 +1473,7 @@ class DynStencils(DynCollection):
                 # Only initialise maps once.
                 stencil_map_names.append(map_name)
                 stencil_type = arg.descriptor.stencil['type']
+                symtab = self._symbol_table
                 if stencil_type == "xory1d":
                     direction_name = arg.stencil.direction_arg.varname
                     for direction in ["x", "y"]:
@@ -1472,6 +1495,12 @@ class DynStencils(DynCollection):
                                   "%vspace%get_stencil_2D_dofmap(" +
                                   "STENCIL_2D_CROSS" + "," +
                                   self.extent_value(arg) + ")"))
+                    parent.add(
+                        AssignGen(parent,
+                                  lhs=self.max_branch_length_name(symtab,
+                                                                  arg),
+                                  rhs=self.extent_value(arg) + " + 1_" +
+                                      api_config.default_kind["integer"]))
                 else:
                     try:
                         stencil_name = \
@@ -1489,7 +1518,6 @@ class DynStencils(DynCollection):
                                   stencil_name + "," +
                                   self.extent_value(arg) + ")"))
 
-                symtab = self._symbol_table
                 parent.add(AssignGen(parent, pointer=True,
                                      lhs=self.dofmap_name(symtab, arg),
                                      rhs=map_name + "%get_whole_dofmap()"))
@@ -1545,6 +1573,10 @@ class DynStencils(DynCollection):
                                    entity_decls=[self.dofmap_size_name(symtab,
                                                                        arg) +
                                                  "(:,:) => null()"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   entity_decls=[self.max_branch_length_name(
+                                       symtab, arg)]))
             else:
                 parent.add(UseGen(parent, name="stencil_dofmap_mod",
                                   only=True,

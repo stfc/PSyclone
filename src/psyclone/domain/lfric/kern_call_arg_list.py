@@ -263,6 +263,26 @@ class KernCallArgList(ArgOrdering):
                                    self._cell_ref_name(var_accesses))
         self.append(name, var_accesses, var_access_name=var_name)
 
+    def stencil_2d_max_extent(self, arg, var_accesses=None):
+        '''Add 2D stencil information to the argument list associated with the
+        argument 'arg' if the maximum branch extent is unknown. If supplied it
+        also stores this in var_accesses.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`pclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariableAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:1psyclone.core.access_info.VariableAccessInfo`
+
+        '''
+        # The maximum branch extent is not specified in the metadata so pass
+        # the value in.
+        from psyclone.dynamo0p3 import DynStencils
+        name = DynStencils.max_branch_length_name \
+            (self._kern.root.symbol_table, arg)
+        self.append(name, var_accesses)
+
     def stencil_unknown_direction(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
         argument 'arg' if the direction is unknown (i.e. it's being supplied
