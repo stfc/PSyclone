@@ -5704,7 +5704,7 @@ class HaloDepth(object):
     def annexed_only(self):
         '''
         :returns: True if only annexed dofs are accessed in the halo and \
-                  False otherwise
+                  False otherwise.
         :rtype: bool
         '''
         return self._annexed_only
@@ -5713,7 +5713,7 @@ class HaloDepth(object):
     def max_depth(self):
         '''
         :returns: True if the read to the field is known to access all \
-                  of the halo and False otherwise
+                  of the halo and False otherwise.
         :rtype: bool
         '''
         return self._max_depth
@@ -5724,7 +5724,7 @@ class HaloDepth(object):
         halo except the outermost level or not.
 
         :returns: True if the read to the field is known to access all \
-                  of the halo except the outermost and False otherwise
+                  of the halo except the outermost and False otherwise.
         :rtype: bool
 
         '''
@@ -5738,7 +5738,7 @@ class HaloDepth(object):
         literal_depth to find the total depth.
 
         :returns: a variable name specifying the halo access depth \
-                  if one exists, and None if not
+                  if one exists, and None if not.
         :rtype: str
 
         '''
@@ -5747,10 +5747,9 @@ class HaloDepth(object):
     @property
     def literal_depth(self):
         '''Returns the known fixed (literal) depth of halo access. Note, this
-        depth should be added to the var_depth to find the total
-        depth.
+        depth should be added to the var_depth to find the total depth.
 
-        :returns: Return the known fixed (literal) halo access depth.
+        :returns: the known fixed (literal) halo access depth.
         :rtype: int
 
         '''
@@ -5876,8 +5875,8 @@ class HaloWriteAccess(HaloDepth):
         been written to is actually dirty (well to be precise it is a partial
         sum).
 
-        :return: True if the outer layer of halo that is written \
-                 to remains dirty and False otherwise.
+        :returns: True if the outer layer of halo that is written \
+                  to remains dirty and False otherwise.
         :rtype: bool
 
         '''
@@ -6287,7 +6286,7 @@ class DynLoop(Loop):
         '''Returns the index of the upper loop bound. This is None if the upper
         bound name is not in HALO_ACCESS_LOOP_BOUNDS.
 
-        :return: the depth of the halo for a loops upper bound. If it \
+        :returns: the depth of the halo for a loops upper bound. If it \
             is None then a depth has not been provided. The depth value is \
             only valid when the upper-bound name is associated with a halo \
             e.g. 'cell_halo'.

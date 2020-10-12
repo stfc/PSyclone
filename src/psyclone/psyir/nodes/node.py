@@ -90,10 +90,10 @@ except ImportError:
         Returns the supplied text argument unchanged. This is a swap-in
         replacement for when termcolor.colored is not available.
 
-        :param text: Text to return
-        :type text: string
+        :param str text: Text to return.
         :param _: Fake argument, only required to match interface \
-                  provided by termcolor.colored
+                  provided by termcolor.colored.
+
         :returns: The supplied text, unchanged
         :rtype: string
         '''
