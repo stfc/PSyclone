@@ -5341,9 +5341,9 @@ class DynHaloExchange(HaloExchange):
         return HaloWriteAccess(write_dependencies[0])
 
     def required(self, ignore_hex_dep=False):
-        '''Determines whether this halo exchange is definitely required (True,
-        True), might be required (True, False) or is definitely not
-        required (False, \*).
+        '''Determines whether this halo exchange is definitely required
+        ``(True, True)``, might be required ``(True, False)`` or is definitely
+        not required ``(False, *)``.
 
         If the optional ignore_hex_dep argument is set to True then
         any read accesses contained in halo exchange nodes are
