@@ -44,7 +44,7 @@ vanilla:
 	${PSYCLONE} integer_field_app_alg_mod.x90
 
 openmp:
-	${PSYCLONE} -s ./colouring_and_omp.py -nodm integer_field_app_alg_mod.x90
+	${PSYCLONE} -s ./colouring_and_omp.py integer_field_app_alg_mod.x90
 
 all: transform compile
 

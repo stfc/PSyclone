@@ -284,6 +284,27 @@ psyclone -s ./matvec_opt.py \
 -oalg /dev/null -opsy /dev/null
 ```
 
+## Example 16: Integer fields
+
+This example demonstrates the code generation for integer fields in
+PSyclone LFRic (Dynamo 0.3) API:
+
+1. with distributed memory
+```
+cd eg16/
+psyclone integer_field_app_alg_mod.x90
+# look for %set_dirty and %halo_exchange in the generated code
+```
+
+2. or with both MPI and OpenMP:
+```sh
+cd eg16/
+psyclone -s ./colouring_and_omp.py integer_field_app_alg_mod.x90
+```
+
+This example will also demonstrate the use of built-ins for integer
+fields when the support is added in issue #853.
+
 ## Code
 
 Location of LFRic algorithm and kernel code that is used by two or
