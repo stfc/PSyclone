@@ -500,7 +500,7 @@ class ArgOrdering(object):
 
     @abc.abstractmethod
     def stencil_2d(self, arg, var_accesses=None):
-        '''Add general stencil information associated with the argument 'arg'
+        '''Add 2D stencil information associated with the argument 'arg'
         to the argument list. If supplied it also stores this access in
         var_accesses.
 
