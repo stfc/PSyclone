@@ -1500,7 +1500,7 @@ class DynStencils(DynCollection):
                                   lhs=self.max_branch_length_name(symtab,
                                                                   arg),
                                   rhs=self.extent_value(arg) + " + 1_" +
-                                      api_config.default_kind["integer"]))
+                                  api_config.default_kind["integer"]))
                 else:
                     try:
                         stencil_name = \
@@ -1596,8 +1596,8 @@ class DynStencils(DynCollection):
                         raise GenerationError(
                             "Unsupported stencil type '{0}' supplied. "
                             "Supported mappings are {1}".
-                                format(arg.descriptor.stencil['type'],
-                                       str(LFRicArgDescriptor.STENCIL_MAPPING)))
+                            format(arg.descriptor.stencil['type'],
+                                   str(LFRicArgDescriptor.STENCIL_MAPPING)))
                     parent.add(UseGen(parent, name="stencil_dofmap_mod",
                                       only=True, funcnames=[stencil_name]))
 

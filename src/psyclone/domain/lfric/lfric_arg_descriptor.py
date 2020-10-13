@@ -98,7 +98,8 @@ class LFRicArgDescriptor(Descriptor):
     VALID_SCALAR_DATA_TYPES = VALID_ARG_DATA_TYPES
 
     # Supported LFRic API stencil types and directions
-    VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region", "cross2d"]
+    VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region",
+                           "cross2d"]
     # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
     # file as it causes failures with py.test 2.8.7. Therefore some parts
     # of the code do not use the VALID_STENCIL_DIRECTIONS variable.

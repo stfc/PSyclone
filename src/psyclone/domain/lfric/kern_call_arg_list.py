@@ -166,12 +166,12 @@ class KernCallArgList(ArgOrdering):
         components = ["matrix"]
         from psyclone.dynamo0p3 import DynCMAOperators
         if arg.function_space_to.orig_name != \
-           arg.function_space_from.orig_name:
+                arg.function_space_from.orig_name:
             components += DynCMAOperators.cma_diff_fs_params
         else:
             components += DynCMAOperators.cma_same_fs_params
         for component in components:
-            name = self._kern.root.symbol_table.\
+            name = self._kern.root.symbol_table. \
                 name_from_tag(arg.name + "_" + component)
             # Matrix is an output parameter, the rest are input
             if component == "matrix":
@@ -196,7 +196,7 @@ class KernCallArgList(ArgOrdering):
         # the range function below returns values from
         # 1 to the vector size which is what we
         # require in our Fortran code
-        for idx in range(1, argvect.vector_size+1):
+        for idx in range(1, argvect.vector_size + 1):
             text = argvect.proxy_name + "(" + str(idx) + ")%data"
             self.append(text)
         if var_accesses is not None:
@@ -279,8 +279,8 @@ class KernCallArgList(ArgOrdering):
         # The maximum branch extent is not specified in the metadata so pass
         # the value in.
         from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.max_branch_length_name \
-            (self._kern.root.symbol_table, arg)
+        name = DynStencils.max_branch_length_name(
+            self._kern.root.symbol_table, arg)
         self.append(name, var_accesses)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
@@ -323,8 +323,8 @@ class KernCallArgList(ArgOrdering):
         self.append(name, var_accesses, var_access_name=var_name)
 
     def stencil_2d(self, arg, var_accesses=None):
-        '''Add general 2D stencil information associated with the argument 'arg'
-        to the argument list. If supplied it also stores this access in
+        '''Add general 2D stencil information associated with the argument
+        'arg' to the argument list. If supplied it also stores this access in
         var_accesses.
 
         :param arg: the meta-data description of the kernel \
@@ -357,9 +357,9 @@ class KernCallArgList(ArgOrdering):
         '''
         # TODO we should only be including ncell_3d once in the argument
         # list but this adds it for every operator
-        self.append(arg.proxy_name_indexed+"%ncell_3d", var_accesses,
+        self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
-        self.append(arg.proxy_name_indexed+"%local_stencil", var_accesses,
+        self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
                     mode=AccessType.WRITE)
 
     def fs_common(self, function_space, var_accesses=None):
@@ -540,7 +540,7 @@ class KernCallArgList(ArgOrdering):
         # This kernel has only a single LMA operator as argument.
         # Checks for this are performed in ArgOrdering.generate()
         op_arg = self._kern.arguments.args[0]
-        base_name = "boundary_dofs_"+op_arg.name
+        base_name = "boundary_dofs_" + op_arg.name
         name = self._kern.root.symbol_table.name_from_tag(base_name)
         self.append(name, var_accesses)
 
