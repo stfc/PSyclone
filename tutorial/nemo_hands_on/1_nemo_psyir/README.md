@@ -1,4 +1,4 @@
-# PSyclone and NEMO, Tutorial 1 #
+# PSyclone and NEMO - Tutorial 1 #
 
 Welcome to the first part of the tutorial on using PSyclone with the
 NEMO ocean model (www.nemo-ocean.eu). For this tutorial we will be
@@ -110,6 +110,12 @@ order to apply transformations we have to understand the Internal
 Representation that PSyclone constructs for the supplied Fortran - the
 PSyIR.
 
+## PSyclone Transformation Scripts ##
+
+TBD
+
+Again, this should have already been covered so maybe just a brief reminder?
+
 ## Obtaining the PSyIR for NEMO Code ##
 
 In order to examine the PSyIR for the mini-app we will supply PSyclone
@@ -140,6 +146,8 @@ represented in PSyclone by a single Invoke. The content of the program
 
 
 ## Navigating the PSyIR ##
+
+TBD
 
 Semantic navigation and walk - probably covered earlier but could recap here?
 
