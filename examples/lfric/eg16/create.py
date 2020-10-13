@@ -34,7 +34,7 @@
 # Author: R. W. Ford, STFC Daresbury Lab
 
 '''A simple Python script showing how to create an LFRic-specific
-PSyIR tree using the create methods. In order to use it you must first
+PSyIR kernel tree using the create methods. In order to use it you must first
 install PSyclone. See README.md in the top-level psyclone directory.
 
 Once you have psyclone installed, this script may be run by doing:

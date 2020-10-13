@@ -37,11 +37,8 @@
 kernel based on the kernel metadata.
 
 '''
-# pylint: disable=no-name-in-module, too-many-public-methods
-# pylint: disable=too-many-instance-attributes, raise-missing-from
-# pylint: disable=super-with-arguments, import-outside-toplevel
-
 from psyclone.domain.lfric import ArgOrdering
+# pylint: disable=no-name-in-module
 from psyclone.domain.lfric.psyir import CellPositionDataSymbol, \
     MeshHeightDataSymbol, NumberOfCellsDataSymbol, NumberOfDofsDataSymbol, \
     NumberOfUniqueDofsDataSymbol, DofMapDataSymbol, RealFieldDataDataSymbol, \
@@ -61,8 +58,10 @@ from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.errors import InternalError, GenerationError
 from psyclone.domain.lfric import FunctionSpace
+from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES
 
 
+# pylint: disable=too-many-public-methods
 class KernelInterface(ArgOrdering):
     '''Create the kernel arguments for the supplied kernel as specified by
     the associated kernel metadata and the kernel ordering rules
@@ -82,13 +81,22 @@ class KernelInterface(ArgOrdering):
     TBD: This class should replace the current kernel stub generation
     code when all of its methods are implemented, see issue #928.
 
-    :param kern: the kernel that requires its kernel arguments to be \
-        created.
+    :param kern: the kernel for which to create arguments.
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
 
     '''
+    field_mapping = {
+        "integer": IntegerFieldDataDataSymbol,
+        "real": RealFieldDataDataSymbol,
+        "logical": LogicalFieldDataDataSymbol}
+    vector_field_mapping = {
+        "integer": IntegerVectorFieldDataDataSymbol,
+        "real": RealVectorFieldDataDataSymbol,
+        "logical": LogicalVectorFieldDataDataSymbol}
+
     def __init__(self, kern):
-        ArgOrdering.__init__(self, kern)
+        # pylint: disable=super-with-arguments
+        super(KernelInterface, self).__init__(kern)
         self._read_access = ArgumentInterface(ArgumentInterface.Access.READ)
         self._symbol_table = SymbolTable()
         self._arglist = []
@@ -103,11 +111,12 @@ class KernelInterface(ArgOrdering):
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        # pylint: disable=super-with-arguments
         super(KernelInterface, self).generate()
         # Set the argument list for the symbol table. This is done at
         # the end after incrementally adding symbols to the _arglist
-        # list, as it is not possible to add symbols to the symbol
-        # table argument list.
+        # list, as it is not possible to incrementally add symbols to
+        # the symbol table argument list.
         self._symbol_table.specify_argument_list(self._arglist)
 
     def cell_position(self, var_accesses=None):
@@ -186,14 +195,12 @@ class KernelInterface(ArgOrdering):
             "undf_{0}".format(fs_name), NumberOfUniqueDofsDataSymbol,
             extra_args=[fs_name])
 
-        mapping = {
-            "integer": IntegerVectorFieldDataDataSymbol,
-            "real": RealVectorFieldDataDataSymbol,
-            "logical": LogicalVectorFieldDataDataSymbol}
         interface = ArgumentInterface(INTENT_MAPPING[argvect.intent])
         try:
-            field_class = mapping[argvect.intrinsic_type]
+            field_class = KernelInterface.vector_field_mapping[
+                argvect.intrinsic_type]
         except KeyError:
+            # pylint: disable=raise-missing-from
             raise NotImplementedError(
                 "kernel interface does not support a vector field of type "
                 "'{0}'.".format(argvect.intrinsic_type))
@@ -228,13 +235,10 @@ class KernelInterface(ArgOrdering):
             "undf_{0}".format(fs_name), NumberOfUniqueDofsDataSymbol,
             extra_args=[fs_name])
 
-        mapping = {
-            "integer": IntegerFieldDataDataSymbol,
-            "real": RealFieldDataDataSymbol,
-            "logical": LogicalFieldDataDataSymbol}
         try:
-            field_class = mapping[arg.intrinsic_type]
+            field_class = KernelInterface.field_mapping[arg.intrinsic_type]
         except KeyError:
+            # pylint: disable=raise-missing-from
             raise NotImplementedError(
                 "kernel interface does not support a field of type "
                 "'{0}'.".format(arg.intrinsic_type))
@@ -368,6 +372,7 @@ class KernelInterface(ArgOrdering):
                 scalar_arg.name, mapping[scalar_arg.intrinsic_type],
                 interface=ArgumentInterface(INTENT_MAPPING[scalar_arg.intent]))
         except KeyError:
+            # pylint: disable=raise-missing-from
             raise NotImplementedError(
                 "scalar of type '{0}' not implemented in KernelInterface "
                 "class.".format(scalar_arg.intrinsic_type))
@@ -626,6 +631,7 @@ class KernelInterface(ArgOrdering):
                 raise InternalError("Unsupported quadrature shape '{0}' "
                                     "found in kernel_interface.".format(shape))
 
+    # pylint: disable=too-many-arguments
     def _create_symbol(self, tag, data_symbol, extra_args=None, dims=None,
                        interface=None):
         '''Internal utility to create a symbol. If a symbol is found in the
@@ -723,7 +729,7 @@ class KernelInterface(ArgOrdering):
             recognised.
 
         '''
-        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES
+        # pylint: disable=too-many-locals
         for shape in self._kern.eval_shapes:
             # Create and add an ndf symbol to the symbol table if one does
             # not already exist or return the existing one if one does.

@@ -59,6 +59,6 @@ __all__ = [
     'FunctionSpace',
     'KernCallAccArgList',
     'KernCallArgList',
+    'KernelInterface',
     'KernStubArgList',
-    'LFRicArgDescriptor',
-    'KernelInterface']
+    'LFRicArgDescriptor']

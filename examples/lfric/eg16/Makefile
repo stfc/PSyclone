@@ -38,7 +38,7 @@ include ../../common.mk
 transform:
 	${PYTHON} create.py
 
-all: transform
+compile:
+	@echo "No compilation supported for lfric/eg16"
 
-compile: all
-
+all: transform compile
