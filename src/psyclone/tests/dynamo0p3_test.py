@@ -7525,7 +7525,7 @@ def test_dynloop_halo_read_access_error1(monkeypatch):
     monkeypatch.setattr(field, "_access", "unsupported")
     with pytest.raises(InternalError) as info:
         loop._halo_read_access(field)
-    assert ("Unexpected field access type 'unsupported' found."
+    assert ("Unexpected field access type 'unsupported' found for arg 'f1'."
             in str(info.value))
 
 
@@ -7544,5 +7544,5 @@ def test_dynloop_halo_read_access_error2(monkeypatch):
     monkeypatch.setattr(field, "_argument_type", "unsupported")
     with pytest.raises(InternalError) as info:
         loop._halo_read_access(field)
-    assert ("Expecting arg 'f1' to be an operator, scalar or field."
-            in str(info.value))
+    assert ("Expecting arg 'f1' to be an operator, scalar or field, but "
+            "found 'unsupported'." in str(info.value))

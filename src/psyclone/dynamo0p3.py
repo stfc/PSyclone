@@ -6565,10 +6565,11 @@ class DynLoop(Loop):
                 # The halo is not accessed.
                 return False
             raise InternalError(
-                "Unexpected field access type '{0}' found.".format(arg.access))
+                "Unexpected field access type '{0}' found for arg '{1}'."
+                "".format(arg.access, arg.name))
         raise InternalError(
-            "Expecting arg '{0}' to be an operator, scalar or field."
-            "".format(arg.name))
+            "Expecting arg '{0}' to be an operator, scalar or field, "
+            "but found '{1}'.".format(arg.name, arg.argument_type))
 
     def _add_field_component_halo_exchange(self, halo_field, idx=None):
         '''An internal helper method to add the halo exchange call immediately
