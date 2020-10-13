@@ -81,7 +81,7 @@ contains
 !>        truncated real values
 !! @param[in] nlayers Number of layers
 !! @param[in,out] integer_field Field to be returned
-!! @param[in,out] real_field Field to be doubled
+!! @param[in] real_field Field to be doubled
 !! @param[in] ndf1 Number of degrees of freedom per cell for the output field
 !! @param[in] undf1 Unique number of degrees of freedom  for the output field
 !! @param[in] map1 Dofmap for the cell at the base of the column for the output field

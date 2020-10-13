@@ -69,8 +69,8 @@ module integer_field_app_alg_mod
 
 contains
 
-  !> @details An algorithm for developing miniapps
-  !> @param[inout] field_1  A prognostic field object
+  !> @brief An example of using real- and integer-valued fields in LFRic
+  !> @param[in,out] field_1  A prognostic field object
   subroutine integer_field_app_alg(prognostics)
 
     implicit none
