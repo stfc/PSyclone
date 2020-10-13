@@ -1,0 +1,127 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! LICENCE is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Modifications copyright (c) 2020, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+!------------------------------------------------------------------------------
+! Modified by I. Kavcic, Met Office
+!------------------------------------------------------------------------------
+
+!>@brief Illustrates the use of integer-valued fields
+module integer_field_app_alg_mod
+
+  use constants_mod,                  only: i_def,r_def
+  use log_mod,                        only: log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_INFO
+  use field_collection_mod,           only: field_collection_type
+  use field_mod,                      only: field_type
+  use finite_element_config_mod,      only: element_order
+  use fs_continuity_mod,              only: W2
+  use function_space_collection_mod,  only: function_space_collection
+  use integer_field_mod,              only: integer_field_type
+  use operator_mod,                   only: operator_type
+  use psykal_lite_integer_field_app_mod, &
+                                      only: invoke_integer_setval_c
+  use integer_double_kernel_mod,      only: integer_double_kernel_type
+  use matrix_vector_kernel_mod,       only: matrix_vector_kernel_type
+  use runtime_constants_mod,          only: get_div
+
+  implicit none
+
+  private
+
+  public :: integer_field_app_alg
+
+contains
+
+  !> @details An algorithm for developing miniapps
+  !> @param[inout] field_1  A prognostic field object
+  subroutine integer_field_app_alg(prognostics)
+
+    implicit none
+
+    ! Prognostic fields    
+    type( field_collection_type ), intent(inout) :: prognostics
+
+    type( field_type ), pointer         :: field_1
+    type( integer_field_type ), pointer :: field_int
+     
+    ! Diagnostic fields
+    type( field_type )                  :: field_2
+
+    real(r_def)                         :: s
+    integer(i_def)                      :: mesh_id
+    type( operator_type ), pointer      :: divergence => null()
+
+    
+    call log_event( "integer_field_app: Running algorithm", LOG_LEVEL_INFO )
+
+    field_1   => prognostics%get_field("real_field")
+    field_int => prognostics%get_integer_field("integer_field")
+
+    ! Create a new field on the W2 function space
+    mesh_id = field_1%get_mesh_id()
+    call field_2%initialise( function_space_collection%get_fs(mesh_id, element_order, W2))
+
+    ! Set the new field to a constant value and compute the divergence of it
+    divergence => get_div()
+    s = 2.0_r_def
+    call invoke( name = "Compute divergence",  & 
+                 setval_c(field_2, s        ), &
+                 setval_c(field_1, 0.0_r_def), &
+                 matrix_vector_kernel_type(field_1, field_2, divergence) )
+
+    ! The divergence of a constant field should be zero so lets check this by
+    ! printing the min/max values in field_1
+    call field_1%log_minmax(LOG_LEVEL_INFO,'field_1')
+ 
+    call invoke( name = "Double integer field", &
+                 setval_c(field_1, 7.0_r_def),  &
+                 integer_double_kernel_type(field_int, field_1) )
+    call field_int%log_minmax(LOG_LEVEL_INFO,'field_int')
+
+    ! This PSyKAl-lite call will be replaced with the appropriate built-in
+    ! for integer fields in issue #853
+    call invoke_integer_setval_c( field_int, 7 )
+    call field_int%log_minmax(LOG_LEVEL_INFO,'field_int')
+
+    call log_event( "integer_field_app: finished algorithm", LOG_LEVEL_INFO )
+
+  end subroutine integer_field_app_alg
+
+end module integer_field_app_alg_mod
