@@ -738,7 +738,7 @@ class LFRicArgDescriptor(Descriptor):
     @property
     def vector_size(self):
         '''
-        Returns the vector size of the argument. This will be 1 if '\*n'
+        Returns the vector size of the argument. This will be 1 if ``*n``
         has not been specified for all argument types except scalars
         (their vector size is set to 0).
 
