@@ -1424,11 +1424,24 @@ rules, along with PSyclone's naming conventions, are:
       This value is passed in separately. Again, the intent is determined
       from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
-      1) If the field entry has a stencil access then add an integer
+      1) If the field entry has a stencil access then add an integer (or if
+         the stencil is of type CROSS2D, an integer array of dimension(4))
          stencil-size argument with intent ``in``. This will supply
-         the number of cells in the stencil.
-      2) If the field entry stencil access is of type ``XORY1D`` then
-         add an integer direction argument with intent ``in``.
+         the number of cells in the stencil or in the case of the CROSS2D
+         stencil the number of cells in each branch of the stencil.
+      2) If the stencil is of type CROSS2D then a integer of intent ``in``
+         for the max branch length is needed. This is used in defining the
+         dimensions of the stencil dofmap array and is required due to the
+         varying length of the branches of the stencil when used on planar
+         meshes.
+      3) Also needed is a stencil dofmap array of type integer and intent
+         ``in`` in either 2 or 3 dimensions. For a CROSS2D stencil the array
+         needs dimensions of (number-of-dofs-in-cell, max-branch-length, 4).
+         All other stencils need dimensions of (number-of-dofs-in-cell,
+         stencil-size).
+      4) If the field entry stencil access is of type ``XORY1D`` then
+         add an additional integer direction argument with intent ``in`` is
+         needed.
 
    3) If the current entry is a field vector then for each dimension
       of the vector, include a field array. The field array name is
