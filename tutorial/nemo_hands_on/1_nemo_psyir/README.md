@@ -10,7 +10,7 @@ Silvia Mocavero of CMCC.
 ## Prerequisites ##
 
 You will need a Linux shell with a working Python installation in
-which PSyclone installed. (See the top-level README.md for
+which PSyclone has been installed. (See the top-level README.md for
 installation instructions.) If you wish to compile and run the
 generated code then you will also need a Fortran compiler: gfortran is
 fine.
@@ -25,6 +25,9 @@ You should see help information, beginning with:
                 [-l {off,all,output}] [-dm] [-nodm] [--kernel-renaming {multiple,single}] [--profile {invokes,kernels}]
                 [--config CONFIG] [-v]
                 filename
+    ...
+
+## Processing NEMO Fortran code with PSyclone ##
 
 By default, PSyclone expects to process code written to the LFRic
 API. In order to specify that we are processing NEMO code we must
@@ -41,6 +44,7 @@ and then re-generating it and writing it to stdout:
      PROGRAM tra_adv
       USE iso_c_binding, ONLY: C_INT64_T
       INTEGER, PARAMETER :: wp = 8
+      ...
 
 Note that there is no algorithm code because NEMO does not follow the
 PSyKAl separation of concerns. Instead, PSyclone treats it as though
@@ -58,12 +62,13 @@ Fortran because it has a number of lines that are more than 132
 characters in length. There are two possible solutions to this: tell
 PSyclone that it must limit the length of output lines or tell your
 Fortran compiler to allow non-standard line lengths. Since not all
-Fortran compilers allow the line-length limit to be ignored, we use
-PSyclone:
+Fortran compilers allow the line-length limit to be ignored, we
+instruct PSyclone to limit the line lengths in output Fortran via the
+`-l output` flag:
 
     $ psyclone -api nemo -opsy psy.f90 -l output tra_adv.F90
 
-(Note that if we also wanted PSyclone to validate that the incoming
+(Note that if we also wanted PSyclone to validate that the *incoming*
 code was standards compliant then we could specify `-l all` instead).
 
 Compiling the generated code is then as simple as (assuming gfortran is
@@ -72,8 +77,8 @@ the Fortran compiler):
     $ gfortran -o tra_adv.exe psy.f90
 
 The mini-app picks-up the domain size and number of iterations from
-environment variables. The file ../domain_setup.sh contains example
-settings for bash and ../domain_setup.csh is the equivalent if you are
+environment variables. The file `../domain_setup.sh` contains example
+settings for bash and `../domain_setup.csh` is the equivalent if you are
 using csh or tcsh. You can either cut-n-paste the commands into your
 shell or do (for csh):
 
@@ -91,3 +96,34 @@ mini-app:
     Domain is  100x 100 grid points
     Performing   10 iterations
     Mini-app finished.
+
+At this point we have succeeded in processing some NEMO Fortran code
+with PSyclone, generating new code and then compiling and running the
+result. However, since we have not applied any transformations, the
+generated code is functionally identical to that which was input.  In
+order to apply transformations we have to understand the Internal
+Representation that PSyclone constructs for the supplied Fortran - the
+PSyIR.
+
+## The PSyIR for NEMO Code ##
+
+In order to examine the PSyIR for the mini-app we will supply PSyclone
+with a transformation script, `schedule_view_trans.py`. This is done
+via the `-s` flag to PSyclone:
+
+    $ psyclone -api nemo -l output -opsy psy.f90 -s ./schedule_view_trans.py ./tra_adv.F90
+
+This should report that it has found one invoke named `tra_adv` (the
+name of the Fortran program) and proceed to display a text view of the
+PSyIR of that invoke:
+
+    Invokes found:
+    tra_adv
+
+    NemoInvokeSchedule[invoke='tra_adv']
+        0: CodeBlock[[<class 'fparser.two.....]]
+        1: Assignment[]
+	    Reference[name:'r']
+
+Note that if you have the `termcolor` Python package installed then
+the PSyIR will be displayed with colour highlighting.

@@ -33,18 +33,15 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 
-'''A transformation script that applies OpenACC KERNELS
-directives to NEMO style code but makes no attempt to manage data movement.
-The resulting code must therefore be compiled using
-PGI's unified-memory support (-ta=tesla:managed) in order to automate the
-movement of data between the host and the GPU.
+'''A transformation script that simply prints the PSyIR of each invoke
+to stdout. No actual transformations are performed.
 
 In order to use this script you must first install PSyclone. See
 README.md in the top-level psyclone directory.
 
 Once you have psyclone installed, this may be used by doing:
 
- $ psyclone -api nemo -s ./schedule_view_trans.py_trans.py some_source_file.f90
+ $ psyclone -api nemo -s ./schedule_view_trans.py some_source_file.f90
 
 This should produce a lot of output, ending with generated
 Fortran. Note that the Fortran source files provided to PSyclone must
@@ -56,8 +53,8 @@ from __future__ import print_function, absolute_import
 
 
 def trans(psy):
-    '''A PSyclone-script compliant transformation function. Applies
-    OpenACC 'kernels' and 'data' directives to NEMO code.
+    '''A PSyclone-script compliant transformation function. Prints
+    the PSyIR of each invoke to stdout.
 
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
