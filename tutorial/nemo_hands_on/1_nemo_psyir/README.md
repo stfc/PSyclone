@@ -27,6 +27,11 @@ You should see help information, beginning with:
                 filename
     ...
 
+When examining the PSyIR and writing transformation scripts, it may be
+useful to see the documentation of the various node types. The best
+way to do this is to use the PSyclone Reference Guide available on
+readthedocs: https://psyclone-ref.readthedocs.io/en/latest/
+
 ## Processing NEMO Fortran code with PSyclone ##
 
 By default, PSyclone expects to process code written to the LFRic
@@ -105,7 +110,7 @@ order to apply transformations we have to understand the Internal
 Representation that PSyclone constructs for the supplied Fortran - the
 PSyIR.
 
-## The PSyIR for NEMO Code ##
+## Obtaining the PSyIR for NEMO Code ##
 
 In order to examine the PSyIR for the mini-app we will supply PSyclone
 with a transformation script, `schedule_view_trans.py`. This is done
@@ -124,6 +129,64 @@ PSyIR of that invoke:
         0: CodeBlock[[<class 'fparser.two.....]]
         1: Assignment[]
 	    Reference[name:'r']
+        ...
 
-Note that if you have the `termcolor` Python package installed then
-the PSyIR will be displayed with colour highlighting.
+(Note that if you have the `termcolor` Python package installed then
+the PSyIR will be displayed with colour highlighting.) Since the
+tracer-advection mini-app consists of a single program unit, it is
+represented in PSyclone by a single Invoke. The content of the program
+(the sequence of executable statements) is described by a
+`NemoInvokeSchedule` in the PSyIR (a subclass of `Schedule`).
+
+
+## Navigating the PSyIR ##
+
+Semantic navigation and walk - probably covered earlier but could recap here?
+
+if-elseif mapped to if-else
+
+SELECT CASE statements mapped similarly
+
+## Interpreting the PSyIR ##
+
+The first child node of the `NemoInvokeSchedule` obtained for the
+mini-app is a `CodeBlock`. This is an important node type since it makes
+it possible for the PSyIR to represent arbitrary Fortran code without
+requiring that it be fully understood. We can see from the fparser
+node types printed in the description of the `CodeBlock` that this
+particular node represents various subroutine calls (those querying
+the values of the environment variables), reads, writes and the
+allocate statements. None of these are computationally significant and
+therefore are not interesting from a performance point of view.
+
+1. Modify the transformation script so that it breaks-out into the Python
+   debugger once it has obtained the `Schedule` of the Invoke.
+   (Hint: `import pdb; pdb.set_trace()`)
+
+2. Modify the transformation script so that it searches for all of the
+   CodeBlocks in the Schedule and prints information about each of them.
+   Work out which lines of Fortran in the mini-app each corresponds to.
+   (Hint: you'll need to import the `CodeBlock` node from
+   `psyclone.psyir.nodes`.)
+
+For now we note that since, by definition, PSyclone does not
+understand the contents of a CodeBlock, it is not possible (with the
+exception of profiling) to apply transformations to regions of code
+that contain them.
+
+From a computational-performance standpoint, the most important nodes
+are `Loop` and `InlinedKern`. (Again, since NEMO does not follow the
+PSyKAl separation of concerns, it is treated conceptually as a
+manually-written PSy layer in which kernels have been in-lined.)
+
+3. Modify the transformation script to obtain a list of all of the
+   `InlinedKern` nodes.
+
+4. Use the `view()` method of one of these `InlinedKern` nodes to
+   examine its `Schedule`. Check that you are able to work out
+   which Fortran loop body this corresponds to.
+
+At this point you should be able to run PSyclone on a Fortran source
+containing NEMO-style code, use a transformation script to access the
+PSyIR of the code and be able to understand the structure of the PSyIR
+and how it relates to the original Fortran.
