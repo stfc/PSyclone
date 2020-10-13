@@ -371,7 +371,7 @@ class DependencyTools(object):
                 # We need to fall-back to the old-style test, since we do not
                 # have information in a symbol table. So check if the access
                 # information stored an index:
-                is_array = var_accesses[var_name][0].indices is not None
+                is_array = var_info[0].indices is not None
             else:
                 # Find the symbol for this variable
                 symbol = loop.find_or_create_symbol(var_name)
