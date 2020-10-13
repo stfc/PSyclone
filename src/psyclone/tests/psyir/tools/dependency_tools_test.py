@@ -243,7 +243,6 @@ def test_scalar_parallelise(parser):
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="#363 PSyIR does not yet support derived types")
 def test_derived_type(parser):
     ''' Tests assignment to derived type variables. '''
     reader = FortranStringReader('''program test
