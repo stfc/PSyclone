@@ -4389,7 +4389,7 @@ def test_single_stencil_cross2d(dist_mem, tmpdir):
     result = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-    print(result)
+
     output1 = (
         "SUBROUTINE invoke_0_testkern_stencil_cross2d_type(f1, f2, f3, f4, "
         "f2_extent)")
