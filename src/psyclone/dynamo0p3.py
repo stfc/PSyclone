@@ -7452,15 +7452,18 @@ class DynKern(CodedKern):
         super(DynKern, self).gen_code(parent)
 
     def get_kernel_schedule(self):
-        '''Returns an LFRic PSyIR Schedule representing the kernel code. The
-        base class creates the PSyIR schedule on first invocation
-        which is then transformed to an LFRic PSyIR Schedule here. The
-        Schedule is just generated on first invocation, this allows us
-        to retain transformations that may subsequently be applied to
-        the Schedule (but will not adapt to transformations applied to
-        the fparser2 AST).
+        '''Returns an PSyIR Schedule representing the kernel code. The base
+        class creates the PSyIR schedule on first invocation which is
+        then checked for consistency with the kernel metadata
+        here. The Schedule is just generated on first invocation, this
+        allows us to retain transformations that may subsequently be
+        applied to the Schedule (but will not adapt to transformations
+        applied to the fparser2 AST).
 
-        :returns: LFRic Schedule representing the kernel code.
+        Once issue #935 is implemented, this routine will return the
+        PSyIR Schedule using LFRic-specific PSyIR where possible.
+
+        :returns: Schedule representing the kernel code.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
 
         '''
@@ -7473,7 +7476,7 @@ class DynKern(CodedKern):
             self.validate_kernel_code_args()
 
             # TODO replace the PSyIR argument data symbols with LFRic
-            # data symbols, see issue #XXX. For the moment we simply
+            # data symbols, see issue #935. For the moment we simply
             # return the unmodified PSyIR schedule
             self._kern_schedule = psyir_schedule
 
@@ -7501,10 +7504,10 @@ class DynKern(CodedKern):
         expected_n_args = len(interface_args)
         if actual_n_args != expected_n_args:
             raise GenerationError(
-                "The number of arguments expected by the psy-layer kernel "
-                "call '{0}' does not match the actual number of kernel "
-                "arguments '{1}' in kernel '{2}'.".format(
-                    expected_n_args, actual_n_args, self.name))
+                "In kernel '{0}' the number of arguments indicated by the "
+                "kernel metadata is {1} but the actual number of kernel "
+                "arguments found is {2}.".format(
+                    self.name, expected_n_args, actual_n_args))
 
         # 2: Check that the properties of each argument matches
         for idx, kern_code_arg in enumerate(kern_code_args):
@@ -7512,8 +7515,8 @@ class DynKern(CodedKern):
             self._validate_kernel_code_arg(kern_code_arg, interface_arg)
 
     def _validate_kernel_code_arg(self, kern_code_arg, interface_arg):
-        '''Internal method to check that the supplied datatypes match and
-        raise appropriate exceptions if not.
+        '''Internal method to check that the supplied argument descriptions
+        match and raise appropriate exceptions if not.
 
         :param kern_code_arg: kernel code argument.
         :type kern_code_arg: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -7552,20 +7555,27 @@ class DynKern(CodedKern):
                 "in kernel '{2}' but the LFRic API expects intent '{3}'."
                 "".format(kern_code_arg.name, actual_intent.name,
                           self.name, expected_intent.name))
-        # 4 scalar or array
+        # 4: scalar or array
         if interface_arg.is_scalar:
             if not kern_code_arg.is_scalar:
                 raise GenerationError(
-                    "Kernel argument '{0}' is expected to be a scalar "
-                    "by the LFRic API in kernel '{1}' but it is not."
+                    "Argument '{0}' to kernel '{1}' should be a scalar "
+                    "according to the LFRic API, but it is not."
                     "".format(kern_code_arg.name, self.name))
         elif interface_arg.is_array:
             if not kern_code_arg.is_array:
                 raise GenerationError(
-                    "Kernel argument '{0}' is expected to be an array "
-                    "by the LFRic API in kernel '{1}' but it is not."
+                    "Argument '{0}' to kernel '{1}' should be an array "
+                    "according to the LFRic API, but it is not."
                     "".format(kern_code_arg.name, self.name))
-            # 4.1 array arguments
+            # 4.1: array dimensions
+            if len(interface_arg.shape) != len(kern_code_arg.shape):
+                raise GenerationError(
+                    "Argument '{0}' to kernel '{1}' should be an array "
+                    "with {2} dimension(s) according to the LFRic API, but "
+                    "found {3}.".format(kern_code_arg.name, self.name,
+                                        len(interface_arg.shape),
+                                        len(kern_code_arg.shape)))
             for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
                 interface_arg_dim = interface_arg.shape[dim_idx]
                 if (isinstance(kern_code_arg_dim, DataSymbol) and
@@ -7574,11 +7584,18 @@ class DynKern(CodedKern):
                     # dimensions, dimensions with scalar values,
                     # offsets, or dimensions that include arithmetic
                     # are skipped.
-                    self._validate_kernel_code_arg(
-                        kern_code_arg_dim, interface_arg_dim)
+                    try:
+                        self._validate_kernel_code_arg(
+                            kern_code_arg_dim, interface_arg_dim)
+                    except GenerationError as info:
+                        raise GenerationError(
+                            "For dimension {0} in array argument '{1}' to "
+                            "kernel '{2}' the following error was found: "
+                            "{3}".format(dim_idx+1, kern_code_arg.name,
+                                         self.name, str(info.args[0])))
         else:
             raise InternalError(
-                "unexpected interface type found for '{0}' in kernel '{1}'. "
+                "unexpected argument type found for '{0}' in kernel '{1}'. "
                 "Expecting a scalar or an array.".format(
                     kern_code_arg.name, self.name))
 

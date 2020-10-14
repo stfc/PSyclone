@@ -192,9 +192,9 @@ def test_validate_kernel_code_args(monkeypatch):
     with pytest.raises(GenerationError) as info:
         kernel.validate_kernel_code_args()
     assert (
-        "The number of arguments expected by the psy-layer kernel call '8' "
-        "does not match the actual number of kernel arguments '9' in kernel "
-        "'matrix_vector_code'." in str(info.value))
+        "In kernel 'matrix_vector_code' the number of arguments indicated by "
+        "the kernel metadata is 8 but the actual number of kernel arguments "
+        "found is 9." in str(info.value))
 
 
 def test_validate_kernel_code_arg(monkeypatch):
@@ -250,14 +250,14 @@ def test_validate_kernel_code_arg(monkeypatch):
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(lfric_real_field_symbol,
                                          lfric_real_scalar_symbol)
-    assert ("Kernel argument 'field' is expected to be a scalar by the LFRic "
-            "API in kernel 'dummy' but it is not." in str(info.value))
+    assert ("Argument 'field' to kernel 'dummy' should be a scalar "
+            "according to the LFRic API, but it is not." in str(info.value))
 
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(lfric_real_scalar_symbol,
                                          lfric_real_field_symbol)
-    assert ("Kernel argument 'scalar' is expected to be an array by the LFRic "
-            "API in kernel 'dummy' but it is not." in str(info.value))
+    assert ("Argument 'scalar' to kernel 'dummy' should be an array "
+            "according to the LFRic API, but it is not." in str(info.value))
 
     undf = NumberOfUniqueDofsDataSymbol("undf", fs="w0", interface=read_access)
     lfric_real_field_symbol2 = RealFieldDataDataSymbol(
@@ -270,13 +270,28 @@ def test_validate_kernel_code_arg(monkeypatch):
                                      lfric_real_field_symbol)
 
     lfric_real_field_symbol3 = RealFieldDataDataSymbol(
-        "field", dims=[int_scalar_symbol], fs="w0", interface=read_access)
+        "field", dims=[undf], fs="w0", interface=read_access)
+    monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
+                        [undf, undf])
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(lfric_real_field_symbol2,
                                          lfric_real_field_symbol3)
+    assert ("Argument 'field' to kernel 'dummy' should be an array with 2 "
+            "dimension(s) according to the LFRic API, but found 1."
+            in str(info.value))
+    
+
+
+    lfric_real_field_symbol4 = RealFieldDataDataSymbol(
+        "field", dims=[int_scalar_symbol], fs="w0", interface=read_access)
+    with pytest.raises(GenerationError) as info:
+        kernel._validate_kernel_code_arg(lfric_real_field_symbol2,
+                                         lfric_real_field_symbol4)
     assert (
-        "Kernel argument 'undf' has precision 'i_def' in kernel 'dummy' but "
-        "the LFRic API expects 'UNDEFINED'" in str(info.value))
+        "For dimension 1 in array argument 'field' to kernel 'dummy' the "
+        "following error was found: Kernel argument 'undf' has precision "
+        "'i_def' in kernel 'dummy' but the LFRic API expects 'UNDEFINED'"
+        in str(info.value))
 
     # monkeypatch lfric_real_scalar_symbol to return that it is not a
     # scalar in order to force the required exception. We do this by

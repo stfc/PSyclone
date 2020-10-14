@@ -100,11 +100,11 @@ class KernelInterface(ArgOrdering):
         "gh_quadrature_xyoz": DiffBasisFunctionQrXyozDataSymbol,
         "gh_quadrature_face": DiffBasisFunctionQrFaceDataSymbol,
         "gh_quadrature_edge": DiffBasisFunctionQrEdgeDataSymbol}
+    _read_access = ArgumentInterface(ArgumentInterface.Access.READ)
 
     def __init__(self, kern):
         # pylint: disable=super-with-arguments
         super(KernelInterface, self).__init__(kern)
-        self._read_access = ArgumentInterface(ArgumentInterface.Access.READ)
         self._symbol_table = SymbolTable()
         self._arglist = []
 
@@ -205,7 +205,7 @@ class KernelInterface(ArgOrdering):
 
         interface = ArgumentInterface(INTENT_MAPPING[argvect.intent])
         try:
-            field_class = KernelInterface.vector_field_mapping[
+            field_class = self.vector_field_mapping[
                 argvect.intrinsic_type]
         except KeyError:
             # pylint: disable=raise-missing-from
@@ -245,7 +245,7 @@ class KernelInterface(ArgOrdering):
             extra_args=[fs_name])
 
         try:
-            field_class = KernelInterface.field_mapping[arg.intrinsic_type]
+            field_class = self.field_mapping[arg.intrinsic_type]
         except KeyError:
             # pylint: disable=raise-missing-from
             raise NotImplementedError(
@@ -503,7 +503,7 @@ class KernelInterface(ArgOrdering):
         '''
         basis_name_func = function_space.get_basis_name
         first_dim_value_func = self._basis_first_dim_value
-        self._create_basis(function_space, KernelInterface.basis_mapping,
+        self._create_basis(function_space, self.basis_mapping,
                            basis_name_func, first_dim_value_func)
 
     def diff_basis(self, function_space, var_accesses=None):
@@ -520,7 +520,7 @@ class KernelInterface(ArgOrdering):
         '''
         basis_name_func = function_space.get_diff_basis_name
         first_dim_value_func = self._diff_basis_first_dim_value
-        self._create_basis(function_space, KernelInterface.diff_basis_mapping,
+        self._create_basis(function_space, self.diff_basis_mapping,
                            basis_name_func, first_dim_value_func)
 
     def orientation(self, function_space, var_accesses=None):
@@ -634,15 +634,15 @@ class KernelInterface(ArgOrdering):
                                     "found in kernel_interface.".format(shape))
 
     # pylint: disable=too-many-arguments
-    def _create_symbol(self, tag, data_symbol, extra_args=None, dims=None,
+    def _create_symbol(self, tag, symbol_type, extra_args=None, dims=None,
                        interface=None):
         '''Internal utility to create a symbol. If a symbol is found in the
         symbol table with the supplied tag then that symbol is
-        returned, otherwise a new symbol of type 'data_symbol' is
+        returned, otherwise a new symbol of type 'symbol_type' is
         created and added to the symbol table with the supplied
         tag. If the symbol requires any arguments then these are
         supplied via the extra_args and dims arguments. The latter
-        also specifies the dimensions of the symbol if it is an array. By
+        specifies the dimensions of the symbol if it is an array. By
         default it is assumed that the access to the symbol will be
         read only; if the access is different to this then the
         interface argument must be provided with the appropriate
@@ -652,10 +652,9 @@ class KernelInterface(ArgOrdering):
         datatypes and content are correct.
 
         :param str tag: the name to use as a tag in the symbol table \
-            and also as the base name when creating a new symbol table \
-            name.
-        :param data_symbol: the symbol class that we are going to create.
-        :type data_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+            and also as the base name when creating a new symbol name.
+        :param symbol_type: the symbol class that we are going to create.
+        :type symbol_type: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param extra_args: an optional list of strings specifying the \
             values of any additional arguments to provide to the \
             data_symbol class on creation or None if there are \
@@ -666,7 +665,7 @@ class KernelInterface(ArgOrdering):
             not an array. Defaults to None.
         :type dims: list of DataSymbol, int or ArrayType.Extent or NoneType
         :param interface: an optional ArgumentInterface specifying the \
-            intent of the symbol, or None if the default it \
+            intent of the symbol, or None if the default is \
             suitable. Defaults to read access.
         :type interface: \
             :py:class:`psyclone.psyir.symbols.ArgumentInterface` or \
@@ -674,16 +673,16 @@ class KernelInterface(ArgOrdering):
 
         :returns: the appropriate symbol and properties as specified \
             by this methods arguments.
-        :type: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: subclass of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         try:
             symbol = self._symbol_table.lookup_with_tag(tag)
-            if not isinstance(symbol, data_symbol):
+            if not isinstance(symbol, symbol_type):
                 raise InternalError(
                     "Expected symbol with tag '{0}' to be of type '{1}' but "
                     "found type '{2}'.".format(
-                        tag, data_symbol.__name__, type(symbol).__name__))
+                        tag, symbol_type.__name__, type(symbol).__name__))
         except KeyError:
             if interface is None:
                 interface = self._read_access
@@ -693,7 +692,7 @@ class KernelInterface(ArgOrdering):
                 args.append(dims)
             if extra_args:
                 args.extend(extra_args)
-            symbol = data_symbol(*args, interface=interface)
+            symbol = symbol_type(*args, interface=interface)
             self._symbol_table.add(symbol, tag=tag)
         return symbol
 
@@ -770,7 +769,7 @@ class KernelInterface(ArgOrdering):
                                 ndf_symbol, nqp, nedges],
                     fs_name, interface=self._read_access)
             elif shape in VALID_EVALUATOR_SHAPES:
-                # Need a diff basis array for each target space upon
+                # Need a (diff) basis array for each target space upon
                 # which the basis functions have been
                 # evaluated. _kern.eval_targets is a dict where the
                 # values are 2-tuples of (FunctionSpace, argument).

@@ -45,7 +45,7 @@ from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, DeferredType, \
 
 # Define LFRic module symbols.
 
-# The first Module named-tuple argument specifies the name of the
+# The first Module namedtuple argument specifies the name of the
 # module and the second argument declares the name(s) of any symbols
 # declared by the module.
 
@@ -67,9 +67,9 @@ for module in modules:
 
 # Define generic LFRic scalar datatypes and symbols
 
-# The first Scalar named-tuple argument determines the names of the
-# resultant datatype and datasymbol classes, the second argument
-# specifies the intrinsic PSyIR type and the third argument specifies
+# The GenericScalar namedtuple has 3 properties: the first determines
+# the names of the resultant datatype and datasymbol classes, the
+# second specifies the intrinsic PSyIR type and the third specifies
 # the precision required by referencing symbols already declared
 # above.
 
@@ -102,11 +102,12 @@ for info in generic_scalar_datatypes:
 
 # Define specific LFRic scalar datatypes and symbols
 
-# The first Scalar named-tuple argument determines the names of the
-# resultant datatype and datasymbol classes, the second argument
-# references the generic scalar type classes declared above and the
-# third argument specifies any additional class properties that should
-# be declared in the generated datasymbol class.
+# The Scalar namedtuple has 3 properties: the first
+# determines the names of the resultant datatype and datasymbol
+# classes, the second references the generic scalar type
+# classes declared above and the third specifies any
+# additional class properties that should be declared in the generated
+# datasymbol class.
 
 Scalar = namedtuple('Scalar', ["name", "generic_type", "properties"])
 specific_scalar_datatypes = [
@@ -148,13 +149,13 @@ for info in specific_scalar_datatypes:
 # list because they are used to create vector field datatypes and
 # symbols.
 
-# The first Array named-tuple argument determines the names of the
-# resultant datatype and datasymbol classes, the second argument
+# The Array namedtuple has 4 properties: the first determines the
+# names of the resultant datatype and datasymbol classes, the second
 # references the generic scalar type classes declared above, the third
-# argument specifies the dimensions of the array by specifying a list
-# of scalar type classes declared above, and the fourth argument
-# specifies any additional class properties that should be declared in
-# the generated datasymbol class.
+# specifies the dimensions of the array by specifying a list of scalar
+# type classes declared above, and the fourth specifies any additional
+# class properties that should be declared in the generated datasymbol
+# class.
 
 Array = namedtuple('Array', ["name", "scalar_type", "dims", "properties"])
 field_datatypes = [
