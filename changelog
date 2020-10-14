@@ -153,6 +153,15 @@
 	50) #899 for #896. Adds a new PSyIR Routine Node that subclasses
 	Schedule and is subclassed by KernelSchedule.
 
+        51) #932 for #931. Fixes the dependency analysis in the case
+        that no existing Symbol is found for an array access. This is
+        a workaround until the NEMO API has a fully-functioning symbol
+        table enabling the dependency analysis to be based upon Symbol
+        information (#845).
+
+        52) #930 for #885. Bug fix for missing halo exchange before a
+        Builtin Kernel with a field argument with read-write access.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
