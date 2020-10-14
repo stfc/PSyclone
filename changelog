@@ -153,7 +153,13 @@
 	50) #899 for #896. Adds a new PSyIR Routine Node that subclasses
 	Schedule and is subclassed by KernelSchedule.
 
-	51) #919 for #916. Fixes errors in docstrings which show up when
+        51) #932 for #931. Fixes the dependency analysis in the case
+        that no existing Symbol is found for an array access. This is
+        a workaround until the NEMO API has a fully-functioning symbol
+        table enabling the dependency analysis to be based upon Symbol
+        information (#845).
+
+	52) #919 for #916. Fixes errors in docstrings which show up when
 	generating the reference guide.
 
 release 1.9.0 20th May 2020
