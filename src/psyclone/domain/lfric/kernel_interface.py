@@ -58,7 +58,6 @@ from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.errors import InternalError, GenerationError
 from psyclone.domain.lfric import FunctionSpace
-from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES
 
 
 # pylint: disable=too-many-public-methods
@@ -93,6 +92,14 @@ class KernelInterface(ArgOrdering):
         "integer": IntegerVectorFieldDataDataSymbol,
         "real": RealVectorFieldDataDataSymbol,
         "logical": LogicalVectorFieldDataDataSymbol}
+    basis_mapping = {
+        "gh_quadrature_xyoz": BasisFunctionQrXyozDataSymbol,
+        "gh_quadrature_face": BasisFunctionQrFaceDataSymbol,
+        "gh_quadrature_edge": BasisFunctionQrEdgeDataSymbol}
+    diff_basis_mapping = {
+        "gh_quadrature_xyoz": DiffBasisFunctionQrXyozDataSymbol,
+        "gh_quadrature_face": DiffBasisFunctionQrFaceDataSymbol,
+        "gh_quadrature_edge": DiffBasisFunctionQrEdgeDataSymbol}
 
     def __init__(self, kern):
         # pylint: disable=super-with-arguments
@@ -153,7 +160,7 @@ class KernelInterface(ArgOrdering):
         :type var_accesses: :\
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NoImplementedError: as this method is not implemented.
+        :raises NotImplementedError: as this method is not implemented.
 
         '''
         raise NotImplementedError("mesh_ncell2d not implemented")
@@ -166,7 +173,7 @@ class KernelInterface(ArgOrdering):
         :type var_accesses: :\
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NoImplementedError: as this method is not implemented.
+        :raises NotImplementedError: as this method is not implemented.
 
         '''
         raise NotImplementedError("cell_map not implemented")
@@ -188,8 +195,9 @@ class KernelInterface(ArgOrdering):
             field is not supported.
 
         '''
-        # Create and add a undf symbol to the symbol table if one does
-        # not already exist or return the existing one if one does.
+        # self._create_symbol(...) will create and add a undf symbol
+        # to the symbol table if one does not already exist or return
+        # the existing one if one does.
         fs_name = argvect.function_space.orig_name
         undf_symbol = self._create_symbol(
             "undf_{0}".format(fs_name), NumberOfUniqueDofsDataSymbol,
@@ -228,8 +236,9 @@ class KernelInterface(ArgOrdering):
             not supported.
 
         '''
-        # Create and add a undf symbol to the symbol table if one does
-        # not already exist or return the existing one if one does.
+        # self._create_symbol(...) will create and add a undf symbol
+        # to the symbol table if one does not already exist or return
+        # the existing one if one does.
         fs_name = arg.function_space.orig_name
         undf_symbol = self._create_symbol(
             "undf_{0}".format(fs_name), NumberOfUniqueDofsDataSymbol,
@@ -257,7 +266,7 @@ class KernelInterface(ArgOrdering):
         :type var_accesses: :\
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NoImplementedError: as this method is not implemented.
+        :raises NotImplementedError: as this method is not implemented.
 
         '''
         raise NotImplementedError("stencil_unknown_extent not implemented")
@@ -272,7 +281,7 @@ class KernelInterface(ArgOrdering):
         :type var_accesses: :\
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NoImplementedError: as this method is not implemented.
+        :raises NotImplementedError: as this method is not implemented.
 
         '''
         raise NotImplementedError("stencil_unknown_direction not implemented")
@@ -287,7 +296,7 @@ class KernelInterface(ArgOrdering):
         :type var_accesses: :\
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NoImplementedError: as this method is not implemented.
+        :raises NotImplementedError: as this method is not implemented.
 
         '''
         raise NotImplementedError("stencil not implemented")
@@ -310,8 +319,9 @@ class KernelInterface(ArgOrdering):
             not supported.
 
         '''
-        # Create and add ndf symbols to the symbol table if they do
-        # not already exist or return the existing ones if they do.
+        # The self._create_symbol(...) calls will create and add ndf
+        # symbols to the symbol table if they do not already exist or
+        # return the existing ones if they do.
         fs_from_name = arg.function_space_from.orig_name
         ndf_symbol_from = self._create_symbol(
             "ndf_{0}".format(fs_from_name), NumberOfDofsDataSymbol,
@@ -343,7 +353,7 @@ class KernelInterface(ArgOrdering):
         :type var_accesses: :\
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NoImplementedError: as this method is not implemented.
+        :raises NotImplementedError: as this method is not implemented.
 
         '''
         raise NotImplementedError("cma_operator not implemented")
@@ -408,7 +418,7 @@ class KernelInterface(ArgOrdering):
         :type var_accesses: :\
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NoImplementedError: as this method is not implemented.
+        :raises NotImplementedError: as this method is not implemented.
 
         '''
         raise NotImplementedError("fs_intergrid not implemented")
@@ -456,7 +466,7 @@ class KernelInterface(ArgOrdering):
         :type var_accesses: :\
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NoImplementedError: as this method is not implemented.
+        :raises NotImplementedError: as this method is not implemented.
 
         '''
         raise NotImplementedError("banded_dofmap not implemented")
@@ -474,7 +484,7 @@ class KernelInterface(ArgOrdering):
         :type var_accesses: :\
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NoImplementedError: as this method is not implemented.
+        :raises NotImplementedError: as this method is not implemented.
 
         '''
         raise NotImplementedError("indirection_dofmap not implemented")
@@ -491,14 +501,10 @@ class KernelInterface(ArgOrdering):
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        mapping = {
-            "gh_quadrature_xyoz": BasisFunctionQrXyozDataSymbol,
-            "gh_quadrature_face": BasisFunctionQrFaceDataSymbol,
-            "gh_quadrature_edge": BasisFunctionQrEdgeDataSymbol}
         basis_name_func = function_space.get_basis_name
         first_dim_value_func = self._basis_first_dim_value
-        self._create_basis(function_space, mapping, basis_name_func,
-                           first_dim_value_func)
+        self._create_basis(function_space, KernelInterface.basis_mapping,
+                           basis_name_func, first_dim_value_func)
 
     def diff_basis(self, function_space, var_accesses=None):
         '''Create an LFRic differential basis function argument and add it to
@@ -512,14 +518,10 @@ class KernelInterface(ArgOrdering):
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        mapping = {
-            "gh_quadrature_xyoz": DiffBasisFunctionQrXyozDataSymbol,
-            "gh_quadrature_face": DiffBasisFunctionQrFaceDataSymbol,
-            "gh_quadrature_edge": DiffBasisFunctionQrEdgeDataSymbol}
         basis_name_func = function_space.get_diff_basis_name
         first_dim_value_func = self._diff_basis_first_dim_value
-        self._create_basis(function_space, mapping, basis_name_func,
-                           first_dim_value_func)
+        self._create_basis(function_space, KernelInterface.diff_basis_mapping,
+                           basis_name_func, first_dim_value_func)
 
     def orientation(self, function_space, var_accesses=None):
         '''Not implemented.
@@ -531,7 +533,7 @@ class KernelInterface(ArgOrdering):
         :type var_accesses: :\
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NoImplementedError: as this method is not implemented.
+        :raises NotImplementedError: as this method is not implemented.
 
         '''
         raise NotImplementedError("orientation not implemented")
@@ -539,14 +541,14 @@ class KernelInterface(ArgOrdering):
     def field_bcs_kernel(self, function_space, var_accesses=None):
         '''Not implemented.
 
-        :param function_space: the function space for this boundaey condition.
+        :param function_space: the function space for this boundary condition.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NoImplementedError: as this method is not implemented.
+        :raises NotImplementedError: as this method is not implemented.
 
         '''
         raise NotImplementedError("field_bcs_kernel not implemented")
@@ -561,7 +563,7 @@ class KernelInterface(ArgOrdering):
         :type var_accesses: :\
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NoImplementedError: as this method is not implemented.
+        :raises NotImplementedError: as this method is not implemented.
 
         '''
         raise NotImplementedError("operator_bcs_kernel not implemented")
@@ -730,9 +732,11 @@ class KernelInterface(ArgOrdering):
 
         '''
         # pylint: disable=too-many-locals
+        from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES
         for shape in self._kern.eval_shapes:
-            # Create and add an ndf symbol to the symbol table if one does
-            # not already exist or return the existing one if one does.
+            # self._create_symbol(...) will create and add an ndf
+            # symbol to the symbol table if one does not already exist
+            # or return the existing one if one does.
             fs_name = function_space.orig_name
             ndf_symbol = self._create_symbol(
                 "ndf_{0}".format(fs_name), NumberOfDofsDataSymbol,
