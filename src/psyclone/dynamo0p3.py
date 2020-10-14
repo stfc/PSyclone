@@ -6514,62 +6514,62 @@ class DynLoop(Loop):
         halo data read within this loop. Returns True if it does, or if
         it might and False if it definitely does not.
 
-        :param arg: an argument contained within this loop
+        :param arg: an argument contained within this loop.
         :type arg: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         :returns: True if the argument reads, or might read from the \
-                  halo and False otherwise.
+            halo and False otherwise.
         :rtype: bool
 
-        :raises GenerationError: if an invalid upper loop bound name is \
-                                 provided for kernels with stencil access.
-        :raises InternalError: if an invalid combination of upper bound name \
-                               and argument access is not caught by checks.
+        :raises GenerationError: if an unsupported upper loop bound name is \
+            provided for kernels with stencil access.
+        :raises InternalError: if an unsupported field access is found.
+        :raises InternalError: if an unsupported argument type is found.
 
         '''
-        if arg.descriptor.stencil:
-            if self._upper_bound_name not in ["cell_halo", "ncells"]:
-                raise GenerationError(
-                    "Loop bounds other than 'cell_halo' and 'ncells' are "
-                    "currently unsupported for kernels with stencil "
-                    "accesses. Found '{0}'.".format(self._upper_bound_name))
-            return self._upper_bound_name in ["cell_halo", "ncells"]
-        if arg.is_scalar:
-            # Scalars do not have halos
+        if arg.is_scalar or arg.is_operator:
+            # Scalars and operators do not have halos
             return False
-        if arg.is_operator:
-            # Operators do not have halos
-            return False
-        if arg.discontinuous and arg.access in \
-                [AccessType.READ, AccessType.READWRITE]:
-            # There are no shared dofs so access to inner and ncells are
-            # local so we only care about reads in the halo
-            return self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS
-        if arg.access in [AccessType.READ, AccessType.INC]:
-            # Argument  is either continuous or we don't know (any_space_x)
-            # and we need to assume it may be continuous for correctness
-            if self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
-                # we read in the halo
-                return True
-            if self._upper_bound_name in ["ncells", "nannexed"]:
-                # We read annexed dofs. Return False if we always
-                # compute annexed dofs and True if we don't (as
-                # annexed dofs are part of the level 1 halo).
-                return not Config.get()\
-                                 .api_conf("dynamo0.3").compute_annexed_dofs
-            if self._upper_bound_name in ["ndofs"]:
-                # Argument does not read from the halo
+        if arg.is_field:
+            # This is a field so might read from a halo
+            if arg.access in [AccessType.WRITE]:
+                # This is not a read access
                 return False
-            # Nothing should get to here so raise an exception
+            if arg.access in AccessType.all_read_accesses():
+                # This is a read access
+                if arg.descriptor.stencil:
+                    if self._upper_bound_name not in ["cell_halo", "ncells"]:
+                        raise GenerationError(
+                            "Loop bounds other than 'cell_halo' and 'ncells' "
+                            "are currently unsupported for kernels with "
+                            "stencil accesses. Found '{0}'."
+                            "".format(self._upper_bound_name))
+                    # An upper bound of 'cell_halo' means that the
+                    # halo might be accessed irrespective of the
+                    # stencil and a stencil read access with upper
+                    # bound 'ncells' might read from the
+                    # halo due to the stencil.
+                    return True
+                # This is a non-stencil read access
+                if self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
+                    # An upper bound that is part of the halo means
+                    # that the halo might be accessed.
+                    return True
+                if not arg.discontinuous and \
+                   self._upper_bound_name in ["ncells", "nannexed"]:
+                    # Annexed dofs may be accessed. Return False if we
+                    # always compute annexed dofs and True if we don't
+                    # (as annexed dofs are part of the level 1 halo).
+                    return not Config.get().api_conf("dynamo0.3").\
+                        compute_annexed_dofs
+                # The halo is not accessed.
+                return False
             raise InternalError(
-                "DynLoop._halo_read_access(): It should not be possible to "
-                "get to here. Loop upper bound name is '{0}' and arg '{1}' "
-                "access is '{2}'.".format(
-                    self._upper_bound_name, arg.name,
-                    arg.access.api_specific_name()))
-
-        # Access is neither a read nor an inc so does not need halo
-        return False
+                "Unexpected field access type '{0}' found for arg '{1}'."
+                "".format(arg.access, arg.name))
+        raise InternalError(
+            "Expecting arg '{0}' to be an operator, scalar or field, "
+            "but found '{1}'.".format(arg.name, arg.argument_type))
 
     def _add_field_component_halo_exchange(self, halo_field, idx=None):
         '''An internal helper method to add the halo exchange call immediately
