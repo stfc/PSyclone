@@ -36,15 +36,19 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the abstract Node implementation.'''
+'''
+This module contains the abstract Node implementation.
+
+'''
 
 import abc
 from psyclone.psyir.symbols import SymbolError, Symbol, UnresolvedInterface
 from psyclone.errors import GenerationError, InternalError
 
-# Colour map to use when writing Invoke schedule to terminal. (Requires
-# that the termcolor package be installed. If it isn't then output is not
-# coloured.) See https://pypi.python.org/pypi/termcolor for details.
+
+#: Colour map to use when writing Invoke schedule to terminal. (Requires
+#: that the termcolor package be installed. If it isn't then output is not
+#: coloured.) See https://pypi.python.org/pypi/termcolor for details.
 SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Loop": "red",
                        "GlobalSum": "cyan",
@@ -70,7 +74,6 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Container": "green",
                        "Call": "cyan"}
 
-
 # Default indentation string
 INDENTATION_STRING = "    "
 
@@ -87,12 +90,12 @@ except ImportError:
         Returns the supplied text argument unchanged. This is a swap-in
         replacement for when termcolor.colored is not available.
 
-        :param text: Text to return
-        :type text: string
-        :param _: Fake argument, only required to match interface
-                  provided by termcolor.colored
-        :returns: The supplied text, unchanged
-        :rtype: string
+        :param str text: text to return.
+        :param _: fake argument, only required to match interface \
+                  provided by termcolor.colored.
+
+        :returns: the supplied text, unchanged.
+        :rtype: str
         '''
         return text
 
@@ -903,7 +906,7 @@ class Node(object):
         :param my_type: the class(es) for which the instances are collected.
         :type my_type: either a single :py:class:`psyclone.Node` class \
             or a tuple of such classes
-        :param stop_type: class(es) at which recursion is halted (optional)."
+        :param stop_type: class(es) at which recursion is halted (optional).
 
         :type stop_type: None or a single :py:class:`psyclone.Node` \
             class or a tuple of such classes
@@ -1258,3 +1261,11 @@ class Node(object):
         # match and there are no wildcard imports so raise an exception.
         raise SymbolError(
             "No Symbol found for name '{0}'.".format(name))
+
+
+# For automatic documentation generation
+# TODO #913 the 'colored' routine shouldn't be in this module.
+__all__ = ["colored",
+           "SCHEDULE_COLOUR_MAP",
+           "ChildrenList",
+           "Node"]

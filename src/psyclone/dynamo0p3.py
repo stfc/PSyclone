@@ -5341,9 +5341,9 @@ class DynHaloExchange(HaloExchange):
         return HaloWriteAccess(write_dependencies[0])
 
     def required(self, ignore_hex_dep=False):
-        '''Determines whether this halo exchange is definitely required (True,
-        True), might be required (True, False) or is definitely not
-        required (False, *).
+        '''Determines whether this halo exchange is definitely required
+        ``(True, True)``, might be required ``(True, False)`` or is definitely
+        not required ``(False, *)``.
 
         If the optional ignore_hex_dep argument is set to True then
         any read accesses contained in halo exchange nodes are
@@ -5374,7 +5374,7 @@ class DynHaloExchange(HaloExchange):
             accesses contained in halo exchanges. This is an optional \
             argument that defaults to False.
 
-        :return: Returns (x, y) where x specifies whether this halo \
+        :returns: (x, y) where x specifies whether this halo \
             exchange is (or might be) required - True, or is not \
             required - False. If the first tuple item is True then the \
             second argument specifies whether we definitely know that \
@@ -5638,11 +5638,11 @@ class DynHaloExchangeStart(DynHaloExchange):
         only read and the dependence analysis beneath this call
         requires the field to be modified.
 
-        :return: Returns (x, y) where x specifies whether this halo \
-        exchange is (or might be) required - True, or is not required \
-        - False. If the first tuple item is True then the second \
-        argument specifies whether we definitely know that we need the \
-        HaloExchange - True, or are not sure - False.
+        :returns: (x, y) where x specifies whether this halo exchange \
+                  is (or might be) required - True, or is not required \
+                  - False. If the first tuple item is True then the second \
+                  argument specifies whether we definitely know that we need \
+                  the HaloExchange - True, or are not sure - False.
         :rtype: (bool, bool)
 
         '''
@@ -5753,25 +5753,19 @@ class HaloDepth(object):
 
     @property
     def annexed_only(self):
-        '''Returns whether the access to the halo is solely to annexed dofs,
-        or not
-
-        :return: Return True if only annexed dofs are accessed in the
-        halo and False otherwise
+        '''
+        :returns: True if only annexed dofs are accessed in the halo and \
+                  False otherwise.
         :rtype: bool
-
         '''
         return self._annexed_only
 
     @property
     def max_depth(self):
-        '''Returns whether the read to the field is known to access all of the
-        halo or not
-
-        :return: Return True if the read to the field is known to
-        access all of the halo and False otherwise
+        '''
+        :returns: True if the read to the field is known to access all \
+                  of the halo and False otherwise.
         :rtype: bool
-
         '''
         return self._max_depth
 
@@ -5780,8 +5774,8 @@ class HaloDepth(object):
         '''Returns whether the read to the field is known to access all of the
         halo except the outermost level or not.
 
-        :return: Return True if the read to the field is known to
-        access all of the halo except the outermost and False otherwise
+        :returns: True if the read to the field is known to access all \
+                  of the halo except the outermost and False otherwise.
         :rtype: bool
 
         '''
@@ -5794,9 +5788,9 @@ class HaloDepth(object):
         stencil accesses. Also note, this depth should be added to the
         literal_depth to find the total depth.
 
-        :return: Return a variable name specifying the halo
-        access depth, if one exists, and None if not
-        :rtype: String
+        :returns: a variable name specifying the halo access depth \
+                  if one exists, and None if not.
+        :rtype: str
 
         '''
         return self._var_depth
@@ -5804,12 +5798,10 @@ class HaloDepth(object):
     @property
     def literal_depth(self):
         '''Returns the known fixed (literal) depth of halo access. Note, this
-        depth should be added to the var_depth to find the total
-        depth.
+        depth should be added to the var_depth to find the total depth.
 
-        :return: Return the known fixed (literal) halo
-        access depth
-        :rtype: integer
+        :returns: the known fixed (literal) halo access depth.
+        :rtype: int
 
         '''
         return self._literal_depth
@@ -5818,9 +5810,8 @@ class HaloDepth(object):
     def literal_depth(self, value):
         ''' Set the known fixed (literal) depth of halo access.
 
-        :parameter value: Set the known fixed (literal) halo
-        access depth
-        :type value: integer
+        :parameter value: Set the known fixed (literal) halo access depth.
+        :type value: int
 
         '''
         self._literal_depth = value
@@ -5935,8 +5926,8 @@ class HaloWriteAccess(HaloDepth):
         been written to is actually dirty (well to be precise it is a partial
         sum).
 
-        :return: Return True if the outer layer of halo
-        that is written to remains dirty and False otherwise.
+        :returns: True if the outer layer of halo that is written \
+                  to remains dirty and False otherwise.
         :rtype: bool
 
         '''
@@ -5950,7 +5941,7 @@ class HaloWriteAccess(HaloDepth):
         a literal depth and the outer halo layer that is written to
         may be dirty or clean.
 
-        :param field: the field that we are concerned with
+        :param field: the field that we are concerned with.
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         '''
@@ -6031,9 +6022,9 @@ class HaloReadAccess(HaloDepth):
         a subset of the halo) then the access is assumed to be full
         access (region) for all depths.
 
-        :return: Return the type of stencil access used
-        or None if there is no stencil.
-        :rtype: String
+        :returns: the type of stencil access used or None if there is no \
+                  stencil.
+        :rtype: str
 
         '''
         return self._stencil_type
@@ -6344,12 +6335,12 @@ class DynLoop(Loop):
     @property
     def upper_bound_halo_depth(self):
         '''Returns the index of the upper loop bound. This is None if the upper
-        bound name is not in HALO_ACCESS_LOOP_BOUNDS
+        bound name is not in HALO_ACCESS_LOOP_BOUNDS.
 
-        :return: the depth of the halo for a loops upper bound. If it
-        is None then a depth has not been provided. The depth value is only
-        valid when the upper-bound name is associated with a halo
-        e.g. 'cell_halo'
+        :returns: the depth of the halo for a loops upper bound. If it \
+            is None then a depth has not been provided. The depth value is \
+            only valid when the upper-bound name is associated with a halo \
+            e.g. 'cell_halo'.
         :rtype: int
 
         '''
@@ -6362,7 +6353,7 @@ class DynLoop(Loop):
         :returns: the Fortran code for the lower bound.
         :rtype: str
 
-        :raises GenerationError: if self._lower_bound_name is not "start"
+        :raises GenerationError: if self._lower_bound_name is not "start" \
                                  for sequential code.
         :raises GenerationError: if self._lower_bound_name is unrecognised.
         '''
