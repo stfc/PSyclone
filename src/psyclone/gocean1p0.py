@@ -1155,7 +1155,7 @@ class GOKern(CodedKern):
         # In OpenCL the iteration boundaries are passed as arguments to the
         # kernel because the group_work size may exceed the dimensions and
         # therefore the updates outsides the boundaries should be masked.
-        arguments = [kernel, num_x]
+        arguments = [kernel, num_x, num_x, num_x, num_x]
         for arg in self._arguments.args:
             if arg.argument_type == "scalar":
                 arguments.append(arg.name)
@@ -1214,14 +1214,20 @@ class GOKern(CodedKern):
         kobj = argsetter_st.new_symbol_name("kernel_obj")
         argsetter_st.add(Symbol(kobj))
 
-        # Add an 'xstop' argument symbol to provide the ending iteration value
-        # of the contiguous dimension regardless of padding elements or
-        # work_groupsizes.
+        # Add argument symbols to provide the iteration boundary values
+        xstart_name = argsetter_st.new_symbol_name("xstart")
         xstop_name = argsetter_st.new_symbol_name("xstop")
+        ystart_name = argsetter_st.new_symbol_name("ystart")
+        ystop_name = argsetter_st.new_symbol_name("ystop")
+        argsetter_st.add(DataSymbol(xstart_name, INTEGER_TYPE))
         argsetter_st.add(DataSymbol(xstop_name, INTEGER_TYPE))
+        argsetter_st.add(DataSymbol(ystart_name, INTEGER_TYPE))
+        argsetter_st.add(DataSymbol(ystop_name, INTEGER_TYPE))
+        boundary_names = [xstart_name, xstop_name, ystart_name, ystop_name]
 
         # Join argument list
-        args = [kobj, xstop_name] + [arg.name for arg in self._arguments.args]
+        args = [kobj] + boundary_names + \
+               [arg.name for arg in self._arguments.args]
 
         # Declare the subroutine in the Invoke SymbolTable and the argsetter
         # subroutine SymbolTable.
@@ -1243,7 +1249,7 @@ class GOKern(CodedKern):
                         target=True, entity_decls=[kobj]))
 
         sub.add(DeclGen(sub, datatype="integer", target=True,
-                        entity_decls=[xstop_name]))
+                        entity_decls=boundary_names))
 
         # Get all Grid property arguments
         grid_prop_args = args_filter(self._arguments.args,
@@ -1293,27 +1299,32 @@ class GOKern(CodedKern):
         sub.add(CommentGen(
             sub,
             " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
-        sub.add(AssignGen(
-            sub, lhs=err_name,
-            rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-            format(kobj, 0, xstop_name)))
-        sub.add(CallGen(
-            sub, "check_status",
-            ["'clSetKernelArg: arg {0} of {1}'".format(0, self.name),
-             err_name]))
-        for index, arg in enumerate(self.arguments.args):
+        index = 0
+        # First the boundary values
+        for boundary in boundary_names:
             sub.add(AssignGen(
                 sub, lhs=err_name,
                 rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-                format(kobj, index + 1, arg.name)))
+                format(kobj, 0, boundary)))
             sub.add(CallGen(
                 sub, "check_status",
-                ["'clSetKernelArg: arg {0} of {1}'".format(index + 1,
-                                                           self.name),
+                ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
                  err_name]))
+            index = index + 1
+        # Then the PSy-layer kernel arguments
+        for arg in self.arguments.args:
+            sub.add(AssignGen(
+                sub, lhs=err_name,
+                rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
+                format(kobj, index, arg.name)))
+            sub.add(CallGen(
+                sub, "check_status",
+                ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
+                 err_name]))
+            index = index + 1
 
     def _prepare_opencl_kernel_schedule(self):
-        ''' GOcean OpenCL kernels take the iteration boundaries as parameters
+        ''' GOcean OpenCL kernels take the iteration boundaries as arguments
         ans adds a conditional masking statement to avoid updating elements
         outside the boundaries.
         '''
@@ -1323,37 +1334,52 @@ class GOKern(CodedKern):
         # with the 'boundaries_mask' annotation, we should insert a
         # conditional statement that checks that the  iteration
         # variables do not exceed the expected iteration boundaries.
-        if 'boundaries_mask' not in kschedule[0].annotations:
+        if 'opencl_boundaries_mask' not in kschedule[0].annotations:
             kernel_st = kschedule.symbol_table
-            xstop_name =  kernel_st.new_symbol_name("xstop")
-
             iteration_indices = kernel_st.iteration_indices
             data_arguments = kernel_st.data_arguments
 
-            # Insert boundary limits as Kernel arguments
+            # Find names available for the boundary variables
+            xstart_name =  kernel_st.new_symbol_name("xstart")
+            xstop_name =  kernel_st.new_symbol_name("xstop")
+            ystart_name =  kernel_st.new_symbol_name("ystart")
+            ystop_name =  kernel_st.new_symbol_name("ystop")
+
+            # Create new symbols and insert them as kernel arguments after
+            # then initial iteration indices
+            xstart_symbol = DataSymbol(xstart_name, INTEGER_TYPE,
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
             xstop_symbol = DataSymbol(xstop_name, INTEGER_TYPE,
                 interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            ystart_symbol = DataSymbol(ystart_name, INTEGER_TYPE,
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            ystop_symbol = DataSymbol(ystop_name, INTEGER_TYPE,
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            kernel_st.add(xstart_symbol)
             kernel_st.add(xstop_symbol)
-            kernel_st.specify_argument_list(
-                iteration_indices + [xstop_symbol] + data_arguments)
+            kernel_st.add(ystart_symbol)
+            kernel_st.add(ystop_symbol)
+            kernel_st.specify_argument_list(iteration_indices +
+                [xstart_symbol, xstop_symbol, ystart_symbol, ystop_symbol] +
+                data_arguments)
 
             # Create boundaries masking condition
             condition1 = BinaryOperation.create(
-                BinaryOperation.Operator.GT,
+                BinaryOperation.Operator.LT,
                 Reference(iteration_indices[0]),
-                Reference(xstop_symbol))
+                Reference(xstart_symbol))
             condition2 = BinaryOperation.create(
                 BinaryOperation.Operator.GT,
                 Reference(iteration_indices[0]),
                 Reference(xstop_symbol))
             condition3 = BinaryOperation.create(
-                BinaryOperation.Operator.GT,
+                BinaryOperation.Operator.LT,
                 Reference(iteration_indices[0]),
-                Reference(xstop_symbol))
+                Reference(ystart_symbol))
             condition4 = BinaryOperation.create(
                 BinaryOperation.Operator.GT,
                 Reference(iteration_indices[0]),
-                Reference(xstop_symbol))
+                Reference(ystop_symbol))
 
             condition = BinaryOperation.create(
                 BinaryOperation.Operator.OR,
