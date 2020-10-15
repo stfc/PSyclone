@@ -35,6 +35,11 @@ PROGRAM tra_adv
    CALL get_environment_variable("IT", env)
    READ ( env, '(i10)' ) it
 
+   IF(jpi < 1) STOP 'Width of grid, JPI, must be > 0'
+   IF(jpj < 1) STOP 'Height of grid, JPJ, must be > 0'
+   IF(jpk < 1) STOP 'Depth of grid, JPK, must be > 0'
+   IF(it < 1) STOP  'Number of iterations, IT, must be > 0'
+   
    WRITE (*, "('Tracer-advection Mini-app:')")
    WRITE (*, "('Domain is ', I4, 'x', I4, ' grid points')") jpi, jpj
    WRITE (*, "('Performing ', I4, ' iterations')") it
