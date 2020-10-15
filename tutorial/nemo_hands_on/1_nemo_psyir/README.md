@@ -34,9 +34,9 @@ readthedocs: https://psyclone-ref.readthedocs.io/en/latest/
 
 ## Processing NEMO Fortran code with PSyclone ##
 
-By default, PSyclone expects to process code written to the LFRic
-API. In order to specify that we are processing NEMO code we must
-specify `-api nemo`:
+The configuration file distributed with PSyclone sets the default API
+to be LFRic. In order to specify that we are processing NEMO code we
+must specify `-api nemo`:
 
     $ psyclone -api nemo tra_adv.F90
 

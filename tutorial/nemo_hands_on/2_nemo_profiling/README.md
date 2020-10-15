@@ -3,6 +3,56 @@
 This tutorial follows on from Tutorial 1 (../1_nemo_psyir/README.md) and
 assumes that you are comfortable with the topics covered there.
 
+You can find information on the various transformations supported by
+PSyclone in the User Guide
+(https://psyclone.readthedocs.io/en/stable/transformations.html).
+
+## Basic Profiling ##
+
+1. Use PSyclone with the provided `profiling_trans.py` script in order to
+   add profiling around the entire body of the mini-app. When examining the
+   generated Fortran code, you should see that PSyclone has added
+   ``USE profile_psy_data_mod, ONLY: profile_PSyDataType`` as well as calls
+   to ``profile_psy_data0%PreStart()`` and ``profile_psy_data0%PostEnd``.
+
+2. Compile the generated code. The code now depends upon the PSyData API
+   and therefore the location of a suitable wrapper library must now be
+   provided when compiling the mini-app. PSyclone is distributed with a
+   simple, self-contained timing library 'simple_timing' which we will
+   use here. To build this library:
+
+    $ make -C ../../../lib/profiling/simple_timing
+
+   The generated code can then be compiled against this library:
+
+    $ gfortran -c psy.f90 -I ../../../lib/profiling/simple_timing
+    $ gfortran -o tra_adv.exe psy.o -I ../../../lib/profiling/simple_timing -L ../../../lib/profiling/simple_timing -lsimple_timing
+
+   At this point, the compiled application can be run:
+
+    $ ./tra_adv.exe
+
+   but no timing information is output!
+
+3. Manually add startup/shutdown calls. No timing information is
+   output because the timing library is not being shutdown. This is
+   because PSyclone does not have any knowledge of the overall
+   application structure and therefore it is up to the user to insert
+   startup/shutdown calls in the appropriate locations.  The
+   'simple_timing' library only requires a shutdown call so you will
+   need to edit the generated code (psy.f90), add
+   'profile_psydatashutdown' to the ``USE profile_psy_data_mod``
+   statement and add a call, ``CALL profile_psydatashutdown()`` as the
+   final statement before the ``END PROGRAM``.
+
+   The compiled application should now output timing information when
+   run, e.g.:
+
+    ===========================================
+    module::region   count	sum	   min		average		max
+    tra_adv::r0        1   0.718750000    0.718750000   0.718750000    0.718750000    
+    ===========================================
+
 
 Use a transformation script to add profiling to tra_adv. Get them to
 profile the whole thing, loop nests, etc. Use simple_timer to reduce
