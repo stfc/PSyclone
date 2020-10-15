@@ -445,7 +445,7 @@ def write_unicode_file(contents, filename):
         if not isinstance(contents, unicode):
             contents = unicode(contents, 'utf-8')
         # pylint: enable=undefined-variable
-        encoding = {}
+        encoding = {'encoding': 'utf-8'}
     elif six.PY3:
         encoding = {'encoding': 'utf-8'}
     else:
