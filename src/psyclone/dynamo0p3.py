@@ -2657,6 +2657,8 @@ class DynFields(DynCollection):
 
         :raises InternalError: for an unsupported intrinsic type of field \
                                argument data (other than "real" or "integer").
+        :raises GenerationError: if the same field is passed to different \
+                                 kernel calls ....
 
         '''
         # Add the Invoke subroutine argument declarations for fields
@@ -2678,6 +2680,21 @@ class DynFields(DynCollection):
                     "types are {2}.".
                     format(fld.intrinsic_type, declname,
                            list(MAPPING_DATA_TYPES.values())))
+        # Check that the same field name is not found in both real and
+        # integer field lists (for instance if passed to one kernel as a
+        # real-valued and to another kernel as an integer-valued field)
+        flds_multi_type_list = list(
+            set(real_fld_arg_list).intersection(set(int_fld_arg_list)))
+        print(real_fld_arg_list)
+        print(int_fld_arg_list)
+        if flds_multi_type_list:
+            raise GenerationError(
+                "At least one field ({0}) in Invoke '{1}' is found in "
+                "different kernels with different data types {2}. "
+                "This is invalid".
+                format(flds_multi_type_list, self._invoke.name,
+                       list(MAPPING_DATA_TYPES.keys())))
+
         # Declare real and integer fields
         if real_fld_arg_list:
             dtype = "field_type"

@@ -538,6 +538,102 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
         "np_xyz_qr_face, weights_xyz_qr_face)\n" in gen_code)
 
 
+def test_multiple_stencils_int_field(dist_mem, tmpdir):
+    ''' Test for correct output when there is more than one stencil in a
+    kernel that contains integer-valued fields. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.25_multiple_stencils_int_field.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    output1 = (
+        "    USE integer_field_mod, ONLY: integer_field_type, "
+        "integer_field_proxy_type\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_testkern_stencil_multi_int_field_type(f1, "
+        "f2, f3, f4, f2_extent, f3_extent, f3_direction)")
+    assert output1 in result
+    output2 = (
+        "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
+        "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
+        "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
+        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n"
+        "      TYPE(integer_field_type), intent(in) :: f1, f2, f3, f4\n"
+        "      INTEGER(KIND=i_def), intent(in) :: f2_extent, f3_extent\n"
+        "      INTEGER(KIND=i_def), intent(in) :: f3_direction\n")
+    assert output2 in result
+    output3 = (
+        "      TYPE(integer_field_proxy_type) f1_proxy, f2_proxy, "
+        "f3_proxy, f4_proxy\n")
+    assert output3 in result
+    output4 = (
+        "      INTEGER(KIND=i_def) f4_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f4_stencil_dofmap(:,:,:) => "
+        "null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
+        "null()\n"
+        "      INTEGER(KIND=i_def) f3_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
+        "null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
+        "null()\n"
+        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+        "null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+        "null()\n")
+    assert output4 in result
+    output5 = (
+        "      ! Initialise stencil dofmaps\n"
+        "      !\n"
+        "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_CROSS,f2_extent)\n"
+        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+        "      f2_stencil_size = f2_stencil_map%get_size()\n"
+        "      IF (f3_direction .eq. x_direction) THEN\n"
+        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_1DX,f3_extent)\n"
+        "      END IF\n"
+        "      IF (f3_direction .eq. y_direction) THEN\n"
+        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_1DY,f3_extent)\n"
+        "      END IF\n"
+        "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
+        "      f3_stencil_size = f3_stencil_map%get_size()\n"
+        "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_1DX,2)\n"
+        "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
+        "      f4_stencil_size = f4_stencil_map%get_size()\n"
+        "      !\n")
+    assert output5 in result
+    if dist_mem:
+        output6 = (
+            "      !\n"
+            "      IF (f3_proxy%is_dirty(depth=f3_extent)) THEN\n"
+            "        CALL f3_proxy%halo_exchange(depth=f3_extent)\n"
+            "      END IF\n"
+            "      !\n"
+            "      IF (f4_proxy%is_dirty(depth=2)) THEN\n"
+            "        CALL f4_proxy%halo_exchange(depth=2)\n"
+            "      END IF\n")
+        assert output6 in result
+    output7 = (
+        "        CALL testkern_stencil_multi_int_field_code(nlayers, "
+        "f1_proxy%data, f2_proxy%data, f2_stencil_size, "
+        "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f3_stencil_size, "
+        "f3_direction, f3_stencil_dofmap(:,:,cell), f4_proxy%data, "
+        "f4_stencil_size, f4_stencil_dofmap(:,:,cell), ndf_w2broken, "
+        "undf_w2broken, map_w2broken(:,cell), ndf_w1, undf_w1, "
+        "map_w1(:,cell), ndf_w0, undf_w0, map_w0(:,cell), ndf_w2v, "
+        "undf_w2v, map_w2v(:,cell))")
+    assert output7 in result
+
+
 # Tests for kernel stubs containing integer-valued fields
 
 
@@ -689,104 +785,193 @@ def test_int_field_all_stencils_gen_stub():
     assert output in generated_code
 
 
-def test_multiple_stencils_int_field(dist_mem, tmpdir):
-    ''' Test for correct output when there is more than one stencil in a
-    kernel that contains integer-valued fields. '''
+# Tests for invokes calling kernels that contain real- and
+# integer-valued fields
+
+
+def test_int_real_field_invalid(dist_mem):
+    ''' Tests that an invoke calling a kernel with integer-valued
+    fields and a kernel with real-valued fields on all function
+    spaces produces correct code.
+
+    '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.25_multiple_stencils_int_field.f90"),
+        os.path.join(BASE_PATH,
+                     "4.15_multikernel_invokes_real_int_field_invalid.f90"),
         api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    generated_code = str(psy.gen)
 
-    output1 = (
+    output = (
+        "  MODULE multikernel_invokes_real_int_field_fs_psy\n"
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    USE integer_field_mod, ONLY: integer_field_type, "
         "integer_field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE invoke_0_testkern_stencil_multi_int_field_type(f1, "
-        "f2, f3, f4, f2_extent, f3_extent, f3_direction)")
-    assert output1 in result
-    output2 = (
-        "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
-        "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
-        "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
-        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n"
-        "      TYPE(integer_field_type), intent(in) :: f1, f2, f3, f4\n"
-        "      INTEGER(KIND=i_def), intent(in) :: f2_extent, f3_extent\n"
-        "      INTEGER(KIND=i_def), intent(in) :: f3_direction\n")
-    assert output2 in result
-    output3 = (
-        "      TYPE(integer_field_proxy_type) f1_proxy, f2_proxy, "
-        "f3_proxy, f4_proxy\n")
-    assert output3 in result
-    output4 = (
-        "      INTEGER(KIND=i_def) f4_stencil_size\n"
-        "      INTEGER(KIND=i_def), pointer :: f4_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
-        "null()\n"
-        "      INTEGER(KIND=i_def) f3_stencil_size\n"
-        "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
-        "null()\n"
-        "      INTEGER(KIND=i_def) f2_stencil_size\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-        "null()\n")
-    assert output4 in result
-    output5 = (
-        "      ! Initialise stencil dofmaps\n"
+        "    SUBROUTINE invoke_integer_and_real_field(i1, i2, n1, n2, i3, "
+        "i4, n3, n4, i5, i6, n5, n6, i7, i8, n7, f1, f2, m1, m2, f3, f4, "
+        "m3, m4, f5, f6, m5, m6, m7)\n")
+    assert output in generated_code
+    output = (
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2, f3, f4, "
+        "m3, m4, f5, f6, m5, m6, m7\n"
+        "      TYPE(integer_field_type), intent(in) :: i1, i2, n1, n2, "
+        "i3, i4, n3, n4, i5, i6, n5, n6, i7, i8, n7\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
+        "      TYPE(integer_field_proxy_type) i1_proxy, i2_proxy, n1_proxy, "
+        "n2_proxy, i3_proxy, i4_proxy, n3_proxy, n4_proxy, i5_proxy, "
+        "i6_proxy, n5_proxy, n6_proxy, i7_proxy, i8_proxy, n7_proxy\n"
+        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
+        "m2_proxy, f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, "
+        "f6_proxy, m5_proxy, m6_proxy, m7_proxy\n")
+    assert output in generated_code
+    # Number of layers and the mesh are determined from the first integer
+    # field. Maps for function spaces are determined from the first kernel
+    # call with integer fields
+    output = (
+        "      ! Initialise number of layers\n"
         "      !\n"
-        "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,f2_extent)\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map%get_size()\n"
-        "      IF (f3_direction .eq. x_direction) THEN\n"
-        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,f3_extent)\n"
-        "      END IF\n"
-        "      IF (f3_direction .eq. y_direction) THEN\n"
-        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DY,f3_extent)\n"
-        "      END IF\n"
-        "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
-        "      f3_stencil_size = f3_stencil_map%get_size()\n"
-        "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,2)\n"
-        "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
-        "      f4_stencil_size = f4_stencil_map%get_size()\n"
+        "      nlayers = i1_proxy%vspace%get_nlayers()\n"
         "      !\n")
-    assert output5 in result
+
+
+def test_int_real_field_fs(dist_mem, tmpdir):
+    ''' Tests that an invoke calling a kernel with integer-valued
+    fields and a kernel with real-valued fields on all function
+    spaces produces correct code.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "4.14_multikernel_invokes_real_int_field_fs.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    generated_code = str(psy.gen)
+
+    output = (
+        "  MODULE multikernel_invokes_real_int_field_fs_psy\n"
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n"
+        "    USE integer_field_mod, ONLY: integer_field_type, "
+        "integer_field_proxy_type\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_integer_and_real_field(i1, i2, n1, n2, i3, "
+        "i4, n3, n4, i5, i6, n5, n6, i7, i8, n7, f1, f2, m1, m2, f3, f4, "
+        "m3, m4, f5, f6, m5, m6, m7)\n")
+    assert output in generated_code
+    output = (
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2, f3, f4, "
+        "m3, m4, f5, f6, m5, m6, m7\n"
+        "      TYPE(integer_field_type), intent(in) :: i1, i2, n1, n2, "
+        "i3, i4, n3, n4, i5, i6, n5, n6, i7, i8, n7\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
+        "      TYPE(integer_field_proxy_type) i1_proxy, i2_proxy, n1_proxy, "
+        "n2_proxy, i3_proxy, i4_proxy, n3_proxy, n4_proxy, i5_proxy, "
+        "i6_proxy, n5_proxy, n6_proxy, i7_proxy, i8_proxy, n7_proxy\n"
+        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
+        "m2_proxy, f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, "
+        "f6_proxy, m5_proxy, m6_proxy, m7_proxy\n")
+    assert output in generated_code
+    # Number of layers and the mesh are determined from the first integer
+    # field. Maps for function spaces are determined from the first kernel
+    # call with integer fields
+    output = (
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = i1_proxy%vspace%get_nlayers()\n"
+        "      !\n")
     if dist_mem:
-        output6 = (
+        output += (
+            "      ! Create a mesh object\n"
             "      !\n"
-            "      IF (f3_proxy%is_dirty(depth=f3_extent)) THEN\n"
-            "        CALL f3_proxy%halo_exchange(depth=f3_extent)\n"
-            "      END IF\n"
-            "      !\n"
-            "      IF (f4_proxy%is_dirty(depth=2)) THEN\n"
-            "        CALL f4_proxy%halo_exchange(depth=2)\n"
-            "      END IF\n")
-        assert output6 in result
-    output7 = (
-        "        CALL testkern_stencil_multi_int_field_code(nlayers, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size, "
-        "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f3_stencil_size, "
-        "f3_direction, f3_stencil_dofmap(:,:,cell), f4_proxy%data, "
-        "f4_stencil_size, f4_stencil_dofmap(:,:,cell), ndf_w2broken, "
-        "undf_w2broken, map_w2broken(:,cell), ndf_w1, undf_w1, "
-        "map_w1(:,cell), ndf_w0, undf_w0, map_w0(:,cell), ndf_w2v, "
-        "undf_w2v, map_w2v(:,cell))")
-    assert output7 in result
-
-
-# Tests for invokes calling kernels that contain real- and
-# integer-valued fields
+            "      mesh => i1_proxy%vspace%get_mesh()\n"
+            "      !\n")
+    output += (
+        "      ! Look-up dofmaps for each function space\n"
+        "      !\n"
+        "      map_w1 => i1_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2 => i2_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w0 => n1_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w3 => n2_proxy%vspace%get_whole_dofmap()\n"
+        "      map_wtheta => i3_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2h => i4_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2v => n3_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2broken => n4_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2trace => i5_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2htrace => i6_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2vtrace => n5_proxy%vspace%get_whole_dofmap()\n"
+        "      map_wchi => n6_proxy%vspace%get_whole_dofmap()\n"
+        "      map_any_w2 => i7_proxy%vspace%get_whole_dofmap()\n"
+        "      map_aspc1_i8 => i8_proxy%vspace%get_whole_dofmap()\n"
+        "      map_adspc1_n7 => n7_proxy%vspace%get_whole_dofmap()\n")
+    assert output in generated_code
+    # Kernel calls are the same regardless of distributed memory
+    kern1_call = (
+        "        CALL testkern_fs_int_field_code(nlayers, i1_proxy%data, "
+        "i2_proxy%data, n1_proxy%data, n2_proxy%data, i3_proxy%data, "
+        "i4_proxy%data, n3_proxy%data, n4_proxy%data, i5_proxy%data, "
+        "i6_proxy%data, n5_proxy%data, n6_proxy%data, i7_proxy%data, "
+        "i8_proxy%data, n7_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w0, undf_w0, "
+        "map_w0(:,cell), ndf_w3, undf_w3, map_w3(:,cell), ndf_wtheta, "
+        "undf_wtheta, map_wtheta(:,cell), ndf_w2h, undf_w2h, "
+        "map_w2h(:,cell), ndf_w2v, undf_w2v, map_w2v(:,cell), "
+        "ndf_w2broken, undf_w2broken, map_w2broken(:,cell), ndf_w2trace, "
+        "undf_w2trace, map_w2trace(:,cell), ndf_w2htrace, undf_w2htrace, "
+        "map_w2htrace(:,cell), ndf_w2vtrace, undf_w2vtrace, "
+        "map_w2vtrace(:,cell), ndf_wchi, undf_wchi, map_wchi(:,cell), "
+        "ndf_any_w2, undf_any_w2, map_any_w2(:,cell), ndf_aspc1_i8, "
+        "undf_aspc1_i8, map_aspc1_i8(:,cell), ndf_adspc1_n7, "
+        "undf_adspc1_n7, map_adspc1_n7(:,cell))\n")
+    assert kern1_call in generated_code
+    kern2_call = (
+        "        CALL testkern_fs_code(nlayers, f1_proxy%data, f2_proxy%data, "
+        "m1_proxy%data, m2_proxy%data, f3_proxy%data, f4_proxy%data, "
+        "m3_proxy%data, m4_proxy%data, f5_proxy%data, f6_proxy%data, "
+        "m5_proxy%data, m6_proxy%data, m7_proxy%data, ndf_w1, undf_w1, "
+        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w0, undf_w0, "
+        "map_w0(:,cell), ndf_w3, undf_w3, map_w3(:,cell), ndf_wtheta, "
+        "undf_wtheta, map_wtheta(:,cell), ndf_w2h, undf_w2h, map_w2h(:,cell), "
+        "ndf_w2v, undf_w2v, map_w2v(:,cell), ndf_w2broken, undf_w2broken, "
+        "map_w2broken(:,cell), ndf_w2trace, undf_w2trace, "
+        "map_w2trace(:,cell), ndf_w2htrace, undf_w2htrace, "
+        "map_w2htrace(:,cell), ndf_w2vtrace, undf_w2vtrace, "
+        "map_w2vtrace(:,cell), ndf_wchi, undf_wchi, map_wchi(:,cell), "
+        "ndf_any_w2, undf_any_w2, map_any_w2(:,cell))\n")
+    assert kern2_call in generated_code
+    # Check loop bounds for kernel calls
+    if not dist_mem:
+        kern1_loop = "DO cell=1,i2_proxy%vspace%get_ncell()\n"
+        kern2_loop = "DO cell=1,f1_proxy%vspace%get_ncell()\n"
+    else:
+        kern1_loop = "DO cell=1,mesh%get_last_halo_cell(1)\n"
+        kern2_loop = "DO cell=1,mesh%get_last_halo_cell(1)\n"
+    assert kern1_loop in generated_code
+    assert kern2_loop in generated_code
+    # Check that the field halo flags after the kernel calls
+    if dist_mem:
+        halo1_flags = (
+            "      CALL i2_proxy%set_dirty()\n"
+            "      CALL i3_proxy%set_dirty()\n"
+            "      CALL i8_proxy%set_dirty()\n"
+            "      CALL n7_proxy%set_dirty()\n"
+            "      CALL i3_proxy%set_clean(1)\n"
+            "      CALL n7_proxy%set_clean(1)\n")
+        halo2_flags = (
+            "      CALL f1_proxy%set_dirty()\n"
+            "      CALL f3_proxy%set_dirty()\n"
+            "      CALL f3_proxy%set_clean(1)\n")
+        assert halo1_flags in generated_code
+        assert halo2_flags in generated_code
 
 
 # Tests for kernel stubs containing real- and integer-valued fields
