@@ -302,5 +302,5 @@ def test_validate_kernel_code_arg(monkeypatch):
         kernel._validate_kernel_code_arg(
             lfric_real_scalar_symbol, lfric_real_scalar_symbol)
     assert (
-        "unexpected interface type found for 'scalar' in kernel 'dummy'. "
+        "unexpected argument type found for 'scalar' in kernel 'dummy'. "
         "Expecting a scalar or an array." in str(info.value))
