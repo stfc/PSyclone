@@ -19,7 +19,8 @@ offloading support is installed, e.g. sudo apt install
 gcc-offload-nvptx) or you can use the NVIDIA HPC SDK
 (https://developer.nvidia.com/hpc-sdk).  Obviously, to actually
 execute the code you will need access to a machine with a GPU but that
-too is optional.
+too is optional. Note that if you are doing this we will assume you
+are familiar with executing code on a GPU in your local environment.
 
 The OpenACC specification may be found at
 https://www.openacc.org/sites/default/files/inline-files/OpenACC.2.6.final.pdf
@@ -28,11 +29,15 @@ https://www.openacc.org/sites/default/files/inline-files/OpenACC.2.6.final.pdf
 
 The simplest way to add OpenACC directives to a code is often to use
 the KERNELS directive - this instructs the compiler to automatically
-parallelise any loop nests within the marked-up region.
+parallelise any loop nests within the marked-up region. In PSyclone this
+is achieved by applying the ACCKernelsTrans transformation to suitable
+regions of the code.
 
-Use the ACCKernelsTrans transformation (https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCKernelsTrans.html) to enclose suitable regions of code within a KERNELS region.
-
-## Collapsing Loop Nests ##
+1. Use the ACCKernelsTrans transformation
+(https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCKernelsTrans.html)
+to enclose suitable regions of code within a KERNELS region.
 
 ## Controlling Data Movement ##
+
+## Collapsing Loop Nests ##
 
