@@ -1119,20 +1119,28 @@ class GOKern(CodedKern):
         :param parent: Parent node in the f2pygen AST to which to add content.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen
+        from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
+                IfThenGen, UseGen
 
+        debug = True
+        if debug:
+            parent.add(UseGen(parent, name="ocl_utils_mod", only=True,
+                              funcnames=["check_status"]))
         # Generate code to ensure data is on device
         self.gen_data_on_ocl_device(parent)
 
         # Extract the iteration boundary values which are given by the loops
         # surrounding the kernel, which won't be used in OpenCL. For now it
-        # converts the PSyIR to Fortran to use the values from f2pygen, but
-        # this should change in the future.
+        # converts the PSyIR to Fortran to use the values in f2pygen, but
+        # this should change in the future. Also note that OpenCL expects
+        # 0-indexing, hence we substract 1 to each boundary value.
         f_writer = FortranWriter()
-        inner_start = f_writer(self.parent.parent.start_expr)
-        inner_stop = f_writer(self.parent.parent.stop_expr)
-        outer_start = f_writer(self.parent.parent.parent.parent.start_expr)
-        outer_stop = f_writer(self.parent.parent.parent.parent.stop_expr)
+        inner_loop = self.parent.parent
+        inner_start = f_writer(inner_loop.start_expr) + " - 1"
+        inner_stop = f_writer(inner_loop.stop_expr) + " - 1"
+        outer_loop = inner_loop.parent.parent
+        outer_start = f_writer(outer_loop.start_expr) + " - 1"
+        outer_stop = f_writer(outer_loop.stop_expr) + " - 1"
 
         # Create array for the global work size argument of the kernel
         symtab = self.root.symbol_table
@@ -1155,9 +1163,16 @@ class GOKern(CodedKern):
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[local_size + "(2)"]))
 
-        loc_size_value = self._opencl_options['local_size']
+        local_size_value = self._opencl_options['local_size']
         parent.add(AssignGen(parent, lhs=local_size,
-                             rhs="(/{0}, 1/)".format(loc_size_value)))
+                             rhs="(/{0}, 1/)".format(local_size_value)))
+
+        # Check that the global_size is multiple of the local_size
+        if debug:
+            condition = "mod({0},{1}) .ne. 0".format(num_x, local_size_value)
+            ifthen = IfThenGen(parent, condition)
+            parent.add(ifthen)
+            ifthen.add(CallGen(ifthen, "check_status", ['"multiple"','-1']))
 
         # Retrieve kernel name
         kernel = symtab.lookup_with_tag("kernel_" + self.name).name
@@ -1195,13 +1210,49 @@ class GOKern(CodedKern):
         queue_number = self._opencl_options['queue_number']
         cmd_queue = qlist + "({0})".format(queue_number)
 
-        args = ", ".join([cmd_queue, kernel, "2", cnull,
-                          "C_LOC({0})".format(glob_size),
-                          "C_LOC({0})".format(local_size),
-                          "0", cnull, cnull])
+        if debug:
+            # Check that everything is fine before the kernel launch
+            parent.add(AssignGen(parent, lhs=flag,
+                                 rhs="clFinish(" + cmd_queue + ")"))
+            parent.add(CallGen(
+                parent, "check_status",
+                ["'Errors before {0} launch'".format(self.name), flag]))
+
+        args = ", ".join([
+            # OpenCL Command Queue
+            cmd_queue,
+            # OpenCL Kernel object
+            kernel,
+            # Number of work dimensions
+            "2",
+            # Global offset (if NULL the global IDs start at offset (0,0,0))
+            cnull,
+            # Global work size
+            "C_LOC({0})".format(glob_size),
+            # Local work size
+            "C_LOC({0})".format(local_size),
+            # Number of events in wait list
+            "0",
+            # Event wait list that need to be completed before this kernel
+            cnull,
+            # Event that identifies this kernel completion
+            cnull])
         parent.add(AssignGen(parent, lhs=flag,
                              rhs="clEnqueueNDRangeKernel({0})".format(args)))
         parent.add(CommentGen(parent, ""))
+
+        if debug:
+            parent.add(CallGen(
+                parent, "check_status",
+                ["'{0} clEnqueueNDRangeKernel'".format(self.name), flag]))
+
+            # Add a barrier and check that the kernel executed successfully
+            parent.add(AssignGen(parent, lhs=flag,
+                                 rhs="clFinish(" + cmd_queue + ")"))
+            parent.add(CallGen(
+                parent, "check_status",
+                ["'Errors during {0}'".format(self.name), flag]))
+
 
     @property
     def index_offset(self):
@@ -1259,7 +1310,7 @@ class GOKern(CodedKern):
         sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
                         target=True, entity_decls=[kobj]))
 
-        sub.add(DeclGen(sub, datatype="integer", target=True,
+        sub.add(DeclGen(sub, datatype="integer", target=True, intent='in',
                         entity_decls=boundary_names))
 
         # Get all Grid property arguments
@@ -1316,7 +1367,7 @@ class GOKern(CodedKern):
             sub.add(AssignGen(
                 sub, lhs=err_name,
                 rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-                format(kobj, 0, boundary)))
+                format(kobj, index, boundary)))
             sub.add(CallGen(
                 sub, "check_status",
                 ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
