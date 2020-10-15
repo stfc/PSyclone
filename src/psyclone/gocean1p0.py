@@ -61,6 +61,7 @@ from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, Symbol, ArgumentInterface
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import BinaryOperation, Reference, Return, IfBlock
 
 # The different grid-point types that a field can live on
@@ -1123,6 +1124,16 @@ class GOKern(CodedKern):
         # Generate code to ensure data is on device
         self.gen_data_on_ocl_device(parent)
 
+        # Extract the iteration boundary values which are given by the loops
+        # surrounding the kernel, which won't be used in OpenCL. For now it
+        # converts the PSyIR to Fortran to use the values from f2pygen, but
+        # this should change in the future.
+        f_writer = FortranWriter()
+        inner_start = f_writer(self.parent.parent.start_expr)
+        inner_stop = f_writer(self.parent.parent.stop_expr)
+        outer_start = f_writer(self.parent.parent.parent.parent.start_expr)
+        outer_stop = f_writer(self.parent.parent.parent.parent.stop_expr)
+
         # Create array for the global work size argument of the kernel
         symtab = self.root.symbol_table
         garg = self._arguments.find_grid_access()
@@ -1155,7 +1166,7 @@ class GOKern(CodedKern):
         # In OpenCL the iteration boundaries are passed as arguments to the
         # kernel because the group_work size may exceed the dimensions and
         # therefore the updates outsides the boundaries should be masked.
-        arguments = [kernel, num_x, num_x, num_x, num_x]
+        arguments = [kernel, inner_start, inner_stop, outer_start, outer_stop]
         for arg in self._arguments.args:
             if arg.argument_type == "scalar":
                 arguments.append(arg.name)
@@ -1374,11 +1385,11 @@ class GOKern(CodedKern):
                 Reference(xstop_symbol))
             condition3 = BinaryOperation.create(
                 BinaryOperation.Operator.LT,
-                Reference(iteration_indices[0]),
+                Reference(iteration_indices[1]),
                 Reference(ystart_symbol))
             condition4 = BinaryOperation.create(
                 BinaryOperation.Operator.GT,
-                Reference(iteration_indices[0]),
+                Reference(iteration_indices[1]),
                 Reference(ystop_symbol))
 
             condition = BinaryOperation.create(
