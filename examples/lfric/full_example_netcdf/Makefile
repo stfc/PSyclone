@@ -1,5 +1,5 @@
 F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound $$(nf-config --fflags) 
+F90FLAGS ?= -Wall -g -fcheck=bound $$(nf-config --fflags)
 
 OBJ = main_psy.o main_alg.o global_mesh_base_mod.o mesh_mod.o linked_list_data_mod.o \
 		extrusion_mod.o mesh_colouring_mod.o mesh_constructor_helper_functions_mod.o \
@@ -31,7 +31,7 @@ linked_list_data_mod.o: constants_mod.o
 mesh_mod.o: extrusion_mod.o linked_list_mod.o mesh_colouring_mod.o \
 	mesh_constructor_helper_functions_mod.o partition_mod.o
 mesh_constructor_helper_functions_mod.o: coord_transform_mod.o \
-	domain_size_config_mod.o 
+	domain_size_config_mod.o
 domain_size_config_mod.o: mpi_mod.o
 log_mod.o:	constants_mod.o
 field_mod.o: field_parent_mod.o scalar_mod.o count_mod.o
@@ -46,7 +46,7 @@ function_space_mod.o: mesh_mod.o master_dofmap_mod.o stencil_dofmap_mod.o \
 	polynomial_mod.o
 function_space_constructor_helper_functions_mod.o: mesh_mod.o
 operator_mod.o:	function_space_mod.o
-main_alg.o:	main_psy.o
+main_alg.o:	main_psy.o global_mesh_netcdf_mod.o
 reference_element_mod.o: constants_mod.o
 mesh_colouring_mod.o: reference_element_mod.o
 matrix_invert_mod.o: constants_mod.o
