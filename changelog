@@ -159,6 +159,12 @@
         table enabling the dependency analysis to be based upon Symbol
         information (#845).
 
+        52) #930 for #885. Bug fix for missing halo exchange before a
+        Builtin Kernel with a field argument with read-write access.
+
+	53) #919 for #916. Fixes errors in docstrings which show up when
+	generating the reference guide.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
