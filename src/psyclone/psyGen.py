@@ -49,7 +49,7 @@ from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
-    Symbol, INTEGER_TYPE, BOOLEAN_TYPE
+    Symbol, INTEGER_TYPE, BOOLEAN_TYPE, ArgumentInterface
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
@@ -2942,9 +2942,65 @@ class CodedKern(Kern):
 
         if self.root.opencl:
             from psyclone.psyir.backend.opencl import OpenCLWriter
+            from psyclone.psyir.nodes import BinaryOperation, Reference, Return, IfBlock
             ocl_writer = OpenCLWriter(
                 kernels_local_size=self._opencl_options['local_size'])
-            new_kern_code = ocl_writer(self.get_kernel_schedule())
+            kschedule = self.get_kernel_schedule()
+
+            # If the first statement in the kernel schedule is not marked
+            # with the 'boundaries_mask' annotation, we should insert a
+            # conditional statement that checks that the  iteration
+            # variables do not exceed the expected iteration boundaries.
+            if 'boundaries_mask' not in kschedule[0].annotations:
+                kernel_st = kschedule.symbol_table
+                xstop_name =  kernel_st.new_symbol_name("xstop")
+
+                iteration_indices = kernel_st.iteration_indices
+                data_arguments = kernel_st.data_arguments
+
+                # Insert boundary limits as Kernel arguments
+                xstop_symbol = DataSymbol(xstop_name, INTEGER_TYPE,
+                    interface=ArgumentInterface(ArgumentInterface.Access.READ))
+                kernel_st.add(xstop_symbol)
+                kernel_st.specify_argument_list(
+                    iteration_indices + [xstop_symbol] + data_arguments)
+
+                # Create boundaries masking condition
+                condition1 = BinaryOperation.create(
+                    BinaryOperation.Operator.GT,
+                    Reference(iteration_indices[0]),
+                    Reference(xstop_symbol))
+                condition2 = BinaryOperation.create(
+                    BinaryOperation.Operator.GT,
+                    Reference(iteration_indices[0]),
+                    Reference(xstop_symbol))
+                condition3 = BinaryOperation.create(
+                    BinaryOperation.Operator.GT,
+                    Reference(iteration_indices[0]),
+                    Reference(xstop_symbol))
+                condition4 = BinaryOperation.create(
+                    BinaryOperation.Operator.GT,
+                    Reference(iteration_indices[0]),
+                    Reference(xstop_symbol))
+
+                condition = BinaryOperation.create(
+                    BinaryOperation.Operator.OR,
+                    BinaryOperation.create(
+                        BinaryOperation.Operator.OR,
+                        condition1,
+                        condition2),
+                    BinaryOperation.create(
+                        BinaryOperation.Operator.OR,
+                        condition3,
+                        condition4)
+                    )
+
+                # Insert if condition masking as the kernel first statement
+                if_statement = IfBlock.create(condition, [Return()])
+                kschedule.children.insert(0, if_statement)
+
+            new_kern_code = ocl_writer(kschedule)
+            #import pdb; pdb.set_trace()
         elif self._kern_schedule:
             # A PSyIR kernel schedule has been created. This means
             # that the PSyIR has been modified. Therefore use the

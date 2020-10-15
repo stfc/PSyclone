@@ -1118,7 +1118,11 @@ class GOKern(CodedKern):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen
-        # Create the array used to specify the iteration space of the kernel
+
+        # Generate code to ensure data is on device
+        self.gen_data_on_ocl_device(parent)
+
+        # Create array for the global work size argument of the kernel
         symtab = self.root.symbol_table
         garg = self._arguments.find_grid_access()
         glob_size = symtab.new_symbol_name("globalsize")
@@ -1145,11 +1149,12 @@ class GOKern(CodedKern):
 
         # Retrieve kernel name
         kernel = symtab.lookup_with_tag("kernel_" + self.name).name
-        # Generate code to ensure data is on device
-        self.gen_data_on_ocl_device(parent)
 
         # Then we set the kernel arguments
-        arguments = [kernel]
+        # In OpenCL the iteration boundaries are passed as arguments to the
+        # kernel because the group_work size may exceed the dimensions and
+        # therefore the updates outsides the boundaries should be masked.
+        arguments = [kernel, num_x]
         for arg in self._arguments.args:
             if arg.argument_type == "scalar":
                 arguments.append(arg.name)
@@ -1204,11 +1209,18 @@ class GOKern(CodedKern):
         # The arg_setter code is in a subroutine, so we create a new scope
         argsetter_st = SymbolTable()
 
-        # Currently literal arguments are checked for and rejected by
-        # the OpenCL transformation.
+        # Add an argument symbol for the kernel object
         kobj = argsetter_st.new_symbol_name("kernel_obj")
         argsetter_st.add(Symbol(kobj))
-        args = [kobj] + [arg.name for arg in self._arguments.args]
+
+        # Add an 'xstop' argument symbol to provide the ending iteration value
+        # of the contiguous dimension regardless of padding elements or
+        # work_groupsizes.
+        xstop_name = argsetter_st.new_symbol_name("xstop")
+        argsetter_st.add(DataSymbol(xstop_name, INTEGER_TYPE))
+
+        # Join argument list
+        args = [kobj, xstop_name] + [arg.name for arg in self._arguments.args]
 
         # Declare the subroutine in the Invoke SymbolTable and the argsetter
         # subroutine SymbolTable.
@@ -1228,6 +1240,9 @@ class GOKern(CodedKern):
         # Declare arguments
         sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
                         target=True, entity_decls=[kobj]))
+
+        sub.add(DeclGen(sub, datatype="integer", target=True,
+                        entity_decls=[xstop_name]))
 
         # Get all Grid property arguments
         grid_prop_args = args_filter(self._arguments.args,
@@ -1277,14 +1292,23 @@ class GOKern(CodedKern):
         sub.add(CommentGen(
             sub,
             " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
+        sub.add(AssignGen(
+            sub, lhs=err_name,
+            rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
+            format(kobj, 0, xstop_name)))
+        sub.add(CallGen(
+            sub, "check_status",
+            ["'clSetKernelArg: arg {0} of {1}'".format(0, self.name),
+             err_name]))
         for index, arg in enumerate(self.arguments.args):
             sub.add(AssignGen(
                 sub, lhs=err_name,
                 rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-                format(kobj, index, arg.name)))
+                format(kobj, index + 1, arg.name)))
             sub.add(CallGen(
                 sub, "check_status",
-                ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
+                ["'clSetKernelArg: arg {0} of {1}'".format(index + 1,
+                                                           self.name),
                  err_name]))
 
     def gen_data_on_ocl_device(self, parent):
