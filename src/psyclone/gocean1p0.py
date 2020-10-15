@@ -58,9 +58,10 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     KernelSchedule, AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, Symbol
+    INTEGER_TYPE, DataSymbol, Symbol, ArgumentInterface
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
+from psyclone.psyir.nodes import BinaryOperation, Reference, Return, IfBlock
 
 # The different grid-point types that a field can live on
 VALID_FIELD_GRID_TYPES = ["go_cu", "go_cv", "go_ct", "go_cf", "go_every"]
@@ -1310,6 +1311,67 @@ class GOKern(CodedKern):
                 ["'clSetKernelArg: arg {0} of {1}'".format(index + 1,
                                                            self.name),
                  err_name]))
+
+    def _prepare_opencl_kernel_schedule(self):
+        ''' GOcean OpenCL kernels take the iteration boundaries as parameters
+        ans adds a conditional masking statement to avoid updating elements
+        outside the boundaries.
+        '''
+        kschedule = self.get_kernel_schedule()
+
+        # If the first statement in the kernel schedule is not marked
+        # with the 'boundaries_mask' annotation, we should insert a
+        # conditional statement that checks that the  iteration
+        # variables do not exceed the expected iteration boundaries.
+        if 'boundaries_mask' not in kschedule[0].annotations:
+            kernel_st = kschedule.symbol_table
+            xstop_name =  kernel_st.new_symbol_name("xstop")
+
+            iteration_indices = kernel_st.iteration_indices
+            data_arguments = kernel_st.data_arguments
+
+            # Insert boundary limits as Kernel arguments
+            xstop_symbol = DataSymbol(xstop_name, INTEGER_TYPE,
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            kernel_st.add(xstop_symbol)
+            kernel_st.specify_argument_list(
+                iteration_indices + [xstop_symbol] + data_arguments)
+
+            # Create boundaries masking condition
+            condition1 = BinaryOperation.create(
+                BinaryOperation.Operator.GT,
+                Reference(iteration_indices[0]),
+                Reference(xstop_symbol))
+            condition2 = BinaryOperation.create(
+                BinaryOperation.Operator.GT,
+                Reference(iteration_indices[0]),
+                Reference(xstop_symbol))
+            condition3 = BinaryOperation.create(
+                BinaryOperation.Operator.GT,
+                Reference(iteration_indices[0]),
+                Reference(xstop_symbol))
+            condition4 = BinaryOperation.create(
+                BinaryOperation.Operator.GT,
+                Reference(iteration_indices[0]),
+                Reference(xstop_symbol))
+
+            condition = BinaryOperation.create(
+                BinaryOperation.Operator.OR,
+                BinaryOperation.create(
+                    BinaryOperation.Operator.OR,
+                    condition1,
+                    condition2),
+                BinaryOperation.create(
+                    BinaryOperation.Operator.OR,
+                    condition3,
+                    condition4)
+                )
+
+            # Insert if condition masking as the kernel first statement
+            if_statement = IfBlock.create(condition, [Return()])
+            kschedule.children.insert(0, if_statement)
+
+
 
     def gen_data_on_ocl_device(self, parent):
         # pylint: disable=too-many-locals
