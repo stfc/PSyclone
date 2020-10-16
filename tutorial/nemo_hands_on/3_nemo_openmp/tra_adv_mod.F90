@@ -3,8 +3,12 @@
    !! ***          governed by the CeCILL licence (http://www.cecill.info)            ***
    !!                                                   
    !! ***                             IS-ENES2 - CMCC/STFC                            ***
-   !!=====================================================================================
-PROGRAM tra_adv
+!!=====================================================================================
+module tra_adv_mod
+
+contains
+
+subroutine tra_adv()
    USE iso_c_binding, only: C_INT64_T
    ! The below should be e.g. wp = KIND(1.0d0) but PSyclone does not support
    ! the KIND intrinsic yet: TODO #585.
@@ -284,4 +288,6 @@ PROGRAM tra_adv
 
    WRITE (*, "('Mini-app finished.')")
 
-END PROGRAM tra_adv
+END SUBROUTINE tra_adv
+
+end module tra_adv_mod
