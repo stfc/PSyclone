@@ -1,11 +1,21 @@
 # Using Profiling with PSyclone and NEMO - Tutorial 2 #
 
 This tutorial follows on from Tutorial 1 (../1_nemo_psyir/README.md) and
-assumes that you are comfortable with the topics covered there.
+assumes that you are comfortable with the topics covered there. It uses
+the same tracer-advection mini-app although for this tutorial it has
+been refactored so that the mini-app itself is called from a separate
+driver program. The reason for this will become clear as you work
+through the tutorial.
 
 You can find information on the various transformations supported by
 PSyclone in the User Guide
 (https://psyclone.readthedocs.io/en/stable/transformations.html).
+
+## Prerequisites ##
+
+This example includes a Makefile to simplify the compilation process. It
+assumes you are using Gnu Make. If you are using a different version of
+Make then you may need to edit the Makefile and replace the "?=" with "=".
 
 ## Basic Profiling ##
 
@@ -19,14 +29,10 @@ PSyclone in the User Guide
    and therefore the location of a suitable wrapper library must now be
    provided when compiling the mini-app. PSyclone is distributed with a
    simple, self-contained timing library 'simple_timing' which we will
-   use here. To build this library:
+   use here. The supplied Makefile will build this library and then
+   build the tracer-advection mini-app:
 
-    $ make -C ../../../lib/profiling/simple_timing
-
-   The generated code can then be compiled against this library:
-
-    $ gfortran -c psy.f90 -I ../../../lib/profiling/simple_timing
-    $ gfortran -o tra_adv.exe psy.o -I ../../../lib/profiling/simple_timing -L ../../../lib/profiling/simple_timing -lsimple_timing
+    $ make tra_adv.exe
 
    At this point, the compiled application can be run:
 
