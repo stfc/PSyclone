@@ -75,20 +75,21 @@ profiling.
    after you have applied the transformations and check that it now has
    multiple Profile nodes, e.g.:
 
-    12: Profile[]
-        Schedule[]
-            0: Loop[type='levels', field_space='None', it_space='None']
-                Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-                BinaryOperation[operator:'SUB']
-                    Reference[name:'jpk']
-                    Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-                Schedule[]
-                    0: Assignment[]
-                        ArrayReference[name:'zwx']
+       12: Profile[]
+           Schedule[]
+               0: Loop[type='levels', field_space='None', it_space='None']
+                   Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+                   BinaryOperation[operator:'SUB']
+                       Reference[name:'jpk']
+                       Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+                   Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+                   Schedule[]
+                       0: Assignment[]
+                           ArrayReference[name:'zwx']
+
 
    Recompile and run the mini-app. You should now see that there are 14
-   regions (r0-r13) reported by the timing library:
+   regions (`r0`-`r13`) reported by the timing library:
 
 ```
  ===========================================
@@ -104,9 +105,9 @@ profiling.
 5. Naming profile regions. The `apply()` method of `ProfileTrans` takes
    an optional dictionary as argument allowing additional options to
    be specified. Try using the "region_name" option to configure the
-   names given to the regions, e.g.
+   names given to the regions, e.g.:
 
-    p_trans.apply(loop, {"region_name": ("name","here")})
+       p_trans.apply(loop, {"region_name": ("name","here")})
 
 We have now used a PSyclone transformation to add profiling instrumentation
 to the tracer-advection mini-app. In subsequent tutorials we will look
