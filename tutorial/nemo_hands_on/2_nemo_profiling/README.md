@@ -40,16 +40,15 @@ Make then you may need to edit the Makefile and replace the "?=" with "=".
 
    but no timing information is output!
 
-3. Manually add startup/shutdown calls. No timing information is
-   output because the timing library is not being shutdown. This is
-   because PSyclone does not have any knowledge of the overall
-   application structure and therefore it is up to the user to insert
-   startup/shutdown calls in the appropriate locations.  The
-   'simple_timing' library only requires a shutdown call so you will
-   need to edit the generated code (psy.f90), add
-   'profile_psydatashutdown' to the ``USE profile_psy_data_mod``
-   statement and add a call, ``CALL profile_psydatashutdown()`` as the
-   final statement before the ``END PROGRAM``.
+3. No timing information is output because the timing library is not
+   being shutdown. This is because PSyclone does not have any
+   knowledge of the overall structure of an application and therefore it is
+   up to the user to insert startup/shutdown calls in the appropriate
+   locations.  The 'simple_timing' library only requires a shutdown
+   call so you will need to edit the driver program (`runner.f90`), add a
+   `USE profile_psy_data_mod, only: profile_psydatashutdown` at the beginning
+   and then add a call, `CALL profile_psydatashutdown()` as the
+   final statement before the `END PROGRAM`.
 
    The compiled application should now output timing information when
    run, e.g.:
