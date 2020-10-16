@@ -12,9 +12,7 @@ F90 ?= gfortran
 $(NAME): $(KERNELS) psy.o runner.o
 	$(F90) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
 
-psy.f90: transform
-
-transform: tra_adv_mod.F90
+psy.f90: tra_adv_mod.F90
 	psyclone --profile invokes -api nemo \
                      -opsy psy.f90 -l output tra_adv_mod.F90
 

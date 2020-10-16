@@ -50,6 +50,7 @@ have already been preprocessed (if required).
 
 from __future__ import print_function, absolute_import
 from psyclone.psyir.transformations import ProfileTrans
+# from psyclone.psyir.nodes import Loop
 
 
 def trans(psy):
