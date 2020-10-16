@@ -582,13 +582,13 @@ def test_lookup_2():
     with pytest.raises(SymbolError) as err:
         sym_table.lookup("var2", visibility=Symbol.Visibility.PUBLIC)
     assert ("'var2' exists in the Symbol Table but has visibility 'PRIVATE' "
-            "which does not" in str(err))
+            "which does not" in str(err.value))
     # Pass an incorrect type for the visibility argument
     with pytest.raises(TypeError) as err:
         sym_table.lookup("var2", visibility="PUBLIC")
     assert ("the 'visibility' argument to lookup() must be an instance (or "
             "list of instances) of Symbol.Visibility but got 'str' when "
-            "searching for symbol 'var2'" in str(err))
+            "searching for symbol 'var2'" in str(err.value))
 
 
 def test_lookup_3():
