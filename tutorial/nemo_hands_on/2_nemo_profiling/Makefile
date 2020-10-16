@@ -15,6 +15,8 @@ $(NAME): $(KERNELS) psy.o runner.o
 psy.f90: tra_adv_mod.F90
 	psyclone --profile invokes -api nemo \
                      -opsy psy.f90 -l output tra_adv_mod.F90
+#	psyclone -s ./profile_trans.py -api nemo \
+#                     -opsy psy.f90 -l output tra_adv_mod.F90
 
 # Make sure the infrastructure library is compiled, so the mods are found
 $(KERNELS): $(INF_LIB)
