@@ -41,11 +41,11 @@ API-agnostic tests for various transformation classes.
 from __future__ import absolute_import, print_function
 import pytest
 from psyclone.psyir.nodes import Literal, Loop, Node, Reference, Schedule, \
-    Statement
+    Statement, CodeBlock
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
-from psyclone.transformations import ACCParallelTrans
+from psyclone.transformations import ACCParallelTrans, OMPParallelLoopTrans
 
 
 def test_accloop():
@@ -226,6 +226,25 @@ def test_regiontrans_wrong_options():
         RegionTrans.validate(region_trans, None, options="invalid")
     assert ("Transformation apply method options argument must be a "
             "dictionary but found 'str'." in str(excinfo.value))
+
+
+def test_parallellooptrans_refuse_codeblock(parser):
+    ''' Check that ParallelLoopTrans.validate() rejects a loop nest that
+    encloses a CodeBlock. We have to use OMPParallelLoopTrans as
+    ParallelLoopTrans is abstract. '''
+    otrans = OMPParallelLoopTrans()
+    # Construct a valid Loop in the PSyIR
+    parent = Loop(parent=None)
+    parent.addchild(Literal("1", INTEGER_TYPE, parent))
+    parent.addchild(Literal("10", INTEGER_TYPE, parent))
+    parent.addchild(Literal("1", INTEGER_TYPE, parent))
+    parent.addchild(Schedule(parent=parent))
+    # Add a CodeBlock to its body
+    parent.loop_body.addchild(CodeBlock([], CodeBlock.Structure.STATEMENT,
+                                        parent.loop_body))
+    with pytest.raises(TransformationError) as err:
+        _ = otrans.validate(parent)
+    assert "HoHOHO" in str(err.value)
 
 # Tests for ProfileTrans
 
