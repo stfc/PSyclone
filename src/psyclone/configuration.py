@@ -918,6 +918,8 @@ class GOceanConfig(APISpecificConfig):
         # a property, and 'type' is a string.
         # These values are taken from the psyclone config file.
         self._grid_properties = {}
+        # Initialise debug_mode settings
+        self._debug_mode = None
         for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.
@@ -936,6 +938,15 @@ class GOceanConfig(APISpecificConfig):
             elif key == "access_mapping":
                 # Handled in the base class APISpecificConfig
                 pass
+            elif key == "debug_mode":
+                # Boolean that specifies if debug mode is enabled
+                try:
+                    self._debug_mode = section.getboolean("debug_mode")
+                except ValueError as err:
+                    raise ConfigurationError(
+                        "error while parsing DEBUG_MODE in the "
+                        "[gocean1p0] section of the config file: {0}"
+                        .format(str(err)))
             elif key == "grid-properties":
                 # Grid properties have the format:
                 # go_grid_area_u: {0}%%grid%%area_u: array: real,
@@ -1028,6 +1039,17 @@ class GOceanConfig(APISpecificConfig):
             namedtuple("Property","fortran type intrinsic_type") instances.
         '''
         return self._grid_properties
+
+    @property
+    def debug_mode(self):
+        '''
+        Getter for whether or not we generate additional debug code.
+
+        :returns: true if we are generating additional debug code.
+        :rtype: bool
+
+        '''
+        return self._debug_mode
 
 
 # =============================================================================

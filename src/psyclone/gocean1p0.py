@@ -1122,8 +1122,8 @@ class GOKern(CodedKern):
         from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
                 IfThenGen, UseGen
 
-        debug = True
-        if debug:
+        api_config = Config.get().api_conf("gocean1.0")
+        if api_config.debug_mode:
             parent.add(UseGen(parent, name="ocl_utils_mod", only=True,
                               funcnames=["check_status"]))
         # Generate code to ensure data is on device
@@ -1149,7 +1149,6 @@ class GOKern(CodedKern):
         symtab.add(DataSymbol(glob_size, ArrayType(INTEGER_TYPE, [2])))
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[glob_size + "(2)"]))
-        api_config = Config.get().api_conf("gocean1.0")
         num_x = api_config.grid_properties["go_grid_nx"].fortran\
             .format(garg.name)
         num_y = api_config.grid_properties["go_grid_ny"].fortran\
@@ -1168,7 +1167,7 @@ class GOKern(CodedKern):
                              rhs="(/{0}, 1/)".format(local_size_value)))
 
         # Check that the global_size is multiple of the local_size
-        if debug:
+        if api_config.debug_mode:
             condition = "mod({0},{1}) .ne. 0".format(num_x, local_size_value)
             ifthen = IfThenGen(parent, condition)
             parent.add(ifthen)
@@ -1210,7 +1209,7 @@ class GOKern(CodedKern):
         queue_number = self._opencl_options['queue_number']
         cmd_queue = qlist + "({0})".format(queue_number)
 
-        if debug:
+        if api_config.debug_mode:
             # Check that everything is fine before the kernel launch
             parent.add(AssignGen(parent, lhs=flag,
                                  rhs="clFinish(" + cmd_queue + ")"))
@@ -1241,7 +1240,7 @@ class GOKern(CodedKern):
                              rhs="clEnqueueNDRangeKernel({0})".format(args)))
         parent.add(CommentGen(parent, ""))
 
-        if debug:
+        if api_config.debug_mode:
             parent.add(CallGen(
                 parent, "check_status",
                 ["'{0} clEnqueueNDRangeKernel'".format(self.name), flag]))
