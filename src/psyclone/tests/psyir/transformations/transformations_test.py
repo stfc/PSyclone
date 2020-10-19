@@ -228,22 +228,20 @@ def test_regiontrans_wrong_options():
             "dictionary but found 'str'." in str(excinfo.value))
 
 
-def test_parallellooptrans_refuse_codeblock(parser):
+def test_parallellooptrans_refuse_codeblock():
     ''' Check that ParallelLoopTrans.validate() rejects a loop nest that
     encloses a CodeBlock. We have to use OMPParallelLoopTrans as
     ParallelLoopTrans is abstract. '''
     otrans = OMPParallelLoopTrans()
-    # Construct a valid Loop in the PSyIR
-    parent = Loop(parent=None)
-    parent.addchild(Literal("1", INTEGER_TYPE, parent))
-    parent.addchild(Literal("10", INTEGER_TYPE, parent))
-    parent.addchild(Literal("1", INTEGER_TYPE, parent))
-    parent.addchild(Schedule(parent=parent))
-    # Add a CodeBlock to its body
-    parent.loop_body.addchild(CodeBlock([], CodeBlock.Structure.STATEMENT,
-                                        parent.loop_body))
+    # Construct a valid Loop in the PSyIR with a CodeBlock in its body
+    parent = Loop.create(DataSymbol("ji", INTEGER_TYPE),
+                         Literal("1", INTEGER_TYPE),
+                         Literal("10", INTEGER_TYPE),
+                         Literal("1", INTEGER_TYPE),
+                         [CodeBlock([], CodeBlock.Structure.STATEMENT,
+                                    None)])
     with pytest.raises(TransformationError) as err:
-        _ = otrans.validate(parent)
+        otrans.validate(parent)
     assert ("OMPParallelLoopTrans transformation. The target loop contains "
             "one or more node types (['CodeBlock']) which cannot be enclosed "
             "in a thread-parallel region" in str(err.value))
