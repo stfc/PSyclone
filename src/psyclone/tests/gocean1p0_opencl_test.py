@@ -393,7 +393,8 @@ in_fld, dx, gphiu
     # assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_set_kern_float_arg(kernel_outputdir):
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_set_kern_float_arg():
     ''' Check that we generate correct code to set a real, scalar kernel
     argument. '''
     psy, _ = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
@@ -440,7 +441,6 @@ a_scalar, ssh_fld, xstop, tmask)
     # for the purpose of this test that just checks that the grid property
     # xstop is declared as 'REAL(KIND=go_wp), intent(in), target :: a_scalar'
     # assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
-
 
 
 def test_set_arg_const_scalar():

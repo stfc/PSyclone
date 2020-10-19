@@ -3029,7 +3029,6 @@ class CodedKern(Kern):
         sub-classed by the APIs to introduce kernel modifications.
         '''
 
-
     def _rename_ast(self, suffix):
         '''
         Renames all quantities (module, kernel routine, kernel derived type)

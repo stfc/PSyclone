@@ -249,12 +249,6 @@ def test_invalid_config_files(tmpdir):
 def test_debug_mode(tmpdir):
     '''Test creation of GOcean debug_mode congifuration.
     '''
-
-    #config = Config.get()
-    #api_config = config.api_conf("gocean1.0")
-
-    #assert api_config.debug_mode is False
-
     _CONFIG_CONTENT = '''\
     [DEFAULT]
     DEFAULTAPI = dynamo0.3
@@ -264,6 +258,7 @@ def test_debug_mode(tmpdir):
     REPROD_PAD_SIZE = 8
     [gocean1.0]
     '''
+
     # Test with invalid debug mode
     content = _CONFIG_CONTENT + "DEBUG_MODE = 4"
     config_file = tmpdir.join("config1")
@@ -312,6 +307,7 @@ def test_debug_mode(tmpdir):
         config.load(str(config_file))
         api_config = config.api_conf("gocean1.0")
         assert api_config.debug_mode is False
+
 
 # =============================================================================
 def test_properties():
