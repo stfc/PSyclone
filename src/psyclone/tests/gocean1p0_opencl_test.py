@@ -88,9 +88,12 @@ end program hello
         old_pwd.chdir()
 
 
-def test_use_stmts(kernel_outputdir):
+@pytest.mark.parametrize("debug_mode", [True, False])
+def test_invoke_use_stmts(kernel_outputdir, monkeypatch, debug_mode):
     ''' Test that generating code for OpenCL results in the correct
     module use statements. '''
+    api_config = Config.get().api_conf("gocean1.0")
+    monkeypatch.setattr(api_config, "_debug_mode", debug_mode)
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()
@@ -98,14 +101,121 @@ def test_use_stmts(kernel_outputdir):
     generated_code = str(psy.gen).lower()
     expected = '''\
     subroutine invoke_0_compute_cu(cu_fld, p_fld, u_fld)
-      use fortcl, only: create_rw_buffer
+      use fortcl, only: create_rw_buffer\n'''
+
+    # When in debug mode, import also the check_status function
+    if debug_mode:
+        expected += "      use ocl_utils_mod, only: check_status\n"
+
+    expected += '''\
       use fortcl, only: get_num_cmd_queues, get_cmd_queues, get_kernel_by_name
       use clfortran
       use iso_c_binding'''
     assert expected in generated_code
-    assert "if (first_time) then" in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
+def test_invoke_opencl_initialisation(kernel_outputdir):
+    ''' Test that generating code for OpenCL results in the correct
+    OpenCL first time initialisation code '''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    generated_code = str(psy.gen).lower()
+
+    # Test that the necessary variables are declared at the beginning
+    # of the invoke
+    expected = '''\
+      integer(kind=c_size_t), target :: localsize(2)
+      integer(kind=c_size_t), target :: globalsize(2)
+      integer(kind=c_intptr_t), target :: write_event
+      integer(kind=c_size_t) size_in_bytes
+      integer(kind=c_intptr_t), target, save :: kernel_compute_cu_code
+      logical, save :: first_time=.true.
+      integer ierr
+      integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)
+      integer, save :: num_cmd_queues'''
+    assert expected in generated_code
+
+    # Test that a conditional 'first_time' code is generated with the
+    # expected initialisation statements
+    expected = '''\
+      if (first_time) then
+        first_time = .false.
+        ! ensure opencl run-time is initialised for this psy-layer module
+        call psy_init
+        num_cmd_queues = get_num_cmd_queues()
+        cmd_queues => get_cmd_queues()
+        kernel_compute_cu_code = get_kernel_by_name("compute_cu_code")
+      end if'''
+    print(generated_code)
+    assert expected in generated_code
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+
+@pytest.mark.parametrize("debug_mode", [True, False])
+def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
+    ''' Check that the Invoke OpenCL produce the expected kernel enqueue
+    statement to launch OpenCL kernels. '''
+    api_config = Config.get().api_conf("gocean1.0")
+    monkeypatch.setattr(api_config, "_debug_mode", debug_mode)
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+    otrans.apply(sched)
+
+    # Set OpenCL local_size to 4 for this test
+    sched.coded_kernels()[0].set_opencl_options({'local_size': 4})
+    generated_code = str(psy.gen)
+
+    # Set up globalsize and localsize values
+    expected = '''\
+      globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)
+      localsize = (/4, 1/)'''
+
+
+    if debug_mode:
+        # Check that the globalsize first dimension is a multiple of
+        # the localsize first dimension
+        expected += '''
+      IF (mod(p_fld%grid%nx,4) .ne. 0) THEN
+        CALL check_status("multiple", -1)
+      END IF'''
+    assert expected in generated_code
+
+    # Call the set_args subroutine with the boundaries corrected for the
+    # OpenCL 0-indexing
+    expected += '''
+      CALL compute_cu_code_set_args(kernel_compute_cu_code, \
+cu_fld%internal%xstart - 1, cu_fld%internal%xstop - 1, \
+cu_fld%internal%ystart - 1, cu_fld%internal%ystop - 1, \
+cu_fld%device_ptr, p_fld%device_ptr, u_fld%device_ptr)'''
+
+    expected += '''
+      ! Launch the kernel'''
+
+    if debug_mode:
+        # Check that there is no pending error in the queue before launching
+        # the kernel
+        expected += '''
+      ierr = clFinish(cmd_queues(1))
+      CALL check_status('Errors before compute_cu_code launch', ierr)'''
+
+    expected += '''
+      ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code, \
+2, C_NULL_PTR, C_LOC(globalsize), C_LOC(localsize), 0, C_NULL_PTR, \
+C_NULL_PTR)
+      !'''
+
+    if debug_mode:
+        # Check that there are no errors during the kernel launch or during
+        # the execution of the kernel.
+        expected += '''
+      CALL check_status('compute_cu_code clEnqueueNDRangeKernel', ierr)
+      ierr = clFinish(cmd_queues(1))
+      CALL check_status('Errors during compute_cu_code', ierr)'''
+
+    assert expected in generated_code
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 def test_grid_proprty(kernel_outputdir):
     # pylint: disable=unused-argument
