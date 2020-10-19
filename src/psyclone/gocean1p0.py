@@ -1395,68 +1395,68 @@ class GOKern(CodedKern):
         # with the 'boundaries_mask' annotation, we should insert a
         # conditional statement that checks that the  iteration
         # variables do not exceed the expected iteration boundaries.
-        if 'opencl_boundaries_mask' not in kschedule[0].annotations:
-            kernel_st = kschedule.symbol_table
-            iteration_indices = kernel_st.iteration_indices
-            data_arguments = kernel_st.data_arguments
+        kernel_st = kschedule.symbol_table
+        iteration_indices = kernel_st.iteration_indices
+        data_arguments = kernel_st.data_arguments
 
-            # Find names available for the boundary variables
-            xstart_name =  kernel_st.new_symbol_name("xstart")
-            xstop_name =  kernel_st.new_symbol_name("xstop")
-            ystart_name =  kernel_st.new_symbol_name("ystart")
-            ystop_name =  kernel_st.new_symbol_name("ystop")
+        # Find names available for the boundary variables
+        xstart_name =  kernel_st.new_symbol_name("xstart")
+        xstop_name =  kernel_st.new_symbol_name("xstop")
+        ystart_name =  kernel_st.new_symbol_name("ystart")
+        ystop_name =  kernel_st.new_symbol_name("ystop")
 
-            # Create new symbols and insert them as kernel arguments after
-            # then initial iteration indices
-            xstart_symbol = DataSymbol(xstart_name, INTEGER_TYPE,
-                interface=ArgumentInterface(ArgumentInterface.Access.READ))
-            xstop_symbol = DataSymbol(xstop_name, INTEGER_TYPE,
-                interface=ArgumentInterface(ArgumentInterface.Access.READ))
-            ystart_symbol = DataSymbol(ystart_name, INTEGER_TYPE,
-                interface=ArgumentInterface(ArgumentInterface.Access.READ))
-            ystop_symbol = DataSymbol(ystop_name, INTEGER_TYPE,
-                interface=ArgumentInterface(ArgumentInterface.Access.READ))
-            kernel_st.add(xstart_symbol)
-            kernel_st.add(xstop_symbol)
-            kernel_st.add(ystart_symbol)
-            kernel_st.add(ystop_symbol)
-            kernel_st.specify_argument_list(iteration_indices +
-                [xstart_symbol, xstop_symbol, ystart_symbol, ystop_symbol] +
-                data_arguments)
+        # Create new symbols and insert them as kernel arguments after
+        # then initial iteration indices
+        xstart_symbol = DataSymbol(xstart_name, INTEGER_TYPE,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        xstop_symbol = DataSymbol(xstop_name, INTEGER_TYPE,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        ystart_symbol = DataSymbol(ystart_name, INTEGER_TYPE,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        ystop_symbol = DataSymbol(ystop_name, INTEGER_TYPE,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        kernel_st.add(xstart_symbol)
+        kernel_st.add(xstop_symbol)
+        kernel_st.add(ystart_symbol)
+        kernel_st.add(ystop_symbol)
+        kernel_st.specify_argument_list(iteration_indices +
+            [xstart_symbol, xstop_symbol, ystart_symbol, ystop_symbol] +
+            data_arguments)
 
-            # Create boundaries masking condition
-            condition1 = BinaryOperation.create(
-                BinaryOperation.Operator.LT,
-                Reference(iteration_indices[0]),
-                Reference(xstart_symbol))
-            condition2 = BinaryOperation.create(
-                BinaryOperation.Operator.GT,
-                Reference(iteration_indices[0]),
-                Reference(xstop_symbol))
-            condition3 = BinaryOperation.create(
-                BinaryOperation.Operator.LT,
-                Reference(iteration_indices[1]),
-                Reference(ystart_symbol))
-            condition4 = BinaryOperation.create(
-                BinaryOperation.Operator.GT,
-                Reference(iteration_indices[1]),
-                Reference(ystop_symbol))
+        # Create boundaries masking condition
+        condition1 = BinaryOperation.create(
+            BinaryOperation.Operator.LT,
+            Reference(iteration_indices[0]),
+            Reference(xstart_symbol))
+        condition2 = BinaryOperation.create(
+            BinaryOperation.Operator.GT,
+            Reference(iteration_indices[0]),
+            Reference(xstop_symbol))
+        condition3 = BinaryOperation.create(
+            BinaryOperation.Operator.LT,
+            Reference(iteration_indices[1]),
+            Reference(ystart_symbol))
+        condition4 = BinaryOperation.create(
+            BinaryOperation.Operator.GT,
+            Reference(iteration_indices[1]),
+            Reference(ystop_symbol))
 
-            condition = BinaryOperation.create(
+        condition = BinaryOperation.create(
+            BinaryOperation.Operator.OR,
+            BinaryOperation.create(
                 BinaryOperation.Operator.OR,
-                BinaryOperation.create(
-                    BinaryOperation.Operator.OR,
-                    condition1,
-                    condition2),
-                BinaryOperation.create(
-                    BinaryOperation.Operator.OR,
-                    condition3,
-                    condition4)
-                )
+                condition1,
+                condition2),
+            BinaryOperation.create(
+                BinaryOperation.Operator.OR,
+                condition3,
+                condition4)
+            )
 
-            # Insert if condition masking as the kernel first statement
-            if_statement = IfBlock.create(condition, [Return()])
-            kschedule.children.insert(0, if_statement)
+        # Insert if condition masking as the kernel first statement
+        if_statement = IfBlock.create(condition, [Return()])
+        kschedule.children.insert(0, if_statement)
+        if_statement.parent = kschedule
 
 
 
