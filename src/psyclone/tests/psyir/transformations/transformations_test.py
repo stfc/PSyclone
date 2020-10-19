@@ -244,7 +244,9 @@ def test_parallellooptrans_refuse_codeblock(parser):
                                         parent.loop_body))
     with pytest.raises(TransformationError) as err:
         _ = otrans.validate(parent)
-    assert "HoHOHO" in str(err.value)
+    assert ("OMPParallelLoopTrans transformation. The target loop contains "
+            "one or more node types (['CodeBlock']) which cannot be enclosed "
+            "in a thread-parallel region" in str(err.value))
 
 # Tests for ProfileTrans
 
