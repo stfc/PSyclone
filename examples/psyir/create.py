@@ -49,8 +49,7 @@ C representation of the PSyIR.
 from __future__ import print_function
 from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     BinaryOperation, NaryOperation, Assignment, IfBlock, Loop, \
-    Container, Range, Array, Call
-from psyclone.psyGen import KernelSchedule
+    Container, Range, Array, Call, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, SymbolTable, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, \
     GlobalInterface, REAL_TYPE, REAL4_TYPE, REAL_DOUBLE_TYPE, INTEGER_TYPE, \

@@ -50,17 +50,15 @@ import os
 import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
-from psyclone.psyir.nodes import Assignment, Reference, BinaryOperation, \
-    Literal, Node, Schedule
+from psyclone.psyir.nodes import Assignment, BinaryOperation, \
+    Literal, Node, Schedule, KernelSchedule
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
-    OMPParallelDoDirective, KernelSchedule, InlinedKern, \
+    OMPParallelDoDirective, InlinedKern, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
     ACCEnterDataDirective, ACCKernelsDirective, HaloExchange, Invoke, \
     DataAccess, Kern, Arguments, CodedKern
 from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, \
-    REAL_TYPE, INTEGER_TYPE
+from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
@@ -68,7 +66,7 @@ from psyclone.transformations import OMPParallelLoopTrans, \
     ACCEnterDataTrans, ACCParallelTrans, ACCLoopTrans, ACCKernelsTrans
 from psyclone.generator import generate
 from psyclone.configuration import Config
-from psyclone.tests.utilities import get_invoke, check_links
+from psyclone.tests.utilities import get_invoke
 from psyclone.tests.lfric_build import LFRicBuild
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -2319,107 +2317,6 @@ def test_dataaccess_same_vector_indices(monkeypatch):
     assert (
         "The halo exchange vector indices for 'e' are the same. This should "
         "never happen" in str(excinfo.value))
-
-
-# Test KernelSchedule Class
-
-def test_kernelschedule_view(capsys):
-    '''Test the view method of the KernelSchedule part.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    symbol_table = SymbolTable()
-    symbol = DataSymbol("x", INTEGER_TYPE)
-    symbol_table.add(symbol)
-    lhs = Reference(symbol)
-    rhs = Literal("1", INTEGER_TYPE)
-    assignment = Assignment.create(lhs, rhs)
-    kschedule = KernelSchedule.create("kname", symbol_table, [assignment])
-    kschedule.view()
-    coloredtext = colored("Schedule",
-                          SCHEDULE_COLOUR_MAP["Schedule"])
-    output, _ = capsys.readouterr()
-    assert coloredtext+"[name:'kname']" in output
-    assert "Assignment" in output  # Check child view method is called
-
-
-def test_kernelschedule_can_be_printed():
-    '''Test that a KernelSchedule instance can always be printed (i.e. is
-    initialised fully)'''
-    symbol = DataSymbol("x", INTEGER_TYPE)
-    symbol_table = SymbolTable()
-    symbol_table.add(symbol)
-    lhs = Reference(symbol)
-    rhs = Literal("1", INTEGER_TYPE)
-    assignment = Assignment.create(lhs, rhs)
-    kschedule = KernelSchedule.create("kname", symbol_table, [assignment])
-    assert "Schedule[name:'kname']:\n" in str(kschedule)
-    assert "Assignment" in str(kschedule)  # Check children are printed
-    assert "End KernelSchedule" in str(kschedule)
-
-
-def test_kernelschedule_name_setter():
-    '''Test that the name setter changes the kernel name attribute.'''
-    kschedule = KernelSchedule("kname")
-    assert kschedule.name == "kname"
-    kschedule.name = "newname"
-    assert kschedule.name == "newname"
-
-
-def test_kernelschedule_create():
-    '''Test that the create method in the KernelSchedule class correctly
-    creates a KernelSchedule instance.
-
-    '''
-    symbol_table = SymbolTable()
-    symbol = DataSymbol("tmp", REAL_TYPE)
-    symbol_table.add(symbol)
-    assignment = Assignment.create(Reference(symbol),
-                                   Literal("0.0", REAL_TYPE))
-    kschedule = KernelSchedule.create("mod_name", symbol_table, [assignment])
-    check_links(kschedule, [assignment])
-    assert kschedule.symbol_table is symbol_table
-    result = FortranWriter().kernelschedule_node(kschedule)
-    assert result == (
-        "subroutine mod_name()\n"
-        "  real :: tmp\n\n"
-        "  tmp=0.0\n\n"
-        "end subroutine mod_name\n")
-
-
-def test_kernelschedule_create_invalid():
-    '''Test that the create method in a KernelSchedule class raises the
-    expected exception if the provided input is invalid.
-
-    '''
-    symbol_table = SymbolTable()
-    symbol = DataSymbol("x", REAL_TYPE)
-    symbol_table.add(symbol)
-    children = [Assignment.create(Reference(symbol),
-                                  Literal("1", REAL_TYPE))]
-
-    # name is not a string.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create(1, symbol_table, children)
-    assert ("name argument in create method of KernelSchedule class "
-            "should be a string but found 'int'.") in str(excinfo.value)
-
-    # symbol_table not a SymbolTable.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create("mod_name", "invalid", children)
-    assert ("symbol_table argument in create method of KernelSchedule class "
-            "should be a SymbolTable but found 'str'.") in str(excinfo.value)
-
-    # children not a list.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create("mod_name", symbol_table, "invalid")
-    assert ("children argument in create method of KernelSchedule class "
-            "should be a list but found 'str'." in str(excinfo.value))
-
-    # contents of children list are not Node.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create("mod_name", symbol_table, ["invalid"])
-    assert (
-        "child of children argument in create method of KernelSchedule class "
-        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
 
 def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
