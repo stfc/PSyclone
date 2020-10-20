@@ -7349,15 +7349,21 @@ class DynKern(CodedKern):
         :returns: root of fparser1 AST for the stub routine.
         :rtype: :py:class:`fparser.one.block_statements.Module`
 
-        :raises InternalError: if the supplied kernel stub does not operate \
+        :raises GenerationError: if the supplied kernel stub does not operate \
             on a supported subset of the domain (currently only "cell_column").
 
         '''
+        # The operates-on/iterates-over values supported by the stub generator.
+        supported_operates_on = USER_KERNEL_ITERATION_SPACES[:]
+        # TODO #925 Add support for 'domain' kernels
+        supported_operates_on.remove("domain")
+
         # Check operates-on (iteration space) before generating code
-        if self.iterates_over not in USER_KERNEL_ITERATION_SPACES:
-            raise InternalError(
-                "Expected the kernel to operate on one of {0} but found '{1}' "
-                "in kernel '{2}'.".format(USER_KERNEL_ITERATION_SPACES,
+        if self.iterates_over not in supported_operates_on:
+            raise GenerationError(
+                "The LFRic API kernel-stub generator supports kernels that "
+                "operate on one of {0} but found '{1}' "
+                "in kernel '{2}'.".format(supported_operates_on,
                                           self.iterates_over, self.name))
 
         # Get configuration for valid argument kinds

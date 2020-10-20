@@ -3805,10 +3805,10 @@ def test_fs_discontinuous_inc_error():
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
         assert ("In the LFRic API, allowed accesses for fields on "
-                "discontinuous function spaces that are arguments to "
-                "kernels that operate on cell-columns are ['gh_read', "
-                "'gh_write', 'gh_readwrite'], but found 'gh_inc' for "
-                "'{0}'".format(fspace) in str(excinfo.value))
+                "discontinuous function spaces that are arguments to kernels "
+                "that operate on either cell-columns or the domain are "
+                "['gh_read', 'gh_write', 'gh_readwrite'], but found 'gh_inc' "
+                "for '{0}'".format(fspace) in str(excinfo.value))
 
 
 def test_fs_continuous_cells_write_or_readwrite_error():
