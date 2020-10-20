@@ -570,7 +570,8 @@ def test_set_arg_const_scalar():
 @pytest.mark.usefixtures("kernel_outputdir")
 def test_opencl_kernel_code_generation():
     ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
-    the expected OpenCL code.
+    the expected OpenCL code. Note this test doesn't prepare the kernel to
+    conform to OpenCL GOcean expected interface yet.
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=False)
     sched = psy.invokes.invoke_list[0].schedule
@@ -591,6 +592,48 @@ def test_opencl_kernel_code_generation():
         "  int uLEN2 = get_global_size(1);\n"
         "  int i = get_global_id(0);\n"
         "  int j = get_global_id(1);\n"
+        "  cu[j * cuLEN1 + i] = ((0.5e0 * (p[j * pLEN1 + (i + 1)]"
+        " + p[j * pLEN1 + i])) * u[j * uLEN1 + i]);\n"
+        "}\n\n"
+        )
+
+    openclwriter = OpenCLWriter()
+    assert expected_code == openclwriter(kschedule)
+
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_opencl_prepared_kernel_code_generation():
+    ''' Tests that the _prepare_opencl_kernel_schedule method for the GOcean
+    API adds the 4 boundary values as kernel arguments and adds a masking
+    statement at the beginning of the executable code.
+    '''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=False)
+    sched = psy.invokes.invoke_list[0].schedule
+    kernel = sched.children[0].loop_body[0].loop_body[0]  # compute_cu kernel
+    kernel._prepare_opencl_kernel_schedule()
+    kschedule = kernel.get_kernel_schedule()
+
+    expected_code = (
+        "__kernel void compute_cu_code(\n"
+        "  int xstart,\n"
+        "  int xstop,\n"
+        "  int ystart,\n"
+        "  int ystop,\n"
+        "  __global double * restrict cu,\n"
+        "  __global double * restrict p,\n"
+        "  __global double * restrict u\n"
+        "  ){\n"
+        "  int cuLEN1 = get_global_size(0);\n"
+        "  int cuLEN2 = get_global_size(1);\n"
+        "  int pLEN1 = get_global_size(0);\n"
+        "  int pLEN2 = get_global_size(1);\n"
+        "  int uLEN1 = get_global_size(0);\n"
+        "  int uLEN2 = get_global_size(1);\n"
+        "  int i = get_global_id(0);\n"
+        "  int j = get_global_id(1);\n"
+        "  if ((((i < xstart) || (i > xstop)) || ((j < ystart) ||"
+        " (j > ystop)))) {\n"
+        "    return;\n"
+        "  }\n"
         "  cu[j * cuLEN1 + i] = ((0.5e0 * (p[j * pLEN1 + (i + 1)]"
         " + p[j * pLEN1 + i])) * u[j * uLEN1 + i]);\n"
         "}\n\n"
