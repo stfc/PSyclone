@@ -256,8 +256,9 @@ basis/differential-basis functions required by the kernel are to be evaluated.
 Stencils
 ++++++++
 
-Kernel metadata may specify that a Kernel performs a stencil operation
-on a field. Any such metadata must provide a stencil type. See the
+The metadata for a Kernel which operates on a cell-column may specify
+that a Kernel performs a stencil operation on a field. Any such
+metadata must provide a stencil type. See the
 :ref:`dynamo0.3-api-meta-args` section for more details. The supported
 stencil types are ``X1D``, ``Y1D``, ``XORY1D`` or ``CROSS``.
 
@@ -417,14 +418,14 @@ Rules for all User-Supplied Kernels
 +++++++++++++++++++++++++++++++++++
 
 In the following, 'operator' refers to both LMA and CMA operator
-types. Kernels with ``operates_on = DOMAIN`` are currently only
-permitted to accept scalar and field or field-vector arguments.
+types.
 
 1) A Kernel must have at least one argument that is a field, field
    vector, or operator. This rule reflects the fact that a Kernel
    operates on some subset of the whole domain (e.g. a cell-column)
    and is therefore designed to be called from within a loop that
-   iterates over those subsets of the domain.
+   iterates over those subsets of the domain. Kernels with
+   ``operates_on = DOMAIN`` cannot have operator arguments.
 
 2) The continuity of the iteration space of the Kernel is determined
    from the function space of the modified argument (see Section
@@ -435,7 +436,10 @@ permitted to accept scalar and field or field-vector arguments.
    second on ``W1`` (continuous), then the iteration space of that Kernel
    will be determined by the field on the continuous space.
 
-3) If any of the modified arguments are declared with the generic
+3) Kernels with ``operates_on = DOMAIN`` only accept fields that are
+   on discontinuous function spaces. Stencil accesses are not permitted.
+
+4) If any of the modified arguments are declared with the generic
    function space metadata (e.g. ``ANY_SPACE_n``, see
    :ref:`Supported Function Spaces <dynamo0.3-function-space>`)
    and their actual space cannot be determined statically then the
@@ -447,15 +451,15 @@ permitted to accept scalar and field or field-vector arguments.
       is always safe but leads to additional computation if the quantities
       being updated are actually on discontinuous function spaces.
 
-4) Operators do not have halo operations operating on them as they
+5) Operators do not have halo operations operating on them as they
    are either cell- (LMA) or column-based (CMA) and therefore act
    like discontinuous fields.
 
-5) Any Kernel that writes to an operator will have its iteration
+6) Any Kernel that writes to an operator will have its iteration
    space expanded such that valid values for the operator are
    computed in the level-1 halo.
 
-6) Any Kernel that reads from an operator must not access halos
+7) Any Kernel that reads from an operator must not access halos
    beyond level 1. In this case PSyclone will check that the Kernel
    does not require values beyond the level-1 halo. If it does then
    PSyclone will abort.
@@ -2586,18 +2590,18 @@ processors will have continuous fields which contain DoFs that the
 processor does not own. These unowned DoFs are called `annexed` in the
 Dynamo0.3 API and are a separate, but related, concept to field halos.
 
-When a kernel that operates on either a cell-column or the whole
-domain needs to read a continuous field then the annexed DoFs must be
-up-to-date on all processors. If they are not then a halo exchange
-must be added. Currently PSyclone defaults, for kernels which iterate
-over DoFs, to iterating over only owned DoFs. This behaviour can be
-changed by setting `COMPUTE_ANNEXED_DOFS` to ``true`` in the
-`dynamo0.3` section of the configuration file (see the
-:ref:`configuration` section). PSyclone will then generate code to
-iterate over both owned and annexed DoFs, thereby reducing the number
-of halo exchanges required (at the expense of redundantly computing
-annexed DoFs). For more details please refer to the
-:ref:`dynamo0.3-developers` developers section.
+When a kernel that operates on a cell-column needs to read a
+continuous field then the annexed DoFs must be up-to-date on all
+processors. If they are not then a halo exchange must be
+added. Currently PSyclone defaults, for kernels which iterate over
+DoFs, to iterating over only owned DoFs. This behaviour can be changed
+by setting `COMPUTE_ANNEXED_DOFS` to ``true`` in the `dynamo0.3`
+section of the configuration file (see the :ref:`configuration`
+section). PSyclone will then generate code to iterate over both owned
+and annexed DoFs, thereby reducing the number of halo exchanges
+required (at the expense of redundantly computing annexed DoFs). For
+more details please refer to the :ref:`dynamo0.3-developers`
+developers section.
 
 .. _lfric-run-time-checks:
 

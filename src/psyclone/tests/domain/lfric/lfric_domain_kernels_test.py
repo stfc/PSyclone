@@ -60,8 +60,8 @@ module testkern_domain_mod
   type, extends(kernel_type) :: testkern_domain_type
      type(arg_type), meta_args(5) =                   &
           (/ arg_type(gh_scalar, gh_real, gh_read),   &
-             arg_type(gh_field, gh_inc, w1),          &
-             arg_type(gh_field, gh_read, w2),         &
+             arg_type(gh_field, gh_readwrite, w3),    &
+             arg_type(gh_field, gh_read, w3),         &
              arg_type(gh_field, gh_read, w3),         &
              arg_type(gh_scalar, gh_integer, gh_read) &
            /)
@@ -85,8 +85,8 @@ def test_invalid_arg_domain_kernel():
   type, extends(kernel_type) :: testkern_domain_type
      type(arg_type), meta_args(4) =                   &
           (/ arg_type(gh_scalar, gh_real, gh_read),   &
-             arg_type(gh_field, gh_inc, w1),          &
-             arg_type(gh_field, gh_read, w2),         &
+             arg_type(gh_field, gh_readwrite, w3),    &
+             arg_type(gh_field, gh_read, w3),         &
              arg_type(gh_operator, gh_read, w2, w2)   &
            /)
      integer :: operates_on = domain
@@ -105,6 +105,32 @@ end module testkern_domain_mod
             "argument of type 'gh_operator'" in str(err.value))
 
 
+def test_invalid_space_domain_kernel():
+    ''' Check that we reject a domain kernel if its metadata specifies a
+    field argument on a continuous space. '''
+    ast = fpapi.parse('''module testkern_domain_mod
+  type, extends(kernel_type) :: testkern_domain_type
+     type(arg_type), meta_args(3) =                   &
+          (/ arg_type(gh_scalar, gh_real, gh_read),   &
+             arg_type(gh_field, gh_readwrite, w3),    &
+             arg_type(gh_field, gh_read, w2)          &
+           /)
+     integer :: operates_on = domain
+   contains
+     procedure, nopass :: code => testkern_domain_code
+  end type testkern_domain_type
+contains
+  subroutine testkern_domain_code(a, b, c, d)
+  end subroutine testkern_domain_code
+end module testkern_domain_mod
+''', ignore_comments=False)
+    with pytest.raises(ParseError) as err:
+        DynKernMetadata(ast, name="testkern_domain_type")
+    assert ("domain only accept field arguments on discontinuous function "
+            "spaces but found 'w2' in 'arg_type(gh_field, gh_read, w2)'" in
+            str(err.value))
+
+
 def test_invalid_basis_domain_kernel():
     ''' Check that we reject a kernel with operates_on=domain if it requires
     basis functions. '''
@@ -113,12 +139,11 @@ module testkern_domain_mod
   type, extends(kernel_type) :: testkern_domain_type
      type(arg_type), meta_args(3) =                   &
           (/ arg_type(gh_scalar, gh_real, gh_read),   &
-             arg_type(gh_field, gh_inc, w1),          &
-             arg_type(gh_field, gh_read, w2)          &
+             arg_type(gh_field, gh_readwrite, w3),    &
+             arg_type(gh_field, gh_read, w3)          &
            /)
-     type(func_type), dimension(2) :: meta_funcs =  &
-          (/ func_type(w1, gh_basis),               &
-             func_type(w2, gh_diff_basis)           &
+     type(func_type), dimension(1) :: meta_funcs =  &
+          (/ func_type(w3, gh_basis)                &
            /)
      integer :: operates_on = domain
      integer :: gh_shape = gh_quadrature_XYoZ
@@ -145,7 +170,7 @@ module testkern_domain_mod
   type, extends(kernel_type) :: testkern_domain_type
      type(arg_type), meta_args(2) =                   &
           (/ arg_type(gh_scalar, gh_real, gh_read),   &
-             arg_type(gh_field, gh_inc, w1)           &
+             arg_type(gh_field, gh_readwrite, w3)     &
            /)
      type(mesh_data_type), dimension(1) :: meta_mesh = &
                         (/ mesh_data_type(adjacent_face) /)
@@ -173,7 +198,7 @@ module testkern_domain_mod
   type, extends(kernel_type) :: testkern_domain_type
      type(arg_type), meta_args(2) =                     &
           (/ arg_type(gh_scalar, gh_real, gh_read),     &
-             arg_type(gh_field, gh_inc, w1)             &
+             arg_type(gh_field, gh_readwrite, w3)       &
            /)
      type(reference_element_data_type), dimension(1) :: &
          meta_reference_element =                       &
@@ -201,9 +226,11 @@ def test_invalid_mg_domain_kernel():
 module restrict_mod
 type, public, extends(kernel_type) :: restrict_kernel_type
    private
-   type(arg_type) :: meta_args(2) = (/                               &
-       arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1, mesh_arg=GH_COARSE), &
-       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, mesh_arg=GH_FINE  )  &
+   type(arg_type) :: meta_args(2) = (/                              &
+       arg_type(GH_FIELD, GH_READWRITE,  ANY_DISCONTINUOUS_SPACE_1, &
+                mesh_arg=GH_COARSE),                                &
+       arg_type(GH_FIELD, GH_READ, ANY_DISCONTINUOUS_SPACE_2,       &
+                mesh_arg=GH_FINE  )                                 &
        /)
   integer :: operates_on = domain
 contains

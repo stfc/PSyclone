@@ -442,7 +442,8 @@ class LFRicArgDescriptor(Descriptor):
                     format(fld_disc_acc_msg,
                            rev_access_mapping[self._access_type],
                            self._function_space1.lower(), arg_type))
-        # Check accesses for kernels that operate on cell-columns
+        # Check accesses for kernels that operate on cell-columns or the
+        # domain
         elif operates_on in ["cell_column", "domain"]:
             # Fields on discontinuous function spaces
             if (self._function_space1.lower() in
@@ -451,22 +452,29 @@ class LFRicArgDescriptor(Descriptor):
                 raise ParseError(
                     "In the LFRic API, allowed accesses for fields on "
                     "discontinuous function spaces that are arguments to "
-                    "kernels that operate on cell-columns are {0}, but found "
-                    "'{1}' for '{2}' in '{3}'.".
+                    "kernels that operate on either cell-columns or the domain"
+                    " are {0}, but found '{1}' for '{2}' in '{3}'.".
                     format(fld_disc_acc_msg,
                            rev_access_mapping[self._access_type],
                            self._function_space1.lower(), arg_type))
             # Fields on continuous function spaces
-            if (self._function_space1.lower() in fld_cont_spaces and
-                    self._access_type not in field_cont_accesses):
-                raise ParseError(
-                    "In the LFRic API, allowed accesses for fields on "
-                    "continuous function spaces that are arguments to "
-                    "kernels that operate on cell-columns are {0}, but found "
-                    "'{1}' for '{2}' in '{3}'.".
-                    format(fld_cont_acc_msg,
-                           rev_access_mapping[self._access_type],
-                           self._function_space1.lower(), arg_type))
+            if self._function_space1.lower() in fld_cont_spaces:
+                if operates_on == "domain":
+                    raise ParseError(
+                        "In the LFRic API, kernels that operate on the domain "
+                        "only accept field arguments on discontinuous function"
+                        " spaces but found '{0}' in '{1}'".format(
+                            self._function_space1.lower(), arg_type))
+
+                if self._access_type not in field_cont_accesses:
+                    raise ParseError(
+                        "In the LFRic API, allowed accesses for fields on "
+                        "continuous function spaces that are arguments to "
+                        "kernels that operate on cell-columns are {0}, but "
+                        "found '{1}' for '{2}' in '{3}'.".format(
+                            fld_cont_acc_msg,
+                            rev_access_mapping[self._access_type],
+                            self._function_space1.lower(), arg_type))
         # Raise an InternalError for an invalid value of operates-on
         else:
             from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
