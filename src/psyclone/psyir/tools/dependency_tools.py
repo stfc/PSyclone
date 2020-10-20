@@ -296,7 +296,7 @@ class DependencyTools(object):
                                  test_all_variables=False,
                                  variables_to_ignore=None,
                                  var_accesses=None):
-        # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-arguments, too-many-branches
         '''This function analyses a loop in the PsyIR to see if
         it can be safely parallelised over the specified variable.
 
@@ -362,10 +362,22 @@ class DependencyTools(object):
                 continue
             if var_name in variables_to_ignore:
                 continue
-            # Find the symbol for this variable
-            symbol = loop.find_or_create_symbol(var_name)
+
             var_info = var_accesses[var_name]
-            if symbol.is_array:
+            symbol_table = loop.scope.symbol_table
+            if var_name not in symbol_table:
+                # TODO #845: Once we have symbol tables, any variable should
+                # be in a symbol table, so we have to raise an exception here.
+                # We need to fall-back to the old-style test, since we do not
+                # have information in a symbol table. So check if the access
+                # information stored an index:
+                is_array = var_info[0].indices is not None
+            else:
+                # Find the symbol for this variable
+                symbol = loop.find_or_create_symbol(var_name)
+                is_array = symbol.is_array
+
+            if is_array:
                 # Handle arrays
                 par_able = self.is_array_parallelisable(loop_variable,
                                                         var_info)
@@ -373,9 +385,12 @@ class DependencyTools(object):
                 # Handle scalar variable
                 par_able = self.is_scalar_parallelisable(var_info)
             if not par_able:
-                result = False
                 if not test_all_variables:
                     return False
+                # The user might have requested to continue in order to get
+                # all messages for all variables preventing parallelisation,
+                # not just the first one
+                result = False
 
         return result
 

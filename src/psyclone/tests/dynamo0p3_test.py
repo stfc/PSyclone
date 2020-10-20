@@ -6615,43 +6615,6 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_loop_cont_read_inv_bound(monkeypatch, annexed, tmpdir):
-    ''' When a continuous argument is read it may access the halo. The
-    logic for this is in _halo_read_access. If the loop type in this
-    routine is not known then an exception is raised. This test checks
-    that this exception is raised correctly. We test separately for
-    annexed dofs being computed or not as this affects the number of
-    halo exchanges produced.
-
-    '''
-    api_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1_single_invoke_any_discontinuous_space.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    # First test compilation ...
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    # and then proceed to checks
-    if annexed:
-        # no halo exchanges generated
-        loop = schedule.children[0]
-    else:
-        # 2 halo exchanges generated
-        loop = schedule.children[2]
-    kernel = loop.loop_body[0]
-    f2_arg = kernel.arguments.args[1]
-    #
-    monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
-    with pytest.raises(InternalError) as excinfo:
-        _ = loop._halo_read_access(f2_arg)
-    assert ("DynLoop._halo_read_access(): It should not be possible to "
-            "get to here. Loop upper bound name is 'invalid' and arg "
-            "'f2' access is 'gh_read'.") in str(excinfo.value)
-
-
 def test_new_halo_exch_vect_field(monkeypatch):
     '''If a field requires (or may require) a halo exchange before it is
     accessed and it has more than one backward write dependency then it
@@ -7545,3 +7508,41 @@ def test_read_only_fields_hex(tmpdir):
         "        CALL f2_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n")
     assert expected in generated_code
+
+
+def test_dynloop_halo_read_access_error1(monkeypatch):
+    '''Test that the halo_read_access method in class DynLoop raises the
+    expected exception when an unsupported field access is found.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule[4]
+    kernel = loop.loop_body[0]
+    field = kernel.arguments.args[1]
+    monkeypatch.setattr(field, "_access", "unsupported")
+    with pytest.raises(InternalError) as info:
+        loop._halo_read_access(field)
+    assert ("Unexpected field access type 'unsupported' found for arg 'f1'."
+            in str(info.value))
+
+
+def test_dynloop_halo_read_access_error2(monkeypatch):
+    '''Test that the halo_read_access method in class DynLoop raises the
+    expected exception when an unsupported field type is found.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule[4]
+    kernel = loop.loop_body[0]
+    field = kernel.arguments.args[1]
+    monkeypatch.setattr(field, "_argument_type", "unsupported")
+    with pytest.raises(InternalError) as info:
+        loop._halo_read_access(field)
+    assert ("Expecting arg 'f1' to be an operator, scalar or field, but "
+            "found 'unsupported'." in str(info.value))
