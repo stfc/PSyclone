@@ -131,6 +131,32 @@ end module testkern_domain_mod
             str(err.value))
 
 
+def test_no_stencil_domain_kernel():
+    ''' Check that we reject a domain kernel if it has an argument with a
+    stencil access. '''
+    ast = fpapi.parse('''module testkern_domain_mod
+  type, extends(kernel_type) :: testkern_domain_type
+     type(arg_type), meta_args(3) =                          &
+          (/ arg_type(gh_scalar, gh_real, gh_read),          &
+             arg_type(gh_field, gh_readwrite, w3),           &
+             arg_type(gh_field, gh_read, w3, stencil(cross)) &
+           /)
+     integer :: operates_on = domain
+   contains
+     procedure, nopass :: code => testkern_domain_code
+  end type testkern_domain_type
+contains
+  subroutine testkern_domain_code(a, b, c, d)
+  end subroutine testkern_domain_code
+end module testkern_domain_mod
+''', ignore_comments=False)
+    with pytest.raises(ParseError) as err:
+        DynKernMetadata(ast, name="testkern_domain_type")
+    assert ("domain are not permitted to have arguments with a stencil "
+            "access but found: 'arg_type(gh_field, gh_read, w3, "
+            "stencil(cross))'" in str(err.value))
+
+
 def test_invalid_basis_domain_kernel():
     ''' Check that we reject a kernel with operates_on=domain if it requires
     basis functions. '''

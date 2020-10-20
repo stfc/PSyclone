@@ -350,9 +350,13 @@ class LFRicArgDescriptor(Descriptor):
         :raises ParseError: if a field on a continuous function space \
                             passed to a kernel that operates on cell-columns \
                             does not have a valid access (one of [READ, INC]).
+        :raises ParseError: if the kernel operates on the domain and is \
+                            passed a field on a discontinuous space.
         :raises InternalError: if an invalid value for operates_on is \
                                passed in.
         :raises ParseError: if a field with a stencil access is not read-only.
+        :raises ParseError: if a field with a stencil access is passed to a \
+                            kernel that operates on the domain.
 
         '''
         # Check whether something other than a field is passed in
@@ -483,12 +487,18 @@ class LFRicArgDescriptor(Descriptor):
                 "one of {1}).".format(operates_on, VALID_ITERATION_SPACES))
 
         # Test allowed accesses for fields that have stencil specification
-        if self._stencil and self._access_type != AccessType.READ:
-            raise ParseError(
-                "In the LFRic API a field with a stencil access must be "
-                "read-only ('{0}'), but found '{1}' in '{2}'.".
-                format(rev_access_mapping[AccessType.READ],
-                       rev_access_mapping[self._access_type], arg_type))
+        if self._stencil:
+            if self._access_type != AccessType.READ:
+                raise ParseError(
+                    "In the LFRic API a field with a stencil access must be "
+                    "read-only ('{0}'), but found '{1}' in '{2}'.".
+                    format(rev_access_mapping[AccessType.READ],
+                           rev_access_mapping[self._access_type], arg_type))
+            if operates_on == "domain":
+                raise ParseError(
+                    "In the LFRic API, kernels that operate on the domain "
+                    "are not permitted to have arguments with a stencil "
+                    "access but found: '{0}'".format(arg_type))
 
     def _init_operator(self, arg_type):
         '''
