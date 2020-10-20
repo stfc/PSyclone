@@ -2610,7 +2610,7 @@ class CodedKern(Kern):
         # Whether or not to in-line this kernel into the module containing
         # the PSy layer
         self._module_inline = False
-        self._opencl_options = {'local_size': 1, 'queue_number': 1}
+        self._opencl_options = {'local_size': 64, 'queue_number': 1}
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
                 "error: In kernel '{0}' the number of arguments specified "

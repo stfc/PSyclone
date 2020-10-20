@@ -162,22 +162,19 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()
     otrans.apply(sched)
-
-    # Set OpenCL local_size to 4 for this test
-    sched.coded_kernels()[0].set_opencl_options({'local_size': 4})
     generated_code = str(psy.gen)
 
     # Set up globalsize and localsize values
     expected = '''\
       globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)
-      localsize = (/4, 1/)'''
+      localsize = (/64, 1/)'''
 
 
     if debug_mode:
         # Check that the globalsize first dimension is a multiple of
         # the localsize first dimension
         expected += '''
-      IF (mod(p_fld%grid%nx,4) .ne. 0) THEN
+      IF (mod(p_fld%grid%nx,64) .ne. 0) THEN
         CALL check_status("multiple", -1)
       END IF'''
     assert expected in generated_code
@@ -393,8 +390,8 @@ def test_opencl_options_effects():
     otrans.apply(sched)
     generated_code = str(psy.gen)
 
-    # By default there is 1 queue, with an end barrier and local_size is 1
-    assert "localsize = (/1, 1/)" in generated_code
+    # By default there is 1 queue, with an end barrier and local_size is 64
+    assert "localsize = (/64, 1/)" in generated_code
     assert "ierr = clEnqueueNDRangeKernel(cmd_queues(1), " \
         "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
         "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
