@@ -25,7 +25,12 @@ are just comments, the compiler will ignore them unless the appropriate
 flag is set.)
 
 Ideally you will be familiar with the use of OpenMP to parallelise code
-although this is not absolutely essential.
+although this is not absolutely essential. A detailed explanation
+of OpenMP is beyond the scope of this course but, for the purposes of
+this tutorial, OpenMP enables work to be shared over the cores of a
+multi-core CPU (or CPUs in a multi-socket machine). It does this by
+spawning threads, each of which has full access to all of the memory
+of the parent process.
 
 ## Validation ##
 
@@ -45,7 +50,7 @@ re-generate it.)
 The supplied `Makefile` processes the mini-app with PSyclone using the
 supplied `omp_trans.py` transformation script. Before we do anything
 else, let's take a look at the script. There are three key differences
-compared to the script we used to introduce profiling in previous
+compared to the script we used to introduce profiling in the previous
 tutorial:
 
  1. the script uses the `OMPParallelLoopTrans` transformation which
@@ -124,15 +129,35 @@ within a `try`:
 Edit the `omp_trans.py` script to use this approach and then build the
 code. Verify that PSyclone now successfully transforms the code and
 examine the PSyIR to see where the OpenMP directives have been
-inserted.
+inserted. You should see that there are now `Directive` nodes in the
+PSyIR, e.g.:
 
-We are now ready to do our first parallel run. A detailed explanation
-of OpenMP is beyond the scope of this course but, for the purposes of
-this course, OpenMP enables work to be shared over the cores of a
-multi-core CPU (or CPUs in a multi-socket machine). It does this by
-spawning threads, each of which has full access to all of the memory
-of the parent process. The number of threads to use is set via the
-OMP_NUM_THREADS environment variable at run time, e.g. in bash:
+    7: Directive[OMP parallel do]
+        Schedule[]
+            0: Loop[type='levels', field_space='None', it_space='None']
+                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+                Reference[name:'jpk']
+                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+                Schedule[]
+                    0: Loop[type='lat', field_space='None', it_space='None']
+                        Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+
+and the corresponding Fortran looks like:
+
+```fortran
+    !$OMP parallel do default(shared), private(ji,jj,jk), schedule(static)
+    DO jk = 1, jpk
+      DO jj = 1, jpj
+        DO ji = 1, jpi
+          umask(ji, jj, jk) = ji * jj * jk / r
+```
+
+Note that all scalars accessed within the loop are declared as thread
+private. All other variables are declared to be shared between threads.
+
+We are now ready to do our first parallel run. The number of threads
+to use is set via the OMP_NUM_THREADS environment variable at run
+time, e.g. in bash:
 
     $ OMP_NUM_THREADS=4 ./tra_adv.exe
 
@@ -174,8 +199,29 @@ overall runtime is negligible.
 Clearly, the optimisation script needs to be improved so that it finds
 all of the loops over vertical levels, rather than just those that are
 immediate children of the root Schedule. Edit the optimisation script
-so that it uses `walk` to do this. Check that the generated PSyIR
-looks as you would expect. (You can use a second `walk` after the
-transformation is complete to count the number of `Directive` nodes
-that have been inserted.)
+so that it uses `sched.walk()` to do this. Check that the generated
+PSyIR looks as you would expect. (You can use a second `walk` after
+the transformation is complete to count the number of `Directive`
+nodes that have been inserted in the Schedule - there should be 13.)
 
+Now that we've parallelised a reasonable percentage of the mini-app,
+you should see a speed-up as you increase OMP_NUM_THREADS. For
+instance, for the default problem size (100x100x30) on a quad-core
+Intel I7 with hyperthreading:
+
+| Number of threads | Time (s) | Speed-up |
+| ----------------- | -------- | -------- |
+| 1                 | 0.56250  | 1.0      |
+| 2                 | 0.40625  | 1.4      |
+| 4                 | 0.31250  | 1.8      |
+| 8                 | 0.28125  | 2.0      |
+
+So we get a speed-up but it's far from ideal.
+
+## Improving Performance ##
+
+Probably don't want to get too in-depth here. Is there scope
+to use a PARALLEL region in this mini-app (although that might
+not help)? Point out problem with implicit loops setting
+values at jk=1 and jk=jpk: causes data movement. Scalar
+initialisation outside loops.

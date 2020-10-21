@@ -45,7 +45,8 @@ subroutine tra_adv()
    IF(it < 1) STOP  'Number of iterations, IT, must be > 0'
    
    WRITE (*, "('Tracer-advection Mini-app:')")
-   WRITE (*, "('Domain is ', I4, 'x', I4, ' grid points')") jpi, jpj
+   WRITE (*, "('Domain is ', I4, ' x', I4, ' grid points with ', I3, &
+             & ' vertical levels')") jpi, jpj, jpk
    WRITE (*, "('Performing ', I4, ' iterations')") it
 
    ! Initialisation
