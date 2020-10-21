@@ -607,7 +607,6 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
 
 @six.add_metaclass(abc.ABCMeta)
 class ParallelLoopTrans(Transformation):
-
     '''
     Adds an orphaned directive to a loop indicating that it should be
     parallelised. i.e. the directive must be inside the scope of some
@@ -617,7 +616,7 @@ class ParallelLoopTrans(Transformation):
     '''
     # The types of node that must be excluded from the section of PSyIR
     # being transformed.
-    excluded_node_types = (nodes.Return, psyGen.HaloExchange)
+    excluded_node_types = (nodes.Return, psyGen.HaloExchange, nodes.CodeBlock)
 
     @abc.abstractmethod
     def __str__(self):
@@ -665,6 +664,10 @@ class ParallelLoopTrans(Transformation):
         :raises TransformationError: if the \
                 :py:class:`psyclone.psyir.nodes.Loop` loop iterates over \
                 colours.
+        :raises TransformationError: if the target loop contains one of the \
+                node types specified in self.excluded_node_types.
+        :raises TransformationError: if 'collapse' is supplied with an \
+                invalid number of loops.
 
         '''
         # Check that the supplied node is a Loop
@@ -679,6 +682,16 @@ class ParallelLoopTrans(Transformation):
             raise TransformationError("Error in "+self.name+" transformation. "
                                       "The target loop is over colours and "
                                       "must be computed serially.")
+        # Check that there aren't any excluded node types within the supplied
+        # loop
+        bad_nodes = node.walk(self.excluded_node_types)
+        if bad_nodes:
+            raise TransformationError(
+                "Error in {0} transformation. The target loop contains one or "
+                "more node types ({1}) which cannot be enclosed in a thread-"
+                "parallel region.".format(
+                    self.name, [type(node).__name__ for node in bad_nodes]))
+
         if not options:
             options = {}
         collapse = options.get("collapse", None)
@@ -1696,7 +1709,7 @@ class ParallelRegionTrans(RegionTrans):
     '''
     # The types of node that must be excluded from the section of PSyIR
     # being transformed.
-    excluded_node_types = (nodes.Return, psyGen.HaloExchange)
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, psyGen.HaloExchange)
 
     def __init__(self):
         # Holds the class instance for the type of parallel region
