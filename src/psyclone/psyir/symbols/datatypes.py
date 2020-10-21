@@ -202,13 +202,13 @@ class ArrayType(DataType):
     :type datatype: :py:class:`psyclone.psyir.datatypes.DataType`
     :param list shape: shape of the symbol in column-major order (leftmost \
         index is contiguous in memory). Each entry represents an array \
-        dimension. If it is DataSymbol.Extent.ATTRIBUTE the extent of that \
+        dimension. If it is DataSymbol.Extent.ATTRIBUTE the extent of that
         dimension is unknown but can be obtained by querying the run-time \
         system (e.g. using the SIZE intrinsic in Fortran). If it is \
         DataSymbol.Extent.DEFERRED then the extent is also unknown and may or \
         may not be defined at run-time (e.g. the array is ALLOCATABLE in \
-        Fortran). Otherwise it holds an integer literal or a reference to a \
-        symbol (of integer or unknown/deferred type) that specifies the extent.
+        Fortran). Otherwise it can be an int, or a DataNode (that returns an \
+        int).
 
     :raises TypeError: if the arguments are of the wrong type.
 
@@ -235,7 +235,11 @@ class ArrayType(DataType):
         # We do not have a setter for shape as it is an immutable property,
         # therefore we have a separate validation routine.
         self._validate_shape(shape)
-        self._shape = shape
+        # Replace any ints in shape with a Literal. int's are only
+        # supported as they allow a more concise dimension
+        # declaration.
+        self._shape = [Literal(dim) if instance(dim, int) else dim
+                       for dim in shape]
         self._intrinsic = datatype.intrinsic
         self._precision = datatype.precision
         self._datatype = datatype
@@ -259,40 +263,40 @@ class ArrayType(DataType):
 
     @property
     def shape(self):
-        '''
-        :returns: the shape of the symbol in column-major order \
+        ''':returns: the shape of the symbol in column-major order \
             (leftmost index is contiguous in memory) with each entry \
             representing an array dimension.
-        :rtype: a list of DataSymbol.Extent.ATTRIBUTE, \
-            DataSymbol.Extent.DEFERRED, Literal or Reference. If an \
-            entry is DataSymbol.Extent.ATTRIBUTE the extent of that \
-            dimension is unknown but can be obtained by querying the \
-            run-time system (e.g. using the SIZE intrinsic in \
-            Fortran). If it is DataSymbol.Extent.DEFERRED then the \
-            extent is also unknown and may or may not be defined at \
-            run-time (e.g. the array is ALLOCATABLE in \
-            Fortran). Otherwise an entry is an integer literal or a \
-            reference to an integer symbol with the extent.
-        :returns: the shape of the array.
-        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`, \
-            int or :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :rtype: a list of DataSymbol.Extent.ATTRIBUTE,
+            DataSymbol.Extent.DEFERRED,
+            :py:class:`psyclone.psyir.symbols.DataSymbol` or
+            :py:class:`psyclone.psyir.nodes.DataNode`. If an entry is
+            DataSymbol.Extent.ATTRIBUTE the extent of that dimension
+            is unknown but can be obtained by querying the run-time
+            system (e.g. using the SIZE intrinsic in Fortran). If it
+            is DataSymbol.Extent.DEFERRED then the extent is also
+            unknown and may or may not be defined at run-time
+            (e.g. the array is ALLOCATABLE in Fortran). Otherwise an
+            entry is a DataSymbol or DataNode that returns an int.
+
         '''
         return self._shape
 
     def _validate_shape(self, extents):
-        '''
-        Check that the supplied shape specification is valid. This is not
+        '''Check that the supplied shape specification is valid. This is not
         implemented as a setter because the shape property is immutable.
 
         :param extents: list of extents, one for each array dimension.
-        :type extents: list of :py:class:`psyclone.psyir.symbols.DataSymbol`, \
-            :py:class:`psyclone.psyir.symbols.ArrayType.Extent` or int
+        :type extents: list of \
+            :py:class:`psyclone.psyir.symbols.DataSymbol`, \
+            :py:class:`psyclone.psyir.symbols.ArrayType.Extent`, int \
+            or subclass of :py:class:`psyclone.psyir.nodes.DataNode`
 
         :raises TypeError: if extents is not a list.
         :raises TypeError: if one or more of the supplied extents is a \
             DataSymbol that is not a scalar integer or of Unknown/DeferredType.
         :raises TypeError: if one or more of the supplied extents is not a \
-            DataSymbol, int or ArrayType.Extent.
+            DataSymbol, int, ArrayType.Extent, or DataNode.
 
         '''
         from psyclone.psyir.symbols.datasymbol import DataSymbol
@@ -313,11 +317,15 @@ class ArrayType(DataType):
                         "DataSymbols that are part of another symbol shape can"
                         " only be scalar integers, but found '{0}'."
                         "".format(str(dimension)))
+            elif isinstance(dimension, DataNode):
+                # When issue #685 is addressed then check that the
+                # datatype returned is an int (or is unknown).
+                pass
             elif not isinstance(dimension, (self.Extent, int)):
                 raise TypeError(
                     "DataSymbol shape list elements can only be "
-                    "'DataSymbol', 'integer' or ArrayType.Extent, but "
-                    "found '{0}'.".format(type(dimension).__name__))
+                    "'DataSymbol', 'int', ArrayType.Extent, or 'DataNode' "
+                    "but found '{0}'.".format(type(dimension).__name__))
 
     def __str__(self):
         '''
