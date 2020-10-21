@@ -44,11 +44,14 @@ re-generate it.)
 
 The supplied `Makefile` processes the mini-app with PSyclone using the
 supplied `omp_trans.py` transformation script. Before we do anything
-else, let's take a look at the script. There are two key differences
+else, let's take a look at the script. There are three key differences
 compared to the script we used to introduce profiling in previous
 tutorial:
 
- 1. the script is written specifically to work on the 'tra_adv' routine:
+ 1. the script uses the `OMPParallelLoopTrans` transformation which
+    decorates the target loop with an `OMP PARALLEL DO` directive.
+
+ 2. the script is written specifically to work on the 'tra_adv' routine:
 
         sched = psy.invokes.get('tra_adv').schedule
 
@@ -56,8 +59,8 @@ tutorial:
     general as possible but occasionally something tailored to a particular
     routine may be required.
 
- 2. it blindly applies a transformation to each loop over levels that is
-    an immediate child of the Schedule:
+ 3. it blindly applies a transformation to each loop over vertical levels
+    that is an immediate child of the Schedule:
 ```python
     for child in sched.children:
         if isinstance(child, Loop) and child.loop_type == "levels":
@@ -124,15 +127,55 @@ examine the PSyIR to see where the OpenMP directives have been
 inserted.
 
 We are now ready to do our first parallel run. A detailed explanation
-of OpenMP is beyond the scope of this course but, in short, OpenMP
-enables work to be shared over the cores of a multi-core CPU (or CPUs
-in a multi-socket machine). It does this by spawning threads, each of
-which has full access to all of the memory of the parent process. The
-number of threads to use is set via the OMP_NUM_THREADS environment
-variable at run time:
+of OpenMP is beyond the scope of this course but, for the purposes of
+this course, OpenMP enables work to be shared over the cores of a
+multi-core CPU (or CPUs in a multi-socket machine). It does this by
+spawning threads, each of which has full access to all of the memory
+of the parent process. The number of threads to use is set via the
+OMP_NUM_THREADS environment variable at run time, e.g. in bash:
 
     $ OMP_NUM_THREADS=4 ./tra_adv.exe
 
+At this point, the first thing to do is to check that we haven't
+broken anything. Assuming you've followed the steps in the
+[Validation](#validation) section then doing:
 
+    $ diff output.dat output.dat.serial
 
+should show no differences.
+
+The second thing to do is to assess performance. A quick way to
+do this is to edit the Makefile and add `--profile invokes` to
+the PSyclone command line. `make clean` followed by `make` will
+rebuild the mini-app, now instrumented using the simple timing library.
+Running the mini-app should now produce timing information:
+
+    Tracer-advection Mini-app:
+    Domain is  100x 100 grid points
+    Performing   10 iterations
+    Mini-app finished.
+
+    ===========================================
+    module::region  count     sum          min       average      max
+    tra_adv::r0       1    0.593750000 0.593750000 0.593750000 0.593750000    
+    ===========================================
+
+At this point, you can play with running the mini-app on different
+numbers of threads but you will see very little variation in
+performance. The reason for this is that our simple script has
+actually parallelised very little of the mini-app. If you investigate
+the transformed PSyIR (or generated Fortran), you will see that only
+the initialisation loops have been parallelised. Since each of these
+loop nests are before the main iteration loop, their effect on the
+overall runtime is negligible.
+
+## Improving Coverage ##
+
+Clearly, the optimisation script needs to be improved so that it finds
+all of the loops over vertical levels, rather than just those that are
+immediate children of the root Schedule. Edit the optimisation script
+so that it uses `walk` to do this. Check that the generated PSyIR
+looks as you would expect. (You can use a second `walk` after the
+transformation is complete to count the number of `Directive` nodes
+that have been inserted.)
 

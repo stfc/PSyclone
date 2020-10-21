@@ -45,9 +45,8 @@ This should produce a lot of output, ending with generated
 Fortran.
 
 '''
-from psyclone.nemo import NemoKern
 from psyclone.psyir.nodes import Loop
-from psyclone.transformations import OMPParallelLoopTrans
+from psyclone.transformations import OMPParallelLoopTrans, TransformationError
 
 # Get the transformation we will apply
 OMP_TRANS = OMPParallelLoopTrans()
@@ -69,14 +68,8 @@ def trans(psy):
     sched = psy.invokes.get('tra_adv').schedule
 
     for child in sched.children:
-        if isinstance(child, Loop):
+        if isinstance(child, Loop) and child.loop_type == "levels":
             sched, _ = OMP_TRANS.apply(child)
-            
-    # Apply it to each loop over levels containing a kernel
-    #for loop in sched.loops():
-    #    kernels = loop.walk(NemoKern)
-    #    if kernels and loop.loop_type == "levels":
-    #        sched, _ = OMP_TRANS.apply(loop)
 
     # Display the transformed PSyIR
     sched.view()
