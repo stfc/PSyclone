@@ -1106,7 +1106,7 @@ class GOKern(CodedKern):
                               funcnames=[self._name]))
 
     def gen_ocl(self, parent):
-        # pylint: disable=too-many-locals
+        # pylint: disable=too-many-locals, too-many-statements
         '''
         Generates code for the OpenCL invocation of this kernel.
 
@@ -1114,10 +1114,12 @@ class GOKern(CodedKern):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
 
+        # Include the check_status subroutine if we are in debug_mode
         api_config = Config.get().api_conf("gocean1.0")
         if api_config.debug_mode:
             parent.add(UseGen(parent, name="ocl_utils_mod", only=True,
                               funcnames=["check_status"]))
+
         # Generate code to ensure data is on device
         self.gen_data_on_ocl_device(parent)
 
@@ -1237,6 +1239,7 @@ class GOKern(CodedKern):
                              rhs="clEnqueueNDRangeKernel({0})".format(args)))
         parent.add(CommentGen(parent, ""))
 
+        # Add additional checks if we are in debug mode
         if api_config.debug_mode:
             parent.add(CallGen(
                 parent, "check_status",
