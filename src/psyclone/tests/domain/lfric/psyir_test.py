@@ -36,46 +36,9 @@
 '''Test that the LFRic-specific PSyIR classes are created and declared
 correctly'''
 
-# pylint: disable=no-name-in-module
 from __future__ import absolute_import
 import pytest
-from psyclone.domain.lfric.psyir import \
-    CONSTANTS_MOD, I_DEF, R_DEF, L_DEF, \
-    \
-    LfricRealScalarDataType, LfricRealScalarDataSymbol, \
-    LfricIntegerScalarDataType, LfricIntegerScalarDataSymbol, \
-    LfricLogicalScalarDataType, LfricLogicalScalarDataSymbol, \
-    \
-    CellPositionDataType, CellPositionDataSymbol, \
-    MeshHeightDataType, MeshHeightDataSymbol, \
-    NumberOfCellsDataType, NumberOfCellsDataSymbol, \
-    NumberOfDofsDataType, NumberOfDofsDataSymbol, \
-    NumberOfUniqueDofsDataType, NumberOfUniqueDofsDataSymbol, \
-    NumberOfFacesDataType, NumberOfFacesDataSymbol, \
-    NumberOfEdgesDataType, NumberOfEdgesDataSymbol, \
-    NumberOfQrPointsInHorizontalDataType, \
-    NumberOfQrPointsInHorizontalDataSymbol, \
-    NumberOfQrPointsInVerticalDataType, NumberOfQrPointsInVerticalDataSymbol, \
-    NumberOfQrPointsDataType, NumberOfQrPointsDataSymbol, \
-    \
-    RealFieldDataDataType, RealFieldDataDataSymbol, \
-    IntegerFieldDataDataType, IntegerFieldDataDataSymbol, \
-    LogicalFieldDataDataType, LogicalFieldDataDataSymbol, \
-    \
-    OperatorDataType, OperatorDataSymbol, \
-    DofMapDataType, DofMapDataSymbol, \
-    BasisFunctionQrXyozDataType, BasisFunctionQrXyozDataSymbol, \
-    BasisFunctionQrFaceDataType, BasisFunctionQrFaceDataSymbol, \
-    BasisFunctionQrEdgeDataType, BasisFunctionQrEdgeDataSymbol, \
-    DiffBasisFunctionQrXyozDataType, DiffBasisFunctionQrXyozDataSymbol, \
-    DiffBasisFunctionQrFaceDataType, DiffBasisFunctionQrFaceDataSymbol, \
-    DiffBasisFunctionQrEdgeDataType, DiffBasisFunctionQrEdgeDataSymbol, \
-    QrWeightsInHorizontalDataType, QrWeightsInHorizontalDataSymbol, \
-    QrWeightsInVerticalDataType, QrWeightsInVerticalDataSymbol, \
-    QrWeightsDataType, QrWeightsDataSymbol, \
-    \
-    RealVectorFieldDataDataSymbol, IntegerVectorFieldDataDataSymbol, \
-    LogicalVectorFieldDataDataSymbol
+from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     GlobalInterface, ScalarType, LocalInterface, ArgumentInterface, \
     ArrayType
@@ -83,16 +46,16 @@ from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
 
 # Modules and their arguments
 @pytest.mark.parametrize("module, symbol_list",
-                         [(CONSTANTS_MOD, [I_DEF, R_DEF, L_DEF])])
+                         [(lfric_psyir.CONSTANTS_MOD,
+                           [lfric_psyir.I_DEF, lfric_psyir.R_DEF,
+                            lfric_psyir.L_DEF])])
 def test_constants_mod(module, symbol_list):
     '''Test the generated module symbol and its argument symbols are
     created correctly.
 
     '''
-    assert module
     assert isinstance(module, ContainerSymbol)
     for symbol in symbol_list:
-        assert symbol
         assert isinstance(symbol, DataSymbol)
         assert isinstance(symbol.interface, GlobalInterface)
         assert symbol.interface.container_symbol is module
@@ -100,12 +63,15 @@ def test_constants_mod(module, symbol_list):
 
 # Generic scalars
 @pytest.mark.parametrize("data_type, symbol, intrinsic, precision", [
-    (LfricIntegerScalarDataType, LfricIntegerScalarDataSymbol,
-     ScalarType.Intrinsic.INTEGER, I_DEF),
-    (LfricRealScalarDataType, LfricRealScalarDataSymbol,
-     ScalarType.Intrinsic.REAL, R_DEF),
-    (LfricLogicalScalarDataType, LfricLogicalScalarDataSymbol,
-     ScalarType.Intrinsic.BOOLEAN, L_DEF)])
+    (lfric_psyir.LfricIntegerScalarDataType,
+     lfric_psyir.LfricIntegerScalarDataSymbol,
+     ScalarType.Intrinsic.INTEGER, lfric_psyir.I_DEF),
+    (lfric_psyir.LfricRealScalarDataType,
+     lfric_psyir.LfricRealScalarDataSymbol,
+     ScalarType.Intrinsic.REAL, lfric_psyir.R_DEF),
+    (lfric_psyir.LfricLogicalScalarDataType,
+     lfric_psyir.LfricLogicalScalarDataSymbol,
+     ScalarType.Intrinsic.BOOLEAN, lfric_psyir.L_DEF)])
 def test_generic_scalars(data_type, symbol, intrinsic, precision):
     '''Test the generated generic scalar datatypes and symbols are created
     correctly.
@@ -128,16 +94,26 @@ def test_generic_scalars(data_type, symbol, intrinsic, precision):
 
 # Specific scalar datatypes
 @pytest.mark.parametrize("data_type, generic_type", [
-    (CellPositionDataType, LfricIntegerScalarDataType),
-    (MeshHeightDataType, LfricIntegerScalarDataType),
-    (NumberOfCellsDataType, LfricIntegerScalarDataType),
-    (NumberOfDofsDataType, LfricIntegerScalarDataType),
-    (NumberOfUniqueDofsDataType, LfricIntegerScalarDataType),
-    (NumberOfFacesDataType, LfricIntegerScalarDataType),
-    (NumberOfEdgesDataType, LfricIntegerScalarDataType),
-    (NumberOfQrPointsInHorizontalDataType, LfricIntegerScalarDataType),
-    (NumberOfQrPointsInVerticalDataType, LfricIntegerScalarDataType),
-    (NumberOfQrPointsDataType, LfricIntegerScalarDataType)])
+    (lfric_psyir.CellPositionDataType,
+     lfric_psyir.LfricIntegerScalarDataType),
+    (lfric_psyir.MeshHeightDataType,
+     lfric_psyir.LfricIntegerScalarDataType),
+    (lfric_psyir.NumberOfCellsDataType,
+     lfric_psyir.LfricIntegerScalarDataType),
+    (lfric_psyir.NumberOfDofsDataType,
+     lfric_psyir.LfricIntegerScalarDataType),
+    (lfric_psyir.NumberOfUniqueDofsDataType,
+     lfric_psyir.LfricIntegerScalarDataType),
+    (lfric_psyir.NumberOfFacesDataType,
+     lfric_psyir.LfricIntegerScalarDataType),
+    (lfric_psyir.NumberOfEdgesDataType,
+     lfric_psyir.LfricIntegerScalarDataType),
+    (lfric_psyir.NumberOfQrPointsInXyDataType,
+     lfric_psyir.LfricIntegerScalarDataType),
+    (lfric_psyir.NumberOfQrPointsInZDataType,
+     lfric_psyir.LfricIntegerScalarDataType),
+    (lfric_psyir.NumberOfQrPointsDataType,
+     lfric_psyir.LfricIntegerScalarDataType)])
 def test_specific_scalar_types(data_type, generic_type):
     '''Test the generated specific scalar datatypes are created correctly.
 
@@ -148,16 +124,26 @@ def test_specific_scalar_types(data_type, generic_type):
 
 # Specific scalar symbols
 @pytest.mark.parametrize("symbol, generic_symbol, attribute_map", [
-    (CellPositionDataSymbol, LfricIntegerScalarDataSymbol, {}),
-    (MeshHeightDataSymbol, LfricIntegerScalarDataSymbol, {}),
-    (NumberOfCellsDataSymbol, LfricIntegerScalarDataSymbol, {}),
-    (NumberOfDofsDataSymbol, LfricIntegerScalarDataSymbol, {"fs": "w3"}),
-    (NumberOfUniqueDofsDataSymbol, LfricIntegerScalarDataSymbol, {"fs": "w2"}),
-    (NumberOfFacesDataSymbol, LfricIntegerScalarDataSymbol, {}),
-    (NumberOfEdgesDataSymbol, LfricIntegerScalarDataSymbol, {}),
-    (NumberOfQrPointsInHorizontalDataSymbol, LfricIntegerScalarDataSymbol, {}),
-    (NumberOfQrPointsInVerticalDataSymbol, LfricIntegerScalarDataSymbol, {}),
-    (NumberOfQrPointsDataSymbol, LfricIntegerScalarDataSymbol, {})])
+    (lfric_psyir.CellPositionDataSymbol,
+     lfric_psyir.LfricIntegerScalarDataSymbol, {}),
+    (lfric_psyir.MeshHeightDataSymbol,
+     lfric_psyir.LfricIntegerScalarDataSymbol, {}),
+    (lfric_psyir.NumberOfCellsDataSymbol,
+     lfric_psyir.LfricIntegerScalarDataSymbol, {}),
+    (lfric_psyir.NumberOfDofsDataSymbol,
+     lfric_psyir.LfricIntegerScalarDataSymbol, {"fs": "w3"}),
+    (lfric_psyir.NumberOfUniqueDofsDataSymbol,
+     lfric_psyir.LfricIntegerScalarDataSymbol, {"fs": "w2"}),
+    (lfric_psyir.NumberOfFacesDataSymbol,
+     lfric_psyir.LfricIntegerScalarDataSymbol, {}),
+    (lfric_psyir.NumberOfEdgesDataSymbol,
+     lfric_psyir.LfricIntegerScalarDataSymbol, {}),
+    (lfric_psyir.NumberOfQrPointsInXyDataSymbol,
+     lfric_psyir.LfricIntegerScalarDataSymbol, {}),
+    (lfric_psyir.NumberOfQrPointsInZDataSymbol,
+     lfric_psyir.LfricIntegerScalarDataSymbol, {}),
+    (lfric_psyir.NumberOfQrPointsDataSymbol,
+     lfric_psyir.LfricIntegerScalarDataSymbol, {})])
 def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
     '''Test the generated specific scalar symbols are
     created correctly.
@@ -179,58 +165,72 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
 # Specific scalar datatypes
 @pytest.mark.parametrize(
     "data_type, symbol, scalar_type, dims, attribute_map",
-    [(RealFieldDataDataType, RealFieldDataDataSymbol, LfricRealScalarDataType,
-      [NumberOfUniqueDofsDataSymbol("ndofs", "w0")], {"fs": "w0"}),
-     (IntegerFieldDataDataType, IntegerFieldDataDataSymbol,
-      LfricIntegerScalarDataType,
-      [NumberOfUniqueDofsDataSymbol("ndofs", "w1")], {"fs": "w1"}),
-     (LogicalFieldDataDataType, LogicalFieldDataDataSymbol,
-      LfricLogicalScalarDataType,
-      [NumberOfUniqueDofsDataSymbol("ndofs", "w2")], {"fs": "w2"}),
-     (OperatorDataType, OperatorDataSymbol, LfricRealScalarDataType,
-      [NumberOfDofsDataSymbol("ndofs", "w3"),
-       NumberOfDofsDataSymbol("ndofs", "w3"),
-       NumberOfCellsDataSymbol("ncells")], {"fs_from": "w3", "fs_to": "w3"}),
-     (DofMapDataType, DofMapDataSymbol, LfricIntegerScalarDataType,
-      [NumberOfDofsDataSymbol("ndofs", "w3")], {"fs": "w0"}),
-     (BasisFunctionQrXyozDataType, BasisFunctionQrXyozDataSymbol,
-      LfricRealScalarDataType,
-      [1, NumberOfDofsDataSymbol("ndofs", "w3"),
-       NumberOfQrPointsInHorizontalDataSymbol("qr_h"),
-       NumberOfQrPointsInVerticalDataSymbol("qr_v")], {"fs": "w0"}),
-     (BasisFunctionQrFaceDataType, BasisFunctionQrFaceDataSymbol,
-      LfricRealScalarDataType,
-      [3, NumberOfDofsDataSymbol("ndofs", "w3"),
-       NumberOfQrPointsDataSymbol("qr"),
-       NumberOfFacesDataSymbol("nfaces")], {"fs": "w0"}),
-     (BasisFunctionQrEdgeDataType, BasisFunctionQrEdgeDataSymbol,
-      LfricRealScalarDataType,
-      [1, NumberOfDofsDataSymbol("ndofs", "w3"),
-       NumberOfQrPointsDataSymbol("qr"),
-       NumberOfEdgesDataSymbol("nedges")], {"fs": "w0"}),
-     (DiffBasisFunctionQrXyozDataType, DiffBasisFunctionQrXyozDataSymbol,
-      LfricRealScalarDataType,
-      [3, NumberOfDofsDataSymbol("ndofs", "w3"),
-       NumberOfQrPointsInHorizontalDataSymbol("qr_h"),
-       NumberOfQrPointsInVerticalDataSymbol("qr_v")], {"fs": "w0"}),
-     (DiffBasisFunctionQrFaceDataType, DiffBasisFunctionQrFaceDataSymbol,
-      LfricRealScalarDataType,
-      [3, NumberOfDofsDataSymbol("ndofs", "w3"),
-       NumberOfQrPointsDataSymbol("qr"),
-       NumberOfFacesDataSymbol("nfaces")], {"fs": "w0"}),
-     (DiffBasisFunctionQrEdgeDataType, DiffBasisFunctionQrEdgeDataSymbol,
-      LfricRealScalarDataType,
-      [1, NumberOfDofsDataSymbol("ndofs", "w3"),
-       NumberOfQrPointsDataSymbol("qr"),
-       NumberOfEdgesDataSymbol("nedges")], {"fs": "w0"}),
-     (QrWeightsInHorizontalDataType, QrWeightsInHorizontalDataSymbol,
-      LfricRealScalarDataType,
-      [NumberOfQrPointsInHorizontalDataSymbol("qr_h")], {}),
-     (QrWeightsInVerticalDataType, QrWeightsInVerticalDataSymbol,
-      LfricRealScalarDataType,
-      [NumberOfQrPointsInVerticalDataSymbol("qr_v")], {}),
-     (QrWeightsDataType, QrWeightsDataSymbol, LfricRealScalarDataType,
-      [NumberOfQrPointsDataSymbol("qr")], {})])
+    [(lfric_psyir.RealFieldDataDataType,
+      lfric_psyir.RealFieldDataDataSymbol,
+      lfric_psyir.LfricRealScalarDataType,
+      [lfric_psyir.NumberOfUniqueDofsDataSymbol("ndofs", "w0")], {"fs": "w0"}),
+     (lfric_psyir.IntegerFieldDataDataType,
+      lfric_psyir.IntegerFieldDataDataSymbol,
+      lfric_psyir.LfricIntegerScalarDataType,
+      [lfric_psyir.NumberOfUniqueDofsDataSymbol("ndofs", "w1")], {"fs": "w1"}),
+     (lfric_psyir.LogicalFieldDataDataType,
+      lfric_psyir.LogicalFieldDataDataSymbol,
+      lfric_psyir.LfricLogicalScalarDataType,
+      [lfric_psyir.NumberOfUniqueDofsDataSymbol("ndofs", "w2")], {"fs": "w2"}),
+     (lfric_psyir.OperatorDataType, lfric_psyir.OperatorDataSymbol,
+      lfric_psyir.LfricRealScalarDataType,
+      [lfric_psyir.NumberOfDofsDataSymbol("ndofs", "w3"),
+       lfric_psyir.NumberOfDofsDataSymbol("ndofs", "w3"),
+       lfric_psyir.NumberOfCellsDataSymbol("ncells")],
+      {"fs_from": "w3", "fs_to": "w3"}),
+     (lfric_psyir.DofMapDataType, lfric_psyir.DofMapDataSymbol,
+      lfric_psyir.LfricIntegerScalarDataType,
+      [lfric_psyir.NumberOfDofsDataSymbol("ndofs", "w3")], {"fs": "w3"}),
+     (lfric_psyir.BasisFunctionQrXyozDataType,
+      lfric_psyir.BasisFunctionQrXyozDataSymbol,
+      lfric_psyir.LfricRealScalarDataType,
+      [1, lfric_psyir.NumberOfDofsDataSymbol("ndofs", "w0"),
+       lfric_psyir.NumberOfQrPointsInXyDataSymbol("qr_xy"),
+       lfric_psyir.NumberOfQrPointsInZDataSymbol("qr_z")], {"fs": "w0"}),
+     (lfric_psyir.BasisFunctionQrFaceDataType,
+      lfric_psyir.BasisFunctionQrFaceDataSymbol,
+      lfric_psyir.LfricRealScalarDataType,
+      [3, lfric_psyir.NumberOfDofsDataSymbol("ndofs", "w1"),
+       lfric_psyir.NumberOfQrPointsDataSymbol("qr"),
+       lfric_psyir.NumberOfFacesDataSymbol("nfaces")], {"fs": "w1"}),
+     (lfric_psyir.BasisFunctionQrEdgeDataType,
+      lfric_psyir.BasisFunctionQrEdgeDataSymbol,
+      lfric_psyir.LfricRealScalarDataType,
+      [1, lfric_psyir.NumberOfDofsDataSymbol("ndofs", "w2"),
+       lfric_psyir.NumberOfQrPointsDataSymbol("qr"),
+       lfric_psyir.NumberOfEdgesDataSymbol("nedges")], {"fs": "w2"}),
+     (lfric_psyir.DiffBasisFunctionQrXyozDataType,
+      lfric_psyir.DiffBasisFunctionQrXyozDataSymbol,
+      lfric_psyir.LfricRealScalarDataType,
+      [3, lfric_psyir.NumberOfDofsDataSymbol("ndofs", "wtheta"),
+       lfric_psyir.NumberOfQrPointsInXyDataSymbol("qr_xy"),
+       lfric_psyir.NumberOfQrPointsInZDataSymbol("qr_z")], {"fs": "wtheta"}),
+     (lfric_psyir.DiffBasisFunctionQrFaceDataType,
+      lfric_psyir.DiffBasisFunctionQrFaceDataSymbol,
+      lfric_psyir.LfricRealScalarDataType,
+      [3, lfric_psyir.NumberOfDofsDataSymbol("ndofs", "w1"),
+       lfric_psyir.NumberOfQrPointsDataSymbol("qr"),
+       lfric_psyir.NumberOfFacesDataSymbol("nfaces")], {"fs": "w1"}),
+     (lfric_psyir.DiffBasisFunctionQrEdgeDataType,
+      lfric_psyir.DiffBasisFunctionQrEdgeDataSymbol,
+      lfric_psyir.LfricRealScalarDataType,
+      [1, lfric_psyir.NumberOfDofsDataSymbol("ndofs", "w2v"),
+       lfric_psyir.NumberOfQrPointsDataSymbol("qr"),
+       lfric_psyir.NumberOfEdgesDataSymbol("nedges")], {"fs": "w2v"}),
+     (lfric_psyir.QrWeightsInXyDataType, lfric_psyir.QrWeightsInXyDataSymbol,
+      lfric_psyir.LfricRealScalarDataType,
+      [lfric_psyir.NumberOfQrPointsInXyDataSymbol("qr_xy")], {}),
+     (lfric_psyir.QrWeightsInZDataType, lfric_psyir.QrWeightsInZDataSymbol,
+      lfric_psyir.LfricRealScalarDataType,
+      [lfric_psyir.NumberOfQrPointsInZDataSymbol("qr_z")], {}),
+     (lfric_psyir.QrWeightsDataType, lfric_psyir.QrWeightsDataSymbol,
+      lfric_psyir.LfricRealScalarDataType,
+      [lfric_psyir.NumberOfQrPointsDataSymbol("qr")], {})])
 def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
     '''Test the generated array datatypes and datasymbols are created
     correctly. This includes field datatypes and symbols which are
@@ -265,12 +265,16 @@ def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
 # Vector field-data data-symbols
 @pytest.mark.parametrize(
     "symbol, parent_symbol, dims, attribute_map",
-    [(RealVectorFieldDataDataSymbol, RealFieldDataDataSymbol,
-      [NumberOfUniqueDofsDataSymbol("ndofs", "w0")], {"fs": "w0"}),
-     (IntegerVectorFieldDataDataSymbol, IntegerFieldDataDataSymbol,
-      [NumberOfUniqueDofsDataSymbol("ndofs", "w1")], {"fs": "w1"}),
-     (LogicalVectorFieldDataDataSymbol, LogicalFieldDataDataSymbol,
-      [NumberOfUniqueDofsDataSymbol("ndofs", "w2")], {"fs": "w2"})])
+    [(lfric_psyir.RealVectorFieldDataDataSymbol,
+      lfric_psyir.RealFieldDataDataSymbol,
+      [lfric_psyir.NumberOfUniqueDofsDataSymbol("ndofs", "w0")], {"fs": "w0"}),
+     (lfric_psyir.IntegerVectorFieldDataDataSymbol,
+      lfric_psyir.IntegerFieldDataDataSymbol,
+      [lfric_psyir.NumberOfUniqueDofsDataSymbol("ndofs", "w1")], {"fs": "w1"}),
+     (lfric_psyir.LogicalVectorFieldDataDataSymbol,
+      lfric_psyir.LogicalFieldDataDataSymbol,
+      [lfric_psyir.NumberOfUniqueDofsDataSymbol("ndofs", "w2")],
+      {"fs": "w2"})])
 def test_vector_fields(symbol, parent_symbol, dims, attribute_map):
     '''Test the generated vector field datasymbols are created
     correctly. These are straight subclasses of the equivalent field

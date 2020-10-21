@@ -39,36 +39,23 @@ LFRic-specific PSyIR classes.
 
 '''
 
-# pylint: disable=no-name-in-module
+# p#y#l#int: disable=no-name-in-module
 from __future__ import absolute_import
 import os
 import pytest
 from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 from psyclone.domain.lfric import KernelInterface, FunctionSpace
-from psyclone.domain.lfric.psyir import \
-    MeshHeightDataSymbol, CellPositionDataSymbol, \
-    RealVectorFieldDataDataSymbol, NumberOfUniqueDofsDataSymbol, \
-    RealFieldDataDataSymbol, NumberOfDofsDataSymbol, \
-    OperatorDataSymbol, NumberOfCellsDataSymbol, \
-    LfricIntegerScalarDataSymbol, DofMapDataSymbol, \
-    NumberOfQrPointsInHorizontalDataSymbol, \
-    NumberOfQrPointsInVerticalDataSymbol, \
-    BasisFunctionQrXyozDataSymbol, NumberOfFacesDataSymbol, \
-    NumberOfQrPointsDataSymbol, BasisFunctionQrFaceDataSymbol, \
-    DiffBasisFunctionQrXyozDataSymbol, NumberOfEdgesDataSymbol, \
-    QrWeightsDataSymbol, QrWeightsInHorizontalDataSymbol, \
-    QrWeightsInVerticalDataSymbol, BasisFunctionQrEdgeDataSymbol
+from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse
-from psyclone.errors import InternalError, GenerationError
+from psyclone.errors import InternalError
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "..", "..", "test_files", "dynamo0p3")
+                         os.pardir, os.pardir, "test_files", "dynamo0p3")
 
 
 def test_init():
-
     '''Test that we can create an instance of the KernelInterface class
     and that any defaults are set as expected
 
@@ -87,7 +74,7 @@ def test_generate():
     argument list (in the required order).
 
     '''
-    # Example 14.10 is chosen as it only has two fields in a kernel
+    # Test 14.10 is chosen as it only has two fields in a kernel
     # which reduces the number of arguments to check.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"),
@@ -101,17 +88,17 @@ def test_generate():
     kernel_interface.generate()
     # Check symbols
     nlayers_symbol = kernel_interface._symbol_table.lookup("nlayers")
-    assert isinstance(nlayers_symbol, MeshHeightDataSymbol)
+    assert isinstance(nlayers_symbol, lfric_psyir.MeshHeightDataSymbol)
     undf_w0_symbol = kernel_interface._symbol_table.lookup("undf_w0")
-    assert isinstance(undf_w0_symbol, NumberOfUniqueDofsDataSymbol)
+    assert isinstance(undf_w0_symbol, lfric_psyir.NumberOfUniqueDofsDataSymbol)
     f1_field_symbol = kernel_interface._symbol_table.lookup("f1")
-    assert isinstance(f1_field_symbol, RealFieldDataDataSymbol)
+    assert isinstance(f1_field_symbol, lfric_psyir.RealFieldDataDataSymbol)
     f2_field_symbol = kernel_interface._symbol_table.lookup("f2")
-    assert isinstance(f2_field_symbol, RealFieldDataDataSymbol)
+    assert isinstance(f2_field_symbol, lfric_psyir.RealFieldDataDataSymbol)
     ndf_w0_symbol = kernel_interface._symbol_table.lookup("ndf_w0")
-    assert isinstance(ndf_w0_symbol, NumberOfDofsDataSymbol)
+    assert isinstance(ndf_w0_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     dofmap_w0_symbol = kernel_interface._symbol_table.lookup("dofmap_w0")
-    assert isinstance(dofmap_w0_symbol, DofMapDataSymbol)
+    assert isinstance(dofmap_w0_symbol, lfric_psyir.DofMapDataSymbol)
     # Check function spaces
     assert undf_w0_symbol.fs == "w0"
     assert f1_field_symbol.fs == "w0"
@@ -139,13 +126,13 @@ def test_generate():
 def test_cell_position():
 
     '''Test that the KernelInterface class cell_position method adds the
-    expected class to the symbol table and the _arglist list.
+    expected type of Symbol to the symbol table and the _arglist list.
 
     '''
     kernel_interface = KernelInterface(None)
     kernel_interface.cell_position()
     symbol = kernel_interface._symbol_table.lookup("cell")
-    assert isinstance(symbol, CellPositionDataSymbol)
+    assert isinstance(symbol, lfric_psyir.CellPositionDataSymbol)
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -154,13 +141,13 @@ def test_cell_position():
 
 def test_mesh_height():
     '''Test that the KernelInterface class mesh_height method adds the
-    expected class to the symbol table and the _arglist list.
+    expected type of Symbol to the symbol table and the _arglist list.
 
     '''
     kernel_interface = KernelInterface(None)
     kernel_interface.mesh_height()
     symbol = kernel_interface._symbol_table.lookup("nlayers")
-    assert isinstance(symbol, MeshHeightDataSymbol)
+    assert isinstance(symbol, lfric_psyir.MeshHeightDataSymbol)
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -170,7 +157,7 @@ def test_mesh_height():
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_mesh_ncell2d():
     '''Test that the KernelInterface class mesh_ncell2d method adds the
-    expected class(es) to the symbol table and the _arglist list.
+    expected symbols to the symbol table and the _arglist list.
 
     '''
     kernel_interface = KernelInterface(None)
@@ -180,7 +167,7 @@ def test_mesh_ncell2d():
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_cell_map():
     '''Test that the KernelInterface class cell_map method adds the
-    expected class(es) to the symbol table and the _arglist list.
+    expected symbols to the symbol table and the _arglist list.
 
     '''
     kernel_interface = KernelInterface(None)
@@ -208,7 +195,7 @@ def test_field_vector(monkeypatch):
     # undf symbol declared
     undf_tag = "undf_{0}".format(vector_arg.function_space.orig_name)
     undf_symbol = kernel_interface._symbol_table.lookup(undf_tag)
-    assert isinstance(undf_symbol, NumberOfUniqueDofsDataSymbol)
+    assert isinstance(undf_symbol, lfric_psyir.NumberOfUniqueDofsDataSymbol)
     assert isinstance(undf_symbol.interface, ArgumentInterface)
     assert (undf_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -218,7 +205,7 @@ def test_field_vector(monkeypatch):
     for idx in range(vector_arg.vector_size):
         tag = "{0}_v{1}".format(vector_arg.name, idx)
         symbol = kernel_interface._symbol_table.lookup(tag)
-        assert isinstance(symbol, RealVectorFieldDataDataSymbol)
+        assert isinstance(symbol, lfric_psyir.RealVectorFieldDataDataSymbol)
         assert isinstance(symbol.interface, ArgumentInterface)
         assert (symbol.interface.access ==
                 ArgumentInterface(INTENT_MAPPING[vector_arg.intent]).access)
@@ -255,7 +242,7 @@ def test_field(monkeypatch):
     # undf symbol declared
     undf_tag = "undf_{0}".format(field_arg.function_space.orig_name)
     undf_symbol = kernel_interface._symbol_table.lookup(undf_tag)
-    assert isinstance(undf_symbol, NumberOfUniqueDofsDataSymbol)
+    assert isinstance(undf_symbol, lfric_psyir.NumberOfUniqueDofsDataSymbol)
     assert isinstance(undf_symbol.interface, ArgumentInterface)
     assert (undf_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -264,7 +251,7 @@ def test_field(monkeypatch):
     # space specified and dimensioned correctly
     tag = field_arg.name
     symbol = kernel_interface._symbol_table.lookup(tag)
-    assert isinstance(symbol, RealFieldDataDataSymbol)
+    assert isinstance(symbol, lfric_psyir.RealFieldDataDataSymbol)
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
             ArgumentInterface(INTENT_MAPPING[field_arg.intent]).access)
@@ -284,7 +271,7 @@ def test_field(monkeypatch):
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_stencil_unknown_extent():
     '''Test that the KernelInterface class stencil_unknown_extent method
-    adds the expected class(es) to the symbol table and the _arglist
+    adds the expected symbols to the symbol table and the _arglist
     list.
 
     '''
@@ -295,7 +282,7 @@ def test_stencil_unknown_extent():
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_stencil_unknown_direction():
     '''Test that the KernelInterface class stencil_unknown_direction method
-    adds the expected class(es) to the symbol table and the _arglist
+    adds the expected symbols to the symbol table and the _arglist
     list.
 
     '''
@@ -306,7 +293,7 @@ def test_stencil_unknown_direction():
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_stencil():
     '''Test that the KernelInterface class stencil method adds the
-    expected class(es) to the symbol table and the _arglist list.
+    expected symbols to the symbol table and the _arglist list.
 
     '''
     kernel_interface = KernelInterface(None)
@@ -334,7 +321,7 @@ def test_operator():
     fs_from_name = operator_arg.function_space_from.orig_name
     fs_from_tag = "ndf_{0}".format(fs_from_name)
     fs_from_symbol = kernel_interface._symbol_table.lookup(fs_from_tag)
-    assert isinstance(fs_from_symbol, NumberOfDofsDataSymbol)
+    assert isinstance(fs_from_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert fs_from_symbol.fs == fs_from_name
     assert isinstance(fs_from_symbol.interface, ArgumentInterface)
     assert (fs_from_symbol.interface.access ==
@@ -344,7 +331,7 @@ def test_operator():
     fs_to_name = operator_arg.function_space_from.orig_name
     fs_to_tag = "ndf_{0}".format(fs_to_name)
     fs_to_symbol = kernel_interface._symbol_table.lookup(fs_to_tag)
-    assert isinstance(fs_to_symbol, NumberOfDofsDataSymbol)
+    assert isinstance(fs_to_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert fs_to_symbol.fs == fs_to_name
     assert isinstance(fs_to_symbol.interface, ArgumentInterface)
     assert (fs_to_symbol.interface.access ==
@@ -352,7 +339,7 @@ def test_operator():
 
     # ncells symbol declared
     ncells_symbol = kernel_interface._symbol_table.lookup("ncell_3d")
-    assert isinstance(ncells_symbol, NumberOfCellsDataSymbol)
+    assert isinstance(ncells_symbol, lfric_psyir.NumberOfCellsDataSymbol)
     assert isinstance(ncells_symbol.interface, ArgumentInterface)
     assert (ncells_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -361,7 +348,7 @@ def test_operator():
     # spaces specified and dimensioned correctly
     tag = operator_arg.name
     symbol = kernel_interface._symbol_table.lookup(tag)
-    assert isinstance(symbol, OperatorDataSymbol)
+    assert isinstance(symbol, lfric_psyir.OperatorDataSymbol)
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
             ArgumentInterface(INTENT_MAPPING[operator_arg.intent]).access)
@@ -377,7 +364,7 @@ def test_operator():
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_cma_operator():
     '''Test that the KernelInterface class cma_operator method adds the
-    expected class(es) to the symbol table and the _arglist list.
+    expected symbols to the symbol table and the _arglist list.
 
     '''
     kernel_interface = KernelInterface(None)
@@ -403,7 +390,7 @@ def test_scalar(monkeypatch):
     kernel_interface = KernelInterface(None)
     kernel_interface.scalar(scalar_arg)
     symbol = kernel_interface._symbol_table.lookup(scalar_arg.name)
-    assert isinstance(symbol, LfricIntegerScalarDataSymbol)
+    assert isinstance(symbol, lfric_psyir.LfricIntegerScalarDataSymbol)
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
             INTENT_MAPPING[scalar_arg.intent])
@@ -418,7 +405,7 @@ def test_scalar(monkeypatch):
 
 def test_fs_common():
     '''Test that the KernelInterface class fs_common method adds the
-    expected class to the symbol table and the _arglist list.
+    expected type of Symbol to the symbol table and the _arglist list.
 
     '''
     kernel_interface = KernelInterface(None)
@@ -426,7 +413,7 @@ def test_fs_common():
     kernel_interface.fs_common(function_space)
     fs_name = function_space.orig_name
     symbol = kernel_interface._symbol_table.lookup("ndf_{0}".format(fs_name))
-    assert isinstance(symbol, NumberOfDofsDataSymbol)
+    assert isinstance(symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -436,7 +423,7 @@ def test_fs_common():
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_fs_intergrid():
     '''Test that the KernelInterface class fs_intergrid method adds the
-    expected class(es) to the symbol table and the _arglist list.
+    expected symbols to the symbol table and the _arglist list.
 
     '''
     kernel_interface = KernelInterface(None)
@@ -455,7 +442,7 @@ def test_fs_compulsory_field():
 
     # undf declared and added to argument list
     symbol = kernel_interface._symbol_table.lookup("undf_{0}".format(fs_name))
-    assert isinstance(symbol, NumberOfUniqueDofsDataSymbol)
+    assert isinstance(symbol, lfric_psyir.NumberOfUniqueDofsDataSymbol)
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -464,7 +451,7 @@ def test_fs_compulsory_field():
     # ndf declared
     ndf_symbol = kernel_interface._symbol_table.lookup(
         "ndf_{0}".format(fs_name))
-    assert isinstance(ndf_symbol, NumberOfDofsDataSymbol)
+    assert isinstance(ndf_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert isinstance(ndf_symbol.interface, ArgumentInterface)
     assert (ndf_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -473,7 +460,7 @@ def test_fs_compulsory_field():
     # space specified and dimensioned correctly
     tag = "dofmap_{0}".format(fs_name)
     symbol = kernel_interface._symbol_table.lookup(tag)
-    assert isinstance(symbol, DofMapDataSymbol)
+    assert isinstance(symbol, lfric_psyir.DofMapDataSymbol)
     assert isinstance(symbol.interface, ArgumentInterface)
     assert symbol.interface.access == kernel_interface._read_access.access
     assert kernel_interface._arglist[-1] is symbol
@@ -485,7 +472,7 @@ def test_fs_compulsory_field():
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_banded_dofmap():
     '''Test that the KernelInterface class banded_dofmap method adds the
-    expected class(es) to the symbol table and the _arglist list.
+    expected symbols to the symbol table and the _arglist list.
 
     '''
     kernel_interface = KernelInterface(None)
@@ -495,7 +482,7 @@ def test_banded_dofmap():
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_indirection_dofmap():
     '''Test that the KernelInterface class indirection_dofmap method adds the
-    expected class(es) to the symbol table and the _arglist list.
+    expected symbols to the symbol table and the _arglist list.
 
     '''
     kernel_interface = KernelInterface(None)
@@ -504,7 +491,8 @@ def test_indirection_dofmap():
 
 def test_basis_xyoz():
     '''Test that the KernelInterface class basis method adds the expected
-    classes to the symbol table and the _arglist list for xyoz quadrature
+    classes to the symbol table and the _arglist list for xyoz
+    quadrature.
 
     '''
     _, invoke_info = parse(os.path.join(
@@ -526,25 +514,27 @@ def test_basis_xyoz():
     # ndf declared
     ndf_symbol = kernel_interface._symbol_table.lookup(
         "ndf_{0}".format(fs_name))
-    assert isinstance(ndf_symbol, NumberOfDofsDataSymbol)
+    assert isinstance(ndf_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert isinstance(ndf_symbol.interface, ArgumentInterface)
     assert (ndf_symbol.interface.access ==
             kernel_interface._read_access.access)
-    # nqp_h declared
-    nqph_symbol = kernel_interface._symbol_table.lookup("nqp_h")
-    assert isinstance(nqph_symbol, NumberOfQrPointsInHorizontalDataSymbol)
+    # nqp_xy declared
+    nqph_symbol = kernel_interface._symbol_table.lookup("nqp_xy")
+    assert isinstance(nqph_symbol,
+                      lfric_psyir.NumberOfQrPointsInXyDataSymbol)
     assert isinstance(nqph_symbol.interface, ArgumentInterface)
     assert (nqph_symbol.interface.access ==
             kernel_interface._read_access.access)
-    # nqp_v declared
-    nqpv_symbol = kernel_interface._symbol_table.lookup("nqp_v")
-    assert isinstance(nqpv_symbol, NumberOfQrPointsInVerticalDataSymbol)
+    # nqp_z declared
+    nqpv_symbol = kernel_interface._symbol_table.lookup("nqp_z")
+    assert isinstance(nqpv_symbol,
+                      lfric_psyir.NumberOfQrPointsInZDataSymbol)
     assert isinstance(nqpv_symbol.interface, ArgumentInterface)
     assert (nqpv_symbol.interface.access ==
             kernel_interface._read_access.access)
     # basis declared and added to argument list
     basis_symbol = kernel_interface._symbol_table.lookup("basis_w1_qr_xyoz")
-    assert isinstance(basis_symbol, BasisFunctionQrXyozDataSymbol)
+    assert isinstance(basis_symbol, lfric_psyir.BasisFunctionQrXyozDataSymbol)
     assert isinstance(basis_symbol.interface, ArgumentInterface)
     assert (basis_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -558,7 +548,8 @@ def test_basis_xyoz():
 
 def test_basis_face():
     '''Test that the KernelInterface class basis method adds the expected
-    classes to the symbol table and the _arglist list for face quadrature
+    classes to the symbol table and the _arglist list for face
+    quadrature.
 
     '''
     _, invoke_info = parse(os.path.join(
@@ -580,25 +571,25 @@ def test_basis_face():
     # ndf declared
     ndf_symbol = kernel_interface._symbol_table.lookup(
         "ndf_{0}".format(fs_name))
-    assert isinstance(ndf_symbol, NumberOfDofsDataSymbol)
+    assert isinstance(ndf_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert isinstance(ndf_symbol.interface, ArgumentInterface)
     assert (ndf_symbol.interface.access ==
             kernel_interface._read_access.access)
     # nfaces declared
     nfaces_symbol = kernel_interface._symbol_table.lookup("nfaces")
-    assert isinstance(nfaces_symbol, NumberOfFacesDataSymbol)
+    assert isinstance(nfaces_symbol, lfric_psyir.NumberOfFacesDataSymbol)
     assert isinstance(nfaces_symbol.interface, ArgumentInterface)
     assert (nfaces_symbol.interface.access ==
             kernel_interface._read_access.access)
     # nqp declared
     nqp_symbol = kernel_interface._symbol_table.lookup("nqp")
-    assert isinstance(nqp_symbol, NumberOfQrPointsDataSymbol)
+    assert isinstance(nqp_symbol, lfric_psyir.NumberOfQrPointsDataSymbol)
     assert isinstance(nqp_symbol.interface, ArgumentInterface)
     assert (nqp_symbol.interface.access ==
             kernel_interface._read_access.access)
     # basis declared and added to argument list
     basis_symbol = kernel_interface._symbol_table.lookup("basis_w1_qr_face")
-    assert isinstance(basis_symbol, BasisFunctionQrFaceDataSymbol)
+    assert isinstance(basis_symbol, lfric_psyir.BasisFunctionQrFaceDataSymbol)
     assert isinstance(basis_symbol.interface, ArgumentInterface)
     assert (basis_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -634,25 +625,25 @@ def test_basis_edge():
     # ndf declared
     ndf_symbol = kernel_interface._symbol_table.lookup(
         "ndf_{0}".format(fs_name))
-    assert isinstance(ndf_symbol, NumberOfDofsDataSymbol)
+    assert isinstance(ndf_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert isinstance(ndf_symbol.interface, ArgumentInterface)
     assert (ndf_symbol.interface.access ==
             kernel_interface._read_access.access)
     # nedges declared
     nedges_symbol = kernel_interface._symbol_table.lookup("nedges")
-    assert isinstance(nedges_symbol, NumberOfEdgesDataSymbol)
+    assert isinstance(nedges_symbol, lfric_psyir.NumberOfEdgesDataSymbol)
     assert isinstance(nedges_symbol.interface, ArgumentInterface)
     assert (nedges_symbol.interface.access ==
             kernel_interface._read_access.access)
     # nqp declared
     nqp_symbol = kernel_interface._symbol_table.lookup("nqp")
-    assert isinstance(nqp_symbol, NumberOfQrPointsDataSymbol)
+    assert isinstance(nqp_symbol, lfric_psyir.NumberOfQrPointsDataSymbol)
     assert isinstance(nqp_symbol.interface, ArgumentInterface)
     assert (nqp_symbol.interface.access ==
             kernel_interface._read_access.access)
     # basis declared and added to argument list
     basis_symbol = kernel_interface._symbol_table.lookup("basis_w1_qr_edge")
-    assert isinstance(basis_symbol, BasisFunctionQrEdgeDataSymbol)
+    assert isinstance(basis_symbol, lfric_psyir.BasisFunctionQrEdgeDataSymbol)
     assert isinstance(basis_symbol.interface, ArgumentInterface)
     assert (basis_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -690,26 +681,29 @@ def test_diff_basis():
     # ndf declared
     ndf_symbol = kernel_interface._symbol_table.lookup(
         "ndf_{0}".format(fs_name))
-    assert isinstance(ndf_symbol, NumberOfDofsDataSymbol)
+    assert isinstance(ndf_symbol, lfric_psyir.NumberOfDofsDataSymbol)
     assert isinstance(ndf_symbol.interface, ArgumentInterface)
     assert (ndf_symbol.interface.access ==
             kernel_interface._read_access.access)
-    # nqp_h declared
-    nqph_symbol = kernel_interface._symbol_table.lookup("nqp_h")
-    assert isinstance(nqph_symbol, NumberOfQrPointsInHorizontalDataSymbol)
+    # nqp_xy declared
+    nqph_symbol = kernel_interface._symbol_table.lookup("nqp_xy")
+    assert isinstance(nqph_symbol,
+                      lfric_psyir.NumberOfQrPointsInXyDataSymbol)
     assert isinstance(nqph_symbol.interface, ArgumentInterface)
     assert (nqph_symbol.interface.access ==
             kernel_interface._read_access.access)
-    # nqp_v declared
-    nqpv_symbol = kernel_interface._symbol_table.lookup("nqp_v")
-    assert isinstance(nqpv_symbol, NumberOfQrPointsInVerticalDataSymbol)
+    # nqp_z declared
+    nqpv_symbol = kernel_interface._symbol_table.lookup("nqp_z")
+    assert isinstance(
+        nqpv_symbol, lfric_psyir.NumberOfQrPointsInZDataSymbol)
     assert isinstance(nqpv_symbol.interface, ArgumentInterface)
     assert (nqpv_symbol.interface.access ==
             kernel_interface._read_access.access)
     # diff basis declared and added to argument list
     diff_basis_symbol = kernel_interface._symbol_table.lookup(
         "diff_basis_w2_qr_xyoz")
-    assert isinstance(diff_basis_symbol, DiffBasisFunctionQrXyozDataSymbol)
+    assert isinstance(
+        diff_basis_symbol, lfric_psyir.DiffBasisFunctionQrXyozDataSymbol)
     assert isinstance(diff_basis_symbol.interface, ArgumentInterface)
     assert (diff_basis_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -724,7 +718,7 @@ def test_diff_basis():
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_orientation():
     '''Test that the KernelInterface class orientation method adds the
-    expected class(es) to the symbol table and the _arglist list.
+    expected symbols to the symbol table and the _arglist list.
 
     '''
     kernel_interface = KernelInterface(None)
@@ -734,7 +728,7 @@ def test_orientation():
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_field_bcs_kernel():
     '''Test that the KernelInterface class field_bcs_kernel method adds the
-    expected class(es) to the symbol table and the _arglist list.
+    expected symbols to the symbol table and the _arglist list.
 
     '''
     kernel_interface = KernelInterface(None)
@@ -744,7 +738,7 @@ def test_field_bcs_kernel():
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_operator_bcs_kernel():
     '''Test that the KernelInterface class operator_bcs_kernel method adds the
-    expected class(es) to the symbol table and the _arglist list.
+    expected symbols to the symbol table and the _arglist list.
 
     '''
     kernel_interface = KernelInterface(None)
@@ -752,23 +746,31 @@ def test_operator_bcs_kernel():
 
 
 def test_ref_element_properties():
-    '''Test that the KernelInterface class ref_element_properties method can be
-    called successfully. This callback method does not contribute any
-    kernel arguments so does nothing.
+    '''Test that the KernelInterface class ref_element_properties method
+    can be called successfully. This callback method does not
+    contribute any kernel arguments so does nothing. As a basic test,
+    we check that the number of symbols in the symbol table and the
+    number of arguments in the argument list do not change.
 
     '''
     kernel_interface = KernelInterface(None)
     kernel_interface.ref_element_properties()
+    assert len(kernel_interface._symbol_table.symbols) == 0
+    assert len(kernel_interface._arglist) == 0
 
 
 def test_mesh_properties():
     '''Test that the KernelInterface class mesh_properties method can be
     called successfully. This callback method does not contribute any
-    kernel arguments so does nothing.
+    kernel arguments so does nothing. As a basic test, we check that
+    the number of symbols in the symbol table and the number of
+    arguments in the argument list do not change.
 
     '''
     kernel_interface = KernelInterface(None)
     kernel_interface.mesh_properties()
+    assert len(kernel_interface._symbol_table.symbols) == 0
+    assert len(kernel_interface._arglist) == 0
 
 
 def test_quad_rule_xyoz():
@@ -786,23 +788,26 @@ def test_quad_rule_xyoz():
     kernel_interface = KernelInterface(kernel)
     kernel_interface.quad_rule()
 
-    # nqp_h declared and added to argument list
-    nqph_symbol = kernel_interface._symbol_table.lookup("nqp_h")
-    assert isinstance(nqph_symbol, NumberOfQrPointsInHorizontalDataSymbol)
+    # nqp_xy declared and added to argument list
+    nqph_symbol = kernel_interface._symbol_table.lookup("nqp_xy")
+    assert isinstance(
+        nqph_symbol, lfric_psyir.NumberOfQrPointsInXyDataSymbol)
     assert isinstance(nqph_symbol.interface, ArgumentInterface)
     assert (nqph_symbol.interface.access ==
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-4] is nqph_symbol
-    # nqp_v declared and added to argument list
-    nqpv_symbol = kernel_interface._symbol_table.lookup("nqp_v")
-    assert isinstance(nqpv_symbol, NumberOfQrPointsInVerticalDataSymbol)
+    # nqp_z declared and added to argument list
+    nqpv_symbol = kernel_interface._symbol_table.lookup("nqp_z")
+    assert isinstance(
+        nqpv_symbol, lfric_psyir.NumberOfQrPointsInZDataSymbol)
     assert isinstance(nqpv_symbol.interface, ArgumentInterface)
     assert (nqpv_symbol.interface.access ==
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-3] is nqpv_symbol
-    # weights_h declared and added to argument list
-    weightsh_symbol = kernel_interface._symbol_table.lookup("weights_h")
-    assert isinstance(weightsh_symbol, QrWeightsInHorizontalDataSymbol)
+    # weights_xy declared and added to argument list
+    weightsh_symbol = kernel_interface._symbol_table.lookup("weights_xy")
+    assert isinstance(
+        weightsh_symbol, lfric_psyir.QrWeightsInXyDataSymbol)
     assert isinstance(weightsh_symbol.interface, ArgumentInterface)
     assert (weightsh_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -811,7 +816,8 @@ def test_quad_rule_xyoz():
     assert weightsh_symbol.shape[0] is nqph_symbol
     # weights_v declared and added to argument list
     weightsv_symbol = kernel_interface._symbol_table.lookup("weights_v")
-    assert isinstance(weightsv_symbol, QrWeightsInVerticalDataSymbol)
+    assert isinstance(
+        weightsv_symbol, lfric_psyir.QrWeightsInZDataSymbol)
     assert isinstance(weightsv_symbol.interface, ArgumentInterface)
     assert (weightsv_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -837,21 +843,21 @@ def test_quad_rule_face():
 
     # nfaces declared and added to argument list
     nfaces_symbol = kernel_interface._symbol_table.lookup("nfaces")
-    assert isinstance(nfaces_symbol, NumberOfFacesDataSymbol)
+    assert isinstance(nfaces_symbol, lfric_psyir.NumberOfFacesDataSymbol)
     assert isinstance(nfaces_symbol.interface, ArgumentInterface)
     assert (nfaces_symbol.interface.access ==
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-3] is nfaces_symbol
     # nqp declared and added to argument list
     nqp_symbol = kernel_interface._symbol_table.lookup("nqp")
-    assert isinstance(nqp_symbol, NumberOfQrPointsDataSymbol)
+    assert isinstance(nqp_symbol, lfric_psyir.NumberOfQrPointsDataSymbol)
     assert isinstance(nqp_symbol.interface, ArgumentInterface)
     assert (nqp_symbol.interface.access ==
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-2] is nqp_symbol
     # weights declared and added to argument list
     weights_symbol = kernel_interface._symbol_table.lookup("weights")
-    assert isinstance(weights_symbol, QrWeightsDataSymbol)
+    assert isinstance(weights_symbol, lfric_psyir.QrWeightsDataSymbol)
     assert isinstance(weights_symbol.interface, ArgumentInterface)
     assert (weights_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -877,21 +883,21 @@ def test_quad_rule_edge():
 
     # nedges declared and added to argument list
     nedges_symbol = kernel_interface._symbol_table.lookup("nedges")
-    assert isinstance(nedges_symbol, NumberOfEdgesDataSymbol)
+    assert isinstance(nedges_symbol, lfric_psyir.NumberOfEdgesDataSymbol)
     assert isinstance(nedges_symbol.interface, ArgumentInterface)
     assert (nedges_symbol.interface.access ==
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-3] is nedges_symbol
     # nqp declared and added to argument list
     nqp_symbol = kernel_interface._symbol_table.lookup("nqp")
-    assert isinstance(nqp_symbol, NumberOfQrPointsDataSymbol)
+    assert isinstance(nqp_symbol, lfric_psyir.NumberOfQrPointsDataSymbol)
     assert isinstance(nqp_symbol.interface, ArgumentInterface)
     assert (nqp_symbol.interface.access ==
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-2] is nqp_symbol
     # weights declared and added to argument list
     weights_symbol = kernel_interface._symbol_table.lookup("weights")
-    assert isinstance(weights_symbol, QrWeightsDataSymbol)
+    assert isinstance(weights_symbol, lfric_psyir.QrWeightsDataSymbol)
     assert isinstance(weights_symbol.interface, ArgumentInterface)
     assert (weights_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -924,11 +930,12 @@ def test_quad_rule_error(monkeypatch):
 
 
 def test_create_symbol_tag():
-    ''' Test that an existing symbol with the same tag as this is returned '''
-    symbol1 = CellPositionDataSymbol("test")
+    '''Test that an existing symbol with a matching tag is returned'''
+    symbol1 = lfric_psyir.CellPositionDataSymbol("test")
     kernel_interface = KernelInterface(None)
     kernel_interface._symbol_table.add(symbol1, tag="test")
-    symbol2 = kernel_interface._create_symbol("test", CellPositionDataSymbol)
+    symbol2 = kernel_interface._create_symbol(
+        "test", lfric_psyir.CellPositionDataSymbol)
     assert symbol2 is symbol1
 
 
@@ -937,11 +944,12 @@ def test_create_symbol_tag_error():
     exception if its type differs from the supplied type.
 
     '''
-    symbol1 = CellPositionDataSymbol("test")
+    symbol1 = lfric_psyir.CellPositionDataSymbol("test")
     kernel_interface = KernelInterface(None)
     kernel_interface._symbol_table.add(symbol1, tag="test")
     with pytest.raises(InternalError) as info:
-        _ = kernel_interface._create_symbol("test", MeshHeightDataSymbol)
+        _ = kernel_interface._create_symbol(
+            "test", lfric_psyir.MeshHeightDataSymbol)
     assert (
         "Expected symbol with tag 'test' to be of type 'MeshHeightDataSymbol' "
         "but found type 'CellPositionDataSymbol'." in str(info.value))
@@ -955,7 +963,8 @@ def test_create_symbol_new():
 
     '''
     kernel_interface = KernelInterface(None)
-    symbol1 = kernel_interface._create_symbol("test", CellPositionDataSymbol)
+    symbol1 = kernel_interface._create_symbol(
+        "test", lfric_psyir.CellPositionDataSymbol)
     symbol2 = kernel_interface._symbol_table.lookup_with_tag("test")
     assert symbol2 is symbol1
     assert isinstance(symbol1.interface, ArgumentInterface)
@@ -971,9 +980,10 @@ def test_create_symbol_args():
 
     '''
     kernel_interface = KernelInterface(None)
-    size_symbol = NumberOfUniqueDofsDataSymbol("ndofs", "w3")
+    size_symbol = lfric_psyir.NumberOfUniqueDofsDataSymbol("ndofs", "w3")
     symbol1 = kernel_interface._create_symbol(
-        "test", RealFieldDataDataSymbol, extra_args=["w3"], dims=[size_symbol],
+        "test", lfric_psyir.RealFieldDataDataSymbol, extra_args=["w3"],
+        dims=[size_symbol],
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
 
     symbol2 = kernel_interface._symbol_table.lookup_with_tag("test")
@@ -1016,43 +1026,3 @@ def test_create_basis_errors(monkeypatch):
             "Unrecognised quadrature or evaluator shape 'invalid_shape'. "
             "Expected one of: ['gh_quadrature_xyoz', 'gh_quadrature_face', "
             "'gh_quadrature_edge', 'gh_evaluator']." in str(info.value))
-
-
-def test_basis_first_dim_value():
-    '''Check that the kernel_interface class basis_first_dim_value method
-    returns the expected results and raises the expected exception.
-
-    '''
-    kernel_interface = KernelInterface(None)
-    w3_fs = FunctionSpace("w3", None)
-    assert kernel_interface._basis_first_dim_value(w3_fs) == "1"
-    w2_fs = FunctionSpace("w2", None)
-    assert kernel_interface._basis_first_dim_value(w2_fs) == "3"
-    any_space_fs = FunctionSpace("any_space_1", None)
-    with pytest.raises(GenerationError) as info:
-        _ = kernel_interface._basis_first_dim_value(any_space_fs)
-    assert (
-        "Unsupported space for basis function, expecting one of ['w3', "
-        "'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', "
-        "'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi'] but found "
-        "'any_space_1'" in str(info.value))
-
-
-def test_diff_basis_first_dim_value():
-    '''Check that the kernel_interface class diff_basis_first_dim_value method
-    returns the expected results and raises the expected exception.
-
-    '''
-    kernel_interface = KernelInterface(None)
-    w3_fs = FunctionSpace("w3", None)
-    assert kernel_interface._diff_basis_first_dim_value(w3_fs) == "3"
-    w2_fs = FunctionSpace("w2", None)
-    assert kernel_interface._diff_basis_first_dim_value(w2_fs) == "1"
-    any_space_fs = FunctionSpace("any_space_1", None)
-    with pytest.raises(GenerationError) as info:
-        _ = kernel_interface._diff_basis_first_dim_value(any_space_fs)
-    assert (
-        "Unsupported space for differential basis function, expecting one of "
-        "['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2', "
-        "'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi'] but found "
-        "'any_space_1'" in str(info.value))

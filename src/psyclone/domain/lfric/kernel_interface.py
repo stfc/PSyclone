@@ -38,26 +38,11 @@ kernel based on the kernel metadata.
 
 '''
 from psyclone.domain.lfric import ArgOrdering
-# pylint: disable=no-name-in-module
-from psyclone.domain.lfric.psyir import CellPositionDataSymbol, \
-    MeshHeightDataSymbol, NumberOfCellsDataSymbol, NumberOfDofsDataSymbol, \
-    NumberOfUniqueDofsDataSymbol, DofMapDataSymbol, RealFieldDataDataSymbol, \
-    IntegerFieldDataDataSymbol, LogicalFieldDataDataSymbol, \
-    RealVectorFieldDataDataSymbol, IntegerVectorFieldDataDataSymbol, \
-    LogicalVectorFieldDataDataSymbol, OperatorDataSymbol, \
-    LfricIntegerScalarDataSymbol, LfricRealScalarDataSymbol, \
-    LfricLogicalScalarDataSymbol, BasisFunctionQrXyozDataSymbol, \
-    BasisFunctionQrFaceDataSymbol, BasisFunctionQrEdgeDataSymbol, \
-    DiffBasisFunctionQrXyozDataSymbol, DiffBasisFunctionQrFaceDataSymbol, \
-    DiffBasisFunctionQrEdgeDataSymbol, \
-    NumberOfQrPointsInHorizontalDataSymbol, \
-    NumberOfQrPointsInVerticalDataSymbol, NumberOfQrPointsDataSymbol, \
-    QrWeightsInHorizontalDataSymbol, QrWeightsInVerticalDataSymbol, \
-    NumberOfFacesDataSymbol, QrWeightsDataSymbol, NumberOfEdgesDataSymbol
+# pylint: disable=no-member
+from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
-from psyclone.errors import InternalError, GenerationError
-from psyclone.domain.lfric import FunctionSpace
+from psyclone.errors import InternalError
 
 
 # pylint: disable=too-many-public-methods
@@ -84,26 +69,33 @@ class KernelInterface(ArgOrdering):
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
 
     '''
+    #: Mapping from a generic PSyIR datatype to the equivalent
+    #: LFRic-specific field datasymbol.
     field_mapping = {
-        "integer": IntegerFieldDataDataSymbol,
-        "real": RealFieldDataDataSymbol,
-        "logical": LogicalFieldDataDataSymbol}
+        "integer": lfric_psyir.IntegerFieldDataDataSymbol,
+        "real": lfric_psyir.RealFieldDataDataSymbol,
+        "logical": lfric_psyir.LogicalFieldDataDataSymbol}
+    #: Mapping from a generic PSyIR datatype to the equivalent
+    #: LFRic-specific vector field datasymbol.
     vector_field_mapping = {
-        "integer": IntegerVectorFieldDataDataSymbol,
-        "real": RealVectorFieldDataDataSymbol,
-        "logical": LogicalVectorFieldDataDataSymbol}
+        "integer": lfric_psyir.IntegerVectorFieldDataDataSymbol,
+        "real": lfric_psyir.RealVectorFieldDataDataSymbol,
+        "logical": lfric_psyir.LogicalVectorFieldDataDataSymbol}
+    #: Mapping from the LFRic metadata description of quadrature to the
+    #: associated LFRic-specific basis function datasymbol.
     basis_mapping = {
-        "gh_quadrature_xyoz": BasisFunctionQrXyozDataSymbol,
-        "gh_quadrature_face": BasisFunctionQrFaceDataSymbol,
-        "gh_quadrature_edge": BasisFunctionQrEdgeDataSymbol}
+        "gh_quadrature_xyoz": lfric_psyir.BasisFunctionQrXyozDataSymbol,
+        "gh_quadrature_face": lfric_psyir.BasisFunctionQrFaceDataSymbol,
+        "gh_quadrature_edge": lfric_psyir.BasisFunctionQrEdgeDataSymbol}
+    #: Mapping from the LFRic metadata description of quadrature to the
+    #: associated LFRic-specific differential basis function datasymbol.
     diff_basis_mapping = {
-        "gh_quadrature_xyoz": DiffBasisFunctionQrXyozDataSymbol,
-        "gh_quadrature_face": DiffBasisFunctionQrFaceDataSymbol,
-        "gh_quadrature_edge": DiffBasisFunctionQrEdgeDataSymbol}
+        "gh_quadrature_xyoz": lfric_psyir.DiffBasisFunctionQrXyozDataSymbol,
+        "gh_quadrature_face": lfric_psyir.DiffBasisFunctionQrFaceDataSymbol,
+        "gh_quadrature_edge": lfric_psyir.DiffBasisFunctionQrEdgeDataSymbol}
     _read_access = ArgumentInterface(ArgumentInterface.Access.READ)
 
     def __init__(self, kern):
-        # pylint: disable=super-with-arguments
         super(KernelInterface, self).__init__(kern)
         self._symbol_table = SymbolTable()
         self._arglist = []
@@ -118,7 +110,6 @@ class KernelInterface(ArgOrdering):
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        # pylint: disable=super-with-arguments
         super(KernelInterface, self).generate()
         # Set the argument list for the symbol table. This is done at
         # the end after incrementally adding symbols to the _arglist
@@ -136,7 +127,8 @@ class KernelInterface(ArgOrdering):
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        symbol = self._create_symbol("cell", CellPositionDataSymbol)
+        symbol = self._create_symbol(
+            "cell", lfric_psyir.CellPositionDataSymbol)
         self._arglist.append(symbol)
 
     def mesh_height(self, var_accesses=None):
@@ -149,7 +141,8 @@ class KernelInterface(ArgOrdering):
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        symbol = self._create_symbol("nlayers", MeshHeightDataSymbol)
+        symbol = self._create_symbol(
+            "nlayers", lfric_psyir.MeshHeightDataSymbol)
         self._arglist.append(symbol)
 
     def mesh_ncell2d(self, var_accesses=None):
@@ -200,7 +193,8 @@ class KernelInterface(ArgOrdering):
         # the existing one if one does.
         fs_name = argvect.function_space.orig_name
         undf_symbol = self._create_symbol(
-            "undf_{0}".format(fs_name), NumberOfUniqueDofsDataSymbol,
+            "undf_{0}".format(fs_name),
+            lfric_psyir.NumberOfUniqueDofsDataSymbol,
             extra_args=[fs_name])
 
         interface = ArgumentInterface(INTENT_MAPPING[argvect.intent])
@@ -208,7 +202,6 @@ class KernelInterface(ArgOrdering):
             field_class = self.vector_field_mapping[
                 argvect.intrinsic_type]
         except KeyError:
-            # pylint: disable=raise-missing-from
             raise NotImplementedError(
                 "kernel interface does not support a vector field of type "
                 "'{0}'.".format(argvect.intrinsic_type))
@@ -241,7 +234,8 @@ class KernelInterface(ArgOrdering):
         # the existing one if one does.
         fs_name = arg.function_space.orig_name
         undf_symbol = self._create_symbol(
-            "undf_{0}".format(fs_name), NumberOfUniqueDofsDataSymbol,
+            "undf_{0}".format(fs_name),
+            lfric_psyir.NumberOfUniqueDofsDataSymbol,
             extra_args=[fs_name])
 
         try:
@@ -324,20 +318,20 @@ class KernelInterface(ArgOrdering):
         # return the existing ones if they do.
         fs_from_name = arg.function_space_from.orig_name
         ndf_symbol_from = self._create_symbol(
-            "ndf_{0}".format(fs_from_name), NumberOfDofsDataSymbol,
+            "ndf_{0}".format(fs_from_name), lfric_psyir.NumberOfDofsDataSymbol,
             extra_args=[fs_from_name])
         fs_to_name = arg.function_space_to.orig_name
         ndf_symbol_to = self._create_symbol(
-            "ndf_{0}".format(fs_to_name), NumberOfDofsDataSymbol,
+            "ndf_{0}".format(fs_to_name), lfric_psyir.NumberOfDofsDataSymbol,
             extra_args=[fs_to_name])
 
-        ncells = NumberOfCellsDataSymbol(
+        ncells = lfric_psyir.NumberOfCellsDataSymbol(
             "ncell_3d", interface=self._read_access)
         self._symbol_table.add(ncells)
         self._arglist.append(ncells)
 
         op_arg_symbol = self._create_symbol(
-            arg.name, OperatorDataSymbol,
+            arg.name, lfric_psyir.OperatorDataSymbol,
             dims=[ndf_symbol_from, ndf_symbol_to, ncells],
             extra_args=[fs_from_name, fs_to_name],
             interface=ArgumentInterface(INTENT_MAPPING[arg.intent]))
@@ -374,9 +368,9 @@ class KernelInterface(ArgOrdering):
 
         '''
         mapping = {
-            "integer": LfricIntegerScalarDataSymbol,
-            "real": LfricRealScalarDataSymbol,
-            "logical": LfricLogicalScalarDataSymbol}
+            "integer": lfric_psyir.LfricIntegerScalarDataSymbol,
+            "real": lfric_psyir.LfricRealScalarDataSymbol,
+            "logical": lfric_psyir.LfricLogicalScalarDataSymbol}
         try:
             symbol = self._create_symbol(
                 scalar_arg.name, mapping[scalar_arg.intrinsic_type],
@@ -404,7 +398,7 @@ class KernelInterface(ArgOrdering):
         '''
         fs_name = function_space.orig_name
         ndf_symbol = self._create_symbol(
-            "ndf_{0}".format(fs_name), NumberOfDofsDataSymbol,
+            "ndf_{0}".format(fs_name), lfric_psyir.NumberOfDofsDataSymbol,
             extra_args=[fs_name])
         self._arglist.append(ndf_symbol)
 
@@ -442,18 +436,18 @@ class KernelInterface(ArgOrdering):
         '''
         fs_name = function_space.orig_name
         undf_symbol = self._create_symbol(
-            "undf_{0}".format(fs_name), NumberOfUniqueDofsDataSymbol,
-            extra_args=[fs_name])
+            "undf_{0}".format(fs_name),
+            lfric_psyir.NumberOfUniqueDofsDataSymbol, extra_args=[fs_name])
         self._arglist.append(undf_symbol)
 
         fs_name = function_space.orig_name
         ndf_symbol = self._create_symbol(
-            "ndf_{0}".format(fs_name), NumberOfDofsDataSymbol,
+            "ndf_{0}".format(fs_name), lfric_psyir.NumberOfDofsDataSymbol,
             extra_args=[fs_name])
 
         dofmap_symbol = self._create_symbol(
-            "dofmap_{0}".format(fs_name), DofMapDataSymbol, dims=[ndf_symbol],
-            extra_args=[fs_name])
+            "dofmap_{0}".format(fs_name), lfric_psyir.DofMapDataSymbol,
+            dims=[ndf_symbol], extra_args=[fs_name])
         self._arglist.append(dofmap_symbol)
 
     def banded_dofmap(self, function_space, var_accesses=None):
@@ -502,7 +496,8 @@ class KernelInterface(ArgOrdering):
 
         '''
         basis_name_func = function_space.get_basis_name
-        first_dim_value_func = self._basis_first_dim_value
+        from psyclone.dynamo0p3 import DynBasisFunctions
+        first_dim_value_func = DynBasisFunctions.basis_first_dim_value
         self._create_basis(function_space, self.basis_mapping,
                            basis_name_func, first_dim_value_func)
 
@@ -510,7 +505,8 @@ class KernelInterface(ArgOrdering):
         '''Create an LFRic differential basis function argument and add it to
         the symbol table and argument list.
 
-        :param function_space: the function space for this basis function.
+        :param function_space: the function space for this \
+            differential basis function.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
@@ -519,7 +515,8 @@ class KernelInterface(ArgOrdering):
 
         '''
         basis_name_func = function_space.get_diff_basis_name
-        first_dim_value_func = self._diff_basis_first_dim_value
+        from psyclone.dynamo0p3 import DynBasisFunctions
+        first_dim_value_func = DynBasisFunctions.diff_basis_first_dim_value
         self._create_basis(function_space, self.diff_basis_mapping,
                            basis_name_func, first_dim_value_func)
 
@@ -608,26 +605,32 @@ class KernelInterface(ArgOrdering):
         # The kernel captures all the required quadrature shapes
         for shape in self._kern.qr_rules:
             if shape == "gh_quadrature_xyoz":
-                nqp_h = self._create_symbol(
-                    "nqp_h", NumberOfQrPointsInHorizontalDataSymbol)
-                nqp_v = self._create_symbol(
-                    "nqp_v", NumberOfQrPointsInVerticalDataSymbol)
-                weights_h = self._create_symbol(
-                    "weights_h", QrWeightsInHorizontalDataSymbol, dims=[nqp_h])
+                nqp_xy = self._create_symbol(
+                    "nqp_xy", lfric_psyir.NumberOfQrPointsInXyDataSymbol)
+                nqp_z = self._create_symbol(
+                    "nqp_z", lfric_psyir.NumberOfQrPointsInZDataSymbol)
+                weights_xy = self._create_symbol(
+                    "weights_xy", lfric_psyir.QrWeightsInXyDataSymbol,
+                    dims=[nqp_xy])
                 weights_v = self._create_symbol(
-                    "weights_v", QrWeightsInVerticalDataSymbol, dims=[nqp_v])
-                self._arglist.extend([nqp_h, nqp_v, weights_h, weights_v])
+                    "weights_v", lfric_psyir.QrWeightsInZDataSymbol,
+                    dims=[nqp_z])
+                self._arglist.extend([nqp_xy, nqp_z, weights_xy, weights_v])
             elif shape == "gh_quadrature_face":
-                nfaces = self._create_symbol("nfaces", NumberOfFacesDataSymbol)
-                nqp = self._create_symbol("nqp", NumberOfQrPointsDataSymbol)
+                nfaces = self._create_symbol(
+                    "nfaces", lfric_psyir.NumberOfFacesDataSymbol)
+                nqp = self._create_symbol(
+                    "nqp", lfric_psyir.NumberOfQrPointsDataSymbol)
                 weights = self._create_symbol(
-                    "weights", QrWeightsDataSymbol, dims=[nqp])
+                    "weights", lfric_psyir.QrWeightsDataSymbol, dims=[nqp])
                 self._arglist.extend([nfaces, nqp, weights])
             elif shape == "gh_quadrature_edge":
-                nedges = self._create_symbol("nedges", NumberOfEdgesDataSymbol)
-                nqp = self._create_symbol("nqp", NumberOfQrPointsDataSymbol)
+                nedges = self._create_symbol(
+                    "nedges", lfric_psyir.NumberOfEdgesDataSymbol)
+                nqp = self._create_symbol(
+                    "nqp", lfric_psyir.NumberOfQrPointsDataSymbol)
                 weights = self._create_symbol(
-                    "weights", QrWeightsDataSymbol, dims=[nqp])
+                    "weights", lfric_psyir.QrWeightsDataSymbol, dims=[nqp])
                 self._arglist.extend([nedges, nqp, weights])
             else:
                 raise InternalError("Unsupported quadrature shape '{0}' "
@@ -738,7 +741,7 @@ class KernelInterface(ArgOrdering):
             # or return the existing one if one does.
             fs_name = function_space.orig_name
             ndf_symbol = self._create_symbol(
-                "ndf_{0}".format(fs_name), NumberOfDofsDataSymbol,
+                "ndf_{0}".format(fs_name), lfric_psyir.NumberOfDofsDataSymbol,
                 extra_args=[fs_name])
 
             # Create the qr tag by appending the last part of the shape
@@ -746,24 +749,28 @@ class KernelInterface(ArgOrdering):
             quad_name = shape.split("_")[-1]
             basis_tag = basis_name_func(qr_var="qr_"+quad_name)
             if shape == "gh_quadrature_xyoz":
-                nqp_h = self._create_symbol(
-                    "nqp_h", NumberOfQrPointsInHorizontalDataSymbol)
-                nqp_v = self._create_symbol(
-                    "nqp_v", NumberOfQrPointsInVerticalDataSymbol)
+                nqp_xy = self._create_symbol(
+                    "nqp_xy", lfric_psyir.NumberOfQrPointsInXyDataSymbol)
+                nqp_z = self._create_symbol(
+                    "nqp_z", lfric_psyir.NumberOfQrPointsInZDataSymbol)
                 arg = mapping["gh_quadrature_xyoz"](
                     basis_tag, [int(first_dim_value_func(function_space)),
-                                ndf_symbol, nqp_h, nqp_v],
+                                ndf_symbol, nqp_xy, nqp_z],
                     fs_name, interface=self._read_access)
             elif shape == "gh_quadrature_face":
-                nfaces = self._create_symbol("nfaces", NumberOfFacesDataSymbol)
-                nqp = self._create_symbol("nqp", NumberOfQrPointsDataSymbol)
+                nfaces = self._create_symbol(
+                    "nfaces", lfric_psyir.NumberOfFacesDataSymbol)
+                nqp = self._create_symbol(
+                    "nqp", lfric_psyir.NumberOfQrPointsDataSymbol)
                 arg = mapping["gh_quadrature_face"](
                     basis_tag, [int(first_dim_value_func(function_space)),
                                 ndf_symbol, nqp, nfaces],
                     fs_name, interface=self._read_access)
             elif shape == "gh_quadrature_edge":
-                nedges = self._create_symbol("nedges", NumberOfEdgesDataSymbol)
-                nqp = self._create_symbol("nqp", NumberOfQrPointsDataSymbol)
+                nedges = self._create_symbol(
+                    "nedges", lfric_psyir.NumberOfEdgesDataSymbol)
+                nqp = self._create_symbol(
+                    "nqp", lfric_psyir.NumberOfQrPointsDataSymbol)
                 arg = mapping["gh_quadrature_edge"](
                     basis_tag, [int(first_dim_value_func(function_space)),
                                 ndf_symbol, nqp, nedges],
@@ -784,67 +791,3 @@ class KernelInterface(ArgOrdering):
                         shape, VALID_EVALUATOR_SHAPES))
             self._symbol_table.add(arg)
             self._arglist.append(arg)
-
-    @staticmethod
-    def _basis_first_dim_value(function_space):
-        '''Internal utility to return the size of the first dimension of a
-        basis function.
-
-        :param function_space: the function space the basis function is on.
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-
-        :returns: an integer size as a string.
-        :rtype: str
-
-        :raises GenerationError: if an unsupported function space is \
-            supplied (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
-
-        '''
-        if function_space.has_scalar_basis:
-            first_dim = "1"
-        elif function_space.has_vector_basis:
-            first_dim = "3"
-        else:
-            # It is not possible to determine explicitly the first basis
-            # function array dimension from the metadata for any_space or
-            # any_discontinuous_space. This information needs to be passed
-            # from the PSy layer to the kernels (see issue #461).
-            raise GenerationError(
-                "Unsupported space for basis function, "
-                "expecting one of {0} but found "
-                "'{1}'".format(FunctionSpace.VALID_FUNCTION_SPACES,
-                               function_space.orig_name))
-        return first_dim
-
-    @staticmethod
-    def _diff_basis_first_dim_value(function_space):
-        '''Internal utility to return the size of the first dimension of a
-        differential basis function.
-
-        :param function_space: the function space the differential \
-            basis function is on.
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-
-        :returns: an integer length as a string.
-        :rtype: str
-
-        :raises GenerationError: if an unsupported function space is \
-            supplied (e.g. ANY_SPACE_*, ANY_DISCONTINUOUS_SPACE_*)
-
-        '''
-        if function_space.has_scalar_diff_basis:
-            first_dim = "1"
-        elif function_space.has_vector_diff_basis:
-            first_dim = "3"
-        else:
-            # It is not possible to determine explicitly the first
-            # differential basis function array dimension from the metadata
-            # for any_space or any_discontinuous_space. This information
-            # needs to be passed from the PSy layer to the kernels
-            # (see issue #461).
-            raise GenerationError(
-                "Unsupported space for differential basis function, expecting "
-                "one of {0} but found '{1}'"
-                .format(FunctionSpace.VALID_FUNCTION_SPACES,
-                        function_space.orig_name))
-        return first_dim

@@ -42,6 +42,7 @@ definitions.
 from collections import namedtuple
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, DeferredType, \
     GlobalInterface, ScalarType, ArrayType
+from psyclone.psyir.nodes import Literal
 
 # Define LFRic module symbols.
 
@@ -100,6 +101,17 @@ for info in generic_scalar_datatypes:
         "            name, {0}DataType(), interface=interface)\n"
         "".format(NAME))
 
+# Define any LFRic-specific scalar literals
+class LfricDimension(Literal):
+    def __init__(self, value):
+        super(LfricDimension, self).__init__(value, LfricIntegerScalarDataType())
+        if not value in ['1', '3']:
+            raise ValueError(
+                "An LFRic dimension object must be '1' or '3', but "
+                "found {0}".format(value))
+LfricScalarDimension = LfricDimension("1")
+LfricVectorDimension = LfricDimension("3")
+
 # Define specific LFRic scalar datatypes and symbols
 
 # The Scalar namedtuple has 3 properties: the first
@@ -118,8 +130,8 @@ specific_scalar_datatypes = [
     Scalar("number of unique dofs", "lfric integer scalar", ["fs"]),
     Scalar("number of faces", "lfric integer scalar", []),
     Scalar("number of edges", "lfric integer scalar", []),
-    Scalar("number of qr points in horizontal", "lfric integer scalar", []),
-    Scalar("number of qr points in vertical", "lfric integer scalar", []),
+    Scalar("number of qr points in xy", "lfric integer scalar", []),
+    Scalar("number of qr points in z", "lfric integer scalar", []),
     Scalar("number of qr points", "lfric integer scalar", [])]
 
 # Generate specific LFRic scalar datatypes and symbols from definitions
@@ -190,29 +202,29 @@ array_datatypes = [
           ["fs_from", "fs_to"]),
     Array("dof map", "lfric integer scalar", ["number of dofs"], ["fs"]),
     Array("basis function qr xyoz", "lfric real scalar",
-          ["lfric integer scalar", "number of dofs",
-           "number of qr points in horizontal",
-           "number of qr points in vertical"], ["fs"]),
+          [LfricDimension, "number of dofs",
+           "number of qr points in xy",
+           "number of qr points in z"], ["fs"]),
     Array("basis function qr face", "lfric real scalar",
-          ["lfric integer scalar", "number of dofs", "number of qr points",
+          [LfricDimension, "number of dofs", "number of qr points",
            "number of faces"], ["fs"]),
     Array("basis function qr edge", "lfric real scalar",
-          ["lfric integer scalar", "number of dofs", "number of qr points",
+          [LfricDimension, "number of dofs", "number of qr points",
            "number of edges"], ["fs"]),
     Array("diff basis function qr xyoz", "lfric real scalar",
-          ["lfric integer scalar", "number of dofs",
-           "number of qr points in horizontal",
-           "number of qr points in vertical"], ["fs"]),
+          [LfricDimension, "number of dofs",
+           "number of qr points in xy",
+           "number of qr points in z"], ["fs"]),
     Array("diff basis function qr face", "lfric real scalar",
-          ["lfric integer scalar", "number of dofs", "number of qr points",
+          [LfricDimension, "number of dofs", "number of qr points",
            "number of faces"], ["fs"]),
     Array("diff basis function qr edge", "lfric real scalar",
-          ["lfric integer scalar", "number of dofs", "number of qr points",
+          [LfricDimension, "number of dofs", "number of qr points",
            "number of edges"], ["fs"]),
-    Array("qr weights in horizontal", "lfric real scalar",
-          ["number of qr points in horizontal"], []),
-    Array("qr weights in vertical", "lfric real scalar",
-          ["number of qr points in vertical"], []),
+    Array("qr weights in xy", "lfric real scalar",
+          ["number of qr points in xy"], []),
+    Array("qr weights in z", "lfric real scalar",
+          ["number of qr points in z"], []),
     Array("qr weights", "lfric real scalar", ["number of qr points"], [])]
 
 # Generate LFRic array (including field) datatypes and symbols from definitions

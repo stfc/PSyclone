@@ -48,6 +48,7 @@ import abc
 import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
+import six
 import fparser
 from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
@@ -7443,7 +7444,7 @@ class DynKern(CodedKern):
         super(DynKern, self).gen_code(parent)
 
     def get_kernel_schedule(self):
-        '''Returns an PSyIR Schedule representing the kernel code. The base
+        '''Returns a PSyIR Schedule representing the kernel code. The base
         class creates the PSyIR schedule on first invocation which is
         then checked for consistency with the kernel metadata
         here. The Schedule is just generated on first invocation, this
@@ -7579,11 +7580,11 @@ class DynKern(CodedKern):
                         self._validate_kernel_code_arg(
                             kern_code_arg_dim, interface_arg_dim)
                     except GenerationError as info:
-                        raise GenerationError(
+                        six.raise_from(GenerationError(
                             "For dimension {0} in array argument '{1}' to "
                             "kernel '{2}' the following error was found: "
                             "{3}".format(dim_idx+1, kern_code_arg.name,
-                                         self.name, str(info.args[0])))
+                                         self.name, str(info.args[0]))), info)
         else:
             raise InternalError(
                 "unexpected argument type found for '{0}' in kernel '{1}'. "

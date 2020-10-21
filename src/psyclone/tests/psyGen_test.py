@@ -372,14 +372,13 @@ def test_invokeschedule_can_be_printed():
 def test_kern_get_kernel_schedule(monkeypatch):
     ''' Tests the get_kernel_schedule method in the Kern class.
     '''
-    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    # disable kernel argument checking
-    monkeypatch.setattr(my_kern, "validate_kernel_code_args", lambda:[])
-    schedule = my_kern.get_kernel_schedule()
-    assert isinstance(schedule, KernelSchedule)
+    _, invoke_info = parse(os.path.join(BASE_PATH,"1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.children[0].loop_body[0]
+    kern_schedule = kern.get_kernel_schedule()
+    assert isinstance(kern_schedule, KernelSchedule)
 
 
 def test_codedkern_node_str():

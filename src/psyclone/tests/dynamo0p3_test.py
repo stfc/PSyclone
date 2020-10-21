@@ -2522,18 +2522,21 @@ def test_mkern_invoke_multiple_any_spaces(tmpdir):
             in gen)
 
 
-def test_loopfuse():
+def test_loopfuse(dist_mem, tmpdir):
     ''' Tests whether loop fuse actually fuses and whether
     multiple maps are produced or not. Multiple maps are not an
     error but it would be nicer if there were only one '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4_multikernel_invokes.f90"),
                            api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
-    loop1 = schedule.children[0]
-    loop2 = schedule.children[1]
+    index = 0
+    if dist_mem:
+        index = 4
+    loop1 = schedule.children[index]
+    loop2 = schedule.children[index+1]
     trans = LoopFuseTrans()
     schedule, _ = trans.apply(loop1, loop2)
     invoke.schedule = schedule
@@ -2559,6 +2562,7 @@ def test_loopfuse():
     for kern_id in kern_idxs:
         assert enddo_idx > kern_id > do_idx
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 def test_named_psy_routine(dist_mem, tmpdir):
     ''' Check that we generate a subroutine with the expected name

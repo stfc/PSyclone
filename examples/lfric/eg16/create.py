@@ -44,62 +44,67 @@ Once you have psyclone installed, this script may be run by doing:
 This should output a Fortran representation of the LFRic-PSyIR.
 
 '''
-# pylint: disable=no-name-in-module
+# pylint: disable=no-member
 from __future__ import print_function
 from psyclone.psyir.nodes import Call, Reference, Container, KernelSchedule
 from psyclone.psyir.symbols import RoutineSymbol, SymbolTable, \
     ArgumentInterface
-from psyclone.domain.lfric.psyir import CONSTANTS_MOD, \
-    NumberOfDofsDataSymbol, RealFieldDataDataSymbol, I_DEF, R_DEF, \
-    NumberOfCellsDataSymbol, OperatorDataSymbol, NumberOfUniqueDofsDataSymbol, \
-    BasisFunctionQrXyozDataSymbol, DiffBasisFunctionQrXyozDataSymbol, \
-    NumberOfQrPointsInHorizontalDataSymbol, \
-    NumberOfQrPointsInVerticalDataSymbol, QrWeightsInHorizontalDataSymbol, \
-    QrWeightsInVerticalDataSymbol
-
+from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.backend.fortran import FortranWriter
+
+READ_ARG = ArgumentInterface(ArgumentInterface.Access.READ)
 
 # Add LFRic precision symbols and the module in which they are
 # contained to the symbol table
 SYMBOL_TABLE = SymbolTable()
-for symbol in [I_DEF, R_DEF, CONSTANTS_MOD]:
+for symbol in [lfric_psyir.I_DEF, lfric_psyir.R_DEF,
+               lfric_psyir.CONSTANTS_MOD]:
     SYMBOL_TABLE.add(symbol)
 
 # Create LFRic ndf and undf symbols and add them to the symbol table
-NDF_W3 = NumberOfDofsDataSymbol("ndf_w3", "w3")
-UNDF_W3 = NumberOfUniqueDofsDataSymbol("undf_w3", "w3")
+NDF_W3 = lfric_psyir.NumberOfDofsDataSymbol("ndf_w3", "w3", interface=READ_ARG)
+UNDF_W3 = lfric_psyir.NumberOfUniqueDofsDataSymbol("undf_w3", "w3",
+                                                   interface=READ_ARG)
 for symbol in [NDF_W3, UNDF_W3]:
     SYMBOL_TABLE.add(symbol)
 
 # Create LFRic field data symbols and add them to the symbol table
-FIELD1 = RealFieldDataDataSymbol("field1", [UNDF_W3], "w3")
-FIELD2 = RealFieldDataDataSymbol(
+FIELD1 = lfric_psyir.RealFieldDataDataSymbol("field1", [UNDF_W3], "w3")
+FIELD2 = lfric_psyir.RealFieldDataDataSymbol(
     "field2", [UNDF_W3], "w3",
     interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
 for symbol in [FIELD1, FIELD2]:
     SYMBOL_TABLE.add(symbol)
-SYMBOL_TABLE.specify_argument_list([FIELD2])
 
 # Create an LFRic operator and it to the symbol table
-NCELL_3D = NumberOfCellsDataSymbol("ncell_3d")
-OPERATOR = OperatorDataSymbol("oper1", [NDF_W3, NDF_W3, NCELL_3D],
-                              fs_from="w3", fs_to="w3")
+NCELL_3D = lfric_psyir.NumberOfCellsDataSymbol("ncell_3d", interface=READ_ARG)
+OPERATOR = lfric_psyir.OperatorDataSymbol(
+    "oper1", [NDF_W3, NDF_W3, NCELL_3D], fs_from="w3", fs_to="w3",
+    interface=READ_ARG)
 for symbol in [NCELL_3D, OPERATOR]:
     SYMBOL_TABLE.add(symbol)
 
 # Create LFRic basis and differential basis functions with gaussian
 # quadrature (xyoz) and add them to the symbol table. Also create the
 # quadrature weights
-NQP_H = NumberOfQrPointsInHorizontalDataSymbol("nqp_h")
-NQP_V = NumberOfQrPointsInVerticalDataSymbol("nqp_v")
-WEIGHTS_H = QrWeightsInHorizontalDataSymbol("wh", [NQP_H])
-WEIGHTS_V = QrWeightsInVerticalDataSymbol("wv", [NQP_V])
-BASIS_W3 = BasisFunctionQrXyozDataSymbol(
-    "basis_w3", [1, NDF_W3, NQP_H, NQP_V], "w3")
-DIFF_BASIS_W3 = DiffBasisFunctionQrXyozDataSymbol(
-    "diff_basis_w3", [3, NDF_W3, NQP_H, NQP_V], "w3")
-for symbol in [NQP_H, NQP_V, WEIGHTS_H, WEIGHTS_V, BASIS_W3, DIFF_BASIS_W3]:
+NQP_XY = lfric_psyir.NumberOfQrPointsInXyDataSymbol(
+    "nqp_xy", interface=READ_ARG)
+NQP_Z = lfric_psyir.NumberOfQrPointsInZDataSymbol(
+    "nqp_z", interface=READ_ARG)
+WEIGHTS_XY = lfric_psyir.QrWeightsInXyDataSymbol(
+    "w_xy", [NQP_XY], interface=READ_ARG)
+WEIGHTS_Z = lfric_psyir.QrWeightsInZDataSymbol(
+    "w_z", [NQP_Z], interface=READ_ARG)
+BASIS_W3 = lfric_psyir.BasisFunctionQrXyozDataSymbol(
+    "basis_w3", [1, NDF_W3, NQP_XY, NQP_Z], "w3", interface=READ_ARG)
+DIFF_BASIS_W3 = lfric_psyir.DiffBasisFunctionQrXyozDataSymbol(
+    "diff_basis_w3", [3, NDF_W3, NQP_XY, NQP_Z], "w3", interface=READ_ARG)
+for symbol in [NQP_XY, NQP_Z, WEIGHTS_XY, WEIGHTS_Z, BASIS_W3, DIFF_BASIS_W3]:
     SYMBOL_TABLE.add(symbol)
+
+SYMBOL_TABLE.specify_argument_list(
+    [NDF_W3, UNDF_W3, NCELL_3D, FIELD2, OPERATOR, NQP_XY, NQP_Z, WEIGHTS_XY,
+     WEIGHTS_Z, BASIS_W3, DIFF_BASIS_W3])
 
 # Routine symbol
 ROUTINE_SYMBOL = RoutineSymbol("my_sub")

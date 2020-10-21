@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford STFC Daresbury Lab
+# Author R. W. Ford STFC Daresbury Lab
 
 '''This module tests the DynKern class within dynamo0p3 using
 pytest. A the moment the tests here do not fully cover DynKern as
@@ -170,9 +170,9 @@ def test_get_kernel_schedule():
 
 
 def test_validate_kernel_code_args(monkeypatch):
-    '''Test that a code kernel that conforms to the expected kernel
+    '''Test that a coded kernel that conforms to the expected kernel
     metadadata is validated successfully. Also check that the
-    appropriate exception is raised if the number arguments in the
+    appropriate exception is raised if the number of arguments in the
     coded kernel does not match the number of arguments expected by
     the kernel metadata.
 
@@ -234,10 +234,10 @@ def test_validate_kernel_code_arg(monkeypatch):
         in str(info.value))
 
     with pytest.raises(GenerationError) as info:
-        kernel._validate_kernel_code_arg(lfric_real_scalar_symbol,
-                                         real_scalar_symbol)
-    assert ("Kernel argument 'scalar' has precision 'r_def' in kernel "
-            "'dummy' but the LFRic API expects 'UNDEFINED'."
+        kernel._validate_kernel_code_arg(
+            real_scalar_symbol, lfric_real_scalar_symbol)
+    assert ("Kernel argument 'generic_real_scalar' has precision 'UNDEFINED' "
+            "in kernel 'dummy' but the LFRic API expects 'r_def'."
             in str(info.value))
 
     with pytest.raises(GenerationError) as info:
@@ -279,19 +279,17 @@ def test_validate_kernel_code_arg(monkeypatch):
     assert ("Argument 'field' to kernel 'dummy' should be an array with 2 "
             "dimension(s) according to the LFRic API, but found 1."
             in str(info.value))
-    
-
 
     lfric_real_field_symbol4 = RealFieldDataDataSymbol(
         "field", dims=[int_scalar_symbol], fs="w0", interface=read_access)
     with pytest.raises(GenerationError) as info:
-        kernel._validate_kernel_code_arg(lfric_real_field_symbol2,
-                                         lfric_real_field_symbol4)
+        kernel._validate_kernel_code_arg(
+            lfric_real_field_symbol4, lfric_real_field_symbol2)
     assert (
         "For dimension 1 in array argument 'field' to kernel 'dummy' the "
-        "following error was found: Kernel argument 'undf' has precision "
-        "'i_def' in kernel 'dummy' but the LFRic API expects 'UNDEFINED'"
-        in str(info.value))
+        "following error was found: Kernel argument 'generic_int_scalar' "
+        "has precision 'UNDEFINED' in kernel 'dummy' but the LFRic API "
+        "expects 'i_def'" in str(info.value))
 
     # monkeypatch lfric_real_scalar_symbol to return that it is not a
     # scalar in order to force the required exception. We do this by
