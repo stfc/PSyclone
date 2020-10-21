@@ -174,9 +174,11 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
         # Check that the globalsize first dimension is a multiple of
         # the localsize first dimension
         expected += '''
-      IF (mod(p_fld%grid%nx,64) .ne. 0) THEN
-        CALL check_status("multiple", -1)
+      IF (mod(p_fld%grid%nx, 64) .ne. 0) THEN
+        CALL check_status("Global size is not a multiple of local size \
+(mandatory in OpenCL < 2.0).", -1)
       END IF'''
+    print(generated_code)
     assert expected in generated_code
 
     # Call the set_args subroutine with the boundaries corrected for the

@@ -1160,10 +1160,15 @@ class GOKern(CodedKern):
 
         # Check that the global_size is multiple of the local_size
         if api_config.debug_mode:
-            condition = "mod({0},{1}) .ne. 0".format(num_x, local_size_value)
+            condition = "mod({0}, {1}) .ne. 0".format(num_x, local_size_value)
             ifthen = IfThenGen(parent, condition)
             parent.add(ifthen)
-            ifthen.add(CallGen(ifthen, "check_status", ['"multiple"', '-1']))
+            message = ('"Global size is not a multiple of local size ('
+                       'mandatory in OpenCL < 2.0)."')
+            # Since there is no print and break functionality in f2pygen, we
+            # use the check_status function here, this could be improved when
+            # translating to PSyIR.
+            ifthen.add(CallGen(ifthen, "check_status", [message, '-1']))
 
         # Retrieve kernel name
         kernel = symtab.lookup_with_tag("kernel_" + self.name).name
