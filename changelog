@@ -172,6 +172,10 @@
         Python 2 and 3 when reading files. (Required when running in
         non-Unicode locales.)
 
+	56) #942 for #941. Bug fix so that an exception is raised if a
+	directive is placed around a loop or code region containing a
+	codeblock.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
