@@ -348,7 +348,7 @@ class Compile(object):
                 name = self.find_fortran_file([self.base_path,
                                                str(self._tmpdir)], fort_file)
                 self.compile_file(name)
-
+            print (self._tmpdir)
             # Finally, we can build the psy file we have generated
             self.compile_file(psy_filename)
         except CompileError:

@@ -85,30 +85,47 @@ for info in generic_scalar_datatypes:
     NAME = "".join(info.name.title().split())
     INTRINSIC = info.intrinsic.upper()
     PRECISION = info.precision
-    ARGS = ["self", "name", "interface=None"]
     # Create the specific datatype
     exec(
         "class {0}DataType(ScalarType):\n"
-        "    def __init__(self):\n"
+        "    def __init__(self, precision=None):\n"
+        "        if not precision:\n"
+        "            precision = {1}\n"
         "        super({0}DataType, self).__init__(\n"
-        "            ScalarType.Intrinsic.{1}, {2})\n"
-        "".format(NAME, INTRINSIC, PRECISION.upper()))
+        "            ScalarType.Intrinsic.{2}, precision)\n"
+        "".format(NAME, PRECISION.upper(), INTRINSIC))
     # Create the specific symbol
     exec(
         "class {0}DataSymbol(DataSymbol):\n"
-        "    def __init__(self, name, interface=None):\n"
+        "    def __init__(self, name, precision=None, interface=None):\n"
         "        super({0}DataSymbol, self).__init__(\n"
-        "            name, {0}DataType(), interface=interface)\n"
+        "            name, {0}DataType(precision=precision),\n"
+        "            interface=interface)\n"
         "".format(NAME))
+
 
 # Define any LFRic-specific scalar literals
 class LfricDimension(Literal):
+    '''An Lfric-specific scalar integer that captures a literal array
+    dimension which can either have the value 1 or 3. This is used for
+    one of the dimensions in basis and differential basis
+    functions.
+
+    :param str value: the value of the scalar integer.
+
+    :raises ValueError: if the supplied value is not '1 or '3'.
+
+    '''
+    # pylint: disable=undefined-variable
     def __init__(self, value):
-        super(LfricDimension, self).__init__(value, LfricIntegerScalarDataType())
-        if not value in ['1', '3']:
+        super(LfricDimension, self).__init__(
+            value, LfricIntegerScalarDataType())
+        if value not in ['1', '3']:
             raise ValueError(
                 "An LFRic dimension object must be '1' or '3', but "
-                "found {0}".format(value))
+                "found '{0}'.".format(value))
+
+
 LfricScalarDimension = LfricDimension("1")
 LfricVectorDimension = LfricDimension("3")
 
@@ -232,7 +249,8 @@ for array_type in array_datatypes + field_datatypes:
     NAME = "".join(array_type.name.title().split())
     DIMS = array_type.dims
     SCALAR_TYPE = "".join(array_type.scalar_type.title().split())
-    ARGS = ["self", "name", "dims"] + array_type.properties + ["interface=None"]
+    ARGS = (["self", "name", "dims"] + array_type.properties +
+            ["interface=None"])
     VARS = ["        self.{0} = {0}".format(var) for var in
             array_type.properties]
     # Create the specific datatype
