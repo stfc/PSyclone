@@ -161,13 +161,14 @@ contains
        max_system_time(k) = time_real_tmp
 #endif
      end do
+
    end subroutine calculate_timer_stats
 
 !=============================================================================!
    !> @brief write out timer information to file
    subroutine output_timer()
 #ifndef STANDALONE_COMPILATION
-    use mpi_mod,    only: get_comm_rank
+     use mpi_mod,    only: get_comm_rank
 #endif
      use log_mod,    only: log_event,         &
                            LOG_LEVEL_ERROR
@@ -207,18 +208,16 @@ contains
        '||'
        do k = 1, num_tim_in_use
          pc_time = mean_system_time(k)/mean_system_time(1)*100.0_r_double
-         if ( pc_time > 1.0_r_double ) then
-           write(timer_file_unit,                                              &
-                ('(A2,A32,A2,3(f21.2,A2),i21,2(A2,f21.2),A2)'))                &
-                '||', trim(routine_name(k)),                                   &
-                '||', min_system_time(k),                                      &
-                '||', mean_system_time(k),                                     &
-                '||', max_system_time(k),                                      &
-                '||', num_calls(k),                                            &
-                '||', pc_time,                                                 &
-                '||', mean_system_time(k)/REAL(num_calls(k),r_double),         &
-                '||'
-         end if
+         write(timer_file_unit,                                                &
+              ('(A2,A32,A2,3(f21.2,A2),i21,2(A2,f21.2),A2)'))                  &
+              '||', trim(routine_name(k)),                                     &
+              '||', min_system_time(k),                                        &
+              '||', mean_system_time(k),                                       &
+              '||', max_system_time(k),                                        &
+              '||', num_calls(k),                                              &
+              '||', pc_time,                                                   &
+              '||', mean_system_time(k)/REAL(num_calls(k),r_double),           &
+              '||'
        end do
 #ifndef STANDALONE_COMPILATION
        call close_file(timer_file_unit)
