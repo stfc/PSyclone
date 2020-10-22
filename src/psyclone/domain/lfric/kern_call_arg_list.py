@@ -165,14 +165,14 @@ class KernCallArgList(ArgOrdering):
         '''
         components = ["matrix"]
         from psyclone.dynamo0p3 import DynCMAOperators
-        if arg.function_space_to.orig_name != \
-                arg.function_space_from.orig_name:
+        if arg.function_space_to.orig_name != (arg.function_space_from.
+                orig_name):
             components += DynCMAOperators.cma_diff_fs_params
         else:
             components += DynCMAOperators.cma_same_fs_params
         for component in components:
-            name = self._kern.root.symbol_table. \
-                name_from_tag(arg.name + "_" + component)
+            name = self._kern.root.symbol_table.name_from_tag(
+                arg.name + "_" + component)
             # Matrix is an output parameter, the rest are input
             if component == "matrix":
                 mode = AccessType.WRITE
@@ -264,9 +264,9 @@ class KernCallArgList(ArgOrdering):
         self.append(name, var_accesses, var_access_name=var_name)
 
     def stencil_2d_max_extent(self, arg, var_accesses=None):
-        '''Add 2D stencil information to the argument list associated with the
-        argument 'arg' if the maximum branch extent is unknown. If supplied it
-        also stores this in var_accesses.
+        '''Add the maximum branch extent for a 2D stencil associated with the
+        argument 'arg' to the argument list. If supplied it also stores this
+        in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`pclone.dynamo0p3.DynKernelArgument`
@@ -336,7 +336,13 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        # add in stencil dofmap
+        # The stencil_2D differs from the stencil in that the direction
+        # of the branch is baked into the stencil_dofmap array.
+        # The array dimensions are thus (dof_in_cell, cell_in_branch,
+        # branch_in_stencil) where the branch_in_stencil is always ordered
+        # West, South, East, North which is standard in LFRic. This allows
+        # for knowledge of what direction a stencil cell is in relation
+        # to the center even when the stencil is truncated at boundaries.
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
         name = "{0}(:,:,:,{1})".format(var_name,

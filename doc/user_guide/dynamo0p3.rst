@@ -313,6 +313,17 @@ For example::
   ! ...
   call invoke(kernel(field1, field2, extent, x_direction))
 
+If the stencil is of type ``CROSS2D`` then the arrays passed to the kernel are
+different to those of other stencils. The ``CROSS2D`` stencil is designed for
+use when knowing the direction stencil cells are in relation to the cell they
+are called on is necessary. For this reason, the ``stencil_size`` passed to the
+kernel is an array of length 4 containing sizes for each branch of the stencil.
+The ``stencil_size`` array is always ordered: West, South, East, North. This
+branch dimension is also part of the ``stencil_dofmap`` array making it
+possible to loop over each branch of the stencil individually. The maximum
+size of a stencil branch is also passed and is used only to define the
+``stencil_dofmap`` dummy argument.
+
 If certain fields use the same value of extent and/or direction then
 the same variable, or literal value can be provided.
 
@@ -1084,11 +1095,6 @@ algorithm developer to specify which of these it is from the algorithm
 layer as part of the ``invoke`` call (see Section
 :ref:`dynamo0.3-alg-stencil`).
 
-The ``CROSS2D`` stencil type provides a stencil with built in directional information.
-The dofmap array passed in the kernel call provides an additional dimension for
-the direction (ordered W, S, E, N as is standard in LFRic) from which the cells
-in that branch of the stencil can be obtained.
-
 For example, the following stencil (with ``extent=2``):
 
 .. code-block:: none
@@ -1425,19 +1431,19 @@ rules, along with PSyclone's naming conventions, are:
       from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
       1) If the field entry has a stencil access then add an integer (or if
-         the stencil is of type CROSS2D, an integer array of dimension(4))
+         the stencil is of type ``CROSS2D``, an integer array of dimension(4))
          stencil-size argument with intent ``in``. This will supply
-         the number of cells in the stencil or in the case of the CROSS2D
-         stencil the number of cells in each branch of the stencil.
-      2) If the stencil is of type CROSS2D then a integer of intent ``in``
+         the number of cells in the stencil or, in the case of the ``CROSS2D``
+         stencil, the number of cells in each branch of the stencil.
+      2) If the stencil is of type ``CROSS2D`` then an integer of intent ``in``
          for the max branch length is needed. This is used in defining the
          dimensions of the stencil dofmap array and is required due to the
          varying length of the branches of the stencil when used on planar
          meshes.
       3) Also needed is a stencil dofmap array of type integer and intent
-         ``in`` in either 2 or 3 dimensions. For a CROSS2D stencil the array
-         needs dimensions of (number-of-dofs-in-cell, max-branch-length, 4).
-         All other stencils need dimensions of (number-of-dofs-in-cell,
+         ``in`` in either 2 or 3 dimensions. For a ``CROSS2D`` stencil the
+         array needs dimensions of (number-of-dofs-in-cell, max-branch-length,
+         4). All other stencils need dimensions of (number-of-dofs-in-cell,
          stencil-size).
       4) If the field entry stencil access is of type ``XORY1D`` then
          add an additional integer direction argument with intent ``in``.

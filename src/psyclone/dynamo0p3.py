@@ -1495,6 +1495,11 @@ class DynStencils(DynCollection):
                                   "%vspace%get_stencil_2D_dofmap(" +
                                   "STENCIL_2D_CROSS" + "," +
                                   self.extent_value(arg) + ")"))
+                    # Max branch length in the CROSS2D stencil is used when
+                    # defining the stencil_dofmap dimensions at declaration of
+                    # the dummy argument in the kernel. This value is 1
+                    # greater than the stencil extent as the central cell
+                    # is included as part of the stencil_dofmap.
                     parent.add(
                         AssignGen(parent,
                                   lhs=self.max_branch_length_name(symtab,

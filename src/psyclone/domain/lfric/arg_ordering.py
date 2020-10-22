@@ -212,24 +212,28 @@ class ArgOrdering(object):
                     if not arg.descriptor.stencil['extent']:
                         if arg.descriptor.stencil['type'] == "cross2d":
                             # stencil extent is not provided in the
-                            # metadata so must be passed
-                            self.stencil_2d_unknown_extent \
-                                (arg, var_accesses=var_accesses)
+                            # metadata so must be passed from the Algorithm
+                            # layer.
+                            self.stencil_2d_unknown_extent(
+                                arg, var_accesses=var_accesses)
                             # Due to the nature of the stencil extent array
                             # the max size of a stencil branch must be passed
-                            self.stencil_2d_max_extent \
-                                (arg, var_accesses=var_accesses)
+                            # from the Algorithm layer.
+                            self.stencil_2d_max_extent(
+                                arg, var_accesses=var_accesses)
                         else:
                             # stencil extent is not provided in the
-                            # metadata so must be passed
-                            self.stencil_unknown_extent \
-                                (arg, var_accesses=var_accesses)
+                            # metadata so must be passed from the Algorithm
+                            # layer.
+                            self.stencil_unknown_extent(
+                                arg, var_accesses=var_accesses)
                     if arg.descriptor.stencil['type'] == "xory1d":
                         # if "xory1d is specified then the actual
-                        # direction must be passed
+                        # direction must be passed from the Algorithm layer.
                         self.stencil_unknown_direction(arg,
                                                        var_accesses)
-                    # stencil information that is always passed
+                    # stencil information that is always passed from the
+                    # Algorithm layer.
                     if arg.descriptor.stencil['type'] == "cross2d":
                         self.stencil_2d(arg, var_accesses=var_accesses)
                     else:
@@ -451,7 +455,7 @@ class ArgOrdering(object):
 
         '''
 
-    # @abc.abstractmethod
+    @abc.abstractmethod
     def stencil_2d_max_extent(self, arg, var_accesses=None):
         '''Add 2D stencil information to the argument list associated with the
         argument 'arg' if the maximum branch extent is unknown. If supplied it
