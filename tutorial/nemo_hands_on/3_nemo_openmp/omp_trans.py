@@ -69,7 +69,7 @@ def trans(psy):
 
     for child in sched.children:
         if isinstance(child, Loop) and child.loop_type == "levels":
-            sched, _ = OMP_TRANS.apply(child)
+            _ = OMP_TRANS.apply(child)
 
     # Display the transformed PSyIR
     sched.view()

@@ -227,16 +227,55 @@ Intel I7 with hyperthreading:
 
 Hopefully you too will be able to see a speedup when running the code
 on your machine. Note that there are many things to consider when
-looking at performance including (but not limited to); the number of
-physical cores your particular CPU has, binding threads to cores,
-ensuring repeatable timings, and any other, competing activity on your
-machine. This is all well beyond the scope of this tutorial.
+looking at performance including (but not limited to); the compiler
+and compiler flags, the number of physical cores your particular CPU
+has, binding threads to cores, ensuring repeatable timings, and any
+other, competing activity on your machine. This is all well beyond the
+scope of this tutorial.
 
 ## Improving Performance ##
 
+If time allows then it is possible to improve upon the parallelisation
+achieved in the previous section by creating parallel regions containing
+multiple loop nests (this reduces the overhead associated with the
+creation and destruction of the OpenMP threads). For instance, if
+you examine the `psy.f90` that has been created, you will see:
 
-Probably don't want to get too in-depth here. Is there scope
-to use a PARALLEL region in this mini-app (although that might
-not help)? Point out problem with implicit loops setting
-values at jk=1 and jk=jpk: causes data movement. Scalar
-initialisation outside loops.
+```fortran
+      !$OMP parallel do default(shared), private(ji,jj,jk), schedule(static)
+      DO jk = 1, jpk - 1
+        DO jj = 2, jpj
+          DO ji = 2, jpi
+            zslpx(ji, jj, jk) = (zwx(ji, jj, jk) + zwx(ji - 1, jj, jk)) * (0.25D0 + SIGN(0.25D0, zwx(ji, jj, jk) * zwx(ji - 1, jj, jk)))
+            ...
+          END DO
+        END DO
+      END DO
+      !$OMP end parallel do
+      !$OMP parallel do default(shared), private(ji,jj,jk), schedule(static)
+      DO jk = 1, jpk - 1
+        DO jj = 2, jpj
+          DO ji = 2, jpi
+            zslpx(ji, jj, jk) = SIGN(1.D0, zslpx(ji, jj, jk)) * MIN(ABS(zslpx(ji, jj, jk)), 2.D0 * ABS(zwx(ji - 1, jj, jk)), 2.D0 * ABS(zwx(ji, jj, jk)))
+            ...
+          END DO
+         END DO
+      END DO
+      !$OMP end parallel do
+      !$OMP parallel do default(shared), private(ji,jj,jk,z0u,z0v,zalpha,zdt,zu,zv,zzwx,zzwy), schedule(static)
+      DO jk = 1, jpk - 1
+        zdt = 1
+        DO jj = 2, jpj - 1
+          DO ji = 2, jpi - 1
+            z0u = SIGN(0.5D0, pun(ji, jj, jk))
+            ...
+```
+
+In fact, in the PSyIR, the loops corresponding to children 6-9 of the
+Schedule of the outer loop over iterations are all parallel with no
+intervening statements. These may then be enclosed in a single
+parallel region. Although it is possible to write a general-purpose
+transformation script to identify such opportunities, we will simply
+modify our script to create a parallel region around children 6-9.
+
+
