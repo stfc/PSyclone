@@ -53,7 +53,7 @@ $(NAME): $(KERNELS) psy.o runner.o
 	$(F90) $(F90FLAGS) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
 
 # Target that uses PSyclone to generate 'psy.f90'
-psy.f90: tra_adv_mod.F90 omp_trans.py
+psy.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
 	psyclone -s ${TRANS_SCRIPT} -api nemo \
                      -opsy psy.f90 -l output tra_adv_mod.F90
 

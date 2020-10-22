@@ -31,15 +31,22 @@ https://www.openacc.org/sites/default/files/inline-files/OpenACC.2.6.final.pdf
 The simplest way to add OpenACC directives to a code is often to use
 the KERNELS directive - this instructs the compiler to automatically
 parallelise any loop nests within the marked-up region. In PSyclone
-this is achieved by applying the `ACCKernelsTrans` transformation to
-suitable regions of the code. The advantage of this approach is that
-it minimises the number of directives that must be inserted and makes
-use of the compiler's own dependency analysis to ensure that loops may
-be safely parallelised.
+this is achieved by applying the [`ACCKernelsTrans`][kernelstrans_def]
+transformation to suitable regions of the code. The advantage of this
+approach is that it minimises the number of directives that must be
+inserted and makes use of the compiler's own dependency analysis to
+ensure that loops may be safely parallelised.
 
-1. Use the `ACCKernelsTrans` transformation
-(https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCKernelsTrans.html)
-to enclose suitable regions of code within a KERNELS region.
+The supplied script, `kernels_trans.py`, does this in as simple a way
+as possible. It attempts to enclose *every* Loop that is an immediate
+child of the root Schedule within a KERNELS region. (i.e. it does not
+consider the type of the loop.)
+
+1. Use the supplied Makefile to run PSyclone and generate the transformed
+   code.
+
+[kernelstrans_def]: https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCKernelsTrans.html "ACCKernelsTrans"
+
 
 ## Controlling Data Movement ##
 

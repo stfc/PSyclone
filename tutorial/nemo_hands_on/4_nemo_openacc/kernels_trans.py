@@ -33,10 +33,9 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''A transformation script that seeks to apply OpenACC DATA and KERNELS
-directives to NEMO style code.  In order to use
-it you must first install PSyclone. See README.md in the top-level
-psyclone directory.
+'''A transformation script that seeks to apply OpenACC KERNELS
+directives to NEMO style code.  In order to use it you must first
+install PSyclone. See README.md in the top-level psyclone directory.
 
 Once you have psyclone installed, this may be used by doing:
 
@@ -48,16 +47,6 @@ have already been preprocessed (if required).
 
 The transformation script attempts to enclose every loop nest within
 KERNELS directives.
-
-Once the Kernels regions have been created, the script then simply
-encloses each of them within an OpenACC Data region.
-
-TODO: (since #309 is done)
-In reality, the purpose of a data region is to keep data on the
-remote GPU device for as long as possible, ideally between Kernel
-regions. However, this requires more sophisticated dependency analysis
-than is yet implemented in PSyclone. Issue #309 will tackle this
-limitation.
 
 '''
 
@@ -74,13 +63,15 @@ ACC_KERNELS_TRANS = ACCKernelsTrans()
 
 def trans(psy):
     '''A PSyclone-script compliant transformation function. Applies
-    OpenACC 'kernels' and 'data' directives to NEMO code.
+    OpenACC 'kernels' directives to NEMO code.
 
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
-    '''
-    from psyclone.psyGen import ACCDirective
 
+    :returns: the transformed PSy layer object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
+
+    '''
     print("Invokes found:\n{0}\n".format(
         "\n".join([str(name) for name in psy.invokes.names])))
 
@@ -91,27 +82,12 @@ def trans(psy):
             print("Invoke {0} has no Schedule! Skipping...".
                   format(invoke.name))
             continue
-        sched.view()
 
         for node in sched.children:
             if isinstance(node, Loop):
                 try:
-                    sched, _ = ACC_KERNELS_TRANS.apply([node])
+                    _ = ACC_KERNELS_TRANS.apply([node])
                 except TransformationError:
                     pass
 
-        directives = sched.walk(ACCDirective)
-        if not directives:
-            # We only need a data region if we've added any directives
-            continue
-
-        # Since we've already taken care to only include recognised code within
-        # 'kernels' directives, we simply put each of those directives inside
-        # a data region. In reality we would want to try and make the data
-        # regions bigger but this is only an example.
-        for directive in directives:
-            sched, _ = ACC_DATA_TRANS.apply([directive])
-
         sched.view()
-
-        invoke.schedule = sched

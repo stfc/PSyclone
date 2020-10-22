@@ -33,7 +33,7 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 
-# Makefile for the PSyclone NEMO OpenMP tutorial.
+# Makefile for the PSyclone NEMO OpenACC tutorial.
 
 # We use the PSyData simple_timing implementation since it has no
 # dependencies.
@@ -43,17 +43,17 @@ PROFILE_LIB = ${PROFILE_DIR}/libsimple_timing.a
 
 NAME = tra_adv.exe
 # The PSyclone transformation script to use
-TRANS_SCRIPT ?= ./omp_trans.py
+TRANS_SCRIPT ?= ./kernels_trans.py
 
 # Use gfortran by default
 F90 ?= gfortran
-F90FLAGS ?= -fopenmp -O2
+F90FLAGS ?= -fopenacc -O2
 
 $(NAME): $(KERNELS) psy.o runner.o
 	$(F90) $(F90FLAGS) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
 
 # Target that uses PSyclone to generate 'psy.f90'
-psy.f90: tra_adv_mod.F90 omp_trans.py
+psy.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
 	psyclone -s ${TRANS_SCRIPT} -api nemo \
                      -opsy psy.f90 -l output tra_adv_mod.F90
 
