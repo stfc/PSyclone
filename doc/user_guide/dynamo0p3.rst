@@ -314,15 +314,15 @@ For example::
   call invoke(kernel(field1, field2, extent, x_direction))
 
 If the stencil is of type ``CROSS2D`` then the arrays passed to the kernel are
-different to those of other stencils. The ``CROSS2D`` stencil is designed for
-use when knowing the direction stencil cells are in relation to the cell they
-are called on is necessary. For this reason, the ``stencil_size`` passed to the
-kernel is an array of length 4 containing sizes for each branch of the stencil.
-The ``stencil_size`` array is always ordered: West, South, East, North. This
-branch dimension is also part of the ``stencil_dofmap`` array making it
-possible to loop over each branch of the stencil individually. The maximum
-size of a stencil branch is also passed and is used only to define the
-``stencil_dofmap`` dummy argument.
+of different dimensions to those of other stencils. The ``CROSS2D`` stencil is
+designed for use when knowing where the stencil cells are in relation to the
+cell they are called from is necessary. For this reason, the ``stencil_size``
+passed to the kernel is an array of length 4 containing sizes for each branch
+of the stencil. The ``stencil_size`` array is always ordered: West, South,
+East, North. This branch dimension is also part of the ``stencil_dofmap`` array
+making it possible to loop over each branch of the stencil individually. The
+invoke call for the ``CROSS2D`` stencil remains of the same form as for other
+stencils.
 
 If certain fields use the same value of extent and/or direction then
 the same variable, or literal value can be provided.
