@@ -3,8 +3,12 @@
    !! ***          governed by the CeCILL licence (http://www.cecill.info)            ***
    !!                                                   
    !! ***                             IS-ENES2 - CMCC/STFC                            ***
-   !!=====================================================================================
-PROGRAM tra_adv
+!!=====================================================================================
+module tra_adv_mod
+
+contains
+
+subroutine tra_adv()
    USE iso_c_binding, only: C_INT64_T
    ! The below should be e.g. wp = KIND(1.0d0) but PSyclone does not support
    ! the KIND intrinsic yet: TODO #585.
@@ -41,7 +45,8 @@ PROGRAM tra_adv
    IF(it < 1) STOP  'Number of iterations, IT, must be > 0'
    
    WRITE (*, "('Tracer-advection Mini-app:')")
-   WRITE (*, "('Domain is ', I4, 'x', I4, ' grid points')") jpi, jpj
+   WRITE (*, "('Domain is ', I4, ' x', I4, ' grid points with ', I3, &
+             & ' vertical levels')") jpi, jpj, jpk
    WRITE (*, "('Performing ', I4, ' iterations')") it
 
    ! Initialisation
@@ -284,4 +289,6 @@ PROGRAM tra_adv
 
    WRITE (*, "('Mini-app finished.')")
 
-END PROGRAM tra_adv
+END SUBROUTINE tra_adv
+
+end module tra_adv_mod
