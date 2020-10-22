@@ -40,6 +40,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
     ArrayType, UnknownType, DataSymbol
+from psyclone.psyir.nodes import Literal
 from psyclone.errors import InternalError
 
 
@@ -199,7 +200,15 @@ def test_arraytype():
     shape = [10, 10]
     array_type = ArrayType(datatype, shape)
     assert isinstance(array_type, ArrayType)
-    assert array_type.shape == shape
+    assert len(array_type.shape) == 2
+    assert isinstance(array_type.shape[0], Literal)
+    assert array_type.shape[0].value == "10"
+    assert array_type.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert array_type.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert isinstance(array_type.shape[1], Literal)
+    assert array_type.shape[1].value == "10"
+    assert array_type.shape[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert array_type.shape[1].datatype.precision == ScalarType.Precision.UNDEFINED
     assert array_type._datatype == datatype
 
 
@@ -251,7 +260,7 @@ def test_arraytype_invalid_shape_dimension_2():
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [None])
     assert ("DataSymbol shape list elements can only be 'DataSymbol', "
-            "'integer' or ArrayType.Extent, but found 'NoneType'."
+            "'int', ArrayType.Extent or 'DataNode' but found 'NoneType'."
             in str(excinfo.value))
 
 
@@ -264,7 +273,8 @@ def test_arraytype_str():
                                         ArrayType.Extent.DEFERRED,
                                         ArrayType.Extent.ATTRIBUTE])
     assert (str(data_type) == "Array<Scalar<INTEGER, UNDEFINED>,"
-            " shape=[10, var, 'DEFERRED', 'ATTRIBUTE']>")
+            " shape=[Literal[value:'10', Scalar<INTEGER, UNDEFINED>], var, "
+            "'DEFERRED', 'ATTRIBUTE']>")
 
 
 def test_arraytype_str_invalid():
@@ -279,7 +289,7 @@ def test_arraytype_str_invalid():
     with pytest.raises(InternalError) as excinfo:
         _ = str(array_type)
     assert ("PSyclone internal error: ArrayType shape list elements can only "
-            "be 'DataSymbol', 'int' or 'ArrayType.Extent', but found "
+            "be 'DataSymbol', 'DataNode' or 'ArrayType.Extent', but found "
             "'NoneType'." in str(excinfo.value))
 
 

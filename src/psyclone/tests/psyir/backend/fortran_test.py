@@ -43,8 +43,8 @@ from collections import OrderedDict
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
-    FortranWriter, gen_datatype, get_fortran_operator, _reverse_map, \
+from psyclone.psyir.backend.fortran import gen_intent, FortranWriter, \
+    gen_datatype, get_fortran_operator, _reverse_map, \
     is_fortran_intrinsic, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
@@ -102,7 +102,7 @@ def test_gen_intent_error(monkeypatch):
     assert "Unsupported access ''UNSUPPORTED'' found." in str(excinfo.value)
 
 
-def test_gen_dims():
+def test_gen_dims(fort_writer):
     '''Check the gen_dims function produces the expected dimension
     strings.
 
@@ -114,11 +114,11 @@ def test_gen_dims():
     symbol = DataSymbol("dummy", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
-    assert gen_dims(symbol) == ["arg", "2", ":"]
+    assert fort_writer.gen_dims(symbol) == ["arg", "2", ":"]
 
 
-def test_gen_dims_error(monkeypatch):
-    '''Check the gen_dims function raises an exception if a symbol shape
+def test_gen_dims_error(monkeypatch, fort_writer):
+    '''Check the gen_dims method raises an exception if a symbol shape
     entry is not supported.
 
     '''
@@ -128,7 +128,7 @@ def test_gen_dims_error(monkeypatch):
                             ArgumentInterface.Access.UNKNOWN))
     monkeypatch.setattr(array_type, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = gen_dims(symbol)
+        _ = fort_writer.gen_dims(symbol)
     assert "unsupported gen_dims index 'invalid'" in str(excinfo.value)
 
 
@@ -543,7 +543,7 @@ def test_fw_gen_vardecl(fort_writer):
         _ = fort_writer.gen_vardecl(symbol)
     assert ("Fortran declaration of an allocatable array must have the "
             "extent of every dimension as 'DEFERRED' but symbol 'dummy1' "
-            "has shape: [2, " in str(excinfo.value))
+            "has shape: ['2', ':']." in str(excinfo.value))
 
     # An assumed-size array must have only the extent of its outermost
     # rank undefined
@@ -552,8 +552,8 @@ def test_fw_gen_vardecl(fort_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
     assert ("assumed-size Fortran array must only have its last dimension "
-            "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: [2, "
-            in str(excinfo.value))
+            "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: "
+            "['2', ':', '2']." in str(excinfo.value))
     # With two dimensions unspecified, even though one is outermost
     array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE,
                                           ArrayType.Extent.ATTRIBUTE])
@@ -561,8 +561,8 @@ def test_fw_gen_vardecl(fort_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
     assert ("assumed-size Fortran array must only have its last dimension "
-            "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: [2, "
-            in str(excinfo.value))
+            "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: "
+            "['2', ':', ':']." in str(excinfo.value))
 
 
 def test_gen_decls(fort_writer):

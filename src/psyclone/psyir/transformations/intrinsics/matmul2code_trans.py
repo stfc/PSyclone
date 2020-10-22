@@ -71,10 +71,11 @@ def _get_array_bound(array, index):
         not supported.
 
     '''
+    from psyclone.psyir.nodes import DataNode
     my_dim = array.symbol.shape[index]
-    if isinstance(my_dim, int):
+    if isinstance(my_dim, DataNode):
         lower_bound = Literal("1", INTEGER_TYPE)
-        upper_bound = Literal(str(my_dim), INTEGER_TYPE)
+        upper_bound = my_dim
     elif isinstance(my_dim, DataSymbol):
         lower_bound = Literal("1", INTEGER_TYPE)
         upper_bound = Reference(my_dim)

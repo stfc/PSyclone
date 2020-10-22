@@ -893,15 +893,35 @@ def test_process_array_declarations():
     reader = FortranStringReader("integer :: l5(2), l6(3)")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l5").datatype.shape == [2]
-    assert fake_parent.symbol_table.lookup("l6").datatype.shape == [3]
+    l5_datatype = fake_parent.symbol_table.lookup("l5").datatype
+    assert len(l5_datatype.shape) == 1
+    assert isinstance(l5_datatype.shape[0], Literal)
+    assert l5_datatype.shape[0].value == '2'
+    assert l5_datatype.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert l5_datatype.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
+    l6_datatype = fake_parent.symbol_table.lookup("l6").datatype
+    assert len(l6_datatype.shape) == 1
+    assert isinstance(l6_datatype.shape[0], Literal)
+    assert l6_datatype.shape[0].value == '3'
+    assert l6_datatype.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert l6_datatype.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
 
     # Test that component-array-spec has priority over dimension attribute
     reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l7").name == 'l7'
-    assert fake_parent.symbol_table.lookup("l7").shape == [3, 2]
+    l7_datasymbol = fake_parent.symbol_table.lookup("l7")
+    assert l7_datasymbol.name == 'l7'
+    assert len(l7_datasymbol.shape) == 2
+    l7_datatype = l7_datasymbol.datatype
+    assert isinstance(l7_datatype.shape[0], Literal)
+    assert l7_datatype.shape[0].value == '3'
+    assert l7_datatype.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert l7_datatype.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert isinstance(l7_datatype.shape[1], Literal)
+    assert l7_datatype.shape[1].value == '2'
+    assert l7_datatype.shape[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert l7_datatype.shape[1].datatype.precision == ScalarType.Precision.UNDEFINED
 
     # Allocatable
     reader = FortranStringReader("integer, allocatable :: l8(:)")

@@ -207,7 +207,7 @@ class ArrayType(DataType):
         system (e.g. using the SIZE intrinsic in Fortran). If it is \
         DataSymbol.Extent.DEFERRED then the extent is also unknown and may or \
         may not be defined at run-time (e.g. the array is ALLOCATABLE in \
-        Fortran). Otherwise it can be an int, or a DataNode (that returns an \
+        Fortran). Otherwise it can be an int or a DataNode (that returns an \
         int).
 
     :raises TypeError: if the arguments are of the wrong type.
@@ -226,6 +226,9 @@ class ArrayType(DataType):
         ATTRIBUTE = 2
 
     def __init__(self, datatype, shape):
+        
+        from psyclone.psyir.nodes import Literal
+        from psyclone.psyir.symbols import INTEGER_TYPE
 
         if not isinstance(datatype, DataType):
             raise TypeError(
@@ -238,8 +241,8 @@ class ArrayType(DataType):
         # Replace any ints in shape with a Literal. int's are only
         # supported as they allow a more concise dimension
         # declaration.
-        self._shape = [Literal(dim) if instance(dim, int) else dim
-                       for dim in shape]
+        self._shape = [Literal(str(dim), INTEGER_TYPE)
+                       if isinstance(dim, int) else dim for dim in shape]
         self._intrinsic = datatype.intrinsic
         self._precision = datatype.precision
         self._datatype = datatype
@@ -296,10 +299,11 @@ class ArrayType(DataType):
         :raises TypeError: if one or more of the supplied extents is a \
             DataSymbol that is not a scalar integer or of Unknown/DeferredType.
         :raises TypeError: if one or more of the supplied extents is not a \
-            DataSymbol, int, ArrayType.Extent, or DataNode.
+            DataSymbol, int, ArrayType.Extent or DataNode.
 
         '''
         from psyclone.psyir.symbols.datasymbol import DataSymbol
+        from psyclone.psyir.nodes import DataNode
         if not isinstance(extents, list):
             raise TypeError(
                 "ArrayType 'shape' must be of type list but found '{0}'."
@@ -324,7 +328,7 @@ class ArrayType(DataType):
             elif not isinstance(dimension, (self.Extent, int)):
                 raise TypeError(
                     "DataSymbol shape list elements can only be "
-                    "'DataSymbol', 'int', ArrayType.Extent, or 'DataNode' "
+                    "'DataSymbol', 'int', ArrayType.Extent or 'DataNode' "
                     "but found '{0}'.".format(type(dimension).__name__))
 
     def __str__(self):
@@ -337,18 +341,19 @@ class ArrayType(DataType):
 
         '''
         from psyclone.psyir.symbols import DataSymbol
+        from psyclone.psyir.nodes import DataNode
         dims = []
         for dimension in self.shape:
             if isinstance(dimension, DataSymbol):
                 dims.append(dimension.name)
-            elif isinstance(dimension, int):
+            elif isinstance(dimension, DataNode):
                 dims.append(str(dimension))
             elif isinstance(dimension, ArrayType.Extent):
                 dims.append("'{0}'".format(dimension.name))
             else:
                 raise InternalError(
                     "ArrayType shape list elements can only be 'DataSymbol', "
-                    "'int' or 'ArrayType.Extent', but found '{0}'."
+                    "'DataNode' or 'ArrayType.Extent', but found '{0}'."
                     "".format(type(dimension).__name__))
         return ("Array<{0}, shape=[{1}]>".format(
             self._datatype, ", ".join(dims)))

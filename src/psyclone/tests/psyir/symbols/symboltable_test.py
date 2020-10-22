@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import re
 from collections import OrderedDict
 import pytest
-from psyclone.psyir.nodes import Schedule, Container, KernelSchedule
+from psyclone.psyir.nodes import Schedule, Container, KernelSchedule, Literal
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
@@ -204,13 +204,23 @@ def test_add_1():
     sym_table.add(DataSymbol("var1", array_type,
                              interface=GlobalInterface(my_mod)))
     assert sym_table._symbols["my_mod"].name == "my_mod"
-    assert sym_table._symbols["var1"].name == "var1"
-    assert (sym_table._symbols["var1"].datatype.intrinsic ==
+    var1_symbol = sym_table._symbols["var1"]
+    assert var1_symbol.name == "var1"
+    assert (var1_symbol.datatype.intrinsic ==
             ScalarType.Intrinsic.REAL)
-    assert (sym_table._symbols["var1"].datatype.precision ==
+    assert (var1_symbol.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
-    assert sym_table._symbols["var1"].datatype.shape == [5, 1]
-    assert sym_table._symbols["var1"].interface.container_symbol == my_mod
+    var1_datatype = var1_symbol.datatype
+    assert len(var1_datatype.shape) == 2
+    assert isinstance(var1_datatype.shape[0], Literal)
+    assert var1_datatype.shape[0].value == "5"
+    assert var1_datatype.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert var1_datatype.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert isinstance(var1_datatype.shape[1], Literal)
+    assert var1_datatype.shape[1].value == "1"
+    assert var1_datatype.shape[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert var1_datatype.shape[1].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert var1_symbol.interface.container_symbol == my_mod
 
     # Declare a duplicate name symbol
     with pytest.raises(KeyError) as error:
