@@ -108,7 +108,7 @@ if __name__ == "__main__":
         file_name = os.path.basename(ffile)
         out_file = os.path.join(ARGS.out_dir, file_name)
 
-        args = ["psyclone", "--limit", "-api", "nemo"]
+        args = ["psyclone", "--limit", "output", "-api", "nemo"]
         if file_name in EXCLUDED_FILES:
             if PROFILE_ALL:
                 print("Instrumenting {0} for profiling...".format(file_name))

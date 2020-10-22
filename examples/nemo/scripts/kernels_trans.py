@@ -219,8 +219,7 @@ def valid_acc_kernel(node):
     :rtype: bool
 
     '''
-    from psyclone.nemo import (NemoKern, NemoLoop, NemoImplicitLoop,
-                               NemoInvokeSchedule)
+    from psyclone.nemo import (NemoKern, NemoLoop, NemoInvokeSchedule)
     from fparser.two.utils import walk
     from fparser.two import Fortran2003
 
@@ -321,7 +320,7 @@ def valid_acc_kernel(node):
                         "IF references 1D arrays that may be static", enode)
                 return False
 
-        elif isinstance(enode, NemoImplicitLoop):
+        elif False:  # isinstance(enode, NemoImplicitLoop):
             intrinsics = walk(enode.ast,
                               Fortran2003.Intrinsic_Function_Reference)
             if PGI_VERSION < 19.4:
@@ -342,25 +341,9 @@ def valid_acc_kernel(node):
                 log_msg(routine_name,
                         "Implicit loop contains RESHAPE call", enode)
                 return False
-            # Check for derived types. Should not have to do this as
-            # derived-types should end up in CodeBlocks
-            # but this does not happen for implicit loops.
-            if walk(node.ast, Fortran2003.Data_Ref):
-                log_msg(routine_name, "Contains derived type", node)
-                return False
-            # Check for Function calls. Again, we should not have to do this
-            # but currently Implicit Loops are leaves in the PSyIR.
-            refs = walk(node.ast, Fortran2003.Part_Ref)
-            for ref in refs:
-                array_name = str(ref.items[0])
-                if array_name in NEMO_FUNCTIONS:
-                    log_msg(routine_name,
-                            "Implicit loop contains call to function '{0}'".
-                            format(array_name), node)
-                    return False
 
-        elif isinstance(enode, NemoLoop) and \
-             not isinstance(enode, NemoImplicitLoop):
+        elif isinstance(enode, NemoLoop): # and \
+             # not isinstance(enode, NemoImplicitLoop):
             # Heuristic:
             # We don't want to put loops around 3D loops into KERNELS regions
             # and nor do we want to put loops over levels into KERNELS regions
@@ -532,7 +515,6 @@ def add_kernels(children):
     :rtype: bool
 
     '''
-    from psyclone.nemo import NemoImplicitLoop
     added_kernels = False
     if not children:
         return added_kernels
@@ -552,11 +534,7 @@ def add_kernels(children):
                 success1 = add_kernels(child.if_body)
                 success2 = add_kernels(child.else_body)
                 success = success1 or success2
-            elif isinstance(child, Loop) and \
-                 not isinstance(child, NemoImplicitLoop):
-                # We may have rejected an implicit loop due to something in its
-                # 'body' but we can't proceed down to its 'children' as
-                # currently it doesn't have any.
+            elif isinstance(child, Loop):
                 success = add_kernels(child.loop_body)
             else:
                 success = add_kernels(child.children)
@@ -663,7 +641,6 @@ def try_kernels_trans(nodes):
 
     '''
     from psyclone.psyGen import InternalError, ACCLoopDirective
-    from psyclone.nemo import NemoImplicitLoop
 
     # We only enclose the proposed region if it contains a loop.
     for node in nodes:
@@ -711,7 +688,7 @@ def try_kernels_trans(nodes):
                    isinstance(loop.loop_body[0].step_expr, Literal) and \
                    len(loop.loop_body.children) == 1:
                     loop_options["collapse"] = 2
-                if loop_options and not isinstance(loop, NemoImplicitLoop):
+                if loop_options:
                     ACC_LOOP_TRANS.apply(loop, loop_options)
 
         return True
