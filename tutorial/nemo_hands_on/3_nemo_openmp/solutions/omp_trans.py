@@ -46,19 +46,15 @@ Fortran.
 
 '''
 from psyclone.psyir.nodes import Loop
-from psyclone.psyGen import Directive
-from psyclone.transformations import OMPParallelLoopTrans, OMPLoopTrans, \
-    OMPParallelTrans, TransformationError
+from psyclone.transformations import OMPParallelLoopTrans, TransformationError
 
-# Get the transformation we will apply
+# Get the transformation we will apply.
 OMP_TRANS = OMPParallelLoopTrans()
-OMP_LOOP_TRANS = OMPLoopTrans()
-OMP_PARALLEL_TRANS = OMPParallelTrans()
 
 
 def trans(psy):
-    ''' Transform a specific Schedule by making all loops
-    over vertical levels OpenMP parallel.
+    ''' Transform a specific Schedule by making all loops over vertical levels
+    (that are immediate children of the root Schedule) OpenMP parallel.
 
     :param psy: the object holding all information on the PSy layer \
                 to be modified.
@@ -77,25 +73,6 @@ def trans(psy):
                 _ = OMP_TRANS.apply(child)
             except TransformationError:
                 pass
-
-    # Find body of the iteration loop (identified as a 'tracer' loop)
-    it_loop_body = None
-    for child in sched.children:
-        if isinstance(child, Loop) and child.loop_type == "tracers":
-            it_loop_body = child.loop_body
-            break
-
-    # Put an OMP parallel do around all suitable loops except 6-9
-    for child in it_loop_body.children[0:6] + it_loop_body.children[10:]:
-        if isinstance(child, Loop) and child.loop_type == "levels":
-            _ = OMP_TRANS.apply(child)
-
-    # Put an OMP loop around each of loops 6-9
-    for child in it_loop_body.children[6:10]:
-        _ = OMP_LOOP_TRANS.apply(child)
-
-    # Enclose loops 6-9 within a single OMP parallel region
-    _ = OMP_PARALLEL_TRANS.apply(it_loop_body.children[6:10])
 
     # Display the transformed PSyIR
     sched.view()

@@ -71,31 +71,39 @@ def trans(psy):
     # Get the Schedule of the target routine
     sched = psy.invokes.get('tra_adv').schedule
 
-    for child in sched.children:
-        if isinstance(child, Loop) and child.loop_type == "levels":
-            try:
-                _ = OMP_TRANS.apply(child)
-            except TransformationError:
-                pass
+    loops = [loop for loop in sched.walk(Loop) if loop.loop_type == "levels"]
+    idx = 0
+    # Loop over each of these loops over levels to see which neighbour each
+    # other in the Schedule and can therefore be put in a single parallel
+    # region.
+    while idx < len(loops):
+        child = loops[idx]
+        posn = child.parent.children.index(child)
+        loop_list = [child]
+        current = idx + 1
+        # Look at the children of the parent of the current node, starting
+        # from the immediate sibling of the current node
+        for sibling in child.parent.children[posn+1:]:
+            # Is this immediate sibling also in our list of loops?
+            if current < len(loops) and sibling is loops[current]:
+                # It is so add it to the list and move on to the next sibling
+                loop_list.append(sibling)
+                current += 1
+            else:
+                # It's not so that's the end of the list of nodes that we
+                # can enclose in a single parallel region
+                break
+        idx = current
 
-    # Find body of the iteration loop (identified as a 'tracer' loop)
-    it_loop_body = None
-    for child in sched.children:
-        if isinstance(child, Loop) and child.loop_type == "tracers":
-            it_loop_body = child.loop_body
-            break
+        try:
+            sched, _ = OMP_PARALLEL_TRANS.apply(loop_list)
+            for loop in loop_list:
+                sched, _ = OMP_LOOP_TRANS.apply(loop)
+        except TransformationError:
+            pass
 
-    # Put an OMP parallel do around all suitable loops except 6-9
-    for child in it_loop_body.children[0:6] + it_loop_body.children[10:]:
-        if isinstance(child, Loop) and child.loop_type == "levels":
-            _ = OMP_TRANS.apply(child)
-
-    # Put an OMP loop around each of loops 6-9
-    for child in it_loop_body.children[6:10]:
-        _ = OMP_LOOP_TRANS.apply(child)
-
-    # Enclose loops 6-9 within a single OMP parallel region
-    _ = OMP_PARALLEL_TRANS.apply(it_loop_body.children[6:10])
+    directives = sched.walk(Directive)
+    print("Added {0} Directives".format(len(directives)))
 
     # Display the transformed PSyIR
     sched.view()
