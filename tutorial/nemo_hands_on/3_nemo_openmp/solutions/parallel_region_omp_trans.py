@@ -46,7 +46,6 @@ Fortran.
 
 '''
 from psyclone.psyir.nodes import Loop
-from psyclone.psyGen import Directive
 from psyclone.transformations import OMPParallelLoopTrans, OMPLoopTrans, \
     OMPParallelTrans, TransformationError
 
@@ -58,7 +57,8 @@ OMP_PARALLEL_TRANS = OMPParallelTrans()
 
 def trans(psy):
     ''' Transform a specific Schedule by making all loops
-    over vertical levels OpenMP parallel.
+    over vertical levels OpenMP parallel. Encloses children 6-9 of the
+    outer iteration loop within a single OpenMP parallel region.
 
     :param psy: the object holding all information on the PSy layer \
                 to be modified.

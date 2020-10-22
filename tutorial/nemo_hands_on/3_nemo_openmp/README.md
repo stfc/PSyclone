@@ -79,7 +79,7 @@ different transformation here.
 Note that in this tutorial we will only be applying OpenMP
 parallelisation to the loops over vertical levels. This is because, in
 the full NEMO code, the horizontal domain is already decomposed over
-MPI processes while there is no attempt to exploit the parallelism
+MPI processes and there is no attempt to exploit the parallelism
 available in the vertical.  This paralllelism is available throughout
 the majority of the code. (Of course, it would also be possible to use
 OpenMP to parallelise the horizontal domain in NEMO so as to reduce
@@ -272,10 +272,37 @@ you examine the `psy.f90` that has been created, you will see:
 ```
 
 In fact, in the PSyIR, the loops corresponding to children 6-9 of the
-Schedule of the outer loop over iterations are all parallel with no
+Schedule of the outer loop over iterations are *all* parallel with no
 intervening statements. These may then be enclosed in a single
 parallel region. Although it is possible to write a general-purpose
-transformation script to identify such opportunities, we will simply
+transformation script to identify such opportunities, we will
 modify our script to create a parallel region around children 6-9.
+
+To do this we will use PSyclone's `OMPParallelTrans` to create the
+parallel region and `OMPLoopTrans` to decorate each loop inside this
+region.
+
+Beginning with the first, working optimisation script, the suggested
+steps to achieve this are:
+
+1. Parallelise all suitable loops over levels that are immediate
+children of the root Schedule;
+
+2. Find the outer, iteration loop (PSyclone identifies this as being a
+"tracer" loop);
+
+3. Decorate each of children 6-9 (inclusive) of the body of this loop
+with an OMP Loop Directive. The body of a loop node in the PSyIR may
+be obtained using the `loop_body` property so, using Python's slice
+notation, these children are `iter_loop.loop_body[6:10]` where
+`iter_loop` is the PSyIR loop node representing the iteration loop.
+
+4. Enclose children 6-9 within a single OMP Parallel region. Note that
+after step 3, these children are now OMP Parallel Directive nodes;
+
+5. Parallelise all remaining children of the iteration loop that are
+loops over levels;
+
+This completes part 3 of the NEMO tutorial.
 
 
