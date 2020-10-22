@@ -47,14 +47,15 @@ from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
     FortranWriter, gen_datatype, get_fortran_operator, _reverse_map, \
     is_fortran_intrinsic, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
-    UnaryOperation, BinaryOperation, NaryOperation, Reference, Call
+    UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
+    KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
-    DeferredType, RoutineSymbol
-from psyclone.psyGen import KernelSchedule
+    DeferredType, RoutineSymbol, Symbol
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
 
 
@@ -612,8 +613,35 @@ def test_gen_decls_routine(fort_writer):
     with pytest.raises(VisitorError) as info:
         _ = fort_writer.gen_decls(symbol_table)
     assert (
-        "Routine symbols without a global interface are unsupported by the "
-        "Fortran back-end." in str(info.value))
+        "Routine symbols without a global or local interface are not supported"
+        " by the Fortran back-end." in str(info.value))
+
+
+def test_gen_routine_access_stmts(fort_writer):
+    '''
+    Tests for the gen_routine_access_stmts method of FortranWriter.
+    '''
+    symbol_table = SymbolTable()
+    symbol_table.add(RoutineSymbol("my_sub1",
+                                   visibility=Symbol.Visibility.PUBLIC))
+    code = fort_writer.gen_routine_access_stmts(symbol_table)
+    assert "public :: my_sub1" in code
+    sub2 = RoutineSymbol("my_sub2", visibility=Symbol.Visibility.PRIVATE)
+    symbol_table.add(sub2)
+    code = fort_writer.gen_routine_access_stmts(symbol_table)
+    assert "public :: my_sub1\nprivate :: my_sub2\n" in code
+    # Check that the interface of the symbol does not matter
+    symbol_table.add(
+        RoutineSymbol("used_sub", visibility=Symbol.Visibility.PRIVATE,
+                      interface=GlobalInterface(ContainerSymbol("some_mod"))))
+    code = fort_writer.gen_routine_access_stmts(symbol_table)
+    assert "public :: my_sub1\nprivate :: my_sub2, used_sub\n" in code
+    # Break the visibility of the second symbol
+    sub2._visibility = "broken"
+    with pytest.raises(InternalError) as err:
+        fort_writer.gen_routine_access_stmts(symbol_table)
+    assert ("Unrecognised visibility ('broken') found for symbol 'my_sub2'"
+            in str(err.value))
 
 
 def test_fw_exception(fort_writer):
@@ -678,6 +706,7 @@ def test_fw_container_2(fort_writer):
         "  use test2_mod, only : a, b\n"
         "  real :: c\n"
         "  real :: d\n\n"
+        "  public :: tmp\n\n"
         "  contains\n"
         "  subroutine tmp()\n\n\n"
         "  end subroutine tmp\n\n"
@@ -706,8 +735,7 @@ def test_fw_container_3(fort_writer, monkeypatch):
         "end module test")
     schedule = create_schedule(code, "tmp")
     container = schedule.root
-    symbol = container.symbol_table.symbols[0]
-    assert symbol.name == "a"
+    symbol = container.symbol_table.lookup("a")
     monkeypatch.setattr(symbol, "_interface", ArgumentInterface())
 
     with pytest.raises(VisitorError) as excinfo:

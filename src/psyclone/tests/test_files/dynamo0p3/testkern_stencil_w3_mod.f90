@@ -47,7 +47,7 @@ module testkern_stencil_w3_mod
           (/ arg_type(gh_field, gh_write, w3),                &
              arg_type(gh_field, gh_read,  w2, stencil(cross)) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_stencil_w3_code
   end type testkern_stencil_w3_type

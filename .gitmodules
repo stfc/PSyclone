@@ -4,3 +4,6 @@
 [submodule "external/dl_esm_inf"]
 	path = external/dl_esm_inf
 	url = https://github.com/stfc/dl_esm_inf.git
+[submodule "external/FortCL"]
+	path = external/FortCL
+	url = https://github.com/stfc/FortCL.git

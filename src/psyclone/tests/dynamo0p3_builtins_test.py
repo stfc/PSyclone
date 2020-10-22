@@ -99,8 +99,8 @@ def test_dynbuiltin_not_over_dofs():
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
-    assert ("built-in calls must iterate over DoFs but found 'cells' for "
-            "Built-in: Set field " in str(excinfo.value))
+    assert ("built-in calls must operate on DoFs but found 'cell_column' "
+            "for Built-in: Set field " in str(excinfo.value))
 
 
 def test_builtin_multiple_writes():
@@ -2605,7 +2605,7 @@ def test_scalar_int_builtin_error(monkeypatch):
                                   "16.2_integer_scalar_sum.f90"),
                      api=API)
     assert ("In the LFRic API a reduction access 'gh_sum' is only valid "
-            "with a real scalar argument, but scalar 'gh_integer' with "
+            "with a real scalar argument, but a scalar argument with "
             "'gh_integer' data type was found" in str(excinfo.value))
 
 

@@ -53,7 +53,7 @@ module testkern_anyw2_operator_mod
     type(func_type) :: meta_funcs(1) =  (/ &
          func_type(any_w2, gh_basis)       &
          /)
-    integer :: iterates_over = cells
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
     procedure, nopass :: code => testkern_anyw2_operator_code

@@ -49,7 +49,7 @@ use argument_mod,            only : arg_type, func_type,                    &
                                     GH_READ, GH_WRITE,                      &
                                     ANY_DISCONTINUOUS_SPACE_1, ANY_SPACE_1, &
                                     GH_COLUMN_INDIRECTION_DOFMAP,           &
-                                    CELLS 
+                                    CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
 
@@ -69,7 +69,7 @@ type, public, extends(kernel_type) :: columnwise_op_app_anydspace_kernel_type
        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  ANY_DISCONTINUOUS_SPACE_1,  &
                                                   ANY_SPACE_1)                &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: columnwise_op_app_anydspace_kernel_code
 end type columnwise_op_app_anydspace_kernel_type

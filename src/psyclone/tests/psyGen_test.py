@@ -50,17 +50,15 @@ import os
 import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
-from psyclone.psyir.nodes import Assignment, Reference, BinaryOperation, \
-    Literal, Node, Schedule
+from psyclone.psyir.nodes import Assignment, BinaryOperation, \
+    Literal, Node, Schedule, KernelSchedule
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
-    OMPParallelDoDirective, KernelSchedule, InlinedKern, \
+    OMPParallelDoDirective, InlinedKern, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
     ACCEnterDataDirective, ACCKernelsDirective, HaloExchange, Invoke, \
     DataAccess, Kern, Arguments, CodedKern
 from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, \
-    REAL_TYPE, INTEGER_TYPE
+from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
@@ -68,7 +66,7 @@ from psyclone.transformations import OMPParallelLoopTrans, \
     ACCEnterDataTrans, ACCParallelTrans, ACCLoopTrans, ACCKernelsTrans
 from psyclone.generator import generate
 from psyclone.configuration import Config
-from psyclone.tests.utilities import get_invoke, check_links
+from psyclone.tests.utilities import get_invoke
 from psyclone.tests.lfric_build import LFRicBuild
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -312,7 +310,7 @@ module dummy_mod
              arg_type(gh_field, gh_readwrite, wtheta), &
              arg_type(gh_field, gh_inc,       w1)      &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -610,7 +608,8 @@ def test_acc_dir_node_str():
     acclt = ACCLoopTrans()
     accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     colour = SCHEDULE_COLOUR_MAP["Directive"]
     schedule = invoke.schedule
 
@@ -734,7 +733,7 @@ def test_args_filter2():
     assert len(args) == len(expected_output)
 
     # arg_types
-    args = loop.args_filter(arg_types=["gh_operator", "gh_integer"])
+    args = loop.args_filter(arg_types=["gh_operator", "gh_scalar"])
     expected_output = ["mm_w0", "a"]
     for arg in args:
         assert arg.name in expected_output
@@ -1566,7 +1565,8 @@ def test_omp_dag_names():
 def test_acc_dag_names():
     ''' Check that we generate the correct dag names for ACC parallel,
     ACC enter-data and ACC loop directive Nodes '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
 
     acclt = ACCLoopTrans()
@@ -1842,10 +1842,11 @@ def test_haloexchange_vector_index_depend():
 
 
 def test_find_write_arguments_for_write():
-    ''' When backward_write_dependencies is called from a field argument
-    that does not read then we should return an empty list. This test
-    checks this functionality. We use the LFRic (Dynamo0.3) API to create
-    the required objects.
+    '''When backward_write_dependencies or forward_write_dependencies in
+    class Argument are called from a field argument that does not read
+    then we should return an empty list. This test checks this
+    functionality. We use the LFRic (Dynamo0.3) API to create the
+    required objects.
 
     '''
     _, invoke_info = parse(
@@ -1860,15 +1861,18 @@ def test_find_write_arguments_for_write():
     field_writer = kernel.arguments.args[7]
     node_list = field_writer.backward_write_dependencies()
     assert node_list == []
+    node_list = field_writer.forward_write_dependencies()
+    assert node_list == []
 
 
 def test_find_w_args_hes_no_vec(monkeypatch, annexed):
-    ''' When backward_write_dependencies, or forward_read_dependencies, are
-    called and a dependence is found between two halo exchanges, then
-    the field must be a vector field. If the field is not a vector
-    then an exception is raised. This test checks that the exception
-    is raised correctly. Also test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''When backward_write_dependencies, forward_read_dependencies, or
+    forward_write_dependencies are called and a dependence is found
+    between two halo exchanges, then the field must be a vector
+    field. If the field is not a vector then an exception is
+    raised. This test checks that the exception is raised
+    correctly. Also test with and without annexed dofs being computed
+    as this affects the generated code.
 
     '''
     config = Config.get()
@@ -1892,16 +1896,26 @@ def test_find_w_args_hes_no_vec(monkeypatch, annexed):
         _ = field_e_v3.backward_write_dependencies()
     assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
             "halo exchange calls. Found '1' and '3'" in str(excinfo.value))
+    halo_exchange_e_v2 = schedule.children[index-1]
+    field_e_v2 = halo_exchange_e_v2.field
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_read_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
+            "halo exchange calls. Found '3' and '1'" in str(excinfo.value))
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_write_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
+            "halo exchange calls. Found '3' and '1'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
-    ''' When backward_write_dependencies, or forward_read_dependencies, are
-    called and a dependence is found between two halo exchanges, then
-    the associated fields must be equal size vectors . If the fields
-    are not vectors of equal size then an exception is raised. This
-    test checks that the exception is raised correctly. Also test with
-    and without annexed dofs being computed as this affects the
-    generated code.
+    '''When backward_write_dependencies, forward_read_dependencies, or
+    forward_write_dependencies are called and a dependence is found
+    between two halo exchanges, then the associated fields must be
+    equal size vectors. If the fields are not vectors of equal size
+    then an exception is raised. This test checks that the exception
+    is raised correctly. Also test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
     config = Config.get()
@@ -1925,16 +1939,26 @@ def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
         _ = field_e_v3.backward_write_dependencies()
     assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
             "halo exchange calls. Found '2' and '3'" in str(excinfo.value))
+    halo_exchange_e_v2 = schedule.children[index-1]
+    field_e_v2 = halo_exchange_e_v2.field
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_read_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
+            "halo exchange calls. Found '3' and '2'" in str(excinfo.value))
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_write_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
+            "halo exchange calls. Found '3' and '2'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
-    ''' When backward_write_dependencies, or forward_read_dependencies are
-    called, and a dependence is found between two halo exchanges, then
-    the vector indices of the two halo exchanges must be different. If
-    the vector indices have the same value then an exception is
-    raised. This test checks that the exception is raised
-    correctly. Also test with and without annexed dofs being computed
-    as this affects the generated code.
+    '''When backward_write_dependencies, forward_read_dependencies or
+    forward_write_dependencies are called, and a dependence is found
+    between two halo exchanges, then the vector indices of the two
+    halo exchanges must be different. If the vector indices have the
+    same value then an exception is raised. This test checks that the
+    exception is raised correctly. Also test with and without annexed
+    dofs being computed as this affects the generated code.
 
     '''
     config = Config.get()
@@ -1960,15 +1984,31 @@ def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
     assert ("DataAccess:update_coverage() The halo exchange vector indices "
             "for 'e' are the same. This should never happen"
             in str(excinfo.value))
+    halo_exchange_e_v2 = schedule.children[index-1]
+    field_e_v2 = halo_exchange_e_v2.field
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_read_dependencies()
+    assert ("DataAccess:update_coverage() The halo exchange vector indices "
+            "for 'e' are the same. This should never happen"
+            in str(excinfo.value))
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_write_dependencies()
+    assert ("DataAccess:update_coverage() The halo exchange vector indices "
+            "for 'e' are the same. This should never happen"
+            in str(excinfo.value))
 
 
-def test_find_w_args_hes_vec_no_dep():
+def test_find_w_args_hes_vec_no_dep(monkeypatch, annexed):
     ''' When _find_write_arguments, or _find_read_arguments, are called,
     halo exchanges with the same field but a different index should
     not depend on each other. This test checks that this behaviour is
-    working correctly
-    '''
+    working correctly. Also test with and without annexed
+    dofs being computed as this affects the generated code.
 
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         api="dynamo0.3")
@@ -1976,11 +2016,28 @@ def test_find_w_args_hes_vec_no_dep():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    halo_exchange_e_v3 = schedule.children[5]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    halo_exchange_e_v3 = schedule.children[index]
     field_e_v3 = halo_exchange_e_v3.field
-    # there are two halo exchanges before d_v3 which should not count
-    # as dependencies
+    # There are two halo exchanges before e_v3 which should not count
+    # as dependencies.
     node_list = field_e_v3.backward_write_dependencies()
+    assert node_list == []
+    halo_exchange_e_v1 = schedule.children[index-2]
+    field_e_v1 = halo_exchange_e_v1.field
+    # There are two halo exchanges after e_v1 which should not count
+    # as dependencies. We should only get the read access from a
+    # kernel.
+    node_list = field_e_v1.forward_read_dependencies()
+    assert len(node_list) == 1
+    assert isinstance(node_list[0].call, DynKern)
+    # There are two halo exchanges after e_v1 which should not count
+    # as dependencies and a read access from a kernel, so there should
+    # be no write dependencies.
+    node_list = field_e_v1.forward_write_dependencies()
     assert node_list == []
 
 
@@ -2168,7 +2225,7 @@ def test_kern_ast():
     from fparser.two import Fortran2003
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    kern = sched.children[0].loop_body[0].loop_body[0]
+    kern = sched.coded_kernels()[0]
     assert isinstance(kern, GOKern)
     assert kern.ast
     assert isinstance(kern.ast, Fortran2003.Program)
@@ -2260,107 +2317,6 @@ def test_dataaccess_same_vector_indices(monkeypatch):
     assert (
         "The halo exchange vector indices for 'e' are the same. This should "
         "never happen" in str(excinfo.value))
-
-
-# Test KernelSchedule Class
-
-def test_kernelschedule_view(capsys):
-    '''Test the view method of the KernelSchedule part.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    symbol_table = SymbolTable()
-    symbol = DataSymbol("x", INTEGER_TYPE)
-    symbol_table.add(symbol)
-    lhs = Reference(symbol)
-    rhs = Literal("1", INTEGER_TYPE)
-    assignment = Assignment.create(lhs, rhs)
-    kschedule = KernelSchedule.create("kname", symbol_table, [assignment])
-    kschedule.view()
-    coloredtext = colored("Schedule",
-                          SCHEDULE_COLOUR_MAP["Schedule"])
-    output, _ = capsys.readouterr()
-    assert coloredtext+"[name:'kname']" in output
-    assert "Assignment" in output  # Check child view method is called
-
-
-def test_kernelschedule_can_be_printed():
-    '''Test that a KernelSchedule instance can always be printed (i.e. is
-    initialised fully)'''
-    symbol = DataSymbol("x", INTEGER_TYPE)
-    symbol_table = SymbolTable()
-    symbol_table.add(symbol)
-    lhs = Reference(symbol)
-    rhs = Literal("1", INTEGER_TYPE)
-    assignment = Assignment.create(lhs, rhs)
-    kschedule = KernelSchedule.create("kname", symbol_table, [assignment])
-    assert "Schedule[name:'kname']:\n" in str(kschedule)
-    assert "Assignment" in str(kschedule)  # Check children are printed
-    assert "End KernelSchedule" in str(kschedule)
-
-
-def test_kernelschedule_name_setter():
-    '''Test that the name setter changes the kernel name attribute.'''
-    kschedule = KernelSchedule("kname")
-    assert kschedule.name == "kname"
-    kschedule.name = "newname"
-    assert kschedule.name == "newname"
-
-
-def test_kernelschedule_create():
-    '''Test that the create method in the KernelSchedule class correctly
-    creates a KernelSchedule instance.
-
-    '''
-    symbol_table = SymbolTable()
-    symbol = DataSymbol("tmp", REAL_TYPE)
-    symbol_table.add(symbol)
-    assignment = Assignment.create(Reference(symbol),
-                                   Literal("0.0", REAL_TYPE))
-    kschedule = KernelSchedule.create("mod_name", symbol_table, [assignment])
-    check_links(kschedule, [assignment])
-    assert kschedule.symbol_table is symbol_table
-    result = FortranWriter().kernelschedule_node(kschedule)
-    assert result == (
-        "subroutine mod_name()\n"
-        "  real :: tmp\n\n"
-        "  tmp=0.0\n\n"
-        "end subroutine mod_name\n")
-
-
-def test_kernelschedule_create_invalid():
-    '''Test that the create method in a KernelSchedule class raises the
-    expected exception if the provided input is invalid.
-
-    '''
-    symbol_table = SymbolTable()
-    symbol = DataSymbol("x", REAL_TYPE)
-    symbol_table.add(symbol)
-    children = [Assignment.create(Reference(symbol),
-                                  Literal("1", REAL_TYPE))]
-
-    # name is not a string.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create(1, symbol_table, children)
-    assert ("name argument in create method of KernelSchedule class "
-            "should be a string but found 'int'.") in str(excinfo.value)
-
-    # symbol_table not a SymbolTable.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create("mod_name", "invalid", children)
-    assert ("symbol_table argument in create method of KernelSchedule class "
-            "should be a SymbolTable but found 'str'.") in str(excinfo.value)
-
-    # children not a list.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create("mod_name", symbol_table, "invalid")
-    assert ("children argument in create method of KernelSchedule class "
-            "should be a list but found 'str'." in str(excinfo.value))
-
-    # contents of children list are not Node.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create("mod_name", symbol_table, ["invalid"])
-    assert (
-        "child of children argument in create method of KernelSchedule class "
-        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
 
 def test_modified_kern_line_length(kernel_outputdir, monkeypatch):

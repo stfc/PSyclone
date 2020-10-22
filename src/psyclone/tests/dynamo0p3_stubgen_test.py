@@ -73,9 +73,9 @@ def test_kernel_stub_invalid_iteration_space():
     kernel.load_meta(metadata)
     with pytest.raises(InternalError) as excinfo:
         _ = kernel.gen_stub
-    assert ("DynKern.gen_stub(): Expected one of ['cells'] as iteration "
-            "space but found 'dofs' in kernel 'testkern_dofs_code'."
-            in str(excinfo.value))
+    assert ("Expected the kernel to operate on one of "
+            "['cells', 'cell_column'] but found 'dof' in kernel "
+            "'testkern_dofs_code'." in str(excinfo.value))
 
 
 def test_dynscalars_stub_err():
@@ -205,9 +205,9 @@ def test_stub_generate_with_scalar_sums():
             os.path.join(BASE_PATH, "simple_with_reduction.f90"),
             api=TEST_API)
     assert (
-        "user-supplied Dynamo 0.3 kernel must not write/update a scalar "
-        "argument but kernel simple_with_reduction_type has gh_real with "
-        "gh_sum access" in str(err.value))
+        "A user-supplied LFRic kernel must not write/update a scalar "
+        "argument but kernel 'simple_with_reduction_type' has a scalar "
+        "argument with 'gh_sum' access." in str(err.value))
 
 
 # Fields : intent
@@ -219,7 +219,7 @@ module dummy_mod
              arg_type(gh_field, gh_inc,   w1), &
              arg_type(gh_field, gh_read,  w1)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -296,7 +296,7 @@ module dummy_mod
              arg_type(gh_field, gh_write, w2vtrace), &
              arg_type(gh_field, gh_read,  wchi)      &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -406,7 +406,7 @@ module dummy_mod
              arg_type(gh_field, gh_inc,       any_space_7),               &
              arg_type(gh_field, gh_readwrite, any_discontinuous_space_4)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -468,7 +468,7 @@ module dummy_mod
      type(arg_type), meta_args(1) =           &
           (/ arg_type(gh_field*3, gh_inc, w0) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -742,7 +742,7 @@ module dummy_mod
      type(arg_type), meta_args(1) =         &
           (/ arg_type(gh_field, gh_inc, w1) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy
   end type dummy_type

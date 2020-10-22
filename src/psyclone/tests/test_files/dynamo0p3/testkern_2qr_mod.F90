@@ -53,7 +53,7 @@ module testkern_2qr_mod
              func_type(w2, gh_diff_basis),          &
              func_type(w3, gh_basis, gh_diff_basis) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape(2) = (/ gh_quadrature_face, gh_quadrature_edge /)
    contains
      procedure, nopass :: code => testkern_2qr_code

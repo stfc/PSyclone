@@ -46,7 +46,7 @@ module conservative_flux_kernel_mod
 use constants_mod,     only : r_def, i_def
 use argument_mod,      only : arg_type, GH_FIELD, &
                               GH_INC, GH_READ,    &
-                              STENCIL, XORY1D, CELLS
+                              STENCIL, XORY1D, CELL_COLUMN
 use fs_continuity_mod, only : W2, W3
 use kernel_mod,        only : kernel_type
 
@@ -69,7 +69,7 @@ type, public, extends(kernel_type) :: conservative_flux_kernel_type
        arg_type(GH_FIELD,   GH_READ,  W3, STENCIL(XORY1D)),            &
        arg_type(GH_FIELD,   GH_READ,  W3, STENCIL(XORY1D))             &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: conservative_flux_code
 end type

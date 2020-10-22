@@ -226,16 +226,11 @@ class Symbol(object):
                 "{0} 'name' attribute should be of type 'str'"
                 " but '{1}' found.".format(
                     type(self).__name__, type(name).__name__))
-        if not isinstance(visibility, Symbol.Visibility):
-            raise TypeError(
-                "{0} 'visibility' attribute should be of type "
-                "psyir.symbols.Symbol.Visibility but '{1}' found.".format(
-                    type(self).__name__, type(visibility).__name__))
 
         self._name = name
-        self._visibility = visibility
 
-        # The following attributes has a setter method (with error checking)
+        # The following attributes have a setter method (with error checking)
+        self._visibility = None
         self._interface = None
         # If an interface is not provided, use LocalInterface by default
         if not interface:
@@ -243,6 +238,81 @@ class Symbol(object):
         else:
             # Use the setter as it checks the variables validity
             self.interface = interface
+        self.visibility = visibility
+
+    def copy(self):
+        '''Create and return a copy of this object. Any references to the
+        original will not be affected so the copy will not be referred
+        to by any other object.
+
+        :returns: A symbol object with the same properties as this \
+                  symbol object.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        '''
+        # The constructors for all Symbol-based classes have 'name' as the
+        # first positional argument.
+        return type(self)(self.name, visibility=self.visibility,
+                          interface=self.interface)
+
+    def get_external_symbol(self):
+        '''
+        Looks-up and returns the Symbol referred to by this Symbol's external
+        (global) interface.
+
+        :raises SymbolError: if the module pointed to by the symbol interface \
+                             does not contain the symbol (or the symbol is \
+                             not public).
+        :raises NotImplementedError: if the this symbol does not have an \
+                                     external (global) interface.
+        '''
+        if not self.is_global:
+            raise NotImplementedError(
+                "Error trying to resolve symbol '{0}' properties, the lazy"
+                " evaluation of '{1}' interfaces is not supported."
+                "".format(self.name, self.interface))
+
+        module = self.interface.container_symbol
+        try:
+            return module.container.symbol_table.lookup(
+                self.name, visibility=self.Visibility.PUBLIC)
+        except KeyError as kerr:
+            six.raise_from(SymbolError(
+                "Error trying to resolve the properties of symbol "
+                "'{0}'. The interface points to module '{1}' but "
+                "could not find the definition of '{0}' in that "
+                "module.".format(self.name, module.name)), kerr)
+        except SymbolError as err:
+            six.raise_from(SymbolError(
+                "Error trying to resolve the properties of symbol "
+                "'{0}' in module '{1}': {2}".format(
+                    self.name, module.name, str(err.value))), err)
+
+    def resolve_deferred(self):
+        '''
+        Search for the Container in which this Symbol is defined and
+        create and return a symbol of the correct class and type. If the
+        class and type of the looked-up symbol are the same as this one,
+        some specialisations of this method update the differing
+        properties in place rather than create a new symbol.
+        If this symbol does not have a 'global' interface then there is no
+        lookup needed and we just return this symbol.
+
+        :returns: a symbol object with the class and type determined by \
+                  examining the Container from which it is imported.
+        :rtype: subclass of :py:class:`psyclone.psyir.symbols.Symbol`
+
+        '''
+        if self.is_global:
+            extern_symbol = self.get_external_symbol()
+            # Create a new symbol object of the same class as the one
+            # we've just looked up but with the interface and visibility
+            # of the current symbol.
+            new_sym = extern_symbol.copy()
+            new_sym.interface = self.interface
+            new_sym.visibility = self.visibility
+            return new_sym
+        return self
 
     @property
     def name(self):
@@ -259,6 +329,21 @@ class Symbol(object):
         :rtype: :py:class:`psyclone.psyir.symbol.Symbol.Visibility`
         '''
         return self._visibility
+
+    @visibility.setter
+    def visibility(self, value):
+        '''
+        Setter for the visibility attribute.
+
+        :raises TypeError: if the supplied value is not an instance of \
+                           Symbol.Visibility.
+        '''
+        if not isinstance(value, Symbol.Visibility):
+            raise TypeError(
+                "{0} 'visibility' attribute should be of type "
+                "psyir.symbols.Symbol.Visibility but got '{1}'.".format(
+                    type(self).__name__, type(value).__name__))
+        self._visibility = value
 
     @property
     def interface(self):
@@ -322,6 +407,44 @@ class Symbol(object):
 
         '''
         return isinstance(self._interface, UnresolvedInterface)
+
+    def find_symbol_table(self, node):
+        '''
+        Searches back up the PSyIR tree for the SymbolTable that contains
+        this Symbol.
+
+        :param node: the PSyIR node from which to search.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: the SymbolTable containing this Symbol or None.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
+
+        :raises TypeError: if the supplied `node` argument is not a PSyIR Node.
+
+        '''
+        # This import has to be local to this method to avoid circular
+        # dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Node
+        if not isinstance(node, Node):
+            raise TypeError(
+                "find_symbol_table: expected to be passed an instance of "
+                "psyir.nodes.Node but got '{0}'".format(type(node).__name__))
+
+        try:
+            current = node.scope.symbol_table
+            while current:
+                if self.name in current:
+                    return current
+                if current.node.parent:
+                    current = current.node.parent.scope.symbol_table
+                else:
+                    # We can't go any further up the hierarchy and we haven't
+                    # found a SymbolTable that contains this symbol.
+                    return None
+        except SymbolError:
+            # Failed to find any enclosing symbol table
+            return None
 
     def __str__(self):
         return self.name

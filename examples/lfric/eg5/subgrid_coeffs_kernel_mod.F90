@@ -64,7 +64,7 @@ module subgrid_coeffs_kernel_mod
 
 use argument_mod,       only : arg_type, GH_FIELD, &
                                GH_READ, GH_WRITE,  &
-                               STENCIL, CROSS, CELLS
+                               STENCIL, CROSS, CELL_COLUMN
 use fs_continuity_mod,  only : W3
 use constants_mod,      only : r_def, i_def, l_def
 use subgrid_config_mod, only : subgrid_rho_approximation_constant_subgrid,     &
@@ -94,7 +94,7 @@ type, public, extends(kernel_type) :: subgrid_coeffs_kernel_type
        arg_type(GH_FIELD, GH_WRITE, W3),                               &
        arg_type(GH_FIELD, GH_READ,  W3, STENCIL(CROSS))                &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: subgrid_coeffs_code
 end type

@@ -3600,7 +3600,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3613,7 +3613,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='nannexed']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3625,7 +3625,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3643,7 +3643,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3655,7 +3655,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3667,7 +3667,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
             3*indent + "0: " + directive + "[OMP do][reprod=True]\n" +
             4*indent + sched + "[]\n" +
             5*indent + "0: " + loop + "[type='dofs', "
-            "field_space='any_space_1', it_space='dofs', "
+            "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
             6*indent + lit_uninit +
             6*indent + lit_uninit +
@@ -3728,7 +3728,7 @@ def test_list_multiple_reductions(dist_mem):
     omp_loop_directive = schedule[0].dir_body[0]
     call = omp_loop_directive.dir_body[0].loop_body[0]
     arg = call.arguments.args[2]
-    arg._argument_type = "gh_real"
+    arg._argument_type = "gh_scalar"
     arg.descriptor._access = AccessType.SUM
     result = omp_loop_directive._reduction_string()
     assert ", reduction(+:asum), reduction(+:f2)" in result
@@ -4341,7 +4341,6 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-@pytest.mark.xfail(reason="#885 missing halo exchange for f1")
 def test_rc_dofs_depth():
     ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange

@@ -35,6 +35,7 @@
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 
 '''
@@ -54,8 +55,8 @@ from psyclone.configuration import Config
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
-NEMO_BASE_PATH =  os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "nemo", "test_files")
+NEMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "nemo", "test_files")
 DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "dynamo0p3")
 

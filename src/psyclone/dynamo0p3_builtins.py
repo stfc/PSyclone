@@ -57,7 +57,8 @@ VALID_BUILTIN_ARG_TYPES = LFRicArgDescriptor.VALID_FIELD_NAMES + \
     LFRicArgDescriptor.VALID_SCALAR_NAMES
 
 # Valid LFRic iteration spaces for built-in kernels
-BUILTIN_ITERATION_SPACES = ["dofs"]
+# TODO #870 rm 'dofs' from list below.
+BUILTIN_ITERATION_SPACES = ["dofs", "dof"]
 
 
 # Function to return the built-in operations that we support for this API.
@@ -197,7 +198,7 @@ class DynBuiltIn(BuiltIn):
         # Check that our assumption that we're looping over DoFs is valid
         if self.iterates_over not in BUILTIN_ITERATION_SPACES:
             raise ParseError(
-                "In the LFRic API built-in calls must iterate over "
+                "In the LFRic API built-in calls must operate on "
                 "DoFs but found '{0}' for {1}.".
                 format(self.iterates_over, str(self)))
         # Check write count, field arguments and spaces

@@ -128,7 +128,7 @@ def test_gocean_omp_parallel():
     from psyclone.transformations import OMPParallelTrans
 
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
-                           idx=0)
+                           idx=0, dist_mem=False)
 
     omp = OMPParallelTrans()
     omp_sched, _ = omp.apply(invoke.schedule[0])
@@ -214,7 +214,7 @@ def test_gocean_omp_do():
     from psyclone.transformations import OMPLoopTrans
 
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
-                           idx=0)
+                           idx=0, dist_mem=False)
     omp = OMPLoopTrans()
     omp_sched, _ = omp.apply(invoke.schedule[0])
 
