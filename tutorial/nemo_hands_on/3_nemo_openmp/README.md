@@ -76,6 +76,15 @@ Hopefully that looks similar to what you may have ended up with at the
 end of the profiling part of this tutorial although we are applying a
 different transformation here.
 
+Note that in this tutorial we will only be applying OpenMP
+parallelisation to the loops over vertical levels. This is because, in
+the full NEMO code, the horizontal domain is already decomposed over
+MPI processes while there is no attempt to exploit the parallelism
+available in the vertical.  This paralllelism is available throughout
+the majority of the code. (Of course, it would also be possible to use
+OpenMP to parallelise the horizontal domain in NEMO so as to reduce
+the number of MPI processes and resulting inter-process communication.)
+
 The next step is to attempt to use this script to transform the mini-app.
 You can use the Makefile or just run PSyclone directly:
 
@@ -216,9 +225,15 @@ Intel I7 with hyperthreading:
 | 4                 | 0.31250  | 1.8      |
 | 8                 | 0.28125  | 2.0      |
 
-So we get a speed-up but it's far from ideal.
+Hopefully you too will be able to see a speedup when running the code
+on your machine. Note that there are many things to consider when
+looking at performance including (but not limited to); the number of
+physical cores your particular CPU has, binding threads to cores,
+ensuring repeatable timings, and any other, competing activity on your
+machine. This is all well beyond the scope of this tutorial.
 
 ## Improving Performance ##
+
 
 Probably don't want to get too in-depth here. Is there scope
 to use a PARALLEL region in this mini-app (although that might
