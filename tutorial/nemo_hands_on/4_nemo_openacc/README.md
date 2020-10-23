@@ -72,9 +72,30 @@ Directive nodes have been added to the Schedule, e.g.:
                     0: Loop[type='levels', field_space='None', it_space='None']
                        ...
 
+Note that the script has enclosed the outer, 'iteration' loop within a
+KERNELS region. If we look at the generated code we can see that this
+loop cannot be parallelised because it both reads and writes the
+`mydomain` array so that each iteration depends upon the results of
+the previous one. We are therefore relying upon the OpenACC compiler
+to "do the right thing" and parallelise the loops *within* the iteration loop.
+
 ### 2. Using `validate()`??? ###
 
 ## Controlling Data Movement ##
+
+A vital part of achieving good GPU performance is minimising the
+amount of data that is moved between the memory of the host CPU and
+the memory of the GPU. Even with hardware technology such as NVLink,
+the bandwidth available between GPU and CPU is still only of the order
+of that between the CPU and main memory. Therefore, frequent data
+movement on and off the GPU will destroy performance.
+
+The OpenACC specification allows for both implicit (compiler generated)
+and explicit data movement. NVIDIA also supports 'managed memory'
+where page faults on either the CPU or GPU cause the necessary memory
+to be moved automatically to the correct location.
+
+### Explicit DATA Regions ###
 
 ## Collapsing Loop Nests ##
 
