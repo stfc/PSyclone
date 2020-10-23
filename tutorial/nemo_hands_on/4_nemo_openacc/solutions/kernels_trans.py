@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''A skeleton transformation script that acts as a starting point for
-adding OpenACC KERNELS directives to NEMO style code.  In order to use it you
+'''A transformation script that adds KERNELS regions enclosed within a DATA
+region to the tracer-advection mini-app.  In order to use it you
 must first install PSyclone. See README.md in the top-level psyclone directory.
 
 Once you have psyclone installed, this may be used by doing:
@@ -48,9 +48,8 @@ have already been preprocessed (if required).
 '''
 
 from __future__ import print_function
-from psyclone.psyir.nodes import Loop
-from psyclone.transformations import (TransformationError, ACCKernelsTrans,
-                                      ACCDataTrans)
+from psyclone.psyir.nodes import Loop, Assignment
+from psyclone.transformations import ACCKernelsTrans, ACCDataTrans
 
 
 # Get the PSyclone transformations we will use
@@ -79,11 +78,16 @@ def trans(psy):
             break
 
     for node in tloop.loop_body.children:
+        # Enclose explicit loops over vertical levels
         if isinstance(node, Loop) and node.loop_type == "levels":
-            try:
-                _ = ACC_KERNELS_TRANS.apply([node])
-            except TransformationError:
-                pass
+            _ = ACC_KERNELS_TRANS.apply([node])
+        # Enclose array assignments (implicit loops)
+        if isinstance(node, Assignment) and node.is_array_range:
+            _ = ACC_KERNELS_TRANS.apply([node])
 
-    ACC_DATA_TRANS.apply(tloop.loop_body.children)
+    # Finally, enclose the whole of the 'iteration' loop within
+    # a data region
+    # TODO #953 remove `[]` from around tloop argument
+    ACC_DATA_TRANS.apply([tloop])
+
     sched.view()
