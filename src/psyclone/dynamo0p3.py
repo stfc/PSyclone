@@ -2657,13 +2657,17 @@ class DynFields(DynCollection):
 
         :raises InternalError: for an unsupported intrinsic type of field \
                                argument data (other than "real" or "integer").
-        :raises GenerationError: if the same field is passed to different \
-                                 kernel calls ....
+        :raises GenerationError: if the same field has different data \
+                                 types in different kernel calls within \
+                                 the same Invoke.
 
         '''
         # Add the Invoke subroutine argument declarations for fields
-        fld_args = self._invoke.unique_declarations(
-            argument_types=LFRicArgDescriptor.VALID_FIELD_NAMES)
+        fld_args = []
+        for kern in self._invoke.schedule.kernels():
+            fld_args.extend(psyGen.args_filter(
+                kern.arguments.args,
+                arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES))
         # Create lists of field names for real- and integer-valued fields
         real_fld_arg_list = []
         int_fld_arg_list = []
@@ -2675,23 +2679,24 @@ class DynFields(DynCollection):
                 int_fld_arg_list.append(declname)
             else:
                 raise InternalError(
-                    "Found an unsupported intrinsic type '{0}' in Invoke "
-                    "declarations for the field argument '{1}'. Supported "
-                    "types are {2}.".
+                    "Found an unsupported intrinsic type '{0}' in "
+                    "Invoke declarations for the field argument '{1}'. "
+                    "Supported types are {2}.".
                     format(fld.intrinsic_type, declname,
                            list(MAPPING_DATA_TYPES.values())))
+        # Remove duplicates using OrderedDict
+        real_fld_arg_list = list(OrderedDict.fromkeys(real_fld_arg_list))
+        int_fld_arg_list = list(OrderedDict.fromkeys(int_fld_arg_list))
         # Check that the same field name is not found in both real and
         # integer field lists (for instance if passed to one kernel as a
         # real-valued and to another kernel as an integer-valued field)
         flds_multi_type_list = list(
             set(real_fld_arg_list).intersection(set(int_fld_arg_list)))
-        print(real_fld_arg_list)
-        print(int_fld_arg_list)
         if flds_multi_type_list:
             raise GenerationError(
-                "At least one field ({0}) in Invoke '{1}' is found in "
-                "different kernels with different data types {2}. "
-                "This is invalid".
+                "At least one field ({0}) in Invoke '{1}' has different "
+                "metadata for data type ({2}) in different kernels. "
+                "This is invalid.".
                 format(flds_multi_type_list, self._invoke.name,
                        list(MAPPING_DATA_TYPES.keys())))
 

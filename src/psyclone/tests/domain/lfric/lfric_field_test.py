@@ -51,7 +51,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.utils import ParseError
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.errors import InternalError
+from psyclone.errors import InternalError, GenerationError
 
 
 # Constants
@@ -789,54 +789,21 @@ def test_int_field_all_stencils_gen_stub():
 # integer-valued fields
 
 
-def test_int_real_field_invalid(dist_mem):
-    ''' Tests that an invoke calling a kernel with integer-valued
-    fields and a kernel with real-valued fields on all function
-    spaces produces correct code.
-
-    '''
+def test_int_real_field_invalid():
+    ''' Tests that the same field cannot have different data types
+    in different kernels within the same Invoke. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "4.15_multikernel_invokes_real_int_field_invalid.f90"),
         api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
-    generated_code = str(psy.gen)
-
-    output = (
-        "  MODULE multikernel_invokes_real_int_field_fs_psy\n"
-        "    USE constants_mod, ONLY: r_def, i_def\n"
-        "    USE field_mod, ONLY: field_type, field_proxy_type\n"
-        "    USE integer_field_mod, ONLY: integer_field_type, "
-        "integer_field_proxy_type\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE invoke_integer_and_real_field(i1, i2, n1, n2, i3, "
-        "i4, n3, n4, i5, i6, n5, n6, i7, i8, n7, f1, f2, m1, m2, f3, f4, "
-        "m3, m4, f5, f6, m5, m6, m7)\n")
-    assert output in generated_code
-    output = (
-        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2, f3, f4, "
-        "m3, m4, f5, f6, m5, m6, m7\n"
-        "      TYPE(integer_field_type), intent(in) :: i1, i2, n1, n2, "
-        "i3, i4, n3, n4, i5, i6, n5, n6, i7, i8, n7\n"
-        "      INTEGER(KIND=i_def) cell\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
-        "      TYPE(integer_field_proxy_type) i1_proxy, i2_proxy, n1_proxy, "
-        "n2_proxy, i3_proxy, i4_proxy, n3_proxy, n4_proxy, i5_proxy, "
-        "i6_proxy, n5_proxy, n6_proxy, i7_proxy, i8_proxy, n7_proxy\n"
-        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
-        "m2_proxy, f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, "
-        "f6_proxy, m5_proxy, m6_proxy, m7_proxy\n")
-    assert output in generated_code
-    # Number of layers and the mesh are determined from the first integer
-    # field. Maps for function spaces are determined from the first kernel
-    # call with integer fields
-    output = (
-        "      ! Initialise number of layers\n"
-        "      !\n"
-        "      nlayers = i1_proxy%vspace%get_nlayers()\n"
-        "      !\n")
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("At least one field (['n1']) in Invoke "
+            "'invoke_integer_and_real_field' has different metadata for "
+            "data type (['gh_real', 'gh_integer']) in different kernels. "
+            "This is invalid." in str(err.value))
 
 
 def test_int_real_field_fs(dist_mem, tmpdir):
