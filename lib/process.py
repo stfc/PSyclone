@@ -44,9 +44,10 @@ by the template to provide functions for each scalar type listed in
 ALL_TYPES, and for arrays with any number of dimension specified
 in DIMENSIONS and each type listed in ALL_TYPES. PREFIX can be
 used to add a prefix to static functions defined in the template.
+
 '''
 
-
+from __future__ import print_function
 import argparse
 import sys
 from jinja2 import Environment
