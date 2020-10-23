@@ -303,7 +303,7 @@ class ArrayType(DataType):
 
         '''
         from psyclone.psyir.symbols.datasymbol import DataSymbol
-        from psyclone.psyir.nodes import DataNode
+        from psyclone.psyir.nodes import DataNode, Reference
         if not isinstance(extents, list):
             raise TypeError(
                 "ArrayType 'shape' must be of type list but found '{0}'."
@@ -321,10 +321,33 @@ class ArrayType(DataType):
                         "DataSymbols that are part of another symbol shape can"
                         " only be scalar integers, but found '{0}'."
                         "".format(str(dimension)))
+                # Issue #948. Check for invalid dimension
+                # variables. The check below is commented out as it
+                # causes a lot of test failures, so it has been given
+                # a separate issue.
+                # if dimension.is_local and not dimension.is_constant:
+                #    # The datasymbol has no value.
+                #    raise TypeError(
+                #        "If a local datasymbol is used to declare a dimension "
+                #        "then it should be a constant, but '{0}' is not."
+                #        "".format(dimension.name))
             elif isinstance(dimension, DataNode):
                 # When issue #685 is addressed then check that the
                 # datatype returned is an int (or is unknown).
-                pass
+                
+                # Check that any references are not to local a
+                # datasymbol that is not constant (as this would have
+                # no value).
+                references = dimension.walk(Reference)
+                if references:
+                    for reference in references:
+                        if reference.symbol.is_local and \
+                           not reference.symbol.is_constant:
+                            raise TypeError(
+                                "If a local datasymbol is used as part of a "
+                                "dimension declaration then it should be a "
+                                "constant, but '{0}' is not."
+                                "".format(reference.symbol.name))
             elif not isinstance(dimension, (self.Extent, int)):
                 raise TypeError(
                     "DataSymbol shape list elements can only be "
