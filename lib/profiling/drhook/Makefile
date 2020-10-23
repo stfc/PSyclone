@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Australian Bureau of Meteorology
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,18 +41,21 @@ DRHOOK_INCLUDE?=$(DRHOOK_ROOT)/drhook/include
 DRHOOK_MODULES?=$(DRHOOK_ROOT)/build/module
 
 F90?=gfortran
-FFLAGS?=-g
-FFLAGS += -I$(DRHOOK_INCLUDE) -I$(DRHOOK_MODULES)
+F90FLAGS ?=
+F90FLAGS += -I$(DRHOOK_INCLUDE) -I$(DRHOOK_MODULES)
+OBJS = drhook_psy.o
 
-name=drhook_psy
+name = drhook_psy
 libname=lib$(name).a
 
 default: $(libname)
 
-$(libname): $(name).f90
-	$(F90) -c $(FFLAGS) $<
-	ar rs $(libname) $(name).o
+$(libname): $(OBJS)
+	ar rs $(libname) $(OBJS)
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f $(libname) $(name).o profile_mod.mod
+	rm -f $(libname) $(OBJS) profile_psy_data_mod.mod
 

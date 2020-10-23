@@ -47,7 +47,7 @@ module testkern_stencil_vector_xory_mod
           (/ arg_type(gh_field*3, gh_inc,  w0),                 &
              arg_type(gh_field*4, gh_read, w3, stencil(xory1d)) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_stencil_vector_xory_code
   end type testkern_stencil_vector_xory_type

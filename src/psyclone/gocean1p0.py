@@ -52,10 +52,10 @@ import six
 from psyclone.configuration import Config
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Node
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, KernelSchedule
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    KernelSchedule, AccessType, ACCEnterDataDirective, HaloExchange
+    AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, Symbol
@@ -1365,19 +1365,19 @@ class GOKern(CodedKern):
                               "C_LOC({4}))".format(qlist, device_buff,
                                                    nbytes, host_buff, wevent)))
                 if arg.argument_type == "field":
+                    # Fields have to set their 'data_on_device' flag to True
                     ifthen.add(AssignGen(
                         ifthen, lhs="{0}%data_on_device".format(arg.name),
                         rhs=".true."))
-                    # fields also have a 'read_from_device_f' function pointer
-                    # to specify how to read the data back from the device
+                    # Fields also have a 'read_from_device_f' function pointer
+                    # to specify how to read the data back from the device.
                     try:
                         read_fp = symtab.lookup_with_tag("ocl_read_func").name
                     except KeyError:
                         # If the subroutines does not exist, it needs to be
                         # generated first.
                         read_fp = self.gen_ocl_read_from_device_function(
-                                parent.parent)
-
+                            parent.parent)
                     ifthen.add(AssignGen(
                         ifthen, lhs="{0}%read_from_device_f".format(arg.name),
                         rhs=read_fp, pointer=True))
@@ -1395,7 +1395,7 @@ class GOKern(CodedKern):
         its name.
 
         :param f2pygen_module: the module where the new function will be \
-                               inserted into.
+                               inserted.
         :param type: :py:class:`psyclone.f2pygen.ModuleGen`
 
         :returns: the name of the generated subroutine.
@@ -1404,10 +1404,13 @@ class GOKern(CodedKern):
         '''
         from psyclone.f2pygen import SubroutineGen, UseGen, CallGen, DeclGen
 
+        # Create the symbol for the routine and add it to the symbol table.
         subroutine_name = self.root.symbol_table.new_symbol_name(
             "read_from_device")
         subroutine_symbol = Symbol(subroutine_name)
         self.root.symbol_table.add(subroutine_symbol, tag="ocl_read_func")
+
+        # Generate the routine in the given f2pygen_module
         args = ["from", "to", "nx", "ny", "width"]
         sub = SubroutineGen(f2pygen_module, name=subroutine_name, args=args)
         f2pygen_module.add(sub)
@@ -1419,13 +1422,14 @@ class GOKern(CodedKern):
         sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
                         intent="in", entity_decls=["from"]))
         sub.add(DeclGen(sub, datatype="real", kind="go_wp", intent="inout",
-                dimension=":,:", entity_decls=["to"]))
+                        dimension=":,:", entity_decls=["to"]))
         sub.add(DeclGen(sub, datatype="integer", intent="in",
                         entity_decls=["nx", "ny", "width"]))
         sub.add(
             CallGen(
                 sub, name="read_buffer",
                 args=["from", "to", "int(width*ny, kind=8)"]))
+
         return subroutine_name
 
     def get_kernel_schedule(self):
@@ -1433,7 +1437,7 @@ class GOKern(CodedKern):
         Returns a PSyIR Schedule representing the GOcean kernel code.
 
         :return: Schedule representing the kernel code.
-        :rtype: :py:class:`psyclone.psyGen.GOKernelSchedule`
+        :rtype: :py:class:`psyclone.gocean1p0.GOKernelSchedule`
         '''
         if self._kern_schedule is None:
             astp = GOFparser2Reader()

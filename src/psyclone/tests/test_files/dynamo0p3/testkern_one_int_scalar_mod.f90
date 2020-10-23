@@ -44,14 +44,14 @@ module testkern_one_int_scalar_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_one_int_scalar_type
-     type(arg_type), dimension(5) :: meta_args = &
-          (/ arg_type(gh_field,   gh_inc,  w1),  &
-             arg_type(gh_integer, gh_read    ),  &
-             arg_type(gh_field,   gh_read, w2),  &
-             arg_type(gh_field,   gh_read, w2),  &
-             arg_type(gh_field,   gh_read, w3)   &
+     type(arg_type), dimension(5) :: meta_args =           &
+          (/ arg_type(gh_field,              gh_inc,  w1), &
+             arg_type(gh_scalar, gh_integer, gh_read    ), &
+             arg_type(gh_field,              gh_read, w2), &
+             arg_type(gh_field,              gh_read, w2), &
+             arg_type(gh_field,              gh_read, w3)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_one_int_scalar_code
   end type testkern_one_int_scalar_type

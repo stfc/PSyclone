@@ -68,7 +68,7 @@ module testkern_mesh_mod
            arg_type(gh_field, gh_inc, w0) /)
     type(mesh_data_type), dimension(1) :: meta_mesh = &
         (/ mesh_data_type(adjacent_face) /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_mesh_code
   end type testkern_mesh_type

@@ -45,12 +45,12 @@ module testkern_write_op_and_fld_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_write_op_and_fld_type
-     type(arg_type), dimension(3) :: meta_args =     &
-          (/ arg_type(gh_field*3,  gh_write, w3),    &
-             arg_type(gh_integer,  gh_read),         &
-             arg_type(gh_operator, gh_write, w0, w0) &
+     type(arg_type), dimension(3) :: meta_args =                 &
+          (/ arg_type(gh_field*3,              gh_write, w3),    &
+             arg_type(gh_scalar,   gh_integer, gh_read),         &
+             arg_type(gh_operator,             gh_write, w0, w0) &
           /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_write_op_and_fld_code
   end type testkern_write_op_and_fld_type

@@ -71,7 +71,7 @@ type, public, extends(kernel_type) :: restrict_kernel_type
        arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1, mesh_arg=GH_COARSE), &
        arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, mesh_arg=GH_FINE  )  &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = cell_column
 contains
   procedure, nopass :: restrict_kernel_code
 end type restrict_kernel_type
@@ -197,7 +197,7 @@ def test_only_field_args():
         "mesh_arg=GH_FINE  )  &",
         "       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, "
         "mesh_arg=GH_FINE  ),  &\n"
-        "       arg_type(GH_REAL, GH_READ) &", 1)
+        "       arg_type(GH_SCALAR, GH_REAL, GH_READ) &", 1)
     code = code.replace("(2)", "(3)", 1)
 
     ast = fpapi.parse(code, ignore_comments=False)
@@ -206,7 +206,7 @@ def test_only_field_args():
         _ = DynKernMetadata(ast, name=name)
     assert ("Inter-grid kernels in the Dynamo 0.3 API are only permitted to "
             "have field arguments but kernel restrict_kernel_type also has "
-            "arguments of type ['gh_real']" in str(excinfo.value))
+            "arguments of type ['gh_scalar']" in str(excinfo.value))
 
 
 def test_field_vector():

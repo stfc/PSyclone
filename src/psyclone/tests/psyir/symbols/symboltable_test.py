@@ -42,12 +42,11 @@ from __future__ import absolute_import
 import re
 from collections import OrderedDict
 import pytest
-from psyclone.psyir.nodes import Schedule, Container
+from psyclone.psyir.nodes import Schedule, Container, KernelSchedule
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
     SymbolError, RoutineSymbol
-from psyclone.psyGen import KernelSchedule
 from psyclone.errors import InternalError
 
 
@@ -384,7 +383,8 @@ def test_remove():
     # We should not be able to remove a Symbol that is not a ContainerSymbol
     with pytest.raises(TypeError) as err:
         sym_table.remove(var1)
-    assert "expects a ContainerSymbol object but got" in str(err.value)
+    assert ("expects a ContainerSymbol or Symbol object but got" in
+            str(err.value))
     # We should not be able to remove a Container if it is referenced
     # by an existing Symbol
     with pytest.raises(ValueError) as err:
@@ -406,7 +406,7 @@ def test_remove():
     # Attempt to supply something that is not a Symbol
     with pytest.raises(TypeError) as err:
         sym_table.remove("broken")
-    assert ("remove() expects a ContainerSymbol object but got: "
+    assert ("remove() expects a ContainerSymbol or Symbol object but got: "
             in str(err.value))
     # Attempting to remove a Symbol that is not in the table but that has
     # the same name as an entry in the table is an error
@@ -415,6 +415,34 @@ def test_remove():
         sym_table.remove(ContainerSymbol("my_mod"))
     assert ("Symbol with name 'my_mod' in this symbol table is not the "
             "same" in str(err.value))
+
+
+def test_swap_symbol():
+    ''' Test the SymbolTable.swap() method. '''
+    symbol1 = Symbol("var1")
+    sym_table = SymbolTable()
+    sym_table.add(symbol1)
+    # Test the checks on argument types.
+    with pytest.raises(TypeError) as err:
+        sym_table.swap(symbol1, "var2")
+    assert ("Symbol to add must be of type Symbol but got 'str'" in
+            str(err.value))
+    with pytest.raises(TypeError) as err:
+        sym_table.swap("var2", symbol1)
+    assert ("Symbol to remove must be of type Symbol but got 'str'" in
+            str(err.value))
+    # Test that we reject attempts to swap symbols with different names.
+    symbol2 = DataSymbol("var2", INTEGER_TYPE, constant_value=6)
+    with pytest.raises(SymbolError) as err:
+        sym_table.swap(symbol1, symbol2)
+    assert ("Cannot swap symbols that have different names, got: 'var1' and "
+            "'var2'" in str(err.value))
+    # Finally, check that the method correctly adds the new symbol to the
+    # table and removes the old one.
+    symbol3 = DataSymbol("var1", REAL_TYPE)
+    sym_table.swap(symbol1, symbol3)
+    assert sym_table.lookup("var1") is symbol3
+    assert symbol1 not in sym_table._symbols
 
 
 def test_swap_symbol_properties():
@@ -554,13 +582,13 @@ def test_lookup_2():
     with pytest.raises(SymbolError) as err:
         sym_table.lookup("var2", visibility=Symbol.Visibility.PUBLIC)
     assert ("'var2' exists in the Symbol Table but has visibility 'PRIVATE' "
-            "which does not" in str(err))
+            "which does not" in str(err.value))
     # Pass an incorrect type for the visibility argument
     with pytest.raises(TypeError) as err:
         sym_table.lookup("var2", visibility="PUBLIC")
     assert ("the 'visibility' argument to lookup() must be an instance (or "
             "list of instances) of Symbol.Visibility but got 'str' when "
-            "searching for symbol 'var2'"in str(err))
+            "searching for symbol 'var2'" in str(err.value))
 
 
 def test_lookup_3():
@@ -612,8 +640,7 @@ def test_lookup_4():
     assert (
         schedule_symbol_table.lookup(
             symbol2.name, visibility=Symbol.Visibility.PUBLIC,
-            check_ancestors=True)
-        is symbol2)
+            check_ancestors=True) is symbol2)
     with pytest.raises(SymbolError) as info:
         schedule_symbol_table.lookup(
             symbol2.name, visibility=Symbol.Visibility.PRIVATE,

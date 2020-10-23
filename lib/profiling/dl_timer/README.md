@@ -5,26 +5,42 @@ to the dl_timer API. This library is thread-safe.
 
 
 ## Dependencies
+The library dl_timer must be installed, which can be downloaded from
+https://bitbucket.org/apeg/dl_timer.
+This PSyData-based profiling library is based on the PSyData base class,
+which is included in PSyclone as a Jinja template (see the
+[developer's guide](https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-base-class)
+). Since the profiling API does not need access to any fields or variables,
+only the static subroutines and ``PreStart`` and ``PostEnd`` are implemented,
+the ``PreDeclare`` and ``ProvideVariable`` methods are not created at all.
 
-The library dl_timer must be installed. It can be downloaded from
-https://bitbucket.org/apeg/dl_timer
 It uses the ProfileData type and dl_timer's timer_register function
-to store the module/region name and the index used by dl_timer.
+to store the module/region name (done by the base class) and the index used
+by dl_timer.
 
 ## Compilation
+A makefile is provided for compilation. The environment variables
+``$F90`` and ``$F90FLAGS`` can be set to point to the Fortran compiler
+and flags to use. They default to ``gfortran`` and the empty string.
+You need to provide the location of the dl_timer library using the
+variable ``$DL_TIMER_ROOT``, which defaults to ``../../../../apeg-dl_timer``
+(i.e. it assumes dl_timer is installed next to PSyclone):
 
 ```sh
-gfortran -c dl_timer.f90 -I PATH-TO-DLTIMER/src/
+DL_TIMER_ROOT=path_to_dl_timer make
 ```
 
-The application needs to provide the dl_timer directory as module or include
-path, and link with `dl_timer.o` and dl_timer:
+In order to use the wrapper with your application, you must provide the
+location of the wrapper as an include path (so that the module file is found),
+and link first with the wrapper library, then the dl_timer library:
 
 ```sh
-gfortran -o a.out ... PATH-TO-PSYCLONE/lib/profiling/dl_timer/dl_timer.o \
+gfortran -c ... -I PATH-TO-PSYCLONE/lib/profiling/dl_timer somefile.f90
+gfortran -o a.out ... -L PATH-TO-PSYCLONE/lib/profiling/dl_timer -ldl_timer_psy
          -L PATH-TO-DLTIMER -ldltimer
 ```
-
+The name of the dl_timer library will depend on the way it was compiled
+(shared memory or distributed memory parallel).
 
 Example output:
 
