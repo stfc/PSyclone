@@ -110,11 +110,17 @@ def test_gen_dims(fort_writer):
     arg = DataSymbol("arg", INTEGER_TYPE,
                      interface=ArgumentInterface(
                          ArgumentInterface.Access.UNKNOWN))
-    array_type = ArrayType(INTEGER_TYPE, [arg, 2, ArrayType.Extent.ATTRIBUTE])
+    scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
+    literal = Literal("4", INTEGER_TYPE)
+    one = Literal("1", scalar_type)
+    arg_plus_1 = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, Reference(arg), one)
+    array_type = ArrayType(INTEGER_TYPE, [arg, 2, literal, arg_plus_1,
+                                          ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("dummy", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
-    assert fort_writer.gen_dims(symbol) == ["arg", "2", ":"]
+    assert fort_writer.gen_dims(symbol) == ["arg", "2", "4", "arg + 1_4", ":"]
 
 
 def test_gen_dims_error(monkeypatch, fort_writer):
