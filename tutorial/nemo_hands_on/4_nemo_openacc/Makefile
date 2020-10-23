@@ -42,6 +42,10 @@ TRANS_SCRIPT ?= ./kernels_trans.py
 F90 ?= gfortran
 F90FLAGS ?= -fopenacc -O2
 
+# For NVIDIA we could use:
+# F90FLAGS = -acc -ta=tesla -O2 -Minfo=all
+# F90 = nvfortran
+
 # We use the PSyData simple_timing implementation since it has no
 # dependencies.
 PROFILE_DIR ?= ../../../lib/profiling/simple_timing

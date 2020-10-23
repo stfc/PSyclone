@@ -38,15 +38,17 @@
 
 .PHONY: clean test
 
+TARGET = psy.f90
+
 test:
 	${MAKE} clean
-	${MAKE} TRANS_SCRIPT=solutions/omp_trans.py -C ../ tra_adv.exe
+	${MAKE} TRANS_SCRIPT=solutions/omp_trans.py -C ../ ${TARGET}
 	${MAKE} clean
-	${MAKE} TRANS_SCRIPT=solutions/all_levels_loops_omp_trans.py -C ../ tra_adv.exe
+	${MAKE} TRANS_SCRIPT=solutions/all_levels_loops_omp_trans.py -C ../ ${TARGET}
 	${MAKE} clean
-	${MAKE} TRANS_SCRIPT=solutions/parallel_region_omp_trans.py -C ../ tra_adv.exe
+	${MAKE} TRANS_SCRIPT=solutions/parallel_region_omp_trans.py -C ../ ${TARGET}
 	${MAKE} clean
-	${MAKE} TRANS_SCRIPT=solutions/general_parallel_region_omp_trans.py -C ../ tra_adv.exe
+	${MAKE} TRANS_SCRIPT=solutions/general_parallel_region_omp_trans.py -C ../ ${TARGET}
 
 clean:
 	${MAKE} -C ../ clean

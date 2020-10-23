@@ -38,11 +38,13 @@
 
 .PHONY: clean test
 
+TARGET = psy.f90
+
 test:
 	${MAKE} clean
-	${MAKE} -C ../ tra_adv.exe
+	${MAKE} -C ../ ${TARGET}
 	${MAKE} clean
-	${MAKE} TRANS_SCRIPT=solutions/kernels_trans.py -C ../ tra_adv.exe
+	${MAKE} TRANS_SCRIPT=solutions/kernels_trans.py -C ../ ${TARGET}
 
 clean:
 	${MAKE} -C ../ clean
