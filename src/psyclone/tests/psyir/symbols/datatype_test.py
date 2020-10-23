@@ -277,7 +277,9 @@ def test_arraytype_invalid_shape_dimension_2():
             "'int', ArrayType.Extent or 'DataNode' but found 'NoneType'."
             in str(excinfo.value))
 
-@pytest.mark.xfail(reason="issue #948. Support for this check needs to be added")
+
+@pytest.mark.xfail(reason="issue #948. Support for this check "
+                   "needs to be added")
 def test_arraytype_invalid_shape_dimension_3():
     '''Test that the ArrayType class raises an exception when one of the
     dimensions of the shape list argument is a local datasymbol that does

@@ -136,7 +136,7 @@ class ScalarType(DataType):
         UNDEFINED = 3
 
     def __init__(self, intrinsic, precision):
-        from psyclone.psyir.symbols.datasymbol import DataSymbol
+        from psyclone.psyir.symbols import DataSymbol
         if not isinstance(intrinsic, ScalarType.Intrinsic):
             raise TypeError(
                 "ScalarType expected 'intrinsic' argument to be of type "
@@ -226,9 +226,8 @@ class ArrayType(DataType):
         ATTRIBUTE = 2
 
     def __init__(self, datatype, shape):
-        
+
         from psyclone.psyir.nodes import Literal
-        from psyclone.psyir.symbols import INTEGER_TYPE
 
         if not isinstance(datatype, DataType):
             raise TypeError(
@@ -328,13 +327,14 @@ class ArrayType(DataType):
                 # if dimension.is_local and not dimension.is_constant:
                 #    # The datasymbol has no value.
                 #    raise TypeError(
-                #        "If a local datasymbol is used to declare a dimension "
+                #        "If a local datasymbol is used to declare a "
+                #        "dimension "
                 #        "then it should be a constant, but '{0}' is not."
                 #        "".format(dimension.name))
             elif isinstance(dimension, DataNode):
                 # When issue #685 is addressed then check that the
                 # datatype returned is an int (or is unknown).
-                
+
                 # Check that any references are not to local a
                 # datasymbol that is not constant (as this would have
                 # no value).
