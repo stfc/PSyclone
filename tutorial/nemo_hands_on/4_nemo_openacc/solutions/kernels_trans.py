@@ -78,7 +78,12 @@ def trans(psy):
             tloop = node
             break
 
-    # Loop through the children of the loop body and transform those
-    # that are over levels
+    for node in tloop.loop_body.children:
+        if isinstance(node, Loop) and node.loop_type == "levels":
+            try:
+                _ = ACC_KERNELS_TRANS.apply([node])
+            except TransformationError:
+                pass
 
+    ACC_DATA_TRANS.apply(tloop.loop_body.children)
     sched.view()

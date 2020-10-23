@@ -5,6 +5,12 @@ to construct an optimisation script that adds OpenACC directives to
 the tra_adv mini-app. When built with a suitable compiler this then
 enables the code to be run on a GPU.
 
+You may find it helpful to read the section on
+[OpenACC](https://psyclone.readthedocs.io/en/stable/transformations.html?highlight=accdatatrans#openacc)
+in the
+[Transformations](https://psyclone.readthedocs.io/en/stable/transformations.html?highlight=accdatatrans#transformations)
+section of the PSyclone User Guide.
+
 ## Prerequisites ##
 
 Are the same as those for the first tutorial
@@ -26,12 +32,22 @@ environment.
 The OpenACC specification may be found at
 https://www.openacc.org/sites/default/files/inline-files/OpenACC.2.6.final.pdf
 
+1. Apply KERNELS to each loop over levels separately
+   - Point out data copies
+2. Enclose whole body of iteration loop in a KERNELS region
+   - Fewer data copies but still enough to hurt
+2. Use a DATA region to keep data on the GPU for the duration
+   of the iteration loop
+   
+3. Use ENTER DATA to keep data on the GPU between kernel calls
+4. Use COLLAPSE on loop nests
+
 ## Parallelisation using KERNELS ##
 
 The simplest way to add OpenACC directives to a code is often to use
 the KERNELS directive - this instructs the compiler to automatically
 parallelise any loop nests within the marked-up region. In PSyclone
-this is achieved by applying the [`ACCKernelsTrans`][kernelstrans_def]
+this is achieved by applying the [`ACCKernelsTrans`][ref_kernelstrans]
 transformation to suitable regions of the code. The advantage of this
 approach is that it minimises the number of directives that must be
 inserted and makes use of the compiler's own dependency analysis to
@@ -39,12 +55,31 @@ ensure that loops may be safely parallelised. (We have found that for
 NEMO, this approach achieves relatively good performance for the
 majority of the code base.)
 
-The supplied script, `kernels_trans.py`, does this in as simple a way
-as possible. It attempts to enclose *every* Loop that is an immediate
-child of the root Schedule within a KERNELS region. (i.e. it does not
-consider the type of the loop.)
+### 1. Enclose loops over vertical levels ###
 
-### 1. Generate and Examine the Basic Code ###
+Modify the supplied `data_trans.py` optimisation script to apply the
+`ACCKernelsTrans` transformation to every loop over vertical levels
+within the outer, iteration loop of the mini-app. The script already
+locates that loop:
+
+```python
+    # Find the outer, 'iteration' loop
+    tloop = None
+    for node in sched.children:
+        if isinstance(node, Loop) and node.loop_type == "tracers":
+            tloop = node
+            break
+```
+
+Similar to what has been done in previous tutorials, you will need to
+loop over the children of that loop, identify those that are loops of
+the correct "levels" type, and transform them:
+
+```python
+    for child in tloop.loop_body.children:
+        if isinstance(node, Loop) and node.loop_type == "levels":
+	    ACC_KERNELS_TRANS.apply(node)
+```
 
 Use the supplied Makefile to run PSyclone and generate the transformed
 code. If you examine the transformed PSyIR you should see that ACC Kernels
@@ -95,9 +130,33 @@ and explicit data movement. NVIDIA also supports 'managed memory'
 where page faults on either the CPU or GPU cause the necessary memory
 to be moved automatically to the correct location.
 
+Explicit data movement can be controlled using OpenACC Data Regions and
+PSyclone can create these using the [`ACCDataTrans`][ref_datatrans]
+transformation. A data region can be used to keep data on the GPU
+between various kernel invocations.
+
+Try modifying the supplied `data_trans.py` optimisation script to
+apply the `ACCDataTrans` transformation to the outer, iteration loop
+of the mini-app. The script already locates that loop:
+
+```python
+    # Find the outer, 'iteration' loop
+    tloop = None
+    for node in sched.children:
+        if isinstance(node, Loop) and node.loop_type == "tracers":
+            tloop = node
+            break
+```
+
+You will need to create an `ACCDataTrans` object and then call the `apply`
+method and supply it with the `tloop`.
+
+
 ### Explicit DATA Regions ###
 
 ## Collapsing Loop Nests ##
 
 
-[kernelstrans_def]: https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCKernelsTrans.html "ACCKernelsTrans"
+[ref_kernelstrans]: https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCKernelsTrans.html "ACCKernelsTrans"
+
+[ref_datatrans]: https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCDataTrans.html "ACCDataTrans"
