@@ -32,7 +32,7 @@ module mesh_mod
                                     mesh_connectivity,       &
                                     set_domain_size,         &
                                     set_dz
-  !JHuse mesh_map_mod,          only : mesh_map_type
+  use mesh_map_mod,          only : mesh_map_type
   !JHuse mesh_map_collection_mod, only : mesh_map_collection_type
   use partition_mod,         only : partition_type
   use reference_element_mod, only : reference_element_type
@@ -245,6 +245,7 @@ module mesh_mod
 
     procedure, public :: get_num_cells_ghost
     procedure, public :: get_gid_from_lid
+    procedure, public :: get_mesh_map
     procedure, public :: get_adjacent_face
 
     ! Get total_ranks and local_rank from partition
@@ -2072,6 +2073,28 @@ contains
 !    return
 !
 !  end subroutine add_mesh_map
+
+
+  !============================================================================
+  !> @brief  Returns a pointer to the mesh_map object that maps this
+  !>         mesh_type object (source) to another mesh_type_object (target).
+  !>
+  !> @param[in] target_mesh   Pointer to target mesh object.
+  !> @retval    mesh_map_type<<pointer>>
+  !============================================================================
+  function get_mesh_map(self, target_mesh) result(mesh_map)
+
+    implicit none
+
+    class(mesh_type),         intent(in) :: self
+    type(mesh_type), pointer, intent(in) :: target_mesh
+
+    type(mesh_map_type), pointer :: mesh_map
+
+    mesh_map => null()
+
+  end function get_mesh_map
+
 
   !============================================================================
   !> @details Computes the local ID of each face in the adjacent cells.
