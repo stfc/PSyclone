@@ -1,63 +1,26 @@
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
-OBJ = main_psy.o main_alg.o global_mesh_base_mod.o mesh_mod.o linked_list_data_mod.o \
-		extrusion_mod.o mesh_colouring_mod.o mesh_constructor_helper_functions_mod.o \
-		domain_size_config_mod.o coord_transform_mod.o matrix_invert_mod.o \
-		cross_product_mod.o partition_mod.o mpi_mod.o linked_list_int_mod.o \
-		log_mod.o linked_list_mod.o reference_element_mod.o function_space_mod.o \
-		master_dofmap_mod.o stencil_dofmap_mod.o fs_continuity_mod.o field_mod.o \
-		function_space_constructor_helper_functions_mod.o polynomial_mod.o \
-		field_parent_mod.o pure_abstract_field_mod.o scalar_mod.o count_mod.o \
-		operator_mod.o testkern_w0_mod.o argument_mod.o kernel_mod.o constants_mod.o
+OBJ = main_psy.o main_alg.o testkern_w0_mod.o
 
 EXEC = example
+LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_NAME=lfric
+LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
+
+F90FLAGS += -I$(LFRIC_PATH)
 
 default: $(EXEC)
 
-$(EXEC): $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC)
+$(EXEC): $(LFRIC_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
 
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
-main_psy.o:	global_mesh_base_mod.o mesh_mod.o function_space_mod.o field_mod.o \
-	operator_mod.o testkern_w0_mod.o
-testkern_w0_mod.o: argument_mod.o kernel_mod.o
-
-global_mesh_base_mod.o:	linked_list_data_mod.o log_mod.o reference_element_mod.o
-linked_list_data_mod.o: constants_mod.o
-mesh_mod.o: extrusion_mod.o linked_list_mod.o mesh_colouring_mod.o \
-	mesh_constructor_helper_functions_mod.o partition_mod.o
-mesh_constructor_helper_functions_mod.o: coord_transform_mod.o \
-	domain_size_config_mod.o 
-domain_size_config_mod.o: mpi_mod.o
-log_mod.o:	constants_mod.o
-field_mod.o: field_parent_mod.o scalar_mod.o count_mod.o
-field_parent_mod.o: pure_abstract_field_mod.o function_space_mod.o
-extrusion_mod.o:	global_mesh_base_mod.o
-coord_transform_mod.o: matrix_invert_mod.o cross_product_mod.o
-partition_mod.o:	mpi_mod.o linked_list_int_mod.o global_mesh_base_mod.o
-linked_list_mod.o: linked_list_data_mod.o
-stencil_dofmap_mod.o: master_dofmap_mod.o mesh_mod.o
-function_space_mod.o: mesh_mod.o master_dofmap_mod.o stencil_dofmap_mod.o \
-	fs_continuity_mod.o function_space_constructor_helper_functions_mod.o \
-	polynomial_mod.o
-function_space_constructor_helper_functions_mod.o: mesh_mod.o
-operator_mod.o:	function_space_mod.o
+main_psy.o:	 testkern_w0_mod.o
 main_alg.o:	main_psy.o
-reference_element_mod.o: constants_mod.o
-mesh_colouring_mod.o: reference_element_mod.o
-matrix_invert_mod.o: constants_mod.o
-cross_product_mod.o: constants_mod.o
-mpi_mod.o: log_mod.o
-linked_list_int_mod.o: linked_list_data_mod.o
-fs_continuity_mod.o: log_mod.o
-pure_abstract_field_mod.o: linked_list_data_mod.o
-scalar_mod.o: mpi_mod.o
-polynomial_mod.o: constants_mod.o
-count_mod.o: log_mod.o mpi_mod.o
-testkern_w0_mod.o: fs_continuity_mod.o
-master_dofmap_mod.o: constants_mod.o
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
