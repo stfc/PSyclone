@@ -232,7 +232,7 @@ is written to within the data region, it is in fact not used again
 outside the data region and therefore does not actually need to be
 copied back from the GPU.)
 
-Although we have massively reduced the amount of data copying, we will
+Although we have massively reduced the amount of data movement, we will
 still be copying data to and from the GPU upon every trip of the
 'iteration' loop as we enter and leave the DATA region. This can be
 fixed by tweaking our script so as to enclose the whole loop within
@@ -262,6 +262,31 @@ end.
 
 ## Collapsing Loop Nests ##
 
+Although we now have a basic GPU implementation of the mini-app, it is possible to
+make further use of our knowledge of the domain to improve performance. For instance,
+we can expose more parallelism to the compiler by instructing it to 'collapse' (merge
+into a single iteration space) tightly-nested inner loops. We do this in PSyclone by
+applying the `ACCLoopTrans` transformation in order to decorate a loop (or loops)
+with an ACC LOOP directive.
+
+Create a brand-new transformation script and, for demonstration purposes,
+apply the `ACCLoopTrans` to every 'latitude' loop:
+
+```python
+    from psyclone.transformations import ACCLoopTrans, TransformationError
+    ACC_LOOP_TRANS = ACCLoopTrans()
+    ...
+    loops = sched.walk(Loop)
+    for loop in loops:
+        if loop.loop_type == "lat":
+            try:
+                ACC_LOOP_TRANS.apply(loop)
+            except TransformationError:
+                pass
+```
+
+(At code-generation time, such a directive must be
+within an OpenACC parallel region such as that defined by a KERNELS directive.)
 
 ### 2. Using `validate()`??? ###
 
