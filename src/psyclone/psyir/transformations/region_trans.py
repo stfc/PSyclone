@@ -111,12 +111,12 @@ class RegionTrans(Transformation):
                                   "object of type: {1}".
                                   format(self.name, arg_type))
 
-    def validate(self, node_list, options=None):
+    def validate(self, nodes, options=None):
         '''Checks that the nodes in node_list are valid for a region
         transformation.
 
-        :param node_list: list of PSyIR nodes or a single node.
-        :type node_list: subclass of :py:class:`psyclone.psyir.nodes.Node` or \
+        :param nodes: list of PSyIR nodes or a single node.
+        :type nodes: subclass of :py:class:`psyclone.psyir.nodes.Node` or \
                 a list of subclasses of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
@@ -142,7 +142,7 @@ class RegionTrans(Transformation):
 
         # Ensure we are always validating a list of nodes, even if only
         # one was supplied via the `node_list` argument.
-        local_list = self.get_node_list(node_list)
+        node_list = self.get_node_list(nodes)
 
         if not options:
             options = {}
@@ -150,9 +150,9 @@ class RegionTrans(Transformation):
             raise TransformationError(
                 "Transformation apply method options argument must be a "
                 "dictionary but found '{0}'.".format(type(options).__name__))
-        node_parent = local_list[0].parent
+        node_parent = node_list[0].parent
         prev_position = -1
-        for child in local_list:
+        for child in node_list:
             if child.parent is not node_parent:
                 raise TransformationError(
                     "Error in {0} transformation: supplied nodes "
@@ -168,7 +168,7 @@ class RegionTrans(Transformation):
 
         # Check that the proposed region contains only supported node types
         if options.get("node-type-check", True):
-            for child in local_list:
+            for child in node_list:
                 # Stop at any instance of Kern to avoid going into the
                 # actual kernels, e.g. in Nemo inlined kernels
                 flat_list = [item for item in child.walk(object, Kern)
@@ -185,8 +185,8 @@ class RegionTrans(Transformation):
         # of an IfBlock would imply that the transformation is being applied
         # around both the if-body and the else-body and that doesn't make
         # sense.
-        if (len(local_list) > 1 and
-                any([isinstance(node, Schedule) for node in local_list])):
+        if (len(node_list) > 1 and
+                any([isinstance(node, Schedule) for node in node_list])):
             raise TransformationError(
                 "Cannot apply a transformation to multiple nodes when one "
                 "or more is a Schedule. Either target a single Schedule "
@@ -196,7 +196,7 @@ class RegionTrans(Transformation):
         # an If statement or the bounds of a Loop. If the parent node is
         # a Loop or IfBlock then we can only accept a single Schedule.
         if not isinstance(node_parent, Schedule) and \
-                not isinstance(local_list[0], Schedule):
+                not isinstance(node_list[0], Schedule):
             # We've already checked for lists with len > 1 that contain a
             # Schedule above so if the first item is a Schedule then that's
             # all the list contains.
@@ -207,7 +207,7 @@ class RegionTrans(Transformation):
 
         # The checks below this point only apply to the NEMO API and can be
         # removed once #435 is done.
-        node = local_list[0]
+        node = node_list[0]
         if not isinstance(node.root, NemoInvokeSchedule):
             return
 
