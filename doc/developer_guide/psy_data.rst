@@ -282,7 +282,7 @@ called ``PREFIX_PSyDataType``. It is up to the application how this variable is
 used. PSyclone will declare the variables to be static, meaning that they
 can be used to accumulate data from call to call. An example of
 the PSyDataType can be found in the NetCDF example extraction code
-(see ``lib/extract/dl_esm_inf/netcdf``, or :ref:`user_guide:psyke_netcdf` for
+(see ``lib/extract/netcdf/dl_esm_inf``, or :ref:`user_guide:psyke_netcdf` for
 a detailed description), any of the profiling wrapper libraries
 (all contained in ``lib/profiling``) or the read_only wrappers
 (in ``lib/read_only``).
@@ -414,7 +414,7 @@ a detailed description), any of the profiling wrapper libraries
     even if no variables are to be provided.
 
     An example of a library using PSyData is included in PSyclone in the
-    directory ``.../lib/extract/netcdf``. This library is used to extract
+    directory ``.../lib/netcdf/extract``. This library is used to extract
     kernel input- and output-parameters and store them in a NetCDF file.
 
     .. note::
