@@ -44,6 +44,7 @@ Deals with reading the config file and storing default settings.
 from __future__ import absolute_import, print_function
 from collections import namedtuple
 import os
+import six
 from psyclone.errors import InternalError
 
 
@@ -943,10 +944,10 @@ class GOceanConfig(APISpecificConfig):
                 try:
                     self._debug_mode = section.getboolean("debug_mode")
                 except ValueError as err:
-                    raise ConfigurationError(
+                    six.raise_from(ConfigurationError(
                         "error while parsing DEBUG_MODE in the "
                         "[gocean1p0] section of the config file: {0}"
-                        .format(str(err)))
+                        .format(str(err))), err)
             elif key == "grid-properties":
                 # Grid properties have the format:
                 # go_grid_area_u: {0}%%grid%%area_u: array: real,
@@ -1043,9 +1044,7 @@ class GOceanConfig(APISpecificConfig):
     @property
     def debug_mode(self):
         '''
-        Getter for whether or not we generate additional debug code.
-
-        :returns: true if we are generating additional debug code.
+        :returns: whether we are generating additional debug code.
         :rtype: bool
 
         '''

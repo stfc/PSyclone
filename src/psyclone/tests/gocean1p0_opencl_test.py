@@ -114,6 +114,7 @@ def test_invoke_use_stmts(kernel_outputdir, monkeypatch, debug_mode):
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
+
 def test_invoke_opencl_initialisation(kernel_outputdir):
     ''' Test that generating code for OpenCL results in the correct
     OpenCL first time initialisation code '''
@@ -148,9 +149,9 @@ def test_invoke_opencl_initialisation(kernel_outputdir):
         cmd_queues => get_cmd_queues()
         kernel_compute_cu_code = get_kernel_by_name("compute_cu_code")
       end if'''
-    print(generated_code)
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+
 
 @pytest.mark.parametrize("debug_mode", [True, False])
 def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
@@ -169,7 +170,6 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
       globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)
       localsize = (/64, 1/)'''
 
-
     if debug_mode:
         # Check that the globalsize first dimension is a multiple of
         # the localsize first dimension
@@ -178,7 +178,6 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
         CALL check_status("Global size is not a multiple of local size \
 (mandatory in OpenCL < 2.0).", -1)
       END IF'''
-    print(generated_code)
     assert expected in generated_code
 
     # Call the set_args subroutine with the boundaries corrected for the
@@ -215,6 +214,7 @@ C_NULL_PTR)
 
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+
 
 def test_grid_proprty(kernel_outputdir):
     # pylint: disable=unused-argument
@@ -508,7 +508,6 @@ def test_set_kern_float_arg():
     argument. '''
     psy, _ = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
-    sched.view()
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
@@ -545,10 +544,11 @@ a_scalar, ssh_fld, xstop, tmask)
       CALL check_status('clSetKernelArg: arg 7 of bc_ssh_code', ierr)
     END SUBROUTINE bc_ssh_code_set_args'''
     assert expected in generated_code
-    # This generated code cannot be compiled due to issue #798. Note the
-    # duplicated xstop symbol name in the argument list. This is not essential
-    # for the purpose of this test that just checks that the grid property
-    # xstop is declared as 'REAL(KIND=go_wp), intent(in), target :: a_scalar'
+    # The generated code of this test cannot be compiled due the duplication
+    # of the xstop symbol in the argument list. This happens because the first
+    # instance of the symbol is not declared in the symbol table. Issue #798
+    # should fix this problem. This is not essential for the purpose of this
+    # test that just checks that a_scalar argument is generated appropriately
     # assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
@@ -570,7 +570,8 @@ def test_set_arg_const_scalar():
 def test_opencl_kernel_code_generation():
     ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
     the expected OpenCL code. Note this test doesn't prepare the kernel to
-    conform to OpenCL GOcean expected interface yet.
+    conform to OpenCL GOcean expected interface, see
+    test_opencl_prepared_kernel_code_generation for that.
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=False)
     sched = psy.invokes.invoke_list[0].schedule
@@ -598,6 +599,7 @@ def test_opencl_kernel_code_generation():
 
     openclwriter = OpenCLWriter()
     assert expected_code == openclwriter(kschedule)
+
 
 @pytest.mark.usefixtures("kernel_outputdir")
 def test_opencl_prepared_kernel_code_generation():

@@ -1112,8 +1112,8 @@ class GOKern(CodedKern):
 
         :param parent: Parent node in the f2pygen AST to which to add content.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-        '''
 
+        '''
         # Include the check_status subroutine if we are in debug_mode
         api_config = Config.get().api_conf("gocean1.0")
         if api_config.debug_mode:
@@ -1123,11 +1123,11 @@ class GOKern(CodedKern):
         # Generate code to ensure data is on device
         self.gen_data_on_ocl_device(parent)
 
-        # Extract the iteration boundary values which are given by the loops
-        # surrounding the kernel, which won't be used in OpenCL. For now it
-        # converts the PSyIR to Fortran to use the values in f2pygen, but
-        # this should change in the future. Also note that OpenCL expects
-        # 0-indexing, hence we substract 1 to each boundary value.
+        # Extract the limits of the iteration space which are given by the
+        # loops surrounding the kernel, which won't be used in OpenCL.
+        # For now it converts the PSyIR to Fortran to use the values in
+        # f2pygen, but this should change in the future. Also note that OpenCL
+        # expects 0-indexing, hence we subtract 1 from each boundary value.
         f_writer = FortranWriter()
         inner_loop = self.parent.parent
         inner_start = f_writer(inner_loop.start_expr) + " - 1"
@@ -1177,7 +1177,7 @@ class GOKern(CodedKern):
 
         # Then we set the kernel arguments
         # In OpenCL the iteration boundaries are passed as arguments to the
-        # kernel because the group_work size may exceed the dimensions and
+        # kernel because the global work size may exceed the dimensions and
         # therefore the updates outsides the boundaries should be masked.
         arguments = [kernel, inner_start, inner_stop, outer_start, outer_stop]
         for arg in self._arguments.args:
@@ -1209,7 +1209,10 @@ class GOKern(CodedKern):
         cmd_queue = qlist + "({0})".format(queue_number)
 
         if api_config.debug_mode:
-            # Check that everything is fine before the kernel launch
+            # Check that everything has succeeded before the kernel launch,
+            # since kernel executions are asynchronous, we insert a clFinish
+            # command as a barrier to make sure everything until here has been
+            # executed.
             parent.add(AssignGen(parent, lhs=flag,
                                  rhs="clFinish(" + cmd_queue + ")"))
             parent.add(CallGen(
@@ -1383,15 +1386,10 @@ class GOKern(CodedKern):
 
     def _prepare_opencl_kernel_schedule(self):
         ''' GOcean OpenCL kernels take the iteration boundaries as arguments
-        ans adds a conditional masking statement to avoid updating elements
+        and add a conditional masking statement to avoid updating elements
         outside the boundaries.
         '''
         kschedule = self.get_kernel_schedule()
-
-        # If the first statement in the kernel schedule is not marked
-        # with the 'boundaries_mask' annotation, we should insert a
-        # conditional statement that checks that the  iteration
-        # variables do not exceed the expected iteration boundaries.
         kernel_st = kschedule.symbol_table
         iteration_indices = kernel_st.iteration_indices
         data_arguments = kernel_st.data_arguments
@@ -1403,7 +1401,7 @@ class GOKern(CodedKern):
         ystop_name = kernel_st.new_symbol_name("ystop")
 
         # Create new symbols and insert them as kernel arguments after
-        # then initial iteration indices
+        # the initial iteration indices
         xstart_symbol = DataSymbol(xstart_name, INTEGER_TYPE,
                                    interface=ArgumentInterface(
                                        ArgumentInterface.Access.READ))
