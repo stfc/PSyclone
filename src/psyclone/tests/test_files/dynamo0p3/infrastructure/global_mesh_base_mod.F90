@@ -154,7 +154,7 @@ contains
 
   ! Target of global mesh name
     integer(i_def), intent(in) :: ntarget_meshes
-    character(str_def) :: target_global_mesh_names(:)
+    character(str_def), allocatable :: target_global_mesh_names(:)
     real(r_def), allocatable, intent(in) :: vert_coords(:,:)
     real(r_def), allocatable, intent(in) :: cell_coords(:,:)
     integer(i_def), allocatable, intent(in) :: cell_next_2d(:,:)
@@ -180,7 +180,10 @@ contains
     self%periodic_x               = periodic_x
     self%periodic_y               = periodic_y
     self%ntarget_meshes           = ntarget_meshes
-    self%target_global_mesh_names = target_global_mesh_names
+    if ( allocated(target_global_mesh_names)) then
+      self%target_global_mesh_names = target_global_mesh_names
+    endif
+
 
     allocate( self%vert_coords(2, self%nverts) )
     self%vert_coords = vert_coords
