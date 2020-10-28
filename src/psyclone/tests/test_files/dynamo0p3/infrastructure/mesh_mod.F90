@@ -307,7 +307,7 @@ contains
 
     implicit none
 
-    type(global_mesh_type), intent(in), pointer :: global_mesh
+    class(global_mesh_type), intent(in), pointer :: global_mesh
     type(partition_type),   intent(in)          :: partition
     class(extrusion_type),  intent(in)          :: extrusion
 

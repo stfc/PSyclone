@@ -149,7 +149,8 @@ module partition_mod
       import :: global_mesh_type
       import :: i_def
 
-      type(global_mesh_type), intent(in), pointer :: global_mesh
+      class(global_mesh_type), &
+                      intent(in), pointer        :: global_mesh
 
       integer(i_def), intent(out)                :: num_panels
       integer(i_def), intent(in)                 :: xproc, yproc, &
@@ -194,7 +195,7 @@ contains
 
   implicit none
 
-  type(global_mesh_type),           pointer, intent(in) :: global_mesh
+  class(global_mesh_type),          pointer, intent(in) :: global_mesh
   procedure(partitioner_interface), pointer, intent(in) :: partitioner
   integer(i_def),                   intent(in) :: xproc
   integer(i_def),                   intent(in) :: yproc
@@ -215,7 +216,6 @@ contains
   self%local_rank = local_rank
   self%total_ranks = total_ranks
   self%halo_depth = max_stencil_depth + 1
-  print *,"Setting halo depth", self%halo_depth
   allocate( self%num_halo(self%halo_depth) )
   allocate( self%last_halo_cell(self%halo_depth) )
   self%inner_depth = max_stencil_depth + 1
@@ -447,8 +447,8 @@ contains
                                  num_ghost )
     implicit none
 
-    type(global_mesh_type), pointer, intent(in) :: global_mesh
-
+    class(global_mesh_type), pointer, &
+                                 intent(in)    :: global_mesh
     integer(i_def),              intent(out)   :: num_panels
     integer(i_def),              intent(in)    :: xproc
     integer(i_def),              intent(in)    :: yproc
@@ -520,8 +520,8 @@ contains
                                       num_ghost )
     implicit none
 
-    type(global_mesh_type), pointer, intent(in) :: global_mesh
-
+    class(global_mesh_type), pointer, &
+                                 intent(in)    :: global_mesh
     integer(i_def),              intent(out)   :: num_panels
     integer(i_def),              intent(in)    :: xproc
     integer(i_def),              intent(in)    :: yproc
@@ -601,8 +601,8 @@ contains
   ! So here. we just return one big partition that holds everything
     implicit none
 
-    type(global_mesh_type), pointer, intent(in) :: global_mesh
-
+    class(global_mesh_type), pointer, &
+                                 intent(in)    :: global_mesh
     integer(i_def),              intent(out)   :: num_panels
     integer(i_def),              intent(in)    :: xproc
     integer(i_def),              intent(in)    :: yproc
@@ -668,7 +668,8 @@ contains
 
     implicit none
 
-    type(global_mesh_type), pointer, intent(in):: global_mesh             ! A global mesh object
+    class(global_mesh_type), pointer, &
+                                 intent(in)    :: global_mesh             ! A global mesh object
 
     integer(i_def),              intent(in)    :: num_panels              ! Number of panels that make up the mesh
     integer(i_def),              intent(in)    :: xproc                   ! Number of processors along x-direction
@@ -1052,7 +1053,7 @@ contains
 
     implicit none
 
-    type(global_mesh_type),               pointer,  intent(in)    :: global_mesh
+    class(global_mesh_type),              pointer,  intent(in)    :: global_mesh
     type(linked_list_type),                         intent(inout) :: known_cells
     type(linked_list_item_type),target,             intent(inout) :: input_cells
     integer(i_def),                                 intent(in)    :: number_of_cells
