@@ -41,9 +41,43 @@ this is achieved by applying the [`ACCKernelsTrans`][ref_kernelstrans]
 transformation to suitable regions of the code. The advantage of this
 approach is that it minimises the number of directives that must be
 inserted and makes use of the compiler's own dependency analysis to
-ensure that loops may be safely parallelised. (We have found that for
-NEMO, this approach achieves relatively good performance for the
-majority of the code base.)
+ensure that loops may be safely parallelised. This means that
+for the tracer advection mini-app we could simply enclose each
+top-level loop (that does not contain a CodeBlock) within a KERNELS
+region:
+
+```python
+    for node in sched.children:
+        if isinstance(node, Loop):
+	    try:
+	        ACC_KERNELS_TRANS.apply(node)
+	    except TransformationError:
+	        pass
+```
+
+In doing this we will enclose the outer, 'iteration' loop within a
+KERNELS region. If we look at the generated Fortran we can see that this
+loop cannot be parallelised because it both reads and writes the
+`mydomain` array so that each iteration depends upon the results of
+the previous one. We are therefore relying upon the OpenACC compiler
+to "do the right thing" and parallelise the loops *within* the iteration
+loop.
+
+However, the point of a Domain-Specific Language is that it makes use
+of domain-specific knowledge and therefore we can be more prescriptive
+about how we want the compiler to parallelise the code (in order to
+achieve better computational performance). There are also things that
+cannot be put inside KERNELS regions: these include calls to other
+subroutines and certain types of statement that are known to trigger
+compiler bugs (e.g. `MIN(my_array(:,:,:), dim=2)` causes problems with
+NVIDIA (PGI) < 20.7).
+
+It is therefore necessary to exercise fine-grained control when
+inserting KERNELS regions and this tutorial will walk through some of
+the steps. (If you already have OpenACC experience you will see that
+some of these steps are not going to result in performant code,
+however, they are included here to help students grasp the various
+ways in which PSyclone can be used.)
 
 ### 1. Enclose loops over vertical levels ###
 
@@ -379,30 +413,23 @@ the nodes in the `loop_body` of the candidate latitude loop.)
 ## Managed Memory ##
 
 In practice, the work being done to extend PSyclone to process the
-NEMO code is currently using NVIDIA's 'managed memory' support. No
-explicit data regions are added to the code. Instead, the run-time
-system moves data to/from the GPU automatically when page faults
-occur. This was originally intended as being a quick way to get
-something working on the GPU but it has actually proved to work well.
+whole of the NEMO code is currently using NVIDIA's 'managed memory'
+support. No explicit data regions are added to the code. Instead, the
+run-time system moves data to/from the GPU automatically when page
+faults occur. This was originally intended as being a quick way to get
+something working on the GPU but it has actually proved to work well
+in general.
 
 ### 2. Using `validate()`??? ###
 
-### DATA Regions with Dynamic Scope ###
-## Using KERNELS in Practice??? ##
+Possibly do this in an earlier part of the tutorial, e.g. profiling?
 
-Point out that we could have just whacked 'KERNELS' around every loop and it would
-work, in this simple case:
+## Conclusion ##
 
-Note that the script has enclosed the outer, 'iteration' loop within a
-KERNELS region. If we look at the generated code we can see that this
-loop cannot be parallelised because it both reads and writes the
-`mydomain` array so that each iteration depends upon the results of
-the previous one. We are therefore relying upon the OpenACC compiler
-to "do the right thing" and parallelise the loops *within* the iteration loop.
-
-In general, there are things that cannot be put inside KERNELS
-regions: calls to other subroutines, certain statements that are know
-to cause the compiler to fail (e.g. `MIN(my_array(:,:,:), dim=2)`).
+Congratulations! You have now completed the OpenACC part of the
+tutorial.  You should now understand the basic OpenACC transformations
+provided by PSyclone and how these can be used to accelerate
+NEMO-style code on a GPU.
 
 [ref_kernelstrans]: https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCKernelsTrans.html "ACCKernelsTrans"
 
