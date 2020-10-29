@@ -1,11 +1,6 @@
-!-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
-!-----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2017, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -33,20 +28,39 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified R. W. Ford, STFC Daresbury Lab
-!
-module log_mod
-  implicit none
-  integer, public, parameter :: LOG_LEVEL_ALWAYS  = 100000
-  integer, public, parameter :: LOG_LEVEL_ERROR   = 200
-  integer, public, parameter :: LOG_LEVEL_WARNING = 150
-  integer, public, parameter :: LOG_LEVEL_INFO    = 100
-  integer, public, parameter :: LOG_LEVEL_DEBUG   =  50
-  integer, public, parameter :: LOG_LEVEL_TRACE   =   0
-  contains
-  subroutine log_event(message, level)
-    implicit none
-    character (*), intent( in ) :: message
-    integer,       intent( in ) :: level
-  end subroutine log_event
-end module log_mod
+! Author R. Ford STFC Daresbury Lab
+
+module testkern_w0_mod
+  use argument_mod
+  use kernel_mod
+  use fs_continuity_mod, only: W0
+
+  use constants_mod
+  type, extends(kernel_type) :: testkern_w0_type
+     type(arg_type), dimension(2) :: meta_args =  &
+          (/ arg_type(gh_field,gh_inc, w0),       &
+             arg_type(gh_field,gh_read,w0)        &
+           /)
+     integer :: iterates_over = cells
+   contains
+     procedure, nopass :: code => testkern_w0_code
+  end type testkern_w0_type
+contains
+
+  subroutine testkern_w0_code(nlayers, fld1, fld2, ndf_w0, undf_w0, map_w0)
+    integer :: nlayers
+    real(kind=r_def), dimension(:), intent(inout) :: fld1
+    real(kind=r_def), dimension(:), intent(in)    :: fld2
+    integer :: ndf_w0, undf_w0
+    integer, dimension(:) :: map_w0
+
+    integer :: i, k
+    do i=1, ndf_w0
+      do k=0, nlayers-1
+        !print *, "XX", i, k, map_w0(i), map_w0(i)+k
+        fld1(map_w0(i)+k) = fld1(map_w0(i)+k) + fld2(map_w0(i)+k)
+      end do
+    end do
+  end subroutine testkern_w0_code
+
+end module testkern_w0_mod

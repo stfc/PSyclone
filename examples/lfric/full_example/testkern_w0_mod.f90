@@ -1,11 +1,6 @@
-!-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
-!-----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020, Science and Technology Facilities Council
+! Copyright (c) 2017, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -33,31 +28,39 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified R. W. Ford, STFC Daresbury Laboratory
-!          I. Kavcic, Met Office
+! Author R. Ford STFC Daresbury Lab
 
-!> @brief Define enumerator variables that describe the different types of
-!!        function space continuity.
+module testkern_w0_mod
+  use argument_mod
+  use kernel_mod
+  use fs_continuity_mod, only: W0
 
-module fs_continuity_mod
+  use constants_mod
+  type, extends(kernel_type) :: testkern_w0_type
+     type(arg_type), dimension(2) :: meta_args =  &
+          (/ arg_type(gh_field,gh_inc, w0),       &
+             arg_type(gh_field,gh_read,w0)        &
+           /)
+     integer :: iterates_over = cells
+   contains
+     procedure, nopass :: code => testkern_w0_code
+  end type testkern_w0_type
+contains
 
-  use constants_mod, only: i_native
+  subroutine testkern_w0_code(nlayers, fld1, fld2, ndf_w0, undf_w0, map_w0)
+    integer :: nlayers
+    real(kind=r_def), dimension(:), intent(inout) :: fld1
+    real(kind=r_def), dimension(:), intent(in)    :: fld2
+    integer :: ndf_w0, undf_w0
+    integer, dimension(:) :: map_w0
 
-  implicit none
+    integer :: i, k
+    do i=1, ndf_w0
+      do k=0, nlayers-1
+        !print *, "XX", i, k, map_w0(i), map_w0(i)+k
+        fld1(map_w0(i)+k) = fld1(map_w0(i)+k) + fld2(map_w0(i)+k)
+      end do
+    end do
+  end subroutine testkern_w0_code
 
-  private
-
-  integer(i_native), public, parameter :: W0       = 173
-  integer(i_native), public, parameter :: W1       = 194
-  integer(i_native), public, parameter :: W2       = 889
-  integer(i_native), public, parameter :: W2V      = 857
-  integer(i_native), public, parameter :: W2H      = 884
-  integer(i_native), public, parameter :: W2broken = 211
-  integer(i_native), public, parameter :: W2trace  = 213
-  integer(i_native), public, parameter :: W2Vtrace = 666
-  integer(i_native), public, parameter :: W2Htrace = 777
-  integer(i_native), public, parameter :: W3       = 424
-  integer(i_native), public, parameter :: Wtheta   = 274
-  integer(i_native), public, parameter :: Wchi     = 869
-
-end module fs_continuity_mod
+end module testkern_w0_mod
