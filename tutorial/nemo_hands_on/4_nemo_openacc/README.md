@@ -262,12 +262,13 @@ end.
 
 ## Collapsing Loop Nests ##
 
-Although we now have a basic GPU implementation of the mini-app, it is possible to
-make further use of our knowledge of the domain to improve performance. For instance,
-we can expose more parallelism to the compiler by instructing it to 'collapse' (merge
-into a single iteration space) tightly-nested inner loops. We do this in PSyclone by
-applying the `ACCLoopTrans` transformation in order to decorate a loop (or loops)
-with an ACC LOOP directive.
+Although we now have a basic GPU implementation of the mini-app, it is
+possible to make further use of our knowledge of the domain to improve
+performance. For instance, we can expose more parallelism to the
+compiler by instructing it to 'collapse' (merge into a single
+iteration space) tightly-nested inner loops. We do this in PSyclone by
+applying the `ACCLoopTrans` transformation in order to decorate a loop
+(or loops) with an ACC LOOP directive.
 
 Create a brand-new transformation script and, for demonstration purposes,
 apply the `ACCLoopTrans` to every 'latitude' loop:
@@ -285,8 +286,104 @@ apply the `ACCLoopTrans` to every 'latitude' loop:
                 pass
 ```
 
-(At code-generation time, such a directive must be
-within an OpenACC parallel region such as that defined by a KERNELS directive.)
+(Note that for simplicity, we are relying on the fact that all latitude
+loops in the mini-app correspond to tight, doubly-nested loops. In
+practice extra checking will be required to ensure this is the case.)
+
+Running PSyclone with this transformation script will fail at
+code-generation time because none of the added `ACC LOOP` directives
+are within an OpenACC parallel region:
+
+    Error message here. XXXXXXX
+
+We must therefore extend the optimisation script to add a kernels
+region. Using parts of the script developed earlier, put the body
+of the 'iteration' loop within a KERNELS region:
+
+```python
+    # Find the outer, 'iteration' loop
+    tloop = None
+    for node in sched.children:
+        if isinstance(node, Loop) and node.loop_type == "tracers":
+            tloop = node
+            break
+    ACC_KERNELS_TRANS.apply(tloop.loop_body)
+```
+
+We can then refine our first attempt so that we only collapse latitude
+loops that are *within* this region (i.e. children of the 'iteration'
+loop):
+
+```python
+    loops = tnode.walk(Loop)
+    for loop in loops if loop.loop_type == "lat":
+        ACC_LOOP_TRANS.apply(loop)
+```
+
+At this point, PSyclone should successfully generate valid Fortran
+with OpenACC directives. However, if we examine the Fortran produced
+we will see that the LOOP directives currently only specify
+`INDEPENDENT`, e.g.:
+
+```fortran
+      DO jk = 1, jpk - 1
+        !$ACC LOOP INDEPENDENT
+        DO jj = 2, jpj - 1
+          DO ji = 2, jpi - 1
+```
+
+How do we add the `COLLAPSE` clause? If we look at the documentation
+for `ACCLoopTrans` in the
+[Transformations](https://psyclone.readthedocs.io/en/stable/transformations.html?highlight=accdatatrans#transformations)
+section of the User Guide, we see that it takes an `options`
+dictionary argument. We can therefore specify that we want
+`COLLAPSE(2)` by doing:
+
+```python
+        ACC_LOOP_TRANS.apply(loop, options={"collapse": 2})
+```
+
+The resulting Fortran should now look like:
+
+```fortran
+      DO jk = 1, jpk - 1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
+        DO jj = 2, jpj - 1
+          DO ji = 2, jpi - 1
+```
+
+This option has been found to improve the performance of the NEMO model
+on GPU by a few percent.
+
+If time allows, you might wish to try modifying the mini-app so that
+at least one of the latitude loops does *not* correspond to a
+tightly-nested loop, e.g.:
+
+```fortran
+    DO jk = 1, jpk - 1
+      DO jj = 2, jpj - 1
+        DO ji = 2, jpi - 1
+	  ...
+	END DO
+	DO ji = 2, jpi - 1
+	  some-new-statements-here
+	END DO
+      END DO
+    END DO
+```
+
+You will then need to generalise your script so that it only applies
+the `ACCLoopTrans` to valid loop nests. (Hint: you will need to examine
+the nodes in the `loop_body` of the candidate latitude loop.)
+
+## Managed Memory ##
+
+In practice, the work being done to extend PSyclone to process the
+NEMO code is currently using NVIDIA's 'managed memory' support. No
+explicit data regions are added to the code. Instead, the run-time
+system moves data to/from the GPU automatically when page faults
+occur. This was originally intended as being a quick way to get
+something working on the GPU but it has actually proved to work well.
 
 ### 2. Using `validate()`??? ###
 

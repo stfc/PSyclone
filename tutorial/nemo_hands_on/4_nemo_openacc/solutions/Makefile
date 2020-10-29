@@ -45,6 +45,8 @@ test:
 	${MAKE} -C ../ ${TARGET}
 	${MAKE} clean
 	${MAKE} TRANS_SCRIPT=solutions/kernels_trans.py -C ../ ${TARGET}
+	${MAKE} clean
+	${MAKE} TRANS_SCRIPT=solutions/collapse_trans.py -C ../ ${TARGET}
 
 clean:
 	${MAKE} -C ../ clean

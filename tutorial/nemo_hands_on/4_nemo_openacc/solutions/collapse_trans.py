@@ -31,11 +31,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 
-'''A transformation script that adds KERNELS regions enclosed within a DATA
-region to the tracer-advection mini-app.  In order to use it you
-must first install PSyclone. See README.md in the top-level psyclone directory.
+'''A transformation script that adds a KERNELS region plus LOOP COLLAPSE
+directives to the tracer-advection mini-app.  In order to use it you
+must first install PSyclone. See README.md in the top-level psyclone
+directory.
 
 Once you have psyclone installed, this may be used by doing:
 
@@ -48,7 +49,7 @@ have already been preprocessed (if required).
 '''
 
 from __future__ import print_function
-from psyclone.psyir.nodes import Loop, Assignment
+from psyclone.psyir.nodes import Loop
 from psyclone.transformations import (ACCKernelsTrans, ACCDataTrans,
                                       ACCLoopTrans, TransformationError)
 
@@ -60,7 +61,11 @@ ACC_LOOP_TRANS = ACCLoopTrans()
 
 
 def trans(psy):
-    '''A PSyclone-script compliant transformation function.
+    '''A PSyclone-script compliant transformation function that is
+    bespoke for the tracer-advection mini-app. It encloses the
+    body of the iteration loop within a KERNELS region and then
+    applies COLLAPSE(2) to every latitude-longitude loop nest
+    within that.
 
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -72,28 +77,21 @@ def trans(psy):
     # Get the Schedule of the target routine
     sched = psy.invokes.get('tra_adv').schedule
 
-    loops = sched.walk(Loop)
-    for loop in loops:
-        if loop.loop_type == "lat":
-            try:
-                ACC_LOOP_TRANS.apply(loop)
-            except TransformationError:
-                pass
-
     # Find the outer, 'iteration' loop
     tloop = None
     for node in sched.children:
         if isinstance(node, Loop) and node.loop_type == "tracers":
             tloop = node
             break
+    ACC_KERNELS_TRANS.apply(tloop.loop_body)
 
-    for node in tloop.loop_body.children:
-        # Enclose explicit loops over vertical levels
-        if isinstance(node, Loop) and node.loop_type == "levels":
-            _ = ACC_KERNELS_TRANS.apply([node])
-        # Enclose array assignments (implicit loops)
-        if isinstance(node, Assignment) and node.is_array_range:
-            _ = ACC_KERNELS_TRANS.apply([node])
+    loops = tloop.walk(Loop)
+    for loop in loops:
+        if loop.loop_type == "lat":
+            try:
+                ACC_LOOP_TRANS.apply(loop, options={"collapse": 2})
+            except TransformationError:
+                pass
 
     # Finally, enclose the whole of the 'iteration' loop within
     # a data region
