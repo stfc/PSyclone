@@ -43,24 +43,34 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
 
 ## Part 2
 
-Create a kernel `add_fields_W0_kernel_mod.f90` that adds two fields on
+Create a kernel `add_fields_w0_kernel_mod.f90` that adds two fields on
 `W0` space and stores the result in another field on the same space. Use
 the existing `setval_field_w0_kernel_mod.f90`
-* To initialise each field to `0`;
+* To initialise the resulting field to `0` and the fields being added
+  to a constant value each;
 * As a template for the new kernel that adds fields.
 
-Modify the supplied algorithm `example1_alg_mod.90` to call these
-kernels from.
+As in Part 1, use the kernel stub generator to create argument list
+and declarations for the new kernel. Modify the supplied algorithm
+`example1_alg_mod.90` to call these kernels from.
+
+*Tips:*
+* `W3` function space and the related fields and kernels are no
+  longer required;
+* Group kernel calls into a single `invoke`;
+* Explore naming of `invoke` call.
 
 [Link to solutions](solutions/part2)
 
 ## Part 3
 
-Use the kernels `setval_fields_W0_kernel_mod.f90` and
-`add_fields_W0_kernel_mod.f90` from Part 2 as templates that can set and
-add field values for fields on any function space.
+Use the kernels `setval_fields_w0_kernel_mod.f90` and
+`add_fields_w0_kernel_mod.f90` from Part 2 as templates that can set and
+add field values for fields on any function space. Modify the supplied
+algorithm `example1_alg_mod.90` to call these kernels from.
 
-Modify the supplied algorithm `example1_alg_mod.90` to call these
-kernels from.
+*Tips:*
+* Modify the kernel metadata (perhaps also rename the kernels);
+* Try out other function spaces in the provided algorithm.
 
 [Link to solutions](solutions/part3)
