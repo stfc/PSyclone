@@ -34,13 +34,13 @@
 ! Author: I. Kavcic, Met Office
 !
 ! -----------------------------------------------------------------------------
-! A kernel that assigns a value to a field on a continuous function space W0
+! A kernel that assigns a value to a field on any function space
 ! -----------------------------------------------------------------------------
-module add_fields_w0_kernel_mod
+module setval_field_any_kernel_mod
 
-  use argument_mod,      only: arg_type, GH_FIELD, &
+  use argument_mod,      only: arg_type, ANY_SPACE_1, &
+                               GH_FIELD, GH_REAL,     &
                                GH_INC, GH_READ, CELLS
-  use fs_continuity_mod, only: W0
   use constants_mod,     only: r_def, i_def
   use kernel_mod,        only: kernel_type
 
@@ -51,51 +51,47 @@ module add_fields_w0_kernel_mod
   !-----------------------------------------------------------------------------
   ! Public types
   !-----------------------------------------------------------------------------
-  type, public, extends(kernel_type) :: add_fields_w0_kernel_type
+  type, public, extends(kernel_type) :: setval_field_any_kernel_type
     private
-    type(arg_type), dimension(3) :: meta_args = (/ &
-         arg_type(GH_FIELD, GH_INC,  W0),          &
-         arg_type(GH_FIELD, GH_READ, W0),          &
-         arg_type(GH_FIELD, GH_READ, W0)           &
+    type(arg_type), dimension(2) :: meta_args = (/ &
+         arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),  &
+         arg_type(GH_REAL,  GH_READ)               &
          /)
     integer :: iterates_over = CELLS
   contains
-    procedure, nopass :: add_fields_w0_code
-  end type add_fields_w0_kernel_type
+    procedure, nopass :: setval_field_any_code
+  end type setval_field_any_kernel_type
 
   !-----------------------------------------------------------------------------
   ! Contained functions/subroutines
   !-----------------------------------------------------------------------------
-  public add_fields_w0_code
+  public setval_field_any_code
 
   contains
 
-  subroutine add_fields_w0_code(nlayers, field_1_w0,    &
-                                field_2_w0, field_3_w0, &
-                                ndf_w0, undf_w0, map_w0)
+  subroutine setval_field_any_code(nlayers, field_1_aspc1, rscalar_2, &
+                                   ndf_aspc1, undf_aspc1, map_aspc1)
 
     implicit none
 
     ! Arguments
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_w0
-    integer(kind=i_def), intent(in) :: undf_w0
-    integer(kind=i_def), intent(in), dimension(ndf_w0) :: map_w0
-    real(kind=r_def), intent(inout), dimension(undf_w0) :: field_1_w0
-    real(kind=r_def), intent(in),    dimension(undf_w0) :: field_2_w0
-    real(kind=r_def), intent(in),    dimension(undf_w0) :: field_3_w0
+    integer(kind=i_def), intent(in) :: ndf_aspc1
+    integer(kind=i_def), intent(in) :: undf_aspc1
+    integer(kind=i_def), intent(in), dimension(ndf_aspc1) :: map_aspc1
+    real(kind=r_def), intent(in) :: rscalar_2
+    real(kind=r_def), intent(inout), dimension(undf_aspc1) :: field_1_aspc1
 
     ! Internal variables
     integer(kind=i_def) :: k, df
 
     ! Update field
     do k = 0, nlayers-1
-      do df = 1, ndf_w0
-        field_1_w0( map_w0(df) + k ) = &
-          field_2_w0( map_w0(df) + k ) + field_3_w0( map_w0(df) + k )
+      do df = 1, ndf_aspc1
+        field_1_aspc1( map_aspc1(df) + k ) = rscalar_2
       end do
     end do
 
-  end subroutine add_fields_w0_code
+  end subroutine setval_field_any_code
 
-end module add_fields_w0_kernel_mod
+end module setval_field_any_kernel_mod

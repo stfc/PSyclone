@@ -71,6 +71,9 @@ algorithm `example1_alg_mod.90` to call these kernels from.
 
 *Tips:*
 * Modify the kernel metadata (perhaps also rename the kernels);
+* Metadata for `ANY_SPACE` and `ANY_DISCONTINUOUS_SPACE` spaces are
+  in `argument_mod` in LFRic infrastructure;
+* Try out the kernel stub generator;
 * Try out other function spaces in the provided algorithm.
 
 [Link to solutions](solutions/part3)
