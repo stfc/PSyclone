@@ -1,5 +1,9 @@
 # Exercise 1: Create and run simple kernels
 
+Accompanying materials:
+* [Quick intro to LFRic](../background/LFRic_intro.md);
+* `Makefile` to build the code.
+
 ## Part 1
 
 Use PSyclone kernel stub generator to create argument list and declarations
@@ -17,11 +21,6 @@ genkernelstub setval_field_w0_kernel_mod.f90
 The `W3` kernel can be created using this stub as a template and changing
 the function space and code unit names accordingly (be careful about the
 correct access modes for continuous and discontinuous function spaces).
-
-Accompanying materials:
-* Overview of [LFRic algorithm structure and function](LFRic_algorithm.md);
-* Overview of [LFRic kernel structure and function](LFRic_kernel.md);
-* `Makefile` to build the code.
 
 ## Part 2
 
