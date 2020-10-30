@@ -1,7 +1,11 @@
-!------------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file COPYRIGHT_orig.txt which you
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017-2020,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+!-----------------------------------------------------------------------------
 ! However, it has been created by John Thuburn.
 !------------------------------------------------------------------------------
 !>  @brief   Routines for coordinate transformations.
@@ -11,7 +15,7 @@
 !------------------------------------------------------------------------------
 module coord_transform_mod
 
-use constants_mod, only : r_def
+use constants_mod, only : r_def, PI, eps
 
 implicit none
 
@@ -39,30 +43,31 @@ contains
 !>  @brief  Converts longitude and latitude to Cartesian coordinates on the
 !!          unit sphere.
 !!
-!!  @param[in]   long  Longitude to convert.
-!!  @param[in]   lat   Latitude  to convert.
+!!  @param[in]   longitude  Longitude to convert.
+!!  @param[in]   latitude   Latitude  to convert.
 !!  @param[out]  x     Cartesian x coordinate.
 !!  @param[out]  y     Cartesian y coordinate.
 !!  @param[out]  z     Cartesian z coordinate.
 !------------------------------------------------------------------------------
-subroutine ll2xyz(long,lat,x,y,z)
+subroutine ll2xyz(longitude,latitude,x,y,z)
+
   implicit none
 
-  !Arguments
-  real(kind=r_def), intent(in)  :: long,lat
+  ! Arguments
+  real(kind=r_def), intent(in)  :: longitude, latitude
   real(kind=r_def), intent(out) :: x,y,z
 
-  !Internal variables
-  real(kind=r_def) :: cos_long, sin_long, cos_lat, sin_lat
+  ! Internal variables
+  real(kind=r_def) :: cos_longitude, sin_longitude, cos_latitude, sin_latitude
 
-  sin_long = sin(long)
-  cos_long = cos(long)
-  sin_lat  = sin(lat)
-  cos_lat  = cos(lat)
+  sin_longitude = sin(longitude)
+  cos_longitude = cos(longitude)
+  sin_latitude = sin(latitude)
+  cos_latitude = cos(latitude)
 
-  x = cos_long * cos_lat
-  y = sin_long * cos_lat
-  z = sin_lat
+  x = cos_longitude * cos_latitude
+  y = sin_longitude * cos_latitude
+  z = sin_latitude
 
   return
 end subroutine ll2xyz
@@ -71,31 +76,33 @@ end subroutine ll2xyz
 !>  @brief  Converts longitude and latitude to Cartesian coordinates on
 !!          a sphere with some specified radius.
 !!
-!!  @param[in]   long    Longitude to convert.
-!!  @param[in]   lat     Latitude  to convert.
-!!  @param[in]   radius  Radius of the sphere.
-!!  @param[out]  x       Cartesian x coordinate.
-!!  @param[out]  y       Cartesian y coordinate.
-!!  @param[out]  z       Cartesian z coordinate.
+!!  @param[in]   longitude Longitude to convert.
+!!  @param[in]   latitude  Latitude  to convert.
+!!  @param[in]   radius    Radius of the sphere.
+!!  @param[out]  x         Cartesian x coordinate.
+!!  @param[out]  y         Cartesian y coordinate.
+!!  @param[out]  z         Cartesian z coordinate.
 !------------------------------------------------------------------------------
-subroutine llr2xyz(long,lat,radius,x,y,z)
+subroutine llr2xyz(longitude, latitude, radius, x, y, z)
+
   implicit none
 
-  !Arguments
-  real(kind=r_def), intent(in)  :: long,lat,radius
-  real(kind=r_def), intent(out) :: x,y,z
+  ! Arguments
+  real(kind=r_def), intent(in)  :: longitude, latitude, radius
+  real(kind=r_def), intent(out) :: x, y, z
 
-  !Internal variables
-  real(kind=r_def) :: cos_long, sin_long, cos_lat, sin_lat
+  ! Internal variables
+  real(kind=r_def) :: cos_long, sin_long
+  real(kind=r_def) :: cos_latitude, sin_latitude
 
-  sin_long = sin(long)
-  cos_long = cos(long)
-  sin_lat  = sin(lat)
-  cos_lat  = cos(lat)
+  sin_long     = sin(longitude)
+  cos_long     = cos(longitude)
+  sin_latitude = sin(latitude)
+  cos_latitude = cos(latitude)
 
-  x = radius * cos_long * cos_lat
-  y = radius * sin_long * cos_lat
-  z = radius * sin_lat
+  x = radius * cos_long * cos_latitude
+  y = radius * sin_long * cos_latitude
+  z = radius * sin_latitude
 
   return
 end subroutine llr2xyz
@@ -106,47 +113,59 @@ end subroutine llr2xyz
 !!  @param[in]   x     Cartesian x coordinate to convert.
 !!  @param[in]   y     Cartesian y coordinate to convert.
 !!  @param[in]   z     Cartesian z coordinate to convert.
-!!  @param[out]  long  Longitude.
-!!  @param[out]  lat   Latitude.
+!!  @param[out]  longitude  -PI   <  Longitude <= PI   (radians).
+!!  @param[out]  latitude   -PI/2 <= Latitude  <= PI/2 (radians).
 !------------------------------------------------------------------------------
-subroutine xyz2ll(x,y,z,long,lat)
-  use constants_mod, only : PI
+subroutine xyz2ll(x, y, z, longitude, latitude)
+
   implicit none
 
-  !Arguments
-  real(kind=r_def), intent(in)  :: x,y,z
-  real(kind=r_def), intent(out) :: long, lat
+  ! Arguments
+  real(r_def), intent(in)  :: x, y, z
+  real(r_def), intent(out) :: longitude, latitude
 
-  !Internal variables
-  real(kind=r_def) :: tan_long, tan_lat, radius
+  ! Internal variables
+  real(r_def) :: tan_longitude
+  real(r_def) :: tan_latitude
+  real(r_def) :: radius
 
+  ! Calculate longitude in range
+  ! -180 < longitude <= 180
   if (x == 0.0_r_def) then
     if (y >= 0.0_r_def) then
-      long = 0.5_r_def*PI
+      longitude =  0.5_r_def*PI
     else
-      long = 1.5_r_def*PI
+      longitude = -0.5_r_def*PI
     end if
   else
-    tan_long=y/x
-    long=atan(tan_long)
+    tan_longitude  = y/x
+    longitude = atan(tan_longitude)
+
     if (x < 0.0_r_def) then
-      long=long+PI
-    endif
-    if (long < 0.0_r_def) then
-      long=long+2.0_r_def*PI
-    endif
+      if (y >= 0.0_r_def) then
+        longitude = longitude + PI
+      else
+        longitude = longitude - PI
+      end if
+    end if
   end if
 
+
+  ! Calculate latitude in range
+  ! -90 <= longitude <= +90
   radius = sqrt(x*x+y*y)
-  if (radius == 0.0_r_def) then
+  if (radius <= eps) then
     if (z > 0.0_r_def) then
-      lat=0.5_r_def*pi
+      latitude = 0.5_r_def*PI
     else
-      lat=-0.5_r_def*pi
+      latitude = -0.5_r_def*PI
     end if
+    ! Ensure consisent value for longitude is
+    ! output for Latitudes of -90 and 90.
+    longitude = 0.0_r_def
   else
-    tan_lat = z / radius
-    lat = atan(tan_lat)
+    tan_latitude = z/radius
+    latitude = atan(tan_latitude)
   end if
 
   return
@@ -157,49 +176,68 @@ end subroutine xyz2ll
 !!  @param[in]   x     Cartesian x coordinate to convert.
 !!  @param[in]   y     Cartesian y coordinate to convert.
 !!  @param[in]   z     Cartesian z coordinate to convert.
-!!  @param[out]  long  Longitude.
-!!  @param[out]  lat   Latitude.
-!!  @param[out]  r     Radius of the sphere.
+!!  @param[out]  longitude  -PI   <  Longitude <= PI   (radians).
+!!  @param[out]  latitude   -PI/2 <= Latitude  <= PI/2 (radians).
+!!  @param[out]  radius     Radius of the sphere(m).
 !------------------------------------------------------------------------------
-subroutine xyz2llr(x,y,z,long,lat,r)
-  use constants_mod, only: PI
+subroutine xyz2llr( x, y, z, &
+                    longitude, latitude, radius )
+
   implicit none
 
-  real(kind=r_def), intent(in)  :: x, y, z
-  real(kind=r_def), intent(out) :: long, lat, r
-  real(kind=r_def)              :: tln, tlt
-  real(kind=r_def)              :: tol = 10.0e-8_r_def
+  real(r_def), intent(in)  :: x, y, z
+  real(r_def), intent(out) :: longitude, latitude, radius
 
-  if ( abs(x) < tol ) then
-    if ( y >= 0.0_r_def ) then
-      long = 0.5_r_def*PI
+  ! Local variables
+  real(r_def) :: tan_longitude, tan_latitude
+  real(r_def) :: tol = 10.0e-8_r_def
+
+
+  ! Calculate longitude in range
+  ! -180 < longitude <= 180
+  if (x == 0.0_r_def) then
+
+    if (y >= 0.0_r_def) then
+      longitude =  0.5_r_def*PI
     else
-      long = 1.5_r_def*PI
+      longitude = -0.5_r_def*PI
     end if
+
   else
-    tln = y/x
-    long = atan(tln)
-    if ( x < 0.0_r_def ) then
-      long = long + PI
+
+    tan_longitude = y/x
+    longitude = atan(tan_longitude)
+
+    if (x < 0.0_r_def) then
+      if (y >= 0.0_r_def) then
+        longitude = longitude + PI
+      else
+        longitude = longitude - PI
+      end if
     end if
-    if ( long < 0.0_r_def ) then
-      long = long + 2.0_r_def*PI
-    end if
+
   end if
 
-  r = sqrt(x*x + y*y)
-  if ( abs(r) < tol ) then
+
+  ! Calculate latitude in range
+  ! -90 <= longitude <= +90
+  radius = sqrt(x*x + y*y)
+  if ( abs(radius) < tol ) then
     if (z > 0.0_r_def ) then
-      lat =  0.5_r_def*PI
+      latitude =  0.5_r_def*PI
     else
-      lat = -0.5_r_def*PI
+      latitude = -0.5_r_def*PI
     end if
+    ! Ensure consisent value for longitude is
+    ! output for Latitudes of -90/90.
+    longitude = 0.0_r_def
   else
-    tlt = z/r
-    lat = atan(tlt)
+    tan_latitude = z/radius
+    latitude = atan(tan_latitude)
   end if
 
-  r = sqrt(x*x + y*y + z*z)
+  ! Radius
+  radius = sqrt(x*x + y*y + z*z)
 
 end subroutine xyz2llr
 
@@ -218,6 +256,7 @@ end subroutine xyz2llr
 !!  @return  area  Area of the spherical triangle.
 !-------------------------------------------------------------------------------
 function starea2(x0,x1,x2) result(area)
+
   implicit none
 
   ! Arguments
@@ -260,6 +299,7 @@ end function starea2
 function spherical_distance(x1,x2) result(s)
   ! Calculate the spherical distance S between two points with Cartesian
   ! coordinates (X1,Y1,Z1), (X2,Y2,Z2)
+
   implicit none
 
   real(kind=r_def), dimension(3), intent(in) :: x1, x2
@@ -285,14 +325,16 @@ end function spherical_distance
 !! @param[out] angle   Angle between the points.
 !-------------------------------------------------------------------------------
 subroutine central_angle(long1,lat1,long2,lat2,angle)
+
   ! Calculates the central angle between points 1 and 2 with latitude and longitude
 
   implicit none
-  !Arguments
+
+  ! Arguments
   real(kind=r_def), intent(in)  :: long1,lat1,long2,lat2
   real(kind=r_def), intent(out) :: angle
 
-  !Internal variables
+  ! Internal variables
   real(kind=r_def) :: deltalong
 
   deltalong = long2-long1
@@ -312,6 +354,7 @@ end subroutine central_angle
 !! @result     s Cartesian distance between the points.
 !-------------------------------------------------------------------------------
 pure function cartesian_distance(x,y) result( s )
+
   implicit none
 
   !Arguments
@@ -338,8 +381,10 @@ end function cartesian_distance
 !> @param[return] dx Output vector in Cartesian coordinates
 !-------------------------------------------------------------------------------
 function sphere2cart_vector( dlambda, llr ) result ( dx )
+
   use constants_mod,     only: r_def
   use matrix_invert_mod, only: matrix_invert_3x3
+
   implicit none
 
   real(kind=r_def), intent(in)  :: dlambda(3)
@@ -348,11 +393,12 @@ function sphere2cart_vector( dlambda, llr ) result ( dx )
 
   real(kind=r_def)              :: A(3,3), A_inv(3,3)
 
-! Form transformation matrix
+  ! Form transformation matrix
   A(1,:) = (/ -sin(llr(1)),              cos(llr(1)),              0.0_r_def   /)
   A(2,:) = (/ -sin(llr(2))*cos(llr(1)), -sin(llr(2))*sin(llr(1)),  cos(llr(2)) /)
   A(3,:) = (/  cos(llr(2))*cos(llr(1)),  cos(llr(2))*sin(llr(1)),  sin(llr(2)) /)
-! form inverse
+
+  ! Form inverse
   A_inv = matrix_invert_3x3(A)
   dx(:) = matmul(A_inv, dlambda)
   return
@@ -375,33 +421,31 @@ end function sphere2cart_vector
 !>
 !-------------------------------------------------------------------------------
 pure function cart2sphere_vector(x_vec, cartesian_vec) result ( spherical_vec )
-     use constants_mod, only: r_def, PI
 
-     implicit none
+  implicit none
 
-     real(kind=r_def), intent(in)  :: x_vec(3)
-     real(kind=r_def), intent(in)  :: cartesian_vec(3)
+  real(kind=r_def), intent(in)  :: x_vec(3)
+  real(kind=r_def), intent(in)  :: cartesian_vec(3)
+  real(kind=r_def)              :: spherical_vec(3)
 
-     real(kind=r_def)              :: spherical_vec(3)
+  real(kind=r_def)              :: r, t, phi
 
-     real(kind=r_def)              :: r, t, phi
+  t = x_vec(1)**2 + x_vec(2)**2
+  r = sqrt(t + x_vec(3)**2)
 
-     t = x_vec(1)**2 + x_vec(2)**2
-     r = sqrt(t + x_vec(3)**2)
+  spherical_vec(1) = (- x_vec(2)*cartesian_vec(1) &
+                      + x_vec(1)*cartesian_vec(2) ) / t
+  spherical_vec(2) = (- x_vec(1)*x_vec(3)*cartesian_vec(1) &
+                      - x_vec(2)*x_vec(3)*cartesian_vec(2) &
+                      + t*cartesian_vec(3))/(r*r*sqrt(t))
+  spherical_vec(3) = (  x_vec(1)*cartesian_vec(1) &
+                      + x_vec(2)*cartesian_vec(2) &
+                      + x_vec(3)*cartesian_vec(3)) / r
 
-     spherical_vec(1) = (- x_vec(2)*cartesian_vec(1) &
-                         + x_vec(1)*cartesian_vec(2) ) / t
-     spherical_vec(2) = (-x_vec(1)*x_vec(3)*cartesian_vec(1) &
-                         -x_vec(2)*x_vec(3)*cartesian_vec(2) &
-                                        + t*cartesian_vec(3))/(r*r*sqrt(t))
-     spherical_vec(3) = (x_vec(1)*cartesian_vec(1) &
-                       + x_vec(2)*cartesian_vec(2) &
-                       + x_vec(3)*cartesian_vec(3)) / r
-
-! convert from (dlambda/dt,dphi/dt,dr/dt) to (u,v,w) in m/s
-     phi = 0.5_r_def*PI - acos(x_vec(3)/r)
-     spherical_vec(1) = spherical_vec(1)*r*cos(phi)
-     spherical_vec(2) = spherical_vec(2)*r
+  ! Convert from (dlambda/dt,dphi/dt,dr/dt) to (u,v,w) in m/s
+  phi = 0.5_r_def*PI - acos(x_vec(3)/r)
+  spherical_vec(1) = spherical_vec(1)*r*cos(phi)
+  spherical_vec(2) = spherical_vec(2)*r
 
 end function cart2sphere_vector
 

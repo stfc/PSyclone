@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-! -----------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 
 ! BSD 3-Clause License
 !
@@ -38,8 +38,9 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified: I. Kavcic, Met Office
-!
+! Modified by: J. Henrichs, Bureau of Meteorology,
+!              I. Kavcic, Met Office
+
 !> @brief A module providing field related classes.
 !>
 !> @details Both a representation of a field which provides no access to the
