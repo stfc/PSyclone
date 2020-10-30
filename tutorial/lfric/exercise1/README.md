@@ -3,6 +3,9 @@
 Accompanying materials:
 * [Quick intro to LFRic](../background/LFRic_intro.md);
 * `Makefile` to build the code.
+* `example1_driver.f90`, driver that creates
+* 
+* `setval_field_w0_kernel_mod.f90`
 
 ## Part 1
 
@@ -14,7 +17,7 @@ Call these kernels from an algorithm.
 The stub for the first kernel with the required metadata can be found in
 the file `setval_field_w0_kernel_mod.f90`. Declarations and argument list
 code can be created by running PSyclone kernel stub generator:
-```
+```bash
 genkernelstub setval_field_w0_kernel_mod.f90
 ```
 

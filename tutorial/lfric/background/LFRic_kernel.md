@@ -84,13 +84,13 @@ Here the `<base_name>` is `setval_field_w0`.
 
 The LFRic metadata types inherit from the abstract base type `kernel_type`
 
-```
+```fortran
 type, public, extends(kernel_type) :: setval_field_w0_kernel_type
 ```
 
 and this base type must be accessible to a kernel through a `use` statement
 
-```
+```fortran
 use kernel_mod,        only: kernel_type
 ```
 
@@ -129,7 +129,7 @@ that a kernel operates on a one-cell-wide vertical column of cells.
   marking the data type and `GH_SCALAR` denoting the scalar arguments. The
   above `arg_type` notation will change to
 
-  ```
+  ```fortran
       type(arg_type), dimension(2) :: meta_args = (/ &
            arg_type(GH_FIELD,  GH_REAL, GH_INC, W0), &
            arg_type(GH_SCALAR, GH_REAL, GH_READ)     &
