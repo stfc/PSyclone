@@ -110,8 +110,10 @@ arguments that this kernel operates on:
 
 The `GH_` prefix comes from "GungHo", the name of the dynamical core used in
 the LFRic model. Please refer to the documentation for more information on
-[supported accesses](https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
-and [function spaces](https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces)
+[supported accesses](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
+and [function spaces](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces)
 for the LFRic data objects.
 
 The `iterates_over` metadata specifies how LFRic kernels are called

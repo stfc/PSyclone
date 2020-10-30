@@ -8,14 +8,19 @@ dynamical core and runs on a semi-structured cubed-sphere mesh.
 The design of the supporting infrastructure follows object-oriented
 principles to facilitate modularity and the use of external libraries.
 One of the guiding design principles, imposed to promote performance
-portability, is *separation of concerns* between the science code and
+portability, is **separation of concerns** between the science code and
 parallel code.
 
 The main languages used in LFRic are
 [Fortran 2003](https://gcc.gnu.org/wiki/GFortranStandards#Fortran_2003)
-and [Python 3](https://www.python.org/download/releases/3.0/).
+and [Python 3.](https://www.python.org/download/releases/3.0/)
 
-**PSyclone** generates the parallel code enabling deployment of a
+**PSyclone** generates the parallel code for shared and distributed
+memory support on CPUs via the LFRic (Dynamo 0.3) API. The generated
+code calls the appropriate functionality from the LFRic infrastructure
+(e.g. halo exchange, colouring). PSyclone optimisations are routinely
+used in building and running LFRic. Together with the developing
+support for accelerators, PSyclone aims to facilitate deployment of a
 single-source science code onto different machine architectures.
 
 ## LFRic repository and wiki
@@ -34,20 +39,25 @@ recommended for checking out the code for runs only as it is easier to install.
 
 ### PSyclone in LFRic
 
+PSyclone LFRic (Dynamo 0.3) API documentation can be found [here.](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
+
 LFRic wiki hosts pages on the use of PSyclone in LFRic, starting with the
 [PSyclone in LFRic wiki](https://code.metoffice.gov.uk/trac/lfric/wiki/PSycloneTool).
 
 Not every PSyclone release works with every LFRic trunk revision. The LFRic - PSyclone
-compatibility table is give in this
-[LFRic wiki (requires login)](https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicTechnical/VersionsCompatibility).
+compatibility table is give in this [LFRic wiki (requires login)](
+https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicTechnical/VersionsCompatibility).
 
-## LFRic repository structure
+## LFRic code structure
 
 The LFRic code is rapidly developing. A recent snapshot of LFRic trunk
-[(revision 25636, Oct 2020)](https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk?rev=25636)
+[(revision 25636, Oct 2020)](
+https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk?rev=25636)
 is structured as follows:
 
-* `bin` - [Rose-based](https://www.metoffice.gov.uk/research/approach/modelling-systems/rose) executables;
+* `bin` - [Rose-based](
+   https://www.metoffice.gov.uk/research/approach/modelling-systems/rose) executables;
 
 * `extra` - Utilities (e.g. job submission scripts);
 
@@ -55,8 +65,8 @@ is structured as follows:
 
 * `infrastructure` - LFRic infrastructure supporting science applications;
 
-* `jules` - Interface to the UKMO
-  [JULES land surface model](https://www.metoffice.gov.uk/research/approach/collaboration/jwcrp/jules);
+* `jules` - Interface to the UKMO [JULES land surface model](
+   https://www.metoffice.gov.uk/research/approach/collaboration/jwcrp/jules);
 
 * `lfric_atm` - LFRic atmospheric model that uses GungHo dynamical core and
                 interfaces to UM Physics, JULES and SOCRATES;
@@ -101,6 +111,9 @@ is shown in the figure below (courtesy of UKMO LFRic team).
 
 * Adams SV, Ford RW, Hambley M, Hobson JM, Kavcic I, Maynard CM, Melvin T,
   Mueller EH, Mullerworth S, Porter AR, Rezny M, Shipway BJ and Wong R (2019):
-  [LFRic: Meeting the challenges of scalability and performance portability in
-  Weather and Climate models.](https://doi.org/10.1016/j.jpdc.2019.02.007) Journal of Parallel and Distributed Computing.
-* [Met Office research news, May 2019](https://www.metoffice.gov.uk/research/news/2019/gungho-and-lfric)
+  [LFRic: Meeting the challenges of scalability and performance portability
+  in Weather and Climate models.](
+  https://doi.org/10.1016/j.jpdc.2019.02.007) Journal of Parallel and
+  Distributed Computing.
+* [Met Office research news, May 2019](
+  https://www.metoffice.gov.uk/research/news/2019/gungho-and-lfric)

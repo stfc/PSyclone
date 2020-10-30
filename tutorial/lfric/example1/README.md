@@ -1,29 +1,45 @@
 # Exercise 1: Create and run simple kernels
 
 Accompanying materials:
-* [Quick intro to LFRic](../background/LFRic_intro.md);
-* `Makefile` to build the code.
-* `example1_driver.f90`, driver that creates
-* 
-* `setval_field_w0_kernel_mod.f90`
+
+* `Makefile` to build the code;
+* `example1_driver.f90` - an example of LFRic-lite main program that
+  creates the required LFRic objects and calls the algorithm code in
+  this example (does not need to be modified);
+* `example1_alg_mod.x90` - an example of LFRic algorithm that sets up
+  fields and operates on them via `invoke` calls to the kernels created
+  in parts 1-3 of this exercise (`invoke` calls need to be completed);
+* `setval_field_w0_kernel_mod.f90` - a stub of an LFRic kernel to be
+  completed as described in Part 1 and used as a template.
 
 ## Part 1
 
-Use PSyclone kernel stub generator to create argument list and declarations
-for two kernels, one that assigns a value to a field on continuous `W0`
-function space and another on a discontinuous `W3` function space.
-Call these kernels from an algorithm.
+Use PSyclone kernel stub generator to create argument list and
+declarations for two kernels, one that assigns a value to a field on
+continuous `W0` function space and another on a discontinuous `W3`
+function space. Modify the supplied algorithm `example1_alg_mod.90`
+to call these kernels from.
 
-The stub for the first kernel with the required metadata can be found in
-the file `setval_field_w0_kernel_mod.f90`. Declarations and argument list
-code can be created by running PSyclone kernel stub generator:
+The stub for the first kernel with the required metadata can be found
+in the file `setval_field_w0_kernel_mod.f90`. Declarations and argument
+list code can be created by running PSyclone kernel stub generator:
+
 ```bash
 genkernelstub setval_field_w0_kernel_mod.f90
 ```
 
-The `W3` kernel can be created using this stub as a template and changing
-the function space and code unit names accordingly (be careful about the
-correct access modes for continuous and discontinuous function spaces).
+The kernel code can be completed by referring to the *Loops* section of
+the [LFRic kernel documentation](../background/LFRic_kernel.md) in this
+tutorial.
+
+The `W3` kernel can be created using the completed
+`setval_field_w0_kernel_mod.f90` as a template and changing the function
+space and code unit names accordingly. Information about the correct
+access modes for fields on continuous and discontinuous function spaces
+in PSyclone LFRic (Dynamo 0.3) API can be found [here.](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
+
+[Link to solutions](solutions/part1)
 
 ## Part 2
 
@@ -33,12 +49,18 @@ the existing `setval_field_w0_kernel_mod.f90`
 * To initialise each field to `0`;
 * As a template for the new kernel that adds fields.
 
-Call these kernels from an algorithm.
+Modify the supplied algorithm `example1_alg_mod.90` to call these
+kernels from.
+
+[Link to solutions](solutions/part2)
 
 ## Part 3
 
 Use the kernels `setval_fields_W0_kernel_mod.f90` and
-`add_fields_W0_kernel_mod.f90` from part 2 as templates that can set and
+`add_fields_W0_kernel_mod.f90` from Part 2 as templates that can set and
 add field values for fields on any function space.
 
-Call these kernels from an algorithm.
+Modify the supplied algorithm `example1_alg_mod.90` to call these
+kernels from.
+
+[Link to solutions](solutions/part3)
