@@ -1,7 +1,10 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2020,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 !-----------------------------------------------------------------------------
 !
 !> @brief Define enumerator variables that describe the different types of continuity.
@@ -31,8 +34,8 @@ integer(i_native), public, parameter :: W2V       = 857
 integer(i_native), public, parameter :: W2H       = 884
 integer(i_native), public, parameter :: W2broken  = 211
 integer(i_native), public, parameter :: W2trace   = 213
-integer(i_native), public, parameter :: W2vtrace  = 666
-integer(i_native), public, parameter :: W2htrace  = 777
+integer(i_native), public, parameter :: W2Vtrace  = 666
+integer(i_native), public, parameter :: W2Htrace  = 777
 integer(i_native), public, parameter :: W3        = 424
 integer(i_native), public, parameter :: Wtheta    = 274
 integer(i_native), public, parameter :: Wchi      = 869
@@ -44,8 +47,8 @@ integer(i_native), public, parameter :: fs_enumerator(12) = [W0,       &
                                                              W2H,      &
                                                              W2broken, &
                                                              W2trace,  &
-                                                             W2vtrace, &
-                                                             W2htrace, &
+                                                             W2Vtrace, &
+                                                             W2Htrace, &
                                                              W3,       &
                                                              Wtheta,   &
                                                              Wchi]
@@ -58,8 +61,8 @@ character(str_short), public, parameter :: fs_name(12) &
                                        'W2H',      &
                                        'W2broken', &
                                        'W2trace',  &
-                                       'W2vtrace', &
-                                       'W2htrace', &
+                                       'W2Htrace', &
+                                       'W2Vtrace', &
                                        'W3',       &
                                        'Wtheta',   &
                                        'Wchi']
