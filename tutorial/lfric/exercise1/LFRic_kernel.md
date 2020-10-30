@@ -3,9 +3,10 @@
 ## What kernels do
 
 LFRic kernels perform mathematical operations on LFRic data objects:
-**field**s, **operator**s and **scalar**s. Scalars are passed to a
-kernel from the [algorithm layer](LFRic_algorithm.md) as they are.
+**field**s, **operator**s and **scalar**s.
 
+Scalar values are passed to a kernel from the
+[algorithm layer](LFRic_algorithm.md) as they are.
 In case of fields and operators, however, LFRic kernels operate on a
 subset of data points (degrees of freedom or DoFs) of these objects.
 Such a subset occupies a portion of the computational domain
@@ -91,8 +92,8 @@ use kernel_mod,        only: kernel_type
 Each metadata type contains a subset of other derived types and identifiers
 that store various kernel metadata. Here we briefly explain the contents of
 `arg_type` and `iterates_over` metadata. For more information please refer
-to the [LFRic (Dynamo 0.3) API user documentation]
-(https://psyclone.readthedocs.io/en/stable/dynamo0p3.html)
+to the LFRic (Dynamo 0.3) API
+[user documentation](https://psyclone.readthedocs.io/en/stable/dynamo0p3.html)
 
 The `arg_type` in this example describes the two (hence `dimension(2)`)
 arguments that this kernel operates on:
@@ -108,36 +109,32 @@ the LFRic model. Please refer to the documentation for more information on
 and [function spaces](https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces)
 for the LFRic data objects.
 
----
-**NOTE**
-
-LFRic field data are currently `real`-valued, however there is ongoing
-work to allow the field data of other intrinsic types, such as `integer`.
-This will be reflected in the metadata, with `GH_REAL` and `GH_INTEGER`
-marking the data type and `GH_SCALAR` denoting the scalar arguments. The
-above `arg_type` notation will change to
-
-```
-    type(arg_type), dimension(2) :: meta_args = (/ &
-         arg_type(GH_FIELD,  GH_REAL, GH_INC, W0), &
-         arg_type(GH_SCALAR, GH_REAL, GH_READ)     &
-         /)
-```
----
-
 The `iterates_over` metadata specifies how LFRic kernels are called
 from the [PSy layer](LFRic_PSy.md). A user-defined kernel in LFRic
 is called from a PSy-layer loop over each cell in the horizontal domain,
 hence the metadata identifier for this way looping - `CELLS`. This means
-that a kernel operates on a one-cell-wide vertical column of cells. 
+that a kernel operates on a one-cell-wide vertical column of cells.
 
 ---
 **NOTE**
 
-The kernel metadata for the iteration spaces are also changing to be
-clearer about the subset of domain the kernel operates on rather than
-the PSy-layer looping. In the next PSyclone release `iterates_over = CELLS`
-will become `operates_on = CELL_COLUMN`.
+* LFRic field data are currently `real`-valued, however there is ongoing
+  work to allow the field data of other intrinsic types, such as `integer`.
+  This will be reflected in the metadata, with `GH_REAL` and `GH_INTEGER`
+  marking the data type and `GH_SCALAR` denoting the scalar arguments. The
+  above `arg_type` notation will change to
+
+  ```
+      type(arg_type), dimension(2) :: meta_args = (/ &
+           arg_type(GH_FIELD,  GH_REAL, GH_INC, W0), &
+           arg_type(GH_SCALAR, GH_REAL, GH_READ)     &
+           /)
+  ```
+
+* The kernel metadata for the iteration spaces are also changing to be
+  clearer about the subset of domain the kernel operates on rather than
+  the PSy-layer looping. In the next PSyclone release `iterates_over = CELLS`
+  will become `operates_on = CELL_COLUMN`.
 ---
 
 ### `use` statements and encapsulation
@@ -167,7 +164,7 @@ object. As a rule, object data are `private` as illustrated in the
 
 Running PSyclone [kernel stub generator]
 (https://psyclone.readthedocs.io/en/stable/stub_gen.html)
-on ``setval_field_w0_kernel_mod.f90` produces the argument list and
+on `setval_field_w0_kernel_mod.f90` produces the argument list and
 declarations for the `setval_field_w0_code` enclosed in a module:
 
 ```
