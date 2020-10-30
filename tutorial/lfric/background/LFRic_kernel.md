@@ -19,10 +19,10 @@ is passed to a kernel.
 ## Kernel structure
 
 In this section we use the
-[`../exercise1/setval_field_w0_kernel_mod.f90`](../exercise1/setval_field_w0_kernel_mod.f90)
+[`../example1/setval_field_w0_kernel_mod.f90`](../example1/setval_field_w0_kernel_mod.f90)
 kernel stub to illustrate the structure of LFRic kernels (the
-[complete example](../exercise1/solutions/part1/setval_field_w0_kernel_mod.f90)
-is provided in the [solutions](../exercise1/solutions/part1)).
+[complete example](../example1/solutions/part1/setval_field_w0_kernel_mod.f90)
+is provided in the [solutions](../example1/solutions/part1)).
 
 ```fortran
 module setval_field_w0_kernel_mod

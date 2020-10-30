@@ -47,10 +47,10 @@ KERNEL = setval_field_w0_kernel_mod setval_field_w3_kernel_mod
 PSYCLONE_CMD = -nodm -l all
 
 # Executable
-EXEC = exercise1_part1
+EXEC = example1_part1
 
 # LFRic infrastructure library
-PSYCLONE_RELPATH = ../../..
+PSYCLONE_RELPATH = ../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
