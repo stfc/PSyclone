@@ -34,7 +34,7 @@
 ! Author: I. Kavcic, Met Office
 !
 !------------------------------------------------------------------------------
-! Drives the execution of the algorithms and kernels in Exercise 1.
+! Drives the execution of the algorithms and kernels in Example 1.
 ! Based on the pared-down version of LFRic infrastructure stored in
 ! $PSYCLONE_DIR/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 !------------------------------------------------------------------------------

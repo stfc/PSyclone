@@ -1,4 +1,4 @@
-# Exercise 1: Create and run simple kernels
+# Example 1: Create and run simple kernels
 
 Accompanying materials:
 
@@ -8,7 +8,7 @@ Accompanying materials:
   this example (does not need to be modified);
 * `example1_alg_mod.x90` - an example of LFRic algorithm that sets up
   fields and operates on them via `invoke` calls to the kernels created
-  in parts 1-3 of this exercise (`invoke` calls need to be completed);
+  in parts 1-3 of this Example (`invoke` calls need to be completed);
 * `setval_field_w0_kernel_mod.f90` - a stub of an LFRic kernel to be
   completed as described in Part 1 and used as a template.
 
