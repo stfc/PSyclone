@@ -165,6 +165,17 @@
 	53) #919 for #916. Fixes errors in docstrings which show up when
 	generating the reference guide.
 
+        54) #938 for #937. Correct erroneous use of str(err) instead of
+        str(err.value) in symboltable_test.py.
+
+        55) #940 for #939. Bug fix to ensure utf-8 encoding is set in both
+        Python 2 and 3 when reading files. (Required when running in
+        non-Unicode locales.)
+
+	56) #942 for #941. Bug fix so that an exception is raised if a
+	directive is placed around a loop or code region containing a
+	codeblock.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
