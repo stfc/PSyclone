@@ -1,79 +1,107 @@
-# Example 1: Create and run simple kernels
+# Example 2: Use PSyclone built-ins
 
 Accompanying materials:
 
 * `Makefile` to build the code;
-* `example1_driver.f90` - an example of LFRic-lite main program that
+* `example2_driver.f90` - an example of LFRic-lite main program that
   creates the required LFRic objects and calls the algorithm code in
-  this example (does not need to be modified);
-* `example1_alg_mod.x90` - an example of LFRic algorithm that sets up
-  fields and operates on them via `invoke` calls to the kernels created
-  in parts 1-3 of this Example (`invoke` calls need to be completed);
-* `setval_field_w0_kernel_mod.f90` - a stub of an LFRic kernel to be
-  completed as described in Part 1 and used as a template.
+  this Example (does not need to be modified);
+* `example2_alg_mod.x90` - an example of LFRic algorithm that sets up
+  fields on `W0` and `W3` function spaces and performs simple mathematical
+  operations via a group of `invoke` calls to PSyclone LFRic API built-ins
+  (`invoke` call needs to be completed).
 
-## Part 1
+The [Example 1](../example1) of this tutorial shows how to build LFRic
+kernels and use them for simple mathematical operations, such as
+setting field to a value and adding fields.
 
-Use PSyclone kernel stub generator to create argument list and
-declarations for two kernels, one that assigns a value to a field on
-continuous `W0` function space and another on a discontinuous `W3`
-function space. Modify the supplied algorithm `example1_alg_mod.90`
-to call these kernels from.
+LFRic (Dynamo 0.3) API provides
+[built-ins support](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins)
+for such mathematical operations. This Example replaces calls to
+user-defined [LFRic kernels](../background/LFRic_kernel.md) with PSyclone
+built-ins in the [algorithm layer](../background/LFRic_algorithm.md).
 
-The stub for the first kernel with the required metadata can be found
-in the file `setval_field_w0_kernel_mod.f90`. Declarations and argument
-list code can be created by running PSyclone kernel stub generator:
+The provided `example2_alg_mod.x90` defines output and two input
+fields on function spaces `W0` and `W3`, respectively. It outlines
+the creation of fields on the `W0` function space and printing out
+their `min` and `max` values. The tasks in this Example are:
+* Create and print values of output and input fields on `W3` space
+  using `W0` code as a template;
+* Use built-ins to perform the following mathematical operations:
+  1. Initialise output fields (`field_out_w0` and `field_out_w3`) to `0`,
+  2. Initialise `field1_in_w0` to `1` and `field2_in_w0` to `2`,
+  3. Calculate `field_out_w0 = field1_out_w0 + field2_out_w0`,
+  4. Initialise `field1_in_w3` to `-1`,
+  5. Calculate `field2_in_w3 = 2*field1_in_w3`,
+  6. Calculate `field_out_w3 = field1_in_w3 - 0.5*field2_in_w3`.
 
-```bash
-genkernelstub setval_field_w0_kernel_mod.f90
+The list and more information on the appropriate built-ins to use
+in this Example can be found in the [LFRic built-ins documentation.](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins)
+
+[Link to solutions](solutions)
+
+## Quick intro to built-ins
+
+Similar to the user-defined [LFRic kernels](../background/LFRic_kernel.md),
+the built-in kernels also have metadata but their metadata are defined in
+the PSyclone [LFRic (Dynamo 0.3) API.](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html)
+
+Below is an example of metadata for the [built-in `X_plus_Y`](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#x-plus-y)
+that adds two fields and stores the result in a third:
+
+```fortran
+  type, public, extends(kernel_type) :: X_plus_Y
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1)                   &
+          /)
+     integer :: iterates_over = DOFS
+   contains
+     procedure, nopass :: X_plus_Y_code
+  end type X_plus_Y
 ```
 
-The kernel code can be completed by referring to the *Loops* section of
-the [LFRic kernel documentation](../background/LFRic_kernel.md) in this
-tutorial.
+The metadata is very similar to a user-defined LFRic kernel metadata
+with one major difference: built-ins are called from [PSy-layer](
+../background/LFRic_PSy.md) loops over degrees of freedom (*DoFs*) of
+fields in the built-in, hence metadata identifier for this way of looping
+- `DOFS`. This means that fields passed to a built-in call **must be on
+the same function space**.
 
-The `W3` kernel can be created using the completed
-`setval_field_w0_kernel_mod.f90` as a template and changing the function
-space and code unit names accordingly. Information about the correct
-access modes for fields on continuous and discontinuous function spaces
-in PSyclone LFRic (Dynamo 0.3) API can be found [here.](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
+---
+**NOTE**
 
-[Link to solutions](solutions/part1)
+* As for [LFRic kernels](../background/LFRic_kernel.md), the kernel
+  metadata for the iteration spaces are changing to indicate the subset
+  of domain the built-in operates on rather than the PSy-layer looping.
+  In the next PSyclone release `iterates_over = DOFS` will become
+  `operates_on = DOF`.
 
-## Part 2
+* The current built-ins are defined for `real`-valued field data.
+  Built-ins for `integer`-valued fields will be introduced as part
+  of the support for the field data of other intrinsic types.
+---
 
-Create a kernel `add_fields_w0_kernel_mod.f90` that adds two fields on
-`W0` space and stores the result in another field on the same space. Use
-the existing `setval_field_w0_kernel_mod.f90`
-* To initialise the resulting field to `0` and the fields being added
-  to a constant value each;
-* As a template for the new kernel that adds fields.
+The above mentioned built-in `X_plus_Y` is one of the built-ins to be
+used in this Example, specifically to calculate
 
-As in Part 1, use the kernel stub generator to create argument list
-and declarations for the new kernel. Modify the supplied algorithm
-`example1_alg_mod.90` to call these kernels from.
+```
+field_out_w0 = field1_out_w0 + field2_out_w0
+```
 
-*Tips:*
-* `W3` function space and the related fields and kernels are no
-  longer required;
-* Group kernel calls into a single `invoke`;
-* Explore naming of `invoke` call.
+which can be done by using
 
-[Link to solutions](solutions/part2)
+```fortran
+    call invoke( ...
+                 X_plus_Y(field_out_w0, field1_in_w0, field2_in_w0), &
+                 ... )
+```
 
-## Part 3
-
-Use the kernels `setval_fields_w0_kernel_mod.f90` and
-`add_fields_w0_kernel_mod.f90` from Part 2 as templates that can set and
-add field values for fields on any function space. Modify the supplied
-algorithm `example1_alg_mod.90` to call these kernels from.
-
-*Tips:*
-* Modify the kernel metadata (perhaps also rename the kernels);
-* Metadata for `ANY_SPACE` and `ANY_DISCONTINUOUS_SPACE` spaces are
-  in `argument_mod` in LFRic infrastructure;
-* Try out the kernel stub generator;
-* Try out other function spaces in the provided algorithm.
-
-[Link to solutions](solutions/part3)
+The [PSy-layer intro](../background/LFRic_PSy.md) gives examples of
+how this built-in call is represented in the LFRic PSy layer.

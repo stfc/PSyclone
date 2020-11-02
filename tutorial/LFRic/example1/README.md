@@ -5,7 +5,7 @@ Accompanying materials:
 * `Makefile` to build the code;
 * `example1_driver.f90` - an example of LFRic-lite main program that
   creates the required LFRic objects and calls the algorithm code in
-  this example (does not need to be modified);
+  this Example (does not need to be modified);
 * `example1_alg_mod.x90` - an example of LFRic algorithm that sets up
   fields and operates on them via `invoke` calls to the kernels created
   in parts 1-3 of this Example (`invoke` calls need to be completed);
