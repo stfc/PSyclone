@@ -8,10 +8,8 @@ driver program. The reason for this will become clear as you work
 through the tutorial.
 
 You can find information on the various transformations supported by
-PSyclone in the User Guide
-(https://psyclone.readthedocs.io/en/stable/transformations.html).
-There is a separate section
-(https://psyclone.readthedocs.io/en/stable/profiling.html) on
+PSyclone in the [User Guide](https://psyclone.readthedocs.io/en/stable/transformations.html).
+There is a separate [section](https://psyclone.readthedocs.io/en/stable/profiling.html) on
 PSyclone's support for profiling.
 
 ## Prerequisites ##
@@ -27,7 +25,9 @@ To begin, we will make use of PSyclone's support for the automatic
 addition of profiling instrumentation
 (https://psyclone.readthedocs.io/en/stable/profiling.html). For demonstration
 purposes we will be using the 'simple-timing' library distributed with
-PSyclone since that has no dependencies.
+PSyclone since that has no dependencies. (PSyclone provides wrapper libraries
+for 'proper' profiling tools such as DrHook and NVIDIA's nvtx but they
+are beyond the scope of this tutorial.)
 
 1. Use the supplied Makefile to generate a version of the mini-app with
    profiling automatically inserted around each routine:

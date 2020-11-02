@@ -209,8 +209,8 @@ Clearly, the optimisation script needs to be improved so that it finds
 all of the loops over vertical levels, rather than just those that are
 immediate children of the root Schedule. Edit the optimisation script
 so that it uses `sched.walk()` to do this. Check that the generated
-PSyIR looks as you would expect. (You can use a second `walk` after
-the transformation is complete to count the number of `Directive`
+PSyIR looks as you would expect. (You can use a second `walk`, after
+the transformation is complete, to count the number of `Directive`
 nodes that have been inserted in the Schedule - there should be 13.)
 
 Now that we've parallelised a reasonable percentage of the mini-app,
@@ -275,8 +275,9 @@ In fact, in the PSyIR, the loops corresponding to children 6-9 of the
 Schedule of the outer loop over iterations are *all* parallel with no
 intervening statements. These may then be enclosed in a single
 parallel region. Although it is possible to write a general-purpose
-transformation script to identify such opportunities, we will
-modify our script to create a parallel region around children 6-9.
+transformation script to identify such opportunities, for this
+tutorial we will modify our script to create a parallel region around
+children 6-9.
 
 To do this we will use PSyclone's `OMPParallelTrans` to create the
 parallel region and `OMPLoopTrans` to decorate each loop inside this
@@ -289,7 +290,7 @@ steps to achieve this are:
 children of the root Schedule;
 
 2. Find the outer, iteration loop (PSyclone identifies this as being a
-"tracer" loop);
+"tracers" loop);
 
 3. Decorate each of children 6-9 (inclusive) of the body of this loop
 with an OMP Loop Directive. The body of a loop node in the PSyIR may
@@ -303,6 +304,10 @@ after step 3, these children are now OMP Parallel Directive nodes;
 5. Parallelise all remaining children of the iteration loop that are
 loops over levels;
 
-This completes part 3 of the NEMO tutorial.
+This completes part 3 of the NEMO tutorial. We have looked in more
+detail at the process of creating an optimisation script and have
+used PSyclone to add OpenMP parallelisation to the tracer-advection
+mini-app. With the caveats noted earlier, you should have been able
+to measure a performance improvement.
 
 
