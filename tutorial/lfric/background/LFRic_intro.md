@@ -11,10 +11,6 @@ One of the guiding design principles, imposed to promote performance
 portability, is **separation of concerns** between the science code and
 parallel code.
 
-The main languages used in LFRic are
-[Fortran 2003](https://gcc.gnu.org/wiki/GFortranStandards#Fortran_2003)
-and [Python 3.](https://www.python.org/download/releases/3.0/)
-
 **PSyclone** generates the parallel code for shared and distributed
 memory support on CPUs via the LFRic (Dynamo 0.3) API. The generated
 code calls the appropriate functionality from the LFRic infrastructure
@@ -80,6 +76,19 @@ is structured as follows:
                RAdiative Transfer codes") model;
 
 * `um_physics` - Interface to the UKMO UM Physics parameterisation schemes.
+
+### Languages and software requirements
+
+The main languages used in LFRic are
+[Fortran 2003](https://gcc.gnu.org/wiki/GFortranStandards#Fortran_2003)
+and [Python 3.](https://www.python.org/download/releases/3.0/)
+
+Some of software requirements are described in the main
+[README](../README.md) document for this tutorial. A recipe for building
+the full LFRic software stack with freely available GCC Fortran compiler
+10.2.0 and othere requirements can be found in this
+[Met Office GitHub repository.](
+https://github.com/MetOffice/NGMS-SoftwareStack/tree/main/buildScripts/Linux/GCC10)
 
 ## Separation of concerns
 

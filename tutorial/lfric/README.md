@@ -48,7 +48,11 @@ section of [introduction to LFRic](../background/LFRic_intro).
   Compilers 8.4.3 and 8.7.0. It has been proven to work with Intel 19.0.x
   and the latest GCC 10.2.0.
 
-* [Python 3](https://www.python.org/download/releases/3.0/) environment.
+* [Python](https://www.python.org/) environment. Note that for these
+  tutorials either [Python 2](https://www.python.org/download/releases/2.0/)
+  or [Python 3](https://www.python.org/download/releases/3.0/) environments
+  are fine. Running the entire LFRic code, however, requires Python 3 as
+  described in the [LFRic intro](../background/LFRic_intro.md)).
 
 * Latest PSyclone release (currently 1.9.0). For installation please refer to
   the [PSyclone user guide.](
@@ -58,12 +62,17 @@ section of [introduction to LFRic](../background/LFRic_intro).
   `user` mode or to another location. Note, the latter requires explicit
   setting of environment variables so it is not generally recommended.
 
-* [NetCDF library](https://www.unidata.ucar.edu/software/netcdf/) for reading
-  in LFRic mesh files written in
+* [NetCDF library](https://www.unidata.ucar.edu/software/netcdf/),
+  together with its Fortran and C++ bindings, is required for reading in LFRic
+  mesh files written in
   [UGRID format](https://ugrid-conventions.github.io/ugrid-conventions/).
   LFRic build system currently uses `netcdf-c-4.6.2`, NetCDF Fortran
   binding `netcdf-fortran-4.4.4` and C++ binding `netcdf-cxx4-4.3.0`.
   However, `netcdf-c-4.7.3`, `netcdf-fortran-4.5.2` and `netcdf-cxx4-4.3.1`
-  have been also proven to work.
-
-??TBD?? - Ask Andy for GCC 10.2.0 LFRic stack script.
+  are also proven to work. Getting and building NetCDF, including the list
+  of requirements, is described [here.](
+  https://www.unidata.ucar.edu/software/netcdf/docs/getting_and_building_netcdf.html)
+  The above-listed recent ersions of NetCDF packages were built with
+  [HDF5](https://www.hdfgroup.org/solutions/hdf5) 1.10.6 as one of the
+  requirements. Other required libraries, `zlib` and `curl`, can be
+  installed by a usual method for a particular flavour of Linux OS.
