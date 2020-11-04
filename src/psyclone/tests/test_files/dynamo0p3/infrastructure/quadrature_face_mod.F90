@@ -1,8 +1,12 @@
 !-----------------------------------------------------------------------------
-! (c) Crown copyright 2018 Met Office. All rights reserved.
+! (c) Crown copyright 2018-2020 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! LICENCE is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE
+!-------------------------------------------------------------------------------
+
 !> @brief Quadrature object for computing quadrature on faces of a
 !>        cell.
 !> @details Face quadrature object that contains quadrature points and weights
