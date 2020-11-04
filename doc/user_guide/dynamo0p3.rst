@@ -405,17 +405,19 @@ Kernel
 -------
 
 The general requirements for the structure of a Kernel are explained
-in the :ref:`kernel-layer` section. In the LFRic API there are four
-different Kernel types; general purpose, CMA, inter-grid and
+in the :ref:`kernel-layer` section. In the LFRic API there are five
+different Kernel types; general purpose, CMA, inter-grid, domain and
 :ref:`dynamo0.3-built-ins`. In the case of built-ins, PSyclone generates
 the source of the kernels.  This section explains the rules for the
-other three, user-supplied kernel types and then goes on to describe
-their metadata and subroutine arguments.
+other four, user-supplied kernel types and then goes on to describe
+their metadata and subroutine arguments. Domain kernels are distinct
+from the other three user-supplied kernel types in that they must be
+passed data for the whole domain rather than a single cell-column.
 
 .. _dynamo0.3-user-kernel-rules:
 
-Rules for all User-Supplied Kernels
-+++++++++++++++++++++++++++++++++++
+Rules for all User-Supplied Kernels that Operate on Cell-Columns
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 In the following, 'operator' refers to both LMA and CMA operator
 types.
@@ -424,8 +426,7 @@ types.
    vector, or operator. This rule reflects the fact that a Kernel
    operates on some subset of the whole domain (e.g. a cell-column)
    and is therefore designed to be called from within a loop that
-   iterates over those subsets of the domain. Kernels with
-   ``operates_on = DOMAIN`` cannot have operator arguments.
+   iterates over those subsets of the domain.
 
 2) The continuity of the iteration space of the Kernel is determined
    from the function space of the modified argument (see Section
@@ -436,10 +437,7 @@ types.
    second on ``W1`` (continuous), then the iteration space of that Kernel
    will be determined by the field on the continuous space.
 
-3) Kernels with ``operates_on = DOMAIN`` only accept fields that are
-   on discontinuous function spaces. Stencil accesses are not permitted.
-
-4) If any of the modified arguments are declared with the generic
+3) If any of the modified arguments are declared with the generic
    function space metadata (e.g. ``ANY_SPACE_n``, see
    :ref:`Supported Function Spaces <dynamo0.3-function-space>`)
    and their actual space cannot be determined statically then the
@@ -451,26 +449,27 @@ types.
       is always safe but leads to additional computation if the quantities
       being updated are actually on discontinuous function spaces.
 
-5) Operators do not have halo operations operating on them as they
+4) Operators do not have halo operations operating on them as they
    are either cell- (LMA) or column-based (CMA) and therefore act
    like discontinuous fields.
 
-6) Any Kernel that writes to an operator will have its iteration
+5) Any Kernel that writes to an operator will have its iteration
    space expanded such that valid values for the operator are
    computed in the level-1 halo.
 
-7) Any Kernel that reads from an operator must not access halos
+6) Any Kernel that reads from an operator must not access halos
    beyond level 1. In this case PSyclone will check that the Kernel
    does not require values beyond the level-1 halo. If it does then
    PSyclone will abort.
 
+.. _lfric-no-cma-mdata-rules:
+   
 Rules specific to General-Purpose Kernels without CMA Operators
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 1) General-purpose kernels with ``operates_on = CELL_COLUMN`` accept
    arguments of any of the following types: field, field vector, LMA
-   operator, scalar integer, scalar real. Those with
-   ``operates_on = DOMAIN`` cannot be passed operator arguments.
+   operator, scalar integer, scalar real.
 
 2) A Kernel is permitted to write to more than one
    quantity (field or operator) and these quantities may be on the
@@ -574,6 +573,19 @@ Rules for Inter-Grid Kernels
 
 A consequence of Rules 5-7 is that an inter-grid kernel will
 only involve two function spaces.
+
+Rules for User-Supplied Kernels that Operate on the Domain
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+The rules for kernels that have ``operates_on = DOMAIN`` are a subset
+of :ref:`those <lfric-no-cma-mdata-rules>` for kernels that operate
+on a ``CELL_COLUMN`` without CMA Operators. Specifically:
+
+1) Only scalar, field and field vector arguments are permitted.
+
+2) All fields must be on discontinuous function spaces.
+
+3) Stencil accesses are not permitted.
 
 .. _dynamo0.3-api-kernel-metadata:
 
@@ -1405,10 +1417,10 @@ Rules for General-Purpose Kernels
 
 The arguments to general-purpose kernels (those that do not involve
 either CMA operators or prolongation/restriction operations) that
-operate on cell-columns follow a set of rules which have been
-specified for the LFRic API. These rules are encoded in the
-``generate()`` method within the ``ArgOrdering`` abstract class in the
-``dynamo0p3.py`` file. The rules, along with PSyclone's naming
+operate on cell-columns follow a set of rules
+which have been specified for the LFRic API. These rules are encoded
+in the ``generate()`` method within the ``ArgOrdering`` abstract class
+in the ``dynamo0p3.py`` file. The rules, along with PSyclone's naming
 conventions, are:
 
 1) If an LMA operator is passed then include the ``cells`` argument.
@@ -1916,6 +1928,15 @@ arguments to inter-grid kernels are as follows:
    2) Include ``dofmap_coarse``, the dofmap for the current cell (column)
       in the coarse mesh. This is an integer array of rank one, type
       ``i_def``and has intent ``in``.
+
+Rules for Domain Kernels
+########################
+
+The rules for kernels that have ``operates_on = DOMAIN`` are identical
+to those for general-purpose kernels (described :ref:`above
+<dynamo0.3-stub-generation-rules>`), allowing for the fact that they
+are not permitted any type of operator argument or any argument with a
+stencil access.
 
 .. _dynamo0.3-kernel-arg-intents:
 
