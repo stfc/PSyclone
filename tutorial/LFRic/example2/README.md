@@ -68,7 +68,7 @@ that adds two fields and stores the result in a third:
 ```
 
 The metadata is very similar to a user-defined LFRic kernel metadata
-with one major difference: built-ins are called from [PSy-layer](
+with one major difference: built-ins are called from [PSy layer](
 ../background/LFRic_PSy.md) loops over degrees of freedom (*DoFs*) of
 fields in the built-in, hence metadata identifier for this way of looping
 - `DOFS`. This means that fields passed to a built-in call **must be on
@@ -103,5 +103,5 @@ which can be done by using
                  ... )
 ```
 
-The [PSy-layer intro](../background/LFRic_PSy.md) gives examples of
+The [PSy layer intro](../background/LFRic_PSy.md) gives examples of
 how this built-in call is represented in the LFRic PSy layer.

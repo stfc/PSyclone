@@ -13,11 +13,11 @@ code structure and how PSyclone is used in LFRic) and three examples.
 * [**Example 2**](example2) shows the use of PSyclone built-ins;
 
 * **Example 3** shows a time-evolution of a field on a planar mesh (more
-  elaborate example of LFRic code);
+  elaborate example of LFRic code).
 
 In order to mimic the LFRic code structure, an example algorithm and
 main program (driver) are provided in all Examples. In LFRic,
-[kernels](../background/LFRic_kernel.md) are *invoked* from
+[kernels](../background/LFRic_kernel.md) are *invoke*d from
 [algorithms](../background/LFRic_intro.md), which are in turn called
 from the top-level driver code (see the *Separation of concerns* section
 in [LFRic intro](../background/LFRic_intro.md)).
@@ -34,6 +34,15 @@ stored in `src/psyclone/tests/test_files/dynamo0p3/infrastructure`
 directory of PSyclone repository. For more information on LFRic code
 structure and functionality see the *LFRic code structure*
 section of [introduction to LFRic](../background/LFRic_intro).
+
+### Implementation of PSyclone in examples
+
+The pared-down LFRic infrastructure used in these examples does not
+have the support for distributed memory (done via the [`YAXT` library](
+https://www.dkrz.de/redmine/projects/yaxt) in LFRic). Also, none of
+the [PSyclone transformations](
+https://psyclone.readthedocs.io/en/stable/transformations.html) are
+applied here so the code is generated and run in serial.
 
 ## Software environment
 

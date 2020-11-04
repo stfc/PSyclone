@@ -1,9 +1,14 @@
 # LFRic kernel
 
+[*Kernel layer in LFRic in PSyclone documentation*](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#kernel)
+
 ## What kernels do
 
-LFRic kernels perform mathematical operations on (a subset of) data
-points in LFRic data objects (fields, operators and scalars) passed
+LFRic kernels perform mathematical operations on [a subset of data
+points](
+https://psyclone.readthedocs.io/en/stable/kernel_layer.html#kernel-layer)
+in LFRic data objects (fields, operators and scalars) passed
 from the [algorithm](LFRic_algorithm.md) through the
 [PSy](LFRic_PSy.md) layer.
 
@@ -19,10 +24,11 @@ is passed to a kernel.
 ## Kernel structure
 
 In this section we use the
-[`../example1/setval_field_w0_kernel_mod.f90`](../example1/setval_field_w0_kernel_mod.f90)
+[`../example1/setval_field_w0_kernel_mod.f90`](
+../example1/setval_field_w0_kernel_mod.f90)
 kernel stub to illustrate the structure of LFRic kernels (the
-[complete example](../example1/solutions/part1/setval_field_w0_kernel_mod.f90)
-is provided in the [solutions](../example1/solutions/part1)).
+[completed example](../example1/solutions/part1/setval_field_w0_kernel_mod.f90)
+is provided in the relevant [solutions](../example1/solutions/part1)).
 
 ```fortran
 module setval_field_w0_kernel_mod
@@ -66,23 +72,8 @@ module setval_field_w0_kernel_mod
 end module setval_field_w0_kernel_mod
 ```
 
-The two main parts of an LFRic kernel are:
-* Metadata that tells PSyclone how to operate on a kernel, stored in a
-  derived type;
-* Subroutine with the argument list, declarations and executable code.
-
-All of this is stored in a module. The naming convention for the module,
-the metadata type and the executable subroutine is as follows:
-
-* Module name: `<base_name>_kernel_mod`;
-* Kernel type name: `<base_name>_kernel_type`;
-* Subroutine name: `<base_name>_code`.
-
-Here the `<base_name>` is `setval_field_w0`.
-
-### Kernel metadata
-
-The LFRic metadata types inherit from the abstract base type `kernel_type`
+As can be seen from the code above, the *LFRic kernels are objects, defined
+as derived types* that inherit from the abstract base type `kernel_type`
 
 ```fortran
 type, public, extends(kernel_type) :: setval_field_w0_kernel_type
@@ -94,11 +85,31 @@ and this base type must be accessible to a kernel through a `use` statement
 use kernel_mod,        only: kernel_type
 ```
 
-Each metadata type contains a subset of other derived types and identifiers
-that store various kernel metadata. Here we briefly explain the contents of
-`arg_type` and `iterates_over` metadata. For more information please refer
-to the LFRic (Dynamo 0.3) API
-[user documentation.](https://psyclone.readthedocs.io/en/stable/dynamo0p3.html)
+Looking at the `setval_field_w0_kernel_type` above, there are two main
+parts of an LFRic kernel:
+* Metadata that tells PSyclone how to operate on a kernel;
+* Subroutine with the argument list, declarations and executable code.
+
+All of this is stored in a module. The naming convention for the module,
+the kernel type and the executable subroutine is as follows:
+
+* Module name: `<base_name>_kernel_mod`;
+* Kernel type name: `<base_name>_kernel_type`;
+* Subroutine name: `<base_name>_code`.
+
+Here the `<base_name>` is `setval_field_w0`.
+
+### Kernel metadata
+
+The PSyclone metadata are stored as the *private* data within the definition
+of an individual kernel type. They come in two main forms: derived types
+(e.g. `arg_type` in the above example) and `integer` arguments (single-valued
+such as `iterates_over` above or arrays). Here we briefly explain the contents
+of `arg_type` and `iterates_over` metadata. For more information please refer
+to the [*Metadata* section](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#metadata)
+of the LFRic (Dynamo 0.3) API [user documentation.](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html)
 
 The `arg_type` in this example describes the two (hence `dimension(2)`)
 arguments that this kernel operates on:

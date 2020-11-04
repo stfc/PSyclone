@@ -26,12 +26,13 @@ Science Repository Service [(MOSRS)](https://code.metoffice.gov.uk/trac/home).
 The code is BSD-licensed, however browsing the
 [LFRic wiki](https://code.metoffice.gov.uk/trac/lfric/wiki) and
 [code repository](https://code.metoffice.gov.uk/trac/lfric/browser) requires
-login access to MOSRS.
+login access to MOSRS. Please contact the LFRic team manager,
+[Steve Mullerworth](mailto:steve.mullerworth@metoffice.gov.uk), to be granted
+access to the repository.
 
-Once the access has been granted the LFRic trunk can be checked out using
-[Subversion](https://subversion.apache.org/) or
-[FCM](https://metomi.github.io/fcm/doc/) version control systems. `SVN` is
-recommended for checking out the code for runs only as it is easier to install.
+Another useful contact for LFRic-related questions is the
+["lfric" mailing list](mailto:lfric@cmpd1.metoffice.gov.uk) which gathers
+the Met Office and external LFRic developers and users.
 
 ### PSyclone in LFRic
 
@@ -83,6 +84,11 @@ The main languages used in LFRic are
 [Fortran 2003](https://gcc.gnu.org/wiki/GFortranStandards#Fortran_2003)
 and [Python 3.](https://www.python.org/download/releases/3.0/)
 
+Checking out the LFRic trunk can be done using [Subversion](
+https://subversion.apache.org/) or [FCM](https://metomi.github.io/fcm/doc/)
+version control systems. `SVN` is recommended for checking out the code for
+runs only as it is easier to install. `FCM` is used for LFRic development.
+
 Some of software requirements are described in the main
 [README](../README.md) document for this tutorial. A recipe for building
 the full LFRic software stack with freely available GCC Fortran compiler
@@ -108,13 +114,18 @@ each is divided into the following layers:
   mathematical operations (e.g. matrix assembly, calculating gradient)
   on the data contained in LFRic objects.
 
+This above illustrated separation of concerns is called **PSyKAl**, from
+*Parallel Systems* (computational science applying optimisations),
+*Kernels*(natural science performing operations on data points) and
+*Algorithms* (natural science performing operations on whole fields).
+
 All of this is supported by the **LFRic infrastructure**, a collection
 of **objects** that encapsulate data and functionality representing the
 main model structures such as mesh, partition, finite-element function
-spaces, fields, operators, etc. The schematic of the overall structure
-is shown in the figure below (courtesy of UKMO LFRic team).
+spaces, fields, operators, etc. The schematic of the overall PSyKAl
+structure is shown in the figure below (courtesy of the UKMO LFRic team).
 
-![Separation of concerns in LFRic](separation_concerns.png)
+![PSyKAl Separation of concerns in LFRic](separation_concerns.png)
 
 ## References
 
