@@ -109,6 +109,8 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
         self.append(var_name, var_accesses)
@@ -144,6 +146,8 @@ class KernCallAccArgList(KernCallArgList):
 
         '''
         # The extent is not specified in the metadata so pass the value in
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.dofmap_size_name(self._kern.root.symbol_table, arg)
         self.append(name, var_accesses)

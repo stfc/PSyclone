@@ -166,7 +166,7 @@ class KernCallArgList(ArgOrdering):
         components = ["matrix"]
         from psyclone.dynamo0p3 import DynCMAOperators
         if arg.function_space_to.orig_name != (arg.function_space_from.
-                orig_name):
+                                               orig_name):
             components += DynCMAOperators.cma_diff_fs_params
         else:
             components += DynCMAOperators.cma_same_fs_params
@@ -236,6 +236,8 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # The extent is not specified in the metadata so pass the value in
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_size_name(self._kern.root.symbol_table,
                                                 arg)
@@ -256,6 +258,8 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # The extent is not specified in the metadata so pass the value in
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_size_name(self._kern.root.symbol_table,
                                                 arg)
@@ -278,6 +282,8 @@ class KernCallArgList(ArgOrdering):
         '''
         # The maximum branch extent is not specified in the metadata so pass
         # the value in.
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         name = DynStencils.max_branch_length_name(
             self._kern.root.symbol_table, arg)
@@ -316,6 +322,8 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # add in stencil dofmap
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
         name = "{0}(:,:,{1})".format(var_name,
@@ -343,6 +351,8 @@ class KernCallArgList(ArgOrdering):
         # West, South, East, North which is standard in LFRic. This allows
         # for knowledge of what direction a stencil cell is in relation
         # to the center even when the stencil is truncated at boundaries.
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
         name = "{0}(:,:,:,{1})".format(var_name,
