@@ -391,6 +391,8 @@ contains
 
   procedure, public  :: clear
 
+  procedure, public  :: get_cell_orientation
+
   !> Routine to destroy function_space_type
   final              :: function_space_destructor
 end type function_space_type
@@ -1432,6 +1434,14 @@ subroutine clear(self)
   nullify(self%mesh)
 
 end subroutine clear
+
+function get_cell_orientation(self, cell) result(orientation)
+  implicit none
+  class(function_space_type)  :: self
+  integer, intent(in) :: cell
+  integer, dimension(:), pointer :: orientation
+  orientation => null()
+end function get_cell_orientation
 
 !-----------------------------------------------------------------------------
 ! Function space destructor
