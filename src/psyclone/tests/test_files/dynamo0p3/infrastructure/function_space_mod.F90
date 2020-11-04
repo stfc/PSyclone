@@ -3,7 +3,42 @@
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+!-------------------------------------------------------------------------------
+
+! BSD 3-Clause License
 !
+! Copyright (c) 2020, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Modified by J. Henrichs, Bureau of Meteorology
+
 !>
 !> @brief Holds information about the function space.
 !>
@@ -15,18 +50,18 @@
 module function_space_mod
 
 
-use constants_mod,         only: i_def, i_native, i_halo_index, &
-                                 l_def, r_def, dp_xios, real_type
+use constants_mod,         only: i_def, i_native, i_halo_index, l_def, r_def
 use mesh_mod,              only: mesh_type
 use master_dofmap_mod,     only: master_dofmap_type
-use stencil_dofmap_mod,    only: stencil_dofmap_type, STENCIL_POINT,           &
-                                 generate_stencil_dofmap_id
+use stencil_dofmap_helper_functions_mod, &
+                           only: generate_stencil_dofmap_id
 use log_mod,               only: log_event, log_scratch_space                  &
                                , LOG_LEVEL_DEBUG, LOG_LEVEL_ERROR              &
                                , LOG_LEVEL_INFO
 use reference_element_mod, only: reference_element_type
-use fs_continuity_mod,     only: W0, W1, W2, W3, Wtheta, &
-                                 W2broken, W2trace,      &
+use fs_continuity_mod,     only: W0, W1, W2, W3, Wtheta,    &
+                                 W2broken, W2trace,         &
+                                 W2Htrace, W2Vtrace,        &
                                  W2V, W2H, Wchi
 use function_space_constructor_helper_functions_mod, &
                            only: ndof_setup, basis_setup, &
@@ -40,7 +75,7 @@ implicit none
 
 private
 
-public :: W0, W1, W2, W2broken, W2trace, W3, Wtheta, W2V, W2H, Wchi
+public :: W0, W1, W2, W2broken, W2trace, W2Vtrace, W2Htrace, W3, Wtheta, W2V, W2H, Wchi
 
 integer(i_def), public, parameter :: BASIS      = 100
 integer(i_def), public, parameter :: DIFF_BASIS = 101
@@ -121,7 +156,7 @@ type, extends(linked_list_data_type), public :: function_space_type
 
   !> An array to hold an ordered, unique list of levels for output
   !> of fields on this function space
-  real(dp_xios), allocatable  :: fractional_levels(:)
+  real(r_def),   allocatable  :: fractional_levels(:)
 
   !> @}
   !> @name Arrays needed for on the fly basis evaluations
@@ -136,8 +171,16 @@ type, extends(linked_list_data_type), public :: function_space_type
   integer(i_halo_index), allocatable :: global_dof_id(:)
 
   !> A one dimensional, allocatable array which holds a unique global index for
-  !> dofs in the 2D horizontal portion of the local domain
-  integer(i_def), allocatable :: global_dof_id_2d(:)
+  !> cell dofs in the 2D horizontal portion of the local domain
+  integer(i_def), allocatable :: global_cell_dof_id_2d(:)
+
+  !> A one dimensional, allocatable array which holds a unique global index for
+  !> edge dofs in the 2D horizontal portion of the local domain
+  integer(i_def), allocatable :: global_edge_dof_id_2d(:)
+
+  !> A one dimensional, allocatable array which holds a unique global index for
+  !> vertex dofs in the 2D horizontal portion of the local domain
+  integer(i_def), allocatable :: global_vert_dof_id_2d(:)
 
   !> The index within the dofmap of the last "owned" dof
   integer(i_def) :: last_dof_owned
@@ -295,9 +338,17 @@ contains
   !> Gets the array that holds the global indices of all dofs
   procedure get_global_dof_id
 
-  !> Gets the array that holds the global indices of all dofs
+  !> Gets the array that holds the global indices of all cell dofs
   !> in 2D horizontal domain
-  procedure get_global_dof_id_2d
+  procedure get_global_cell_dof_id_2d
+
+  !> Gets the array that holds the global indices of all edge dofs
+  !> in 2D horizontal domain
+  procedure get_global_edge_dof_id_2d
+
+  !> Gets the array that holds the global indices of all vertex dofs
+  !> in 2D horizontal domain
+  procedure get_global_vert_dof_id_2d
 
   !> Gets the index within the dofmap of the last "owned" dof
   procedure get_last_dof_owned
@@ -323,6 +374,9 @@ contains
   !> Get the instance of a stencil dofmap with for a given id
   procedure, public   :: get_stencil_dofmap
 
+  !> Get the instance of a 2D stencil dofmap with for a given id
+  procedure, public   :: get_stencil_2D_dofmap
+
   ! Mesh colouring wrapper methods
   !> @brief Populates args with colouring info from member mesh.
   !>
@@ -336,8 +390,6 @@ contains
   procedure, public  :: get_ncolours
 
   procedure, public  :: clear
-
-  procedure, public  :: get_cell_orientation
 
   !> Routine to destroy function_space_type
   final              :: function_space_destructor
@@ -382,7 +434,6 @@ function fs_constructor(mesh, &
   implicit none
 
   class(mesh_type), intent(in), target :: mesh
-
   integer(i_def),              intent(in) :: element_order
   integer(i_native),           intent(in) :: lfric_fs
   integer(i_def), optional, intent(in) :: ndata
@@ -422,22 +473,10 @@ subroutine init_function_space( self )
   integer(i_def) :: ncells_2d
   integer(i_def) :: ncells_2d_with_ghost
 
-
-  integer(i_def) :: st_shape      ! Stencil Shape
-  integer(i_def) :: st_extent     ! Stencil Extent
-
-  integer(i_def) :: rc
-  integer(i_def) :: idepth
-  integer(i_def) :: halo_start, halo_finish
-
   integer(i_def), allocatable :: dofmap(:,:)
 
   ncells_2d            = self%mesh % get_ncells_2d()
   ncells_2d_with_ghost = self%mesh % get_ncells_2d_with_ghost()
-
-  st_extent  = 0
-  st_shape = STENCIL_POINT
-
 
   select case (self%fs)
   case (W0, WTHETA, WCHI)
@@ -452,7 +491,7 @@ subroutine init_function_space( self )
     self%dim_space      = 3  ! Vector field
     self%dim_space_diff = 1  ! Scalar field
 
-  case (W2trace, W3)
+  case (W2trace, W2Vtrace, W2Htrace, W3)
     self%dim_space      = 1  ! Scalar field
     self%dim_space_diff = 3  ! Vector field
 
@@ -495,7 +534,15 @@ subroutine init_function_space( self )
                                , 0:ncells_2d_with_ghost ) )
 
   allocate( self%global_dof_id ( self%ndof_glob*self%ndata ) )
-  allocate( self%global_dof_id_2d ( self%mesh%get_last_edge_cell()*self%ndata) )
+  allocate( &
+    self%global_cell_dof_id_2d( self%mesh%get_last_edge_cell()*self%ndata ) )
+
+  allocate( &
+    self%global_edge_dof_id_2d( self%mesh%get_num_edges_owned_2d()*self%ndata ) )
+
+  allocate( &
+    self%global_vert_dof_id_2d( self%mesh%get_num_verts_owned_2d()*self%ndata ) )
+
   allocate( self%last_dof_halo ( self%mesh % get_halo_depth()) )
 
   call dofmap_setup ( self%mesh, self%fs, self%element_order, self%ndata,  &
@@ -503,8 +550,10 @@ subroutine init_function_space( self )
                       self%ndof_vert, self%ndof_edge, self%ndof_face,      &
                       self%ndof_vol,  self%ndof_cell, self%last_dof_owned, &
                       self%last_dof_annexed, self%last_dof_halo, dofmap,   &
-                      self%global_dof_id, self%global_dof_id_2d )
-
+                      self%global_dof_id, &
+                      self%global_cell_dof_id_2d, &
+                      self%global_edge_dof_id_2d, &
+                      self%global_vert_dof_id_2d )
 
   self%master_dofmap = master_dofmap_type( dofmap )
 
@@ -660,7 +709,7 @@ function get_levels(self) result(levels)
 
   implicit none
   class(function_space_type), target, intent(in) :: self
-  double precision, pointer                      :: levels(:)
+  real(r_def), pointer                           :: levels(:)
 
   levels => self%fractional_levels
   return
@@ -1047,20 +1096,52 @@ subroutine get_global_dof_id(self, global_dof_id)
 end subroutine get_global_dof_id
 
 !-----------------------------------------------------------------------------
-! Gets the array that holds the global indices of all dofs in 2D
+! Gets the array that holds the global indices of cell dofs in 2D
 ! Horizontal domain
 !-----------------------------------------------------------------------------
-subroutine get_global_dof_id_2d(self, global_dof_id_2d)
+subroutine get_global_cell_dof_id_2d(self, global_cell_dof_id_2d)
 
   implicit none
-  class(function_space_type) :: self
+  class(function_space_type), intent(in) :: self
 
-  integer(i_def) :: global_dof_id_2d(:)
+  integer(i_def), intent(out) :: global_cell_dof_id_2d(:)
 
-  global_dof_id_2d(:) = self%global_dof_id_2d(:)
+  global_cell_dof_id_2d(:) = self%global_cell_dof_id_2d(:)
 
   return
-end subroutine get_global_dof_id_2d
+end subroutine get_global_cell_dof_id_2d
+
+!-----------------------------------------------------------------------------
+! Gets the array that holds the global indices of edge dofs in 2D
+! Horizontal domain
+!-----------------------------------------------------------------------------
+subroutine get_global_edge_dof_id_2d(self, global_edge_dof_id_2d)
+
+  implicit none
+  class(function_space_type), intent(in) :: self
+
+  integer(i_def), intent(out) :: global_edge_dof_id_2d(:)
+
+  global_edge_dof_id_2d(:) = self%global_edge_dof_id_2d(:)
+
+  return
+end subroutine get_global_edge_dof_id_2d
+
+!-----------------------------------------------------------------------------
+! Gets the array that holds the global indices of vertex dofs in 2D
+! Horizontal domain
+!-----------------------------------------------------------------------------
+subroutine get_global_vert_dof_id_2d(self, global_vert_dof_id_2d)
+
+  implicit none
+  class(function_space_type), intent(in) :: self
+
+  integer(i_def), intent(out) :: global_vert_dof_id_2d(:)
+
+  global_vert_dof_id_2d(:) = self%global_vert_dof_id_2d(:)
+
+  return
+end subroutine get_global_vert_dof_id_2d
 
 !-----------------------------------------------------------------------------
 ! Gets the index within the dofmap of the last "owned" dof
@@ -1150,12 +1231,12 @@ function is_writable(self) result(return_writable)
 
 end function is_writable
 
-!> Get the instance of a stencil dofmap for a given shape and size
-!> @param[in] stencil_shape The shape identifier for the stencil dofmap to
-!create
+!> @brief Get the instance of a stencil dofmap for a given shape and size
+!> @param[in] stencil_shape The shape identifier for the stencil dofmap to create
 !> @param[in] stencil_extent The extent of the stencil excluding the centre cell
 !> @return map the stencil_dofmap object to return
 function get_stencil_dofmap(self, stencil_shape, stencil_extent) result(map)
+  use stencil_dofmap_mod,   only: stencil_dofmap_type
 
   implicit none
 
@@ -1216,6 +1297,73 @@ function get_stencil_dofmap(self, stencil_shape, stencil_extent) result(map)
   end do
 end function get_stencil_dofmap
 
+!> @brief Get the instance of a 2D stencil dofmap for a given shape and size
+!> @param[in] stencil_shape The shape identifier for the stencil dofmap to create
+!> @param[in] stencil_extent The extent of the stencil excluding the centre cell
+!> @return map The stencil_dofmap object to return
+function get_stencil_2D_dofmap(self, stencil_shape, stencil_extent) result(map)
+
+  use stencil_2D_dofmap_mod, only: stencil_2D_dofmap_type
+
+  implicit none
+
+  class(function_space_type), intent(inout) :: self
+  integer(i_def),             intent(in) :: stencil_shape
+  integer(i_def),             intent(in) :: stencil_extent
+  type(stencil_2D_dofmap_type), pointer :: map ! return value
+
+  type(linked_list_item_type), pointer :: loop => null()
+
+  integer(i_def) :: id
+
+  map => null()
+
+  ! Calculate id of the stencil_dofmap we want
+  id = generate_stencil_dofmap_id( stencil_shape, stencil_extent )
+
+
+  ! point at the head of the stencil_dofmap linked list
+  loop => self%dofmap_list%get_head()
+
+  ! loop through list
+  do
+    if ( .not. associated(loop) ) then
+      ! At the end of list and we didn't find it
+      ! create stencil dofmap and add it
+
+      call self%dofmap_list%insert_item(stencil_2D_dofmap_type(stencil_shape, &
+                                                            stencil_extent,   &
+                                                            self%ndof_cell,   &
+                                                            self%mesh,        &
+                                                            self%master_dofmap))
+
+
+      ! At this point the desired stencil dofmap is the tail of the list
+      ! so just retrieve it and exit loop
+
+      loop => self%dofmap_list%get_tail()
+
+      ! 'cast' to the stencil_dofmap_type
+      select type(v => loop%payload)
+        type is (stencil_2D_dofmap_type)
+          map => v
+      end select
+      exit
+
+    end if
+    ! otherwise search list for the id we want
+    if ( id == loop%payload%get_id() ) then
+      ! 'cast' to the stencil_dofmap_type
+      select type(v => loop%payload)
+        type is (stencil_2D_dofmap_type)
+          map => v
+      end select
+      exit
+    end if
+    loop => loop%next
+  end do
+end function get_stencil_2D_dofmap
+
 !----------------------------------------------------------------------------
 !> @brief   Returns count of colours used in colouring member mesh.
 !>
@@ -1261,33 +1409,29 @@ subroutine clear(self)
 
   class (function_space_type), intent(inout) :: self
 
-  if (allocated(self%entity_dofs))       deallocate( self%entity_dofs )
-  if (allocated(self%nodal_coords))      deallocate( self%nodal_coords )
-  if (allocated(self%basis_order))       deallocate( self%basis_order )
-  if (allocated(self%basis_index))       deallocate( self%basis_index )
-  if (allocated(self%basis_vector))      deallocate( self%basis_vector )
-  if (allocated(self%basis_x))           deallocate( self%basis_x )
-  if (allocated(self%global_dof_id))     deallocate( self%global_dof_id )
-  if (allocated(self%global_dof_id_2d))  deallocate( self%global_dof_id_2d )
-  if (allocated(self%last_dof_halo))     deallocate( self%last_dof_halo )
-  if (allocated(self%fractional_levels)) deallocate( self%fractional_levels )
+  if (allocated(self%entity_dofs))      deallocate( self%entity_dofs )
+  if (allocated(self%nodal_coords))     deallocate( self%nodal_coords )
+  if (allocated(self%basis_order))      deallocate( self%basis_order )
+  if (allocated(self%basis_index))      deallocate( self%basis_index )
+  if (allocated(self%basis_vector))     deallocate( self%basis_vector )
+  if (allocated(self%basis_x))          deallocate( self%basis_x )
+  if (allocated(self%global_dof_id))    deallocate( self%global_dof_id )
+  if (allocated(self%global_cell_dof_id_2d)) &
+                                        deallocate( self%global_cell_dof_id_2d )
+  if (allocated(self%global_edge_dof_id_2d)) &
+                                        deallocate( self%global_edge_dof_id_2d )
+  if (allocated(self%global_vert_dof_id_2d)) &
+                                        deallocate( self%global_vert_dof_id_2d )
+  if (allocated(self%last_dof_halo))    deallocate( self%last_dof_halo )
+  if (allocated(self%fractional_levels))deallocate( self%fractional_levels )
   if (allocated(self%dof_on_vert_boundary)) &
-                                         deallocate( self%dof_on_vert_boundary )
+                                        deallocate( self%dof_on_vert_boundary )
   call self%master_dofmap%clear()
   call self%dofmap_list%clear()
 
   nullify(self%mesh)
 
 end subroutine clear
-
-
-function get_cell_orientation(self, cell) result(orientation)
-  implicit none
-  class(function_space_type)  :: self
-  integer, intent(in) :: cell
-  integer, dimension(:), pointer :: orientation
-  orientation => null()
-end function get_cell_orientation
 
 !-----------------------------------------------------------------------------
 ! Function space destructor

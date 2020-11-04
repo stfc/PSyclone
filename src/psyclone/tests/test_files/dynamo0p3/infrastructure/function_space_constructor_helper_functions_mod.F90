@@ -5,15 +5,17 @@
 !-----------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-!-----------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+
 !> @brief Holds support routines for instantiating a function space.
 !>
 module function_space_constructor_helper_functions_mod
 
-  use constants_mod,         only: i_def, i_halo_index, r_def, dp_xios, IMDI
+  use constants_mod,         only: i_def, i_halo_index, r_def, IMDI
   use mesh_mod,              only: mesh_type
   use fs_continuity_mod,     only: W0, W1, W2, W2V, W2H,   &
                                    W2broken, W2trace,      &
+                                   W2Vtrace, W2Htrace,     &
                                    W3, Wtheta, Wchi
   use reference_element_mod, only: reference_element_type, &
                                    V,                      &
@@ -392,6 +394,32 @@ contains
       ndof_face = (k+1)*(k+1)
       ndof_cell = 6*ndof_face
 
+   case (W2Vtrace)
+      ! This function space is the result of taking the trace
+      ! of a W2V Hdiv space (or equivalently taking only the
+      ! vertical components of the trace of the W2 space).
+      ! The result is a scalar-valued space
+      ! with functions defined only on cell horizontal faces.
+      !
+      ! This space is discontinuous across edges/vertices.
+      !
+      ! NOTE: Not correct for simplices
+      ndof_face = (k+1)*(k+1)
+      ndof_cell = 2*ndof_face
+
+    case (W2Htrace)
+      ! This function space is the result of taking the trace
+      ! of a W2H Hdiv space (or equivalently taking only the
+      ! horizontal components of the trace of the W2 space).
+      ! The result is a scalar-valued space
+      ! with functions defined only on cell vertical faces.
+      !
+      ! This space is discontinuous across edges/vertices.
+      !
+      ! NOTE: Not correct for simplices
+      ndof_face = (k+1)*(k+1)
+      ndof_cell = 4*ndof_face
+
     case (W3)
       ! Order of this function space is same as base order
       ! This function space is discontinuous so all dofs are
@@ -415,6 +443,7 @@ contains
       ndof_cell = ndof_vol
 
     end select
+
     ndof_exterior = ndof_vert*nverts_exterior &
                   + ndof_edge*nedges_exterior &
                   + ndof_face*nfaces_exterior
@@ -429,10 +458,10 @@ contains
       ndof_glob = ncells*nlayers*ndof_vol + nface_g*ndof_face                    &
                   + nedge_g*ndof_edge     + nvert_g*ndof_vert
 
-    case (WTHETA, W2V)
+    case (WTHETA, W2V, W2Vtrace)
       ndof_glob = ncells*nlayers*ndof_vol + ncells*(nlayers+1)*ndof_face
 
-    case (W2H)
+    case (W2H, W2Htrace)
       ndof_glob = ncells*nlayers*ndof_vol + nedges_per_level*nlayers*ndof_face   &
                 + nedge_g*ndof_edge       + nvert_g*ndof_vert
     end select
@@ -619,7 +648,7 @@ contains
 
     ! Allocate arrays to allow on the fly evaluation of basis functions
     select case (gungho_fs)
-    case (W1, W2, W2H, W2V, W2broken, W2trace)
+    case (W1, W2, W2H, W2V, W2broken, W2trace, W2Vtrace, W2Htrace)
       allocate( unit_vec(3, ndof_cell) )
     end select
 
@@ -1235,6 +1264,70 @@ contains
       basis_index(2,:) = ly(1:ndof_cell)
       basis_index(3,:) = lz(1:ndof_cell)
 
+    case (W2Vtrace)
+      !---------------------------------------------------------------------------
+      ! Section for test/trial functions of W2Vtrace space
+      !---------------------------------------------------------------------------
+      poly_order = k + 1
+
+      do idx = 1, ndof_cell
+        do i = 1, 3
+          unit_vec(i, idx) = 0.0_r_def
+        end do
+      end do
+
+      idx = 1
+      ! dofs on faces
+      do i = number_faces - 1, number_faces
+        do j1 = 1, k+1
+          do j2 = 1, k+1
+            j(1) = j1
+            j(2) = j2
+            j(3) = face_idx(i)
+            lx(idx) = j(j2l_face(i,1))
+            ly(idx) = j(j2l_face(i,2))
+            lz(idx) = j(j2l_face(i,3))
+            call reference_element%get_normal_to_face( i, unit_vec(:,idx) )
+            if (i == number_faces - 1) dof_on_vert_boundary(idx,1) = 0
+            if (i == number_faces)     dof_on_vert_boundary(idx,2) = 0
+            ! Label top and bottom face degrees of freedom
+            entity_dofs(idx) = reference_element%get_face_entity(i)
+            idx = idx + 1
+          end do
+        end do
+      end do
+
+      do i = 1, ndof_cell
+
+        nodal_coords(1,i) = abs(unit_vec(1,i))*x1(lx(i))                         &
+                          + (1.0_r_def - abs(unit_vec(1,i)))*x2(lx(i))
+
+        nodal_coords(2,i) = abs(unit_vec(2,i))*x1(ly(i))                         &
+                          + (1.0_r_def - abs(unit_vec(2,i)))*x2(ly(i))
+
+        nodal_coords(3,i) = abs(unit_vec(3,i))*x1(lz(i))                         &
+                          + (1.0_r_def - abs(unit_vec(3,i)))*x2(lz(i))
+
+        basis_order(1,i)  = poly_order - int(1.0_r_def - abs(unit_vec(1,i)), i_def)
+        basis_order(2,i)  = poly_order - int(1.0_r_def - abs(unit_vec(2,i)), i_def)
+        basis_order(3,i)  = poly_order - int(1.0_r_def - abs(unit_vec(3,i)), i_def)
+
+        basis_x(:,1,i)    = abs(unit_vec(1,i))*x1(:)                             &
+                          + (1.0_r_def - abs(unit_vec(1,i)))*x2(:)
+
+        basis_x(:,2,i)    = abs(unit_vec(2,i))*x1(:)                             &
+                          + (1.0_r_def - abs(unit_vec(2,i)))*x2(:)
+
+        basis_x(:,3,i)    = abs(unit_vec(3,i))*x1(:)                             &
+                          + (1.0_r_def - abs(unit_vec(3,i)))*x2(:)
+
+        basis_vector(:,i) = unit_vec(:,i)
+
+      end do
+
+      basis_index(1,:) = lx(1:ndof_cell)
+      basis_index(2,:) = ly(1:ndof_cell)
+      basis_index(3,:) = lz(1:ndof_cell)
 
 
     case (W2H)
@@ -1333,6 +1426,69 @@ contains
       basis_index(2,:) = ly(1:ndof_cell)
       basis_index(3,:) = lz(1:ndof_cell)
 
+
+    case (W2Htrace)
+      !---------------------------------------------------------------------------
+      ! Section for test/trial functions of W2Htrace space
+      !---------------------------------------------------------------------------
+      poly_order = k + 1
+
+      do idx = 1, ndof_cell
+        do i = 1, 3
+          unit_vec(i,idx) = 0.0_r_def
+        end do
+      end do
+
+      idx = 1
+      !============================================
+      ! dofs on faces
+      !============================================
+      do i = 1, number_faces - 2
+        do j1 = 1, k+1
+          do j2 = 1, k+1
+            j(1) = j1
+            j(2) = j2
+            j(3) = face_idx(i)
+            lx(idx) = j(j2l_face(i,1))
+            ly(idx) = j(j2l_face(i,2))
+            lz(idx) = j(j2l_face(i,3))
+            call reference_element%get_normal_to_face( i, unit_vec(:,idx) )
+            ! Label horizontal face degrees of freedom
+            entity_dofs(idx) = reference_element%get_face_entity(i)
+            idx = idx + 1
+          end do
+        end do
+      end do
+
+      do i = 1, ndof_cell
+        nodal_coords(1,i) = abs(unit_vec(1,i))*x1(lx(i))                         &
+                          + (1.0_r_def - abs(unit_vec(1,i)))*x2(lx(i))
+
+        nodal_coords(2,i) = abs(unit_vec(2,i))*x1(ly(i))                         &
+                          + (1.0_r_def - abs(unit_vec(2,i)))*x2(ly(i))
+
+        nodal_coords(3,i) = abs(unit_vec(3,i))*x1(lz(i))                         &
+                          + (1.0_r_def - abs(unit_vec(3,i)))*x2(lz(i))
+
+        basis_order(1,i)  = poly_order - int(1.0_r_def - abs(unit_vec(1,i)), i_def)
+        basis_order(2,i)  = poly_order - int(1.0_r_def - abs(unit_vec(2,i)), i_def)
+        basis_order(3,i)  = poly_order - int(1.0_r_def - abs(unit_vec(3,i)), i_def)
+
+        basis_x(:,1,i)    = abs(unit_vec(1,i))*x1(:)                             &
+                          + (1.0_r_def - abs(unit_vec(1,i)))*x2(:)
+
+        basis_x(:,2,i)    = abs(unit_vec(2,i))*x1(:)                             &
+                          + (1.0_r_def - abs(unit_vec(2,i)))*x2(:)
+        basis_x(:,3,i)    = abs(unit_vec(3,i))*x1(:)                             &
+                          + (1.0_r_def - abs(unit_vec(3,i)))*x2(:)
+
+        basis_vector(:,i) = unit_vec(:,i)
+      end do
+
+      basis_index(1,:) = lx(1:ndof_cell)
+      basis_index(2,:) = ly(1:ndof_cell)
+      basis_index(3,:) = lz(1:ndof_cell)
+
       case(WCHI)
       !---------------------------------------------------------------------------
       ! Section for test/trial functions of DG spaces
@@ -1380,7 +1536,7 @@ contains
 
     ! Allocate arrays to allow on the fly evaluation of basis functions
     select case (gungho_fs)
-    case (W1, W2, W2H, W2V, W2broken, W2trace)
+    case (W1, W2, W2H, W2V, W2broken, W2trace, W2Vtrace, W2Htrace)
       deallocate( unit_vec )
     end select
 
@@ -1395,38 +1551,43 @@ contains
   !>          stores them in a master dofmap object. The master dofmap is the
   !>          same as a stencil dofmap of a single dof.
   !>
-  !> @param[in] mesh                  Mesh to define the function space on.
-  !> @param[in] gungho_fs             Enumeration of the function space.
-  !> @param[in] element_order         Polynomial order of the function space.
-  !> @param[in] ndata                 The number of data values to be held
-  !>                                  at each dof location
-  !> @param[in] ncells_2d_with_ghost  Number of 2d cells with ghost cells.
-  !> @param[in] ndof_vert             Number of dofs on vertices.
-  !> @param[in] ndof_edge             Number of dofs on edges.
-  !> @param[in] ndof_face             Number of dofs on faces.
-  !> @param[in] ndof_vol              Number of dofs in volumes.
-  !> @param[in] ndof_cell             Number of dofs associated with a cell.
-  !> @param[out] last_dof_owned       Index of last owned dof for the
-  !>                                  partition.
-  !> @param[out] last_dof_annexed     Index of last annexed dof for the
-  !>                                  partition.
-  !> @param[out] last_dof_halo        Index of last halo dof for the
-  !>                                  partition.
-  !> @param[out] dofmap               Array containing the dofmap indexed by
-  !>                                  cells.
-  !> @param[out] global_dof_id        Global id of dofs.
-  !> @param[out] global_dof_id_2d     Global id of dofs on the 2D
-  !>                                  horizontal domain
+  !> @param[in] mesh                   Mesh to define the function space on.
+  !> @param[in] gungho_fs              Enumeration of the function space.
+  !> @param[in] element_order          Polynomial order of the function space.
+  !> @param[in] ndata                  The number of data values to be held
+  !>                                   at each dof location
+  !> @param[in] ncells_2d_with_ghost   Number of 2d cells with ghost cells.
+  !> @param[in] ndof_vert              Number of dofs on vertices.
+  !> @param[in] ndof_edge              Number of dofs on edges.
+  !> @param[in] ndof_face              Number of dofs on faces.
+  !> @param[in] ndof_vol               Number of dofs in volumes.
+  !> @param[in] ndof_cell              Number of dofs associated with a cell.
+  !> @param[out] last_dof_owned        Index of last owned dof for the
+  !>                                   partition.
+  !> @param[out] last_dof_annexed      Index of last annexed dof for the
+  !>                                   partition.
+  !> @param[out] last_dof_halo         Index of last halo dof for the
+  !>                                   partition.
+  !> @param[out] dofmap                Array containing the dofmap indexed by
+  !>                                   cells.
+  !> @param[out] global_dof_id         Global id of dofs.
+  !> @param[out] global_cell_dof_id_2d Global id of cell dofs on the 2D
+  !>                                   horizontal domain
+  !> @param[out] global_edge_dof_id_2d Global id of edge dofs on the 2D
+  !>                                   horizontal domain
+  !> @param[out] global_vert_dof_id_2d Global id of vertex dofs on the 2D
+  !>                                   horizontal domain
   !>
   subroutine dofmap_setup( mesh, gungho_fs, element_order, ndata, &
                            ncells_2d_with_ghost, &
                            ndof_vert, ndof_edge, ndof_face, &
                            ndof_vol,  ndof_cell, last_dof_owned, &
                            last_dof_annexed, last_dof_halo, dofmap, &
-                           global_dof_id, global_dof_id_2d )
-
+                           global_dof_id, &
+                           global_cell_dof_id_2d, &
+                           global_edge_dof_id_2d, &
+                           global_vert_dof_id_2d )
     implicit none
-
 
     type(mesh_type), intent(in), pointer :: mesh
     integer(i_def),  intent(in) :: gungho_fs
@@ -1444,7 +1605,9 @@ contains
     integer(i_def), intent(out) :: dofmap(ndof_cell,0:ncells_2d_with_ghost)
 
     integer(i_halo_index), intent(out) :: global_dof_id(:)
-    integer(i_def), intent(out)        :: global_dof_id_2d(:)
+    integer(i_def), intent(out)        :: global_cell_dof_id_2d(:)
+    integer(i_def), intent(out)        :: global_edge_dof_id_2d(:)
+    integer(i_def), intent(out)        :: global_vert_dof_id_2d(:)
 
     class(reference_element_type), pointer :: reference_element => null()
 
@@ -1532,6 +1695,7 @@ contains
                 +     mesh % get_nverts_2d()
     nface_layer =     mesh % get_nedges_2d() &
                 + 2 * ncells
+
     dofmap_size(:) = 1
     dofmap_size(0) = max( dofmap_size(0), ndof_vert )
     dofmap_size(1) = max( dofmap_size(1), ndof_edge )
@@ -1608,14 +1772,15 @@ contains
     finish=tot_num_inner + &
           mesh%get_num_cells_edge() + &
           mesh%get_num_cells_halo(1)
+
     select case (gungho_fs)
     case(W0, W1, W2, W2broken, W2trace, W3, WCHI)
       select_entity => select_entity_all
     case(WTHETA)
       select_entity => select_entity_theta
-    case(W2H)
+    case(W2H, W2Htrace)
       select_entity => select_entity_w2h
-    case(W2V)
+    case(W2V, W2Vtrace)
       select_entity => select_entity_w2v
     end select
 
@@ -1987,25 +2152,62 @@ contains
       end do
     end do
 
-    ! Calculate a globally unique id for each dof on the 2D horizontal part
-    ! of the local domain. Only used for W3 and Wtheta.
+    ! Calculate a globally unique id for the dofs in the volume of each cell
+    ! in the 2D horizontal part of the local domain. This uses cell lookups, so
+    ! will work for all function spaces - even if they don't have cell vol dofs
 
-    global_dof_id_2d(:) = 0_i_def
+    ! loop over local cells
+    do icell=1, mesh%get_last_edge_cell()
+      global_cell_id = mesh % get_gid_from_lid(icell)
+      do m=1, ndata
+        ! The global ids must be 0 based
+        global_cell_dof_id_2d( (icell-1)*ndata + m ) = &
+                          (global_cell_id - 1)*ndata + m - 1
+      end do
+    end do
 
-    if ( element_order==0 .and. (gungho_fs==W3 .or. gungho_fs==WTHETA) ) then
+    ! Calculate a globally unique id for the dofs on the edges of each cell
+    ! in the 2D horizontal part of the local domain - only possible for
+    ! function spaces that (appear to) have 2d edge dofs
+    ! (for the moment, using W2H as an example of such a function space
+    ! - the 2d layer at the half levels appears to have edge dofs).
+    if(element_order==0 .and. gungho_fs==W2H)then
       ! loop over local cells
       do icell=1, mesh%get_last_edge_cell()
-        global_cell_id = mesh % get_gid_from_lid(icell)
-        if (icell == dof_cell_owner(1,icell)) then
-          do m=1, ndata
-            ! The global ids must be 0 based
-            global_dof_id_2d(icell*ndata + (m - 1)) = &
-                              (global_cell_id - 1)*ndata + (m - 1)
-          end do
-        end if
+        ! loop over 2d edges within a cell
+        do iedge=1, mesh%get_nedges_per_cell_2d()
+          if(mesh%is_edge_owned(iedge,icell))then
+            do m=1, ndata
+              global_edge_dof_id_2d(((dofmap(iedge,icell)-1)/(nlayers*ndata))+1) = &
+                 (mesh%get_edge_gid_on_cell(iedge,icell) - 1)*ndata + m - 1
+            end do
+          endif
+        end do
       end do
+    else
+      global_edge_dof_id_2d(:) = -1
     end if
 
+    ! Calculate a globally unique id for the dofs on the vertices of each cell
+    ! in the 2D horizontal part of the local domain - only possible for
+    ! function spaces that have vertex dofs.
+    ! (for the moment, using W0 as an example of such a function space).
+    if(element_order==0 .and. gungho_fs==W0)then
+      ! loop over local cells
+      do icell=1, mesh%get_last_edge_cell()
+        ! loop over 2d vertices within a cell
+        do ivert=1, mesh%get_nverts_per_cell_2d()
+          if(mesh%is_vertex_owned(ivert,icell))then
+            do m=1, ndata
+              global_vert_dof_id_2d(((dofmap(ivert,icell)-1)/((nlayers+1)*ndata))+1) = &
+                 (mesh%get_vert_gid_on_cell(ivert,icell) - 1)*ndata + m - 1
+            end do
+          endif
+        end do
+      end do
+    else
+      global_vert_dof_id_2d(:) = -1
+    end if
 
     if (allocated(dof_column_height)) deallocate( dof_column_height )
     if (allocated(dof_cell_owner))    deallocate( dof_cell_owner )
@@ -2040,12 +2242,12 @@ contains
 
     implicit none
 
-    type(mesh_type), intent(in) :: mesh
-    integer(i_def),  intent(in) :: nlayers
-    integer(i_def),  intent(in) :: fs
-    real(dp_xios),   intent(out), allocatable :: levels(:)
+    type(mesh_type), intent(in)               :: mesh
+    integer(i_def),  intent(in)               :: nlayers
+    integer(i_def),  intent(in)               :: fs
+    real(r_def),     intent(out), allocatable :: levels(:)
 
-    class(reference_element_type), pointer :: reference_element => null()
+    class(reference_element_type), pointer    :: reference_element => null()
 
     real(r_def), allocatable :: vert_coords(:,:)
     real(r_def), allocatable :: edge_coords(:,:)
@@ -2054,7 +2256,7 @@ contains
     ! Variable to hold the number of levels we found
     integer(i_def)   :: idx
     ! working array to hold fractional levels
-    real(dp_xios), allocatable :: tmp_levs(:)
+    real(r_def), allocatable :: tmp_levs(:)
 
     type(select_data_entity_type) :: select_data_entity_all,   &
                                      select_data_entity_theta, &
@@ -2191,11 +2393,11 @@ contains
 
     implicit none
 
-    integer(i_def),     intent(in)               :: nlayers
-    real(r_def),   intent(in)               :: coords_array(:,:)
-    integer(i_def),     intent(in)               :: entity_array(:)
-    real(dp_xios), intent(out), allocatable :: tmp_levs(:)
-    integer(i_def),     intent(out)              :: idx
+    integer(i_def),  intent(in)               :: nlayers
+    real(r_def),     intent(in)               :: coords_array(:,:)
+    integer(i_def),  intent(in)               :: entity_array(:)
+    real(r_def),     intent(out), allocatable :: tmp_levs(:)
+    integer(i_def),  intent(out)              :: idx
 
     ! Local variables for computation
     real(r_def) :: l

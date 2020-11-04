@@ -1,8 +1,12 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2020,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+!-------------------------------------------------------------------------------
+
 !> @brief Holds helper functions for constructing a mesh object
 !>
 module mesh_constructor_helper_functions_mod
@@ -13,7 +17,7 @@ use domain_size_config_mod, only : planar_domain_min_x, &
                                    planar_domain_max_y
 use constants_mod,          only : i_def, i_native, r_def, pi, l_def
 use log_mod,                only : log_event, log_scratch_space, &
-                                   LOG_LEVEL_DEBUG
+                                   log_level, LOG_LEVEL_DEBUG
 
 
 
@@ -228,7 +232,9 @@ contains
       end do
     end do
 
-    ! Diagnostic information
+    ! Diagnostic information from now on.
+    if (log_level() > LOG_LEVEL_DEBUG) return
+
     call log_event('grid connectivity', LOG_LEVEL_DEBUG)
     do i=1, ncells_3d
       write(log_scratch_space,'(7i6)') i, &
@@ -445,6 +451,9 @@ contains
         end if
       end do
     end do
+
+    ! Diagnostic information from now on.
+    if (log_level() > LOG_LEVEL_DEBUG) return
 
     call log_event( 'faces on cells', LOG_LEVEL_DEBUG )
     do cell = 1, ncells_2d

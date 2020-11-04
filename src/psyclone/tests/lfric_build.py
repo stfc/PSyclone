@@ -94,6 +94,7 @@ class LFRicBuild(Compile):
                               "field_parent_mod",
                               "count_mod",
                               "field_mod",
+                              "quadrature_rule_mod",
                               "quadrature_mod",
                               "quadrature_xyz_mod",
                               "quadrature_xyoz_mod",
