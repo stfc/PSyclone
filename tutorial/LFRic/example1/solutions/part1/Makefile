@@ -47,7 +47,7 @@ KERNEL = setval_field_w0_kernel_mod setval_field_w3_kernel_mod
 PSYCLONE_CMD = -nodm -l all
 
 # Executable
-EXEC = example1_part1
+EXEC = example1_part1.out
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../..

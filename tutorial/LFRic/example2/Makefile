@@ -47,7 +47,7 @@ KERNEL =
 PSYCLONE_CMD = -nodm -l all
 
 # Executable
-EXEC = example2
+EXEC = example2.out
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../..
