@@ -19,8 +19,8 @@ In order to mimic the LFRic code structure, an example algorithm and
 main program (driver) are provided in all Examples. In LFRic,
 [kernels](background/LFRic_kernel.md) are *invoke*d from
 [algorithms](background/LFRic_intro.md), which are in turn called
-from the top-level driver code (see the [*Separation of concerns* section]
-(background/LFRic_intro.md#separation-of-concerns) in the [LFRic intro](
+from the top-level driver code (see the [*Separation of concerns* section](
+background/LFRic_intro.md#separation-of-concerns) in the [LFRic intro](
 background/LFRic_intro.md)).
 
 The kernel and algorithm code in the top-level `example` directories
@@ -64,7 +64,7 @@ applied here so the code is generated and run in serial.
   or [Python 3](https://www.python.org/download/releases/3.0/) environments
   are fine. Running the entire LFRic code, however, requires Python 3 as
   described in the [*Languages and software requirements* section](
-  bacgkround/LFRic_intro.md#languages-and-software-requirements).
+  background/LFRic_intro.md#languages-and-software-requirements).
 
 * Latest PSyclone release (currently 1.9.0). For installation please refer to
   the [PSyclone user guide.](
