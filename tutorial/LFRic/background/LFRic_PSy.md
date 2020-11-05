@@ -5,18 +5,20 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#psy-layer)
 
 ## What PSy layer does
 
-As said in the [algorithm introduction](LFRic_algorithm.md), LFRic
-algorithms perform mathematical operations on LFRic data objects and
-pass them as arguments to kernel and built-in calls in `invoke`s. As
-said in the [kernel introduction](LFRic_kernel.md), LFRic kernels perform
-mathematical operations on a subset of data points of these objects.
+As said in the [*What algorithms do* section](
+LFRic_algorithm.md#what-algorithms-do), LFRic algorithms perform
+mathematical operations on LFRic data objects and pass them as
+arguments to kernel and built-in calls in `invoke`s. As said in the
+[*What kernels do* section](LFRic_kernel.md#what-kernels-do), LFRic
+kernels perform mathematical operations on a subset of data points
+of these objects.
 
 In the *Parallel Systems* or, in short, [PSy layer](
 https://psyclone.readthedocs.io/en/stable/psy_layer.html) generates
 calls to *proxies* of the LFRic data objects and accesses the
 object data by dereferencing the object proxies. The data and other
 required information is then passed to kernels as illustrated in the
-*Kernel subroutine* section of [introduction to kernels](LFRic_kernel.md).
+[*Kernel subroutine* section](LFRic_kernel.md#kernel-subroutine).
 
 PSyclone can also generate code for distributed and shared memory
 support, however this is not utilised in this tutorial as explained
@@ -25,7 +27,8 @@ generated code for kernel and built-in calls are purely serial.
 
 ## Generated code to support kernel calls
 
-As illustrated in the [algorithm introduction](LFRic_algorithm.md),
+As illustrated in the [*`invoke` calls* section](
+LFRic_algorithm.md#invoke-calls) of algorithm introduction,
 the `invoke` call from the completed algorithm in
 [Example 1, solution of Part 1](
 ../example1/solutions/part1/example1/example1_alg_mod.x90)
@@ -58,8 +61,8 @@ There is a generated declaration and call to the `field_w0` proxy
 
 and generated declarations and dereferencing assignments to access
 the proxy data required for the full kernel call argument list for the
-kernel call (see *Kernel subroutine* section of
-[introduction to kernels](LFRic_kernel.md)
+kernel call (see [*Kernel subroutine* section.](
+LFRic_kernel.md#kernel-subroutine))
 
 ```fortran
       INTEGER(KIND=i_def) nlayers
@@ -185,8 +188,9 @@ representation of the mathematical operation that a built-in performs
       END DO
 ```
 
-(for more information on built-ins look into the *Quick intro to built-ins*
-section of the [Example 2 README documentation](../example2/README.md)).
+(for more information on built-ins look into the
+[*Quick intro to built-ins* section.](
+../example2/README.md#quick-intro-to-built-ins)).
 
 The above built-in code call illustrates how `iterates_over = DOFS`
 metadata in the definition of `X_plus_Y_code` translates to a
