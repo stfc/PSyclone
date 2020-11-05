@@ -50,6 +50,8 @@ have already been preprocessed (if required).
 '''
 
 from __future__ import print_function, absolute_import
+from psyclone.psyGen import InlinedKern
+from psyclone.psyir.nodes import CodeBlock
 
 
 def trans(psy):
@@ -65,6 +67,7 @@ def trans(psy):
     for invoke in psy.invokes.invoke_list:
 
         sched = invoke.schedule
+
         if not sched:
             print("Invoke {0} has no Schedule! Skipping...".
                   format(invoke.name))
