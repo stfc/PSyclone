@@ -103,5 +103,7 @@ which can be done by using
                  ... )
 ```
 
-The [PSy layer intro](../background/LFRic_PSy.md) gives examples of
-how this built-in call is represented in the LFRic PSy layer.
+The [*Generated code to support built-in calls* section](
+../background/LFRic_PSy.md#generated-code-to-support-built-in-calls)
+in the [PSy layer intro](../background/LFRic_PSy.md) gives examples
+of how this built-in call is represented in the LFRic PSy layer.

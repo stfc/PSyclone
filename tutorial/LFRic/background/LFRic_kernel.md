@@ -10,7 +10,7 @@ points](
 https://psyclone.readthedocs.io/en/stable/kernel_layer.html#kernel-layer)
 in LFRic data objects (fields, operators and scalars) passed
 from the [algorithm](LFRic_algorithm.md) through the
-[PSy](LFRic_PSy.md) layer.
+[PSy layer.](LFRic_PSy.md)
 
 Scalar values are passed to a kernel from the
 [algorithm layer](LFRic_algorithm.md) as they are. In case of fields

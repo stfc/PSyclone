@@ -40,7 +40,8 @@ PSyclone LFRic (Dynamo 0.3) API documentation can be found [here.](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
 
 LFRic wiki hosts pages on the use of PSyclone in LFRic, starting with the
-[PSyclone in LFRic wiki](https://code.metoffice.gov.uk/trac/lfric/wiki/PSycloneTool).
+[PSyclone in LFRic wiki (requires login)](
+https://code.metoffice.gov.uk/trac/lfric/wiki/PSycloneTool).
 
 Not every PSyclone release works with every LFRic trunk revision. The LFRic - PSyclone
 compatibility table is give in this [LFRic wiki (requires login)](

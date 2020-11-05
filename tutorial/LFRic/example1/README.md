@@ -28,9 +28,9 @@ list code can be created by running PSyclone kernel stub generator:
 genkernelstub setval_field_w0_kernel_mod.f90
 ```
 
-The kernel code can be completed by referring to the *Loops* section of
-the [LFRic kernel documentation](../background/LFRic_kernel.md) in this
-tutorial.
+The kernel code can be completed by referring to the [*Loops* section](
+../background/LFRic_kernel.md#loops) of the LFRic kernel documentation in
+this tutorial.
 
 The `W3` kernel can be created using the completed
 `setval_field_w0_kernel_mod.f90` as a template and changing the function
