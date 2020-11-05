@@ -19,15 +19,17 @@ assumes you are using Gnu Make. If you are using a different version of
 Make then you may need to edit the Makefile and replace the occurances of
 `?=` with `=`.
 
-## Automatic Profiling ##
+## 1. Automatic Profiling ##
 
 To begin, we will make use of PSyclone's support for the automatic
 addition of profiling instrumentation
-(https://psyclone.readthedocs.io/en/stable/profiling.html). For demonstration
-purposes we will be using the 'simple-timing' library distributed with
-PSyclone since that has no dependencies. (PSyclone provides wrapper libraries
-for 'proper' profiling tools such as DrHook and NVIDIA's nvtx but they
-are beyond the scope of this tutorial.)
+(https://psyclone.readthedocs.io/en/stable/profiling.html). For
+demonstration purposes we will be using the 'simple-timing' library
+distributed with PSyclone since that has no dependencies. (PSyclone
+currently provides wrapper libraries for profiling tools such as
+[dl_timer](https://bitbucket.org/apeg/dl_timer/src/master/), DrHook
+(from ECMWF) and NVIDIA's nvtx. You may wish to investigate these if
+you have time at the end of this session.)
 
 1. Use the supplied Makefile to generate a version of the mini-app with
    profiling automatically inserted around each routine:
@@ -87,16 +89,16 @@ are beyond the scope of this tutorial.)
        tra_adv::r0        1    3.12500000E-02   3.12500000E-02 	3.12500000E-02 	3.12500000E-02
        tra_adv::r1        1    0.00000000       0.00000000     	0.00000000     	0.00000000
        tra_adv::r2        1    0.00000000       0.00000000     	0.00000000     	0.00000000    
-       tra_adv::r3        1    0.343750000      0.343750000     0.343750000     0.343750000    
+       tra_adv::r3        1    0.343750000      0.343750000     0.343750000     0.343750000
        ===========================================
 
-## User-specified Profiling ##
+## 2. User-specified Profiling ##
 
 Profiling is a good way to get used to using PSyclone transformation scripts
 so we will now use a script to achieve the same result as the first step
 in this tutorial.
 
-4. Alter the Makefile so that the `psyclone` command uses the provided
+1. Alter the Makefile so that the `psyclone` command uses the provided
    `profiling_trans.py` script instead of the `--profile` option (or
    run psyclone separately on the command line). If you look at the
    script, you will see that it encloses all child nodes of the
@@ -110,18 +112,26 @@ in this tutorial.
        tra_adv::r0        1   0.718750000    0.718750000   0.718750000    0.718750000
        ===========================================
 
-## Improving the Profiling ##
+## 3. Improving the Profiling ##
 
 So far, we have only added profiling around the whole of the mini-app. We
 shall now look at using the transformation script to perform finer-grained
 profiling.
 
-5. Modify the provided transformation script (`profile_trans.py`) so that
-   it finds all loops over `levels` and encloses them within profiling
-   regions. Hint: you will probably want to use the `walk` method and then
-   the `loop_type` property of the `Loop`-node class. Examine the PSyIR
-   after you have applied the transformations and check that it now has
-   multiple Profile nodes, e.g.:
+1. Modify the provided transformation script (`profile_trans.py`) so that
+   it uses `walk` to find all Loop nodes:
+   ```python
+   loops = sched.walk(Loop)
+   ```
+   Next, identify those loops that are over `levels` using the `loop_type`
+   property and then enclose each of them within a profiling region:
+   ```python
+   for loop in loops:
+       if loop.loop_type == "levels":
+           p_trans.apply(loop)
+   ```
+   Examine the PSyIR after you have applied the transformations and check
+   that it now has multiple Profile nodes, e.g.:
 
        12: Profile[]
            Schedule[]
@@ -137,7 +147,7 @@ profiling.
 
 
    Recompile and run the mini-app. You should now see that there are 14
-   regions (`r0`-`r13`) reported by the timing library:
+   regions (r0-r13) reported by the timing library:
 
        ===========================================
        module::region   count	       sum	     min		average	          max
@@ -149,12 +159,24 @@ profiling.
        ===========================================
 
 
-6. Naming profile regions. The `apply()` method of `ProfileTrans` takes
-   an optional dictionary as argument allowing additional options to
-   be specified. Try using the "region_name" option to configure the
-   names given to the regions, e.g.:
+2. Many PSyclone transformations allow additional options to be supplied
+   via a dictionary argument to the `apply()` method. The
+   profiling transformation for instance allows the user to supply a
+   specific name for the region that is being created. Try using the
+   "region_name" option to configure the names given to the regions,
+   e.g.:
 
-       p_trans.apply(loop, {"region_name": ("NAME","HERE")})
+   ```python
+   p_trans.apply(loop, {"region_name": ("NAME","HERE")})
+   ```
+
+3. If you have time, you may want to try repeating this exercise using
+   a different PSyData wrapper library. For CPU, the next step up from
+   the 'simple_timing' library we have used so far is 'dl_timer' which
+   is available from
+   [bitbucket](https://bitbucket.org/apeg/dl_timer/src/master/). You
+   will need to obtain the source for this library and then update the
+   various `PROFILE_*` variables in the Makefile in this directory.
 
 We have now used a PSyclone transformation to add profiling instrumentation
 to the tracer-advection mini-app. In subsequent tutorials we will look

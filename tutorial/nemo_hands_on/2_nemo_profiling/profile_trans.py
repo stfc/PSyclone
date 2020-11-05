@@ -50,7 +50,7 @@ have already been preprocessed (if required).
 
 from __future__ import print_function, absolute_import
 from psyclone.psyir.transformations import ProfileTrans
-# from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop
 
 
 def trans(psy):
@@ -74,5 +74,5 @@ def trans(psy):
             continue
 
         # Enclose all children of the schedule within a single profile region
-        sched, _ = p_trans.apply(sched.children)
+        p_trans.apply(sched.children)
         sched.view()
