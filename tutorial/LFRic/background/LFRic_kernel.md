@@ -130,7 +130,7 @@ for the LFRic data objects.
 The `iterates_over` metadata specifies how LFRic kernels are called
 from the [PSy layer](LFRic_PSy.md). A user-defined kernel in LFRic
 is called from a PSy-layer loop over each cell in the horizontal domain,
-hence the metadata identifier for this way of looping - `CELLS`. This means
+hence the metadata identifier for this way of looping, `CELLS`. This means
 that a kernel operates on a one-cell-wide vertical column of cells.
 
 ---
