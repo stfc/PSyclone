@@ -458,8 +458,9 @@ class ArgOrdering(object):
     @abc.abstractmethod
     def stencil_2d_max_extent(self, arg, var_accesses=None):
         '''Add 2D stencil information to the argument list associated with the
-        argument 'arg' if the maximum branch extent is unknown. If supplied it
-        also stores this access in var_accesses.
+        argument 'arg' if the stencil extent (from which it is calculated) is
+        passed from the Algorithm layer rather than being specified in kernel
+        metadata. If supplied it also stores this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`

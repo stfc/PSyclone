@@ -315,8 +315,8 @@ For example::
 
 If the stencil is of type ``CROSS2D`` then the arrays passed to the kernel are
 of different dimensions to those of other stencils. The ``CROSS2D`` stencil is
-designed for use when knowing where the stencil cells are in relation to the
-cell they are called from is necessary. For this reason, the ``stencil_size``
+designed for use when it is necessary for a kernel to know where the stencil
+cells are, relative to the current cell. For this reason, the ``stencil_size``
 passed to the kernel is an array of length 4 containing sizes for each branch
 of the stencil. The ``stencil_size`` array is always ordered: West, South,
 East, North. This branch dimension is also part of the ``stencil_dofmap`` array
