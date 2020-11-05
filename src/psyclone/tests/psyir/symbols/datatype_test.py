@@ -329,6 +329,11 @@ def test_structure_type():
             "of 'Symbol.Visibility' but got 'str'" in str(err.value))
     with pytest.raises(KeyError):
         stype.lookup("missing")
+    # Cannot have a recursive type definition
+    with pytest.raises(TypeError) as err:
+        stype.add("hello", stype, Symbol.Visibility.PUBLIC)
+    assert ("attempting to add component 'hello' - a StructureType definition "
+            "cannot be recursive" in str(err.value))
 
 
 def test_create_structuretype():

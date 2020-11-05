@@ -445,6 +445,13 @@ class StructureType(DataType):
                 "The visibility of a component of a StructureType must be "
                 "an instance of 'Symbol.Visibility' but got '{0}'".format(
                     type(visibility).__name__))
+        if datatype is self:
+            # A StructureType cannot contain a component of its own type
+            raise TypeError(
+                "Error attempting to add component '{0}' - a StructureType "
+                "definition cannot be recursive - i.e. it cannot contain "
+                "components with the same type as itself.".format(name))
+
         self._components[name] = self.ComponentType(name, datatype, visibility)
 
     def lookup(self, name):
