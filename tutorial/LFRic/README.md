@@ -17,10 +17,11 @@ code structure and how PSyclone is used in LFRic) and three examples.
 
 In order to mimic the LFRic code structure, an example algorithm and
 main program (driver) are provided in all Examples. In LFRic,
-[kernels](../background/LFRic_kernel.md) are *invoke*d from
-[algorithms](../background/LFRic_intro.md), which are in turn called
-from the top-level driver code (see the *Separation of concerns* section
-in [LFRic intro](../background/LFRic_intro.md)).
+[kernels](background/LFRic_kernel.md) are *invoke*d from
+[algorithms](background/LFRic_intro.md), which are in turn called
+from the top-level driver code (see the [*Separation of concerns* section]
+(background/LFRic_intro.md#separation-of-concerns) in the [LFRic intro](
+background/LFRic_intro.md)).
 
 The kernel and algorithm code in the top-level `example` directories
 is incomplete. The completed solutions are provided in the `solutions`
@@ -32,8 +33,9 @@ the code.
 All the examples here use a pared-down version of the LFRic infrastructure
 stored in `src/psyclone/tests/test_files/dynamo0p3/infrastructure`
 directory of PSyclone repository. For more information on LFRic code
-structure and functionality see the *LFRic code structure*
-section of [introduction to LFRic](../background/LFRic_intro).
+structure and functionality see [*LFRic code structure* section](
+background/LFRic_intro.md#lfric-code-structure) of
+[introduction to LFRic](background/LFRic_intro.md).
 
 ### Implementation of PSyclone in examples
 
@@ -61,7 +63,8 @@ applied here so the code is generated and run in serial.
   tutorials either [Python 2](https://www.python.org/download/releases/2.0/)
   or [Python 3](https://www.python.org/download/releases/3.0/) environments
   are fine. Running the entire LFRic code, however, requires Python 3 as
-  described in the [LFRic intro](../background/LFRic_intro.md)).
+  described in the [*Languages and software requirements* section](
+  bacgkround/LFRic_intro.md#languages-and-software-requirements).
 
 * Latest PSyclone release (currently 1.9.0). For installation please refer to
   the [PSyclone user guide.](
