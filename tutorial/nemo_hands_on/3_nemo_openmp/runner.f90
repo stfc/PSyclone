@@ -32,12 +32,14 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: A. R. Porter, STFC Daresbury Laboratory
+
+!> Driver program for the tracer-advection mini-app
 program runner
   use tra_adv_mod, only: tra_adv
   use profile_psy_data_mod, only: profile_psydatashutdown
 
   call tra_adv()
 
-  call profile_psydatashutdown()
+  !call profile_psydatashutdown()
 
 end program runner
