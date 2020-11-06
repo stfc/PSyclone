@@ -56,12 +56,12 @@ region:
 ```
 
 In doing this we will enclose the outer, 'iteration' loop within a
-KERNELS region. If we look at the generated Fortran we can see that this
-loop cannot be parallelised because it both reads and writes the
-`mydomain` array so that each iteration depends upon the results of
-the previous one. We are therefore relying upon the OpenACC compiler
-to "do the right thing" and parallelise the loops *within* the iteration
-loop.
+KERNELS region. If we look at the original Fortran (in
+`tra_adv_mod.F90`) we can see that this loop cannot be parallelised
+because it both reads and writes the `mydomain` array so that each
+iteration depends upon the results of the previous one. We would
+therefore be relying upon the OpenACC compiler to "do the right thing"
+and parallelise the loops *within* the iteration loop.
 
 However, the point of a Domain-Specific Language is that it makes use
 of domain-specific knowledge and therefore we can be more prescriptive
@@ -81,36 +81,34 @@ ways in which PSyclone can be used.)
 
 ### 1. Enclose loops over vertical levels ###
 
-Modify the supplied `kernels_trans.py` optimisation script to apply the
-`ACCKernelsTrans` transformation to every loop over vertical levels
-within the outer, iteration loop of the mini-app. The script already
-locates that loop:
+1. Modify the supplied `kernels_trans.py` optimisation script to apply the
+   `ACCKernelsTrans` transformation to every loop over vertical levels
+   within the outer, iteration loop of the mini-app. The script already
+   locates that loop:
 
-```python
+   ```python
     # Find the outer, 'iteration' loop
     tloop = None
     for node in sched.children:
         if isinstance(node, Loop) and node.loop_type == "tracers":
             tloop = node
             break
-```
+    ```
 
-Similar to what has been done in previous tutorials, you will need to
-loop over the children of that loop, identify those that are loops of
-the correct "levels" type, and transform them:
-
-```python
+   Similar to what has been done in previous tutorials, you will need to
+   loop over the children of that loop, identify those that are loops of
+   the correct "levels" type, and transform them:
+   ```python
     for child in tloop.loop_body.children:
         if isinstance(node, Loop) and node.loop_type == "levels":
 	    ACC_KERNELS_TRANS.apply(node)
-```
+   ```
 
-Use the supplied Makefile to run PSyclone and generate the transformed
-code. If you examine the generated Fortran in `psy.f90` you should see
-that ACC Kernels Directive nodes have been added to the Schedule,
-e.g.:
-
-```fortran
+2. Use the supplied Makefile to run PSyclone and generate the transformed
+   code. If you examine the generated Fortran in `psy.f90` you should see
+   that ACC Kernels Directive nodes have been added to the Schedule,
+   e.g.:
+   ```fortran
     DO jt = 1, it
       !$ACC KERNELS
       DO jk = 1, jpk
@@ -133,7 +131,7 @@ e.g.:
       !$ACC KERNELS
       DO jk = 1, jpk - 1
         ...
-```
+   ```
 
 Although this code will compile, run and produce the correct answers,
 its performance will be very poor. This is because we have only
@@ -154,22 +152,20 @@ with KERNELS regions in order to perform them on the GPU.
 
 ### 2. Enclose array assignments ###
 
-We will continue working with the `kernels_trans.py` script. It must
-now be extended to identify those children of the iteration loop
-that are array assignments. If this is the case they will be instances
-of the `Assignment` class and will be marked as applying to an
-array range:
-
-```python
+1. We will continue working with the `kernels_trans.py` script. It must
+   now be extended to identify those children of the iteration loop
+   that are array assignments. If this is the case they will be instances
+   of the `Assignment` class and will be marked as applying to an
+   array range:
+   ```python
         # Enclose array assignments (implicit loops)
         if isinstance(node, Assignment) and node.is_array_range:
 	    ACC_KERNELS_TRANS.apply(node)
-```
+   ```
 
-Once you have this script working, the fragment of Fortran reproduced
-above should now look like:
-
-```fortran
+2. Once you have this script working, the fragment of Fortran reproduced
+   above should now look like:
+   ```fortran
    DO jt = 1, it
       !$ACC KERNELS
       DO jk = 1, jpk
@@ -195,7 +191,7 @@ above should now look like:
       !$ACC KERNELS
       DO jk = 1, jpk - 1
         ...
-```
+   ```
 
 All of the compute within the 'iteration' loop is now being performed on
 the GPU. However, data will still be moved back and forth as one KERNELS
@@ -211,7 +207,7 @@ of that between the CPU and main memory. Therefore, frequent data
 movement on and off the GPU will destroy performance.
 
 The OpenACC specification allows for both implicit (compiler generated)
-and explicit data movement. NVIDIA also supports 'managed memory'
+and explicit data movement. NVIDIA also supports 'managed'/'unified' memory
 where page faults on either the CPU or GPU cause the necessary memory
 to be moved automatically to the correct location.
 
@@ -222,23 +218,21 @@ between various kernel invocations.
 
 ### 3. Add a static DATA region ###
 
-We can remove much of the data movement by adding a DATA region. The
-`kernels_trans.py` script must be further extended so that, as a final
-step, the entire body of the 'iteration' loop is enclosed within a
-DATA region. To do this, we must apply an `ACCDataTrans` transformation
-to the body of the 'iteration' loop:
-
-```python
+1. We can remove much of the data movement by adding a DATA region. The
+   `kernels_trans.py` script must be further extended so that, as a final
+   step, the entire body of the 'iteration' loop is enclosed within a
+   DATA region. To do this, we must apply an `ACCDataTrans` transformation
+   to the body of the 'iteration' loop:
+   ```python
     # Finally, enclose all of the children of the 'iteration' loop within
     # a data region
     ACC_DATA_TRANS.apply(tloop.loop_body)
-```
+   ```
 
-With that addition, running `make` should re-generate `psy.f90`. If we
-examine that file then we see that a DATA region is now created at the
-start of the 'iteration' loop:
-
-```fortran
+2. With that addition, running `make` should re-generate `psy.f90`. If we
+   examine that file then we see that a DATA region is now created at the
+   start of the 'iteration' loop:
+   ```fortran
     DO jt = 1, it
       !$ACC DATA COPYIN(pun,pvn,pwn,rnfmsk,rnfmsk_z,tmask,tsn,umask,upsmsk,vmask,ztfreez)&
       !$ACC COPYOUT(zind,zslpx,zslpy,zwx,zwy) COPY(mydomain)
@@ -251,14 +245,14 @@ start of the 'iteration' loop:
       !$ACC END KERNELS
       !$ACC END DATA
     END DO
-```
+   ```
 
-In creating the DATA region, PSyclone has analysed the arrays used
-within it and used that information to add clauses about whether
-arrays are read-only, write-only or read-write. This helps to reduce
-unnecessary memory copying (e.g. if a field is not modified within a
-data region then it is clearly not necessary to copy it back to the
-CPU). 
+   In creating the DATA region, PSyclone has analysed the arrays used
+   within it and used that information to add clauses about whether
+   arrays are read-only (`COPYIN`), write-only (`COPYOUT`) or
+   read-write (`COPY`). This helps to reduce unnecessary memory
+   copying (e.g. if a field is not modified within a data region then
+   it is clearly not necessary to copy it back to the CPU).
 
 (Currently PSyclone's analysis is limited to the contents of the DATA
 region.  In our example, we can see that although `zind` for instance
@@ -266,35 +260,32 @@ is written to within the data region, it is in fact not used again
 outside the data region and therefore does not actually need to be
 copied back from the GPU.)
 
-Although we have massively reduced the amount of data movement, we will
-still be copying data to and from the GPU upon every trip of the
-'iteration' loop as we enter and leave the DATA region. This can be
-fixed by tweaking our script so as to enclose the whole loop within
-the region rather than just its body:
-
-```python
+3. Although we have massively reduced the amount of data movement, we will
+   still be copying data to and from the GPU upon every trip of the
+   'iteration' loop as we enter and leave the DATA region. This can be
+   fixed by tweaking our script so as to enclose the whole loop within
+   the region rather than just its body:
+   ```python
     # Finally, enclose all of the children of the 'iteration' loop within
     # a data region
     ACC_DATA_TRANS.apply(tloop)
-```
-
-With this change, the generated code should now look like:
-
-```fortran
+   ```
+   With this change, the generated code should now look like:
+   ```fortran
     !$ACC DATA COPYIN(pun,pvn,pwn,rnfmsk,rnfmsk_z,tmask,tsn,umask,upsmsk,vmask,ztfreez) &
     !$ACC COPYOUT(zind,zslpx,zslpy,zwx,zwy) COPY(mydomain)
     DO jt = 1, it
       !$ACC KERNELS
       DO jk = 1, jpk
         ...
-```
+   ```
 
 At this point we have an implementation that should give reasonable
 performance on a GPU; all of the compute has been moved to the GPU and
 data is only copied to the device at the start and copied back at the
 end.
 
-## Collapsing Loop Nests ##
+## 4. Collapsing Loop Nests ##
 
 Although we now have a basic GPU implementation of the mini-app, it is
 possible to make further use of our knowledge of the domain to improve
@@ -304,10 +295,9 @@ iteration space) tightly-nested inner loops. We do this in PSyclone by
 applying the `ACCLoopTrans` transformation in order to decorate a loop
 (or loops) with an ACC LOOP directive.
 
-Create a brand-new transformation script and, for demonstration purposes,
-apply the `ACCLoopTrans` to every 'latitude' loop:
-
-```python
+1. Create a brand-new transformation script and, for demonstration purposes,
+   apply the `ACCLoopTrans` to every 'latitude' loop:
+   ```python
     from psyclone.transformations import ACCLoopTrans, TransformationError
     ACC_LOOP_TRANS = ACCLoopTrans()
     ...
@@ -318,23 +308,22 @@ apply the `ACCLoopTrans` to every 'latitude' loop:
                 ACC_LOOP_TRANS.apply(loop)
             except TransformationError:
                 pass
-```
+   ```
+   (Note that for simplicity, we are relying on the fact that all latitude
+   loops in the mini-app correspond to tight, doubly-nested loops. In
+   practice extra checking will be required to ensure this is the case.)
 
-(Note that for simplicity, we are relying on the fact that all latitude
-loops in the mini-app correspond to tight, doubly-nested loops. In
-practice extra checking will be required to ensure this is the case.)
-
-Running PSyclone with this transformation script will fail at
-code-generation time because none of the added `ACC LOOP` directives
-are within an OpenACC parallel region:
-
+   Running PSyclone with this transformation script will fail at
+   code-generation time because none of the added `ACC LOOP` directives
+   are within an OpenACC parallel region:
+   ```bash
     Error message here. XXXXXXX
+   ```
 
-We must therefore extend the optimisation script to add a kernels
-region. Using parts of the script developed earlier, put the body
-of the 'iteration' loop within a KERNELS region:
-
-```python
+2. We must therefore extend the optimisation script to add a kernels
+   region. Using parts of the script developed earlier, put the body
+   of the 'iteration' loop within a KERNELS region:
+   ```python
     # Find the outer, 'iteration' loop
     tloop = None
     for node in sched.children:
@@ -342,52 +331,46 @@ of the 'iteration' loop within a KERNELS region:
             tloop = node
             break
     ACC_KERNELS_TRANS.apply(tloop.loop_body)
-```
+   ```
 
-We can then refine our first attempt so that we only collapse latitude
-loops that are *within* this region (i.e. children of the 'iteration'
-loop):
-
-```python
+3. We can then refine our first attempt so that we only collapse latitude
+   loops that are *within* this region (i.e. children of the 'iteration'
+   loop):
+   ```python
     loops = tnode.walk(Loop)
     for loop in loops if loop.loop_type == "lat":
         ACC_LOOP_TRANS.apply(loop)
-```
-
-At this point, PSyclone should successfully generate valid Fortran
-with OpenACC directives. However, if we examine the Fortran produced
-we will see that the LOOP directives currently only specify
-`INDEPENDENT`, e.g.:
-
-```fortran
+   ```
+   At this point, PSyclone should successfully generate valid Fortran
+   with OpenACC directives. However, if we examine the Fortran produced
+   we will see that the LOOP directives currently only specify
+   `INDEPENDENT`, e.g.:
+   ```fortran
       DO jk = 1, jpk - 1
         !$ACC LOOP INDEPENDENT
         DO jj = 2, jpj - 1
           DO ji = 2, jpi - 1
-```
+   ```
 
-How do we add the `COLLAPSE` clause? If we look at the documentation
-for `ACCLoopTrans` in the
-[Transformations](https://psyclone.readthedocs.io/en/stable/transformations.html?highlight=accdatatrans#transformations)
-section of the User Guide, we see that it takes an `options`
-dictionary argument. We can therefore specify that we want
-`COLLAPSE(2)` by doing:
+4. How do we add the `COLLAPSE` clause? If we look at the documentation
+   for `ACCLoopTrans` in the
+   [Transformations](https://psyclone.readthedocs.io/en/stable/transformations.html?highlight=accdatatrans#transformations)
+   section of the User Guide, we see that it takes an `options`
+   dictionary argument. We can therefore specify that we want
+   `COLLAPSE(2)` by doing:
+   ```python
+   ACC_LOOP_TRANS.apply(loop, options={"collapse": 2})
+   ```
 
-```python
-        ACC_LOOP_TRANS.apply(loop, options={"collapse": 2})
-```
-
-The resulting Fortran should now look like:
-
-```fortran
+   The resulting Fortran should now look like:
+   ```fortran
       DO jk = 1, jpk - 1
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpj - 1
           DO ji = 2, jpi - 1
-```
-
-This option has been found to improve the performance of the NEMO model
-on GPU by a few percent.
+   ```
+   This option has been found to improve the performance of the NEMO model
+   on GPU by a few percent.
 
 If time allows, you might wish to try modifying the mini-app so that
 at least one of the latitude loops does *not* correspond to a
@@ -420,9 +403,6 @@ faults occur. This was originally intended as being a quick way to get
 something working on the GPU but it has actually proved to work well
 in general.
 
-### 2. Using `validate()`??? ###
-
-Possibly do this in an earlier part of the tutorial, e.g. profiling?
 
 ## Conclusion ##
 

@@ -249,7 +249,7 @@ has, binding threads to cores, ensuring repeatable timings, and any
 other, competing activity on your machine. This is all well beyond the
 scope of this tutorial.
 
-## Improving Performance ##
+## 4. Improving Performance ##
 
 If time allows then it is possible to improve upon the parallelisation
 achieved in the previous section by creating parallel regions containing
@@ -319,6 +319,8 @@ steps to achieve this are:
 
 5. Parallelise all remaining children of the iteration loop that are
    loops over levels;
+
+## Conclusion ##
 
 This completes part 3 of the NEMO tutorial. We have looked in more
 detail at the process of creating an optimisation script and have
