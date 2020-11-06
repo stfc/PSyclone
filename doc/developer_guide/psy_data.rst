@@ -414,8 +414,8 @@ a detailed description), any of the profiling wrapper libraries
     even if no variables are to be provided.
 
     An example of a library using PSyData is included in PSyclone in the
-    directory ``.../lib/extract/netcdf``. This library is used to extract
-    kernel input- and output-parameters and store them in a NetCDF file.
+    directory ``<PSYCLONEHOME>/lib/extract/netcdf``. This library is used to
+    extract kernel input- and output-parameters and store them in a NetCDF file.
 
     .. note::
 
