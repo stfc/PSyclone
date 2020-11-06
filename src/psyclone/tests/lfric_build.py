@@ -84,7 +84,9 @@ class LFRicBuild(Compile):
                               "mesh_constructor_helper_functions_mod",
                               "mesh_mod",
                               "master_dofmap_mod",
+                              "stencil_dofmap_helper_functions_mod",
                               "stencil_dofmap_mod",
+                              "stencil_2D_dofmap_mod",
                               "function_space_constructor_helper_"
                               "functions_mod",
                               "polynomial_mod",
