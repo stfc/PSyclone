@@ -184,13 +184,11 @@ contains
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
     !! executed. After this call the value of variables after the instrumented
-    !! region will be provided. This subroutine resets the next variable index
-    !! to 1  again.
+    !! region will be provided. Nothing is done here.
     !! @param[inout] this The instance of the PSyDataBaseType.
     subroutine PostStart(this)
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
-        this%next_var_index = 1
     end subroutine PostStart
 
     ! -------------------------------------------------------------------------

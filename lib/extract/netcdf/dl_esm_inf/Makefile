@@ -47,8 +47,19 @@ LIB_NAME = lib_kernel_data_netcdf.a
 
 default: $(LIB_NAME)
 
-$(LIB_NAME):	kernel_data_netcdf.o
+$(LIB_NAME): psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
+
+kernel_data_netcdf.o:	extract_netcdf_base.o
+extract_netcdf_base.o:	psy_data_base.o
+
+psy_data_base.f90: ../../../psy_data_base.jinja Makefile
+	../../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+
+
+extract_netcdf_base.f90: ../extract_netcdf_base.jinja Makefile
+	../../../process.py $(PROCESS_ARGS) $< > extract_netcdf_base.f90
+
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
