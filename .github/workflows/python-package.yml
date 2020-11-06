@@ -17,7 +17,7 @@ jobs:
       matrix:
         python-version: [3.8]
 #TODO	 python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
-
+        test-files: [psyir, nemo]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -47,9 +47,8 @@ jobs:
         ( make -C examples transform > /dev/null )
         ( make -C examples notebook )
     - name: Test with pytest
-      # TODO run *all* tests not just psyir
       run: |
-        pytest --cov=psyclone --cov-report=xml src/psyclone/tests/psyir
+        pytest --cov=psyclone --cov-report=xml src/psyclone/tests/${{ matrix.test-files }}
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
       with:
