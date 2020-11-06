@@ -39,7 +39,12 @@ module testkern_w0_mod
 
   use constants_mod
 
-  type, extends(kernel_type) :: testkern_w0_type
+  implicit none
+
+  private
+
+  type, public, extends(kernel_type) :: testkern_w0_type
+     private
      type(arg_type), dimension(2) :: meta_args =  &
           (/ arg_type(gh_field, gh_inc,  w0),     &
              arg_type(gh_field, gh_read, w0)      &
@@ -48,6 +53,8 @@ module testkern_w0_mod
    contains
      procedure, nopass :: code => testkern_w0_code
   end type testkern_w0_type
+
+  public :: testkern_w0_code
 
 contains
 
@@ -65,8 +72,8 @@ contains
 
     integer(kind=i_def)                                 :: i, k
 
-    do i=1, ndf_w0
-      do k=0, nlayers-1
+    do k=0, nlayers-1
+      do i=1, ndf_w0
         fld1(map_w0(i)+k) = fld1(map_w0(i)+k) + fld2(map_w0(i)+k)
       end do
     end do
