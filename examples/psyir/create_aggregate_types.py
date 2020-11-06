@@ -41,18 +41,22 @@ Once you have psyclone installed, this script may be run by doing:
 
 >>> python create_aggregate_types.py
 
-This should output a Fortran representation of the PSyIR and part of a
-C representation of the PSyIR.
+TODO #363 Ultimately this will output a Fortran representation of the PSyIR but
+this is a work in progress.
 
 '''
 from __future__ import print_function
-from psyclone.psyir.nodes import Reference, Literal, KernelSchedule, \
-    BinaryOperation, Assignment, Container, Range, Array
+# TODO #363 these classes will be needed once the implementation is
+# complete.
+# from psyclone.psyir.nodes import Array, Assignment, BinaryOperation, Range, \
+#    Reference
+from psyclone.psyir.nodes import Literal, KernelSchedule, Container
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, TypeSymbol, \
     GlobalInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
     DeferredType, Symbol
-from psyclone.psyir.backend.fortran import FortranWriter
+# TODO #363 once the PSyIR support is complete we will write out Fortran.
+# from psyclone.psyir.backend.fortran import FortranWriter
 
 
 # Symbol table for container (container itself created after kernel)

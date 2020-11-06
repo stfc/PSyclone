@@ -44,7 +44,19 @@ PSyIR DataTypes currently support Scalar, Array and Structure types
 via the ``ScalarType``, ``ArrayType`` and ``StructureType`` classes,
 respectively.  The ``StructureType`` simply contains an
 ``OrderedDict`` of namedtuples, each of which holds the name, type and
-visibility of a component of the type.
+visibility of a component of the type. These types are designed to be
+composable: one might have an ``ArrayType`` with elements that are of
+a ``StructureType`` or a ``StructureType`` that has components that
+are also of (some other) ``StructureType``.
+
+There are two other types that are used in situations where the full
+type information is not currently available: ``UnknownType`` means
+that the type-declaration is not supported by the PSyIR (or the PSyIR
+frontend) and ``DeferredType`` means that the type of a particular
+symbol has not yet been resolved. Since ``UnknownType`` captures the
+original, unsupported symbol declaration, it is subclassed for each
+language for which a PSyIR frontend exists. Currently therefore this
+is limited to ``UnknownFortranType``.
 
 It was decided to include datatype intrinsic as an attribute of ScalarType
 rather than subclassing. So, for example, a 4 byte real scalar is
