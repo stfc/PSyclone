@@ -170,8 +170,8 @@ program example3_driver
   ! Create and compute coordinate fields
   do i = 1, size(chi)
     write(cind, '(I5)') i
-    call chi(i)%initialise(vector_space = fs_wchi_ptr, &
-                           name="chi_"//trim(adjustl(cind)))
+    call chi(i)%initialise( vector_space = fs_wchi_ptr, &
+                            name="chi_"//trim(adjustl(cind)) )
   end do
   call assign_coordinate_field(chi, mesh)
 
@@ -181,7 +181,7 @@ program example3_driver
   call log_event( "Creating perturbation field", LOG_LEVEL_INFO )
 
   ! Create W3 function space and the perturbation field on it
-  fs_w3 = function_space_type( mesh, element_order, W3, ndata_sz)
+  fs_w3 = function_space_type( mesh, element_order, W3, ndata_sz )
   fs_w3_ptr => fs_w3
   !---------------------------------------------------------------------------
   ! TO COMPLETE: Create perturbation field on W3 function space

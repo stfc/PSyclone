@@ -76,8 +76,8 @@ program example2_driver
   ! Total number of MPI ranks (processes) in this job
   integer(kind=i_def) :: total_ranks
   ! Vertical extrusion parameters
-  integer(kind=i_def) :: nlayers_vert
-  real(kind=r_def) :: atmosphere_height
+  integer(kind=i_def) :: number_of_layers
+  real(kind=r_def)    :: domain_top
   ! Finite element method (FEM) order
   integer(kind=i_def) :: element_order
 
@@ -88,9 +88,9 @@ program example2_driver
   ! FEM order
   element_order = 0
   ! Height of atmosphere in meters
-  atmosphere_height = 10000.0_r_def 
+  domain_top = 10000.0_r_def
   ! Number of layers in the vertical
-  nlayers_vert = 10
+  number_of_layers = 10
 
   !-----------------------------------------------------------------------------
   ! Set partitioner parameters (planar mesh on a single process)
@@ -120,7 +120,7 @@ program example2_driver
                               total_ranks )
 
   ! Create extrusion object
-  extrusion = uniform_extrusion_type( 0.0_r_def, atmosphere_height, nlayers_vert )
+  extrusion = uniform_extrusion_type( 0.0_r_def, domain_top, number_of_layers )
   extrusion_ptr => extrusion
 
   ! Create local mesh

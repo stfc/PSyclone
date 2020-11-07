@@ -31,23 +31,24 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Authors: I. Kavcic, Met Office and J. Henrichs, Bureau of Meteorology
+# Author: I. Kavcic, Met Office
 
 # Compiler settings
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
-# Source names (without extensions)
-DRIVER = example2_driver
-ALGORITHM = example2_alg_mod
-PSY = $(ALGORITHM:=_psy)
-KERNEL =
+# Source rules
+DRIVER_SRC = example2_driver.f90
+ALGORITHMS = $(wildcard *_alg_mod.x90)
+ALGORITHM_SRC = $(ALGORITHMS:.x90=.f90)
+PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
+KERNEL_SRC = $(wildcard *_kernel_mod.f90)
 
 # PSyclone command-line options
 PSYCLONE_CMD = -nodm -l all
 
 # Executable
-EXEC = example2.out
+EXEC = example2
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../..
@@ -56,12 +57,7 @@ LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 F90FLAGS += -I$(LFRIC_PATH)
 
-# Source and object rules
-DRIVER_SRC = $(DRIVER:=.f90)
-ALGORITHM_SRC = $(ALGORITHM:=.f90)
-PSY_SRC = $(PSY:=.f90)
-KERNEL_SRC = $(KERNEL:=.f90)
-
+# Object rules
 DRIVER_OBJ = $(filter %.o,$(DRIVER_SRC:.f90=.o))
 ALGORITHM_OBJ = $(filter %.o,$(ALGORITHM_SRC:.f90=.o))
 PSY_OBJ = $(filter %.o,$(PSY_SRC:.f90=.o))

@@ -74,15 +74,14 @@ contains
                                           field1_in_w3, &
                                           field2_in_w3
     ! Number of values per degree of freedom for function spaces
-    integer(i_def)                     :: ndata_sz
+    integer(i_def), parameter          :: ndata_sz = 1
 
     call log_event( "example2_alg: Running algorithm", LOG_LEVEL_INFO )
 
     ! Create W0 and W3 function spaces with single-valued data points
-    ndata_sz = 1
-    fs_w0 = function_space_type( mesh, element_order, W0, ndata_sz)
+    fs_w0 = function_space_type( mesh, element_order, W0, ndata_sz )
     fs_w0_ptr => fs_w0
-    fs_w3 = function_space_type( mesh, element_order, W3, ndata_sz)
+    fs_w3 = function_space_type( mesh, element_order, W3, ndata_sz )
     fs_w3_ptr => fs_w3
 
     ! Create fields on W0 function space
@@ -109,9 +108,9 @@ contains
     !---------------------------------------------------------------------------
 
     ! Check the values of W0 fields by printing the min/max values
-    call field_out_w0%log_minmax(LOG_LEVEL_INFO, 'field_out_w0')
-    call field1_in_w0%log_minmax(LOG_LEVEL_INFO, 'field1_in_w0')
-    call field2_in_w0%log_minmax(LOG_LEVEL_INFO, 'field2_in_w0')
+    call field_out_w0%log_minmax(LOG_LEVEL_INFO, field_out_w0%name)
+    call field1_in_w0%log_minmax(LOG_LEVEL_INFO, field1_in_w0%name)
+    call field2_in_w0%log_minmax(LOG_LEVEL_INFO, field2_in_w0%name)
 
     !---------------------------------------------------------------------------
     ! TO COMPLETE: Check the values of W3 fields by printing the min/max values
