@@ -84,8 +84,8 @@ contains
     fs_w3_ptr => fs_w3
 
     ! Create fields on W0 and W3 function spaces
-    call field_w0%initialise( vector_space = fs_w0_ptr, name="field_w0" )
-    call field_w3%initialise( vector_space = fs_w3_ptr, name="field_w3" )
+    call field_w0%initialise( vector_space = fs_w0_ptr, name = "field_w0" )
+    call field_w3%initialise( vector_space = fs_w3_ptr, name = "field_w3" )
 
     ! Set scalar values
     scalar_w0 = 1.0_r_def

@@ -86,20 +86,20 @@ contains
 
     ! Create fields on W0 function space
     call field_out_w0%initialise( vector_space = fs_w0_ptr, &
-                                  name="field_out_w0" )
+                                  name = "field_out_w0" )
     call field1_in_w0%initialise( vector_space = fs_w0_ptr, &
-                                  name="field1_in_w0" )
+                                  name = "field1_in_w0" )
     call field2_in_w0%initialise( vector_space = fs_w0_ptr, &
-                                  name="field2_in_w0" )
+                                  name = "field2_in_w0" )
 
     !---------------------------------------------------------------------------
     ! TO COMPLETE: Create fields on W3 function space
     call field_out_w3%initialise( vector_space = fs_w3_ptr, &
-                                  name="field_out_w3" )
+                                  name = "field_out_w3" )
     call field1_in_w3%initialise( vector_space = fs_w3_ptr, &
-                                  name="field1_in_w3" )
+                                  name = "field1_in_w3" )
     call field2_in_w3%initialise( vector_space = fs_w3_ptr, &
-                                  name="field2_in_w3" )
+                                  name = "field2_in_w3" )
     !---------------------------------------------------------------------------
 
     !---------------------------------------------------------------------------

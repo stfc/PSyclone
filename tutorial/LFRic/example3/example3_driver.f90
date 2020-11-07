@@ -102,15 +102,15 @@ program example3_driver
   ! of the stencil to be used on fields with this partition.
   ! A single cell stencil will, therefore, have a  max_stencil_depth=0.
   ! A nine-point square region stencil will have max_stencil_depth=1.
-  integer(kind=i_def)      :: max_stencil_depth
+  integer(kind=i_def)                :: max_stencil_depth
   ! Number of the MPI rank of this process
-  integer(kind=i_native)   :: local_rank
+  integer(kind=i_native)             :: local_rank
   ! Total number of MPI ranks (processes) in this job
-  integer(kind=i_def)      :: total_ranks
+  integer(kind=i_def)                :: total_ranks
   ! Auxiliary variables for coordinate fields (function space ID, loop counter)
-  integer(kind=i_def)      :: chi_space, i
+  integer(kind=i_def)                :: chi_space, i
   ! Auxiliary variable for naming coordinate fields
-  character(len=str_short) :: cind
+  character(len=str_short)           :: cind
 
   !-----------------------------------------------------------------------------
   ! Set model parameters from the configuration file
@@ -164,7 +164,7 @@ program example3_driver
     chi_space = Wchi
     call log_event( "Computing coordinate fields on Wchi space", LOG_LEVEL_INFO )
   end if
-  fs_wchi = function_space_type( mesh, element_order, chi_space, ndata_sz)
+  fs_wchi = function_space_type( mesh, element_order, chi_space, ndata_sz )
   fs_wchi_ptr => fs_wchi
 
   ! Create and compute coordinate fields
@@ -185,7 +185,8 @@ program example3_driver
   fs_w3_ptr => fs_w3
   !---------------------------------------------------------------------------
   ! TO COMPLETE: Create perturbation field on W3 function space
-  call perturbation%initialise( vector_space = fs_w3_ptr, name="perturbation" )
+  call perturbation%initialise( vector_space = fs_w3_ptr, &
+                                name = "perturbation" )
   !---------------------------------------------------------------------------
 
   !-----------------------------------------------------------------------------
