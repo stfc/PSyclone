@@ -86,13 +86,16 @@ contains
     call field2_in_w0%initialise( vector_space = fs_w0_ptr, &
                                   name="field2_in_w0" )
 
-    ! Set each field to a constant value and add them in the same invoke
+    !---------------------------------------------------------------------------
+    ! TO COMPLETE: Set each field to a constant value and add them in the
+    ! same invoke
     call invoke( name = "Add fields on W0 space",                       &
                  setval_field_w0_kernel_type(field_out_w0,  0.0_r_def), &
                  setval_field_w0_kernel_type(field1_in_w0, -2.0_r_def), &
                  setval_field_w0_kernel_type(field2_in_w0,  6.0_r_def), &
                  add_fields_w0_kernel_type(field_out_w0, field1_in_w0,  &
                                            field2_in_w0) )
+    !---------------------------------------------------------------------------
 
     ! Check the values of constant fields by printing the min/max values
     call field_out_w0%log_minmax(LOG_LEVEL_INFO, field_out_w0%name)
