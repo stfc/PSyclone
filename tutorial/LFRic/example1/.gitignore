@@ -1,0 +1,6 @@
+*.o
+*.mod
+*_alg_mod.f90
+*_alg_mod_psy.f90
+example1
+example1_part2

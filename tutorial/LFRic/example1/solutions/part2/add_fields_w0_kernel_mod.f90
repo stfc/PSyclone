@@ -34,7 +34,8 @@
 ! Author: I. Kavcic, Met Office
 !
 ! -----------------------------------------------------------------------------
-! A kernel that assigns a value to a field on a continuous function space W0
+! A kernel that adds two fields on a continuous function space W0 and stores
+! the result in the third field on the same space
 ! -----------------------------------------------------------------------------
 module add_fields_w0_kernel_mod
 
@@ -49,7 +50,8 @@ module add_fields_w0_kernel_mod
   private
 
   !-----------------------------------------------------------------------------
-  ! Public types
+  ! The type declaration for the kernel. Contains the metadata needed by
+  ! the PSy layer.
   !-----------------------------------------------------------------------------
   type, public, extends(kernel_type) :: add_fields_w0_kernel_type
     private
@@ -63,9 +65,6 @@ module add_fields_w0_kernel_mod
     procedure, nopass :: add_fields_w0_code
   end type add_fields_w0_kernel_type
 
-  !-----------------------------------------------------------------------------
-  ! Contained functions/subroutines
-  !-----------------------------------------------------------------------------
   public add_fields_w0_code
 
   contains

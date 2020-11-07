@@ -70,13 +70,12 @@ contains
                                           field1_in_w0, &
                                           field2_in_w0
     ! Number of values per degree of freedom for function spaces
-    integer(i_def)                     :: ndata_sz
+    integer(i_def), parameter          :: ndata_sz = 1
 
     call log_event( "example1_alg: Running algorithm", LOG_LEVEL_INFO )
 
     ! Create W0 function space with single-valued data points
-    ndata_sz = 1
-    fs_w0 = function_space_type( mesh, element_order, W0, ndata_sz)
+    fs_w0 = function_space_type( mesh, element_order, W0, ndata_sz )
     fs_w0_ptr => fs_w0
 
     ! Create fields on W0 function space
@@ -96,9 +95,9 @@ contains
                                            field2_in_w0) )
 
     ! Check the values of constant fields by printing the min/max values
-    call field_out_w0%log_minmax(LOG_LEVEL_INFO, 'field_out_w0')
-    call field1_in_w0%log_minmax(LOG_LEVEL_INFO, 'field1_in_w0')
-    call field2_in_w0%log_minmax(LOG_LEVEL_INFO, 'field2_in_w0')
+    call field_out_w0%log_minmax(LOG_LEVEL_INFO, field_out_w0%name)
+    call field1_in_w0%log_minmax(LOG_LEVEL_INFO, field1_in_w0%name)
+    call field2_in_w0%log_minmax(LOG_LEVEL_INFO, field2_in_w0%name)
 
     call log_event( "example1_alg: Finalising algorithm", LOG_LEVEL_INFO )
     nullify( fs_w0_ptr )
