@@ -49,7 +49,8 @@ module setval_field_any_kernel_mod
   private
 
   !-----------------------------------------------------------------------------
-  ! Public types
+  ! The type declaration for the kernel. Contains the metadata needed by
+  ! the PSy layer.
   !-----------------------------------------------------------------------------
   type, public, extends(kernel_type) :: setval_field_any_kernel_type
     private
@@ -62,9 +63,6 @@ module setval_field_any_kernel_mod
     procedure, nopass :: setval_field_any_code
   end type setval_field_any_kernel_type
 
-  !-----------------------------------------------------------------------------
-  ! Contained functions/subroutines
-  !-----------------------------------------------------------------------------
   public setval_field_any_code
 
   contains

@@ -67,13 +67,18 @@ and declarations for the new kernel. Modify the supplied algorithm
 Use the kernels `setval_fields_w0_kernel_mod.f90` and
 `add_fields_w0_kernel_mod.f90` from Part 2 as templates that can set and
 add field values for fields on any function space. Modify the supplied
-algorithm `example1_alg_mod.90` to call these kernels from.
+algorithm `example1_alg_mod.90` to call these kernels from. Explore other
+continuous and discontinuous function spaces in the algorithm (see the
+summary table listing the function space continuity in section
+[*Supported Function Spaces*](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces)
+of the PSyclone LFRic (Dynamo 0.3) API documentation). The spaces used in
+the solution here are `W2` and `Wtheta`.
 
 *Tips:*
 * Modify the kernel metadata (perhaps also rename the kernels);
 * Metadata for `ANY_SPACE` and `ANY_DISCONTINUOUS_SPACE` spaces are
   in `argument_mod` in LFRic infrastructure;
-* Try out the kernel stub generator;
-* Try out other function spaces in the provided algorithm.
+* Try out the kernel stub generator.
 
 [Link to solutions](solutions/part3)
