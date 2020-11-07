@@ -40,19 +40,40 @@
 !------------------------------------------------------------------------------
 program example3_driver
 
-  use constants_mod,          only : i_def, r_def, str_def
-  use global_mesh_netcdf_mod, only: global_mesh_type => global_mesh_netcdf_type
+  ! Infrastructure
+  use constants_mod,          only : i_def, i_native, r_def, str_short
+  use global_mesh_netcdf_mod, only : global_mesh_type => global_mesh_netcdf_type
   use mesh_mod,               only : mesh_type
-  use mesh_constructor_helper_functions_mod, &
-                              only : domain_size_type
   use partition_mod,          only : partition_type,     &
                                      partitioner_planar, &
                                      partitioner_interface
   use extrusion_mod,          only : uniform_extrusion_type
+  use fs_continuity_mod,      only : W0, Wchi, W3
+  use function_space_mod,     only : function_space_type
+  use field_mod,              only : field_type
   use log_mod,                only : log_event,          &
                                      log_scratch_space,  &
                                      LOG_LEVEL_INFO
-  !!use example3_alg_mod,     only : example3_alg
+  ! Configuration
+  use configuration_mod,      only : read_configuration, &
+                                     final_configuration
+  use base_mesh_config_mod,   only : filename, &
+                                     prime_mesh_name
+  use extrusion_uniform_config_mod, &
+                              only : domain_top, &
+                                     number_of_layers
+  use finite_element_config_mod, &
+                              only : element_order, &
+                                     coordinate_order
+  use partitioning_config_mod, &
+                              only : panel_xproc, &
+                                     panel_yproc
+  ! Coordinates
+  use assign_coordinate_field_mod, &
+                              only : assign_coordinate_field
+  ! Algorithms
+  use example3_alg_mod,       only : example3_alg_init
+  use diagnostic_alg_mod,     only : diagnostic_alg
 
   implicit none
 
@@ -60,101 +81,126 @@ program example3_driver
   type(global_mesh_type), target  :: global_mesh
   type(global_mesh_type), pointer :: global_mesh_ptr => null()
   type(mesh_type), target         :: mesh
-  type(domain_size_type)          :: domain_size
   ! Extrusion
   type(uniform_extrusion_type), target  :: extrusion
   type(uniform_extrusion_type), pointer :: extrusion_ptr => null()
   ! Partition
   type(partition_type)                      :: partition
   procedure(partitioner_interface), pointer :: partitioner_ptr => null()
-  ! Number of ranks the mesh is partitioned over in the x- and y-directions
-  ! (across a single face for a cubed-sphere mesh)
-  integer(i_def) :: xproc, yproc
+  ! Function spaces Wchi and W3 for coordinate and perturbation field
+  type(function_space_type), target  :: fs_wchi
+  type(function_space_type), pointer :: fs_wchi_ptr => null()
+  type(function_space_type), target  :: fs_w3
+  type(function_space_type), pointer :: fs_w3_ptr => null()
+  ! Coordinate fields
+  type(field_type)                   :: chi(3)
+  ! Perturbation field
+  type(field_type)                   :: perturbation
+  ! Number of data per degree of freedom in fields
+  integer(kind=i_def), parameter     :: ndata_sz = 1
   ! Maximum depth (of cells outside the cell over which the stencil is based)
   ! of the stencil to be used on fields with this partition.
   ! A single cell stencil will, therefore, have a  max_stencil_depth=0.
   ! A nine-point square region stencil will have max_stencil_depth=1.
-  integer(kind=i_def) :: max_stencil_depth
+  integer(kind=i_def)      :: max_stencil_depth
   ! Number of the MPI rank of this process
-  integer(kind=i_def) :: local_rank
+  integer(kind=i_native)   :: local_rank
   ! Total number of MPI ranks (processes) in this job
-  integer(kind=i_def) :: total_ranks
-  ! Vertical extrusion parameters
-  integer(kind=i_def) :: nlayers_vert
-  real(kind=r_def) :: atmosphere_height
-  ! Finite element method (FEM) order
-  integer(kind=i_def) :: element_order
-  ! NetCDF file name where the global 2D mesh data is stored
-  character(len=str_def) :: mesh_filename
-  ! Name of the global 2D mesh in the NetCDF file
-  character(len=str_def) :: mesh_name
+  integer(kind=i_def)      :: total_ranks
+  ! Auxiliary variables for coordinate fields (function space ID, loop counter)
+  integer(kind=i_def)      :: chi_space, i
+  ! Auxiliary variable for naming coordinate fields
+  character(len=str_short) :: cind
 
   !-----------------------------------------------------------------------------
-  ! Set model parameters
+  ! Set model parameters from the configuration file
   !-----------------------------------------------------------------------------
   call log_event( "Setting 'example3_driver' model parameters", LOG_LEVEL_INFO )
-  ! FEM order
-  element_order = 0
-  ! Height of atmosphere in meters
-  atmosphere_height = 10000.0_r_def 
-  ! Number of layers in the vertical
-  nlayers_vert = 10
+  call read_configuration( "configuration.nml", local_rank )
 
   !-----------------------------------------------------------------------------
   ! Set partitioner parameters (planar mesh on a single process)
   !-----------------------------------------------------------------------------
-  xproc = 1
-  yproc = 1
   max_stencil_depth = 0
-  local_rank = 0 
+  local_rank = 0
   total_ranks = 1
 
   !-----------------------------------------------------------------------------
-  ! Create mesh
+  ! Create global mesh, partition and local mesh objects
   !-----------------------------------------------------------------------------
-  mesh_filename = "mesh_BiP100x100-1000x1000.nc"
-  mesh_name = "dynamics"
-  call log_event( "Creating mesh", LOG_LEVEL_INFO )
   ! Read global 2D mesh from the NetCDF file
-  global_mesh = global_mesh_type(mesh_filename, mesh_name)
+  call log_event( "Creating global 2D mesh", LOG_LEVEL_INFO )
+  global_mesh = global_mesh_type(filename, prime_mesh_name)
   global_mesh_ptr => global_mesh
-  ! Get domain size from the mesh object for info
-  domain_size = mesh%get_domain_size()
-  write(*,*) "domain size = ", domain_size
-  write(log_scratch_space, '( A, 3(2F10.2, A) )')                     &
-    'Mesh "'//trim(mesh_filename)//                                   &
-    '" has x limits [', domain_size%minimum%x, domain_size%maximum%x, &
-    '], y limits [', domain_size%minimum%y, domain_size%maximum%y,    &
-    '] and z limits [', domain_size%minimum%z, domain_size%maximum%z, ']'
-  call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
 
   ! Generate the partition object
+  call log_event( "Creating partition", LOG_LEVEL_INFO )
   partitioner_ptr => partitioner_planar
   partition = partition_type( global_mesh_ptr,   &
                               partitioner_ptr,   &
-                              xproc,             &
-                              yproc,             &
+                              panel_xproc,       &
+                              panel_yproc,       &
                               max_stencil_depth, &
                               local_rank,        &
                               total_ranks )
 
   ! Create extrusion object
-  extrusion = uniform_extrusion_type( 0.0_r_def, atmosphere_height, nlayers_vert )
+  extrusion = uniform_extrusion_type( 0.0_r_def, domain_top, number_of_layers )
   extrusion_ptr => extrusion
-
   ! Create local mesh
+  call log_event( "Creating local 3D mesh", LOG_LEVEL_INFO )
   mesh = mesh_type( global_mesh_ptr, partition, extrusion_ptr )
+
+  !-----------------------------------------------------------------------------
+  ! Create and compute coordinate fields
+  !-----------------------------------------------------------------------------
+  call log_event( "Computing model coordinates", LOG_LEVEL_INFO )
+
+  ! Select function space based on the coordinate_order parameter
+  if ( coordinate_order == 0 ) then
+    chi_space = W0
+    call log_event( "Computing coordinate fields on W0 space", LOG_LEVEL_INFO )
+  else
+    chi_space = Wchi
+    call log_event( "Computing coordinate fields on Wchi space", LOG_LEVEL_INFO )
+  end if
+  fs_wchi = function_space_type( mesh, element_order, chi_space, ndata_sz)
+  fs_wchi_ptr => fs_wchi
+
+  ! Create and compute coordinate fields
+  do i = 1, size(chi)
+    write(cind, '(I5)') i
+    call chi(i)%initialise(vector_space = fs_wchi_ptr, &
+                           name="chi_"//trim(adjustl(cind)))
+  end do
+  call assign_coordinate_field(chi, mesh)
+
+  !-----------------------------------------------------------------------------
+  ! Create perturbation field
+  !-----------------------------------------------------------------------------
+  call log_event( "Creating perturbation field", LOG_LEVEL_INFO )
+
+  ! Create W3 function space and the perturbation field on it
+  fs_w3 = function_space_type( mesh, element_order, W3, ndata_sz)
+  fs_w3_ptr => fs_w3
+  !---------------------------------------------------------------------------
+  ! TO COMPLETE: Create perturbation field on W3 function space
+  call perturbation%initialise( vector_space = fs_w3_ptr, name="perturbation" )
+  !---------------------------------------------------------------------------
 
   !-----------------------------------------------------------------------------
   ! Call algorithms
   !-----------------------------------------------------------------------------
-  !!call log_event( "Calling 'example3_alg'", LOG_LEVEL_INFO )
-  !!call example3_alg(mesh, element_order)
+  call log_event( "Calling 'example3_alg_init'", LOG_LEVEL_INFO )
+  call example3_alg_init(mesh, chi, perturbation)
+  call diagnostic_alg(chi, perturbation, "out.txt")
 
   !-----------------------------------------------------------------------------
   ! Tidy up after a run
   !-----------------------------------------------------------------------------
   call log_event( "Finalising 'example3_driver'", LOG_LEVEL_INFO )
-  nullify( global_mesh_ptr, partitioner_ptr, extrusion_ptr )
+  call final_configuration()
+  nullify( global_mesh_ptr, partitioner_ptr, extrusion_ptr, &
+           fs_wchi_ptr, fs_w3_ptr )
 
 end program example3_driver

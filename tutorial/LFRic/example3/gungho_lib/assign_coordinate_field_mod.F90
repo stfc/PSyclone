@@ -13,7 +13,7 @@ module assign_coordinate_field_mod
   use constants_mod,        only : r_def, i_def, i_native
   use log_mod,              only : log_event, LOG_LEVEL_ERROR
   use planet_config_mod,    only : scaled_radius
-  use mesh_collection_mod,  only : mesh_collection
+  use mesh_mod,             only : mesh_type
 
   implicit none
 
@@ -25,24 +25,22 @@ contains
 !! and the data atributes of the field so that its values can be assigned.
 !! calls two subroutines, get_cell_coords from the mesh generator and then
 !! assign_coordinate on a column by column basis
-!! @param[in]  mesh_id id of mesh  on which this field is attached
+!! @param[in]  mesh Mesh on which this field is attached
 !! @param[out] chi  Real array of size 3 (x,y,z) of fields
 
-  subroutine assign_coordinate_field(chi, mesh_id)
+  subroutine assign_coordinate_field(chi, mesh)
 
     use field_mod,             only: field_type, field_proxy_type
     use reference_element_mod, only: reference_element_type
-    use mesh_mod,              only: mesh_type
     use mesh_constructor_helper_functions_mod, &
                                only: domain_size_type
     implicit none
 
     type( field_type ), intent( inout ) :: chi(3)
-    integer(i_def),     intent(in)      :: mesh_id
+    type( mesh_type ),  intent(in)      :: mesh
 
     integer(i_def),                pointer :: map(:)            => null()
     real(r_def),                   pointer :: dof_coords(:,:)   => null()
-    type(mesh_type),               pointer :: mesh              => null()
     class(reference_element_type), pointer :: reference_element => null()
 
     type(field_proxy_type) :: chi_proxy(3)
@@ -73,7 +71,6 @@ contains
                       "local array dz(nlayers) ", LOG_LEVEL_ERROR )
     end if
 
-    mesh => mesh_collection%get_mesh( mesh_id )
     call mesh%get_dz(dz)
 
     reference_element => mesh%get_reference_element()

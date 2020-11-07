@@ -85,7 +85,7 @@ contains
     buffer_real_r_def(3) = planar_domain_min_x
     buffer_real_r_def(4) = planar_domain_min_y
 
-    call broadcast( buffer_real_r_def, 4, 0 )
+    !call broadcast( buffer_real_r_def, 4, 0 )
 
     planar_domain_max_x = buffer_real_r_def(1)
     planar_domain_max_y = buffer_real_r_def(2)

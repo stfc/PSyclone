@@ -33,76 +33,33 @@
 # ------------------------------------------------------------------------------
 # Authors: I. Kavcic, Met Office and J. Henrichs, Bureau of Meteorology
 
-# Compiler settings
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
-# Source rules
-DRIVER_SRC = example3_driver.f90
-ALGORITHMS = $(wildcard *_alg_mod.x90)
-ALGORITHM_SRC = $(ALGORITHMS:.x90=.f90)
-PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
-KERNEL_SRC = $(wildcard *_kernel_mod.F90) $(wildcard *_kernel_mod.f90)
-
-# PSyclone command-line options
-PSYCLONE_CMD = -nodm -l all
-
-# Executable
-EXEC = example3
-
 # LFRic infrastructure library
-PSYCLONE_RELPATH = ../../..
+PSYCLONE_RELPATH = ../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME = lfric_netcdf
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
 
-# GungHo auxiliary libraries
-GHLIB_PATH = gungho_lib
-GHLIB_NAME = gungho
-GHLIB_LIB = $(GHLIB_PATH)/lib$(GHLIB_NAME).a
-F90FLAGS += -I$(GHLIB_PATH)
+GHLIB_SRC = $(wildcard *.F90) $(wildcard *.f90)
 
-# Object rules
-DRIVER_OBJ = $(filter %.o,$(DRIVER_SRC:.f90=.o))
-ALGORITHM_OBJ = $(filter %.o,$(ALGORITHM_SRC:.f90=.o))
-PSY_OBJ = $(filter %.o,$(PSY_SRC:.f90=.o))
-KERNEL_OBJ = $(filter %.o,$(KERNEL_SRC:.F90=.o) $(KERNEL_SRC:.f90=.o))
-EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
+GHLIB_OBJ = $(filter %.o,$(GHLIB_SRC:.F90=.o) $(GHLIB_SRC:.f90=.o))
 
-default: $(EXEC)
-
-$(EXEC): $(LFRIC_LIB) $(GHLIB_LIB) $(EXAMPLE_OBJ)
-	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) \
-	-l$(LFRIC_NAME) $$(nf-config --flibs) -L$(GHLIB_PATH) -l$(GHLIB_NAME)
-
-$(GHLIB_LIB):
-	$(MAKE) -C $(GHLIB_PATH)
-
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) netcdf 
+default: $(GHLIB_OBJ)
+	$(AR) $(ARFLAGS) libgungho.a $(GHLIB_OBJ)
+default: $(LIB)
 
 # Dependencies
-$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
-$(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ)
-$(PSY_OBJ): $(KERNEL_OBJ)
+# ------------
+assign_coordinate_field_mod.o: base_mesh_config_mod.o planet_config_mod.o
 
-%.o %.mod: %.F90
+%.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
 
-%.o %.mod: %.f90
+%.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
-
-# Keep the generated Alg and PSy files
-.precious: $(ALGORITHM_SRC) $(PSY_SRC)
-
-$(ALGORITHM_SRC): $(PSY_SRC)
-
-%_psy.f90: %.x90
-	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
-	-opsy $*_psy.f90 -oalg $*.f90 $<
 
 clean:
-	rm -f *.o *.mod $(LFRIC_PATH)/*.o $(LFRIC_PATH)/*.mod $(LFRIC_PATH)/*.a \
-	$(GHLIB_PATH)/*.o $(GHLIB_PATH)/*.mod $(GHLIB_PATH)/*.a \
-	$(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
+	rm -f *.o *.mod
