@@ -40,34 +40,38 @@
 ! -----------------------------------------------------------------------------
 module diagnostic_alg_mod
 
-  use constants_mod,                only : i_def, r_def, str_short
+  ! Infrastructure
+  use constants_mod,                only : i_def, r_def, str_short, &
+                                           str_max_filename
   use log_mod,                      only : log_event, &
                                            LOG_LEVEL_INFO
   use field_mod,                    only : field_type
+  ! I/O and field mapping
+  use write_methods_mod,            only : nodal_write_field
   use nodal_coordinates_kernel_mod, only : nodal_coordinates_kernel_type
 
   implicit none
 
   private
 
-  public :: diagnostic_alg
+  public :: diagnostic_coordinates_alg
+  public :: write_diagnostic_alg
 
 contains
 
-  subroutine diagnostic_alg(chi, perturbation, filename)
+  !> @brief Map coordinate fields to the function space of the
+  !!        perturbation field
+  !> @param[in] chi Coordinate fields on Wchi space
+  !> @param[in,out] perturbation Perturbation field
+  !> @param[out] chi_map Coordinate fields mapped to perturbation space
+  subroutine diagnostic_coordinates_alg(chi, perturbation, chi_map)
 
     implicit none
 
-    ! Input arguments from the driver: Coordinate fields, perturbation
-    ! field and output filename
-    type(field_type), intent(in)    :: chi(:)
+    type(field_type), intent(in)    :: chi(3)
     type(field_type), intent(inout) :: perturbation
-    character(*),     intent(in)    :: filename
+    type(field_type), intent(out)   :: chi_map(3)
 
-    ! Local variables
-    ! Mapped coordinate fields
-    type(field_type)         :: chi_map(size(chi))
-    ! String for naming mapped coordinate fields
     character(len=str_short) :: cind
     integer(kind=i_def)      :: i
 
@@ -76,20 +80,61 @@ contains
     call log_event( "diagnostic_alg: Creating mapped coordinate fields", &
                     LOG_LEVEL_INFO )
     do i = 1, size(chi_map)
-      write(cind, '(I5)') i
+      write(cind, '(I5)') i  ! Convert integer index to string
       call perturbation%copy_field_properties( &
                         chi_map(i), name="chi_map_"//trim(adjustl(cind)))
       call invoke( setval_c(chi_map(i), 0.0_r_def) )
     end do
 
     ! Map coordinates from chi function space to chi_map function space
-    call log_event( "diagnostic_alg: Mapping coordinate fields to "// &
-                    "perturbation function space ", LOG_LEVEL_INFO )
+    call log_event( "diagnostic_coordinates_alg: Mapping coordinate fields "// &
+                    "to perturbation function space ", LOG_LEVEL_INFO )
     call invoke( nodal_coordinates_kernel_type(chi_map, chi) )
     do i = 1, size(chi_map)
       call chi_map(i)%log_minmax(LOG_LEVEL_INFO, chi_map(i)%name)
     end do
 
-  end subroutine diagnostic_alg
+  end subroutine diagnostic_coordinates_alg
+
+  !> @brief Output coordinate and perturbation fields to a text file
+  !> @param[in] chi_map Coordinate fields mapped to perturbation space
+  !> @param[in] perturbation Perturbation field
+  !> @param[in] tstep Timestep value to create the output file name from
+  subroutine write_diagnostic_alg(chi_map, perturbation, tstep)
+
+    implicit none
+
+    type(field_type),    intent(in) :: chi_map(3)
+    type(field_type),    intent(in) :: perturbation
+    integer(kind=i_def), intent(in) :: tstep
+
+    type(field_type)            :: pert_write_field(3)
+    character(len=str_short)    :: cind
+    character(str_max_filename) :: filename
+    integer(kind=i_def)         :: dim_fs, i, output_unit
+
+    ! Convert timestep value to string and create output filename
+    write(cind, '(I5)') tstep  ! Convert integer index to string
+    filename = "model_state_tstep_"//trim(adjustl(cind))//".txt"
+    ! Set output unit number
+    output_unit = 10 + tstep
+
+    ! Get vector dimension of the perturbation field (1 for scalar-valued
+    ! field and 3 for vector-valued field)
+    dim_fs  = perturbation%vspace%get_dim_space()
+    ! Populate components of the temporary output perturbation field (all
+    ! same here)
+    do i = 1, dim_fs
+       call perturbation%copy_field(pert_write_field(i))
+    end do
+
+    ! Output data
+    call log_event( "write_diagnostic_alg: Outputting coordinate and "// &
+                    "perturbation field data to file "//filename, &
+                    LOG_LEVEL_INFO )
+    call nodal_write_field(chi_map, pert_write_field, dim_fs, &
+                           output_unit, filename)
+
+  end subroutine write_diagnostic_alg
 
 end module diagnostic_alg_mod

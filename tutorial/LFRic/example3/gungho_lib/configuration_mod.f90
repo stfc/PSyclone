@@ -45,6 +45,11 @@ module configuration_mod
                                 planet_is_loadable, &
                                 planet_is_loaded, &
                                 planet_final
+  use timestepping_config_mod, only : read_timestepping_namelist, &
+                                      postprocess_timestepping_namelist, &
+                                      timestepping_is_loadable, &
+                                      timestepping_is_loaded, &
+                                      timestepping_final
 
   implicit none
 
@@ -184,6 +189,8 @@ contains
           configuration_found = perturbation_bell_is_loaded()
         case ('planet')
           configuration_found = planet_is_loaded()
+        case ('timestepping')
+          configuration_found = timestepping_is_loaded()
         case default
           write( log_scratch_space, '(A, A, A)' )          &
                "Tried to ensure unrecognised namelist """, &
@@ -284,6 +291,16 @@ contains
                   """ can not be read. Too many instances?"
             call log_event( log_scratch_space, LOG_LEVEL_ERROR )
           end if
+        case ('timestepping')
+          if (timestepping_is_loadable()) then
+            call read_timestepping_namelist( unit, local_rank )
+          else
+            write( log_scratch_space, '(A)' )      &
+                  "Namelist """//                   &
+                  trim(namelists(i))//              &
+                  """ can not be read. Too many instances?"
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+          end if
         case default
           write( log_scratch_space, '(A)' )        &
                 "Unrecognised namelist """//        &
@@ -311,6 +328,8 @@ contains
           call postprocess_perturbation_bell_namelist()
         case ('planet')
           call postprocess_planet_namelist()
+        case ('timestepping')
+          call postprocess_timestepping_namelist()
         case default
           write( log_scratch_space, '(A)' )        &
                 "Unrecognised namelist """//        &
@@ -334,6 +353,7 @@ contains
     call partitioning_final()
     call perturbation_bell_final()
     call planet_final()
+    call timestepping_final()
 
     return
   end subroutine final_configuration

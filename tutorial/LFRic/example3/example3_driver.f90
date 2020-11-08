@@ -73,7 +73,6 @@ program example3_driver
                               only : assign_coordinate_field
   ! Algorithms
   use example3_alg_mod,       only : example3_alg_init
-  use diagnostic_alg_mod,     only : diagnostic_alg
 
   implicit none
 
@@ -194,7 +193,6 @@ program example3_driver
   !-----------------------------------------------------------------------------
   call log_event( "Calling 'example3_alg_init'", LOG_LEVEL_INFO )
   call example3_alg_init(mesh, chi, perturbation)
-  call diagnostic_alg(chi, perturbation, "out.txt")
 
   !-----------------------------------------------------------------------------
   ! Tidy up after a run

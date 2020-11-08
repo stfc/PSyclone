@@ -48,3 +48,9 @@
   p_zero         = 100000.0
   scaling_factor = 1.0
 /
+
+&timestepping
+  dt             = 3600.0
+  timestep_start = 1
+  timestep_end   = 10
+/

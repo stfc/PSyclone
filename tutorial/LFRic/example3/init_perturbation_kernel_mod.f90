@@ -78,9 +78,6 @@ module init_perturbation_kernel_mod
 
   contains
 
-  !-----------------------------------------------------------------------------
-  ! Kernel subroutine updates a one-cell-wide column of field data
-  !-----------------------------------------------------------------------------
   subroutine init_perturbation_code(nlayers, perturbation,         &
                                     chi_1, chi_2, chi_3,           &
                                     ndf_w3, undf_w3, map_w3,       &

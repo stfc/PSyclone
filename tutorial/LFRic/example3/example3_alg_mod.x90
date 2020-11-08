@@ -39,11 +39,16 @@
 ! -----------------------------------------------------------------------------
 module example3_alg_mod
 
+  ! Infrastructure
   use constants_mod, only : i_def, r_def
   use log_mod,       only : log_event, &
                             LOG_LEVEL_INFO
   use mesh_mod,      only : mesh_type
   use field_mod,     only : field_type
+
+  ! Algorithms
+  use diagnostic_alg_mod, only : diagnostic_coordinates_alg, &
+                                 write_diagnostic_alg
 
   implicit none
 
@@ -54,21 +59,22 @@ module example3_alg_mod
 
 contains
 
-  ! Initalise a perturbation field using mesh and coordinate data
+  !> @brief Initalise a perturbation field using mesh and coordinate data
+  !> @param[in] mesh Partitioned 3D mesh object
+  !> @param[in] chi Coordinate fields on Wchi space
+  !> @param[in] perturbation Perturbation field
   subroutine example3_alg_init(mesh, chi, perturbation)
 
     use init_perturbation_kernel_mod, only : init_perturbation_kernel_type
 
     implicit none
 
-    ! Input arguments from the driver: Mesh, coordinate fields and
-    ! perturbation field
     type(mesh_type),  intent(in)    :: mesh
-    type(field_type), intent(in)    :: chi(:)
+    type(field_type), intent(in)    :: chi(3)
     type(field_type), intent(inout) :: perturbation
 
-    ! Local variables
-    integer(i_def) :: i
+    type(field_type) :: chi_map(3)
+    integer(i_def)   :: i
 
     call log_event( "example3_alg_init: Initialising perturbation field", &
                     LOG_LEVEL_INFO )
@@ -93,6 +99,11 @@ contains
     end do
     call perturbation%log_minmax(LOG_LEVEL_INFO, perturbation%name)
     !---------------------------------------------------------------------------
+
+    ! Map coordinates to perturbation space
+    call diagnostic_coordinates_alg(chi, perturbation, chi_map)
+    ! Ouput coordinates and initial perturbation field
+    call write_diagnostic_alg(chi_map, perturbation, 0_i_def)
 
   end subroutine example3_alg_init
 
