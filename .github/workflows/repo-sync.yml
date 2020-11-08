@@ -23,7 +23,7 @@ jobs:
          name: id_rsa # optional
          known_hosts: ${{ secrets.KNOWN_HOSTS }}
     - run: |
-        git remote add mirror git@github.com:arporter/PSyclone-mirror.git
+        git remote add mirror git@github.com:arporter/PSyclone-mirror
         git config --global user.email "andrew.porter@stfc.ac.uk"
         git config --global user.name "arporter"
         git checkout master
