@@ -40,7 +40,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
     ArrayType, UnknownFortranType, DataSymbol, StructureType, \
-    INTEGER_TYPE, REAL_TYPE, Symbol
+    INTEGER_TYPE, REAL_TYPE, Symbol, TypeSymbol
 from psyclone.errors import InternalError
 
 
@@ -322,7 +322,7 @@ def test_structure_type():
     with pytest.raises(TypeError) as err:
         stype.add("hello", "hello", "hello")
     assert ("type of a component of a StructureType must be a 'DataType' "
-            "but got 'str'" in str(err.value))
+            "or 'TypeSymbol' but got 'str'" in str(err.value))
     with pytest.raises(TypeError) as err:
         stype.add("hello", INTEGER_TYPE, "hello")
     assert ("visibility of a component of a StructureType must be an instance "
@@ -338,15 +338,22 @@ def test_structure_type():
 
 def test_create_structuretype():
     ''' Test the create() method of StructureType. '''
+    # One member will have its type defined by a TypeSymbol
+    tsymbol = TypeSymbol("my_type", DeferredType())
     stype = StructureType.create([
         ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("george", REAL_TYPE, Symbol.Visibility.PRIVATE)])
-    assert len(stype.components) == 2
+        ("george", REAL_TYPE, Symbol.Visibility.PRIVATE),
+        ("barry", tsymbol, Symbol.Visibility.PUBLIC)])
+    assert len(stype.components) == 3
     george = stype.lookup("george")
     assert isinstance(george, StructureType.ComponentType)
     assert george.name == "george"
     assert george.datatype == REAL_TYPE
     assert george.visibility == Symbol.Visibility.PRIVATE
+    barry = stype.lookup("barry")
+    assert isinstance(barry, StructureType.ComponentType)
+    assert barry.datatype is tsymbol
+    assert barry.visibility == Symbol.Visibility.PUBLIC
     with pytest.raises(TypeError) as err:
         StructureType.create([
             ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC),

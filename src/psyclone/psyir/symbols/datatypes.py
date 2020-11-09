@@ -431,15 +431,18 @@ class StructureType(DataType):
         :raises TypeError: if any of the supplied values are of the wrong type.
 
         '''
-        from psyclone.psyir.symbols import Symbol
+        # This import has to be here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols import Symbol, TypeSymbol
         if not isinstance(name, str):
             raise TypeError(
                 "The name of a component of a StructureType must be a 'str' "
                 "but got '{0}'".format(type(name).__name__))
-        if not isinstance(datatype, DataType):
+        if not isinstance(datatype, (DataType, TypeSymbol)):
             raise TypeError(
                 "The type of a component of a StructureType must be a "
-                "'DataType' but got '{0}'".format(type(datatype).__name__))
+                "'DataType' or 'TypeSymbol' but got '{0}'".format(
+                    type(datatype).__name__))
         if not isinstance(visibility, Symbol.Visibility):
             raise TypeError(
                 "The visibility of a component of a StructureType must be "
@@ -494,5 +497,5 @@ TYPE_MAP_TO_PYTHON = {ScalarType.Intrinsic.INTEGER: int,
 
 
 # For automatic documentation generation
-__all__ = [UnknownType, UnknownFortranType, DeferredType, ScalarType,
-           ArrayType, StructureType]
+__all__ = ["UnknownType", "UnknownFortranType", "DeferredType", "ScalarType",
+           "ArrayType", "StructureType"]

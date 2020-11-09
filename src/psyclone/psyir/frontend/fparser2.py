@@ -1317,6 +1317,7 @@ class Fparser2Reader(object):
             type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
             # Do we already have a Symbol for this derived type?
             type_symbol = parent.find_or_create_symbol(type_name)
+            # pylint: disable=unidiomatic-typecheck
             if type(type_symbol) == Symbol:
                 # We do but we didn't know what kind of symbol it was. Create
                 # a TypeSymbol to replace it.

@@ -77,24 +77,23 @@ class TypeSymbol(Symbol):
 
     @datatype.setter
     def datatype(self, value):
-        ''' Setter for TypeSymbol datatype.
+        ''' Setter for TypeSymbol datatype. Since C permits the programmer
+        to typedef anything, we place no restriction on the type other
+        than that it must be an instance of DataType.
 
         :param value: new value for datatype.
-        :type value: :py:class:`psyclone.psyir.symbols.StructureType` or \
-                     :py:class:`psyclone.psyir.symbols.DeferredType` or \
-                     :py:class:`psyclone.psyir.symbols.UnknownType`
+        :type value: sub-class of :py:class:`psyclone.psyir.symbols.DataType`
 
-
-        :raises TypeError: if value is not of the correct type.
+        :raises TypeError: if value is not an instance of DataType.
 
         '''
-        from psyclone.psyir.symbols import (StructureType, DeferredType,
-                                            UnknownType)
-        if not isinstance(value, (StructureType, DeferredType, UnknownType)):
+        # pylint: disable=import-outside-toplevel
+        # This import has to be here to avoid circular dependencies
+        from psyclone.psyir.symbols import DataType
+        if not isinstance(value, DataType):
             raise TypeError(
                 "The datatype of a TypeSymbol must be specified using a "
-                "StructureType, DeferredType or UnknownType but got: '{0}'".
-                format(type(value).__name__))
+                "DataType but got: '{0}'".format(type(value).__name__))
         self._datatype = value
 
 

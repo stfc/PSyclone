@@ -55,7 +55,6 @@ def test_create_typesymbol_wrong_datatype():
     invalid type results in the expected error. '''
     sym = TypeSymbol("my_type", DeferredType())
     with pytest.raises(TypeError) as err:
-        sym.datatype = INTEGER_TYPE
+        sym.datatype = "integer"
     assert ("datatype of a TypeSymbol must be specified using a "
-            "StructureType, DeferredType or UnknownType but got: "
-            "'ScalarType'" in str(err))
+            "DataType but got: 'str'" in str(err))
