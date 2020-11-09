@@ -35,8 +35,9 @@
 !
 ! -----------------------------------------------------------------------------
 ! A kernel that initialises a perturbation field on W3 function space to:
-!   perturbation = perturbation_size*exp( -((x - x_centre)/half_width_x)**2 &
-!                                         -((y - y_centre)/half_width_y)**2 )
+!   perturbation = max(perturbation_height - z, 0)/perturbation_scale* &
+!                      exp( -((x - x_centre)/half_width_x)**2 &
+!                           -((y - y_centre)/half_width_y)**2 )
 ! -----------------------------------------------------------------------------
 module init_perturbation_kernel_mod
 
@@ -49,7 +50,9 @@ module init_perturbation_kernel_mod
   use kernel_mod,        only: kernel_type
   use perturbation_bell_config_mod, &
                          only: half_width_x, half_width_y, &
-                               perturbation_size, x_centre, y_centre
+                               perturbation_scale,         &
+                               perturbation_height,        &
+                               x_centre, y_centre
 
   implicit none
 
@@ -101,7 +104,7 @@ module init_perturbation_kernel_mod
 
     ! Internal variables
     integer(kind=i_def)  :: k, df, df1
-    real(kind=r_def)     :: x(3), xt, yt
+    real(kind=r_def)     :: x(3), xt, yt, ampl
 
     ! Initialise perturbation field
     do k = 0, nlayers-1
@@ -119,9 +122,10 @@ module init_perturbation_kernel_mod
         !-----------------------------------------------------------------------
         ! TO COMPLETE: Initialise perturbation field to the prescribed
         ! analytical expression on each DoF, i.e. perturbation( map_w3(df) + k )
+        ampl = max(perturbation_height - x(3), 0.0_r_def)/perturbation_scale
         xt = ( x(1) - x_centre )/half_width_x
         yt = ( x(2) - y_centre )/half_width_y
-        perturbation( map_w3(df) + k ) = perturbation_size*exp(-xt**2 - yt**2)
+        perturbation( map_w3(df) + k ) = ampl*exp(-xt**2 - yt**2)
         !-----------------------------------------------------------------------
 
       end do

@@ -21,7 +21,8 @@ module perturbation_bell_config_mod
 
   real(r_def), public, protected :: half_width_x
   real(r_def), public, protected :: half_width_y
-  real(r_def), public, protected :: perturbation_size
+  real(r_def), public, protected :: perturbation_scale
+  real(r_def), public, protected :: perturbation_height
   real(r_def), public, protected :: x_centre
   real(r_def), public, protected :: y_centre
   real(r_def), public, protected :: u_vel
@@ -60,11 +61,12 @@ contains
     integer(i_native), intent(in) :: file_unit
     integer(i_native), intent(in) :: local_rank
 
-    real(r_def) :: buffer_real_r_def(7)
+    real(r_def) :: buffer_real_r_def(8)
 
     namelist /perturbation_bell/ half_width_x, &
                                  half_width_y, &
-                                 perturbation_size, &
+                                 perturbation_scale, &
+                                 perturbation_height, &
                                  x_centre, &
                                  y_centre, &
                                  u_vel, &
@@ -74,7 +76,8 @@ contains
 
     half_width_x = rmdi
     half_width_y = rmdi
-    perturbation_size = rmdi
+    perturbation_scale = rmdi
+    perturbation_height = rmdi
     x_centre = rmdi
     y_centre = rmdi
     u_vel = rmdi
@@ -91,19 +94,21 @@ contains
 
     buffer_real_r_def(1) = half_width_x
     buffer_real_r_def(2) = half_width_y
-    buffer_real_r_def(3) = perturbation_size
-    buffer_real_r_def(4) = x_centre
-    buffer_real_r_def(5) = y_centre
-    buffer_real_r_def(6) = u_vel
-    buffer_real_r_def(7) = v_vel
+    buffer_real_r_def(3) = perturbation_scale
+    buffer_real_r_def(4) = perturbation_height
+    buffer_real_r_def(5) = x_centre
+    buffer_real_r_def(6) = y_centre
+    buffer_real_r_def(7) = u_vel
+    buffer_real_r_def(8) = v_vel
 
     half_width_x = buffer_real_r_def(1)
     half_width_y = buffer_real_r_def(2)
-    perturbation_size = buffer_real_r_def(3)
-    x_centre = buffer_real_r_def(4)
-    y_centre = buffer_real_r_def(5)
-    u_vel = buffer_real_r_def(6)
-    v_vel = buffer_real_r_def(7)
+    perturbation_scale = buffer_real_r_def(3)
+    perturbation_height = buffer_real_r_def(4)
+    x_centre = buffer_real_r_def(5)
+    y_centre = buffer_real_r_def(6)
+    u_vel = buffer_real_r_def(7)
+    v_vel = buffer_real_r_def(8)
 
     namelist_loaded = .true.
 
@@ -158,7 +163,8 @@ contains
 
     half_width_x = real(rmdi,r_def)
     half_width_y = real(rmdi,r_def)
-    perturbation_size = real(rmdi,r_def)
+    perturbation_scale = real(rmdi,r_def)
+    perturbation_height = real(rmdi,r_def)
     x_centre = real(rmdi,r_def)
     y_centre = real(rmdi,r_def)
     u_vel = real(rmdi,r_def)

@@ -83,9 +83,9 @@ contains
     ! - Use built-ins to set 'perturbation' to 0
     ! - Call kernel 'init_perturbation_kernel_mod.f90` to set the perturbation
     !   field to initial condition:
-    !   perturbation = perturbation_size*exp( &
-    !                  -((x - x_centre)/half_width_x)**2 &
-    !                  -((y - y_centre)/half_width_y)**2 )
+    !   perturbation = max(perturbation_height - z, 0)/perturbation_scale* &
+    !                      exp( -((x - x_centre)/half_width_x)**2 &
+    !                           -((y - y_centre)/half_width_y)**2 )
     call invoke( name = "Initialise perturbation",  &
                  setval_c(perturbation, 0.0_r_def), &
                  init_perturbation_kernel_type(perturbation, chi) )

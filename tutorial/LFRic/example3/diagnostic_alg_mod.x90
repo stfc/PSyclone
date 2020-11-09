@@ -35,8 +35,8 @@
 !
 ! -----------------------------------------------------------------------------
 ! Calls a kernel to map the coordinate fields from its space (W0 or Wchi) to
-! the space of a perturbation field (W3) and calls IO routine to output the
-! coordinate and perturbation field data for plotting.
+! the space of a diagnostic field (W3) and calls IO routine to output the
+! coordinate and diagnostic field data for plotting.
 ! -----------------------------------------------------------------------------
 module diagnostic_alg_mod
 
@@ -60,35 +60,35 @@ module diagnostic_alg_mod
 contains
 
   !> @brief Map coordinate fields to the function space of the
-  !!        perturbation field
+  !!        diagnostic field
   !> @param[in] chi Coordinate fields on Wchi space
-  !> @param[in,out] perturbation Perturbation field
-  !> @param[out] chi_map Coordinate fields mapped to perturbation space
-  subroutine diagnostic_coordinates_alg(chi, perturbation, chi_map)
+  !> @param[in,out] diag_field Diagnostic field
+  !> @param[out] chi_map Coordinate fields mapped to diagnostic field space
+  subroutine diagnostic_coordinates_alg(chi, diag_field, chi_map)
 
     implicit none
 
     type(field_type), intent(in)    :: chi(3)
-    type(field_type), intent(inout) :: perturbation
+    type(field_type), intent(inout) :: diag_field
     type(field_type), intent(out)   :: chi_map(3)
 
     character(len=str_short) :: cind
     integer(kind=i_def)      :: i
 
-    ! Create mapped coordinate fields by copying perturbation field
+    ! Create mapped coordinate fields by copying diagnostic field
     ! properties and initialise them to 0 by using built-ins
     call log_event( "diagnostic_alg: Creating mapped coordinate fields", &
                     LOG_LEVEL_INFO )
     do i = 1, size(chi_map)
       write(cind, '(I5)') i  ! Convert integer index to string
-      call perturbation%copy_field_properties( &
+      call diag_field%copy_field_properties( &
                         chi_map(i), name="chi_map_"//trim(adjustl(cind)))
       call invoke( setval_c(chi_map(i), 0.0_r_def) )
     end do
 
     ! Map coordinates from chi function space to chi_map function space
     call log_event( "diagnostic_coordinates_alg: Mapping coordinate fields "// &
-                    "to perturbation function space ", LOG_LEVEL_INFO )
+                    "to diagnostic field function space ", LOG_LEVEL_INFO )
     call invoke( nodal_coordinates_kernel_type(chi_map, chi) )
     do i = 1, size(chi_map)
       call chi_map(i)%log_minmax(LOG_LEVEL_INFO, chi_map(i)%name)
@@ -96,19 +96,19 @@ contains
 
   end subroutine diagnostic_coordinates_alg
 
-  !> @brief Output coordinate and perturbation fields to a text file
-  !> @param[in] chi_map Coordinate fields mapped to perturbation space
-  !> @param[in] perturbation Perturbation field
+  !> @brief Output coordinate and diagnostic fields to a text file
+  !> @param[in] chi_map Coordinate fields mapped to diagnostic field space
+  !> @param[in] diag_field Diagnostic field
   !> @param[in] tstep Timestep value to create the output file name from
-  subroutine write_diagnostic_alg(chi_map, perturbation, tstep)
+  subroutine write_diagnostic_alg(chi_map, diag_field, tstep)
 
     implicit none
 
     type(field_type),    intent(in) :: chi_map(3)
-    type(field_type),    intent(in) :: perturbation
+    type(field_type),    intent(in) :: diag_field
     integer(kind=i_def), intent(in) :: tstep
 
-    type(field_type)            :: pert_write_field(3)
+    type(field_type)            :: diag_write_field(3)
     character(len=str_short)    :: cind
     character(str_max_filename) :: filename
     integer(kind=i_def)         :: dim_fs, i, output_unit
@@ -119,20 +119,20 @@ contains
     ! Set output unit number
     output_unit = 10 + tstep
 
-    ! Get vector dimension of the perturbation field (1 for scalar-valued
+    ! Get vector dimension of the diagnostic field (1 for scalar-valued
     ! field and 3 for vector-valued field)
-    dim_fs  = perturbation%vspace%get_dim_space()
-    ! Populate components of the temporary output perturbation field (all
+    dim_fs  = diag_field%vspace%get_dim_space()
+    ! Populate components of the temporary output diagnostic field (all
     ! same here)
     do i = 1, dim_fs
-       call perturbation%copy_field(pert_write_field(i))
+       call diag_field%copy_field(diag_write_field(i))
     end do
 
     ! Output data
     call log_event( "write_diagnostic_alg: Outputting coordinate and "// &
-                    "perturbation field data to file "//filename, &
+                    "diagnostic field data to file "//filename, &
                     LOG_LEVEL_INFO )
-    call nodal_write_field(chi_map, pert_write_field, dim_fs, &
+    call nodal_write_field(chi_map, diag_write_field, dim_fs, &
                            output_unit, filename)
 
   end subroutine write_diagnostic_alg

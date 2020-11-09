@@ -83,7 +83,7 @@ subroutine nodal_write_field(nodal_coordinates, nodal_output, &
   undf = n_p(1)%vspace%get_last_dof_owned()
 
   open(output_unit, file = trim(fname), status = "replace")
-  write(output_unit,'(A)') 'x = ['
+  !write(output_unit,'(A)') 'x = ['
 
   if ( fspace_dimension  == 1 ) then
     do df = 1, undf
@@ -99,7 +99,7 @@ subroutine nodal_write_field(nodal_coordinates, nodal_output, &
     end do
   end if
 
-  write(output_unit,'(A)') '];'
+  !write(output_unit,'(A)') '];'
   close(output_unit)
 
 end subroutine nodal_write_field
