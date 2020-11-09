@@ -85,7 +85,7 @@ program example1_driver
   ! Set model parameters
   !-----------------------------------------------------------------------------
   call log_event( "Setting 'example1_driver' model parameters", LOG_LEVEL_INFO )
-  ! FEM order
+  ! Finite-element method (FEM) order
   element_order = 0
   ! Height of atmosphere in meters
   domain_top = 10000.0_r_def

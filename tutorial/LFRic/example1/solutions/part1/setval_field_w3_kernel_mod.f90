@@ -68,6 +68,16 @@ module setval_field_w3_kernel_mod
 
   contains
 
+  !> @brief Sets a field on W3 function space to a scalar value
+  !> @param[in] nlayers Number of layers
+  !> @param[in,out] field_1_w3 Field to update to a scalar
+  !> @param[in] rscalar_2 Value to set the field to
+  !> @param[in] ndf_w3 Number of degrees of freedom per cell for the
+  !!                   updated field
+  !> @param[in] undf_w3 Number of unique degrees of freedom for the
+  !!                    updated field
+  !> @param[in] map_w3 Dofmap for the cell at the base of the column for
+  !!                   the updated field
   subroutine setval_field_w3_code(nlayers, field_1_w3, rscalar_2, &
                                   ndf_w3, undf_w3, map_w3)
 
