@@ -1565,31 +1565,6 @@ class KernelModuleInlineTrans(KernelTrans):
 
         return schedule, keep
 
-    def validate(self, node, options=None):
-        '''
-        Check that the supplied kernel is eligible to be module inlined.
-
-        :param node: the node in the PSyIR that is to be module inlined.
-        :type node: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-        :param bool inline: whether or not the kernel is to be inlined.
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-        :param bool options["inline"]: whether the kernel should be module \
-                                       inlined or not.
-
-        :raises TransformationError: if the supplied kernel has itself been \
-                                     transformed (Issue #229).
-        '''
-        super(KernelModuleInlineTrans, self).validate(node, options)
-
-        if not options:
-            options = {}
-        inline = options.get("inline", True)
-
-        #if inline and node.modified:
-        #    raise TransformationError("Cannot inline kernel {0} because it "
-        #                              "has previously been transformed.")
-
 
 class Dynamo0p3ColourTrans(ColourTrans):
 
@@ -3303,12 +3278,14 @@ class ACCRoutineTrans(KernelTrans):
             spec.content.append(cmt)
         else:
             spec.content.insert(posn, cmt)
+
         # Flag that the kernel has been modified
         kern.modified = True
 
+        # At the 'cmt' directive into the PSyIR as a CodeBlock
         kernel_schedule = kern.get_kernel_schedule()
-        kernel_schedule.addchild(CodeBlock([cmt], \
-            CodeBlock.Structure.STATEMENT), 0)
+        kernel_schedule.addchild(
+            CodeBlock([cmt], CodeBlock.Structure.STATEMENT), 0)
 
         # Return the now modified kernel
         return kern, keep

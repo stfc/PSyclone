@@ -2696,6 +2696,10 @@ class CodedKern(Kern):
 
     @property
     def module_inline(self):
+        '''
+        :returns: whether or not this kernel is being module-inlined.
+        :rtype: bool
+        '''
         return self._module_inline
 
     @module_inline.setter
@@ -2703,27 +2707,17 @@ class CodedKern(Kern):
         '''
         Setter for whether or not to module-inline this kernel.
 
-        :param bool value: Whether or not to module-inline this kernel.
-        :raises NotImplementedError: if module-inlining is enabled and the \
-                                     kernel has been transformed.
+        :param bool value: whether or not to module-inline this kernel.
         '''
         # Check all kernels in the same invoke as this one and set any
         # with the same name to the same value as this one. This is
         # required as inlining (or not) affects all calls to the same
         # kernel within an invoke. Note, this will set this kernel as
         # well so there is no need to set it locally.
-        # if value and self.modified:
-            # TODO #229. Kernel in-lining is currently implemented via
-            # manipulation of the fparser1 Parse Tree while
-            # transformations work with the fparser2 Parse Tree-derived
-            # PSyIR.  Therefore there is presently no way to inline a
-            # transformed kernel.
-            #raise NotImplementedError(
-            #    "Cannot module-inline a transformed kernel ({0}).".
-            #    format(self.name))
         my_schedule = self.ancestor(InvokeSchedule)
         for kernel in my_schedule.walk(Kern):
             if kernel.name == self.name:
+                # pylint: disable=protected-access
                 kernel._module_inline = value
 
     def node_str(self, colour=True):
@@ -2934,12 +2928,7 @@ class CodedKern(Kern):
         # If this kernel is being module in-lined then we do not need to
         # write it to file.
         if self.module_inline:
-            # TODO #229. We cannot currently inline transformed kernels
-            # (because that requires an fparser1 AST and we only have an
-            # fparser2 AST of the modified kernel) so raise an error.
             return
-            raise NotImplementedError("Cannot module-inline a transformed "
-                                      "kernel ({0})".format(self.name))
 
         if self.root.opencl:
             from psyclone.psyir.backend.opencl import OpenCLWriter
