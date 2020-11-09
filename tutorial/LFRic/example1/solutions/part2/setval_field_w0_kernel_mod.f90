@@ -68,6 +68,16 @@ module setval_field_w0_kernel_mod
 
   contains
 
+  !> @brief Sets a field on W0 function space to a scalar value
+  !> @param[in] nlayers Number of layers
+  !> @param[in,out] field_1_w0 Field to update to a scalar
+  !> @param[in] rscalar_2 Value to set the field to
+  !> @param[in] ndf_w0 Number of degrees of freedom per cell for the
+  !!                   updated field
+  !> @param[in] undf_w0 Number of unique degrees of freedom for the
+  !!                    updated field
+  !> @param[in] map_w0 Dofmap for the cell at the base of the column for
+  !!                   the updated field
   subroutine setval_field_w0_code(nlayers, field_1_w0, rscalar_2, &
                                   ndf_w0, undf_w0, map_w0)
 

@@ -69,6 +69,17 @@ module add_fields_w0_kernel_mod
 
   contains
 
+  !> @brief Adds two fields on W0 function space
+  !> @param[in] nlayers Number of layers
+  !> @param[in,out] field_1_w0 Resulting field
+  !> @param[in] field_2_w0 First field to add
+  !> @param[in] field_3_w0 Second field to add
+  !> @param[in] ndf_w0 Number of degrees of freedom per cell for the
+  !!                   updated field
+  !> @param[in] undf_w0 Number of unique degrees of freedom for the
+  !!                    updated field
+  !> @param[in] map_w0 Dofmap for the cell at the base of the column for
+  !!                   the updated field
   subroutine add_fields_w0_code(nlayers, field_1_w0,    &
                                 field_2_w0, field_3_w0, &
                                 ndf_w0, undf_w0, map_w0)
