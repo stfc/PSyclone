@@ -67,6 +67,16 @@ module setval_field_any_kernel_mod
 
   contains
 
+  !> @brief Sets a field on on any function space to a scalar value
+  !> @param[in] nlayers Number of layers
+  !> @param[in,out] field_1_aspc1 Field to update to a scalar
+  !> @param[in] rscalar_2 Value to set the field to
+  !> @param[in] ndf_aspc1 Number of degrees of freedom per cell for the
+  !!                      updated field
+  !> @param[in] undf_aspc1 Number of unique degrees of freedom for the
+  !!                       updated field
+  !> @param[in] map_aspc1 Dofmap for the cell at the base of the column for
+  !!                      the updated field
   subroutine setval_field_any_code(nlayers, field_1_aspc1, rscalar_2, &
                                    ndf_aspc1, undf_aspc1, map_aspc1)
 

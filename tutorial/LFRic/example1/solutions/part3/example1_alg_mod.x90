@@ -34,8 +34,8 @@
 ! Author: I. Kavcic, Met Office
 !
 ! -----------------------------------------------------------------------------
-! A module that creates fields on any function space, initialises and adds
-! them (here continuous "velocity space" W2 and discontinuous "potential
+! A module that creates fields on multiple function space, initialises and
+! adds them (here continuous "velocity space" W2 and discontinuous "potential
 ! temperature space" Wtheta)
 ! -----------------------------------------------------------------------------
 module example1_alg_mod
@@ -58,6 +58,9 @@ module example1_alg_mod
 
 contains
 
+  !> @brief Creates and adds fields on multiple function spaces
+  !> @param[in] mesh Partitioned 3D mesh object
+  !> @param[in] element_order Finite-element method (FEM) order
   subroutine example1_alg(mesh, element_order)
 
     implicit none

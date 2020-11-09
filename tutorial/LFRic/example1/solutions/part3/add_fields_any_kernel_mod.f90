@@ -69,6 +69,17 @@ module add_fields_any_kernel_mod
 
   contains
 
+  !> @brief Adds two fields on any function space
+  !> @param[in] nlayers Number of layers
+  !> @param[in,out] field_1_aspc1 Resulting field
+  !> @param[in] field_2_aspc1 First field to add
+  !> @param[in] field_3_aspc1 Second field to add
+  !> @param[in] ndf_aspc1 Number of degrees of freedom per cell for the
+  !!                      updated field
+  !> @param[in] undf_aspc1 Number of unique degrees of freedom for the
+  !!                       updated field
+  !> @param[in] map_aspc1 Dofmap for the cell at the base of the column for
+  !!                      the updated field
   subroutine add_fields_any_code(nlayers, field_1_aspc1,       &
                                  field_2_aspc1, field_3_aspc1, &
                                  ndf_aspc1, undf_aspc1, map_aspc1)
