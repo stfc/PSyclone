@@ -1328,9 +1328,10 @@ class Fparser2Reader(object):
                 type_symbol = new_symbol
             elif not isinstance(type_symbol, TypeSymbol):
                 raise SymbolError(
-                    "Search for a TypeSymbol named '{0}' found a {1} "
-                    "instead.".format(type_name, type(type_symbol).__name__))
-            base_type = type_symbol.datatype
+                    "Search for a TypeSymbol named '{0}' (required by "
+                    "declaration '{1}') found a '{2}' instead.".format(
+                        type_name, str(decl), type(type_symbol).__name__))
+            base_type = type_symbol
         else:
             # Not a supported declaration.
             raise NotImplementedError()
@@ -1541,6 +1542,9 @@ class Fparser2Reader(object):
         :type visibility_map: dict with str keys and \
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility` values
 
+        :raises SymbolError: if a Symbol already exists with the same name \
+            as the derived type being defined and it is not a TypeSymbol.
+
         '''
         name = str(walk(decl.children[0], Fortran2003.Type_Name)[0])
         # Create a new StructureType for this derived type
@@ -1569,8 +1573,23 @@ class Fparser2Reader(object):
             # Convert from Symbols to type information
             for symbol in local_table.symbols:
                 dtype.add(symbol.name, symbol.datatype, symbol.visibility)
-            parent.symbol_table.add(TypeSymbol(name, dtype,
-                                               visibility=dtype_symbol_vis))
+            if name in parent.symbol_table:
+                # An entry already exists for this type.
+                # Check that it is a TypeSymbol
+                tsymbol = parent.symbol_table.lookup(name)
+                if not isinstance(tsymbol, TypeSymbol):
+                    raise SymbolError(
+                        "SymbolTable already contains an entry for '{0}' but "
+                        "it is a '{1}' when it should be a 'TypeSymbol' (for "
+                        "the derived-type definition '{2}')".format(
+                            name, type(tsymbol).__name__, str(decl)))
+                # Update its type with the definition we've found
+                tsymbol.datatype = dtype
+            else:
+                # We don't already have an entry for this type so create one
+                parent.symbol_table.add(
+                    TypeSymbol(name, dtype, visibility=dtype_symbol_vis))
+
         except NotImplementedError:
             # Support for this declaration is not fully implemented so create
             # a TypeSymbol of UnknownFortranType.
@@ -1628,6 +1647,16 @@ class Fparser2Reader(object):
         # Look at any USE statements
         self._process_use_stmts(parent, nodes)
 
+        # Handle any derived-type declarations/definitions before we look
+        # at general variable declarations in case any of the latter use
+        # the former.
+        for decl in walk(nodes, Fortran2003.Derived_Type_Def):
+            self._process_derived_type_decln(parent, decl,
+                                             default_visibility,
+                                             visibility_map)
+
+        # Now we've captured any derived-type definitions, proceed to look
+        # at the variable declarations.
         for decl in walk(nodes, Fortran2003.Type_Declaration_Stmt):
             try:
                 self._process_decln(parent, parent.symbol_table, decl,
@@ -1662,12 +1691,6 @@ class Fparser2Reader(object):
                                     str(decl), symbol_name))
                 # Restore the fparser2 parse tree
                 decl.children[2].items = tuple(orig_children)
-
-        # Handle any derived-type declarations/definitions
-        for decl in walk(nodes, Fortran2003.Derived_Type_Def):
-            self._process_derived_type_decln(parent, decl,
-                                             default_visibility,
-                                             visibility_map)
 
         if visibility_map is not None:
             # Check for symbols named in an access statement but not explicitly

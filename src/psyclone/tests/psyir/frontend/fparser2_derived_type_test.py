@@ -49,8 +49,9 @@ from fparser.common.readfortran import FortranStringReader
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_deferred_derived_type():
-    ''' Check that we get a symbol with DeferredType for a declaration using
-    an unresolved derived type. '''
+    ''' Check that we get a symbol with a type given by a TypeSymbol (which
+    itself is of DeferredType) for a declaration using an unresolved derived
+    type. '''
     fake_parent = KernelSchedule("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
@@ -59,7 +60,8 @@ def test_deferred_derived_type():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     vsym = symtab.lookup("var")
-    assert isinstance(vsym.datatype, DeferredType)
+    assert isinstance(vsym.datatype, TypeSymbol)
+    assert isinstance(vsym.datatype.datatype, DeferredType)
     tsym = symtab.lookup("my_type")
     assert isinstance(tsym, TypeSymbol)
 
@@ -80,7 +82,7 @@ def test_missing_derived_type():
 
 
 def test_name_clash_derived_type(f2008_parser):
-    ''' Check that the fronted raises an error if it encounters a reference
+    ''' Check that the frontend raises an error if it encounters a reference
     to a derived type that clashes with another symbol. '''
     fake_parent = KernelSchedule("dummy_schedule")
     symtab = fake_parent.symbol_table
@@ -96,8 +98,34 @@ def test_name_clash_derived_type(f2008_parser):
     # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, fparser2spec.content, [])
-    assert ("Search for a TypeSymbol named 'my_type' found a RoutineSymbol "
+    assert ("Search for a TypeSymbol named 'my_type' (required by declaration"
+            " 'TYPE(my_type) :: some_var') found a 'RoutineSymbol' "
             "instead" in str(err.value))
+
+
+def test_name_clash_derived_type_def(f2008_parser):
+    ''' Check that the frontend raises an error if it encounters a definition
+    of a derived type with a name that clashes with another symbol. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    # Add a RoutineSymbol to the symbol table that clashes with the name
+    # of the derived type.
+    symtab.add(RoutineSymbol("my_type"))
+    processor = Fparser2Reader()
+    reader = FortranStringReader("subroutine my_sub()\n"
+                                 "  type :: my_type\n"
+                                 "    integer :: flag\n"
+                                 "  end type my_type\n"
+                                 "end subroutine my_sub\n")
+    fparser2spec = f2008_parser(reader)
+    # This should raise an error because the Container symbol table will
+    # already contain a RoutineSymbol named 'my_type'
+    with pytest.raises(SymbolError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert ("SymbolTable already contains an entry for 'my_type' but it is a "
+            "'RoutineSymbol' when it should be a 'TypeSymbol' (for the "
+            "derived-type definition 'TYPE :: my_type\n  INTEGER :: flag\n"
+            "END TYPE my_type')" in str(err.value))
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -114,7 +142,8 @@ def test_parse_derived_type(use_stmt):
                                  "  integer :: flag\n"
                                  "  type(grid_type), private :: grid\n"
                                  "  real, dimension(3) :: posn\n"
-                                 "end type my_type\n".format(use_stmt))
+                                 "end type my_type\n"
+                                 "type(my_type) :: var\n".format(use_stmt))
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
@@ -124,10 +153,13 @@ def test_parse_derived_type(use_stmt):
     assert isinstance(flag.datatype, ScalarType)
     assert flag.visibility == Symbol.Visibility.PUBLIC
     grid = sym.datatype.lookup("grid")
-    assert isinstance(grid.datatype, DeferredType)
+    assert isinstance(grid.datatype, TypeSymbol)
+    assert isinstance(grid.datatype.datatype, DeferredType)
     assert grid.visibility == Symbol.Visibility.PRIVATE
     posn = sym.datatype.lookup("posn")
     assert isinstance(posn.datatype, ArrayType)
+    var = symtab.lookup("var")
+    assert var.datatype is sym
 
 
 @pytest.mark.usefixtures("f2008_parser")
