@@ -1,30 +1,25 @@
 # This is a basic workflow to help you get started with Actions
-
-name: Push to private
-
-# Controls when the action will run. Triggers the workflow on push or pull request
-# events but only for the master branch
 on: push
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "repo-sync"
-  repo-sync:
+  build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@master
       with:
-        fetch-depth: '0'
-        ref: 'master'
-    - name: Install SSH key
-      uses: shimataro/ssh-key-action@v2
+        persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal token
+        fetch-depth: 0 # otherwise, you will failed to push refs to dest repo
+    #- name: Create local changes
+    #  run: |
+    #    ...
+    - name: Commit files
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git commit -m "Add changes" -a
+    - name: Push changes
+      uses: ad-m/github-push-action@master
       with:
-         key: ${{ secrets.SSH_PRIVATE_KEY }}
-         name: id_rsa # optional
-         known_hosts: ${{ secrets.KNOWN_HOSTS }}
-    - run: |
-        git remote add mirror git@github.com:arporter/PSyclone-mirror
-        git config --global user.email "andrew.porter@stfc.ac.uk"
-        git config --global user.name "arporter"
-        git checkout master
-        git push --verbose -u mirror master
+        github_token: ${{ secrets.SECRET_TOKEN }}
+        branch: ${{ github.ref }}
+	repository: arporter/PSyclone-mirror
