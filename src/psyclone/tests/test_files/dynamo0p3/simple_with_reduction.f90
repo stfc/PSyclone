@@ -46,7 +46,7 @@ module simple_with_reduction_mod
          (/ arg_type(gh_scalar, gh_real,    gh_sum),      &
             arg_type(gh_field,              gh_read, w1), &
             arg_type(gh_scalar, gh_integer, gh_read) /)
-    integer :: iterates_over = cells
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: code => simple_with_reduction_code
   end type simple_with_reduction_type

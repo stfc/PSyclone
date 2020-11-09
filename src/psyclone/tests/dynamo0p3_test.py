@@ -105,7 +105,7 @@ module testkern_qr
              func_type(w2, gh_diff_basis),          &
              func_type(w3, gh_basis, gh_diff_basis) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => testkern_qr_code
@@ -706,8 +706,6 @@ def test_field(tmpdir):
     output = (
         "  MODULE single_invoke_psy\n"
         "    USE constants_mod, ONLY: r_def, i_def\n"
-        "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-        "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
@@ -916,8 +914,6 @@ def test_field_fs(tmpdir):
     output = (
         "  MODULE single_invoke_fs_psy\n"
         "    USE constants_mod, ONLY: r_def, i_def\n"
-        "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-        "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
@@ -2711,7 +2707,7 @@ module stencil_mod
           (/ arg_type(gh_field, gh_inc, w1), &
              arg_type(gh_field, gh_read, w2, stencil(cross)) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => stencil_code
   end type stencil_type
@@ -2946,7 +2942,7 @@ def test_dynkernmetadata_read_fs_error():
         "          (/ arg_type(gh_field,gh_write,wchi),    &\n"
         "             arg_type(gh_field,gh_read,wchi)      &\n"
         "           /)\n"
-        "     integer :: iterates_over = cells\n"
+        "     integer :: operates_on = cell_column\n"
         "   contains\n"
         "     procedure, nopass :: code => testkern_chi_write_code\n"
         "  end type testkern_chi_write_type\n"
@@ -3861,10 +3857,10 @@ def test_fs_anyspace_cells_write_or_readwrite_error():
 
 def test_fs_anyspace_dofs_inc_error():
     ''' Test that an error is raised if a field on 'any_space' with
-    'gh_inc' access is specified for a kernel that iterates over DoFs. '''
+    'gh_inc' access is specified for a kernel that operates on DoFs. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    dof_code = CODE.replace("integer :: iterates_over = cells",
-                            "integer :: iterates_over = dofs", 1)
+    dof_code = CODE.replace("integer :: operates_on = cell_column",
+                            "integer :: operates_on = dof", 1)
     for fspace in FunctionSpace.VALID_ANY_SPACE_NAMES:
         code = dof_code.replace("arg_type(gh_field, gh_inc, w1)",
                                 "arg_type(gh_field, gh_inc, " +
@@ -5880,7 +5876,7 @@ module testkern
           (/ arg_type(gh_scalar, gh_real,    gh_read), &
              arg_type(gh_scalar, gh_integer, gh_read)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_code
   end type testkern_type
@@ -6530,7 +6526,7 @@ def test_comp_halo_intern_err(monkeypatch):
     halo_exchange = schedule.children[0]
     field = halo_exchange.field
     monkeypatch.setattr(field, "forward_read_dependencies", lambda: [])
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         halo_exchange._compute_halo_read_info()
     assert ("Internal logic error. There should be at least one read "
             "dependence for a halo exchange") in str(excinfo.value)
@@ -6682,43 +6678,6 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_loop_cont_read_inv_bound(monkeypatch, annexed, tmpdir):
-    ''' When a continuous argument is read it may access the halo. The
-    logic for this is in _halo_read_access. If the loop type in this
-    routine is not known then an exception is raised. This test checks
-    that this exception is raised correctly. We test separately for
-    annexed dofs being computed or not as this affects the number of
-    halo exchanges produced.
-
-    '''
-    api_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1_single_invoke_any_discontinuous_space.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    # First test compilation ...
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    # and then proceed to checks
-    if annexed:
-        # no halo exchanges generated
-        loop = schedule.children[0]
-    else:
-        # 2 halo exchanges generated
-        loop = schedule.children[2]
-    kernel = loop.loop_body[0]
-    f2_arg = kernel.arguments.args[1]
-    #
-    monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
-    with pytest.raises(InternalError) as excinfo:
-        _ = loop._halo_read_access(f2_arg)
-    assert ("DynLoop._halo_read_access(): It should not be possible to "
-            "get to here. Loop upper bound name is 'invalid' and arg "
-            "'f2' access is 'gh_read'.") in str(excinfo.value)
-
-
 def test_new_halo_exch_vect_field(monkeypatch):
     '''If a field requires (or may require) a halo exchange before it is
     accessed and it has more than one backward write dependency then it
@@ -6846,7 +6805,7 @@ def test_halo_req_no_read_deps(monkeypatch):
 
     monkeypatch.setattr(field, "_name", "unique")
 
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _, _ = halo_exchange.required()
     assert ("Internal logic error. There should be at least one read "
             "dependence for a halo exchange" in str(excinfo.value))
@@ -7633,3 +7592,41 @@ def test_read_only_fields_hex(tmpdir):
         "        CALL f2_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n")
     assert expected in generated_code
+
+
+def test_dynloop_halo_read_access_error1(monkeypatch):
+    '''Test that the halo_read_access method in class DynLoop raises the
+    expected exception when an unsupported field access is found.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule[4]
+    kernel = loop.loop_body[0]
+    field = kernel.arguments.args[1]
+    monkeypatch.setattr(field, "_access", "unsupported")
+    with pytest.raises(InternalError) as info:
+        loop._halo_read_access(field)
+    assert ("Unexpected field access type 'unsupported' found for arg 'f1'."
+            in str(info.value))
+
+
+def test_dynloop_halo_read_access_error2(monkeypatch):
+    '''Test that the halo_read_access method in class DynLoop raises the
+    expected exception when an unsupported field type is found.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule[4]
+    kernel = loop.loop_body[0]
+    field = kernel.arguments.args[1]
+    monkeypatch.setattr(field, "_argument_type", "unsupported")
+    with pytest.raises(InternalError) as info:
+        loop._halo_read_access(field)
+    assert ("Expecting arg 'f1' to be an operator, scalar or field, but "
+            "found 'unsupported'." in str(info.value))

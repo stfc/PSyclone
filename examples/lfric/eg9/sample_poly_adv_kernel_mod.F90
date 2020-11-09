@@ -53,7 +53,7 @@ use argument_mod,          only: arg_type, func_type,         &
                                  GH_FIELD, GH_WRITE, GH_READ, &
                                  ANY_SPACE_1, STENCIL, CROSS, &
                                  GH_BASIS, GH_DIFF_BASIS,     &
-                                 CELLS, GH_EVALUATOR
+                                 CELL_COLUMN, GH_EVALUATOR
 use fs_continuity_mod,     only: W2, Wtheta
 use constants_mod,         only: r_def, i_def
 use kernel_mod,            only: kernel_type
@@ -94,7 +94,7 @@ type, public, extends(kernel_type) :: sample_poly_adv_kernel_type
        func_type(W2,          GH_BASIS),                               &
        func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS)                 &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_EVALUATOR
 contains
   procedure, nopass :: sample_poly_adv_code

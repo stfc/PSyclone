@@ -35,8 +35,10 @@
 ! Modified I. Kavcic, Met Office
 !
 !> @brief Meta-data for the LFRic built-in operations, broken for
-!>        testing purposes to iterate over cells.
+!>        testing purposes to operate on cell-columns.
 module dynamo0p3_builtins_mod
+  use argument_mod
+  use kernel_mod
 
   !> field1 = ascalar
   type, public, extends(kernel_type) :: setval_c
@@ -45,9 +47,9 @@ module dynamo0p3_builtins_mod
           arg_type(GH_FIELD,           GH_INC, ANY_SPACE_1),          &
           arg_type(GH_SCALAR, GH_REAL, GH_READ            )           &
           /)
-     ! Deliberately BREAK the meta-data - we only support iterates_over
+     ! Deliberately BREAK the meta-data - we only support operates_on
      ! DOFS for built-ins in the LFRic (Dynamo 0.3) API
-     integer :: iterates_over = CELLS
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: setval_c_code
   end type setval_c

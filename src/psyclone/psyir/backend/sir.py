@@ -246,7 +246,7 @@ class SIRWriter(PSyIRVisitor):
         in the PSyIR tree.
 
         :param node: a KernelSchedule PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.KernelSchedule`
+        :type node: :py:class:`psyclone.psyir.nodes.KernelSchedule`
 
         :returns: the SIR Python code.
         :rtype: str

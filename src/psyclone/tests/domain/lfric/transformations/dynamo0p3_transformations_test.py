@@ -4341,7 +4341,6 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-@pytest.mark.xfail(reason="#885 missing halo exchange for f1")
 def test_rc_dofs_depth():
     ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange

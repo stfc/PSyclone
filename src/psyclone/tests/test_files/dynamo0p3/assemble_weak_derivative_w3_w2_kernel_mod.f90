@@ -41,7 +41,8 @@ module assemble_weak_derivative_w3_w2_kernel_mod
                                     GH_FIELD, GH_OPERATOR,   &
                                     GH_WRITE, GH_READ,       &
                                     GH_BASIS, GH_DIFF_BASIS, &
-                                    GH_ORIENTATION, CELLS,   &
+                                    GH_ORIENTATION,          &
+                                    CELL_COLUMN,             &
                                     gh_quadrature_XYoZ
 
   implicit none
@@ -60,7 +61,7 @@ module assemble_weak_derivative_w3_w2_kernel_mod
          func_type(W3, GH_BASIS),                              &
          func_type(W2, GH_DIFF_BASIS, GH_ORIENTATION)          &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
     procedure, nopass :: assemble_weak_derivative_w3_w2_kernel_code

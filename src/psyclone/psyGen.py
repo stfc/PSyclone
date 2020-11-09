@@ -48,7 +48,7 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
+from psyclone.psyir.symbols import DataSymbol, ArrayType, \
     Symbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
@@ -2629,7 +2629,7 @@ class CodedKern(Kern):
         (but will not adapt to transformations applied to the fparser2 AST).
 
         :returns: Schedule representing the kernel code.
-        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+        :rtype: :py:class:`psyclone.psyir.nodes.KernelSchedule`
         '''
         from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         if self._kern_schedule is None:
@@ -3518,9 +3518,12 @@ class Argument(object):
     @access.setter
     def access(self, value):
         '''Set the access type for this argument.
-        :param value: New access type.
+
+        :param value: new access type.
         :type value: :py:class:`psyclone.core.access_type.AccessType`.
-        :raisesInternalError if value is not an AccessType.
+
+        :raises InternalError: if value is not an AccessType.
+
         '''
         if not isinstance(value, AccessType):
             raise InternalError("Invalid access type '{0}' of type '{1}."
@@ -3569,13 +3572,32 @@ class Argument(object):
         dependence with, or None if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum.
 
-        :returns: the first preceding argument this argument has a
-        dependence with
+        :returns: the first preceding argument that has a dependence \
+            on this argument.
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
         nodes = self._call.preceding(reverse=True)
         return self._find_argument(nodes)
+
+    def forward_write_dependencies(self, ignore_halos=False):
+        '''Returns a list of following write arguments that this argument has
+        dependencies with. The arguments may exist in a call, a
+        haloexchange (unless `ignore_halos` is `True`), or a globalsum. If
+        none are found then return an empty list. If self is not a
+        reader then return an empty list.
+
+        :param bool ignore_halos: if `True` then any write dependencies \
+            involving a halo exchange are ignored. Defaults to `False`.
+
+        :returns: a list of arguments that have a following write \
+            dependence on this argument.
+        :rtype: list of :py:class:`psyclone.psyGen.Argument`
+
+        '''
+        nodes = self._call.following()
+        results = self._find_write_arguments(nodes, ignore_halos=ignore_halos)
+        return results
 
     def backward_write_dependencies(self, ignore_halos=False):
         '''Returns a list of previous write arguments that this argument has
@@ -3584,10 +3606,13 @@ class Argument(object):
         none are found then return an empty list. If self is not a
         reader then return an empty list.
 
-        :param: ignore_halos: An optional, default `False`, boolean flag
-        :type: ignore_halos: bool
-        :returns: a list of arguments that this argument has a dependence with
-        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+        :param ignore_halos: if `True` then any write dependencies \
+            involving a halo exchange are ignored. Defaults to `False.
+        :type ignore_halos: bool
+
+        :returns: a list of arguments that have a preceding write \
+            dependence on this argument.
+        :rtype: list of :py:class:`psyclone.psyGen.Argument`
 
         '''
         nodes = self._call.preceding(reverse=True)
@@ -3596,11 +3621,11 @@ class Argument(object):
 
     def forward_dependence(self):
         '''Returns the following argument that this argument has a direct
-        dependence with, or `None` if there is not one. The argument may
+        dependence on, or `None` if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum.
 
-        :returns: the first following argument this argument has a
-        dependence with
+        :returns: the first following argument that has a dependence \
+            on this argument.
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -3614,8 +3639,9 @@ class Argument(object):
         return an empty list. If self is not a writer then return an
         empty list.
 
-        :returns: a list of arguments that this argument has a dependence with
-        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+        :returns: a list of following arguments that have a read \
+            dependence on this argument.
+        :rtype: list of :py:class:`psyclone.psyGen.Argument`
 
         '''
         nodes = self._call.following()
@@ -3625,9 +3651,10 @@ class Argument(object):
         '''Return the first argument in the list of nodes that has a
         dependency with self. If one is not found return None
 
-        :param: the list of nodes that this method examines
-        :type: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
-        :returns: An argument object or None
+        :param nodes: the list of nodes that this method examines.
+        :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: An argument object or None.
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -3644,10 +3671,12 @@ class Argument(object):
         dependency with self. If none are found then return an empty
         list. If self is not a writer then return an empty list.
 
-        :param: the list of nodes that this method examines
-        :type: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
-        :returns: a list of arguments that this argument has a dependence with
-        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+        :param nodes: the list of nodes that this method examines.
+        :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: a list of arguments that have a read dependence on \
+            this argument.
+        :rtype: list of :py:class:`psyclone.psyGen.Argument`
 
         '''
         if self.access not in AccessType.all_write_accesses():
@@ -3681,12 +3710,14 @@ class Argument(object):
         dependency with self. If none are found then return an empty
         list. If self is not a reader then return an empty list.
 
-        :param: the list of nodes that this method examines
-        :type: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
-        :param: ignore_halos: An optional, default `False`, boolean flag
-        :type: ignore_halos: bool
-        :returns: a list of arguments that this argument has a dependence with
-        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+        :param nodes: the list of nodes that this method examines.
+        :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        :param bool ignore_halos: if `True` then any write dependencies \
+            involving a halo exchange are ignored. Defaults to `False`.
+        :returns: a list of arguments that have a write dependence with \
+            this argument.
+        :rtype: list of :py:class:`psyclone.psyGen.Argument`
 
         '''
         if self.access not in AccessType.all_read_accesses():
@@ -3756,10 +3787,11 @@ class Argument(object):
         the iteration spaces of loops e.g. for overlapping
         communication and computation.
 
-        :param argument: the argument we will check to see whether
-        there is a dependence with this argument instance (self)
+        :param argument: the argument we will check to see whether \
+            there is a dependence on this argument instance (self).
         :type argument: :py:class:`psyclone.psyGen.Argument`
-        :returns: True if there is a dependence and False if not
+
+        :returns: True if there is a dependence and False if not.
         :rtype: bool
 
         '''
@@ -4090,102 +4122,3 @@ class ACCDataDirective(ACCDirective):
         '''
         self._add_region(start_text="DATA", end_text="END DATA",
                          data_movement="analyse")
-
-
-class KernelSchedule(Schedule):
-    '''
-    A kernelSchedule is the parent node of the PSyIR for Kernel source code.
-
-    :param str name: Kernel subroutine name.
-    :param parent: Parent of the KernelSchedule, defaults to None.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    def __init__(self, name, parent=None):
-        super(KernelSchedule, self).__init__(children=None, parent=parent)
-        self._name = name
-
-    @staticmethod
-    def create(name, symbol_table, children):
-        '''Create a KernelSchedule instance given a name, a symbol table and a
-        list of child nodes.
-
-        :param str name: the name of the KernelSchedule.
-        :param symbol_table: the symbol table associated with this \
-            KernelSchedule.
-        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
-        :param children: a list of PSyIR nodes contained in the \
-            KernelSchedule.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: a KernelSchedule instance.
-        :rtype: :py:class:`psyclone.psyGen.KernelInstance`
-
-        :raises GenerationError: if the arguments to the create method \
-            are not of the expected type.
-
-        '''
-        if not isinstance(name, str):
-            raise GenerationError(
-                "name argument in create method of KernelSchedule class "
-                "should be a string but found '{0}'."
-                "".format(type(name).__name__))
-        if not isinstance(symbol_table, SymbolTable):
-            raise GenerationError(
-                "symbol_table argument in create method of KernelSchedule "
-                "class should be a SymbolTable but found '{0}'."
-                "".format(type(symbol_table).__name__))
-        if not isinstance(children, list):
-            raise GenerationError(
-                "children argument in create method of KernelSchedule class "
-                "should be a list but found '{0}'."
-                "".format(type(children).__name__))
-        for child in children:
-            if not isinstance(child, Node):
-                raise GenerationError(
-                    "child of children argument in create method of "
-                    "KernelSchedule class should be a PSyIR Node but "
-                    "found '{0}'.".format(type(child).__name__))
-
-        kern = KernelSchedule(name)
-        kern._symbol_table = symbol_table
-        symbol_table._node = kern
-        for child in children:
-            child.parent = kern
-        kern.children = children
-        return kern
-
-    @property
-    def name(self):
-        '''
-        :returns: Name of the Kernel
-        :rtype: str
-        '''
-        return self._name
-
-    @name.setter
-    def name(self, new_name):
-        '''
-        Sets a new name for the kernel.
-
-        :param str new_name: New name for the kernel.
-        '''
-        self._name = new_name
-
-    def node_str(self, colour=True):
-        ''' Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[name:'" + self._name + "']"
-
-    def __str__(self):
-        result = self.node_str(False) + ":\n"
-        for entity in self._children:
-            result += str(entity)
-        result += "End KernelSchedule\n"
-        return result

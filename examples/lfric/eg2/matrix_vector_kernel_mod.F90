@@ -50,7 +50,7 @@ module matrix_vector_mod
 use gaussian_quadrature_mod, only : gaussian_quadrature_type,              &
                                     ngp_h,ngp_v
 use argument_mod,            only : arg_type,                              &
-                                    gh_read, gh_inc, v2, fe, cells
+                                    gh_read, gh_inc, v2, fe, cell_column
 use constants_mod,           only : dp
 use kernel_mod,              only : kernel_type
 
@@ -68,7 +68,7 @@ type, public, extends(kernel_type) :: matrix_vector_kernel_type
        arg_type(gh_inc,v2,fe,.true.,.false.,.false.,.true.),               &
        arg_type(gh_read ,v2,fe,.false.,.false.,.false.,.false.)            &
        ]
-  integer :: iterates_over = cells
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: matrix_vector_code
 end type
