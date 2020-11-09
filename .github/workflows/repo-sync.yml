@@ -1,4 +1,5 @@
-# This is a basic workflow to help you get started with Actions
+# This workflow pushes any changes to a private mirror that runs the
+# test suite using a self-hosted runner. 
 on: push
 
 jobs:
