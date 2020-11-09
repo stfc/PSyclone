@@ -77,8 +77,8 @@ contains
 
     ! Create mapped coordinate fields by copying diagnostic field
     ! properties and initialise them to 0 by using built-ins
-    call log_event( "diagnostic_alg: Creating mapped coordinate fields", &
-                    LOG_LEVEL_INFO )
+    call log_event( "diagnostic_coordinates_alg: Creating mapped "// &
+                    "coordinate fields", LOG_LEVEL_INFO )
     do i = 1, size(chi_map)
       write(cind, '(I5)') i  ! Convert integer index to string
       call diag_field%copy_field_properties( &
@@ -90,15 +90,12 @@ contains
     call log_event( "diagnostic_coordinates_alg: Mapping coordinate fields "// &
                     "to diagnostic field function space ", LOG_LEVEL_INFO )
     call invoke( nodal_coordinates_kernel_type(chi_map, chi) )
-    do i = 1, size(chi_map)
-      call chi_map(i)%log_minmax(LOG_LEVEL_INFO, chi_map(i)%name)
-    end do
 
   end subroutine diagnostic_coordinates_alg
 
   !> @brief Output coordinate and diagnostic fields to a text file
   !> @param[in] chi_map Coordinate fields mapped to diagnostic field space
-  !> @param[in] diag_field Diagnostic field
+  !> @param[in] diag_field Diagnostic field to output
   !> @param[in] tstep Timestep value to create the output file name from
   subroutine write_diagnostic_alg(chi_map, diag_field, tstep)
 
@@ -130,7 +127,7 @@ contains
 
     ! Output data
     call log_event( "write_diagnostic_alg: Outputting coordinate and "// &
-                    "diagnostic field data to file "//filename, &
+                    "diagnostic field data to file '"//trim(filename)//"'", &
                     LOG_LEVEL_INFO )
     call nodal_write_field(chi_map, diag_write_field, dim_fs, &
                            output_unit, filename)

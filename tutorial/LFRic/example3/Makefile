@@ -103,6 +103,6 @@ $(ALGORITHM_SRC): $(PSY_SRC)
 	-opsy $*_psy.f90 -oalg $*.f90 $<
 
 clean:
-	rm -f *.o *.mod $(LFRIC_PATH)/*.o $(LFRIC_PATH)/*.mod $(LFRIC_PATH)/*.a \
+	rm -f *.o *.mod *.txt $(LFRIC_PATH)/*.o $(LFRIC_PATH)/*.mod $(LFRIC_PATH)/*.a \
 	$(GHLIB_PATH)/*.o $(GHLIB_PATH)/*.mod $(GHLIB_PATH)/*.a \
 	$(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)

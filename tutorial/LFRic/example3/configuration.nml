@@ -1,5 +1,5 @@
 &base_mesh
-  filename        = 'mesh_BiP100x100-1000x1000.nc'
+  filename        = 'mesh_planar100x100-1000x1000.nc'
   prime_mesh_name = 'dynamics'
   geometry        = 'planar'
   partitioner     = 'planar'
@@ -36,8 +36,8 @@
   perturbation_height = 5000.0
   x_centre            = 10500.0
   y_centre            = 20500.0
-  u_vel               = 5.0
-  v_vel               = 5.0
+  u_vel               = -5.0
+  v_vel               = -5.0
 /
 
 &planet
@@ -51,7 +51,7 @@
 /
 
 &timestepping
-  dt             = 3600.0
+  dt             = 500.0
   timestep_start = 1
   timestep_end   = 10
 /

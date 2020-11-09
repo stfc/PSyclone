@@ -72,7 +72,8 @@ program example3_driver
   use assign_coordinate_field_mod, &
                               only : assign_coordinate_field
   ! Algorithms
-  use example3_alg_mod,       only : example3_alg_init
+  use example3_alg_mod,       only : example3_alg_init, &
+                                     example3_alg_step
 
   implicit none
 
@@ -128,7 +129,8 @@ program example3_driver
   ! Create global mesh, partition and local mesh objects
   !-----------------------------------------------------------------------------
   ! Read global 2D mesh from the NetCDF file
-  call log_event( "Creating global 2D mesh", LOG_LEVEL_INFO )
+  call log_event( "Creating global 2D mesh from the mesh file '"// &
+                  trim(filename)//"'", LOG_LEVEL_INFO )
   global_mesh = global_mesh_type(filename, prime_mesh_name)
   global_mesh_ptr => global_mesh
 
@@ -192,7 +194,10 @@ program example3_driver
   ! Call algorithms
   !-----------------------------------------------------------------------------
   call log_event( "Calling 'example3_alg_init'", LOG_LEVEL_INFO )
+  ! Initialise perturbation field
   call example3_alg_init(mesh, chi, perturbation)
+  ! Propagate perturbation field
+  call example3_alg_step(chi, perturbation)
 
   !-----------------------------------------------------------------------------
   ! Tidy up after a run

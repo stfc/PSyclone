@@ -34,17 +34,17 @@
 ! Author: I. Kavcic, Met Office
 !
 ! -----------------------------------------------------------------------------
-! A kernel that initialises a perturbation field on W3 function space to:
-!   perturbation = ampl(z)*exp( -((x - x_centre)/half_width_x)**2 &
-!                               -((y - y_centre)/half_width_y)**2 )
-!   where ampl(z) = max(perturbation_height - z, 0)/perturbation_scale
+! A kernel that propagates a perturbation field on W3 function space as:
+!   perturbation = max(perturbation_height - z, 0)/perturbation_scale* &
+!                      exp( -((x - x_centre - u_vel*t_tot)/half_width_x)**2 &
+!                           -((y - y_centre - v_vel*t_tot)/half_width_y)**2 )
 ! -----------------------------------------------------------------------------
-module init_perturbation_kernel_mod
+module prop_perturbation_kernel_mod
 
   use argument_mod,      only: arg_type, func_type,   &
-                               GH_FIELD, CELLS,       &
+                               GH_FIELD, GH_REAL,     &
                                GH_READWRITE, GH_READ, &
-                               GH_BASIS, GH_EVALUATOR
+                               GH_BASIS, GH_EVALUATOR, CELLS
   use fs_continuity_mod, only: W3, Wchi
   use constants_mod,     only: r_def, i_def
   use kernel_mod,        only: kernel_type
@@ -52,7 +52,7 @@ module init_perturbation_kernel_mod
                          only: half_width_x, half_width_y, &
                                perturbation_scale,         &
                                perturbation_height,        &
-                               x_centre, y_centre
+                               x_centre, y_centre, u_vel, v_vel
 
   implicit none
 
@@ -62,11 +62,12 @@ module init_perturbation_kernel_mod
   ! The type declaration for the kernel. Contains the metadata needed by
   ! the PSy layer.
   !-----------------------------------------------------------------------------
-  type, public, extends(kernel_type) :: init_perturbation_kernel_type
+  type, public, extends(kernel_type) :: prop_perturbation_kernel_type
     private
-    type(arg_type), dimension(2) :: meta_args = (/ &
+    type(arg_type), dimension(3) :: meta_args = (/ &
          arg_type(GH_FIELD,   GH_READWRITE, W3),   &
-         arg_type(GH_FIELD*3, GH_READ,      Wchi)  &
+         arg_type(GH_FIELD*3, GH_READ,      Wchi), &
+         arg_type(GH_REAL,    GH_READ)             &
          /)
     type(func_type) :: meta_funcs(1) = (/          &
          func_type(Wchi, GH_BASIS)                 &
@@ -74,10 +75,10 @@ module init_perturbation_kernel_mod
     integer :: iterates_over = CELLS
     integer :: gh_shape = GH_EVALUATOR
   contains
-    procedure, nopass :: init_perturbation_code
-  end type init_perturbation_kernel_type
+    procedure, nopass :: prop_perturbation_code
+  end type prop_perturbation_kernel_type
 
-  public init_perturbation_code
+  public prop_perturbation_code
 
   contains
 
@@ -87,6 +88,7 @@ module init_perturbation_kernel_mod
   !> @param[in] chi_1 Coordinates in the x direction
   !> @param[in] chi_2 Coordinates in the y direction
   !> @param[in] chi_3 Coordinates in the z direction
+  !> @param[in] t_tot Time (s) to propagate the perturbation field for
   !> @param[in] ndf_w3 Number of degrees of freedom per cell for the
   !!                   perturbation field
   !> @param[in] undf_w3 Number of unique degrees of freedom for the
@@ -101,8 +103,8 @@ module init_perturbation_kernel_mod
   !!                     coordinate fields
   !> @param[in] basis_chi Basis functions of the Wchi function space evaluated
   !!                      at the nodal points of the x function space
-  subroutine init_perturbation_code(nlayers, perturbation,         &
-                                    chi_1, chi_2, chi_3,           &
+  subroutine prop_perturbation_code(nlayers, perturbation,         &
+                                    chi_1, chi_2, chi_3, t_tot,    &
                                     ndf_w3, undf_w3, map_w3,       &
                                     ndf_wchi, undf_wchi, map_wchi, &
                                     basis_wchi)
@@ -120,6 +122,7 @@ module init_perturbation_kernel_mod
     real(kind=r_def), intent(in),    dimension(undf_wchi) :: chi_1
     real(kind=r_def), intent(in),    dimension(undf_wchi) :: chi_2
     real(kind=r_def), intent(in),    dimension(undf_wchi) :: chi_3
+    real(kind=r_def), intent(in) :: t_tot
     real(kind=r_def), intent(in), dimension(1,ndf_wchi,ndf_w3) :: basis_wchi
 
     ! Internal variables
@@ -140,11 +143,11 @@ module init_perturbation_kernel_mod
         end do
 
         !-----------------------------------------------------------------------
-        ! TO COMPLETE: Initialise perturbation field to the prescribed
+        ! TO COMPLETE: Propagate perturbation field as in the prescribed
         ! analytical expression on each DoF, i.e. perturbation( map_w3(df) + k )
         ampl = max(perturbation_height - x(3), 0.0_r_def)/perturbation_scale
-        xt = ( x(1) - x_centre )/half_width_x
-        yt = ( x(2) - y_centre )/half_width_y
+        xt = ( x(1) - x_centre - u_vel*t_tot )/half_width_x
+        yt = ( x(2) - y_centre - v_vel*t_tot )/half_width_y
         perturbation( map_w3(df) + k ) = ampl*exp(-xt**2 - yt**2)
         !-----------------------------------------------------------------------
 
@@ -152,6 +155,6 @@ module init_perturbation_kernel_mod
 
     end do
 
-  end subroutine init_perturbation_code
+  end subroutine prop_perturbation_code
 
-end module init_perturbation_kernel_mod
+end module prop_perturbation_kernel_mod
