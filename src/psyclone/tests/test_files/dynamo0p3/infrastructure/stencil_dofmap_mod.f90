@@ -37,6 +37,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
+! Modifications: A. Coughtrie, Met Office
 module stencil_dofmap_mod
 
 use constants_mod,     only: i_def
@@ -46,15 +47,15 @@ implicit none
 
 private
 type, extends(linked_list_data_type), public :: stencil_dofmap_type
-  private 
+  private
   integer(i_def) :: dofmap_shape
   integer(i_def) :: dofmap_extent
-  integer(i_def) :: dofmap_size 
+  integer(i_def), allocatable :: local_size(:)
   integer(i_def), allocatable :: dofmap(:,:,:)
 contains
   procedure :: get_dofmap
   procedure :: get_whole_dofmap
-  procedure :: get_size
+  procedure :: get_stencil_sizes
 end type stencil_dofmap_type
 
 integer(i_def), public, parameter :: STENCIL_POINT = 1100
@@ -62,13 +63,13 @@ integer(i_def), public, parameter :: STENCIL_1DX   = 1200
 integer(i_def), public, parameter :: STENCIL_1DY   = 1300
 integer(i_def), public, parameter :: STENCIL_CROSS = 1400
 
-contains 
+contains
 
 function get_dofmap(self,cell) result(map)
   implicit none
   class(stencil_dofmap_type), target, intent(in) :: self
   integer(i_def),                     intent(in) :: cell
-  integer(i_def), pointer                        :: map(:,:) 
+  integer(i_def), pointer                        :: map(:,:)
 
   map => null()
   return
@@ -77,20 +78,20 @@ end function get_dofmap
 function get_whole_dofmap(self) result(map)
   implicit none
   class(stencil_dofmap_type), target, intent(in) :: self
-  integer(i_def), pointer                        :: map(:,:,:) 
+  integer(i_def), pointer                        :: map(:,:,:)
 
   map => null()
   return
 end function get_whole_dofmap
 
-function get_size(self) result(size)
+function get_stencil_sizes(self) result(stencil_sizes)
   implicit none
   class(stencil_dofmap_type), target, intent(in) :: self
-  integer(i_def)                                 :: size
+  integer(i_def), pointer                        :: stencil_sizes(:)
 
-  size = 0
+  stencil_sizes => null()
   return
-end function get_size
+end function get_stencil_sizes
 
 function compute_dofmap_size(st_shape, st_extent) result(size)
   implicit none

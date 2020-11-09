@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic and A. Coughtrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
@@ -1333,6 +1333,27 @@ class DynStencils(DynCollection):
         return symtab.name_from_tag(unique, root=root_name)
 
     @staticmethod
+    def max_branch_length_name(symtab, arg):
+        '''
+        Create a valid unique name for the maximum length of a stencil branch
+        (in cells) of a 2D stencil dofmap in the PSy layer. This is required
+        in the kernels for defining the maximum possible length of one of the
+        dofmap array dimensions.
+
+        :param symtab: symbol table that will contain (or already contains) \
+            the symbol with this name.
+        :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :returns: a Fortran variable name for the max stencil branch length.
+        :rtype: str
+        '''
+        root_name = arg.name + "_max_branch_length"
+        unique = DynStencils.stencil_unique_str(arg, "length")
+        return symtab.name_from_tag(unique, root=root_name)
+
+    @staticmethod
     def direction_name(symtab, arg):
         '''
         Creates a Fortran variable name to hold the direction of the stencil
@@ -1475,6 +1496,7 @@ class DynStencils(DynCollection):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
         parent.add(CommentGen(parent, ""))
+        api_config = Config.get().api_conf("dynamo0.3")
         stencil_map_names = []
         for arg in self._kern_args:
             map_name = self.map_name(arg)
@@ -1482,6 +1504,7 @@ class DynStencils(DynCollection):
                 # Only initialise maps once.
                 stencil_map_names.append(map_name)
                 stencil_type = arg.descriptor.stencil['type']
+                symtab = self._symbol_table
                 if stencil_type == "xory1d":
                     direction_name = arg.stencil.direction_arg.varname
                     for direction in ["x", "y"]:
@@ -1496,6 +1519,24 @@ class DynStencils(DynCollection):
                                 "STENCIL_1D" + direction.upper() +
                                 ","+self.extent_value(arg)+")"))
                         parent.add(if_then)
+                elif stencil_type == "cross2d":
+                    parent.add(
+                        AssignGen(parent, pointer=True, lhs=map_name,
+                                  rhs=arg.proxy_name_indexed +
+                                  "%vspace%get_stencil_2D_dofmap(" +
+                                  "STENCIL_2D_CROSS" + "," +
+                                  self.extent_value(arg) + ")"))
+                    # Max branch length in the CROSS2D stencil is used when
+                    # defining the stencil_dofmap dimensions at declaration of
+                    # the dummy argument in the kernel. This value is 1
+                    # greater than the stencil extent as the central cell
+                    # is included as part of the stencil_dofmap.
+                    parent.add(
+                        AssignGen(parent,
+                                  lhs=self.max_branch_length_name(symtab,
+                                                                  arg),
+                                  rhs=self.extent_value(arg) + " + 1_" +
+                                  api_config.default_kind["integer"]))
                 else:
                     try:
                         stencil_name = \
@@ -1513,15 +1554,14 @@ class DynStencils(DynCollection):
                                   stencil_name + "," +
                                   self.extent_value(arg) + ")"))
 
-                symtab = self._symbol_table
                 parent.add(AssignGen(parent, pointer=True,
                                      lhs=self.dofmap_name(symtab, arg),
                                      rhs=map_name + "%get_whole_dofmap()"))
 
                 # Add declaration and look-up of stencil size
-                parent.add(AssignGen(parent,
+                parent.add(AssignGen(parent, pointer=True,
                                      lhs=self.dofmap_size_name(symtab, arg),
-                                     rhs=map_name + "%get_size()"))
+                                     rhs=map_name + "%get_stencil_sizes()"))
 
     def _declare_maps_invoke(self, parent):
         '''
@@ -1538,9 +1578,6 @@ class DynStencils(DynCollection):
         if not self._kern_args:
             return
 
-        parent.add(UseGen(parent, name="stencil_dofmap_mod", only=True,
-                          funcnames=["stencil_dofmap_type"]))
-
         symtab = self._symbol_table
         stencil_map_names = []
         for arg in self._kern_args:
@@ -1550,46 +1587,71 @@ class DynStencils(DynCollection):
                 continue
 
             stencil_map_names.append(map_name)
-
-            parent.add(TypeDeclGen(parent, pointer=True,
-                                   datatype="stencil_dofmap_type",
-                                   entity_decls=[map_name+" => null()"]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True,
-                               entity_decls=[self.dofmap_name(symtab, arg) +
-                                             "(:,:,:) => null()"]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=[self.dofmap_size_name(symtab,
-                                                                   arg)]))
-
             stencil_type = arg.descriptor.stencil['type']
-            if stencil_type == "xory1d":
-                parent.add(UseGen(parent, name="flux_direction_mod",
-                                  only=True, funcnames=["x_direction",
-                                                        "y_direction"]))
-                parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                                  only=True, funcnames=["STENCIL_1DX",
-                                                        "STENCIL_1DY"]))
+            if stencil_type == "cross2d":
+                parent.add(UseGen(parent, name="stencil_2D_dofmap_mod",
+                                  only=True,
+                                  funcnames=["stencil_2D_dofmap_type",
+                                             "STENCIL_2D_CROSS"]))
+                parent.add(TypeDeclGen(parent, pointer=True,
+                                       datatype="stencil_2D_dofmap_type",
+                                       entity_decls=[map_name +
+                                                     " => null()"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   pointer=True,
+                                   entity_decls=[self.dofmap_name(symtab,
+                                                                  arg) +
+                                                 "(:,:,:,:) => null()"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   pointer=True,
+                                   entity_decls=[self.dofmap_size_name(symtab,
+                                                                       arg) +
+                                                 "(:,:) => null()"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   entity_decls=[self.max_branch_length_name(
+                                       symtab, arg)]))
             else:
-                try:
-                    stencil_name = \
-                        LFRicArgDescriptor.STENCIL_MAPPING[stencil_type]
-                except KeyError:
-                    raise GenerationError(
-                        "Unsupported stencil type '{0}' supplied. "
-                        "Supported mappings are {1}".
-                        format(arg.descriptor.stencil['type'],
-                               str(LFRicArgDescriptor.STENCIL_MAPPING)))
                 parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                                  only=True, funcnames=[stencil_name]))
-                parent.add(
-                    DeclGen(parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            pointer=True,
-                            entity_decls=[self.dofmap_name(symtab, arg) +
-                                          "(:,:,:) => null()"]))
+                                  only=True,
+                                  funcnames=["stencil_dofmap_type"]))
+                if stencil_type == 'xory1d':
+                    parent.add(UseGen(parent, name="flux_direction_mod",
+                                      only=True, funcnames=["x_direction",
+                                                            "y_direction"]))
+                    parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                                      only=True, funcnames=["STENCIL_1DX",
+                                                            "STENCIL_1DY"]))
+                else:
+                    try:
+                        stencil_name = \
+                            LFRicArgDescriptor.STENCIL_MAPPING[stencil_type]
+                    except KeyError:
+                        raise GenerationError(
+                            "Unsupported stencil type '{0}' supplied. "
+                            "Supported mappings are {1}".
+                            format(arg.descriptor.stencil['type'],
+                                   str(LFRicArgDescriptor.STENCIL_MAPPING)))
+                    parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                                      only=True, funcnames=[stencil_name]))
+
+                parent.add(TypeDeclGen(parent, pointer=True,
+                                       datatype="stencil_dofmap_type",
+                                       entity_decls=[map_name+" => null()"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   pointer=True,
+                                   entity_decls=[self.dofmap_name(symtab,
+                                                                  arg) +
+                                                 "(:,:,:) => null()"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   pointer=True,
+                                   entity_decls=[self.dofmap_size_name(symtab,
+                                                                       arg) +
+                                                 "(:) => null()"]))
 
     def _declare_maps_stub(self, parent):
         '''
@@ -5341,9 +5403,9 @@ class DynHaloExchange(HaloExchange):
         return HaloWriteAccess(write_dependencies[0])
 
     def required(self, ignore_hex_dep=False):
-        '''Determines whether this halo exchange is definitely required (True,
-        True), might be required (True, False) or is definitely not
-        required (False, *).
+        '''Determines whether this halo exchange is definitely required
+        ``(True, True)``, might be required ``(True, False)`` or is definitely
+        not required ``(False, *)``.
 
         If the optional ignore_hex_dep argument is set to True then
         any read accesses contained in halo exchange nodes are
@@ -5374,7 +5436,7 @@ class DynHaloExchange(HaloExchange):
             accesses contained in halo exchanges. This is an optional \
             argument that defaults to False.
 
-        :return: Returns (x, y) where x specifies whether this halo \
+        :returns: (x, y) where x specifies whether this halo \
             exchange is (or might be) required - True, or is not \
             required - False. If the first tuple item is True then the \
             second argument specifies whether we definitely know that \
@@ -5638,11 +5700,11 @@ class DynHaloExchangeStart(DynHaloExchange):
         only read and the dependence analysis beneath this call
         requires the field to be modified.
 
-        :return: Returns (x, y) where x specifies whether this halo \
-        exchange is (or might be) required - True, or is not required \
-        - False. If the first tuple item is True then the second \
-        argument specifies whether we definitely know that we need the \
-        HaloExchange - True, or are not sure - False.
+        :returns: (x, y) where x specifies whether this halo exchange \
+                  is (or might be) required - True, or is not required \
+                  - False. If the first tuple item is True then the second \
+                  argument specifies whether we definitely know that we need \
+                  the HaloExchange - True, or are not sure - False.
         :rtype: (bool, bool)
 
         '''
@@ -5753,25 +5815,19 @@ class HaloDepth(object):
 
     @property
     def annexed_only(self):
-        '''Returns whether the access to the halo is solely to annexed dofs,
-        or not
-
-        :return: Return True if only annexed dofs are accessed in the
-        halo and False otherwise
+        '''
+        :returns: True if only annexed dofs are accessed in the halo and \
+                  False otherwise.
         :rtype: bool
-
         '''
         return self._annexed_only
 
     @property
     def max_depth(self):
-        '''Returns whether the read to the field is known to access all of the
-        halo or not
-
-        :return: Return True if the read to the field is known to
-        access all of the halo and False otherwise
+        '''
+        :returns: True if the read to the field is known to access all \
+                  of the halo and False otherwise.
         :rtype: bool
-
         '''
         return self._max_depth
 
@@ -5780,8 +5836,8 @@ class HaloDepth(object):
         '''Returns whether the read to the field is known to access all of the
         halo except the outermost level or not.
 
-        :return: Return True if the read to the field is known to
-        access all of the halo except the outermost and False otherwise
+        :returns: True if the read to the field is known to access all \
+                  of the halo except the outermost and False otherwise.
         :rtype: bool
 
         '''
@@ -5794,9 +5850,9 @@ class HaloDepth(object):
         stencil accesses. Also note, this depth should be added to the
         literal_depth to find the total depth.
 
-        :return: Return a variable name specifying the halo
-        access depth, if one exists, and None if not
-        :rtype: String
+        :returns: a variable name specifying the halo access depth \
+                  if one exists, and None if not.
+        :rtype: str
 
         '''
         return self._var_depth
@@ -5804,12 +5860,10 @@ class HaloDepth(object):
     @property
     def literal_depth(self):
         '''Returns the known fixed (literal) depth of halo access. Note, this
-        depth should be added to the var_depth to find the total
-        depth.
+        depth should be added to the var_depth to find the total depth.
 
-        :return: Return the known fixed (literal) halo
-        access depth
-        :rtype: integer
+        :returns: the known fixed (literal) halo access depth.
+        :rtype: int
 
         '''
         return self._literal_depth
@@ -5818,9 +5872,8 @@ class HaloDepth(object):
     def literal_depth(self, value):
         ''' Set the known fixed (literal) depth of halo access.
 
-        :parameter value: Set the known fixed (literal) halo
-        access depth
-        :type value: integer
+        :parameter value: Set the known fixed (literal) halo access depth.
+        :type value: int
 
         '''
         self._literal_depth = value
@@ -5935,8 +5988,8 @@ class HaloWriteAccess(HaloDepth):
         been written to is actually dirty (well to be precise it is a partial
         sum).
 
-        :return: Return True if the outer layer of halo
-        that is written to remains dirty and False otherwise.
+        :returns: True if the outer layer of halo that is written \
+                  to remains dirty and False otherwise.
         :rtype: bool
 
         '''
@@ -5950,7 +6003,7 @@ class HaloWriteAccess(HaloDepth):
         a literal depth and the outer halo layer that is written to
         may be dirty or clean.
 
-        :param field: the field that we are concerned with
+        :param field: the field that we are concerned with.
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         '''
@@ -6031,9 +6084,9 @@ class HaloReadAccess(HaloDepth):
         a subset of the halo) then the access is assumed to be full
         access (region) for all depths.
 
-        :return: Return the type of stencil access used
-        or None if there is no stencil.
-        :rtype: String
+        :returns: the type of stencil access used or None if there is no \
+                  stencil.
+        :rtype: str
 
         '''
         return self._stencil_type
@@ -6344,12 +6397,12 @@ class DynLoop(Loop):
     @property
     def upper_bound_halo_depth(self):
         '''Returns the index of the upper loop bound. This is None if the upper
-        bound name is not in HALO_ACCESS_LOOP_BOUNDS
+        bound name is not in HALO_ACCESS_LOOP_BOUNDS.
 
-        :return: the depth of the halo for a loops upper bound. If it
-        is None then a depth has not been provided. The depth value is only
-        valid when the upper-bound name is associated with a halo
-        e.g. 'cell_halo'
+        :returns: the depth of the halo for a loops upper bound. If it \
+            is None then a depth has not been provided. The depth value is \
+            only valid when the upper-bound name is associated with a halo \
+            e.g. 'cell_halo'.
         :rtype: int
 
         '''
@@ -6362,7 +6415,7 @@ class DynLoop(Loop):
         :returns: the Fortran code for the lower bound.
         :rtype: str
 
-        :raises GenerationError: if self._lower_bound_name is not "start"
+        :raises GenerationError: if self._lower_bound_name is not "start" \
                                  for sequential code.
         :raises GenerationError: if self._lower_bound_name is unrecognised.
         '''
@@ -6514,62 +6567,62 @@ class DynLoop(Loop):
         halo data read within this loop. Returns True if it does, or if
         it might and False if it definitely does not.
 
-        :param arg: an argument contained within this loop
+        :param arg: an argument contained within this loop.
         :type arg: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         :returns: True if the argument reads, or might read from the \
-                  halo and False otherwise.
+            halo and False otherwise.
         :rtype: bool
 
-        :raises GenerationError: if an invalid upper loop bound name is \
-                                 provided for kernels with stencil access.
-        :raises InternalError: if an invalid combination of upper bound name \
-                               and argument access is not caught by checks.
+        :raises GenerationError: if an unsupported upper loop bound name is \
+            provided for kernels with stencil access.
+        :raises InternalError: if an unsupported field access is found.
+        :raises InternalError: if an unsupported argument type is found.
 
         '''
-        if arg.descriptor.stencil:
-            if self._upper_bound_name not in ["cell_halo", "ncells"]:
-                raise GenerationError(
-                    "Loop bounds other than 'cell_halo' and 'ncells' are "
-                    "currently unsupported for kernels with stencil "
-                    "accesses. Found '{0}'.".format(self._upper_bound_name))
-            return self._upper_bound_name in ["cell_halo", "ncells"]
-        if arg.is_scalar:
-            # Scalars do not have halos
+        if arg.is_scalar or arg.is_operator:
+            # Scalars and operators do not have halos
             return False
-        if arg.is_operator:
-            # Operators do not have halos
-            return False
-        if arg.discontinuous and arg.access in \
-                [AccessType.READ, AccessType.READWRITE]:
-            # There are no shared dofs so access to inner and ncells are
-            # local so we only care about reads in the halo
-            return self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS
-        if arg.access in [AccessType.READ, AccessType.INC]:
-            # Argument  is either continuous or we don't know (any_space_x)
-            # and we need to assume it may be continuous for correctness
-            if self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
-                # we read in the halo
-                return True
-            if self._upper_bound_name in ["ncells", "nannexed"]:
-                # We read annexed dofs. Return False if we always
-                # compute annexed dofs and True if we don't (as
-                # annexed dofs are part of the level 1 halo).
-                return not Config.get()\
-                                 .api_conf("dynamo0.3").compute_annexed_dofs
-            if self._upper_bound_name in ["ndofs"]:
-                # Argument does not read from the halo
+        if arg.is_field:
+            # This is a field so might read from a halo
+            if arg.access in [AccessType.WRITE]:
+                # This is not a read access
                 return False
-            # Nothing should get to here so raise an exception
+            if arg.access in AccessType.all_read_accesses():
+                # This is a read access
+                if arg.descriptor.stencil:
+                    if self._upper_bound_name not in ["cell_halo", "ncells"]:
+                        raise GenerationError(
+                            "Loop bounds other than 'cell_halo' and 'ncells' "
+                            "are currently unsupported for kernels with "
+                            "stencil accesses. Found '{0}'."
+                            "".format(self._upper_bound_name))
+                    # An upper bound of 'cell_halo' means that the
+                    # halo might be accessed irrespective of the
+                    # stencil and a stencil read access with upper
+                    # bound 'ncells' might read from the
+                    # halo due to the stencil.
+                    return True
+                # This is a non-stencil read access
+                if self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
+                    # An upper bound that is part of the halo means
+                    # that the halo might be accessed.
+                    return True
+                if not arg.discontinuous and \
+                   self._upper_bound_name in ["ncells", "nannexed"]:
+                    # Annexed dofs may be accessed. Return False if we
+                    # always compute annexed dofs and True if we don't
+                    # (as annexed dofs are part of the level 1 halo).
+                    return not Config.get().api_conf("dynamo0.3").\
+                        compute_annexed_dofs
+                # The halo is not accessed.
+                return False
             raise InternalError(
-                "DynLoop._halo_read_access(): It should not be possible to "
-                "get to here. Loop upper bound name is '{0}' and arg '{1}' "
-                "access is '{2}'.".format(
-                    self._upper_bound_name, arg.name,
-                    arg.access.api_specific_name()))
-
-        # Access is neither a read nor an inc so does not need halo
-        return False
+                "Unexpected field access type '{0}' found for arg '{1}'."
+                "".format(arg.access, arg.name))
+        raise InternalError(
+            "Expecting arg '{0}' to be an operator, scalar or field, "
+            "but found '{1}'.".format(arg.name, arg.argument_type))
 
     def _add_field_component_halo_exchange(self, halo_field, idx=None):
         '''An internal helper method to add the halo exchange call immediately

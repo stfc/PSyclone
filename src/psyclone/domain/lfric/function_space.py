@@ -360,12 +360,14 @@ class FunctionSpace(object):
         '''
         Returns the name of the specified operator (orientation, basis or
         differential basis) for this FunctionSpace.
+
         :param str operator_name: name (type) of the operator.
-        :param str qr_var: the name of the Quadrature Object for which the
+        :param str qr_var: the name of the Quadrature Object for which the \
                            operator is required.
         :param on_space: the function space at which the operator is required.
         :type on_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :returns: name for the Fortran arry holding the named operator
+
+        :returns: name for the Fortran arry holding the named operator \
                   for the specified function space.
         :rtype: str
 
