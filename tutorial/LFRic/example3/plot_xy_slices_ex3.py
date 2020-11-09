@@ -35,7 +35,7 @@
 
 '''
    Program that extracts and plots XY slices of output data values in
-   Exercise 3 of the LFRic tutorial. '''
+   Example 3 of the LFRic tutorial. '''
 
 import sys
 from collections import OrderedDict
@@ -57,6 +57,7 @@ def plot_xy_slices(states, tstep):
         # Get coordinates and data to plot
         x_val = states[level][:, 0]
         y_val = states[level][:, 1]
+        height = states[level][:, 2][0]
         data = states[level][:, 3]
 
         # Create contour plot from flattened arrays
@@ -68,8 +69,8 @@ def plot_xy_slices(states, tstep):
         ax_plt.set_aspect('equal')
         ax_plt.set_xlabel('x')
         ax_plt.set_ylabel('y')
-        ax_plt.set_title("Output field values at level %i and "
-                         "timestep %s" % (level, tstep))
+        ax_plt.set_title("Output field values at level %i (z = %.2f m) and "
+                         "timestep %s" % (level, height, tstep))
 
     # Show plots on all levels
     plt.show()
@@ -84,9 +85,10 @@ if __name__ == "__main__":
     except ValueError:
         print("Usage: {0} <filenin> <plot_levels> where\n"
               "- <filename> is a string and \n"
-              "- <levels_plot> is a list of comma-separated integer values\n"
-              "                (no spaces) for vertical levels in the range "
-              "range of (0, nlayers-1).".format(sys.argv[0]))
+              "- <levels_plot> is a string list of comma-separated integer "
+              "values (e.g. '0, 2, 5') \n"
+              "                for vertical levels in the range of "
+              "(0, nlayers-1).".format(sys.argv[0]))
         sys.exit()
 
     # Create integer list of plot levels
@@ -126,7 +128,7 @@ if __name__ == "__main__":
 
     # Find indices of the x-y levels to plot
     for lev in LEV_PLT:
-        plt_ind = np.where((Z_VAL - Z_LEV[lev]) < 1.0e-6)
+        plt_ind = np.where(abs(Z_VAL - Z_LEV[lev]) < 1.0e-6)
         STATE_LEV[lev] = STATE[plt_ind]
 
     # Plot state
