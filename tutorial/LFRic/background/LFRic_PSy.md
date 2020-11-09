@@ -15,11 +15,12 @@ of these objects.
 
 In the *Parallel Systems* or, in short, [PSy layer](
 https://psyclone.readthedocs.io/en/stable/psy_layer.html) PSyclone
-generates calls to *proxies* of the LFRic data objects passed from the
-algorithm layer and accesses the object data by dereferencing the object
-proxies. The data and other required information is then passed to
-kernels as illustrated in the [*Kernel subroutine* section](
-LFRic_kernel.md#kernel-subroutine).
+generates calls to accessor classes for the LFRic data objects passed
+from the algorithm layer, referred to as `<class_name>_proxy`
+(e.g. `field_proxy`) and accesses the object data by dereferencing
+the object proxies. The data and other required information is then
+passed to kernels as illustrated in the
+[*Kernel subroutine* section](LFRic_kernel.md#kernel-subroutine).
 
 PSyclone also generates code for distributed and shared memory
 support, however this is not utilised in this tutorial as explained
@@ -107,6 +108,17 @@ The above kernel call code call illustrates how `iterates_over = CELLS`
 metadata in the [`setval_field_w0_kernel_mod.f90`](
 ../example1/solutions/part1/setval_field_w0_kernel_mod.f90)
 translates to a **loop over cells** (`cell` loop counter) in the PSy layer.
+
+---
+*NOTE*
+
+LFRic coding standards mandate lower-case for all source including
+Fortran keywords and this holds for all code located in the
+[LFRic repository](LFRic_intro.md#lfric-repository-structure). The
+generated PSyclone Fortran code capitalises keywords for better
+readability (not kept in the LFRic repository).
+---
+
 
 ## Generated code to support built-in calls
 

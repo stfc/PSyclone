@@ -45,7 +45,8 @@ module setval_field_w0_kernel_mod
   private
 
   !-----------------------------------------------------------------------------
-  ! Public types
+  ! The type declaration for the kernel. Contains the metadata needed by
+  ! the PSy layer.
   !-----------------------------------------------------------------------------
   type, public, extends(kernel_type) :: setval_field_w0_kernel_type
     private
@@ -58,9 +59,6 @@ module setval_field_w0_kernel_mod
     procedure, nopass :: code => setval_field_w0_code
   end type setval_field_w0_kernel_type
 
-  !-----------------------------------------------------------------------------
-  ! Contained functions/subroutines
-  !-----------------------------------------------------------------------------
   public setval_field_w0_code
 
   contains
@@ -72,7 +70,7 @@ module setval_field_w0_kernel_mod
 end module setval_field_w0_kernel_mod
 ```
 
-As can be seen from the code above, the *LFRic kernels are objects, defined
+As can be seen from the code above, the *LFRic kernels are classes, defined
 as derived types* that inherit from the abstract base type `kernel_type`
 
 ```fortran
@@ -133,28 +131,6 @@ is called from a PSy-layer loop over each cell in the horizontal domain,
 hence the metadata identifier for this way of looping, `CELLS`. This means
 that a kernel operates on a one-cell-wide vertical column of cells.
 
----
-**NOTE**
-
-* LFRic field data are currently `real`-valued, however there is ongoing
-  work to allow the field data of other intrinsic types, such as `integer`.
-  This will be reflected in the metadata, with `GH_REAL` and `GH_INTEGER`
-  marking the data type and `GH_SCALAR` denoting the scalar arguments. The
-  above `arg_type` notation will change to
-
-  ```fortran
-      type(arg_type), dimension(2) :: meta_args = (/ &
-           arg_type(GH_FIELD,  GH_REAL, GH_INC, W0), &
-           arg_type(GH_SCALAR, GH_REAL, GH_READ)     &
-           /)
-  ```
-
-* The kernel metadata for the iteration spaces are also changing to be
-  clearer about the subset of domain the kernel operates on rather than
-  the PSy-layer looping. In the next PSyclone release `iterates_over = CELLS`
-  will become `operates_on = CELL_COLUMN`.
----
-
 ### `use` statements and encapsulation
 
 Besides inheritance from the abstract `kernel_type`, this kernel requires
@@ -163,8 +139,8 @@ data. This information is stored in LFRic infrastructure modules.
 
 * `use argument_mod,      only: arg_type, ...` looks for the LFRic
   identifiers of PSyclone metadata for LFRic objects (e.g. fields);
-* `use fs_continuity_mod, only: ...` looks for the `integer` identifier of
-  the required function space (here `W0`);
+* `use fs_continuity_mod, only: ...` looks for the enumerator identifier
+  (implemented as `integer`) of the required function space (here `W0`);
 * `use constants_mod,     only: ...` looks for the definitions of Fortran
   kind (precision) of data in LFRic objects (here `r_def` for `real` and
   `i_def` for `integer` arguments in LFRic).
@@ -173,8 +149,8 @@ The stub example above also illustrates the main "encapsulation rule" in
 LFRic: everything is `private` unless it needs to be accessed outside the
 object. As a rule, object data are `private` as illustrated in the
 `setval_field_w0_kernel_type` definition above. Object procedures can be
-`private` (if used only by the parent object) or `public`ly available
-(e.g. `subroutine setval_field_w0_code` is called in the generated PSy layer).
+`private` (if used only by the object) or `public`ly available (e.g.
+`subroutine setval_field_w0_code` is called in the generated PSy layer).
 
 ### Kernel subroutine
 
@@ -239,3 +215,31 @@ do k = 0, nlayers-1
   end do
 end do
 ```
+
+---
+*NOTE*
+
+Looping over `k` in the kernel is an optimisation which assumes that the
+field data is `k`-first. In the future this looping may be moved up to the
+[PSy layer](LFRic_PSy.md) PSy layer to better handle e.g. `i`-first fields.
+---
+
+## Appendix
+
+LFRic field data are currently `real`-valued, however there is ongoing
+work to allow the field data of other intrinsic types, such as `integer`.
+This will be reflected in the metadata, with `GH_REAL` and `GH_INTEGER`
+marking the data type and `GH_SCALAR` denoting the scalar arguments. The
+above `arg_type` notation will change to
+
+```fortran
+    type(arg_type), dimension(2) :: meta_args = (/ &
+         arg_type(GH_FIELD,  GH_REAL, GH_INC, W0), &
+         arg_type(GH_SCALAR, GH_REAL, GH_READ)     &
+         /)
+```
+
+The kernel metadata for the iteration spaces are also changing to be
+clearer about the subset of domain the kernel operates on rather than
+the PSy-layer looping. In the next PSyclone release `iterates_over = CELLS`
+will become `operates_on = CELL_COLUMN`.

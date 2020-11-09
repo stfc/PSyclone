@@ -12,26 +12,27 @@ a field can write itself out). For the purpose of this documentation
 they will be referred to as "LFRic data objects".
 
 The important thing to note here is that algorithms (as well as other
-high-level code as drivers) operate on [full objects](
+high-level code such as drivers) operate on [full objects](
 https://psyclone.readthedocs.io/en/stable/algorithm_layer.html) but
 **do not operate directly on object data** (or, in OO terminology, *must
 not break encapsulation*). The data is accessed in the [PSy layer](
-LFRic_PSy.md) via the required object proxies.
+LFRic_PSy.md) via the required object accessor class, referred to as
+*proxy* in the LFRic code.
 
 ### Objects and encapsulation
 
-The above mentioned objects are defined in the LFRic infrastructure as:
+The above mentioned classes are defined in the LFRic infrastructure as:
 
 * Fields: `field_type` and `integer_field_type`;
 * Operators: `operator_type` and `columnwise_operator_type`;
 * Scalars: `scalar_type`;
 
-and their definitions can be found in similarly-named modules in the
-`infrastructure` directory of the LFRic repository.
+and their implementations can be found in similarly-named modules in
+the `infrastructure` directory of the LFRic repository.
 
 The **object data is private**, whilst the methods (Fortran procedures)
-can be `private` (if used only by the parent object) or `public`ly
-available (e.g. a method to initialise a field or return a pointer to it).
+can be `private` (if used only by the object) or `public`ly available
+(e.g. a method to initialise a field or return a pointer to it).
 
 ## Algorithm structure
 
@@ -163,7 +164,7 @@ This process is mimicked in this tutorial as illustrated in the example
 `Makefile`s, see e.g. this code from [`../example1/Makefile`](
 ../example1/Makefile)
 
-```bash
+```make
 %_psy.f90: %.x90
     psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
     -opsy $*_psy.f90 -oalg $*.f90 $<
@@ -198,5 +199,5 @@ subroutine call in the generated `example2_alg_mod.f90` looks something like
          field1_in_w0, field2_in_w0, field1_in_w3, field2_in_w3)
 ```
 
-This code illustrates how the named `invoke` call translates to the
+This code also illustrates how the named `invoke` call translates to the
 generated subroutine name.

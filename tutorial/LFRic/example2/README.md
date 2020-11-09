@@ -74,20 +74,6 @@ fields in the built-in, hence metadata identifier for this way of looping,
 `DOFS`. This means that fields passed to a built-in call **must be on
 the same function space**.
 
----
-**NOTE**
-
-* As for [LFRic kernels](../background/LFRic_kernel.md), the kernel
-  metadata for the iteration spaces are changing to indicate the subset
-  of domain the built-in operates on rather than the PSy-layer looping.
-  In the next PSyclone release `iterates_over = DOFS` will become
-  `operates_on = DOF`.
-
-* The current built-ins are defined for `real`-valued field data.
-  Built-ins for `integer`-valued fields will be introduced as part
-  of the support for the field data of other intrinsic types.
----
-
 The above mentioned built-in `X_plus_Y` is one of the built-ins to be
 used in this Example, specifically to calculate
 
@@ -107,3 +93,15 @@ The [*Generated code to support built-in calls* section](
 ../background/LFRic_PSy.md#generated-code-to-support-built-in-calls)
 in the [PSy layer intro](../background/LFRic_PSy.md) gives examples
 of how this built-in call is represented in the LFRic PSy layer.
+
+## Appendix
+
+As for [LFRic kernels](../background/LFRic_kernel.md#appendix), the
+kernel metadata for the iteration spaces are changing to indicate the
+subset of domain the built-in operates on rather than the PSy-layer
+looping. In the next PSyclone release `iterates_over = DOFS` will
+become `operates_on = DOF`.
+
+The current built-ins are defined for `real`-valued field data.
+Built-ins for `integer`-valued fields will be introduced as part
+of the support for the field data of other intrinsic types.
