@@ -58,7 +58,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, Symbol
+    INTEGER_TYPE, DataSymbol, Symbol, RoutineSymbol
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 
@@ -122,8 +122,6 @@ class GOPSy(PSy):
         # include the field_mod module
         psy_module.add(UseGen(psy_module, name="field_mod"))
         self.invokes.gen_code(psy_module)
-        # inline kernels where requested
-        # self.inline(psy_module)
         return psy_module.root
 
 
@@ -1103,8 +1101,12 @@ class GOKern(CodedKern):
             self.gen_ocl(parent)
             return
 
+        # Add the subroutine call with the necessary arguments
         arguments = self._arguments.raw_arg_list()
         parent.add(CallGen(parent, self._name, arguments))
+
+        # Also add the subroutine declaration, this can just be the import
+        # statement, or the whole subroutine inlined into the module.
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name, only=True,
                               funcnames=[self._name]))
@@ -1112,8 +1114,28 @@ class GOKern(CodedKern):
             module = parent
             while module.parent:
                 module = module.parent
-            # FIXME: Check for routine name clashes?
-            module.add(PSyIRGen(module, self.get_kernel_schedule()))
+
+            module_symtab = self.root.symbol_table
+
+            if self._name not in module_symtab:
+                module_symtab.add(RoutineSymbol(self._name))
+                module.add(PSyIRGen(module, self.get_kernel_schedule()))
+            else:
+                # If the symbol name is already taken, we make sure it refers
+                # to the exact same subroutine.
+                if not isinstance(module_symtab.lookup(self._name),
+                                  RoutineSymbol):
+                    raise NotImplementedError("")
+
+                found = False
+                search = PSyIRGen(module, self.get_kernel_schedule()).root
+                for child in module.children:
+                    if isinstance(child, PSyIRGen):
+                        if child.root == search:
+                            found = True
+
+                if not found:
+                    raise NotImplementedError("")
 
     def gen_ocl(self, parent):
         # pylint: disable=too-many-locals
