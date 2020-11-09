@@ -68,12 +68,18 @@ program example3_driver
   use partitioning_config_mod, &
                               only : panel_xproc, &
                                      panel_yproc
+  use timestepping_config_mod, &
+                              only : timestep_start, &
+                                     timestep_end
+
   ! Coordinates
   use assign_coordinate_field_mod, &
                               only : assign_coordinate_field
   ! Algorithms
   use example3_alg_mod,       only : example3_alg_init, &
                                      example3_alg_step
+  use diagnostic_alg_mod,     only : diagnostic_alg_init, &
+                                     diagnostic_alg_write
 
   implicit none
 
@@ -107,8 +113,8 @@ program example3_driver
   integer(kind=i_native)             :: local_rank
   ! Total number of MPI ranks (processes) in this job
   integer(kind=i_def)                :: total_ranks
-  ! Auxiliary variables for coordinate fields (function space ID, loop counter)
-  integer(kind=i_def)                :: chi_space, i
+  ! Auxiliary variables for coordinate fields (function space ID, loop counters)
+  integer(kind=i_def)                :: chi_space, i, tstep
   ! Auxiliary variable for naming coordinate fields
   character(len=str_short)           :: cind
 
@@ -155,15 +161,13 @@ program example3_driver
   !-----------------------------------------------------------------------------
   ! Create and compute coordinate fields
   !-----------------------------------------------------------------------------
-  call log_event( "Computing model coordinates", LOG_LEVEL_INFO )
-
   ! Select function space based on the coordinate_order parameter
   if ( coordinate_order == 0 ) then
     chi_space = W0
-    call log_event( "Computing coordinate fields on W0 space", LOG_LEVEL_INFO )
+    call log_event( "Computing model coordinates on W0 space", LOG_LEVEL_INFO )
   else
     chi_space = Wchi
-    call log_event( "Computing coordinate fields on Wchi space", LOG_LEVEL_INFO )
+    call log_event( "Computing model coordinates on Wchi space", LOG_LEVEL_INFO )
   end if
   fs_wchi = function_space_type( mesh, element_order, chi_space, ndata_sz )
   fs_wchi_ptr => fs_wchi
@@ -184,20 +188,26 @@ program example3_driver
   ! Create W3 function space and the perturbation field on it
   fs_w3 = function_space_type( mesh, element_order, W3, ndata_sz )
   fs_w3_ptr => fs_w3
-  !---------------------------------------------------------------------------
-  ! TO COMPLETE: Create perturbation field on W3 function space
+  ! Create perturbation field on W3 function space
   call perturbation%initialise( vector_space = fs_w3_ptr, &
                                 name = "perturbation" )
-  !---------------------------------------------------------------------------
 
   !-----------------------------------------------------------------------------
   ! Call algorithms
   !-----------------------------------------------------------------------------
-  call log_event( "Calling 'example3_alg_init'", LOG_LEVEL_INFO )
   ! Initialise perturbation field
-  call example3_alg_init(mesh, chi, perturbation)
+  call example3_alg_init(perturbation, mesh, chi)
+  ! Initialise diagnostics and output initial state
+  call diagnostic_alg_init(perturbation, chi)
+  call diagnostic_alg_write(perturbation, chi, 0_i_def)
+
   ! Propagate perturbation field
-  call example3_alg_step(chi, perturbation)
+  call log_event( "Timestepping loop", LOG_LEVEL_INFO )
+  do tstep = timestep_start, timestep_end
+    call example3_alg_step(perturbation, chi, tstep)
+  end do
+  ! Output final state
+  call diagnostic_alg_write(perturbation, chi, timestep_end)
 
   !-----------------------------------------------------------------------------
   ! Tidy up after a run

@@ -40,21 +40,15 @@
 module example3_alg_mod
 
   ! Infrastructure
-  use constants_mod, only : i_def, r_def
+  use constants_mod, only : i_def, r_def, str_short
   use log_mod,       only : log_event, &
                             LOG_LEVEL_INFO
   use mesh_mod,      only : mesh_type
   use field_mod,     only : field_type
 
-  ! Algorithms
-  use diagnostic_alg_mod, only : diagnostic_coordinates_alg, &
-                                 write_diagnostic_alg
-
   implicit none
 
   private
-
-  type(field_type) :: chi_map(3)
 
   public :: example3_alg_init
   public :: example3_alg_step
@@ -62,18 +56,18 @@ module example3_alg_mod
 contains
 
   !> @brief Initalise a perturbation field using mesh and coordinate data
+  !> @param[in, out] perturbation Perturbation field to initialise
   !> @param[in] mesh Partitioned 3D mesh object
   !> @param[in] chi Coordinate fields on Wchi space
-  !> @param[in] perturbation Perturbation field to initialise
-  subroutine example3_alg_init(mesh, chi, perturbation)
+  subroutine example3_alg_init(perturbation, mesh, chi)
 
     use init_perturbation_kernel_mod, only : init_perturbation_kernel_type
 
     implicit none
 
+    type(field_type), intent(inout) :: perturbation
     type(mesh_type),  intent(in)    :: mesh
     type(field_type), intent(in)    :: chi(3)
-    type(field_type), intent(inout) :: perturbation
 
     integer(i_def)   :: i
 
@@ -95,39 +89,33 @@ contains
     !---------------------------------------------------------------------------
     ! TO COMPLETE: Check the min/max values of coordinate and perturbation
     ! fields using 'log_minmax' function
-    do i = 1, size(chi)
-      call chi(i)%log_minmax(LOG_LEVEL_INFO, chi(i)%name)
-    end do
     call perturbation%log_minmax(LOG_LEVEL_INFO, perturbation%name)
     !---------------------------------------------------------------------------
 
-    ! Map coordinates to perturbation space
-    call diagnostic_coordinates_alg(chi, perturbation, chi_map)
-    ! Output coordinate and initial perturbation fields at the initial
-    ! timestep (0)
-    call write_diagnostic_alg(chi_map, perturbation, 0_i_def)
-
   end subroutine example3_alg_init
 
-  !> @brief Propagate a perturbation field using coordinate data and
-  !!        timestepping namelist parameters
+  !> @brief Propagate perturbation field for one timestep using coordinate
+  !!        data and timestep size
+  !> @param[in,out] perturbation Perturbation field to propagate
   !> @param[in] chi Coordinate fields on Wchi space
-  !> @param[in] perturbation Perturbation field to propagate
-  subroutine example3_alg_step(chi, perturbation)
+  !> @param[in] step Current timestep
+  subroutine example3_alg_step(perturbation, chi, tstep)
 
-    use timestepping_config_mod,      only : dt, timestep_start, timestep_end
+    use timestepping_config_mod,      only : dt
     use prop_perturbation_kernel_mod, only : prop_perturbation_kernel_type
 
     implicit none
 
-    type(field_type), intent(in)    :: chi(3)
     type(field_type), intent(inout) :: perturbation
+    type(field_type), intent(in)    :: chi(3)
+    integer(i_def),   intent(in)    :: tstep
 
-    integer(i_def) :: i
-    real(r_def)    :: t_tot
+    real(r_def)              :: t_tot
+    character(len=str_short) :: tstr
 
-    call log_event( "example3_alg_step: Propagating perturbation field", &
-                    LOG_LEVEL_INFO )
+    write(tstr, '(I5)') tstep  ! Convert integer timestep to string
+    call log_event( "example3_alg_step: Propagating perturbation field "// &
+                    "at timestep "//trim(adjustl(tstr)), LOG_LEVEL_INFO )
     !---------------------------------------------------------------------------
     ! TO COMPLETE: Propagate the perturbation field in a loop over timesteps
     ! - Calculate total propagating 't_tot' from timestep and dt
@@ -136,24 +124,15 @@ contains
     !                  exp( -((x - x_centre - u_vel*t_tot)/half_width_x)**2 &
     !                       -((y - y_centre - v_vel*t_tot)/half_width_y)**2 )
     !   where ampl(z) = max(perturbation_height - z, 0)/perturbation_scale
-    do i = timestep_start, timestep_end
-      t_tot = i*dt
-      call invoke( name = "Propagate perturbation",  &
-                   prop_perturbation_kernel_type(perturbation, chi, t_tot) )
-    end do
+     t_tot = tstep*dt
+     call invoke( name = "Propagate perturbation",  &
+                  prop_perturbation_kernel_type(perturbation, chi, t_tot) )
     !---------------------------------------------------------------------------
 
     !---------------------------------------------------------------------------
-    ! TO COMPLETE: Check the min/max values the perturbation field using
-    ! 'log_minmax' function (value limits should be the same as for the initial
-    ! signal if it is still in the computational domain)
+    ! TO COMPLETE: Check the min/max values of the perturbation field using
+    ! 'log_minmax' function
     call perturbation%log_minmax(LOG_LEVEL_INFO, perturbation%name)
-    !---------------------------------------------------------------------------
-
-    !---------------------------------------------------------------------------
-    ! TO COMPLETE: Output coordinate and initial perturbation fields at the
-    ! final timestep (timestep_end)
-    call write_diagnostic_alg(chi_map, perturbation, timestep_end)
     !---------------------------------------------------------------------------
 
   end subroutine example3_alg_step

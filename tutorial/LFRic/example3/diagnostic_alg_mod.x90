@@ -54,31 +54,35 @@ module diagnostic_alg_mod
 
   private
 
-  public :: diagnostic_coordinates_alg
-  public :: write_diagnostic_alg
+  type(field_type), allocatable :: chi_map(:)
+
+  public :: diagnostic_alg_init
+  public :: diagnostic_alg_write
 
 contains
 
-  !> @brief Map coordinate fields to the function space of the
-  !!        diagnostic field
-  !> @param[in] chi Coordinate fields on Wchi space
-  !> @param[in,out] diag_field Diagnostic field
-  !> @param[out] chi_map Coordinate fields mapped to diagnostic field space
-  subroutine diagnostic_coordinates_alg(chi, diag_field, chi_map)
+  ! Maps coordinate fields to the function space of the diagnostic field
+  ! @param[in] diag_field Diagnostic field to get the mapping space from
+  ! @param[in] chi Coordinate fields on Wchi space
+  subroutine diagnostic_alg_init(diag_field, chi)
 
     implicit none
 
-    type(field_type), intent(in)    :: chi(3)
     type(field_type), intent(inout) :: diag_field
-    type(field_type), intent(out)   :: chi_map(3)
+    type(field_type), intent(in)    :: chi(3)
 
     character(len=str_short) :: cind
     integer(kind=i_def)      :: i
 
+    ! Allocate mapped coordinate fields after cleaning the memory first
+    if ( allocated(chi_map) ) deallocate(chi_map)
+    allocate(chi_map(3))
+
+    call log_event( "diagnostic_alg_init: Mapping coordinate fields "// &
+                    "to diagnostic field function space ", LOG_LEVEL_INFO )
+
     ! Create mapped coordinate fields by copying diagnostic field
     ! properties and initialise them to 0 by using built-ins
-    call log_event( "diagnostic_coordinates_alg: Creating mapped "// &
-                    "coordinate fields", LOG_LEVEL_INFO )
     do i = 1, size(chi_map)
       write(cind, '(I5)') i  ! Convert integer index to string
       call diag_field%copy_field_properties( &
@@ -87,32 +91,30 @@ contains
     end do
 
     ! Map coordinates from chi function space to chi_map function space
-    call log_event( "diagnostic_coordinates_alg: Mapping coordinate fields "// &
-                    "to diagnostic field function space ", LOG_LEVEL_INFO )
     call invoke( nodal_coordinates_kernel_type(chi_map, chi) )
 
-  end subroutine diagnostic_coordinates_alg
+  end subroutine diagnostic_alg_init
 
   !> @brief Output coordinate and diagnostic fields to a text file
-  !> @param[in] chi_map Coordinate fields mapped to diagnostic field space
-  !> @param[in] diag_field Diagnostic field to output
+  !> @param[in] diag_field Scalar diagnostic field to output
+  !> @param[in] chi Coordinate fields on Wchi space
   !> @param[in] tstep Timestep value to create the output file name from
-  subroutine write_diagnostic_alg(chi_map, diag_field, tstep)
+  subroutine diagnostic_alg_write(diag_field, chi, tstep)
 
     implicit none
 
-    type(field_type),    intent(in) :: chi_map(3)
     type(field_type),    intent(in) :: diag_field
+    type(field_type), intent(in)    :: chi(3)
     integer(kind=i_def), intent(in) :: tstep
 
     type(field_type)            :: diag_write_field(3)
-    character(len=str_short)    :: cind
+    character(len=str_short)    :: tstr
     character(str_max_filename) :: filename
     integer(kind=i_def)         :: dim_fs, i, output_unit
 
     ! Convert timestep value to string and create output filename
-    write(cind, '(I5)') tstep  ! Convert integer index to string
-    filename = "model_state_tstep_"//trim(adjustl(cind))//".txt"
+    write(tstr, '(I5)') tstep  ! Convert integer timestep to string
+    filename = "model_state_tstep_"//trim(adjustl(tstr))//".txt"
     ! Set output unit number
     output_unit = 10 + tstep
 
@@ -126,12 +128,12 @@ contains
     end do
 
     ! Output data
-    call log_event( "write_diagnostic_alg: Outputting coordinate and "// &
+    call log_event( "diagnostic_alg_write: Outputting coordinate and "// &
                     "diagnostic field data to file '"//trim(filename)//"'", &
                     LOG_LEVEL_INFO )
     call nodal_write_field(chi_map, diag_write_field, dim_fs, &
                            output_unit, filename)
 
-  end subroutine write_diagnostic_alg
+  end subroutine diagnostic_alg_write
 
 end module diagnostic_alg_mod
