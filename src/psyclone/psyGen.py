@@ -48,7 +48,7 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.psyir.symbols import DataSymbol, ArrayType, \
+from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     Symbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
@@ -283,31 +283,6 @@ class PSy(object):
         :returns: root node of generated Fortran AST.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
-
-    def inline(self, module):
-        '''Inline all kernel subroutines into the module that are marked for
-        inlining. Avoid inlining the same kernel more than once.
-
-        :param module: the module to which the kernel is added for inlining.
-        :type module: :py:class:`psyclone.f2pygen.ModuleGen`
-
-        :raises InternalError: if kernel_code (fparser1 AST of kernel) \
-                is None.
-        '''
-        inlined_kernel_names = []
-        for invoke in self.invokes.invoke_list:
-            schedule = invoke.schedule
-            for kernel in schedule.walk(CodedKern):
-                if kernel.module_inline:
-                    # raise an internal error if kernel_code is None
-                    if kernel._kernel_code is None:
-                        raise InternalError(
-                            "Have no fparser1 AST for kernel {0}."
-                            " Therefore cannot inline it."
-                            .format(kernel))
-                    if kernel.name.lower() not in inlined_kernel_names:
-                        inlined_kernel_names.append(kernel.name.lower())
-                        module.add_raw_subroutine(kernel._kernel_code)
 
 
 class Invokes(object):
@@ -2741,18 +2716,48 @@ class CodedKern(Kern):
         :param parent: The parent of this kernel call in the f2pygen AST.
         :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
         '''
-        from psyclone.f2pygen import CallGen, UseGen
+        from psyclone.f2pygen import CallGen, UseGen, PSyIRGen
 
         # If the kernel has been transformed then we rename it. If it
         # is *not* being module inlined then we also write it to file.
         self.rename_and_write()
 
-        parent.add(CallGen(parent, self._name,
-                           self.arguments.raw_arg_list()))
+        # Add the subroutine call with the necessary arguments
+        arguments = self.arguments.raw_arg_list()
+        parent.add(CallGen(parent, self._name, arguments))
 
+        # Also add the subroutine declaration, this can just be the import
+        # statement, or the whole subroutine inlined into the module.
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name, only=True,
                               funcnames=[self._name]))
+        else:
+            module = parent
+            while module.parent:
+                module = module.parent
+
+            module_symtab = self.root.symbol_table
+
+            if self._name not in module_symtab:
+                module_symtab.add(RoutineSymbol(self._name))
+                module.add(PSyIRGen(module, self.get_kernel_schedule()))
+            else:
+                # If the symbol name is already taken, we make sure it refers
+                # to the exact same subroutine.
+                if not isinstance(module_symtab.lookup(self._name),
+                                  RoutineSymbol):
+                    raise NotImplementedError("")
+
+                found = False
+                search = PSyIRGen(module, self.get_kernel_schedule()).root
+                for child in module.children:
+                    if isinstance(child, PSyIRGen):
+                        if child.root == search:
+                            found = True
+
+                if not found:
+                    raise NotImplementedError("")
+
 
     def gen_arg_setter_code(self, parent):
         '''

@@ -1085,57 +1085,15 @@ class GOKern(CodedKern):
         :param parent: parent node in the f2pygen AST being created.
         :type parent: :py:class:`psyclone.f2pygen.LoopGen`
 
-        :raises GenerationError: if the kernel requires a grid property but \
-                                 does not have any field arguments.
-        :raises GenerationError: if it encounters a kernel argument of \
-                                 unrecognised type.
         '''
-        from psyclone.f2pygen import CallGen, UseGen, PSyIRGen
-
-        # If the kernel has been transformed then we rename it. If it
-        # is *not* being module inlined then we also write it to file.
-        self.rename_and_write()
 
         if self.root.opencl:
             # OpenCL is completely different so has its own gen method.
+            self.rename_and_write()
             self.gen_ocl(parent)
             return
 
-        # Add the subroutine call with the necessary arguments
-        arguments = self._arguments.raw_arg_list()
-        parent.add(CallGen(parent, self._name, arguments))
-
-        # Also add the subroutine declaration, this can just be the import
-        # statement, or the whole subroutine inlined into the module.
-        if not self.module_inline:
-            parent.add(UseGen(parent, name=self._module_name, only=True,
-                              funcnames=[self._name]))
-        else:
-            module = parent
-            while module.parent:
-                module = module.parent
-
-            module_symtab = self.root.symbol_table
-
-            if self._name not in module_symtab:
-                module_symtab.add(RoutineSymbol(self._name))
-                module.add(PSyIRGen(module, self.get_kernel_schedule()))
-            else:
-                # If the symbol name is already taken, we make sure it refers
-                # to the exact same subroutine.
-                if not isinstance(module_symtab.lookup(self._name),
-                                  RoutineSymbol):
-                    raise NotImplementedError("")
-
-                found = False
-                search = PSyIRGen(module, self.get_kernel_schedule()).root
-                for child in module.children:
-                    if isinstance(child, PSyIRGen):
-                        if child.root == search:
-                            found = True
-
-                if not found:
-                    raise NotImplementedError("")
+        super(GOKern, self).gen_code(parent)
 
     def gen_ocl(self, parent):
         # pylint: disable=too-many-locals
