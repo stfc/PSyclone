@@ -27,4 +27,4 @@ jobs:
         git config --global user.email "andrew.porter@stfc.ac.uk"
         git config --global user.name "arporter"
         git checkout master
-        git push -u mirror master
+        git push --verbose -u mirror master
