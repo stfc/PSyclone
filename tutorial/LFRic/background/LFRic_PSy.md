@@ -15,8 +15,8 @@ of these objects.
 
 In the *Parallel Systems* or, in short, [PSy layer](
 https://psyclone.readthedocs.io/en/stable/psy_layer.html) PSyclone
-generates calls to accessor classes for the LFRic data objects passed
-from the algorithm layer, referred to as `<class_name>_proxy`
+generates calls to the accessor classes for the LFRic data objects
+passed from the algorithm layer, referred to as `<class_name>_proxy`
 (e.g. `field_proxy`) and accesses the object data by dereferencing
 the object proxies. The data and other required information is then
 passed to kernels as illustrated in the
@@ -110,15 +110,15 @@ metadata in the [`setval_field_w0_kernel_mod.f90`](
 translates to a **loop over cells** (`cell` loop counter) in the PSy layer.
 
 ---
-*NOTE*
+**NOTE**
 
 LFRic coding standards mandate lower-case for all source including
 Fortran keywords and this holds for all code located in the
 [LFRic repository](LFRic_intro.md#lfric-repository-structure). The
 generated PSyclone Fortran code capitalises keywords for better
 readability (not kept in the LFRic repository).
----
 
+---
 
 ## Generated code to support built-in calls
 
@@ -209,10 +209,15 @@ The above built-in code call illustrates how `iterates_over = DOFS`
 metadata in the definition of `X_plus_Y_code` translates to a
 **loop over DoFs** (`df` loop counter) in the PSy layer.
 
-*Note*, `aspc1` in the name of field data comes from `ANY_SPACE_1`, the
+---
+**NOTE**
+
+`aspc1` in the name of field data comes from `ANY_SPACE_1`, the
 PSyclone [LFRic (Dynamo 0.3) API](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html) identifier for
 the generic function space metadata used in the built-ins definitions (see
 [*Supported Function Spaces* section](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#dynamo0-3-function-space)
 for more information).
+
+---

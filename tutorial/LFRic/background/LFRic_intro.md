@@ -81,11 +81,12 @@ is structured as follows:
 * `um_physics` - Interface to the UKMO UM Physics parameterisation schemes.
 
 ---
-*NOTE*
+**NOTE**
 
 The above directory list is given for information about LFRic
 repository structure. The tutorial Examples use some of the source from the
 LFRic repository but do not rely on it.
+
 ---
 
 ### Languages and software requirements

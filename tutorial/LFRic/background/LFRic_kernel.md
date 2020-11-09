@@ -217,11 +217,12 @@ end do
 ```
 
 ---
-*NOTE*
+**NOTE**
 
 Looping over `k` in the kernel is an optimisation which assumes that the
 field data is `k`-first. In the future this looping may be moved up to the
 [PSy layer](LFRic_PSy.md) PSy layer to better handle e.g. `i`-first fields.
+
 ---
 
 ## Appendix
