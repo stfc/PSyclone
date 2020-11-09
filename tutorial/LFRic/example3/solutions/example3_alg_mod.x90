@@ -87,11 +87,18 @@ contains
     !   perturbation = ampl(z)* exp( -((x - x_centre)/half_width_x)**2 &
     !                                -((y - y_centre)/half_width_y)**2 )
     !   where ampl(z) = max(perturbation_height - z, 0)/perturbation_scale
+    call invoke( name = "Initialise perturbation",  &
+                 setval_c(perturbation, 0.0_r_def), &
+                 init_perturbation_kernel_type(perturbation, chi) )
     !---------------------------------------------------------------------------
 
     !---------------------------------------------------------------------------
     ! TO COMPLETE: Check the min/max values of coordinate and perturbation
     ! fields using 'log_minmax' function
+    do i = 1, size(chi)
+      call chi(i)%log_minmax(LOG_LEVEL_INFO, chi(i)%name)
+    end do
+    call perturbation%log_minmax(LOG_LEVEL_INFO, perturbation%name)
     !---------------------------------------------------------------------------
 
     ! Map coordinates to perturbation space
@@ -129,17 +136,24 @@ contains
     !                  exp( -((x - x_centre - u_vel*t_tot)/half_width_x)**2 &
     !                       -((y - y_centre - v_vel*t_tot)/half_width_y)**2 )
     !   where ampl(z) = max(perturbation_height - z, 0)/perturbation_scale
+    do i = timestep_start, timestep_end
+      t_tot = i*dt
+      call invoke( name = "Propagate perturbation",  &
+                   prop_perturbation_kernel_type(perturbation, chi, t_tot) )
+    end do
     !---------------------------------------------------------------------------
 
     !---------------------------------------------------------------------------
     ! TO COMPLETE: Check the min/max values the perturbation field using
     ! 'log_minmax' function (value limits should be the same as for the initial
     ! signal if it is still in the computational domain)
+    call perturbation%log_minmax(LOG_LEVEL_INFO, perturbation%name)
     !---------------------------------------------------------------------------
 
     !---------------------------------------------------------------------------
     ! TO COMPLETE: Output coordinate and initial perturbation fields at the
     ! final timestep (timestep_end)
+    call write_diagnostic_alg(chi_map, perturbation, timestep_end)
     !---------------------------------------------------------------------------
 
   end subroutine example3_alg_step
