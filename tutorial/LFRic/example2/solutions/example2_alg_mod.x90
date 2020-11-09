@@ -55,6 +55,9 @@ module example2_alg_mod
 
 contains
 
+  !> @brief Creates and adds fields on W0 and W3 function spaces using built-ins
+  !> @param[in] mesh Partitioned 3D mesh object
+  !> @param[in] element_order Finite-element method (FEM) order
   subroutine example2_alg(mesh, element_order)
 
     implicit none
