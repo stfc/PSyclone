@@ -14,12 +14,12 @@ jobs:
     #    ...
     - name: Commit files
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git commit -m "Add changes" -a
+        git config --local user.email "andrew.porter@stfc.ac.uk"
+        git config --local user.name "arporter"
+    #    git commit -m "Add changes" -a
     - name: Push changes
       uses: ad-m/github-push-action@master
       with:
         github_token: ${{ secrets.SECRET_TOKEN }}
         branch: ${{ github.ref }}
-	repository: arporter/PSyclone-mirror
+        repository: arporter/PSyclone-mirror
