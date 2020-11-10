@@ -1,0 +1,81 @@
+fparser and PSyIR (Monday session 3)
+====================================
+
+[TBA] - use notebook examples and then command line ...
+
+1_psyclone_command_line/
+
+    Introduces using PSyclone on the command line. Can use PSyclone
+    interactively as it is written in Python (see notebook tutorials)
+    but typically used as a command line tool as part of the build
+    system. Also see (user guide) for more details about command line
+    support. *** include script example to get PSyIR. ***
+
+2_optimisation_script/
+
+    Use an optimisation script from the command line to view the PSyIR
+    internal representation.
+    Dealing with errors in the script.
+
+3_dag?
+
+3_building_code/ ????
+
+    Include psyclone as part of the build system using a makefile.
+
+Creating LFRic code (Monday session 4)
+======================================
+
+[TBA]
+
+PSyData API (Tuesday session 1)
+===============================
+
+[TBA]
+
+LFRic distributed memory (Tuesday session 2)
+============================================
+
+1_distributed memory/
+
+    Use command line options to create sequential or distributed memory code.
+
+2_annexed_dofs/
+
+    Use command line options to perform redundant computation to
+    reduce the number of halo exchanges.
+
+3_redundant_computation/
+
+    Use a transformation in the optimisation script to perform
+    redundant computation into the halos.
+
+4_asynchronous_comms/
+
+    Use transformations in the optimisation script to make halo
+    exchanges asychronous and move halo exchange calls to overlap
+    computation with communication.
+
+LFRic Shared memory and optimisations (Tuesday session 3)
+=========================================================
+
+1_loop_fusion
+
+2_colouring
+
+3_openmp_parallel
+
+4_mpi_and_openmp ???
+
+5_openacc ????
+
+NEMO1 (Tuesday session 4)
+=========================
+
+[TBA]
+
+NEMO2 (Wednesday session 1)
+==========================
+
+[TBA]
+
