@@ -12,8 +12,8 @@ code structure and how PSyclone is used in LFRic) and three examples.
 
 * [**Example 2**](example2) shows the use of PSyclone built-ins;
 
-* **Example 3** shows a time-evolution of a field on a planar mesh (more
-  elaborate example of LFRic code).
+* [**Example 3**](example3) shows a time-evolution of a field on a planar
+  mesh (more elaborate example of LFRic code).
 
 In order to mimic the LFRic code structure, an example algorithm and
 main program (driver) are provided in all Examples. In LFRic,
