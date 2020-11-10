@@ -37,7 +37,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-
+! Modified: A. Coughtrie, Met Office
 module function_space_mod
 
 use constants_mod,         only: r_def, i_def, l_def
@@ -118,6 +118,7 @@ contains
   procedure, public  :: is_readonly
   procedure, public  :: is_writable
   procedure, public  :: get_stencil_dofmap
+  procedure, public  :: get_stencil_2D_dofmap
   procedure, public  :: get_colours
   procedure, public  :: get_ncolours
   procedure, public  :: set_colours
@@ -298,7 +299,7 @@ subroutine compute_nodal_basis_function(self, basis, ndf, n_node, x_node)
   basis = 0.0_r_def
 end subroutine compute_nodal_basis_function
 
-subroutine compute_diff_basis_function(self,                                & 
+subroutine compute_diff_basis_function(self,                                &
                                        dbasis,                              &
                                        ndf,                                 &
                                        qp_h,                                &
@@ -330,7 +331,7 @@ subroutine compute_nodal_diff_basis_function(self, &
   real(kind=r_def), dimension(3,n_node),                  intent(in)  :: x_node
   real(kind=r_def), dimension(self%dim_space_diff,ndf,n_node), intent(out) :: dbasis
 
-  dbasis = 0.0_r_def  
+  dbasis = 0.0_r_def
 end subroutine compute_nodal_diff_basis_function
 
 function get_element_order(self) result (element_order)
@@ -368,7 +369,7 @@ function get_mesh_id(self) result (mesh_id)
   implicit none
   class(function_space_type), intent(in) :: self
   integer(i_def) :: mesh_id
-  
+
   mesh_id = 0
   return
 end function get_mesh_id
@@ -447,6 +448,19 @@ function get_stencil_dofmap(self, stencil_shape, stencil_size) result(map)
 
   map => null()
 end function get_stencil_dofmap
+
+function get_stencil_2D_dofmap(self, stencil_shape, stencil_size) result(map)
+  use stencil_2D_dofmap_mod, only : stencil_2D_dofmap_type
+
+  implicit none
+
+  class(function_space_type), intent(inout) :: self
+  integer(i_def),             intent(in) :: stencil_shape
+  integer(i_def),             intent(in) :: stencil_size
+  type(stencil_2D_dofmap_type), pointer  :: map
+
+  map => null()
+end function get_stencil_2D_dofmap
 
 subroutine set_colours(self)
   implicit none
