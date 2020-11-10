@@ -95,9 +95,9 @@ domain_size_config_mod.o: mpi_mod.o
 log_mod.o:	constants_mod.o
 field_mod.o: field_parent_mod.o scalar_mod.o count_mod.o
 field_parent_mod.o: pure_abstract_field_mod.o function_space_mod.o
-extrusion_mod.o: global_mesh_base_mod.o
+extrusion_mod.o:	global_mesh_base_mod.o
 coord_transform_mod.o: matrix_invert_mod.o cross_product_mod.o
-partition_mod.o: mpi_mod.o linked_list_int_mod.o global_mesh_base_mod.o
+partition_mod.o:	mpi_mod.o linked_list_int_mod.o global_mesh_base_mod.o
 linked_list_mod.o: linked_list_data_mod.o
 stencil_dofmap_mod.o: master_dofmap_mod.o mesh_mod.o stencil_dofmap_helper_functions_mod.o
 stencil_dofmap_helper_functions_mod.o: constants_mod.o mesh_mod.o
