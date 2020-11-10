@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified by I. Kavcic, Met Office
+.. Modified by I. Kavcic and A. Coughtrie, Met Office
 
 .. highlight:: fortran
 
@@ -259,7 +259,7 @@ Stencils
 Kernel metadata may specify that a Kernel performs a stencil operation
 on a field. Any such metadata must provide a stencil type. See the
 :ref:`dynamo0.3-api-meta-args` section for more details. The supported
-stencil types are ``X1D``, ``Y1D``, ``XORY1D`` or ``CROSS``.
+stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS`` or ``CROSS2D``.
 
 If a stencil operation is specified by the Kernel metadata the
 algorithm layer must provide the ``extent`` of the stencil (the
@@ -312,6 +312,17 @@ For example::
   integer(kind=i_def) :: extent = 2
   ! ...
   call invoke(kernel(field1, field2, extent, x_direction))
+
+If the stencil is of type ``CROSS2D`` then the arrays passed to the kernel are
+of different dimensions to those of other stencils. The ``CROSS2D`` stencil is
+designed for use when it is necessary for a kernel to know where the stencil
+cells are, relative to the current cell. For this reason, the ``stencil_size``
+passed to the kernel is an array of length 4 containing sizes for each branch
+of the stencil. The ``stencil_size`` array is always ordered: West, South,
+East, North. This branch dimension is also part of the ``stencil_dofmap`` array
+making it possible to loop over each branch of the stencil individually. The
+invoke call for the ``CROSS2D`` stencil remains of the same form as for other
+stencils.
 
 If certain fields use the same value of extent and/or direction then
 the same variable, or literal value can be provided.
@@ -1068,8 +1079,8 @@ Stencil metadata is written in the following format::
 
   STENCIL(type)
 
-where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D`` or
-``CROSS``.  As the stencil ``extent`` (the maximum distance from the
+where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D``,
+``CROSS`` or ``CROSS2D``.  As the stencil ``extent`` (the maximum distance from the
 central cell that the stencil extends) is not provided in the metadata,
 it is expected to be provided by the algorithm writer as part of the
 ``invoke`` call (see Section :ref:`dynamo0.3-alg-stencil`). As there
@@ -1088,7 +1099,7 @@ For example, the following stencil (with ``extent=2``):
 
 .. code-block:: none
 
-  | 4 | 2 | 1 | 3 | 5 |
+  | 3 | 2 | 1 | 4 | 5 |
 
 would be declared as::
 
@@ -1099,10 +1110,10 @@ and the following stencil (with ``extent=2``):
 .. code-block:: none
 
   |   |   | 9 |   |   |
-  |   |   | 5 |   |   |
-  | 6 | 2 | 1 | 3 | 7 |
-  |   |   | 4 |   |   |
   |   |   | 8 |   |   |
+  | 3 | 2 | 1 | 6 | 7 |
+  |   |   | 4 |   |   |
+  |   |   | 5 |   |   |
 
 would be declared as::
 
@@ -1419,11 +1430,23 @@ rules, along with PSyclone's naming conventions, are:
       This value is passed in separately. Again, the intent is determined
       from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
-      1) If the field entry has a stencil access then add an integer
+      1) If the field entry has a stencil access then add an integer (or if
+         the stencil is of type ``CROSS2D``, an integer array of dimension(4))
          stencil-size argument with intent ``in``. This will supply
-         the number of cells in the stencil.
-      2) If the field entry stencil access is of type ``XORY1D`` then
-         add an integer direction argument with intent ``in``.
+         the number of cells in the stencil or, in the case of the ``CROSS2D``
+         stencil, the number of cells in each branch of the stencil.
+      2) If the stencil is of type ``CROSS2D`` then an integer of intent ``in``
+         for the max branch length is needed. This is used in defining the
+         dimensions of the stencil dofmap array and is required due to the
+         varying length of the branches of the stencil when used on planar
+         meshes.
+      3) Also needed is a stencil dofmap array of type integer and intent
+         ``in`` in either 2 or 3 dimensions. For a ``CROSS2D`` stencil the
+         array needs dimensions of (number-of-dofs-in-cell, max-branch-length,
+         4). All other stencils need dimensions of (number-of-dofs-in-cell,
+         stencil-size).
+      4) If the field entry stencil access is of type ``XORY1D`` then
+         add an additional integer direction argument with intent ``in``.
 
    3) If the current entry is a field vector then for each dimension
       of the vector, include a field array. The field array name is
