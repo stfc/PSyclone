@@ -721,9 +721,9 @@ contains
 
     write( log_scratch_space, '( A, A, A, 2E16.8 )' ) &
          "Min/max ", trim( label ),                   &
-    ! IK: Functions get_min() and get_max() rely on MPI comms so
-    !     these calls are disabled here. Min and max are simply
-    !     values of fmin and fmax scalars.
+    ! Functions get_min() and get_max() rely on MPI comms so
+    ! these calls are disabled here. Min and max are simply
+    ! values of fmin and fmax scalars.
     !     " = ", fmin%get_min(), fmax%get_max()
          " = ", fmin%value, fmax%value
     call log_event( log_scratch_space, log_level )
@@ -756,8 +756,8 @@ contains
     fmax = scalar_type( maxval( abs(self%data(1:undf)) ) )
 
     write( log_scratch_space, '( A, A, E16.8 )' ) &
-    ! IK: Function get_max() relies on MPI comms so this call is
-    !     disabled here. Max is simply the values of fmax scalar.
+    ! Function get_max() relies on MPI comms so this call is
+    ! disabled here. Max is simply the values of fmax scalar.
     !     trim( label ), " = ", fmax%get_max()
          trim( label ), " = ", fmax%value
     call log_event( log_scratch_space, log_level )
