@@ -59,11 +59,12 @@ applied here so the code is generated and run in serial.
   Compilers 8.4.3 and 8.7.0. It has been proven to work with Intel 19.0.x
   and the latest GCC 10.2.0.
 
-* [Python](https://www.python.org/) environment. Note that for these
-  tutorials either [Python 2](https://www.python.org/download/releases/2.0/)
+* [Python](https://www.python.org/) environment. Note that for this
+  tutorial either [Python 2](https://www.python.org/download/releases/2.0/)
   or [Python 3](https://www.python.org/download/releases/3.0/) environments
-  are fine. Running the entire LFRic code, however, requires Python 3 as
-  described in the [*Languages and software requirements* section](
+  are fine (plotting scripts require `numpy` and `matplotlib` packages in
+  either case). Running the entire LFRic code, however, requires Python 3
+  as described in the [*Languages and software requirements* section](
   background/LFRic_intro.md#languages-and-software-requirements).
 
 * Latest PSyclone release (currently 1.9.0). For installation please refer to

@@ -200,6 +200,19 @@ kernel to read from and update a field:
   the `W0` function space that this field is defined on (the map
   contains local IDs of DoFs in a partition).
 
+---
+**NOTE**
+
+The order of kernel arguments roughly corresponds to the order of
+[kernel metadata descriptors](#kernel-metadata). The convention when
+ordering arguments is to put arguments that are written to first.
+LFRic kernels can update more than one field and/or operator arguments.
+However, scalar arguments in user-defined LFRic kernels must be
+[read-only.](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
+
+---
+
 #### Loops
 
 Having defined the kernel metadata, subroutine arguments and
