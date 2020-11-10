@@ -44,7 +44,7 @@
 
 module extract_psy_data_mod
 
-    use extract_netcdf_base_mod, only: extract_base_PSyDataType
+    use extract_netcdf_base_mod, only: ExtractNetcdfBaseType
 
     implicit none
 
@@ -53,17 +53,18 @@ module extract_psy_data_mod
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, extends(extract_base_PSyDataType), public:: extract_PsyDataType
+    type, extends(ExtractNetcdfBaseType), public:: extract_PsyDataType
 
     contains
         ! The various procedures used
-        procedure :: DeclareFieldDouble, WriteFieldDouble, ReadFieldDouble
+        procedure :: DeclareFieldDouble, WriteFieldDouble
 
         !> The generic interface for declaring a variable:
         generic, public :: PreDeclareVariable => DeclareScalarInt,    &
                                                  DeclareScalarReal,   &
                                                  DeclareScalarDouble, &
-                                                 DeclareFieldDouble
+                                                 DeclareFieldDouble,  &
+                                                 DeclareArray2dDouble
 
         !> The generic interface for providing the value of variables,
         !! which in case of the NetCDF interface is written:                                               
@@ -78,7 +79,8 @@ module extract_psy_data_mod
         generic, public :: ReadVariable => ReadScalarInt,    &
                                            ReadScalarReal,   &
                                            ReadScalarDouble, &
-                                           ReadFieldDouble 
+                                           ReadArray2DDouble
+
     end type extract_PSyDataType
 
 Contains
@@ -132,15 +134,9 @@ Contains
         integer :: x_dimid, y_dimid, retval
         integer, dimension(2) :: dimids
 
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim1",  &
-                                         value%grid%nx, x_dimid))
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim2",  &
-                                         value%grid%ny, y_dimid))
-        dimids =  (/ x_dimid, y_dimid /)
-        retval = CheckError(nf90_def_var(this%ncid, name, Nf90_REAL8,     &
-                                         dimids, this%var_id(this%next_var_index)))
+        ! Map to a simple 2d-array:
+        call this%DeclareArray2dDouble(name, value%data)
 
-        this%next_var_index = this%next_var_index + 1
     end subroutine DeclareFieldDouble
 
     ! -------------------------------------------------------------------------
@@ -158,53 +154,9 @@ Contains
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
         integer :: retval
-        retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
-                                         value%data(:,:)))
-        this%next_var_index = this%next_var_index + 1
+
+        ! Map the field to a simple 2d-array
+        call this%WriteArray2dDouble(name, value%data)
     end subroutine WriteFieldDouble
-
-    ! -------------------------------------------------------------------------
-    !> This subroutine reads the values of a dl_esm_inf field (r2d_field).
-    !! It allocates a 2d-double precision array to store the read values
-    !! which is then returned to the caller. If the memory for the array can
-    !! not be allocated, the application will be stopped.
-    !! @param[inout] this The instance of the extract_PsyDataType.
-    !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
-    !!             which is allocated here and stores the values read.
-    subroutine ReadFieldDouble(this, name, value)
-        use netcdf
-        implicit none
-
-        class(extract_PsyDataType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        double precision, dimension(:,:), allocatable, intent(out) :: value
-        integer :: retval, varid
-        integer :: dim1_id, dim1
-        integer :: dim2_id, dim2, ierr
-        character(100) :: x
-
-        ! First query the dimensions of the original r2d_field from the
-        ! netcdf file
-        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim1"), dim1_id))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim1_id,  &
-                                                   len=dim1))
-        retval = CheckError(nf90_inq_dimid(this%ncid, name//"dim2", dim2_id))
-        retval = CheckError(nf90_inquire_dimension(this%ncid, dim2_id,  &
-                                                   len=dim2))
-        ! Allocate enough space to store the values to be read:
-        allocate(value(dim1, dim2), Stat=ierr)
-        if (ierr /= 0) then
-            print *,"Cannot allocate array for ", name, &
-                    " of size ", dim1,"x",dim2," in ReadFieldDouble."
-            stop
-        endif
-        ! Initialise it with 0, so that an array comparison will work
-        ! even though e.g. boundary areas or so might not be set at all.
-        value = 0.0d0
-        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        retval = CheckError(nf90_get_var(this%ncid, varid, value))
-    end subroutine ReadFieldDouble
-    ! -------------------------------------------------------------------------
 
 end module extract_psy_data_mod
