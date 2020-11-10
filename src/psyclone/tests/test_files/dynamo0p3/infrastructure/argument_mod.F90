@@ -33,8 +33,13 @@
 ! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
 ! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 ! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
 !
-! Modified I. Kavcic, Met Office
+! Modified I. Kavcic and A. Coughtrie, Met Office
 !          A. R. Porter, STFC Daresbury Laboratory
 
 
@@ -156,6 +161,8 @@ module argument_mod
   integer, public, parameter :: X1D        = 2
   integer, public, parameter :: Y1D        = 3
   integer, public, parameter :: CROSS      = 4
+  integer, public, parameter :: CROSS2D    = 5
+
   !> @}
 
   !> Allows metadata types to be syntactically correct.
@@ -167,7 +174,7 @@ module argument_mod
   !>       would remove the need for 1-based monotonically increasing
   !>       enumerator values but GFortran doesn't like that.
   !>
-  integer, public, parameter :: STENCIL(4) = -1
+  integer, public, parameter :: STENCIL(5) = -1
 
   !> @defgroup mesh_data_items Enumeration of mesh data items.
   !> @{

@@ -1,7 +1,10 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2019 Met Office. All rights reserved.
+! (C) Crown copyright 2019-2020 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+!-----------------------------------------------------------------------------
+! LICENCE is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE
 !-----------------------------------------------------------------------------
 !
 !> @brief A module containing the abstract type that is the parent to all

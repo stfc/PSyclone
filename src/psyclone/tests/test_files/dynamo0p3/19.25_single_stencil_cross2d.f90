@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2020, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -30,27 +30,21 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic and A. Coughtrie, Met Office
+! Author A. Coughtrie, Met Office
 
-program single_stencil
-  ! Description: single stencil specified in an invoke call with field
-  ! names that will clash with internal PSy-layer names
-  use constants_mod,        only: i_def
-  use field_mod,            only: field_type
-  use testkern_stencil_mod, only: testkern_stencil_type
+program single_stencil_cross2d
+  ! Description: single 2D stencil specified in an invoke call
+  use constants_mod,                only: i_def
+  use field_mod,                    only: field_type
+  use testkern_stencil_cross2d_mod, only: testkern_stencil_cross2d_type
 
   implicit none
 
-  type(field_type) :: f2_stencil_map, f2, f3, f3_stencil_map, &
-                      f2_stencil_dofmap, stencil_cross,f3_stencil_dofmap
-  integer(i_def)   :: f2_extent = 1, f3_stencil_size = 1
+  type(field_type) :: f1, f2, f3, f4
+  integer(i_def)   :: f2_extent=1
 
-  call invoke(                                                    &
-       testkern_stencil_type(f2_stencil_map, f2, f2_extent,       &
-                             f2_stencil_dofmap, stencil_cross),   &
-       testkern_stencil_type(f3_stencil_map, f3, f3_stencil_size, &
-                             f3_stencil_dofmap, stencil_cross)    &
+  call invoke(                                          &
+       testkern_stencil_cross2d_type(f1, f2, f2_extent, f3, f4) &
        )
 
-end program single_stencil
+end program single_stencil_cross2d

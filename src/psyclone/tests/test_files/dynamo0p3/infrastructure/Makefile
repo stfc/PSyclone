@@ -45,11 +45,19 @@ OBJ = global_mesh_base_mod.o mesh_mod.o linked_list_data_mod.o \
 		function_space_constructor_helper_functions_mod.o polynomial_mod.o \
 		field_parent_mod.o pure_abstract_field_mod.o scalar_mod.o count_mod.o \
 		operator_mod.o argument_mod.o kernel_mod.o constants_mod.o \
-		mesh_map_mod.o
+		mesh_map_mod.o stencil_dofmap_helper_functions_mod.o stencil_2D_dofmap_mod.o
 
 # Additional object files required for netcdf support
 OBJ_NETCDF = global_mesh_netcdf_mod.o ugrid_2d_mod.o ugrid_file_mod.o file_mod.o \
 		ugrid_generator_mod.o ncdf_quad_mod.o
+
+# Note that the files
+# quadrature_edge_mod.F90 quadrature_face_mod.F90 quadrature_mod.F90
+# quadrature_rule_mod.F90 quadrature_xoyoz_mod.F90 quadrature_xyoz_mod.F90
+# quadrature_xyz_mod.F90
+# are required for some compilation tests only, they are not required for
+# a stand-alone LFRic example, and as such are not compiled when creating
+# an infrastructure library.
 
 .PHONY: standalone netcdf default
 
@@ -91,10 +99,13 @@ extrusion_mod.o: global_mesh_base_mod.o
 coord_transform_mod.o: matrix_invert_mod.o cross_product_mod.o
 partition_mod.o: mpi_mod.o linked_list_int_mod.o global_mesh_base_mod.o
 linked_list_mod.o: linked_list_data_mod.o
-stencil_dofmap_mod.o: master_dofmap_mod.o mesh_mod.o
+stencil_dofmap_mod.o: master_dofmap_mod.o mesh_mod.o stencil_dofmap_helper_functions_mod.o
+stencil_dofmap_helper_functions_mod.o: constants_mod.o mesh_mod.o
+stencil_2D_dofmap_mod.o: master_dofmap_mod.o mesh_mod.o \
+	stencil_dofmap_helper_functions_mod.o
 function_space_mod.o: mesh_mod.o master_dofmap_mod.o stencil_dofmap_mod.o \
 	fs_continuity_mod.o function_space_constructor_helper_functions_mod.o \
-	polynomial_mod.o
+	polynomial_mod.o stencil_2D_dofmap_mod.o
 function_space_constructor_helper_functions_mod.o: mesh_mod.o
 operator_mod.o:	function_space_mod.o
 reference_element_mod.o: constants_mod.o
