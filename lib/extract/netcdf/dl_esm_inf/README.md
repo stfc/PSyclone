@@ -35,7 +35,7 @@ this netcdf-kernel-extraction library, the dl_esm_inf infrastructure library
 and the required NetCDF parameters when compiling and linking:
 
 ```sh
-gfortran  ... -L../../../lib/extract/dl_esm_inf/netcdf -l_kernel_data_netcdf \
+gfortran  ... -L../../../lib/extract/netcdf/dl_esm_inf -l_kernel_data_netcdf \
           -L ../../../external/dl_esm_inf/finite_difference/src -l_fd        \
           $(nf-config --flibs)
 

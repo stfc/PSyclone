@@ -180,6 +180,9 @@
         cross stencils where the directions of the arms is encoded
         and their lengths may vary).
 
+        58) #956 towards #955. Changes the directory structure for
+        the dl_esm_inf netcdf PSyData wrapper library.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
