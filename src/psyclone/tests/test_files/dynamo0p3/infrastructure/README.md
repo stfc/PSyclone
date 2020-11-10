@@ -6,6 +6,8 @@ running compilation tests with ``pytest``, and the whole library
 is used to implement a standalone LFRic example that can
 be executed.
 
+TODO #968: the copyright statements might need to be updated.
+
 ## Usage in ``pytest``
 The file ``<PSYCLONEHOME>/src/psyclone/tests/lfric_build.py`` contains the list of files
 required for compilation testing (see INFRASTRUCTURE_MODULES).
