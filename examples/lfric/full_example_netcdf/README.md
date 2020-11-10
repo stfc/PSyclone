@@ -99,8 +99,8 @@ A simple makefile is provided to compile the example. It needs
 a full installation of NetCDF, since it is using ``nf-config`` to
 query the required compiler and linker flags, and the
 infrastructure library ``liblfric_netcdf.a`` provided in
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``. If
-the latter is not available, it will be automatically compiled.
+``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
+If the latter is not available, it will be automatically compiled.
 
 The following environment variables can be set to define the compiler
 you want to use:
