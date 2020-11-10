@@ -320,6 +320,10 @@ def test_structure_type():
     flag = stype.lookup("flag")
     assert isinstance(flag, StructureType.ComponentType)
     with pytest.raises(TypeError) as err:
+        stype.add(1, "hello", "hello")
+    assert ("name of a component of a StructureType must be a 'str' but got "
+            "'int'" in str(err.value))
+    with pytest.raises(TypeError) as err:
         stype.add("hello", "hello", "hello")
     assert ("type of a component of a StructureType must be a 'DataType' "
             "or 'TypeSymbol' but got 'str'" in str(err.value))
