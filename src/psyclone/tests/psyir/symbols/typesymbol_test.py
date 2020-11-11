@@ -30,17 +30,31 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# -----------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-include ../common.mk
+''' This module contains pytest tests for the TypeSymbol class. '''
 
-transform:
-	${PYTHON} create.py
-	${PYTHON} create_aggregate_types.py
+from __future__ import absolute_import
+import pytest
+from psyclone.psyir.symbols import TypeSymbol, DeferredType
 
-all: transform
 
-compile:
-	@echo "No compilation supported for the PSyIR creation examples"
+def test_create_typesymbol():
+    ''' Check that a basic TypeSymbol can be created with the expected
+    properties. '''
+    sym = TypeSymbol("my_type", DeferredType())
+    assert sym.name == "my_type"
+    assert isinstance(sym.datatype, DeferredType)
+    assert str(sym) == "my_type : TypeSymbol"
 
+
+def test_create_typesymbol_wrong_datatype():
+    ''' Check that attempting to specify the type of a TypeSymbol with an
+    invalid type results in the expected error. '''
+    sym = TypeSymbol("my_type", DeferredType())
+    with pytest.raises(TypeError) as err:
+        sym.datatype = "integer"
+    assert ("datatype of a TypeSymbol must be specified using a "
+            "DataType but got: 'str'" in str(err))

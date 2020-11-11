@@ -186,9 +186,12 @@
 	59) #954 for #745. Update PSyclone copy of the LFRic infrastructure
 	to create compilable and runnable LFRIc examples.
 
-        60) #943 for #923. Adds generation of an in-kernel boundary mask
-        when generating OpenCL kernels for GOcean. (Fixes failures seen
-        for arbitrary problem sizes.)
+	60) #943 for #923. Adds generation of an in-kernel boundary mask
+	when generating OpenCL kernels for GOcean. (Fixes failures seen
+	for arbitrary problem sizes.)
+
+	61) #911 for #363. Add support for derived/structure types.
+
 
 release 1.9.0 20th May 2020
 
