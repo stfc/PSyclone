@@ -157,7 +157,7 @@ This example shows the use of kernel data extraction in PSyclone.
 It instruments each of the two invokes in the example program
 with the PSyData-based kernel extraction code.
 It uses the dl_esm_inf-specific extraction library 'netcdf'
-(``lib/extract/dl_esm_inf/netcdf``), and needs NetCDF to be
+(``lib/extract/netcdf/dl_esm_inf``), and needs NetCDF to be
 available (including ``nf-config`` to detect installation-specific
 paths). You need to compile the NetCDF extraction library
 (see :ref:`psyke_netcdf`).
