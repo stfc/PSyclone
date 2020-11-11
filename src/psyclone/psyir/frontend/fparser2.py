@@ -1247,7 +1247,7 @@ class Fparser2Reader(object):
         table.
 
         :param parent: PSyIR node in which to insert the symbols found.
-        :type parent: :py:class:`psyclone.psyir.nodes..KernelSchedule`
+        :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
         :param symbol_table: the symbol table to which to add new symbols.
         :type symbol_table: py:class:`psyclone.psyir.symbols.SymbolTable`
         :param decl: fparser2 parse tree of declaration to process.

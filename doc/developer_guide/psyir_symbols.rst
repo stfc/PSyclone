@@ -59,7 +59,7 @@ language for which a PSyIR frontend exists. Currently therefore this
 is limited to ``UnknownFortranType``.
 
 It was decided to include datatype intrinsic as an attribute of ScalarType
-rather than subclassing. So, for example, a 4 byte real scalar is
+rather than subclassing. So, for example, a 4-byte real scalar is
 defined like this::
 
    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)

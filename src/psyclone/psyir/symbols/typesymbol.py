@@ -69,9 +69,7 @@ class TypeSymbol(Symbol):
     def datatype(self):
         '''
         :returns: datatype that this TypeSymbol represents.
-        :rtype: :py:class:`psyclone.psyir.symbols.StructureType` or \
-                :py:class:`psyclone.psyir.symbols.DeferredType` or \
-                :py:class:`psyclone.psyir.symbols.UnknownType`
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
         '''
         return self._datatype
 

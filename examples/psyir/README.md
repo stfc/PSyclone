@@ -40,7 +40,7 @@ This directory contains examples of how to create and/or modify
 instances of PSyIR and how to use backends to transform them into
 code.
 
-All of these examples require that PSyclone be installed.
+All of these examples require PSyclone to be installed.
 
 ## Example 1:
 
