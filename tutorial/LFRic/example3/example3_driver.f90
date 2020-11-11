@@ -119,17 +119,17 @@ program example3_driver
   character(len=str_short)           :: cind
 
   !-----------------------------------------------------------------------------
-  ! Set model parameters from the configuration file
-  !-----------------------------------------------------------------------------
-  call log_event( "Setting 'example3_driver' model parameters", LOG_LEVEL_INFO )
-  call read_configuration( "configuration.nml", local_rank )
-
-  !-----------------------------------------------------------------------------
-  ! Set partitioner parameters (planar mesh on a single process)
+  ! Set partitioner parameters (single process)
   !-----------------------------------------------------------------------------
   max_stencil_depth = 0
   local_rank = 0
   total_ranks = 1
+
+  !-----------------------------------------------------------------------------
+  ! Set model run parameters from the configuration file
+  !-----------------------------------------------------------------------------
+  call log_event( "Setting 'example3_driver' model parameters", LOG_LEVEL_INFO )
+  call read_configuration( "configuration.nml", local_rank )
 
   !-----------------------------------------------------------------------------
   ! Create global mesh, partition and local mesh objects

@@ -3,7 +3,7 @@
 Accompanying materials:
 
 * `Makefile` to build the code;
-* `example1_driver.f90` - an example of LFRic-lite main program that
+* `example1_driver.f90` - an example of LFRic-like main program that
   creates the required LFRic objects and calls the algorithm code in
   this Example (does not need to be modified);
 * `example1_alg_mod.x90` - an example of LFRic algorithm that sets up
