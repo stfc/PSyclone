@@ -38,18 +38,18 @@
 ! Based on the pared-down version of LFRic infrastructure stored in
 ! $PSYCLONE_DIR/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 !------------------------------------------------------------------------------
-program example1_driver
+program simple_kernels_driver
 
-  use constants_mod,        only : i_def, r_def
-  use global_mesh_base_mod, only : global_mesh_type => global_mesh_base_type
-  use mesh_mod,             only : mesh_type
-  use partition_mod,        only : partition_type,     &
-                                   partitioner_planar, &
-                                   partitioner_interface
-  use extrusion_mod,        only : uniform_extrusion_type
-  use log_mod,              only : log_event,          &
-                                   LOG_LEVEL_INFO
-  use example1_alg_mod,     only : example1_alg
+  use constants_mod,          only : i_def, r_def
+  use global_mesh_base_mod,   only : global_mesh_type => global_mesh_base_type
+  use mesh_mod,               only : mesh_type
+  use partition_mod,          only : partition_type,     &
+                                     partitioner_planar, &
+                                     partitioner_interface
+  use extrusion_mod,          only : uniform_extrusion_type
+  use log_mod,                only : log_event,          &
+                                      LOG_LEVEL_INFO
+  use simple_kernels_alg_mod, only : simple_kernels_alg
 
   implicit none
 
@@ -84,7 +84,8 @@ program example1_driver
   !-----------------------------------------------------------------------------
   ! Set model parameters
   !-----------------------------------------------------------------------------
-  call log_event( "Setting 'example1_driver' model parameters", LOG_LEVEL_INFO )
+  call log_event( "Setting 'simple_kernels_driver' model parameters", &
+                  LOG_LEVEL_INFO )
   ! Finite-element method (FEM) order
   element_order = 0
   ! Height of atmosphere in meters
@@ -129,13 +130,13 @@ program example1_driver
   !-----------------------------------------------------------------------------
   ! Call algorithms
   !-----------------------------------------------------------------------------
-  call log_event( "Calling 'example1_alg'", LOG_LEVEL_INFO )
-  call example1_alg(mesh, element_order)
+  call log_event( "Calling 'simple_kernels_alg'", LOG_LEVEL_INFO )
+  call simple_kernels_alg(mesh, element_order)
 
   !-----------------------------------------------------------------------------
   ! Tidy up after a run
   !-----------------------------------------------------------------------------
-  call log_event( "Finalising 'example1_driver'", LOG_LEVEL_INFO )
+  call log_event( "Finalising 'simple_kernels_driver'", LOG_LEVEL_INFO )
   nullify( global_mesh_ptr, partitioner_ptr, extrusion_ptr )
 
-end program example1_driver
+end program simple_kernels_driver

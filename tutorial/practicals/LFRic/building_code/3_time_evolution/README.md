@@ -1,5 +1,7 @@
 # Example 3: Time-evolution of a field on a planar mesh
 
+## Exercise
+
 ### Step 1
 
 Complete the supplied `init_perturbation_kernel_mod.f90` that initialises
@@ -86,8 +88,10 @@ field using field's `log_minmax` function (use algorithms from previous
 examples as reference, e.g. [`simple_kernels_alg_mod.x90`](
 ../1_simple_kernels/simple_kernels_alg_mod.x90).
 
-[***Link to solutions***](solutions) (run `make` in the directory
-to build and check results).
+### [Solutions](solutions)
+
+To check for the correct results, navigate to the `solutions` directory
+and run `make` to build the executable.
 
 ## Supporting materials
 
@@ -146,7 +150,7 @@ Utilities to build and run the code and read the input parameters are:
 
 `time_evolution_driver.f90` follows the order of setting up LFRic object
 stack outlined in [this full NetCDF LFRic example](
-../../../examples/lfric/full_example_netcdf/README.md):
+../../../../../examples/lfric/full_example_netcdf/README.md):
 **global 2D mesh** read from NetCDF file -> **partition** ->
 **local 3D mesh** -> **function space** -> **field**. In LFRic
 all this information is read from configuration namelists by utilising

@@ -2,7 +2,7 @@
 *.mod
 *_alg_mod.f90
 *_alg_mod_psy.f90
-example1
-example1_part1
-example1_part2
-example1_part3
+simple_kernels
+simple_kernels_part1
+simple_kernels_part2
+simple_kernels_part3

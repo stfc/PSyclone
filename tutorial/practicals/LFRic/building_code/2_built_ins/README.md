@@ -1,5 +1,7 @@
 # Example 2: Use PSyclone built-ins
 
+## Exercise
+
 The [example of simple kernels](../1_simple_kernels) in this tutorial
 shows how to build LFRic kernels and use them for simple mathematical
 operations, such as setting field to a value and adding fields.
@@ -29,8 +31,10 @@ The list and more information on the appropriate built-ins to use
 in this example can be found in the [LFRic built-ins documentation.](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins)
 
-[***Link to solutions***](solutions) (run `make` in the directory
-to build and check results).
+### [Solutions](solutions)
+
+To check for the correct results, navigate to the `solutions` directory
+and run `make` to build the executable.
 
 ## Supporting materials
 
