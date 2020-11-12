@@ -7,11 +7,13 @@
 Use PSyclone kernel stub generator to create argument list and
 declarations for two kernels, one that assigns a value to a field on
 continuous `W0` function space and another on a discontinuous `W3`
-function space. Modify the supplied algorithm `simple_kernels_alg_mod.90`
-to call these kernels from.
+function space. Modify the supplied algorithm
+[`simple_kernels_alg_mod.x90`](simple_kernels_alg_mod.x90) to call
+these kernels from.
 
 The stub for the first kernel with the required metadata can be found
-in the file `setval_field_w0_kernel_mod.f90`. Declarations and argument
+in the file [`setval_field_w0_kernel_mod.f90`](
+setval_field_w0_kernel_mod.f90). Declarations and argument
 list code can be created by running PSyclone kernel stub generator:
 
 ```bash
@@ -87,20 +89,22 @@ directory and run `make` to build the `simple_kernels_part3` executable.
 
 The following modules need to be modified:
 
-* `simple_kernels_alg_mod.x90` - an example of LFRic algorithm that sets up
-  fields and operates on them via `invoke` calls to the kernels created
-  in parts 1-3 of this example (`invoke` calls need to be completed);
-* `setval_field_w0_kernel_mod.f90` - a stub of an LFRic kernel to be
-  completed as described in Part 1 and used as a template.
+* [`simple_kernels_alg_mod.x90`](simple_kernels_alg_mod.x90) - an example
+  of LFRic algorithm that sets up fields and operates on them via `invoke`
+  calls to the kernels created in parts 1-3 of this example (`invoke`
+  calls need to be completed);
+* [`setval_field_w0_kernel_mod.f90`](setval_field_w0_kernel_mod.f90) - a
+  stub of an LFRic kernel to be completed as described in Part 1 and used
+  as a template.
 
 Utilities to build and run the code are (do not need to be modified):
 
-* `Makefile` - builds the executable program `simple_kernels` (does not
-  need to be modified). Run `make` to build the completed example and
-  `./simple_kernels` to run it;
-* `simple_kernels_driver.f90` - an example of LFRic-like main program that
-  creates the required LFRic objects and calls the algorithm code in
-  this example (does not need to be modified).
+* [`Makefile`](Makefile) - builds the executable program `simple_kernels`
+  (does not need to be modified). Run `make` to build the completed
+  example and `./simple_kernels` to run it;
+* [`simple_kernels_driver.f90`](simple_kernels_driver.f90) - an example
+  of LFRic-like main program that creates the required LFRic objects and
+  calls the algorithm code in this example.
 
 ### Driver and algorithm structure
 

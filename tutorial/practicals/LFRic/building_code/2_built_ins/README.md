@@ -13,10 +13,11 @@ for such mathematical operations. This example replaces calls to
 user-defined [LFRic kernels](../background/LFRic_kernel.md) with PSyclone
 built-ins in the [algorithm layer](../background/LFRic_algorithm.md).
 
-The provided `builtins_alg_mod.x90` defines output and two input
-fields on function spaces `W0` and `W3`, respectively. It outlines
-the creation of fields on the `W0` function space and printing out
-their `min` and `max` values. The tasks in this example are:
+The provided [`builtins_alg_mod.x90`](builtins_alg_mod.x90) defines
+output and two input fields on function spaces `W0` and `W3`,
+respectively. It outlines the creation of fields on the `W0` function
+space and printing out their `min` and `max` values. The tasks in this
+example are:
 * Create and print values of output and input fields on `W3` space
   using `W0` code as a template;
 * Use built-ins to perform the following mathematical operations:
@@ -40,19 +41,19 @@ and run `make` to build the executable.
 
 The following modules need to be modified:
 
-* `builtins_alg_mod.x90` - an example of LFRic algorithm that sets up
-  fields on `W0` and `W3` function spaces and performs simple mathematical
-  operations via a group of `invoke` calls to PSyclone LFRic API built-ins
-  (`invoke` call needs to be completed).
+* [`builtins_alg_mod.x90`](builtins_alg_mod.x90) - an example of LFRic
+  algorithm that sets up fields on `W0` and `W3` function spaces and performs
+  simple mathematical operations via a group of `invoke` calls to PSyclone
+  LFRic API built-ins (`invoke` call needs to be completed).
 
 Utilities to build and run the code are (do not need to be modified):
 
-* `Makefile` - builds the executable program `builtins` (does not
-  need to be modified). Run `make` to build the completed example and
+* [`Makefile`](Makefile) - builds the executable program `builtins` (does
+  not need to be modified). Run `make` to build the completed example and
   `./builtins` to run it;
-* `builtins_driver.f90` - an example of LFRic-like main program that
-  creates the required LFRic objects and calls the algorithm code in
-  `builtins_alg_mod.x90`.
+* [`builtins_driver.f90`](builtins_driver.f90) - an example of LFRic-like
+  main program that creates the required LFRic objects and calls the
+  algorithm code in `builtins_alg_mod.x90`.
 
 ### Driver and algorithm structure
 
