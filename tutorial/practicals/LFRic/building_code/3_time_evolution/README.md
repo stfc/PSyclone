@@ -142,7 +142,7 @@ Utilities to build and run the code and read the input parameters are:
   NetCDF-based UGRID format to create the model domain (3D partitioned
   mesh) from (does not need to be modified). The horizontal limits of
   the mesh are written down in `domain_size` namelist (does not need to
-  be modified) in the `configuration.nml` file. Viewong the file requires
+  be modified) in the `configuration.nml` file. Viewing the file requires
   [`ncdump` utility](
   https://www.unidata.ucar.edu/software/netcdf/docs/netcdf_utilities_guide.html#ncdump_guide).
 * [`plot_xy_slices_ex3.py`](plot_xy_slices_ex3.py) - plotting script for

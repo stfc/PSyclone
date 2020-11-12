@@ -29,6 +29,10 @@ is incomplete. The completed solutions are provided in the `solutions`
 subdirectories of each example, together with `Makefile`s to build
 and run the code.
 
+Each of these examples has a `solutions` subdirectory with the
+completed code that can be built and run. It is also possible to build
+the executables of all solutions from this directory by running `make`.
+
 ## LFRic code support
 
 All the examples here use a pared-down version of the LFRic infrastructure

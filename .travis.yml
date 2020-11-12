@@ -64,9 +64,6 @@ script:
   - ( make -C examples transform > /dev/null )
   # Execute all example Jupyter notebooks
   - ( make -C examples notebook )
-  # Build the LFRic practical code-building tutorial solutions. The
-  # output to stdout is redirected to /dev/null.
-  - ( make -C tutorial/practicals/LFRic/building_code > /dev/null )
 after_success:
   - codecov
 # Configure travis to deploy to the pypi server when a new
