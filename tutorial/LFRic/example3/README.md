@@ -1,36 +1,36 @@
 # Example 3: Time-evolution of a field on a planar mesh
 
-*** Step 1***
+### Step 1
 
 Complete the supplied `init_perturbation_kernel_mod.f90` that initialises
 a perturbation field on `W3` function space to the analytical function
 
-**p(x,y,z) = A(z)*exp(-((x - x<sub>c</sub>)/hw<sub>x</sub>)<sup>2</sup>
-- ((y - y<sub>c</sub>)/hw<sub>y</sub>)<sup>2</sup>**
+*p(x,y,z) = A(z)\*exp(-((x - x<sub>c</sub>)/hw<sub>x</sub>)<sup>2</sup>
+- ((y - y<sub>c</sub>)/hw<sub>y</sub>)<sup>2</sup>*
 
-where **A(z) = max(p<sub>0</sub> - z, 0)/s<sub>p</sub>**.
+where *A(z) = max(p<sub>0</sub> - z, 0)/s<sub>p</sub>*.
 
 The symbols are as follows:
 
-* **x**, **y**, **z*** - model coordinates on `Wchi` function space
+* *x*, *y*, *z* - model coordinates on `Wchi` function space
  (calculated by the supplied LFRic routine `assign_coordinate_field_mod.F90`
  in the `gungho_lib` directory;
-* **p(x,y,z)** - a bell-shaped perturbation field;
-* **p<sub>0</sub>** - maximum height of the perturbation (not higher than
+* *p(x,y,z)* - a bell-shaped perturbation field;
+* *p<sub>0</sub>* - maximum height of the perturbation (not higher than
   the model domain top);
-* **s<sub>p</sub>** - scaling factor for the amplitude of perturbation;
-* **x<sub>c</sub>** and **y<sub>c</sub>** - **x** and **y** coordinate of
+* *s<sub>p</sub>* - scaling factor for the amplitude of perturbation;
+* *x<sub>c</sub>* and *y<sub>c</sub>* - *x* and *y* coordinate of
   the centre of the perturbation field (within the domain limits);
-* **hw<sub>x</sub>** and **hw<sub>y</sub>** - half-widths of the
-  perturbation signal in **x** and **y** direction.
+* *hw<sub>x</sub>* and *hw<sub>y</sub>* - half-widths of the
+  perturbation signal in *x* and *y* direction.
 
 These parameters can be set in the `perturbation_bell` namelist located
 in the configuration file `configuration.nml`: `perturbation_height`
-(**p<sub>0</sub>**), `perturbation_scale` (**s<sub>p</sub>**), `x_centre`
-(**x<sub>c</sub>**), `y_centre` (**y<sub>c</sub>**), `half_width_x`
-(**hw<sub>x</sub>**) and `half_width_y` (**hw<sub>y</sub>**).
+(*p<sub>0</sub>*), `perturbation_scale` (*s<sub>p</sub>*), `x_centre`
+(*x<sub>c</sub>*), `y_centre` (*y<sub>c</sub>*), `half_width_x`
+(*hw<sub>x</sub>*) and `half_width_y` (*hw<sub>y</sub>*).
 
-*** Step 2***
+### Step 2
 
 After completing the kernel, complete the initialisation of `perturbation`
 field in  the `example3_alg_init` subroutine:
@@ -44,32 +44,30 @@ fields using field's `log_minmax` function (use algorithms from previous
 examples as reference, e.g. [`example1_alg_mod.x90`](
 ../example1/example1_alg_mod.x90).
 
-*** Step 3***
+### Step 3
 
 Use the completed `init_perturbation_kernel_mod.f90` as a template to
 create a kernel called `prop_perturbation_kernel_mod.f90` that propagates
 the perturbation signal in x and y direction with time by replacing
-**(x - x<sub>c</sub>)** with **(x - x<sub>c</sub> - u*t<sub>tot</sub>)**
-and **(y - y<sub>c</sub>)** with **(y - y<sub>c</sub> - v*t<sub>tot</sub>)**.
+*(x - x<sub>c</sub>)* with *(x - x<sub>c</sub> - u\*t<sub>tot</sub>)*
+and *(y - y<sub>c</sub>)* with *(y - y<sub>c</sub> - v\*t<sub>tot</sub>)*.
 
-Here **u** and **v** are constant-valued velocity components in **x** and
-**y** directions, respectively, and can be set in the `perturbation_bell`
+Here *u* and *v* are constant-valued velocity components in *x* and
+*y* directions, respectively, and can be set in the `perturbation_bell`
 namelist as `u_vel` and `v_vel`.
 
-**t<sub>tot</sub>** is the total time that is calculated as **dt** multiplied
+*t<sub>tot</sub>* is the total time that is calculated as *dt* multiplied
 by the current timestep passed from the `example3_driver`. The timestep size
 in seconds, `dt` and the start and end of timestepping loop, `timestep_start`
 and `timestep_end` can be set in the `timestepping` namelist in the
 configuration file.
 
-**Tips:** What additional information needs to be passed to the kernel from
+*Tips:* What additional information needs to be passed to the kernel from
 the `example3_alg_step` subroutine for time propagation of the field? How
 does this reflect on the metadata?
 
-
 [**Link to solutions**](solutions) (run `make` in the directory
 to build and check results).
-
 
 ## Accompanying materials:
 
