@@ -38,7 +38,7 @@
 ! Based on the pared-down version of LFRic infrastructure stored in
 ! $PSYCLONE_DIR/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 !------------------------------------------------------------------------------
-program example2_driver
+program builtins_driver
 
   use constants_mod,        only : i_def, r_def
   use global_mesh_base_mod, only : global_mesh_type => global_mesh_base_type
@@ -49,7 +49,7 @@ program example2_driver
   use extrusion_mod,        only : uniform_extrusion_type
   use log_mod,              only : log_event,          &
                                    LOG_LEVEL_INFO
-  use example2_alg_mod,     only : example2_alg
+  use builtins_alg_mod,     only : builtins_alg
 
   implicit none
 
@@ -84,7 +84,7 @@ program example2_driver
   !-----------------------------------------------------------------------------
   ! Set model parameters
   !-----------------------------------------------------------------------------
-  call log_event( "Setting 'example2_driver' model parameters", LOG_LEVEL_INFO )
+  call log_event( "Setting 'builtins_driver' model parameters", LOG_LEVEL_INFO )
   ! FEM order
   element_order = 0
   ! Height of atmosphere in meters
@@ -129,13 +129,13 @@ program example2_driver
   !-----------------------------------------------------------------------------
   ! Call algorithms
   !-----------------------------------------------------------------------------
-  call log_event( "Calling 'example2_alg'", LOG_LEVEL_INFO )
-  call example2_alg(mesh, element_order)
+  call log_event( "Calling 'builtins_alg'", LOG_LEVEL_INFO )
+  call builtins_alg(mesh, element_order)
 
   !-----------------------------------------------------------------------------
   ! Tidy up after a run
   !-----------------------------------------------------------------------------
-  call log_event( "Finalising 'example2_driver'", LOG_LEVEL_INFO )
+  call log_event( "Finalising 'builtins_driver'", LOG_LEVEL_INFO )
   nullify( global_mesh_ptr, partitioner_ptr, extrusion_ptr )
 
-end program example2_driver
+end program builtins_driver

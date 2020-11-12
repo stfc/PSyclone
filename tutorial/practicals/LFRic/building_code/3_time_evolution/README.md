@@ -119,7 +119,9 @@ Other supporting modules and libraries (no modifications required) are:
 
 Utilities to build and run the code and read the input parameters are:
 
-* `Makefile` to build the code (does not need to be modified);
+* `Makefile` - builds the executable program `time_evolution` (does not
+  need to be modified). Run `make` to build the completed example and
+  `./time_evolution` to run it;
 * `configuration.nml` - namelist that sets parameters required to run the
   model (e.g. mesh file name, domain top, perturbation parameters). The
   namelists `extrusion_uniform`, `perturbation_bell` and `timestepping`
@@ -127,7 +129,9 @@ Utilities to build and run the code and read the input parameters are:
   resolution, perturbation field behaviour and timestepping options;
 * `mesh_planar100x100-1000x1000.nc` - input 2D global planar mesh in
   NetCDF-based UGRID format to create the model domain (3D partitioned
-  mesh) from (does not need to be modified).
+  mesh) from (does not need to be modified). The horizontal limits of
+  the mesh are written down in `domain_size` namelist (does not need to
+  be modified) in the `configuration.nml` file.
 * `plot_xy_slices_ex3.py` - plotting script for model outputs. Takes
   output `*.txt` file name and string of comma-separated model levels
   in the range `(0, number_of_layers)`. E.g.

@@ -1,20 +1,20 @@
 # Example 2: Use PSyclone built-ins
 
-The [Example 1](../example1) of this tutorial shows how to build LFRic
-kernels and use them for simple mathematical operations, such as
-setting field to a value and adding fields.
+The [example of simple kernels](../1_simple_kernels) in this tutorial
+shows how to build LFRic kernels and use them for simple mathematical
+operations, such as setting field to a value and adding fields.
 
 LFRic (Dynamo 0.3) API provides
 [built-ins support](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins)
-for such mathematical operations. This Example replaces calls to
+for such mathematical operations. This example replaces calls to
 user-defined [LFRic kernels](../background/LFRic_kernel.md) with PSyclone
 built-ins in the [algorithm layer](../background/LFRic_algorithm.md).
 
-The provided `example2_alg_mod.x90` defines output and two input
+The provided `builtins_alg_mod.x90` defines output and two input
 fields on function spaces `W0` and `W3`, respectively. It outlines
 the creation of fields on the `W0` function space and printing out
-their `min` and `max` values. The tasks in this Example are:
+their `min` and `max` values. The tasks in this example are:
 * Create and print values of output and input fields on `W3` space
   using `W0` code as a template;
 * Use built-ins to perform the following mathematical operations:
@@ -26,34 +26,42 @@ their `min` and `max` values. The tasks in this Example are:
   6. Calculate `field_out_w3 = field1_in_w3 - 0.5*field2_in_w3`.
 
 The list and more information on the appropriate built-ins to use
-in this Example can be found in the [LFRic built-ins documentation.](
+in this example can be found in the [LFRic built-ins documentation.](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins)
 
-[**Link to solutions**](solutions) (run `make` in the directory
+[***Link to solutions***](solutions) (run `make` in the directory
 to build and check results).
 
-## Accompanying materials
+## Supporting materials
 
-* `example2_alg_mod.x90` - an example of LFRic algorithm that sets up
+The following modules need to be modified:
+
+* `builtins_alg_mod.x90` - an example of LFRic algorithm that sets up
   fields on `W0` and `W3` function spaces and performs simple mathematical
   operations via a group of `invoke` calls to PSyclone LFRic API built-ins
-  (`invoke` call needs to be completed);
-* `Makefile` to build the code;
-* `example2_driver.f90` - an example of LFRic-like main program that
+  (`invoke` call needs to be completed).
+
+Utilities to build and run the code are (do not need to be modified):
+
+* `Makefile` - builds the executable program `builtins` (does not
+  need to be modified). Run `make` to build the completed example and
+  `./builtins` to run it;
+* `builtins_driver.f90` - an example of LFRic-like main program that
   creates the required LFRic objects and calls the algorithm code in
-  this Example (does not need to be modified).
+  `builtins_alg_mod.x90`.
 
 ### Driver and algorithm structure
 
-As in [Example 1](
-../example1/README.md#driver-and-algorithm-structure),
-`example2_driver.f90` sets up  **global 2D mesh**, **partition** and
+As in the [simple kernels example](
+../1_simple_kernels/README.md#driver-and-algorithm-structure),
+`builtins_driver.f90` sets up  **global 2D mesh**, **partition** and
 **local 3D mesh** whilst the creation of **function space** and
-**field** object is left to the `example2_alg_mod.x90` with the
+**field** object is left to the `builtins_alg_mod.x90` with the
 help mesh and finite element order information.
 
-Unlike the Example 1, this algorithm does not need to call kernels
-to operate on field objects.
+Unlike in the [simple kernels example algorithm](
+../1_simple_kernels/simple_kernels_alg_mod.x90), this algorithm does
+not need to call kernels to operate on field objects.
 
 ## Quick intro to built-ins
 
@@ -88,7 +96,7 @@ fields in the built-in, hence metadata identifier for this way of looping,
 the same function space**.
 
 The above mentioned built-in `X_plus_Y` is one of the built-ins to be
-used in this Example, specifically to calculate
+used in this example, specifically to calculate
 
 ```
 field_out_w0 = field1_out_w0 + field2_out_w0

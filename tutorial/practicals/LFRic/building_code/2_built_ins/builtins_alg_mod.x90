@@ -37,7 +37,7 @@
 ! A module that creates fields on W0 and W3 function spaces and uses PSyclone
 ! built-ins to initialise and add the fields
 ! -----------------------------------------------------------------------------
-module example2_alg_mod
+module builtins_alg_mod
 
   use constants_mod,              only : i_def, r_def
   use log_mod,                    only : log_event, &
@@ -51,14 +51,14 @@ module example2_alg_mod
 
   private
 
-  public :: example2_alg
+  public :: builtins_alg
 
 contains
 
   !> @brief Creates and adds fields on W0 and W3 function spaces using built-ins
   !> @param[in] mesh Partitioned 3D mesh object
   !> @param[in] element_order Finite-element method (FEM) order
-  subroutine example2_alg(mesh, element_order)
+  subroutine builtins_alg(mesh, element_order)
 
     implicit none
 
@@ -79,7 +79,7 @@ contains
     ! Number of values per degree of freedom for function spaces
     integer(i_def), parameter          :: ndata_sz = 1
 
-    call log_event( "example2_alg: Running algorithm", LOG_LEVEL_INFO )
+    call log_event( "builtins_alg: Running algorithm", LOG_LEVEL_INFO )
 
     ! Create W0 and W3 function spaces with single-valued data points
     fs_w0 = function_space_type( mesh, element_order, W0, ndata_sz )
@@ -97,12 +97,6 @@ contains
 
     !---------------------------------------------------------------------------
     ! TO COMPLETE: Create fields on W3 function space
-    call field_out_w3%initialise( vector_space = fs_w3_ptr, &
-                                  name = "field_out_w3" )
-    call field1_in_w3%initialise( vector_space = fs_w3_ptr, &
-                                  name = "field1_in_w3" )
-    call field2_in_w3%initialise( vector_space = fs_w3_ptr, &
-                                  name = "field2_in_w3" )
     !---------------------------------------------------------------------------
 
     !---------------------------------------------------------------------------
@@ -114,15 +108,6 @@ contains
     ! - Initialise 'field1_in_w3' to -1
     ! - Calculate 'field2_in_w3 = 2*field1_in_w3'
     ! - Calculate 'field_out_w3 = field1_in_w3 - 0.5*field2_in_w3'
-    call invoke( name = "Builtins on W0 and W3 fields",              &
-                 setval_c(field_out_w0, 0.0_r_def),                  &
-                 setval_c(field_out_w3, 0.0_r_def),                  &
-                 setval_c(field1_in_w0, 1.0_r_def),                  &
-                 setval_c(field2_in_w0, 2.0_r_def),                  &
-                 X_plus_Y(field_out_w0, field1_in_w0, field2_in_w0), &
-                 setval_c(field1_in_w3, -1.0_r_def),                 &
-                 a_times_X(field2_in_w3, 2.0_r_def, field1_in_w3),   &
-                 X_minus_bY(field_out_w3, field1_in_w3, 0.5_r_def, field2_in_w3) )
     !---------------------------------------------------------------------------
 
     ! Check the values of W0 fields by printing the min/max values
@@ -132,14 +117,11 @@ contains
 
     !---------------------------------------------------------------------------
     ! TO COMPLETE: Check the values of W3 fields by printing the min/max values
-    call field_out_w3%log_minmax(LOG_LEVEL_INFO, field_out_w3%name)
-    call field1_in_w3%log_minmax(LOG_LEVEL_INFO, field1_in_w3%name)
-    call field2_in_w3%log_minmax(LOG_LEVEL_INFO, field2_in_w3%name)
     !---------------------------------------------------------------------------
 
-    call log_event( "example2_alg: Finalising algorithm", LOG_LEVEL_INFO )
+    call log_event( "builtins_alg: Finalising algorithm", LOG_LEVEL_INFO )
     nullify( fs_w0_ptr, fs_w3_ptr )
 
-  end subroutine example2_alg
+  end subroutine builtins_alg
 
-end module example2_alg_mod
+end module builtins_alg_mod
