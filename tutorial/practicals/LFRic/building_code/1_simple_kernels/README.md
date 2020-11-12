@@ -32,7 +32,7 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
 #### [Solutions](solutions/part1)
 
 To check for the correct results, navigate to the `solutions/part1`
-directory and run `make` to build the executable.
+directory and run `make` to build the `simple_kernels_part1` executable.
 
 ### Part 2
 
@@ -56,7 +56,7 @@ and declarations for the new kernel. Modify the supplied algorithm
 #### [Solutions](solutions/part2)
 
 To check for the correct results, navigate to the `solutions/part2`
-directory and run `make` to build the executable.
+directory and run `make` to build the `simple_kernels_part2` executable.
 
 ### Part 3
 
@@ -81,7 +81,7 @@ the solution here are `W2` and `Wtheta`.
 #### [Solutions](solutions/part3)
 
 To check for the correct results, navigate to the `solutions/part3`
-directory and run `make` to build the executable.
+directory and run `make` to build the `simple_kernels_part3` executable.
 
 ## Supporting materials
 
