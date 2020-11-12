@@ -40,31 +40,27 @@ PSyIR Types, Symbols and Data dependencies
 DataTypes
 =========
 
-PSyIR DataTypes currently support Scalar and Array types via the
-``ScalarType`` and ``ArrayType`` classes. However, they are designed
-to be easily extended. For example, a structure could be created thus:
+PSyIR DataTypes currently support Scalar, Array and Structure types
+via the ``ScalarType``, ``ArrayType`` and ``StructureType`` classes,
+respectively.  The ``StructureType`` simply contains an
+``OrderedDict`` of namedtuples, each of which holds the name, type and
+visibility of a component of the type. These types are designed to be
+composable: one might have an ``ArrayType`` with elements that are of
+a ``StructureType`` or a ``StructureType`` that has components that
+are also of (some other) ``StructureType``.
 
-::
-   
-    Class StructureType(DataType):
-       ''' My Structure class.
-
-           :param str: the name of this derived type.
-           :param type_list: a list of datatypes.
-           :type type_list: list of :py:class:`psyclone.psyir.symbols.DataType`
-
-       '''
-       def __init__(self, name, type_list):
-           # Check validity of arguments here
-           self.name = name
-           self.types = type_list
-
+There are two other types that are used in situations where the full
+type information is not currently available: ``UnknownType`` means
+that the type-declaration is not supported by the PSyIR (or the PSyIR
+frontend) and ``DeferredType`` means that the type of a particular
+symbol has not yet been resolved. Since ``UnknownType`` captures the
+original, unsupported symbol declaration, it is subclassed for each
+language for which a PSyIR frontend exists. Currently therefore this
+is limited to ``UnknownFortranType``.
 
 It was decided to include datatype intrinsic as an attribute of ScalarType
-rather than subclassing. So, for example, a 4 byte real scalar is
-defined like this
-
-::
+rather than subclassing. So, for example, a 4-byte real scalar is
+defined like this::
 
    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
 

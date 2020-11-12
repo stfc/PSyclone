@@ -33,6 +33,7 @@
 
 module kern_use_var_mod
   implicit none
+  use argument_mod
 
   type, extends(kernel_type) :: kern_use_var
      type(arg), dimension(1) :: meta_args =              &
