@@ -42,9 +42,9 @@ manipulate data objects via `invoke` calls to kernels and [built-ins](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins).
 
 In this section we use the
-[`../1_simple_kernels/example1_alg_mod.x90`](
-../1_simple_kernels/example1_alg_mod.x90) and
-[`../2_built_ins/example2_alg_mod.x90`](../2_built_ins/example2_alg_mod.x90)
+[`../1_simple_kernels/simple_kernels_alg_mod.x90`](
+../1_simple_kernels/simple_kernels_alg_mod.x90) and
+[`../2_built_ins/builtins_alg_mod.x90`](../2_built_ins/builtins_alg_mod.x90)
 to illustrate provisional structure of LFRic algorithms with `invoke` calls
 to kernels and built-ins. The complete examples are provided in relevant
 [solutions of simple kernels example]
@@ -82,7 +82,7 @@ The `invoke` calls to kernels are really calls to the *kernel objects*
 (defined as derived types, as explained in the [*LFRic kernel* section](
 LFRic_kernel.md). An example of such call can be found in the
 completed algorithm in the [first example, solutions of Part 1](
-../1_simple_kernels/solutions/part1/example1_alg_mod.x90):
+../1_simple_kernels/solutions/part1/simple_kernels_alg_mod.x90):
 
 ```fortran
     call invoke( setval_field_w0_kernel_type(field_w0, scalar_w0) )
@@ -100,7 +100,7 @@ in PSyclone (see [built-ins naming scheme](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#naming-scheme)
 for more information), e.g. looking at the completed algorithm in
 [solutions of the built-ins example](
-../2_built_ins/solutions/example2_alg_mod.x90):
+../2_built_ins/solutions/builtins_alg_mod.x90):
 
 ```fortran
     call invoke( ...
@@ -129,7 +129,7 @@ https://psyclone.readthedocs.io/en/stable/algorithm_layer.html#named-invokes)
 for the `invoke` (and hence the subroutine) call to make it easier to search
 for in the generated code. For an example of a named invoke look into e.g.
 the completed algorithm in the [solutions of second example](
-../2_built_ins/solutions/example2_alg_mod.x90):
+../2_built_ins/solutions/builtins_alg_mod.x90):
 
 ```fortran
     call invoke( name = "Builtins on W0 and W3 fields",              &
@@ -141,10 +141,10 @@ the completed algorithm in the [solutions of second example](
 ### `use` statements and encapsulation
 
 As can be seen from the example algorithms
-[`../1_simple_kernels/example1_alg_mod.x90`](
-../1_simple_kernels/example1_alg_mod.x90) and
-[`../2_built_ins/example2_alg_mod.x90`](
-../2_built_ins/example2_alg_mod.x90), the `use` statements in algorithms
+[`../1_simple_kernels/simple_kernels_alg_mod.x90`](
+../1_simple_kernels/simple_kernels_alg_mod.x90) and
+[`../2_built_ins/builtins_alg_mod.x90`](
+../2_built_ins/builtins_alg_mod.x90), the `use` statements in algorithms
 mainly serve to access the LFRic infrastructure objects (e.g. mesh,
 function space, field).
 
@@ -176,14 +176,14 @@ This process is mimicked in this tutorial as illustrated in the example
 
 To see how this code, from the completed algorithm in the
 [first example, solutions of Part 1](
-../1_simple_kernels/solutions/part1/example1_alg_mod.x90),
+../1_simple_kernels/solutions/part1/simple_kernels_alg_mod.x90),
 
 ```fortran
     call invoke( setval_field_w0_kernel_type(field_w0, scalar_w0) )
 ```
 
 translates to call to a PSy-layer subroutine we need to look into the
-generated `example1_alg_mod.f90` file (not kept in the repository)
+generated `simple_kernels_alg_mod.f90` file (not kept in the repository)
 
 ```fortran
     CALL invoke_0_setval_field_w0_kernel_type(field_w0, scalar_w0)
@@ -196,8 +196,8 @@ documentation for more information).
 
 In case of the built-in call from the completed algorithm in the
 [solutions of second example](
-../2_built_ins/solutions/example2_alg_mod.x90) the `invoke` subroutine
-call in the generated `example2_alg_mod.f90` looks something like
+../2_built_ins/solutions/builtins_alg_mod.x90) the `invoke` subroutine
+call in the generated `builtins_alg_mod.f90` looks something like
 
 ```fortran
     CALL invoke_builtins_on_w0_and_w3_fields(field_out_w0, field_out_w3, &

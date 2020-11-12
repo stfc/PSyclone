@@ -33,7 +33,7 @@ As illustrated in the [*`invoke` calls* section](
 LFRic_algorithm.md#invoke-calls) of algorithm introduction,
 the `invoke` call from the completed algorithm in the
 [simple kernels example, solutions of Part 1](
-../1_simple_kernels/solutions/part1/example1_alg_mod.x90)
+../1_simple_kernels/solutions/part1/simple_kernels_alg_mod.x90)
 
 ```fortran
     call invoke( setval_field_w0_kernel_type(field_w0, scalar_w0) )
@@ -45,10 +45,10 @@ translates to this PSy-layer subroutine call
     CALL invoke_0_setval_field_w0_kernel_type(field_w0, scalar_w0)
 ```
 
-in the generated `example1_alg_mod.f90` file (not kept in the repository).
+in the generated `simple_kernels_alg_mod.f90` file (not kept in the repository).
 
 The generated `invoke_0_setval_field_w0_kernel_type` subroutine code
-is located in the `example1_alg_mod_psy.f90` file (also not kept in the
+is located in the `simple_kernels_alg_mod_psy.f90` file (also not kept in the
 repository).
 
 There is a generated declaration and a call to the `field_w0` proxy
@@ -125,7 +125,7 @@ readability (not kept in the LFRic repository).
 As illustrated in the [*`invoke` calls* section](
 LFRic_algorithm.md#invoke-calls) of algorithm introduction,
 the `invoke` call from the completed algorithm in the
-[built-ins example solutions](../2_built_ins/solutions/example2_alg_mod.x90)
+[built-ins example solutions](../2_built_ins/solutions/builtins_alg_mod.x90)
 
 ```fortran
     call invoke( name = "Builtins on W0 and W3 fields",              &
@@ -141,10 +141,10 @@ translates to this PSy-layer subroutine call
          field1_in_w0, field2_in_w0, field1_in_w3, field2_in_w3)
 ```
 
-in the generated `example2_alg_mod.f90` file (not kept in the repository).
+in the generated `builtins_alg_mod.f90` file (not kept in the repository).
 
 The generated `invoke_builtins_on_w0_and_w3_fields` subroutine code
-is located in the `example2_alg_mod_psy.f90` file (also not kept in the
+is located in the `builtins_alg_mod_psy.f90` file (also not kept in the
 repository).
 
 As for a kernel call there are, amongst others, generated declarations and
