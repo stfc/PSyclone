@@ -5,8 +5,8 @@
 Complete the supplied `init_perturbation_kernel_mod.f90` that initialises
 a perturbation field on `W3` function space to the analytical function
 
-*p(x,y,z) = A(z)\*exp(-((x - x<sub>c</sub>)/hw<sub>x</sub>)<sup>2</sup>
-- ((y - y<sub>c</sub>)/hw<sub>y</sub>)<sup>2</sup>*
+*p(x,y,z) = A(z)\*exp\{-\[(x - x<sub>c</sub>)/hw<sub>x</sub>\]<sup>2</sup>
+\- \[(y - y<sub>c</sub>)/hw<sub>y</sub>\]<sup>2</sup>*\}
 
 where *A(z) = max(p<sub>0</sub> - z, 0)/s<sub>p</sub>*.
 
@@ -32,8 +32,9 @@ in the configuration file `configuration.nml`: `perturbation_height`
 
 ### Step 2
 
-After completing the kernel, complete the initialisation of `perturbation`
-field in  the `example3_alg_init` subroutine:
+After completing `init_perturbation_kernel_mod.f90`, complete the
+initialisation of `perturbation` field in the `time_evolution_alg_init`
+subroutine:
 
 * Use built-ins to set `perturbation` to 0;
 * Call kernel `init_perturbation_kernel_mod.f90` to set the perturbation
@@ -41,8 +42,8 @@ field in  the `example3_alg_init` subroutine:
 
 Also, check the minimum and maximum values of coordinate and perturbation
 fields using field's `log_minmax` function (use algorithms from previous
-examples as reference, e.g. [`example1_alg_mod.x90`](
-../example1/example1_alg_mod.x90).
+examples as reference, e.g. [`simple_kernels_alg_mod.x90`](
+../1_simple_kernels/simple_kernels_alg_mod.x90).
 
 ### Step 3
 
@@ -57,46 +58,89 @@ Here *u* and *v* are constant-valued velocity components in *x* and
 namelist as `u_vel` and `v_vel`.
 
 *t<sub>tot</sub>* is the total time that is calculated as *dt* multiplied
-by the current timestep passed from the `example3_driver`. The timestep size
-in seconds, `dt` and the start and end of timestepping loop, `timestep_start`
-and `timestep_end` can be set in the `timestepping` namelist in the
-configuration file.
+by the current timestep passed from the `time_evolution_driver`. The
+timestep size in seconds, `dt` and the start and end of timestepping loop,
+`timestep_start` and `timestep_end` can be set in the `timestepping`
+namelist in the configuration file.
 
-*Tips:* What additional information needs to be passed to the kernel from
-the `example3_alg_step` subroutine for time propagation of the field? How
-does this reflect on the metadata?
+*Tips:*
 
-[**Link to solutions**](solutions) (run `make` in the directory
+* What additional information needs to be passed to the kernel from
+  the `time_evolution_alg_step` subroutine for time propagation of the
+  field? How does this reflect on the metadata?
+* What additional information from the namelists needs to be used in
+  the kernel for time propagation?
+
+### Step 4
+
+After completing `prop_perturbation_kernel_mod.f90`, complete the
+time propagation of the `perturbation` field in the
+`time_evolution_alg_step` subroutine:
+
+* Calculate total propagating `t_tot` from `timestep` and `dt`;
+* Call kernel `prop_perturbation_kernel_mod.f90` to propagate the
+  perturbation in `x` and `y` directions with each timestep.
+
+Also, check the minimum and maximum values of the perturbation
+field using field's `log_minmax` function (use algorithms from previous
+examples as reference, e.g. [`simple_kernels_alg_mod.x90`](
+../1_simple_kernels/simple_kernels_alg_mod.x90).
+
+[***Link to solutions***](solutions) (run `make` in the directory
 to build and check results).
 
-## Accompanying materials:
+## Supporting materials
 
-* `example3_alg_mod.x90` - an example of LFRic algorithm that
+The following modules need to be modified or created:
+
+* `time_evolution_alg_mod.x90` - an example of LFRic-like algorithm that
   calls kernels to initialise fields and runs one model timestep (the
   `invoke` calls need to be completed);
-* `Makefile` to build the code;
-* `example3_driver.f90` - LFRic-like main program that sets up
-  the model run, runs the main timestep loop by calling routines
-  from `example3_alg_mod.x90` and outputs results by calling
-  routines from `diagnostic_alg_mod.x90` (does not need to be modified);
-
-* `diagnostic_alg_mod.x90` - calls kernels to map fields from one space
-  to another for diagnostic output and calls I/O routine (does not need
-  to be modified);
 * `init_perturbation_kernel_mod.f90` - kernel that initialises a field
   on `W3` function space to analytically prescribed function (needs to
-  be completed).
+  be completed);
+* `prop_perturbation_kernel_mod.f90` - kernel that propagates a field
+  on `W3` function space in space with time (needs to be created and
+  completed as outlined in [Step 3](#step-3)).
 
-* `configuration.nml`
-* `gungho_lib`
-* `init_perturbation_kernel_mod.f90`
-* `mesh_planar100x100-1000x1000.nc`
-* `nodal_coordinates_kernel_mod.F90`
-* `plot_xy_slices_ex3.py`
+Other supporting modules and libraries (no modifications required) are:
+
+* `time_evolution_driver.f90` - LFRic-like main program that sets up
+  the model run, runs the main timestep loop by calling routines
+  from `time_evolution_alg_mod.x90` and outputs results by calling
+  routines from `diagnostic_alg_mod.x90`;
+* `diagnostic_alg_mod.x90` - calls kernels to map fields from one space
+  to another for diagnostic output and calls I/O routine;
+* `nodal_coordinates_kernel_mod.F90` - maps coordinate fields from its
+  own function space to the function space of the output field (otherwise
+  the number of data points or DoFs would be different);
+* `gungho_lib` - collection of infrastructure and science-like libraries
+  for assigning coordinate fields, reading namelists and outputting results.
+
+Utilities to build and run the code and read the input parameters are:
+
+* `Makefile` to build the code (does not need to be modified);
+* `configuration.nml` - namelist that sets parameters required to run the
+  model (e.g. mesh file name, domain top, perturbation parameters). The
+  namelists `extrusion_uniform`, `perturbation_bell` and `timestepping`
+  can be modified to explore different model height and vertical
+  resolution, perturbation field behaviour and timestepping options;
+* `mesh_planar100x100-1000x1000.nc` - input 2D global planar mesh in
+  NetCDF-based UGRID format to create the model domain (3D partitioned
+  mesh) from (does not need to be modified).
+* `plot_xy_slices_ex3.py` - plotting script for model outputs. Takes
+  output `*.txt` file name and string of comma-separated model levels
+  in the range `(0, number_of_layers)`. E.g.
+
+  ```python
+  python plot_xy_slices_ex3.py model_state_tstep_10.txt '0,2,4'
+  ```
+  will return plots of model output at the timestep 10 and the listed
+  levels. To plot one level just supply one number.
 
 ### Driver structure
 
-`example3_driver.f90` follows the order of setting up LFRic object
+`time_evolution_driver.f90` follows the order of setting up LFRic object
 stack outlined in [this full NetCDF LFRic example](
 ../../../examples/lfric/full_example_netcdf/README.md):
 **global 2D mesh** read from NetCDF file -> **partition** ->
@@ -116,7 +160,7 @@ is very similar to LFRic code is the main timestepping loop
 
 ```fortran
   do tstep = timestep_start, timestep_end
-    call example3_alg_step(perturbation, chi, tstep)
+    call time_evolution_alg_step(perturbation, chi, tstep)
   end do
 ```
 
@@ -131,9 +175,9 @@ algorithm to have multiple subroutines, `<base_name>_init`
 (calculations of model state in one timestep) and `<base_name>_final`
 (usually clean-up of memory related to objects used in algorithms).
 
-`example3_alg_mod.x90` follows illustrates this functionality with
-subroutines `example3_alg_init` that initialises the perturbation field
-and `example3_alg_step` that calculates the field propagation for one
+`time_evolution_alg_mod.x90` follows illustrates this functionality with
+subroutines `time_evolution_alg_init` that initialises the perturbation field
+and `time_evolution_alg_step` that calculates the field propagation for one
 timestep.
 
 Algorithms can also perform auxiliary functions such as processing fields

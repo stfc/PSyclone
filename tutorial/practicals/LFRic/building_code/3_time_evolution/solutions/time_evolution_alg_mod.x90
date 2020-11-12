@@ -37,7 +37,7 @@
 ! Calls kernels to initialise a perturbation field on W3 space to analytical
 ! formula and to propagate perturbation signal in time
 ! -----------------------------------------------------------------------------
-module example3_alg_mod
+module time_evolution_alg_mod
 
   ! Infrastructure
   use constants_mod, only : i_def, r_def, str_short
@@ -50,8 +50,8 @@ module example3_alg_mod
 
   private
 
-  public :: example3_alg_init
-  public :: example3_alg_step
+  public :: time_evolution_alg_init
+  public :: time_evolution_alg_step
 
 contains
 
@@ -59,7 +59,7 @@ contains
   !> @param[in, out] perturbation Perturbation field to initialise
   !> @param[in] mesh Partitioned 3D mesh object
   !> @param[in] chi Coordinate fields on Wchi space
-  subroutine example3_alg_init(perturbation, mesh, chi)
+  subroutine time_evolution_alg_init(perturbation, mesh, chi)
 
     use init_perturbation_kernel_mod, only : init_perturbation_kernel_type
 
@@ -71,8 +71,8 @@ contains
 
     integer(i_def)   :: i
 
-    call log_event( "example3_alg_init: Initialising perturbation field", &
-                    LOG_LEVEL_INFO )
+    call log_event( "time_evolution_alg_init: Initialising perturbation "// &
+                    "field", LOG_LEVEL_INFO )
     !---------------------------------------------------------------------------
     ! TO COMPLETE (in the same invoke):
     ! - Use built-ins to set 'perturbation' to 0
@@ -81,21 +81,25 @@ contains
     !   perturbation = ampl(z)* exp( -((x - x_centre)/half_width_x)**2 &
     !                                -((y - y_centre)/half_width_y)**2 )
     !   where ampl(z) = max(perturbation_height - z, 0)/perturbation_scale
+    call invoke( name = "Initialise perturbation",  &
+                 setval_c(perturbation, 0.0_r_def), &
+                 init_perturbation_kernel_type(perturbation, chi) )
     !---------------------------------------------------------------------------
 
     !---------------------------------------------------------------------------
     ! TO COMPLETE: Check the min/max values of coordinate and perturbation
     ! fields using 'log_minmax' function
+    call perturbation%log_minmax(LOG_LEVEL_INFO, perturbation%name)
     !---------------------------------------------------------------------------
 
-  end subroutine example3_alg_init
+  end subroutine time_evolution_alg_init
 
   !> @brief Propagate perturbation field for one timestep using coordinate
   !!        data and timestep size
   !> @param[in,out] perturbation Perturbation field to propagate
   !> @param[in] chi Coordinate fields on Wchi space
   !> @param[in] step Current timestep
-  subroutine example3_alg_step(perturbation, chi, tstep)
+  subroutine time_evolution_alg_step(perturbation, chi, tstep)
 
     use timestepping_config_mod,      only : dt
     use prop_perturbation_kernel_mod, only : prop_perturbation_kernel_type
@@ -110,23 +114,28 @@ contains
     character(len=str_short) :: tstr
 
     write(tstr, '(I5)') tstep  ! Convert integer timestep to string
-    call log_event( "example3_alg_step: Propagating perturbation field "// &
-                    "at timestep "//trim(adjustl(tstr)), LOG_LEVEL_INFO )
+    call log_event( "time_evolution_alg_step: Propagating perturbation "// &
+                    "field at timestep "//trim(adjustl(tstr)), LOG_LEVEL_INFO )
     !---------------------------------------------------------------------------
     ! TO COMPLETE: Propagate the perturbation field in a loop over timesteps
     ! - Calculate total propagating 't_tot' from timestep and dt
-    ! - Create 'prop_perturbation_kernel_mod.f90' that propagates the field as
+    ! - Create and call 'prop_perturbation_kernel_mod.f90' that propagates
+    !   the field as
     !   perturbation = ampl(z)* &
     !                  exp( -((x - x_centre - u_vel*t_tot)/half_width_x)**2 &
     !                       -((y - y_centre - v_vel*t_tot)/half_width_y)**2 )
     !   where ampl(z) = max(perturbation_height - z, 0)/perturbation_scale
+     t_tot = tstep*dt
+     call invoke( name = "Propagate perturbation",  &
+                  prop_perturbation_kernel_type(perturbation, chi, t_tot) )
     !---------------------------------------------------------------------------
 
     !---------------------------------------------------------------------------
     ! TO COMPLETE: Check the min/max values of the perturbation field using
     ! 'log_minmax' function
+    call perturbation%log_minmax(LOG_LEVEL_INFO, perturbation%name)
     !---------------------------------------------------------------------------
 
-  end subroutine example3_alg_step
+  end subroutine time_evolution_alg_step
 
-end module example3_alg_mod
+end module time_evolution_alg_mod

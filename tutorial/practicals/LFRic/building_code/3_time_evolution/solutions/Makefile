@@ -42,7 +42,7 @@ SRC_PATH = ..
 VPATH = $(SRC_PATH)/
 
 # Source rules
-DRIVER_SRC = $(SRC_PATH)/example3_driver.f90
+DRIVER_SRC = $(SRC_PATH)/time_evolution_driver.f90
 ALGORITHMS = $(SRC_PATH)/diagnostic_alg_mod.x90 $(wildcard *_alg_mod.x90)
 ALGORITHM_SRC = $(notdir $(ALGORITHMS:.x90=.f90))
 PSY_SRC = $(notdir $(ALGORITHM_SRC:.f90=_psy.f90))
@@ -53,10 +53,10 @@ KERNEL_SRC = $(wildcard *_kernel_mod.F90) $(wildcard *_kernel_mod.f90) \
 PSYCLONE_CMD = -nodm -l all
 
 # Executable
-EXEC = example3
+EXEC = time_evolution
 
 # LFRic infrastructure library
-PSYCLONE_RELPATH = ../../../..
+PSYCLONE_RELPATH = ../../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME = lfric_netcdf
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a

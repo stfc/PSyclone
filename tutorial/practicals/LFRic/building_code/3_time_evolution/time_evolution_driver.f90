@@ -38,7 +38,7 @@
 ! Based on the pared-down version of LFRic infrastructure stored in
 ! $PSYCLONE_DIR/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 !------------------------------------------------------------------------------
-program example3_driver
+program time_evolution_driver
 
   ! Infrastructure
   use constants_mod,          only : i_def, i_native, r_def, str_short
@@ -76,8 +76,8 @@ program example3_driver
   use assign_coordinate_field_mod, &
                               only : assign_coordinate_field
   ! Algorithms
-  use example3_alg_mod,       only : example3_alg_init, &
-                                     example3_alg_step
+  use time_evolution_alg_mod, only : time_evolution_alg_init, &
+                                     time_evolution_alg_step
   use diagnostic_alg_mod,     only : diagnostic_alg_init, &
                                      diagnostic_alg_write
 
@@ -128,7 +128,8 @@ program example3_driver
   !-----------------------------------------------------------------------------
   ! Set model run parameters from the configuration file
   !-----------------------------------------------------------------------------
-  call log_event( "Setting 'example3_driver' model parameters", LOG_LEVEL_INFO )
+  call log_event( "Setting 'time_evolution_driver' model parameters", &
+                  LOG_LEVEL_INFO )
   call read_configuration( "configuration.nml", local_rank )
 
   !-----------------------------------------------------------------------------
@@ -196,7 +197,7 @@ program example3_driver
   ! Call algorithms
   !-----------------------------------------------------------------------------
   ! Initialise perturbation field
-  call example3_alg_init(perturbation, mesh, chi)
+  call time_evolution_alg_init(perturbation, mesh, chi)
   ! Initialise diagnostics and output initial state
   call diagnostic_alg_init(perturbation, chi)
   call diagnostic_alg_write(perturbation, chi, 0_i_def)
@@ -204,7 +205,7 @@ program example3_driver
   ! Propagate perturbation field
   call log_event( "Timestepping loop", LOG_LEVEL_INFO )
   do tstep = timestep_start, timestep_end
-    call example3_alg_step(perturbation, chi, tstep)
+    call time_evolution_alg_step(perturbation, chi, tstep)
   end do
   ! Output final state
   call diagnostic_alg_write(perturbation, chi, timestep_end)
@@ -212,9 +213,9 @@ program example3_driver
   !-----------------------------------------------------------------------------
   ! Tidy up after a run
   !-----------------------------------------------------------------------------
-  call log_event( "Finalising 'example3_driver'", LOG_LEVEL_INFO )
+  call log_event( "Finalising 'time_evolution_driver'", LOG_LEVEL_INFO )
   call final_configuration()
   nullify( global_mesh_ptr, partitioner_ptr, extrusion_ptr, &
            fs_wchi_ptr, fs_w3_ptr )
 
-end program example3_driver
+end program time_evolution_driver
