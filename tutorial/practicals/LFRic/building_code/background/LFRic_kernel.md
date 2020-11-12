@@ -7,7 +7,7 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#kernel)
 
 LFRic kernels perform mathematical operations on [a subset of data points](
 https://psyclone.readthedocs.io/en/stable/kernel_layer.html#kernel-layer)
-in LFRic data objects (fields, operators and scalars) passed
+of LFRic data objects (fields, operators and scalars) passed
 from the [algorithm](LFRic_algorithm.md) through the
 [PSy layer](LFRic_PSy.md).
 
@@ -22,10 +22,10 @@ is passed to a kernel.
 
 ## Kernel structure
 
-In this section we use the
-[`../1_simple_kernels/setval_field_w0_kernel_mod.f90`](
+In this section we use [`setval_field_w0_kernel_mod.f90`](
 ../1_simple_kernels/setval_field_w0_kernel_mod.f90) kernel stub
-to illustrate the structure of LFRic kernels (the [completed example](
+from the [simple kernels example](../1_simple_kernels) to
+illustrate the structure of LFRic kernels (the [completed example](
 ../1_simple_kernels/solutions/part1/setval_field_w0_kernel_mod.f90) is
 provided in the relevant [solutions](../1_simple_kernels/solutions/part1)).
 
