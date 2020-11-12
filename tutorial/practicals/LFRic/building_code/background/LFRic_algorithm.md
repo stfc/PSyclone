@@ -45,7 +45,7 @@ In this section we use the completed algorithms from the solutions of
 [simple kernels](../1_simple_kernels/) and [built-ins](../2_built_ins/)
 examples, [`simple_kernels_alg_mod.x90`](
 ../1_simple_kernels/solutions/part1/simple_kernels_alg_mod.x90) and
-[`builtins_alg_mod.x90`](../2_built_ins/solutions/builtins_alg_mod.x90)
+[`builtins_alg_mod.x90`](../2_built_ins/solutions/builtins_alg_mod.x90),
 to illustrate provisional structure of LFRic algorithms with `invoke` calls
 to kernels and built-ins.
 
@@ -98,7 +98,7 @@ in PSyclone (see [built-ins naming scheme](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#naming-scheme)
 for more information), e.g. looking at the completed algorithm in
 [solutions of the built-ins example](
-../2_built_ins/solutions/buitins_alg_mod.x90):
+../2_built_ins/solutions/builtins_alg_mod.x90):
 
 ```fortran
     call invoke( ...

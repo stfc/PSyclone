@@ -125,7 +125,7 @@ readability (not kept in the LFRic repository).
 As illustrated in the [*`invoke` calls* section](
 LFRic_algorithm.md#invoke-calls) of algorithm introduction,
 the `invoke` call from the completed algorithm in the
-[built-ins example solutions](../2_built_ins/solutions/buitins_alg_mod.x90),
+[built-ins example solutions](../2_built_ins/solutions/builtins_alg_mod.x90),
 
 ```fortran
     call invoke( name = "Builtins on W0 and W3 fields",              &
