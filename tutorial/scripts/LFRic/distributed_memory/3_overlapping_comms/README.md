@@ -136,7 +136,7 @@ MoveTrans).
 If you prefer, a pdf of the user guide is also available in
 <psyclone_home> and is called psyclone.pdf
 
-Have even more fun.
+Have yet more fun.
 
 ## 6. Generated code
 
