@@ -1,17 +1,5 @@
 # Example 1: Create and run simple kernels
 
-Accompanying materials:
-
-* `Makefile` to build the code;
-* `example1_driver.f90` - an example of LFRic-like main program that
-  creates the required LFRic objects and calls the algorithm code in
-  this Example (does not need to be modified);
-* `example1_alg_mod.x90` - an example of LFRic algorithm that sets up
-  fields and operates on them via `invoke` calls to the kernels created
-  in parts 1-3 of this Example (`invoke` calls need to be completed);
-* `setval_field_w0_kernel_mod.f90` - a stub of an LFRic kernel to be
-  completed as described in Part 1 and used as a template.
-
 ## Part 1
 
 Use PSyclone kernel stub generator to create argument list and
@@ -39,7 +27,8 @@ access modes for fields on continuous and discontinuous function spaces
 in PSyclone LFRic (Dynamo 0.3) API can be found [here.](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
 
-[Link to solutions](solutions/part1)
+[***Link to solutions***](solutions/part1) (run `make` in the directory
+to build and check results).
 
 ## Part 2
 
@@ -60,7 +49,8 @@ and declarations for the new kernel. Modify the supplied algorithm
 * Group kernel calls into a single `invoke`;
 * Explore naming of `invoke` call.
 
-[Link to solutions](solutions/part2)
+[***Link to solutions***](solutions/part2) (run `make` in the directory
+to build and check results).
 
 ## Part 3
 
@@ -81,4 +71,37 @@ the solution here are `W2` and `Wtheta`.
   in `argument_mod` in LFRic infrastructure;
 * Try out the kernel stub generator.
 
-[Link to solutions](solutions/part3)
+[***Link to solutions***](solutions/part3) (run `make` in the directory
+to build and check results).
+
+## Accompanying materials
+
+* `example1_alg_mod.x90` - an example of LFRic algorithm that sets up
+  fields and operates on them via `invoke` calls to the kernels created
+  in parts 1-3 of this Example (`invoke` calls need to be completed);
+* `setval_field_w0_kernel_mod.f90` - a stub of an LFRic kernel to be
+  completed as described in Part 1 and used as a template;
+* `Makefile` to build the code;
+* `example1_driver.f90` - an example of LFRic-like main program that
+  creates the required LFRic objects and calls the algorithm code in
+  this Example (does not need to be modified).
+
+### Driver and algorithm structure
+
+`example1_driver.f90` follows the order of setting up LFRic object
+stack outlined in [this full LFRic example](
+../../../examples/lfric/full_example/README.md) and very close to
+the general LFRic principle: **global 2D mesh** -> **partition** ->
+**local 3D mesh** -> **function space** -> **field**. In this example
+the last two steps of creating function space and field objects are
+done in `example1_alg_mod.x90` with the mesh and finite element order
+information as input. In LFRic the driver and algorithm layer can
+create fields, with the globally used fields set up in the driver and
+passed to algorithms. The set up of mesh and model configuration,
+however, is always done in the driver layer. Similarly, operations on
+fields using `invoke`s are exclusive to the algorithm layer.
+
+LFRic supports and usually creates objects as collections, such as
+**mesh collection**, **function space collection**. This method is
+not supported in this tutorial and adapted LFRic infrastructure in
+PSyclone.

@@ -1,16 +1,5 @@
 # Example 2: Use PSyclone built-ins
 
-Accompanying materials:
-
-* `Makefile` to build the code;
-* `example2_driver.f90` - an example of LFRic-like main program that
-  creates the required LFRic objects and calls the algorithm code in
-  this Example (does not need to be modified);
-* `example2_alg_mod.x90` - an example of LFRic algorithm that sets up
-  fields on `W0` and `W3` function spaces and performs simple mathematical
-  operations via a group of `invoke` calls to PSyclone LFRic API built-ins
-  (`invoke` call needs to be completed).
-
 The [Example 1](../example1) of this tutorial shows how to build LFRic
 kernels and use them for simple mathematical operations, such as
 setting field to a value and adding fields.
@@ -40,7 +29,31 @@ The list and more information on the appropriate built-ins to use
 in this Example can be found in the [LFRic built-ins documentation.](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins)
 
-[Link to solutions](solutions)
+[**Link to solutions**](solutions) (run `make` in the directory
+to build and check results).
+
+## Accompanying materials
+
+* `example2_alg_mod.x90` - an example of LFRic algorithm that sets up
+  fields on `W0` and `W3` function spaces and performs simple mathematical
+  operations via a group of `invoke` calls to PSyclone LFRic API built-ins
+  (`invoke` call needs to be completed);
+* `Makefile` to build the code;
+* `example2_driver.f90` - an example of LFRic-like main program that
+  creates the required LFRic objects and calls the algorithm code in
+  this Example (does not need to be modified).
+
+### Driver and algorithm structure
+
+As in [Example 1](
+../example1/README.md#driver-and-algorithm-structure),
+`example2_driver.f90` sets up  **global 2D mesh**, **partition** and
+**local 3D mesh** whilst the creation of **function space** and
+**field** object is left to the `example2_alg_mod.x90` with the
+help mesh and finite element order information.
+
+Unlike the Example 1, this algorithm does not need to call kernels
+to operate on field objects.
 
 ## Quick intro to built-ins
 

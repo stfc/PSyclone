@@ -26,7 +26,7 @@ background/LFRic_intro.md)).
 The kernel and algorithm code in the top-level `example` directories
 is incomplete. The completed solutions are provided in the `solutions`
 subdirectories of each Example, together with `Makefile`s to build
-the code.
+and run the code.
 
 ## LFRic code support
 

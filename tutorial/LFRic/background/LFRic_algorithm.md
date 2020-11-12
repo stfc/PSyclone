@@ -64,10 +64,10 @@ Roughly speaking, the main parts of an LFRic algorithm are:
 All of this is stored in a module. The naming convention for an algorithm
 module is not as strict as for kernels and it can be summarised as
 `<base_name>_alg_mod`. Also, unlike for kernels, it is usual for an
-algorithm to have more than one subroutine (for instance, time-stepping
-algorithms in LFRic often have `<base_name>_init`, `<base_name>_run` and
-`<base_name>_final` subroutines for different requirements in a
-time-stepping scheme).
+algorithm to have more than one subroutine (for instance, algorithms
+that perform timestepping in LFRic often have `<base_name>_init`,
+`<base_name>_step` and `<base_name>_final` subroutines for different
+requirements in a timestepping scheme).
 
 ### `invoke` calls
 
