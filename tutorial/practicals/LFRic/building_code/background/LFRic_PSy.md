@@ -14,7 +14,7 @@ kernels perform mathematical operations on a subset of data points
 of these objects.
 
 In the *Parallel Systems* or, in short, [PSy layer](
-https://psyclone.readthedocs.io/en/stable/psy_layer.html) PSyclone
+https://psyclone.readthedocs.io/en/stable/psy_layer.html), PSyclone
 generates calls to the accessor classes for the LFRic data objects
 passed from the algorithm layer, referred to as `<class_name>_proxy`
 (e.g. `field_proxy`) and accesses the object data by dereferencing
@@ -33,7 +33,7 @@ As illustrated in the [*`invoke` calls* section](
 LFRic_algorithm.md#invoke-calls) of algorithm introduction,
 the `invoke` call from the completed algorithm in the
 [simple kernels example, solutions of Part 1](
-../1_simple_kernels/solutions/part1/simple_kernels_alg_mod.x90)
+../1_simple_kernels/solutions/part1/simple_kernels_alg_mod.x90),
 
 ```fortran
     call invoke( setval_field_w0_kernel_type(field_w0, scalar_w0) )
@@ -125,7 +125,7 @@ readability (not kept in the LFRic repository).
 As illustrated in the [*`invoke` calls* section](
 LFRic_algorithm.md#invoke-calls) of algorithm introduction,
 the `invoke` call from the completed algorithm in the
-[built-ins example solutions](../2_built_ins/solutions/builtins_alg_mod.x90)
+[built-ins example solutions](../2_built_ins/solutions/buitins_alg_mod.x90),
 
 ```fortran
     call invoke( name = "Builtins on W0 and W3 fields",              &

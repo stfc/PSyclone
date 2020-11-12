@@ -36,8 +36,8 @@ the Met Office and external LFRic developers and users.
 
 ### PSyclone in LFRic
 
-PSyclone LFRic (Dynamo 0.3) API documentation can be found [here.](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
+PSyclone LFRic (Dynamo 0.3) API documentation can be found [here](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
 
 LFRic wiki hosts pages on the use of PSyclone in LFRic, starting with the
 [PSyclone in LFRic wiki (requires login)](
@@ -93,7 +93,7 @@ LFRic repository but do not rely on it.
 
 The main languages used in LFRic are
 [Fortran 2003](https://gcc.gnu.org/wiki/GFortranStandards#Fortran_2003)
-and [Python 3.](https://www.python.org/download/releases/3.0/) Some
+and [Python 3](https://www.python.org/download/releases/3.0/). Some
 [F2008 features](http://fortranwiki.org/fortran/show/Fortran+2008) may
 also be required (e.g. [submodules](
 http://fortranwiki.org/fortran/show/Submodules)), however the code
@@ -108,8 +108,8 @@ Some of software requirements are described in the main
 [README](../README.md) document for this tutorial. A recipe for building
 the full LFRic software stack with freely available GCC Fortran compiler
 10.2.0 and othere requirements can be found in this
-[Met Office GitHub repository.](
-https://github.com/MetOffice/NGMS-SoftwareStack/tree/main/buildScripts/Linux/GCC10)
+[Met Office GitHub repository](
+https://github.com/MetOffice/NGMS-SoftwareStack/tree/main/buildScripts/Linux/GCC10).
 
 ## Separation of concerns
 
