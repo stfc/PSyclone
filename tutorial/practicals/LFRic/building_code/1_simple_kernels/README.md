@@ -47,7 +47,7 @@ the existing `setval_field_w0_kernel_mod.f90`
 
 As in Part 1, use the kernel stub generator to create argument list
 and declarations for the new kernel. Modify the supplied algorithm
-`simple_kernels_alg_mod.90` to call these kernels from.
+`simple_kernels_alg_mod.x90` to call these kernels from.
 
 *Tips:*
 * `W3` function space and the related fields and kernels are no
@@ -65,9 +65,9 @@ directory and run `make` to build the `simple_kernels_part2` executable.
 Use the kernels `setval_fields_w0_kernel_mod.f90` and
 `add_fields_w0_kernel_mod.f90` from Part 2 as templates that can set and
 add field values for fields on any function space. Modify the supplied
-algorithm `simple_kernels_alg_mod.90` to call these kernels from. Explore other
-continuous and discontinuous function spaces in the algorithm (see the
-summary table listing the function space continuity in section
+algorithm `simple_kernels_alg_mod.x90` to call these kernels from. Explore
+other continuous and discontinuous function spaces in the algorithm (see
+the summary table listing the function space continuity in section
 [*Supported Function Spaces*](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces)
 of the PSyclone LFRic (Dynamo 0.3) API documentation). The spaces used in

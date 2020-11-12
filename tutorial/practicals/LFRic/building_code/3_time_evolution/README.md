@@ -96,7 +96,7 @@ examples as reference, e.g. [`simple_kernels_alg_mod.x90`](
 ### [Solutions](solutions)
 
 To check for the correct results, navigate to the `solutions` directory
-and run `make` to build the executable.
+and run `make` to build the `time_evolution` executable.
 
 ## Supporting materials
 

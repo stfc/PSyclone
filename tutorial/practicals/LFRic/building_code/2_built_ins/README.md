@@ -35,7 +35,7 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins)
 ### [Solutions](solutions)
 
 To check for the correct results, navigate to the `solutions` directory
-and run `make` to build the executable.
+and run `make` to build the `builtins` executable.
 
 ## Supporting materials
 
