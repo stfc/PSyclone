@@ -5,12 +5,11 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#kernel)
 
 ## What kernels do
 
-LFRic kernels perform mathematical operations on [a subset of data
-points](
+LFRic kernels perform mathematical operations on [a subset of data points](
 https://psyclone.readthedocs.io/en/stable/kernel_layer.html#kernel-layer)
 in LFRic data objects (fields, operators and scalars) passed
 from the [algorithm](LFRic_algorithm.md) through the
-[PSy layer.](LFRic_PSy.md)
+[PSy layer](LFRic_PSy.md).
 
 Scalar values are passed to a kernel from the
 [algorithm layer](LFRic_algorithm.md) as they are. In case of fields
@@ -24,11 +23,11 @@ is passed to a kernel.
 ## Kernel structure
 
 In this section we use the
-[`../example1/setval_field_w0_kernel_mod.f90`](
-../example1/setval_field_w0_kernel_mod.f90)
-kernel stub to illustrate the structure of LFRic kernels (the
-[completed example](../example1/solutions/part1/setval_field_w0_kernel_mod.f90)
-is provided in the relevant [solutions](../example1/solutions/part1)).
+[`../1_simple_kernels/setval_field_w0_kernel_mod.f90`](
+../1_simple_kernels/setval_field_w0_kernel_mod.f90) kernel stub
+to illustrate the structure of LFRic kernels (the [completed example](
+../1_simple_kernels/solutions/part1/setval_field_w0_kernel_mod.f90) is
+provided in the relevant [solutions](../1_simple_kernels/solutions/part1)).
 
 ```fortran
 module setval_field_w0_kernel_mod
@@ -106,8 +105,8 @@ such as `iterates_over` above or arrays). Here we briefly explain the contents
 of `arg_type` and `iterates_over` metadata. For more information please refer
 to the [*Metadata* section](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#metadata)
-of the LFRic (Dynamo 0.3) API [user documentation.](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html)
+of the LFRic (Dynamo 0.3) API [user documentation](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
 
 The `arg_type` in this example describes the two (hence `dimension(2)`)
 arguments that this kernel operates on:
@@ -208,8 +207,8 @@ The order of kernel arguments roughly corresponds to the order of
 ordering arguments is to put arguments that are written to first.
 LFRic kernels can update more than one field and/or operator arguments.
 However, scalar arguments in user-defined LFRic kernels must be
-[read-only.](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
+[read-only](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes).
 
 ---
 
