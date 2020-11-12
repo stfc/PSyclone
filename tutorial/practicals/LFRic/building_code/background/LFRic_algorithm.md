@@ -41,15 +41,13 @@ of the [LFRic kernels](LFRic_kernel.md). Their main function is to
 manipulate data objects via `invoke` calls to kernels and [built-ins](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins).
 
-In this section we use the
-[`../1_simple_kernels/simple_kernels_alg_mod.x90`](
-../1_simple_kernels/simple_kernels_alg_mod.x90) and
-[`../2_built_ins/builtins_alg_mod.x90`](../2_built_ins/builtins_alg_mod.x90)
+In this section we use the completed algorithms from the solutions of
+[simple kernels](../1_simple_kernels/) and [built-ins](../2_built_ins/)
+examples, [`simple_kernels_alg_mod.x90`](
+../1_simple_kernels/solutions/part1/simple_kernels_alg_mod.x90) and
+[`builtins_alg_mod.x90`](../2_built_ins/solutions/builtins_alg_mod.x90)
 to illustrate provisional structure of LFRic algorithms with `invoke` calls
-to kernels and built-ins. The complete examples are provided in relevant
-[solutions of simple kernels example]
-(../1_simple_kernels/solutions/part1) and [solutions of built-ins example](
-../2_built_ins/solutions).
+to kernels and built-ins.
 
 Both examples create fields on different function spaces on basis of the
 information about the mesh and finite-element method order passed from
@@ -100,7 +98,7 @@ in PSyclone (see [built-ins naming scheme](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#naming-scheme)
 for more information), e.g. looking at the completed algorithm in
 [solutions of the built-ins example](
-../2_built_ins/solutions/builtins_alg_mod.x90):
+../2_built_ins/solutions/buitins_alg_mod.x90):
 
 ```fortran
     call invoke( ...
@@ -141,12 +139,10 @@ the completed algorithm in the [solutions of second example](
 ### `use` statements and encapsulation
 
 As can be seen from the example algorithms
-[`../1_simple_kernels/simple_kernels_alg_mod.x90`](
-../1_simple_kernels/simple_kernels_alg_mod.x90) and
-[`../2_built_ins/builtins_alg_mod.x90`](
-../2_built_ins/builtins_alg_mod.x90), the `use` statements in algorithms
-mainly serve to access the LFRic infrastructure objects (e.g. mesh,
-function space, field).
+[`simple_kernels_alg_mod.x90`](../1_simple_kernels/simple_kernels_alg_mod.x90)
+and [`builtins_alg_mod.x90`](../2_built_ins/builtins_alg_mod.x90), the `use`
+statements in algorithms mainly serve to access the LFRic infrastructure
+objects (e.g. mesh, function space, field).
 
 Unlike [kernels](LFRic_kernel.md), there is no inheritance from an
 abstract base type. Similar to kernels, however, the general
@@ -165,7 +161,7 @@ https://psyclone.readthedocs.io/en/stable/psyclone_script.html) for more
 information on running the `psyclone` script).
 
 This process is mimicked in this tutorial as illustrated in the example
-`Makefile`s, see e.g. this code from [`../1_simple_kernels/Makefile`](
+`Makefile`s, see e.g. this code from the [simple kernels example `Makefile`](
 ../1_simple_kernels/Makefile)
 
 ```make
