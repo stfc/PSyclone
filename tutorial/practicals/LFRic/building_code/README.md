@@ -8,18 +8,18 @@ code structure and how PSyclone is used in LFRic) and three examples.
 
 ## Examples
 
-1. [**Simple kernels**](1_simple_kernels) shows how to build and use
-   simple LFRic kernels;
+1. [**Simple kernels example**](1_simple_kernels) shows how to build
+   and use simple LFRic kernels;
 
-2. [**Built-ins**](2_built_ins) shows the use of PSyclone built-ins;
+2. [**Built-ins example**](2_built_ins) shows the use of PSyclone built-ins;
 
-3. [**Time-evolution**](3_time_evolution) of a field on a planar
-   mesh (more elaborate example of LFRic code).
+3. [**Time-evolution example**](3_time_evolution) shows propagation of a
+   field on a planar mesh (more elaborate example of LFRic code).
 
 In order to mimic the LFRic code structure, an example algorithm and
 main program (driver) are provided in all Examples. In LFRic,
 [kernels](background/LFRic_kernel.md) are *invoke*d from
-[algorithms](background/LFRic_intro.md), which are in turn called
+[algorithms](background/LFRic_algorithm.md), which are in turn called
 from the top-level driver code (see the [*Separation of concerns* section](
 background/LFRic_intro.md#separation-of-concerns) in the [LFRic intro](
 background/LFRic_intro.md)).
@@ -34,8 +34,8 @@ and run the code.
 All the examples here use a pared-down version of the LFRic infrastructure
 stored in `src/psyclone/tests/test_files/dynamo0p3/infrastructure`
 directory of PSyclone repository. For more information on LFRic code
-structure and functionality see [*LFRic code structure* section](
-background/LFRic_intro.md#lfric-code-structure) of
+structure and functionality see [*LFRic repository structure* section](
+background/LFRic_intro.md#lfric-repository-structure) of the
 [introduction to LFRic](background/LFRic_intro.md).
 
 ### Implementation of PSyclone in examples
