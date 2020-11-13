@@ -2715,6 +2715,9 @@ class CodedKern(Kern):
 
         :param parent: The parent of this kernel call in the f2pygen AST.
         :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
+
+        :raises NotImplementedError: if there is a name clash preventing to \
+            module-inline the kernel without changing its name.
         '''
         from psyclone.f2pygen import CallGen, UseGen, PSyIRGen
 
@@ -2732,22 +2735,32 @@ class CodedKern(Kern):
             parent.add(UseGen(parent, name=self._module_name, only=True,
                               funcnames=[self._name]))
         else:
+            # Find the root f2pygen module
             module = parent
             while module.parent:
                 module = module.parent
 
-            module_symtab = self.root.symbol_table
+            # Check for name clashes
+            try:
+                existing_symbol = self.scope.symbol_table.lookup(self._name)
+            except KeyError:
+                existing_symbol = None
 
-            if self._name not in module_symtab:
-                module_symtab.add(RoutineSymbol(self._name))
+            if not existing_symbol:
+                # If it doesn't exist already, module-inline the subroutine
+                self.root.symbol_table.add(RoutineSymbol(self._name))
                 module.add(PSyIRGen(module, self.get_kernel_schedule()))
             else:
-                # If the symbol name is already taken, we make sure it refers
+                # If the symbol already exists, make sure it refers
                 # to the exact same subroutine.
-                if not isinstance(module_symtab.lookup(self._name),
-                                  RoutineSymbol):
-                    raise NotImplementedError("")
+                if not isinstance(existing_symbol, RoutineSymbol):
+                    raise NotImplementedError(
+                        "Can not module-inline subroutine '{0}' because symbol"
+                        "'{1}' with the same name already exists and changing"
+                        " names of module-inlined subroutines is not "
+                        "implemented yet.".format(self._name, existing_symbol))
 
+                # Make sure the generated code is an exact match
                 found = False
                 search = PSyIRGen(module, self.get_kernel_schedule()).root
                 for child in module.children:
@@ -2756,8 +2769,11 @@ class CodedKern(Kern):
                             found = True
 
                 if not found:
-                    raise NotImplementedError("")
-
+                    raise NotImplementedError(
+                        "Can not inline subroutine '{0}' because another "
+                        "subroutine with the same name already exists and"
+                        " versioning of module-inlined subroutines is not"
+                        " implemented yet.".format(self._name))
 
     def gen_arg_setter_code(self, parent):
         '''
