@@ -46,6 +46,7 @@ in DIMENSIONS and each type listed in ALL_TYPES. PREFIX can be
 used to add a prefix to static functions defined in the template.
 '''
 
+from __future__ import print_function
 
 import argparse
 import sys
@@ -102,7 +103,7 @@ dims = args.dims.split(",")
 
 # Convert to empty list if an empty dims argument was given:
 if dims == ['']:
-  dims = []
+    dims = []
 
 for dim in dims:
     try:
