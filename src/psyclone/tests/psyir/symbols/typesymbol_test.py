@@ -57,4 +57,4 @@ def test_create_typesymbol_wrong_datatype():
     with pytest.raises(TypeError) as err:
         sym.datatype = "integer"
     assert ("datatype of a TypeSymbol must be specified using a "
-            "DataType but got: 'str'" in str(err))
+            "DataType but got: 'str'" in str(err.value))
