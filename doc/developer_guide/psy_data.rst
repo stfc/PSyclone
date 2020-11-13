@@ -413,10 +413,6 @@ a detailed description), any of the profiling wrapper libraries
     that all variables have been provided. It will always be created,
     even if no variables are to be provided.
 
-    An example of a library using PSyData is included in PSyclone in the
-    directory ``.../lib/netcdf/extract``. This library is used to extract
-    kernel input- and output-parameters and store them in a NetCDF file.
-
     .. note::
 
         Only the ``PreDataStart`` call takes the module-
