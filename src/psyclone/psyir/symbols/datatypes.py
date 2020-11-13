@@ -38,6 +38,7 @@
 
 from __future__ import absolute_import
 import abc
+from collections import OrderedDict, namedtuple
 from enum import Enum
 import six
 from psyclone.errors import InternalError
@@ -68,9 +69,12 @@ class DeferredType(DataType):
         return "DeferredType"
 
 
+@six.add_metaclass(abc.ABCMeta)
 class UnknownType(DataType):
     '''
-    Indicates that the type declaration is not supported by the PSyIR.
+    Indicates that a variable declaration is not supported by the PSyIR.
+    This class is abstract and must be subclassed for each language
+    supported by the PSyIR frontends.
 
     :param str declaration_txt: string containing the original variable \
                                 declaration.
@@ -86,20 +90,32 @@ class UnknownType(DataType):
                 format(type(declaration_txt).__name__))
         self._declaration = declaration_txt
 
+    @abc.abstractmethod
     def __str__(self):
-        '''
-        :returns: a description of this unknown type.
-        :rtype: str
-        '''
-        return "UnknownType('{0}')".format(self._declaration)
+        ''' Abstract method that must be implemented in subclass. '''
 
     @property
     def declaration(self):
         '''
-        :returns: the original declaration of the symbol.
+        :returns: the original declaration of the symbol. This is obviously \
+                  language specific and hence this class must be subclassed.
         :rtype: str
         '''
         return self._declaration
+
+
+class UnknownFortranType(UnknownType):
+    '''
+    Indicates that a Fortran declaration is not supported by the PSyIR.
+
+    :param str declaration_txt: string containing the original variable \
+                                declaration.
+
+    :raises TypeError: if the supplied declaration_txt is not a str.
+
+    '''
+    def __str__(self):
+        return "UnknownFortranType('{0}')".format(self._declaration)
 
 
 class ScalarType(DataType):
@@ -346,6 +362,110 @@ class ArrayType(DataType):
             self._datatype, ", ".join(dims)))
 
 
+class StructureType(DataType):
+    '''
+    Describes a 'structure' or 'derived' datatype that is itself composed
+    of a list of other datatypes. Those datatypes are stored as an
+    OrderedDict of namedtuples.
+
+    Note, we could have chosen to use a SymbolTable to store the properties
+    of the constituents of the type. (Since they too have a name, a type,
+    and visibility.) If this class ends up duplicating a lot of the
+    SymbolTable functionality then this decision could be revisited.
+
+    '''
+    # Each member of a StructureType is represented by a ComponentType
+    # (named tuple).
+    ComponentType = namedtuple("ComponentType", ["name", "datatype",
+                                                 "visibility"])
+
+    def __init__(self):
+        self._components = OrderedDict()
+
+    def __str__(self):
+        return "StructureType<>"
+
+    @staticmethod
+    def create(components):
+        '''
+        Creates a StructureType from the supplied list of properties.
+
+        :param components: the name, type and visibility of each component.
+        :type components: list of 3-tuples
+
+        :returns: the new type object.
+        :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
+
+        '''
+        stype = StructureType()
+        for component in components:
+            if len(component) != 3:
+                raise TypeError(
+                    "Each component must be specified using a 3-tuple of "
+                    "(name, type, visibility) but found a tuple with {0} "
+                    "members: {1}".format(
+                        len(component), str(component)))
+            stype.add(component[0], component[1], component[2])
+        return stype
+
+    @property
+    def components(self):
+        '''
+        :returns: Ordered dictionary of the components of this type.
+        :rtype: :py:class:`collections.OrderedDict`
+        '''
+        return self._components
+
+    def add(self, name, datatype, visibility):
+        '''
+        Create a component with the supplied attributes and add it to
+        this StructureType.
+
+        :param str name: the name of the new component.
+        :param datatype: the type of the new component.
+        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or \
+                        :py:class:`psyclone.psyir.symbols.TypeSymbol`
+        :param visibility: whether this component is public or private.
+        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+
+        :raises TypeError: if any of the supplied values are of the wrong type.
+
+        '''
+        # This import has to be here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols import Symbol, TypeSymbol
+        if not isinstance(name, str):
+            raise TypeError(
+                "The name of a component of a StructureType must be a 'str' "
+                "but got '{0}'".format(type(name).__name__))
+        if not isinstance(datatype, (DataType, TypeSymbol)):
+            raise TypeError(
+                "The type of a component of a StructureType must be a "
+                "'DataType' or 'TypeSymbol' but got '{0}'".format(
+                    type(datatype).__name__))
+        if not isinstance(visibility, Symbol.Visibility):
+            raise TypeError(
+                "The visibility of a component of a StructureType must be "
+                "an instance of 'Symbol.Visibility' but got '{0}'".format(
+                    type(visibility).__name__))
+        if datatype is self:
+            # A StructureType cannot contain a component of its own type
+            raise TypeError(
+                "Error attempting to add component '{0}' - a StructureType "
+                "definition cannot be recursive - i.e. it cannot contain "
+                "components with the same type as itself.".format(name))
+
+        self._components[name] = self.ComponentType(name, datatype, visibility)
+
+    def lookup(self, name):
+        '''
+        :returns: the ComponentType tuple describing the named member of this \
+                  StructureType.
+        :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
+        '''
+        return self._components[name]
+
+
 # Create common scalar datatypes
 REAL_TYPE = ScalarType(ScalarType.Intrinsic.REAL,
                        ScalarType.Precision.UNDEFINED)
@@ -374,3 +494,8 @@ TYPE_MAP_TO_PYTHON = {ScalarType.Intrinsic.INTEGER: int,
                       ScalarType.Intrinsic.CHARACTER: str,
                       ScalarType.Intrinsic.BOOLEAN: bool,
                       ScalarType.Intrinsic.REAL: float}
+
+
+# For automatic documentation generation
+__all__ = ["UnknownType", "UnknownFortranType", "DeferredType", "ScalarType",
+           "ArrayType", "StructureType"]
