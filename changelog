@@ -192,6 +192,9 @@
 
 	61) #911 for #363. Add support for derived/structure types.
 
+	62) #953 for #952. Make RegionTrans and its subclasses accept a
+	node as input as well as a list of nodes.
+
 
 release 1.9.0 20th May 2020
 
