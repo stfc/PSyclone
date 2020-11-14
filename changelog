@@ -195,6 +195,8 @@
 	62) #953 for #952. Make RegionTrans and its subclasses accept a
 	node as input as well as a list of nodes.
 
+	63) PR #965. Add github actions for CI - runs flake8, pytest,
+	codecov and examples for python 2.7, 3.5 and 3.8.
 
 release 1.9.0 20th May 2020
 
