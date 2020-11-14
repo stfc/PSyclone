@@ -695,8 +695,9 @@ The current available options are:
 +--------------+---------------------------------------------+---------+
 | Option       |  Description                                | Default |
 +==============+=============================================+=========+
-| local_size   | Number of work-items to compute             | 1       |
-|              | in a single kernel.                         |         |
+| local_size   | Number of work-items to group together      | 64      |
+|              | in a work-group execution (kernel instances |         |
+|              | executed at the same time).                 |         |
 +--------------+---------------------------------------------+---------+
 | queue_number | The identifier of the OpenCL Command Queue  | 1       |
 |              | to which the kernel should be submitted.    |         |

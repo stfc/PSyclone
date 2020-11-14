@@ -40,6 +40,7 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.symbols.symbol import Symbol
+from psyclone.psyir.symbols.typesymbol import TypeSymbol
 
 
 class DataSymbol(Symbol):
@@ -115,16 +116,22 @@ class DataSymbol(Symbol):
         ''' Setter for DataSymbol datatype.
 
         :param value: new value for datatype.
-        :type value: :py:class:`psyclone.psyir.symbols.DataType`
+        :type value: :py:class:`psyclone.psyir.symbols.DataType` or \
+                     :py:class:`psyclone.psyir.symbols.TypeSymbol`
 
         :raises TypeError: if value is not of the correct type.
         :raises NotImplementedError: if the specified data type is invalid.
+
         '''
+        # We can't do this import at the toplevel as we get a circular
+        # dependency with the datatypes module.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols import DataType
-        if not isinstance(value, DataType):
+        if not isinstance(value, (DataType, TypeSymbol)):
             raise TypeError(
-                "The datatype of a DataSymbol must be specified using a "
-                "DataType but got: '{0}'".format(type(value).__name__))
+                "The datatype of a DataSymbol must be specified using either "
+                "a DataType or a TypeSymbol but got: '{0}'".format(
+                    type(value).__name__))
         self._datatype = value
 
     @property

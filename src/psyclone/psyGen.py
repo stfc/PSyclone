@@ -2610,7 +2610,7 @@ class CodedKern(Kern):
         # Whether or not to in-line this kernel into the module containing
         # the PSy layer
         self._module_inline = False
-        self._opencl_options = {'local_size': 1, 'queue_number': 1}
+        self._opencl_options = {'local_size': 64, 'queue_number': 1}
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
                 "error: In kernel '{0}' the number of arguments specified "
@@ -2944,6 +2944,7 @@ class CodedKern(Kern):
             from psyclone.psyir.backend.opencl import OpenCLWriter
             ocl_writer = OpenCLWriter(
                 kernels_local_size=self._opencl_options['local_size'])
+            self._prepare_opencl_kernel_schedule()
             new_kern_code = ocl_writer(self.get_kernel_schedule())
         elif self._kern_schedule:
             # A PSyIR kernel schedule has been created. This means
@@ -3021,6 +3022,12 @@ class CodedKern(Kern):
         kern_schedule = self.get_kernel_schedule()
         kern_schedule.name = new_kern_name[:]
         kern_schedule.root.name = new_mod_name[:]
+
+    def _prepare_opencl_kernel_schedule(self):
+        ''' Generic method to introduce kernel modifications when generating
+        OpenCL kernels. By default this does nothing, but it can be
+        sub-classed by the APIs to introduce kernel modifications.
+        '''
 
     def _rename_ast(self, suffix):
         '''

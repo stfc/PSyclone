@@ -157,7 +157,7 @@ This example shows the use of kernel data extraction in PSyclone.
 It instruments each of the two invokes in the example program
 with the PSyData-based kernel extraction code.
 It uses the dl_esm_inf-specific extraction library 'netcdf'
-(``lib/extract/dl_esm_inf/netcdf``), and needs NetCDF to be
+(``lib/extract/netcdf/dl_esm_inf``), and needs NetCDF to be
 available (including ``nf-config`` to detect installation-specific
 paths). You need to compile the NetCDF extraction library
 (see :ref:`psyke_netcdf`).
@@ -431,10 +431,16 @@ PSyIR
 -----
 
 Examples may all be found in the ``example/psyir`` directory. Read the
-``README.md`` file in this directory for details.
+``README.md`` file in this directory for full details.
 
-create.py: Constructing PSyIR
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example 1: Constructing PSyIR and Generating Code
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A Python script that demonstrates the use of ``create`` methods to
-build a PSyIR tree from scratch.
+``create.py`` is a Python script that demonstrates the use of the various
+``create`` methods to build a PSyIR tree from scratch.
+
+Example 2: Creating PSyIR for Aggregate Types
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``create_aggregate_types.py`` demonstrates the representation of
+aggregate types (i.e. Fortran derived types or C structs) in the PSyIR.
