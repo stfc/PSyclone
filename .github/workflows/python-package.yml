@@ -46,12 +46,9 @@ on:
   pull_request:
     branches: [ master ]
 jobs:
-  main:
-    name: Build and test
-    runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
   build:
     runs-on: ubuntu-latest
+    if: "! contains(toJSON(github.event.commits.*.message), '[skip ci]')"
     strategy:
       matrix:
         python-version: [2.7, 3.5, 3.8]
