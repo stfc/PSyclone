@@ -189,7 +189,7 @@ without requiring that it be fully understood. Since PSyclone uses
 fparser2 to parse Fortran, a `CodeBlock` stores the nodes of the
 underlying fparser2 parse tree that cannot be represented in the
 PSyIR. For more information on fparser2 see the associated
-[tutorial](../../notebooks) tutorial or the [User
+[tutorial](https://github.com/stfc/PSyclone#tutorial) or the [User
 Guide](https://fparser.readthedocs.io/en/latest/).
 
 We can see from the fparser2 node types printed in the description of
@@ -243,10 +243,13 @@ that contain them.
 
 From a computational-performance standpoint, the most important nodes
 are [`Loop`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1psyir_1_1nodes_1_1loop_1_1Loop.html) and
-[`InlinedKern`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1psyGen_1_1InlinedKern.html). (Again,
-since NEMO does not follow the PSyKAl separation of concerns, it is
-treated conceptually as a manually-written PSy layer in which kernels
-have been in-lined.)
+[`InlinedKern`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1psyGen_1_1InlinedKern.html). The NEMO API makes heavy use of
+`InlinedKern` rather than the `Kern` used in other PSyclone APIs. This is
+because the NEMO source code does not follow the PSyKAl separation of concerns.
+Instead, in constructing the PSyIR, the input code is treated conceptually as a
+manually-written PSy layer in which calls to kernels have been in-lined.
+Therefore an `InlinedKern` corresponds to the body of a loop in the original
+source code.
 
 3. Modify the transformation script to obtain a list of all of the
    `InlinedKern` nodes:
@@ -268,3 +271,5 @@ At this point you should be able to run PSyclone on a Fortran source
 containing NEMO-style code, use a transformation script to access the
 PSyIR of the code and be able to understand the structure of the PSyIR
 and how it relates to the original Fortran.
+
+Congratulations, you have now completed this section of the tutorial.

@@ -69,6 +69,9 @@ def trans(psy):
         sched = invoke.schedule
 
         if not sched:
+            # In NEMO, the pre-processing step can result in some
+            # subroutines that have no executable statements and
+            # therefore no Schedule.
             print("Invoke {0} has no Schedule! Skipping...".
                   format(invoke.name))
             continue
