@@ -40,7 +40,6 @@
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
-#F90FLAGS ?= -Wall -g -fcheck=bound
 
 OBJ = main_psy.o main_alg.o testkern_w0_mod.o
 
