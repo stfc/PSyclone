@@ -31,7 +31,7 @@
 
 	13) #807 for #805. Put fparser2 bare DO constructs inside CodeBlocks.
 
- 	14) #816 for #810 (fix GOcean examples to build dl_esm_inf if
+	14) #816 for #810 (fix GOcean examples to build dl_esm_inf if
 	required) and #730 (bring GOcean/eg5 up-to-date with latest dl_timer).
 
 	15) #811 for #783. Removes potential duplication of orientation
@@ -124,7 +124,7 @@
 
 	41) #887 for #876. Create a generic symbol when no better information is
 	provided about a symbol and replace the symbol later on if more
-        information is found.
+	information is found.
 
 	42) #904 for #903. Fixed an error in handling use statements (a
 	symbol clash when there should not be one).
@@ -141,40 +141,62 @@
 	46) #914 for #897. Update Coding Style in Dev guide with details
 	on raising Exceptions.
 
-        47) #878 for #832. Use Jinja and the PSyDataBase class for building
-        most of the PSyData profiling wrapper libraries.
+	47) #878 for #832. Use Jinja and the PSyDataBase class for building
+	most of the PSyData profiling wrapper libraries.
 
-        48) #915 for #908. Alters the module generation for the LFRic PSy
-        layer so that use statements for LFRic field and operator modules are
-        only generated if required.
+	48) #915 for #908. Alters the module generation for the LFRic PSy
+	layer so that use statements for LFRic field and operator modules are
+	only generated if required.
 
-        49) #922 for #921. Fixes pycodestyle errors in the code base.
+	49) #922 for #921. Fixes pycodestyle errors in the code base.
 
 	50) #899 for #896. Adds a new PSyIR Routine Node that subclasses
 	Schedule and is subclassed by KernelSchedule.
 
-        51) #932 for #931. Fixes the dependency analysis in the case
-        that no existing Symbol is found for an array access. This is
-        a workaround until the NEMO API has a fully-functioning symbol
-        table enabling the dependency analysis to be based upon Symbol
-        information (#845).
+	51) #932 for #931. Fixes the dependency analysis in the case
+	that no existing Symbol is found for an array access. This is
+	a workaround until the NEMO API has a fully-functioning symbol
+	table enabling the dependency analysis to be based upon Symbol
+	information (#845).
 
-        52) #930 for #885. Bug fix for missing halo exchange before a
-        Builtin Kernel with a field argument with read-write access.
+	52) #930 for #885. Bug fix for missing halo exchange before a
+	Builtin Kernel with a field argument with read-write access.
 
 	53) #919 for #916. Fixes errors in docstrings which show up when
 	generating the reference guide.
 
-        54) #938 for #937. Correct erroneous use of str(err) instead of
-        str(err.value) in symboltable_test.py.
+	54) #938 for #937. Correct erroneous use of str(err) instead of
+	str(err.value) in symboltable_test.py.
 
-        55) #940 for #939. Bug fix to ensure utf-8 encoding is set in both
-        Python 2 and 3 when reading files. (Required when running in
-        non-Unicode locales.)
+	55) #940 for #939. Bug fix to ensure utf-8 encoding is set in both
+	Python 2 and 3 when reading files. (Required when running in
+	non-Unicode locales.)
 
 	56) #942 for #941. Bug fix so that an exception is raised if a
 	directive is placed around a loop or code region containing a
 	codeblock.
+
+	57) #912 for #781. Adds support for '2D cross' stencils (i.e.
+	cross stencils where the directions of the arms is encoded
+	and their lengths may vary).
+
+	58) #956 towards #955. Changes the directory structure for
+	the dl_esm_inf netcdf PSyData wrapper library.
+
+	59) #954 for #745. Update PSyclone copy of the LFRic infrastructure
+	to create compilable and runnable LFRIc examples.
+
+	60) #943 for #923. Adds generation of an in-kernel boundary mask
+	when generating OpenCL kernels for GOcean. (Fixes failures seen
+	for arbitrary problem sizes.)
+
+	61) #911 for #363. Add support for derived/structure types.
+
+	62) #953 for #952. Make RegionTrans and its subclasses accept a
+	node as input as well as a list of nodes.
+
+	63) PR #965. Add github actions for CI - runs flake8, pytest,
+	codecov and examples for python 2.7, 3.5 and 3.8.
 
 release 1.9.0 20th May 2020
 
