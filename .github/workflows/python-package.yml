@@ -51,7 +51,7 @@ jobs:
     # if: github.event_name == 'push' && contains(toJson(github.event.commits), '***NO_CI***') == false && contains(toJson(github.event.commits), '[ci skip]') == false && contains(toJson(github.event.commits), '[skip ci]') == false
     #  if: "!contains(github.event.commits[0].message, '[skip ci]')"
     # This always returns False
-    if: "contains(toJSON(github.event.commits.*.message), 'skip ci') == true"
+    if: "contains(toJSON(github.event.commits.*.message), 'skip ci') == false"
     runs-on: ubuntu-latest
     # if: "! contains(toJSON(github.event.head_commit.message), 'skip ci')"
     strategy:
