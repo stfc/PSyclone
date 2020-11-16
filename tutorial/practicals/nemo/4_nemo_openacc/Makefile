@@ -48,7 +48,7 @@ F90FLAGS ?= -fopenacc -O2
 
 # We use the PSyData simple_timing implementation since it has no
 # dependencies.
-PROFILE_DIR ?= ../../../lib/profiling/simple_timing
+PROFILE_DIR ?= ../../../../lib/profiling/simple_timing
 PROFILE_LINK = -lsimple_timing
 PROFILE_LIB = ${PROFILE_DIR}/libsimple_timing.a
 
