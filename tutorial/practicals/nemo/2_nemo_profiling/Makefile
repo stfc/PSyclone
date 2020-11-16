@@ -79,3 +79,5 @@ test:
                      -opsy psy.f90 -l output tra_adv_mod.F90
 	psyclone -s ./profile_trans.py -api nemo \
                      -opsy psy.f90 -l output tra_adv_mod.F90
+	psyclone -s ./solutions/named_profile_trans.py -api nemo \
+                     -opsy psy.f90 -l output tra_adv_mod.F90

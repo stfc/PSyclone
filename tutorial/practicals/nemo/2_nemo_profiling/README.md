@@ -64,7 +64,9 @@ you have time at the end of this session.)
    profile_psydatashutdown` at the beginning and then add a call,
    `CALL profile_psydatashutdown()` as the final statement before the
    `END PROGRAM`. (This is the reason that the mini-app has been
-   restructured slightly for this tutorial.)
+   restructured slightly for this tutorial - the profiling would work
+   fine without it but this way the manual modifcations are made to
+   a separate file.)
 
    Rebuild the application (`make`) and run it. You should now
    see timing information printed to the terminal, e.g.:
@@ -115,11 +117,24 @@ in this tutorial.
        tra_adv::r0        1   0.718750000    0.718750000   0.718750000    0.718750000
        ===========================================
 
+   If you examine the PSyIR that is displayed when running PSyclone with
+   the `profiling_trans.py` script, you will see that the whole Schedule
+   now has a `Profile` node at its root:
+
+   ```bash
+    NemoInvokeSchedule[invoke='tra_adv']
+        0: Profile[]
+            Schedule[]
+                0: CodeBlock[[<class 'fparser.two....]]
+                1: If[annotations='was_single_stmt']
+                ...
+   ```
+
 ## 3. Improving the Profiling ##
 
-So far, we have only added profiling around the whole of the mini-app. We
-shall now look at using the transformation script to perform finer-grained
-profiling.
+So far, we have only used the optimisation script to add profiling
+around the whole of the mini-app. We shall now look at using the
+transformation script to perform finer-grained profiling.
 
 1. Modify the provided transformation script (`profile_trans.py`) so that
    it uses `walk` to find all Loop nodes:
@@ -170,8 +185,10 @@ profiling.
    e.g.:
 
    ```python
-   p_trans.apply(loop, {"region_name": ("NAME","HERE")})
+   p_trans.apply(loop, {"region_name": ("NAME", "HERE")})
    ```
+
+   For an example, see the `solutions/named_profile_trans.py` script.
 
 3. If you have time, you may want to try repeating this exercise using
    a different PSyData wrapper library. For CPU, the next step up from
@@ -179,8 +196,10 @@ profiling.
    is available from
    [bitbucket](https://bitbucket.org/apeg/dl_timer/src/master/). You
    will need to obtain the source for this library and then update the
-   various `PROFILE_*` variables in the Makefile in this directory.
+   three `PROFILE_*` variables in the Makefile in this directory.
 
-We have now used a PSyclone transformation to add profiling instrumentation
-to the tracer-advection mini-app. In subsequent tutorials we will look
-at using PSyclone transformations to parallelise the code.
+Congratulations, you have now completed this part of the tutorial. We
+have now used a PSyclone transformation to add profiling
+instrumentation to the tracer-advection mini-app. In subsequent
+tutorials we will look at using PSyclone transformations to
+parallelise the code.
