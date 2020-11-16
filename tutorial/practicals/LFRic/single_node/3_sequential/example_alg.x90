@@ -1,0 +1,16 @@
+subroutine example_code(field1, sum)
+use field_mod, only : field_type
+use constants_mod, only : r_def
+
+type(field_type), intent(in) :: field1
+real(kind=r_def), intent(out) :: sum
+real(field_type) :: field2, field3
+
+call invoke( &
+  setval_c(field2, 2.0_r_def), &
+  x_plus_y(result, field1, field2), &
+  inc_x_times_y(field3, result), &
+  x_innerproduct_y(sum, field3, field1) &
+)
+
+end subroutine example_code

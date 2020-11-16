@@ -39,32 +39,30 @@ API to apply loop fusion and then OpenMP parallelisation to an invoke
 with two Kernels. This can be applied via the -s option in the
 generator.py script.'''
 from psyclone.transformations import DynamoOMPParallelLoopTrans, \
-    DynamoLoopFuseTrans, TransformationError, Dynamo0p3ColourTrans
-from psyclone.psyGen import Loop
-from psyclone.domain.lfric.function_space import FunctionSpace
+    DynamoLoopFuseTrans, TransformationError
+
 
 def trans(psy):
     ''' PSyclone transformation script for the dynamo0p3 API to apply
     loop fusion and OpenMP for a particular example.'''
-    otrans = DynamoOMPParallelLoopTrans()
-    ctrans = Dynamo0p3ColourTrans()
+    ftrans = DynamoLoopFuseTrans()
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
 
-        for loop in schedule.walk(Loop):
-            if loop.field_space.orig_name not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
-               and loop.iteration_space == "cell_column":
-                ctrans.apply(loop)
-                
-        # Add OpenMP parallel do directives to the loops
-        for loop in schedule.walk(Loop):
-            try:
-                otrans.apply(loop)
-            except TransformationError as info:
-                print (str(info.value))
+    # Loop fuse the built-in kernels. The 'same_space' flag needs to
+    # be set as built-ins are over ANY_SPACE so we don't know if the
+    # loop bounds are the same.
+    ftrans.same_space = True
 
-        # take a look at what we've done
-        schedule.view()
+    try:
+        while True:
+            ftrans.apply(schedule[0], schedule[1])
+    except TransformationError:
+        pass
 
-        return psy
+    # take a look at what we've done
+    schedule.view()
+    schedule.dag(file_format="png")
+
+    return psy
