@@ -38,9 +38,11 @@ should result in Fortran code being written to the terminal, ending with:
 END PROGRAM tra_adv
 ```
 
-When examining the PSyIR and writing transformation scripts, it may be
-useful to see the documentation of the various node types. The best
-way to do this is to use the PSyclone Reference Guide available on
+When examining the PSyIR (the internal representation that PSyclone
+uses to generate and translate code) and writing transformation
+scripts, it may be useful to see the documentation of the various node
+types. The best way to do this is to use the PSyclone Reference Guide
+available on
 [readthedocs](https://psyclone-ref.readthedocs.io/en/latest/).
 
 ## 1. Processing NEMO Fortran code with PSyclone ##
@@ -56,6 +58,7 @@ must specify `-api nemo`:
 This command should result in PSyclone processing the supplied Fortran
 and then re-generating it and writing it to stdout:
 
+```bash
     Transformed algorithm code:
     None
     Generated psy layer code:
@@ -63,14 +66,17 @@ and then re-generating it and writing it to stdout:
       USE iso_c_binding, ONLY: C_INT64_T
       INTEGER, PARAMETER :: wp = 8
       ...
+```
 
 Note that there is no algorithm code because NEMO does not follow the
-PSyKAl separation of concerns. Instead, PSyclone treats each
-subroutine (or program) as though it is a manually-written PSy layer.
+PSyKAl separation of concerns (see the [User
+Guide](https://psyclone.readthedocs.io/en/stable/introduction.html#introduction)
+for a description of PSyKAl). Instead, PSyclone treats each subroutine
+(or program) as though it is a manually-written PSy layer.
 
-In order to compile the output Fortran we need it to be written to
-a file instead of stdout. This is achieved with the `-opsy` flag so
-that doing:
+In order to compile the Fortran that is output by PSyclone we need it
+to be written to a file instead of stdout. This is achieved with the
+`-opsy` flag so that doing:
 
 ```bash
     $ psyclone -api nemo -opsy psy.f90 tra_adv.F90
@@ -137,13 +143,15 @@ PSyIR.
 
 In order to examine the PSyIR for the mini-app we will supply PSyclone
 with a transformation script, `schedule_view_trans.py`. This is done
-via the `-s` flag to PSyclone:
+via the `-s` flag to PSyclone (note that the directory containing the
+transformation script - `./` in this case - must be specified
+otherwise PSyclone will be unable to find the script):
 
     $ psyclone -api nemo -l output -opsy psy.f90 -s ./schedule_view_trans.py ./tra_adv.F90
 
 This should report that it has found one invoke named `tra_adv` (the
 name of the Fortran program) and proceed to display a text view of the
-PSyIR of that invoke:
+PSyIR of that invoke. This will be a lot of output, beginning with:
 
     Invokes found:
     tra_adv
@@ -175,14 +183,21 @@ Node also support semantic navigation. For instance, the Loop node has
 and the Directive node has `directive_body`.
 
 The first child node of the `NemoInvokeSchedule` obtained for the
-mini-app is a `CodeBlock`. This is an important node type since it makes
-it possible for the PSyIR to represent arbitrary Fortran code without
-requiring that it be fully understood. We can see from the fparser
-node types printed in the description of the `CodeBlock` that this
-particular node represents various subroutine calls (those querying
-the values of the environment variables), reads, writes and the
-allocate statements. None of these are computationally significant and
-therefore are not interesting from a performance point of view.
+mini-app is a `CodeBlock`. This is an important node type since it
+makes it possible for the PSyIR to represent arbitrary Fortran code
+without requiring that it be fully understood. Since PSyclone uses
+fparser2 to parse Fortran, a `CodeBlock` stores the nodes of the
+underlying fparser2 parse tree that cannot be represented in the
+PSyIR. For more information on fparser2 see the associated
+[tutorial](../../notebooks) tutorial or the [User
+Guide](https://fparser.readthedocs.io/en/latest/).
+
+We can see from the fparser2 node types printed in the description of
+the `CodeBlock` that this particular node represents various
+subroutine calls (those querying the values of the environment
+variables), reads, writes and the allocate statements. None of these
+are computationally significant and therefore are not interesting from
+a performance point of view.
 
 1. Modify the transformation script so that it breaks-out into the Python
    debugger once it has obtained the `Schedule` of the Invoke:
