@@ -1,9 +1,10 @@
 # Using PSyclone to add OpenACC to NEMO - Tutorial 4 #
 
-This tutorial builds on what has been covered in parts 1-3 in order
-to construct an optimisation script that adds OpenACC directives to
-the tra_adv mini-app. When built with a suitable compiler this then
-enables the code to be run on a GPU.
+This tutorial follows on from Tutorials 1-3 and assumes that you are
+comfortable with the topics covered there. It constructs an
+optimisation script that adds OpenACC directives to the tracer-advection
+mini-app. When built with a suitable compiler this then enables the
+code to be run on a GPU but this is not required for this tutorial.
 
 You may find it helpful to read the section on
 [OpenACC](https://psyclone.readthedocs.io/en/stable/transformations.html?highlight=accdatatrans#openacc)
@@ -16,28 +17,27 @@ https://www.openacc.org/sites/default/files/inline-files/OpenACC.2.6.final.pdf
 
 ## Prerequisites ##
 
-Are the same as those for the first tutorial
-(../1_nemo_psyir/README.md).
+Are the same as those for the previous NEMO tutorials.
 
 ## Optional ##
 
-It is not necessary to be able to compile the generated OpenACC code
-but if you wish to then you will also need a Fortran compiler with
-OpenACC support. Versions 8 and higher of gfortran have OpenACC
-support (but you will need to ensure that the offloading support is
-installed, e.g. sudo apt install gcc-offload-nvptx) or you can use the
-NVIDIA HPC SDK (https://developer.nvidia.com/hpc-sdk).  Obviously, to
-actually execute the code you will need access to a machine with a GPU
-but that too is optional. Note that if you are doing this we will
-assume you are familiar with executing code on a GPU in your local
-environment.
+In this tutorial it is not necessary to be able to compile the
+generated OpenACC code but if you wish to then you will also need a
+Fortran compiler with OpenACC support. Versions 8 and higher of
+gfortran have OpenACC support (but you will need to ensure that the
+offloading support is installed, e.g. sudo apt install
+gcc-offload-nvptx) or you can use the NVIDIA HPC SDK
+(https://developer.nvidia.com/hpc-sdk).  Obviously, to actually
+execute the code you will need access to a machine with a GPU but that
+too is optional. Note that if you are doing this we will assume you
+are familiar with executing code on a GPU in your local environment.
 
 ## Parallelisation using KERNELS ##
 
 The simplest way to add OpenACC directives to a code is often to use
 the KERNELS directive - this instructs the compiler to automatically
 parallelise any loop nests within the marked-up region. In PSyclone
-this is achieved by applying the [`ACCKernelsTrans`][ref_kernelstrans]
+this is achieved by applying the [`ACCKernelsTrans`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCKernelsTrans.html)
 transformation to suitable regions of the code. The advantage of this
 approach is that it minimises the number of directives that must be
 inserted and makes use of the compiler's own dependency analysis to
@@ -72,12 +72,13 @@ subroutines and certain types of statement that are known to trigger
 compiler bugs (e.g. `MIN(my_array(:,:,:), dim=2)` causes problems with
 NVIDIA (PGI) < 20.7).
 
-It is therefore necessary to exercise fine-grained control when
-inserting KERNELS regions and this tutorial will walk through some of
-the steps. (If you already have OpenACC experience you will see that
-some of these steps are not going to result in performant code,
-however, they are included here to help students grasp the various
-ways in which PSyclone can be used.)
+When working with a large code such as NEMO, it is therefore necessary
+to exercise fine-grained control when inserting KERNELS regions. In
+this tutorial we will walk through some of the steps and apply them to
+the tracer-advection mini-app. (If you already have OpenACC experience
+you will see that some of these steps are not going to result in
+performant code, however, they are included here to illustrate the
+various ways in which PSyclone can be used.)
 
 ### 1. Enclose loops over vertical levels ###
 
@@ -99,15 +100,15 @@ ways in which PSyclone can be used.)
    loop over the children of that loop, identify those that are loops of
    the correct "levels" type, and transform them:
    ```python
-    for child in tloop.loop_body.children:
+    for node in tloop.loop_body.children:
         if isinstance(node, Loop) and node.loop_type == "levels":
 	    ACC_KERNELS_TRANS.apply(node)
    ```
 
 2. Use the supplied Makefile to run PSyclone and generate the transformed
-   code. If you examine the generated Fortran in `psy.f90` you should see
-   that ACC Kernels Directive nodes have been added to the Schedule,
-   e.g.:
+   code (just type `make`). If you examine the generated Fortran in `psy.f90`
+   you should see that ACC Kernels Directive nodes have been added to the
+   Schedule, e.g.:
    ```fortran
     DO jt = 1, it
       !$ACC KERNELS
@@ -212,7 +213,7 @@ where page faults on either the CPU or GPU cause the necessary memory
 to be moved automatically to the correct location.
 
 Explicit data movement can be controlled using OpenACC Data Regions and
-PSyclone can create these using the [`ACCDataTrans`][ref_datatrans]
+PSyclone can create these using the [`ACCDataTrans`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCDataTrans.html)
 transformation. A data region can be used to keep data on the GPU
 between various kernel invocations.
 
@@ -293,10 +294,14 @@ performance. For instance, we can expose more parallelism to the
 compiler by instructing it to 'collapse' (merge into a single
 iteration space) tightly-nested inner loops. We do this in PSyclone by
 applying the `ACCLoopTrans` transformation in order to decorate a loop
-(or loops) with an ACC LOOP directive.
+(or loops) with an `ACC LOOP` directive.
+
+We'll start by using this transformation without any additional options
+so that it will just create `ACC LOOP INDEPENDENT` directives. We'll then
+add the necessary option to add the `COLLAPSE` clause.
 
 1. Create a brand-new transformation script and, for demonstration purposes,
-   apply the `ACCLoopTrans` to every 'latitude' loop:
+   apply the `ACCLoopTrans` without any options to every 'latitude' loop:
    ```python
     from psyclone.transformations import ACCLoopTrans, TransformationError
     ACC_LOOP_TRANS = ACCLoopTrans()
@@ -337,7 +342,7 @@ applying the `ACCLoopTrans` transformation in order to decorate a loop
    loops that are *within* this region (i.e. children of the 'iteration'
    loop):
    ```python
-    loops = tnode.walk(Loop)
+    loops = tloop.walk(Loop)
     for loop in loops if loop.loop_type == "lat":
         ACC_LOOP_TRANS.apply(loop)
    ```
@@ -410,7 +415,3 @@ Congratulations! You have now completed the OpenACC part of the
 tutorial.  You should now understand the basic OpenACC transformations
 provided by PSyclone and how these can be used to accelerate
 NEMO-style code on a GPU.
-
-[ref_kernelstrans]: https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCKernelsTrans.html "ACCKernelsTrans"
-
-[ref_datatrans]: https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCDataTrans.html "ACCDataTrans"

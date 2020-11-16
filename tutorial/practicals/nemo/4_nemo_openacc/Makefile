@@ -35,6 +35,9 @@
 
 # Makefile for the PSyclone NEMO OpenACC tutorial.
 
+# By default we only generate the transformed code
+.DEFAULT_GOAL := psy.f90
+
 # The PSyclone transformation script to use
 TRANS_SCRIPT ?= ./kernels_trans.py
 

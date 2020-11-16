@@ -61,8 +61,8 @@ tutorial:
         sched = psy.invokes.get('tra_adv').schedule
    ```
    this is just a choice. Normally a script will be written to be as
-   general as possible but occasionally something tailored to a particular
-   routine may be required.
+   general as possible but occasionally, something tailored to a
+   particular routine may be required.
 
  * it blindly applies a transformation to each loop over vertical levels
    that is an immediate child of the Schedule:
@@ -80,7 +80,7 @@ Note that in this tutorial we will only be applying OpenMP
 parallelisation to the loops over vertical levels. This is because, in
 the full NEMO code, the horizontal domain is already decomposed over
 MPI processes and there is no attempt to exploit the parallelism
-available in the vertical.  This paralllelism is available throughout
+available in the vertical.  This parallelism is available throughout
 the majority of the code. (Of course, it would also be possible to use
 OpenMP to parallelise the horizontal domain in NEMO so as to reduce
 the number of MPI processes and resulting inter-process communication.)
@@ -162,8 +162,10 @@ the number of MPI processes and resulting inter-process communication.)
              umask(ji, jj, jk) = ji * jj * jk / r
    ```
 
-   Note that all scalars accessed within the loop are declared as thread
-   private. All other variables are declared to be shared between threads.
+   Note that PSyclone has automatically identified all scalars
+   accessed within the loop and has declared them as thread
+   private. All other variables are declared to be shared between
+   threads.
 
 4. We are now ready to do our first parallel run. The number of threads
    to use is set via the OMP_NUM_THREADS environment variable at run
@@ -245,11 +247,20 @@ Hopefully you too will be able to see a speedup when running the code
 on your machine. Note that there are many things to consider when
 looking at performance including (but not limited to); the compiler
 and compiler flags, the number of physical cores your particular CPU
-has, binding threads to cores, ensuring repeatable timings, and any
-other, competing activity on your machine. This is all well beyond the
-scope of this tutorial.
+has, binding threads to cores, whether or not you're running inside a
+Virtual Machine, ensuring repeatable timings, and any other, competing
+activity on your machine. This is all well beyond the scope of this
+tutorial.
 
 ## 4. Improving Performance ##
+
+The next section is optional and so, depending on how much time you
+have, you may want to move on to the OpenACC part of this tutorial
+(../4_nemo_openacc). If you are interested but don't have much time
+then example solutions are provided in the
+`parallel_region_omp_trans.py` and
+`general_parallel_region_omp_trans.py` scripts in the `solutions`
+directory.
 
 If time allows then it is possible to improve upon the parallelisation
 achieved in the previous section by creating parallel regions containing

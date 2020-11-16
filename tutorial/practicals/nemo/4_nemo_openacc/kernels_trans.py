@@ -48,7 +48,7 @@ have already been preprocessed (if required).
 '''
 
 from __future__ import print_function
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Assignment
 from psyclone.transformations import (TransformationError, ACCKernelsTrans,
                                       ACCDataTrans)
 
