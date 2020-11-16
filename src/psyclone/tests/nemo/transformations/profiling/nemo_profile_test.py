@@ -46,9 +46,8 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.configuration import Config
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import PSyDataNode, Loop, ProfileNode
+from psyclone.psyir.nodes import PSyDataNode
 from psyclone.psyir.transformations import ProfileTrans, TransformationError
-from psyclone.profiler import Profiler
 
 # The transformation that most of these tests use
 PTRANS = ProfileTrans()
@@ -419,6 +418,7 @@ def test_profiling_no_spec_part(parser, monkeypatch):
 def test_profiling_missing_end(parser):
     ''' Check that we raise the expected error if we are unable to find
     the end of the profiled code section in the parse tree. '''
+    from psyclone.psyGen import Loop
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
                                       "integer :: jpj, ji\n"
@@ -543,88 +543,3 @@ def test_no_return_in_profiling(parser):
         PTRANS.apply(schedule.children)
     assert ("Nodes of type 'Return' cannot be enclosed by a ProfileTrans "
             "transformation" in str(err.value))
-
-
-def test_profile_nemo_auto_kernels(parser):
-    '''Check that valid kernels are instrumented in the NEMO API
-    and that loops that do not contain kernels are not. '''
-    Profiler.set_options([Profiler.KERNELS])
-    psy, schedule = get_nemo_schedule(parser,
-                                      "program do_loop\n"
-                                      "integer :: jpj, ji\n"
-                                      "real :: sto_tmp(jpj)\n"
-                                      "do ji = 1,jpj\n"
-                                      "  sto_tmp(ji) = 1.0d0\n"
-                                      "end do\n"
-                                      "do ji = 1,jpj\n"
-                                      "  write(*,*) sto_tmp(ji)\n"
-                                      "end do\n"
-                                      "end program do_loop\n")
-    Profiler.add_profile_nodes(schedule, Loop)
-    pnodes = schedule.walk(ProfileNode)
-    # The second loop will contain a CodeBlock and therefore is not a kernel
-    assert len(pnodes) == 1
-    code = str(psy.gen).lower()
-    # Check that it's the first loop that's had profiling added
-    assert ("  type(profile_psydatatype), target, save :: profile_psy_data0\n"
-            "  call profile_psy_data0 % prestart('do_loop', 'r0', 0, 0)\n"
-            "  do ji = 1, jpj" in code)
-
-
-def test_profile_nemo_loop_nests(parser):
-    ''' Check that the automatic kernel-level profiling handles a
-    tightly-nested loop containing a valid kernel. '''
-    Profiler.set_options([Profiler.KERNELS])
-    psy, schedule = get_nemo_schedule(parser,
-                                      "program do_loop\n"
-                                      "integer :: jpi, jpj, ji, jj\n"
-                                      "real :: sto_tmp(jpi,jpj)\n"
-                                      "do jj = 1, jpj\n"
-                                      "  do ji = 1,jpi\n"
-                                      "    sto_tmp(ji,jj) = 1.0d0\n"
-                                      "  end do\n"
-                                      "end do\n"
-                                      "end program do_loop\n")
-    Profiler.add_profile_nodes(schedule, Loop)
-    code = str(psy.gen).lower()
-    # Check that it's the outer loop that's had profiling added
-    assert ("  type(profile_psydatatype), target, save :: profile_psy_data0\n"
-            "  call profile_psy_data0 % prestart('do_loop', 'r0', 0, 0)\n"
-            "  do jj = 1, jpj" in code)
-
-
-def test_profile_nemo_loop_imperfect_nest(parser):
-    ''' Check that the automatic kernel-level profiling handles a
-    tightly-nested loop within an imperfectly-nested loop. '''
-    Profiler.set_options([Profiler.KERNELS])
-    psy, schedule = get_nemo_schedule(parser,
-                                      "program do_loop\n"
-                                      "integer :: jpi, jpj, ji, jj\n"
-                                      "integer :: npt, jt\n"
-                                      "logical :: ln_use_this\n"
-                                      "real :: sto_tmp(jpi,jpj)\n"
-                                      "if(ln_use_this)then\n"
-                                      "  do jt = 1, npt\n"
-                                      "    do jj = 1, jpj\n"
-                                      "      do ji = 1,jpi\n"
-                                      "        sto_tmp(ji,jj) = 1.0d0\n"
-                                      "      end do\n"
-                                      "    end do\n"
-                                      "    do ji = 1, jpi\n"
-                                      "      sto_tmp(ji,1) = 0.0d0\n"
-                                      "    end do\n"
-                                      "  end do\n"
-                                      "end if\n"
-                                      "end program do_loop\n")
-    Profiler.add_profile_nodes(schedule, Loop)
-    pnodes = schedule.walk(ProfileNode)
-    assert len(pnodes) == 2
-    tloop = schedule[0].if_body[0]
-    assert isinstance(tloop.loop_body[0], ProfileNode)
-    assert isinstance(tloop.loop_body[1], ProfileNode)
-    code = str(psy.gen).lower()
-    assert ("        end do\n"
-            "      end do\n"
-            "      call profile_psy_data0 % postend\n"
-            "      call profile_psy_data1 % prestart('do_loop', 'r1', 0, 0)\n"
-            "      do ji = 1, jpi" in code)

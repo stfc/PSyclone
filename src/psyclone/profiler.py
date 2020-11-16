@@ -41,8 +41,6 @@
 
 from __future__ import absolute_import, print_function
 from psyclone.errors import GenerationError
-from psyclone.psyir.transformations import ProfileTrans
-from psyclone.psyGen import Kern
 
 
 class Profiler():
@@ -106,29 +104,19 @@ class Profiler():
     def add_profile_nodes(schedule, loop_class):
         '''This function inserts all required Profiling Nodes (for invokes
         and kernels, as specified on the command line) into a schedule.
-
         :param schedule: The schedule to instrument.
-        :type schedule: :py:class:`psyclone.psyGen.InvokeSchedule` or subclass
+        :type schedule: :py:class:`psyclone.psyGen.InvokeSchedule` or \
+                        derived class
         :param loop_class: The loop class (e.g. GOLoop, DynLoop) to instrument.
-        :type loop_class: :py:class:`psyclone.psyir.nodes.Loop` or subclass
-
+        :type loop_class: :py:class:`psyclone.psyir.nodes.Loop` or \
+                          derived class.
         '''
+
+        from psyclone.psyir.transformations import ProfileTrans
         profile_trans = ProfileTrans()
         if Profiler.profile_kernels():
-            kernels = schedule.walk(Kern)
-            for kernel in kernels:
-                # For each kernel, we walk back up to find the outermost loop
-                # of the specified class
-                target = None
-                parent_loop = kernel.ancestor(loop_class)
-                while parent_loop:
-                    nchildren = len(parent_loop.loop_body.children)
-                    if nchildren != 1:
-                        # We only permit tightly-nested loops
-                        break
-                    target = parent_loop
-                    parent_loop = parent_loop.ancestor(loop_class)
-                if target:
-                    profile_trans.apply(target)
+            for i in schedule.children:
+                if isinstance(i, loop_class):
+                    profile_trans.apply(i)
         if Profiler.profile_invokes():
             profile_trans.apply(schedule.children)
