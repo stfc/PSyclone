@@ -364,4 +364,4 @@ def test_create_structuretype():
             ("george", Symbol.Visibility.PRIVATE)])
     assert ("Each component must be specified using a 3-tuple of (name, "
             "type, visibility) but found a tuple with 2 members: ("
-            "'george', " in str(err))
+            "'george', " in str(err.value))
