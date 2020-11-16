@@ -34,7 +34,7 @@ you have time at the end of this session.)
 1. Use the supplied Makefile to generate a version of the mini-app with
    profiling automatically inserted around each routine:
 
-       $ make tra_adv.exe
+       $ make
 
    When examining the generated Fortran code (in `psy.f90`), you
    should see that PSyclone has added `USE profile_psy_data_mod, ONLY:
@@ -45,7 +45,9 @@ you have time at the end of this session.)
    mini-app.  The supplied Makefile will build the 'simple_timing'
    implementation of this library and link our mini-app against it.
 
-   At this point, the compiled application can be run:
+   At this point, the compiled application can be run (ensure you have
+   the necessary environment variables set first - see
+   ../1_nemo_psyir/README.md):
 
        $ ./tra_adv.exe
 
@@ -64,7 +66,7 @@ you have time at the end of this session.)
    `END PROGRAM`. (This is the reason that the mini-app has been
    restructured slightly for this tutorial.)
 
-   Rebuild the application (`make tra_adv.exe`) and run it. You should now
+   Rebuild the application (`make`) and run it. You should now
    see timing information printed to the terminal, e.g.:
 
        ===========================================
@@ -80,9 +82,10 @@ you have time at the end of this session.)
    to be instrumented for profiling.
 
 3. Edit the Makefile so that the line invoking PSyclone uses the
-   `--profile kernels` option instead. Rebuild and run the mini-app. You
-   should now see timing for four regions that have been identified as
-   kernels by PSyclone:
+   `--profile kernels` option instead. Rebuild (you'll need to do a
+   `make clean` to ensure that a new `psy.f90` is generated) and run
+   the mini-app. You should now see timing for four regions that have
+   been identified as kernels by PSyclone:
    
        ===========================================
        module::region   count	sum		min		average         max
