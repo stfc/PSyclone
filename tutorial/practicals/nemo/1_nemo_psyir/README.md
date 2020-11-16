@@ -12,20 +12,31 @@ Silvia Mocavero of CMCC.
 You will need a Linux shell with a working Python installation in
 which PSyclone has been installed. (See the top-level README.md for
 installation instructions.) In order to compile and run the
-generated code then you will also need a Fortran compiler: gfortran is
+generated code you will also need a Fortran compiler: gfortran is
 fine.
 
-Check that PSyclone is installed and working correctly by doing:
+Check that PSyclone is installed and configured correctly by doing
+(assuming that your current working directory is the one containing
+this file):
 
-    $ psyclone -h
+```bash
+    $ cd ../../../../examples/nemo/eg1
+    $ make transform
+    $ cd -
+```
 
-You should see help information, beginning with:
+If everything is working correctly then the `make transform` command
+should result in Fortran code being written to the terminal, ending with:
 
-    usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API] [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE]
-                [-l {off,all,output}] [-dm] [-nodm] [--kernel-renaming {multiple,single}] [--profile {invokes,kernels}]
-                [--config CONFIG] [-v]
-                filename
-    ...
+```fortran
+  ...
+  DEALLOCATE(rnfmsk)
+  DEALLOCATE(upsmsk)
+  DEALLOCATE(rnfmsk_z)
+  DEALLOCATE(tsn)
+  CALL timer_report
+END PROGRAM tra_adv
+```
 
 When examining the PSyIR and writing transformation scripts, it may be
 useful to see the documentation of the various node types. The best
