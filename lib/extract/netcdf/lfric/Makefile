@@ -38,22 +38,37 @@
 # It also uses nf-config to query for flags required for NetCDF compilation.
 
 F90 ?= gfortran
+F90FLAGS ?=
 
 # For now pick up the compile environment from an
 # external installation of LFRIc
-LFRIC_DIR ?= ../../../../../../lfric/work/trunk/miniapps/gravity_wave/working/field/
+LFRIC_DIR ?= ../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 
 F90FLAGS ?= 
 F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
+PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
+                       -dims=1,2,3,4
+
+$(LIB_NAME): psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
+	${AR} ${ARFLAGS} ${LIB_NAME} $^
+
 default: $(LIB_NAME)
 
-$(LIB_NAME):	kernel_data_netcdf.o
-	${AR} ${ARFLAGS} ${LIB_NAME} $^
+kernel_data_netcdf.o:	extract_netcdf_base.o
+extract_netcdf_base.o:	psy_data_base.o
+
+psy_data_base.f90: ../../../psy_data_base.jinja Makefile
+	../../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+
+
+extract_netcdf_base.f90: ../extract_netcdf_base.jinja Makefile
+	../../../process.py $(PROCESS_ARGS) $< > extract_netcdf_base.f90
+
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(LIB_NAME)
+	rm -f *.o *.mod $(LIB_NAME) psy_data_base.f90 extract_netcdf_base.f90
