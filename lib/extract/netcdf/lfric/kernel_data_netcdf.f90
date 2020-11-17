@@ -55,8 +55,8 @@ module extract_psy_data_mod
     type, extends(ExtractNetcdfBaseType), public:: extract_PsyDataType
  
     contains
-        ! The various procedures provided here:
-        procedure :: DeclareFieldDouble,   WriteFieldDouble
+        ! The various procedures defined here
+        procedure :: DeclareFieldDouble,       WriteFieldDouble
         procedure :: DeclareFieldVectorDouble, WriteFieldVectorDouble
 
         !> The generic interface for declaring a variable:
@@ -93,6 +93,7 @@ module extract_psy_data_mod
                                            ReadScalarDouble,      &
                                            ReadArray3dDouble,     &
                                            ReadArray4dDouble
+                                  
     end type extract_PSyDataType
 
 Contains
@@ -105,14 +106,14 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareFieldDouble(this, name, value)
-        use netcdf, only : nf90_def_var, nf90_def_dim, NF90_REAL8
         use field_mod, only : field_type, field_proxy_type
         implicit none
+
         class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
         type(field_type), intent(in)                      :: value
 
-        type(field_proxy_type)                            :: value_proxy
+        type(field_proxy_type) :: value_proxy
 
         value_proxy = value%get_proxy()
         call this%ExtractNetcdfBaseType%DeclareArray1dDouble(name, value_proxy%data)
@@ -126,14 +127,14 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteFieldDouble(this, name, value)
-        use netcdf, only: nf90_put_var
-        use field_mod, only : field_type, field_proxy_type
+        use field_mod, only: field_type, field_proxy_type
         implicit none
+
         class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
         type(field_type), intent(in)                      :: value
 
-        type(field_proxy_type)                            :: value_proxy
+        type(field_proxy_type) :: value_proxy
 
         value_proxy = value%get_proxy()
         call this%ExtractNetcdfBaseType%WriteArray1dDouble(name, value_proxy%data)
@@ -148,20 +149,26 @@ Contains
         use netcdf, only: nf90_def_dim, nf90_def_var, NF90_REAL8
         use field_mod, only : field_type, field_proxy_type
         implicit none
+
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
         type(field_type), dimension(:), intent(in)        :: value
 
-        integer                                           :: i
-        type(field_proxy_type)                            :: value_proxy
-        character(8)                                      :: index_string
+        integer                :: i
+        type(field_proxy_type) :: value_proxy
+        character(9)           :: number
 
-        do i=1, size(value, 1)
-            write(index_string, '("(",i0,")")') i
-            value_proxy = value(i)%get_proxy()
-            call this%ExtractNetcdfBaseType%                      &
-                      DeclareArray1dDouble(name//"%"//trim(index_string), &
-                                           value_proxy%data)
+
+        ! Provide each dimension of the vector as an individual 1d array.
+        ! The base class will re-allocate internal array sizes if required
+        do i = 1, size(value)
+            value_proxy = value(1)%get_proxy()
+            ! We add a '%' here to avoid a potential name clash if
+            ! the user should have a vector field 'a' (which is now stored
+            ! as a%1, a%2, ...), and a field 'a1'
+            write(number, '("%",i0)') i
+            call this%ExtractNetcdfBaseType%  &
+                 DeclareArray1dDouble(name//trim(number), value_proxy%data)
         enddo
 
     end subroutine DeclareFieldVectorDouble
@@ -181,20 +188,20 @@ Contains
         character(*), intent(in)                          :: name
         type(field_type), dimension(:), intent(in)        :: value
 
-        integer                                           :: i
-        type(field_proxy_type)                            :: value_proxy
-        character(8)                                      :: index_string
+        integer                :: i
+        type(field_proxy_type) :: value_proxy
+        character(9)           :: number
 
+        ! Provide each dimension of the vector as an individual 1d array.
+        value_proxy = value(1)%get_proxy()
         do i=1, size(value, 1)
-            write(index_string, '("(",i0,")")') i
             value_proxy = value(i)%get_proxy()
-            call this%ExtractNetcdfBaseType%                      &
-                      WriteArray1dDouble(name//"%"//trim(index_string), &
-                                         value_proxy%data)
+            write(number, '("%",i0)') i
+            call this%ExtractNetcdfBaseType% &
+                 WriteArray1dDouble(name//trim(number), value_proxy%data)
         enddo
 
     end subroutine WriteFieldVectorDouble
 
-    ! -------------------------------------------------------------------------
 
 end module extract_psy_data_mod

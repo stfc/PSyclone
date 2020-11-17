@@ -197,8 +197,14 @@ Contains
         retval = CheckError(nf90_create(module_name//"-"//region_name//".nc", &
                                         NF90_CLOBBER, this%ncid))
         ! Allocate the array that will store the variable IDs of all
-        ! variables that are going to be declared:
-        allocate(this%var_id(num_pre_vars+num_post_vars))
+        ! variables that are going to be declared. Note that there might
+        ! actually be more variables stored (in LFRic vector fields are
+        ! stored as individual NetCDF variables, so a 3d vector field
+        ! would actually use 3 netcdf variables). If required, this
+        ! this array will be re-allocated in the declare functions.
+        if (.not. allocated(this%var_id)) then
+            allocate(this%var_id(num_pre_vars+num_post_vars))
+        endif
         
     end subroutine PreStart
 
@@ -295,10 +301,24 @@ Contains
     subroutine DeclareScalar{{name}}(this, name, value)
         use netcdf, only: nf90_def_var, {{NETCDF_TYPE}}
         implicit none
+
         class(ExtractNetcdfBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        {{type}}, intent(in) :: value
-        integer :: retval
+        character(*), intent(in)                            :: name
+        {{type}}, intent(in)                                :: value
+
+        integer                            :: retval
+        integer, dimension(:), allocatable :: tmp_var_id
+
+        if (this%next_var_index > size(this%var_id)) then
+            ! This can happen in LFRic when vector fields are used
+            ! Each dimension of this vector becomes one NetCDF
+            ! variable, so we need to potentially reallocate this field
+            allocate(tmp_var_id(2*size(this%var_id)))
+            tmp_var_id(1:size(this%var_id)) = this%var_id
+            deallocate(this%var_id)
+            call move_alloc(tmp_var_id, this%var_id)
+            ! tmp_var_id is deallacted as part of move_alloc
+        endif
         retval = CheckError(nf90_def_var(this%ncid, name, {{NETCDF_TYPE}},     &
                                          this%var_id(this%next_var_index)))
         call this%PSyDataBaseType%DeclareScalar{{name}}(name, value)
@@ -368,13 +388,24 @@ Contains
 
         !class(PSyDataBaseType         ), intent(inout), target :: this
         class(ExtractNetcdfBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        {{type}}, dimension({{DIMENSION}}), intent(in) :: value
-        integer :: {{vars}}
-        integer :: retval
-        integer, dimension({{dim}}) :: dimids
+        character(*), intent(in)                            :: name
+        {{type}}, dimension({{DIMENSION}}), intent(in)      :: value
+
+        integer                            :: {{vars}}
+        integer                            :: retval
+        integer, dimension({{dim}})        :: dimids
+        integer, dimension(:), allocatable :: tmp_var_id
 
         if (.not. is_enabled) return
+
+
+        if (this%next_var_index > size(this%var_id)) then
+            allocate(tmp_var_id(2*size(this%var_id)))
+            tmp_var_id(1:size(this%var_id)) = this%var_id
+            deallocate(this%var_id)
+            call move_alloc(tmp_var_id, this%var_id)
+            ! tmp_var_id is deallacted as part of move_alloc
+        endif
 
         {% for i in range(1, dim+1) %}
         retval = CheckError(nf90_def_dim(this%ncid, name//"dim{{i}}",  &
