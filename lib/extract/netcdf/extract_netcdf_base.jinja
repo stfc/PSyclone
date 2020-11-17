@@ -147,11 +147,13 @@ Contains
     function CheckError(retval) 
         use netcdf, only: nf90_noerr, nf90_strerror
         implicit none
-        integer :: CheckError
+
         integer, intent(in) :: retval
+        integer             :: CheckError
+
         if (retval /= nf90_noerr) then
-            print *,"NetCDF Error:"
-            print *,trim(nf90_strerror(retval))
+            write(stderr, *) "NetCDF Error:"
+            write(stderr, *) trim(nf90_strerror(retval))
             stop
         endif
         CheckError = retval
@@ -185,9 +187,13 @@ Contains
                         num_post_vars)
         use netcdf, only: nf90_create, NF90_CLOBBER
         implicit none
+
         class(ExtractNetcdfBaseType), intent(inout), target :: this
-        character(*), intent(in) :: module_name, region_name
-        integer, intent(in)      :: num_pre_vars, num_post_vars
+        character(*), intent(in)                            :: module_name, &
+                                                               region_name
+        integer, intent(in)                                 :: num_pre_vars, &
+                                                               num_post_vars
+
         integer :: retval
 
         call this%PSyDataBaseType%PreStart(module_name, region_name, &
@@ -220,8 +226,10 @@ Contains
     subroutine OpenRead(this, module_name, kernel_name)
         use netcdf, only : nf90_open, NF90_NOWRITE
         implicit none
+
         class(ExtractNetcdfBaseType), intent(inout), target :: this
-        character(*), intent(in) :: module_name, kernel_name
+        character(*), intent(in)                            :: module_name, &
+                                                               kernel_name
         integer :: retval
 
         retval = CheckError(nf90_open(module_name//"-"//kernel_name//".nc", &
@@ -238,7 +246,9 @@ Contains
     subroutine PreEndDeclaration(this)
         use netcdf, only : nf90_enddef
         implicit none
+
         class(ExtractNetcdfBaseType), intent(inout), target :: this
+
         integer :: retval
 
         call this%PSyDataBaseType%PreEndDeclaration()
@@ -254,6 +264,7 @@ Contains
     subroutine PreEnd(this)
         implicit none
         class(ExtractNetcdfBaseType), intent(inout), target :: this
+
         call this%PSyDataBaseType%PreEnd()
     end subroutine PreEnd
 
@@ -266,6 +277,7 @@ Contains
     subroutine PostStart(this)
         implicit none
         class(ExtractNetcdfBaseType), intent(inout), target :: this
+
         call this%PSyDataBaseType%PostStart()
     end subroutine PostStart
 
@@ -277,7 +289,9 @@ Contains
     subroutine PostEnd(this)
         use netcdf, only : nf90_close
         implicit none
+
         class(ExtractNetcdfBaseType), intent(inout), target :: this
+
         integer :: retval
         retval = CheckError(nf90_close(this%ncid))
         call this%PSyDataBaseType%PostEnd()
@@ -334,10 +348,12 @@ Contains
     subroutine WriteScalar{{name}}(this, name, value)
         use netcdf, only: nf90_put_var
         implicit none
+
         class(ExtractNetcdfBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        {{type}}, intent(in) :: value
-        integer :: retval
+        character(*), intent(in)                            :: name
+        {{type}}, intent(in)                                :: value
+        integer                                             :: retval
+
         retval = CheckError(nf90_put_var(this%ncid, this%var_id(this%next_var_index),  &
                                          value))
         call this%PSyDataBaseType%ProvideScalar{{name}}(name, value)
@@ -357,9 +373,11 @@ Contains
         implicit none
 
         class(ExtractNetcdfBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        {{type}}, intent(out) :: value
-        integer :: retval, varid
+        character(*), intent(in)                            :: name
+        {{type}}, intent(out)                               :: value
+
+        integer                                             :: retval, varid
+
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
     end subroutine ReadScalar{{name}}
@@ -382,11 +400,9 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareArray{{dim}}d{{name}}(this, name, value)
-
         use netcdf
         implicit none
 
-        !class(PSyDataBaseType         ), intent(inout), target :: this
         class(ExtractNetcdfBaseType), intent(inout), target :: this
         character(*), intent(in)                            :: name
         {{type}}, dimension({{DIMENSION}}), intent(in)      :: value
@@ -427,9 +443,10 @@ Contains
     subroutine WriteArray{{dim}}d{{name}}(this, name, value)
         use netcdf, only: nf90_put_var
         implicit none
+
         class(ExtractNetcdfBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
-        {{type}}, dimension({{DIMENSION}}), intent(in) :: value
+        character(*), intent(in)                            :: name
+        {{type}}, dimension({{DIMENSION}}), intent(in)      :: value
 
         integer :: retval
 
@@ -453,16 +470,16 @@ Contains
         use netcdf
         implicit none
 
-        class(ExtractNetcdfBaseType), intent(inout), target :: this
-        character(*), intent(in) :: name
+        class(ExtractNetcdfBaseType), intent(inout), target          :: this
+        character(*), intent(in)                                     :: name
         {{type}}, dimension({{DIMENSION}}), allocatable, intent(out) :: value
-        integer :: retval, varid
-        integer :: dim_id
+
+        integer        :: retval, varid
+        integer        :: dim_id
         {# Create list of variables: "dimid1,dimid2,dimid3,dimid4" #}
         {% set dim_sizes = "dim_size"~range(1,dim+1)|join(",dim_size") %}
-        integer :: {{dim_sizes}}
-        integer :: ierr
-        character(100) :: x
+        integer        :: {{dim_sizes}}
+        integer        :: ierr
 
         ! First query the dimensions of the original r2d_field from the
         ! netcdf file
@@ -476,8 +493,9 @@ Contains
         ! Allocate enough space to store the values to be read:
         allocate(value({{dim_sizes}}), Stat=ierr)
         if (ierr /= 0) then
-            print *,"Cannot allocate array for ", name, &
-                    " of size ", {{dim_sizes}}, " in ReadArray{{dim}}d{{name}}."
+            write(stderr,*) "Cannot allocate array for ", name, &
+                            " of size ", {{dim_sizes}},         &
+                            " in ReadArray{{dim}}d{{name}}."
             stop
         endif
         ! Initialise it with 0, so that an array comparison will work
