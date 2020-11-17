@@ -1,6 +1,7 @@
 # LFRic algorithm
 
-[*Algorithm layer in LFRic in PSyclone documentation*](
+[*See also the description of the LFRic Algorithm layer in the
+PSyclone documentation*](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#algorithm)
 
 ## What algorithms do

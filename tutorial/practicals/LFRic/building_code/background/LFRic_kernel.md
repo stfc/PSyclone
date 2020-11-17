@@ -1,6 +1,7 @@
 # LFRic kernel
 
-[*Kernel layer in LFRic in PSyclone documentation*](
+[*See also the description of the LFRic Kernel layer in the
+PSyclone documentation*](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#kernel)
 
 ## What kernels do
@@ -11,10 +12,11 @@ of LFRic data objects (fields, operators and scalars) passed
 from the [algorithm](LFRic_algorithm.md) through the
 [PSy layer](LFRic_PSy.md).
 
-Scalar values are passed to a kernel from the
-[algorithm layer](LFRic_algorithm.md) as they are. In case of fields
-and operators, however, LFRic kernels operate on a subset of degrees
-of freedom (DoFs) of these objects. Such a subset occupies a portion
+Scalar values are passed to a kernel from the [algorithm layer](
+LFRic_algorithm.md) as they are. In the case of fields and
+operators, however, LFRic kernels operate on a subset of the degrees
+of freedom (DoFs) of these objects, e.g. those on a single column of
+cells or even a single DoF. Such a subset occupies a portion
 of the computational domain (e.g. an entire mesh or a partition of a
 mesh that the field's DoFs are placed on). The subsections below
 illustrate the LFRic kernel structure and how the relevant information
@@ -22,7 +24,7 @@ is passed to a kernel.
 
 ## Kernel structure
 
-In this section we use [`setval_field_w0_kernel_mod.f90`](
+In this section we use the [`setval_field_w0_kernel_mod.f90`](
 ../1_simple_kernels/setval_field_w0_kernel_mod.f90) kernel stub
 from the [simple kernels example](../1_simple_kernels) to
 illustrate the structure of LFRic kernels (the [completed example](
@@ -84,7 +86,7 @@ use kernel_mod,        only: kernel_type
 
 Looking at the `setval_field_w0_kernel_type` above, there are two main
 parts of an LFRic kernel:
-* Metadata that tells PSyclone how to operate on a kernel;
+* Metadata that tells PSyclone how to generate code to call a kernel;
 * Subroutine with the argument list, declarations and executable code.
 
 All of this is stored in a module. The naming convention for the module,
@@ -98,7 +100,7 @@ Here the `<base_name>` is `setval_field_w0`.
 
 ### Kernel metadata
 
-The PSyclone metadata are stored as the *private* data within the definition
+The PSyclone metadata is stored as the *private* data within the definition
 of an individual kernel type. They come in two main forms: derived types
 (e.g. `arg_type` in the above example) and `integer` arguments (single-valued
 such as `iterates_over` above or arrays). Here we briefly explain the contents
@@ -110,11 +112,11 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
 
 The `arg_type` in this example describes the two (hence `dimension(2)`)
 arguments that this kernel operates on:
-* A field argument (`GH_FIELD`) with the degrees of freedom (DoFs) on `W0`
-  function space that is being updated in this kernel (`GH_INC` access for
-  updating fields on continuous function spaces);
-* A `real`-valued scalar (`GH_REAL`) whose value is read (`GH_READ`) to
-  update the field with.
+* A field argument (`GH_FIELD`) with the degrees of freedom (DoFs) on the
+ `W0` function space that is being updated in this kernel (`GH_INC` access
+  for updating fields on continuous function spaces);
+* A `real`-valued scalar (`GH_REAL`) whose value is read (`GH_READ`) and
+  used to update the field with.
 
 The `GH_` prefix comes from "GungHo", the name of the dynamical core used in
 the LFRic model. Please refer to the documentation for more information on
@@ -128,7 +130,7 @@ The `iterates_over` metadata specifies how LFRic kernels are called
 from the [PSy layer](LFRic_PSy.md). A user-defined kernel in LFRic
 is called from a PSy-layer loop over each cell in the horizontal domain,
 hence the metadata identifier for this way of looping, `CELLS`. This means
-that a kernel operates on a one-cell-wide vertical column of cells.
+that a kernel operates on a single, vertical column of cells.
 
 ### `use` statements and encapsulation
 
@@ -155,10 +157,10 @@ object. As a rule, object data are `private` as illustrated in the
 
 #### Argument list and declarations
 
-Running PSyclone
+Running the PSyclone
 [kernel stub generator](https://psyclone.readthedocs.io/en/stable/stub_gen.html)
 on `setval_field_w0_kernel_mod.f90` produces the argument list and
-declarations for the `setval_field_w0_code` enclosed in a module:
+declarations for the `setval_field_w0_code`, enclosed in a module:
 
 ```fortran
    MODULE setval_field_w0_mod
@@ -177,27 +179,30 @@ declarations for the `setval_field_w0_code` enclosed in a module:
   END MODULE setval_field_w0_mod
 ```
 
-The generated subroutine body with the argument list and declarations can
-be used to complete the kernel stub above (note that the generated
-`USE constants_mod` statement is redundant as per LFRic convention it is
-already declared at the module level).
+The generated subroutine body with the argument list and declarations
+can be used to complete the kernel stub above (note that the generated
+`USE constants_mod` statement is already declared at the module level
+in the LFRic kernel source so it does not need to be copied from the
+generated stub code).
 
 `rscalar_2` denotes the read-only scalar argument passed from the
-[LFRic algorithm layer](LFRic_algorithm.md) as is. As said
-[above](#what-kernels-do), kernels operate on a subset of a field
-object and the generated code reflects the required information for a
-kernel to read from and update a field:
+[LFRic algorithm layer](LFRic_algorithm.md) as is. The field argument,
+however, is more complicated - as said [above](#what-kernels-do), kernels
+operate on a subset of a field object and the generated code reflect
+the required information for a kernel to read from and update a field:
 * `nlayers` is the number of vertical layers in the mesh that the
   field's DoFs are placed on (or the number of cells in a vertical
   column that the kernel operates on);
 * `field_1_w0` is the data stored in an LFRic field object;
 * `ndf_w0` is the number of all DoFs (owned and annexed) for the field
-  argument defined on `W0` function space;
+  argument defined on the `W0` function space;
 * `undf_w0` is the number of owned DoFs for the field argument defined
-  on `W0` function space;
+  on the `W0` function space;
 * `map_w0` is the DoF-map for the cell at the base of the column for
-  the `W0` function space that this field is defined on (the map
-  contains local IDs of DoFs in a partition).
+  the `W0` function space that this field is defined on. Since the mesh
+  used in LFRic is unstructured in the horizontal, the location of the
+  DoFs (in the data array) for a given cell must be looked up. The map
+  contains local IDs of DoFs in a partition.
 
 ---
 **NOTE**
@@ -205,6 +210,13 @@ kernel to read from and update a field:
 The order of kernel arguments roughly corresponds to the order of
 [kernel metadata descriptors](#kernel-metadata). The convention when
 ordering arguments is to put arguments that are written to first.
+The full PSyclone LFRic API specification of the argument ordering for
+the [general LFRic user-defined kernels](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#rules-for-general-purpose-kernels)
+is quite complex, hence making the [kernel-stub generator](
+https://psyclone.readthedocs.io/en/stable/stub_gen.html) a very useful
+development tool.
+
 LFRic kernels can update more than one field and/or operator arguments.
 However, scalar arguments in user-defined LFRic kernels must be
 [read-only](
@@ -231,9 +243,12 @@ end do
 ---
 **NOTE**
 
-Looping over `k` in the kernel is an optimisation which assumes that the
-field data is `k`-first. In the future this looping may be moved up to the
-[PSy layer](LFRic_PSy.md) PSy layer to better handle e.g. `i`-first fields.
+Looping over `k` in the kernel allows computation to be done cell by cell
+and as such is a more natural way of writing the numerics of finite-element
+method for scientists. From the computational point of view it is an
+optimisation which assumes that the field data is `k`-first. In the future
+this looping may be moved up to the [PSy layer](LFRic_PSy.md) PSy layer to
+better handle e.g. `i`-first fields.
 
 ---
 
