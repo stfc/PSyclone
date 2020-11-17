@@ -50,6 +50,10 @@ def trans(psy):
 
     '''
     kernels_trans = ACCKernelsTrans()
+    routine_trans = ACCRoutineTrans()
+    ctrans = Dynamo0p3ColourTrans()
+    loop_trans = ACCLoopTrans()
+    enter_trans = ACCEnterDataTrans()
 
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
@@ -57,7 +61,20 @@ def trans(psy):
         schedule = invoke.schedule
 
         for loop in schedule.loops():
-            kernels_trans.apply([loop])
+            if loop.field_space.orig_name \
+               not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
+               and loop.iteration_space == "cell_column":
+                ctrans.apply(loop)
+
+        for loop in schedule.loops():
+            if loop.loop_type != "colours":
+                kernels_trans.apply([loop])
+                loop_trans.apply(loop)
+
+        for kernel in schedule.coded_kernels():
+            routine_trans.apply(kernel)
+
+        enter_trans.apply(schedule)
 
     schedule.view()
     

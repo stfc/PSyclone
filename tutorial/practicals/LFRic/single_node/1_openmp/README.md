@@ -1,5 +1,5 @@
-In this example you will see how to parallelise code with OpenMP
-directives using the LFRic API.
+In this section of the tutorial you will see how to parallelise code
+with OpenMP directives using the LFRic API.
 
 ## Example
 
