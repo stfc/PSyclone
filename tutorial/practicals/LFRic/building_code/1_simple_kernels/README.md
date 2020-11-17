@@ -1,127 +1,146 @@
-# Example 1: Create and run simple kernels
+# Tutorial 1: Create and run simple kernels
 
-## Exercise
+In this tutorial we will learn how to
 
-### Part 1
+* Create simple functional kernels to update LFRic fields;
+* Call the created kernels from an algorithm.
 
-Use PSyclone kernel stub generator to create argument list and
-declarations for two kernels, one that assigns a value to a field on
-continuous `W0` function space and another on a discontinuous `W3`
-function space. Modify the supplied algorithm
-[`simple_kernels_alg_mod.x90`](simple_kernels_alg_mod.x90) to call
-these kernels from.
+Each kernel in this tutorial performs one simple mathematical operation
+in order to learn how to work with the basic building blocks of an
+[LFRic kernel](LFRic_kernel_structure.md):
 
-The stub for the first kernel with the required metadata can be found
-in the file [`setval_field_w0_kernel_mod.f90`](
-setval_field_w0_kernel_mod.f90). Declarations and argument
-list code can be created by running PSyclone kernel stub generator:
+* Kernel metadata (LFRic_kernel_structure.md#kernel-metadata) and
+* [Kernel subroutine](LFRic_kernel_structure.md#kernel-subroutine) including
+  - [Argument list and declarations](
+    LFRic_kernel_structure.md#argument-list-and-declarations) and
+  - [Loops](LFRic_kernel_structure.md#loops) to update LFRic field objects.
 
-```bash
-genkernelstub setval_field_w0_kernel_mod.f90
-```
+The tutorial is further subdivided into two parts in order to learn how to
 
-The kernel code can be completed by referring to the [*Loops* section](
-../background/LFRic_kernel.md#loops) of the LFRic kernel documentation in
-this tutorial.
+1. Create and call kernels that update a field on the specific
+   [LFRic function spaces](
+   https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces);
+2. Create and call general-purpose kernels that update a field on any
+   function space.
 
-The `W3` kernel can be created using the completed
-`setval_field_w0_kernel_mod.f90` as a template and changing the function
-space and code unit names accordingly. Information about the correct
-access modes for fields on continuous and discontinuous function spaces
-in PSyclone LFRic (Dynamo 0.3) API can be found [here.](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
+## Supporting source and scripts
 
-#### [Solutions](solutions/part1)
+We will use the following modules as templates to create and call the
+kernels in this tutorial:
 
-To check for the correct results, navigate to the `solutions/part1`
-directory and run `make` to build the `simple_kernels_part1` executable.
+* [`setval_field_w0_kernel_mod.f90`](setval_field_w0_kernel_mod.f90), a
+  stub of an LFRic kernel to be completed and used as a template in each
+  part of this tutorial;
 
-### Part 2
+* `simple_kernels_alg_mod.x90`, an example of an LFRic [algorithm](
+  ../background/LFRic_structure.md#algorithm-layer) that sets up fields
+  and operates on them via the `invoke` calls to the kernels created in
+  each part of this tutorial (the `invoke` calls need to be completed).
 
-Create a kernel `add_fields_w0_kernel_mod.f90` that adds two fields on
-`W0` space and stores the result in another field on the same space. Use
-the existing `setval_field_w0_kernel_mod.f90`
-* To initialise the resulting field to `0` and the fields being added
-  to a constant value each;
-* As a template for the new kernel that adds fields.
+Specific information on how to complete and use the above kernel and
+algorithm code is given in the specific tasks in [Part 1](part1/README.md)
+and [Part 2](part2/README.md) of this tutorial. The
+[*Algorithm structure*](#algorithm-structure) section below outlines the
+role of the algorithm layer in this tutorial.
 
-As in Part 1, use the kernel stub generator to create argument list
-and declarations for the new kernel. Modify the supplied algorithm
-`simple_kernels_alg_mod.x90` to call these kernels from.
+We will also use the following utilities to build and run the code:
 
-*Tips:*
-* `W3` function space and the related fields and kernels are no
-  longer required;
-* Group kernel calls into a single `invoke`;
-* Explore naming of `invoke` call.
+* [`simple_kernels_driver.f90`](simple_kernels_driver.f90), an example
+  of an LFRic-like [main program (driver)](
+  ../background/LFRic_structure.md#driver-layer) that creates the required
+  LFRic objects and calls the algorithm code in this example;
+* `Makefile` script that builds the executable program for each part of
+  this tutorial.
 
-#### [Solutions](solutions/part2)
+These utilities do not need to be modified. The
+[*Driver structure*](#driver-structure) section below outlines the role
+of the driver layer in this tutorial.
 
-To check for the correct results, navigate to the `solutions/part2`
-directory and run `make` to build the `simple_kernels_part2` executable.
+## Driver structure
 
-### Part 3
+As outlined in the [overview of the LFRic driver layer](
+../background/LFRic_structure.md#driver-layer), the
+`simple_kernels_driver.f90` sets up LFRic object stack required to
+define field objects. The related Fortran calls are explained below.
 
-Use the kernels `setval_fields_w0_kernel_mod.f90` and
-`add_fields_w0_kernel_mod.f90` from Part 2 as templates that can set and
-add field values for fields on any function space. Modify the supplied
-algorithm `simple_kernels_alg_mod.x90` to call these kernels from. Explore
-other continuous and discontinuous function spaces in the algorithm (see
-the summary table listing the function space continuity in section
-[*Supported Function Spaces*](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces)
-of the PSyclone LFRic (Dynamo 0.3) API documentation). The spaces used in
-the solution here are `W2` and `Wtheta`.
+*NOTE:* The order of creating objects, from the global 2D mesh to the
+local 3D mesh is the same as in the full LFRic model, however the specific
+calls are likely to be different due to the [reduced version](
+../README.md#lfric-code-support) of the LFRic infrastructure used
+in this example.
 
-*Tips:*
+1) Create a global 2D mesh object and allocate the data from the
+   unit-test planar mesh constructor:
+   ```fortran
+   global_mesh = global_mesh_type()
+   global_mesh_ptr => global_mesh
+   ```
 
-* Modify the kernel metadata (perhaps also rename the kernels);
-* Metadata for `ANY_SPACE` and `ANY_DISCONTINUOUS_SPACE` spaces are
-  in `argument_mod` in LFRic infrastructure;
-* Try out the kernel stub generator.
+2) Create a 1x1 (`xproc`, `yproc`) planar partition object:
+   ```fortran
+   partitioner_ptr => partitioner_planar
+   partition = partition_type( global_mesh_ptr,   &
+                               partitioner_ptr,   &
+                               xproc,             &
+                               yproc,             &
+                               max_stencil_depth, &
+                               local_rank,        &
+                               total_ranks )
+    ```
+   for one process (`total_ranks`) as we are running in serial.
 
-#### [Solutions](solutions/part3)
+3) Create a uniform vertical extrusion object
+   ```fortran
+   extrusion = uniform_extrusion_type( 0.0_r_def, domain_top, number_of_layers )
+   extrusion_ptr => extrusion
+   ```
+   with the specified atmosphere height (`domain_top`) and number of layers
+   for the full 3D mesh.
 
-To check for the correct results, navigate to the `solutions/part3`
-directory and run `make` to build the `simple_kernels_part3` executable.
+4) Create a full 3D partitioned mesh object mesh using the global mesh,
+   partition and extrusion information:
+   ```fortran
+   mesh = mesh_type( global_mesh_ptr, partition, extrusion_ptr )
+   ```
 
-## Supporting materials
+## Algorithm structure
 
-The following modules need to be modified:
+The [algorithm layer](
+../background/LFRic_structure.md#algorithm-layer) in this tutorial
+creates function space and field objects with the help of input data from
+the driver layer. The related Fortran calls are explained below on the
+example of the [`simple_kernels_alg_mod.x90` in Part 1](
+part1/simple_kernels_alg_mod.x90) of this tutorial for one of
+the "(function space, field) pairs" (as explained [above](#driver-structure),
+the order of creating objects is the same as in the full LFRic model
+however the specific calls may be different).
 
-* [`simple_kernels_alg_mod.x90`](simple_kernels_alg_mod.x90) - an example
-  of LFRic algorithm that sets up fields and operates on them via `invoke`
-  calls to the kernels created in parts 1-3 of this example (`invoke`
-  calls need to be completed);
-* [`setval_field_w0_kernel_mod.f90`](setval_field_w0_kernel_mod.f90) - a
-  stub of an LFRic kernel to be completed as described in Part 1 and used
-  as a template.
+1) Create the `W0` function space with single-valued field data points
+   ```fortran
+   fs_w0 = function_space_type( mesh, element_order, W0, ndata_sz )
+   fs_w0_ptr => fs_w0
+   ```
 
-Utilities to build and run the code are (do not need to be modified):
+2) Create a field on this function space:
+   ```fortran
+   call field_w0%initialise( vector_space = fs_w0_ptr, name = "field_w0" )
+   ```
 
-* [`Makefile`](Makefile) - builds the executable program `simple_kernels`
-  (does not need to be modified). Run `make` to build the completed
-  example and `./simple_kernels` to run it;
-* [`simple_kernels_driver.f90`](simple_kernels_driver.f90) - an example
-  of LFRic-like main program that creates the required LFRic objects and
-  calls the algorithm code in this example.
+3) Operate on field objects by `invoke` calls to the specified kernels
+   (to be completed in each part of this tutorial).
 
-### Driver and algorithm structure
+The algorithm also calls one of the LFRic field class procedures,
+`log_minmax`, to check the minimum and maximum values of the fields after
+calling the kernels that update them.
 
-`simple_kernels_driver.f90` follows the order of setting up LFRic object
-stack outlined in [this full LFRic example](
-../../../../../examples/lfric/full_example/README.md) and very close to
-the general LFRic principle: **global 2D mesh** -> **partition** ->
-**local 3D mesh** -> **function space** -> **field**. In this example
-the last two steps of creating function space and field objects are
-done in `simple_kernels_alg_mod.x90` with the mesh and finite element order
-information as input. In LFRic the driver and algorithm layer can
-create fields, with the globally used fields set up in the driver and
-passed to algorithms. The set up of mesh and model configuration,
-however, is always done in the driver layer. Similarly, operations on
-fields using `invoke`s are exclusive to the algorithm layer.
+### `use` statements and encapsulation
 
-LFRic supports and usually creates objects as collections, such as
-**mesh collection**, **function space collection**. This method is
-not supported in this tutorial and adapted LFRic infrastructure in
-PSyclone.
+As can be seen from this [algorithm example](
+part1/simple_kernels_alg_mod.x90), the `use` statements in algorithms
+mainly serve to access the LFRic infrastructure objects (e.g. mesh,
+function space, field).
+
+Unlike for [kernels](LFRic_kernel_structure.md), there is no inheritance
+from an abstract base type. Similar to kernels, however, the general
+encapsulation principle of keeping data and procedures `private`
+unless they are called by other objects still holds.

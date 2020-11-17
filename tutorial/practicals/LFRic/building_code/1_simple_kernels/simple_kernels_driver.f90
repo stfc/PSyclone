@@ -48,7 +48,7 @@ program simple_kernels_driver
                                      partitioner_interface
   use extrusion_mod,          only : uniform_extrusion_type
   use log_mod,                only : log_event,          &
-                                      LOG_LEVEL_INFO
+                                     LOG_LEVEL_INFO
   use simple_kernels_alg_mod, only : simple_kernels_alg
 
   implicit none
@@ -124,7 +124,7 @@ program simple_kernels_driver
   extrusion = uniform_extrusion_type( 0.0_r_def, domain_top, number_of_layers )
   extrusion_ptr => extrusion
 
-  ! Create local mesh
+  ! Create local 3D partitioned mesh
   mesh = mesh_type( global_mesh_ptr, partition, extrusion_ptr )
 
   !-----------------------------------------------------------------------------

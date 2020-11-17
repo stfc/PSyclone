@@ -155,7 +155,7 @@ program time_evolution_driver
   ! Create extrusion object
   extrusion = uniform_extrusion_type( 0.0_r_def, domain_top, number_of_layers )
   extrusion_ptr => extrusion
-  ! Create local mesh
+  ! Create local 3D partitioned mesh
   call log_event( "Creating local 3D mesh", LOG_LEVEL_INFO )
   mesh = mesh_type( global_mesh_ptr, partition, extrusion_ptr )
 

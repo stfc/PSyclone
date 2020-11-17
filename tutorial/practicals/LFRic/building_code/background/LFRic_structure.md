@@ -12,8 +12,8 @@ including wrappers to external libraries.
 
 The setting-up part mainly consists of setting up the LFRic object stack
 in the following order: **global 2D mesh** -> **partition** ->
-**local 3D mesh** -> **function space** -> **field** (see e.g.
-[this full LFRic example](
+**local 3D partitioned mesh** -> **function space** -> **field** (see
+e.g. [this full LFRic example](
 ../../../../../examples/lfric/full_example/README.md) and individual
 tutorials for more details).
 
@@ -64,6 +64,20 @@ arguments), prescribed by the DSL defined in the
 [PSyclone LFRic (Dynamo 0.3) API](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html). The use of
 `invoke`s in LFRic is exclusive to the algorithm layer.
+
+Roughly speaking, the main parts of an LFRic algorithm are:
+* Definitions of global data objects (e.g. fields) and supporting
+  structures (e.g. function space, mesh);
+* `invoke` calls to kernels and built-ins.
+
+All of the above is stored in a module. The naming convention of an
+algorithm module is not as strict as for [kernels](
+../1_simple_kernels/LFRic_kernel_structure.md) and it can be summarised
+as `<base_name>_alg_mod`. Also, unlike for kernels, it is usual for an
+algorithm to have more than one subroutine (for instance, algorithms
+that perform timestepping in LFRic often have `<base_name>_init`,
+`<base_name>_step` and `<base_name>_final` subroutines for different
+requirements in a timestepping scheme).
 
 ## PSy layer
 

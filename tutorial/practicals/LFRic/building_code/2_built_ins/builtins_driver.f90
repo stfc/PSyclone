@@ -123,7 +123,7 @@ program builtins_driver
   extrusion = uniform_extrusion_type( 0.0_r_def, domain_top, number_of_layers )
   extrusion_ptr => extrusion
 
-  ! Create local mesh
+  ! Create local 3D partitioned mesh
   mesh = mesh_type( global_mesh_ptr, partition, extrusion_ptr )
 
   !-----------------------------------------------------------------------------
