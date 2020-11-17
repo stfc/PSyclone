@@ -79,4 +79,4 @@ main_alg.f90: main_psy.f90
 
 clean:
 	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
-	make -C ${LFRIC_PATH} clean
+	make -C $(LFRIC_PATH) clean

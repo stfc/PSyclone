@@ -36,9 +36,13 @@
 # Top-level Makefile to build all solutions of the LFRic hands-on tutorials on
 # building code.
 
-.PHONY: default clean
+# Targets
+# build (default): complete build to run examples
+# test: PSyclone target for continuous integration
+# clean: Remove generated and compiled code
+.PHONY: build test clean
 
-default clean:
+build test clean:
 	${MAKE} -C 1_simple_kernels/solutions/part1 $@
 	${MAKE} -C 1_simple_kernels/solutions/part2 $@
 	${MAKE} -C 1_simple_kernels/solutions/part3 $@

@@ -62,4 +62,4 @@ assign_coordinate_field_mod.o: base_mesh_config_mod.o planet_config_mod.o
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod
+	rm -f *.o *.mod *.a

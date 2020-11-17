@@ -75,7 +75,10 @@ PSY_OBJ = $(filter %.o,$(PSY_SRC:.f90=.o))
 KERNEL_OBJ = $(notdir $(filter %.o,$(KERNEL_SRC:.F90=.o) $(KERNEL_SRC:.f90=.o)))
 EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
 
-default: $(EXEC)
+# Targets
+.PHONY: build test clean
+
+build: test $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(GHLIB_LIB) $(EXAMPLE_OBJ)
 	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) \
@@ -98,16 +101,19 @@ $(PSY_OBJ): $(KERNEL_OBJ)
 %.o %.mod: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
+$(ALGORITHM_SRC): $(PSY_SRC)
+
 # Keep the generated Alg and PSy files
 .precious: $(ALGORITHM_SRC) $(PSY_SRC)
 
-$(ALGORITHM_SRC): $(PSY_SRC)
+# Test PSyclone target for continuous integration
+test: $(PSY_SRC) $(ALGORITHM_SRC)
 
 %_psy.f90: %.x90
 	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
 	-opsy $(notdir $*_psy.f90) -oalg $(notdir $*.f90) $<
 
 clean:
-	rm -f *.o *.mod *.txt $(LFRIC_PATH)/*.o $(LFRIC_PATH)/*.mod $(LFRIC_PATH)/*.a \
-	$(GHLIB_PATH)/*.o $(GHLIB_PATH)/*.mod $(GHLIB_PATH)/*.a \
-	$(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
+	rm -f *.o *.mod *.txt $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
+	make -C $(GHLIB_PATH) clean
+	make -C $(LFRIC_PATH) clean

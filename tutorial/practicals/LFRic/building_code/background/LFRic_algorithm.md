@@ -17,7 +17,7 @@ https://psyclone.readthedocs.io/en/stable/algorithm_layer.html) but
 **do not operate directly on object data** (or, in OO terminology, *must
 not break encapsulation*). The data is accessed in the [PSy layer](
 LFRic_PSy.md) via the required object accessor class, referred to as
-*proxy* in the LFRic code.
+a *proxy* in the LFRic code.
 
 ### Objects and encapsulation
 
@@ -46,10 +46,10 @@ In this section we use the completed algorithms from the solutions of
 examples, [`simple_kernels_alg_mod.x90`](
 ../1_simple_kernels/solutions/part1/simple_kernels_alg_mod.x90) and
 [`builtins_alg_mod.x90`](../2_built_ins/solutions/builtins_alg_mod.x90),
-to illustrate provisional structure of LFRic algorithms with `invoke` calls
+to illustrate examples of LFRic algorithms with `invoke` calls
 to kernels and built-ins.
 
-Both examples create fields on different function spaces on basis of the
+Both examples create fields on different function spaces using the
 information about the mesh and finite-element method order passed from
 the driver layer. This is not a prescribed rule, however, as fields can
 be created in the driver layer and passed to an algorithm. Also, one
@@ -76,8 +76,14 @@ As said above, the defining feature of an LFRic algorithm is one or more
 [PSyclone built-ins](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins).
 
-The `invoke` calls to kernels are really calls to the *kernel objects*
-(defined as derived types, as explained in the [*LFRic kernel* section](
+The `invoke` calls to kernels are not standard Fortran calls. They
+are a way of specifying a sequence of kernels to call (with their
+associated arguments), prescribed by the DSL defined in the
+[PSyclone LFRic (Dynamo 0.3) API](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html). These calls
+are then transformed by PSyclone to the [PSy-layer subroutines](
+LFRic_PSy.md) that contain calls to the *kernel objects* (defined as
+derived types, as explained in the [*LFRic kernel* section](
 LFRic_kernel.md). An example of such call can be found in the
 completed algorithm in the [first example, solutions of Part 1](
 ../1_simple_kernels/solutions/part1/simple_kernels_alg_mod.x90):
@@ -151,10 +157,10 @@ unless they are called by other objects still holds.
 
 ## Processing of algorithm code in LFRic
 
-As can be seen from examples, algorithm code in LFRic has `x90` extensions
-to indicate to the LFRic build system that it needs to be processed by
-PSyclone (i.e. the full file name is `<base_name>_alg_mod.x90`). The
-processed algorithm code is saved as `<base_name>_alg_mod.f90` and the
+As can be seen from the examples, algorithm code in LFRic has `x90`
+extensions to indicate to the LFRic build system that it needs to be
+processed by PSyclone (i.e. the full file name is `<base_name>_alg_mod.x90`).
+The processed algorithm code is saved as `<base_name>_alg_mod.f90` and the
 generated [PSy-layer code](LFRic_PSy.md) is saved as
 `<base_name>_alg_mod_psy.f90` (see [here](
 https://psyclone.readthedocs.io/en/stable/psyclone_script.html) for more
