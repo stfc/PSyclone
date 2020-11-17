@@ -125,5 +125,5 @@ with open(args.template_name, "r") as file:
 env = Environment(trim_blocks=True, lstrip_blocks=True)
 template = env.from_string(template_string)
 
-print(template.render(ALL_TYPES=all_types, DIMENSIONS=dims,
+print(template.render(ALL_TYPES=all_types, ALL_DIMS=dims,
                       PREFIX=args.prefix))

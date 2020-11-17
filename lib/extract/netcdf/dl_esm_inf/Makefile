@@ -68,4 +68,5 @@ extract_netcdf_base.f90: ../extract_netcdf_base.jinja Makefile
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(LIB_NAME)
+	rm -f *.o *.mod $(LIB_NAME) psy_data_base.f90 extract_netcdf_base.f90
+
