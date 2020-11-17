@@ -1,35 +1,21 @@
-# LFRic kernel
+# LFRic kernel structure
 
-[*See also the description of the LFRic Kernel layer in the
-PSyclone documentation*](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#kernel)
+In this part of the tutorial we learn about the structure of an LFRic
+kernel and how to create or modify a kernel.
 
-## What kernels do
+---
+**NOTE**
 
-LFRic kernels perform mathematical operations on [a subset of data points](
-https://psyclone.readthedocs.io/en/stable/kernel_layer.html#kernel-layer)
-of LFRic data objects (fields, operators and scalars) passed
-from the [algorithm](LFRic_algorithm.md) through the
-[PSy layer](LFRic_PSy.md).
+*Note:* For the high-level overview of the LFRic kernel layer role and
+relevant links see the [Kernel layer](
+../background/LFRic_structure.md#kernel-layer) section in the
+[LFRic code structure document](../background/LFRic_structure.md).
 
-Scalar values are passed to a kernel from the [algorithm layer](
-LFRic_algorithm.md) as they are. In the case of fields and
-operators, however, LFRic kernels operate on a subset of the degrees
-of freedom (DoFs) of these objects, e.g. those on a single column of
-cells or even a single DoF. Such a subset occupies a portion
-of the computational domain (e.g. an entire mesh or a partition of a
-mesh that the field's DoFs are placed on). The subsections below
-illustrate the LFRic kernel structure and how the relevant information
-is passed to a kernel.
+---
 
-## Kernel structure
-
-In this section we use the [`setval_field_w0_kernel_mod.f90`](
-../1_simple_kernels/setval_field_w0_kernel_mod.f90) kernel stub
-from the [simple kernels example](../1_simple_kernels) to
-illustrate the structure of LFRic kernels (the [completed example](
-../1_simple_kernels/solutions/part1/setval_field_w0_kernel_mod.f90) is
-provided in the relevant [solutions](../1_simple_kernels/solutions/part1)).
+We use the supplied [`setval_field_w0_kernel_mod.f90`](
+setval_field_w0_kernel_mod.f90) kernel stub to illustrate the structure
+of an LFRic kernel:
 
 ```fortran
 module setval_field_w0_kernel_mod
@@ -98,7 +84,7 @@ the kernel type and the executable subroutine is as follows:
 
 Here the `<base_name>` is `setval_field_w0`.
 
-### Kernel metadata
+## Kernel metadata
 
 The PSyclone metadata is stored as the *private* data within the definition
 of an individual kernel type. They come in two main forms: derived types
@@ -127,12 +113,13 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spac
 for the LFRic data objects.
 
 The `iterates_over` metadata specifies how LFRic kernels are called
-from the [PSy layer](LFRic_PSy.md). A user-defined kernel in LFRic
-is called from a PSy-layer loop over each cell in the horizontal domain,
-hence the metadata identifier for this way of looping, `CELLS`. This means
-that a kernel operates on a single, vertical column of cells.
+from the [LFRic PSy layer](../background/LFRic_structure.md#psy-layer).
+A user-defined kernel in LFRic is called from a PSy-layer loop over each
+cell in the horizontal domain, hence the metadata identifier for this way
+of looping, `CELLS`. This means that a kernel operates on a single,
+vertical column of cells.
 
-### `use` statements and encapsulation
+## `use` statements and encapsulation
 
 Besides inheritance from the abstract `kernel_type`, this kernel requires
 LFRic identifiers for the PSyclone metadata and Fortran kind of the argument
@@ -153,9 +140,9 @@ object. As a rule, object data are `private` as illustrated in the
 `private` (if used only by the object) or `public`ly available (e.g.
 `subroutine setval_field_w0_code` is called in the generated PSy layer).
 
-### Kernel subroutine
+## Kernel subroutine
 
-#### Argument list and declarations
+### Argument list and declarations
 
 Running the PSyclone
 [kernel stub generator](https://psyclone.readthedocs.io/en/stable/stub_gen.html)
@@ -186,14 +173,18 @@ in the LFRic kernel source so it does not need to be copied from the
 generated stub code).
 
 `rscalar_2` denotes the read-only scalar argument passed from the
-[LFRic algorithm layer](LFRic_algorithm.md) as is. The field argument,
-however, is more complicated - as said [above](#what-kernels-do), kernels
-operate on a subset of a field object and the generated code reflect
-the required information for a kernel to read from and update a field:
+[LFRic algorithm layer](../background/LFRic_structure.md#algorithm-layer)
+as is. The field argument, however, is more complicated - as said in the
+overview of the [LFRic kernel layer](
+../background/LFRic_structure.md#kernel-layer), kernels operate on a subset
+of a field object and the generated code reflects the required information
+for a kernel to read from and update a field:
+
 * `nlayers` is the number of vertical layers in the mesh that the
   field's DoFs are placed on (or the number of cells in a vertical
   column that the kernel operates on);
-* `field_1_w0` is the data stored in an LFRic field object;
+* `field_1_w0` is the data stored in the LFRic field object passed as an
+  argument to this kernel;
 * `ndf_w0` is the number of all DoFs (owned and annexed) for the field
   argument defined on the `W0` function space;
 * `undf_w0` is the number of owned DoFs for the field argument defined
@@ -224,7 +215,7 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes).
 
 ---
 
-#### Loops
+### Loops
 
 Having defined the kernel metadata, subroutine arguments and
 declarations, we can write the executable code to actually update one
@@ -247,7 +238,8 @@ Looping over `k` in the kernel allows computation to be done cell by cell
 and as such is a more natural way of writing the numerics of finite-element
 method for scientists. From the computational point of view it is an
 optimisation which assumes that the field data is `k`-first. In the future
-this looping may be moved up to the [PSy layer](LFRic_PSy.md) PSy layer to
+this looping may be moved up to the [PSy layer](
+../background/LFRic_structure.md#psy-layer) PSy layer to
 better handle e.g. `i`-first fields.
 
 ---

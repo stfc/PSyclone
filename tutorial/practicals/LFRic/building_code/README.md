@@ -14,14 +14,14 @@ linked as needed in each tutorial.
 ### [Simple kernels tutorial](1_simple_kernels)
 
 This tutorial shows how to create and use simple LFRic kernels to
-perform mathematical operations on LFRic field data. It starts with
+perform mathematical operations on the LFRic field data. It starts with
 different kernels for different LFRic finite-element [function spaces](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces)
 and uses them as a template to write general-purpose kernels that can
 operate on any function space.
 
 The mathematical operations in this tutorial are quite simple (initialisation
-of a field to a prescribed value and adding fields) as the primary purpose of
+of a field to a scalar value and adding fields) as the primary purpose of
 the tutorial is to create functional kernels with the required metadata,
 subroutine argument list and loops that update an LFRic field.
 
@@ -44,14 +44,19 @@ algorithms that need to be completed to propagate the field.
 
 In order to illustrate the [*separation of concerns*](
 background/LFRic_intro.md#separation-of-concerns) in LFRic, each tutorial
-has the main program (driver) that calls one or more algorithms. The
+has the [main program (driver)](background/LFRic_structure.md#driver-layer)
+that calls one or more [algorithms](
+background/LFRic_structure.md#algorithm-layer). The
 algorithms, in turn, contain `invoke` calls to one or more [kernels](
-background/LFRic_kernel.md) and/or built-ins.
+background/LFRic_structure.md#kernel-layer) and/or [PSyclone built-ins](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins).
 
 The driver in each tutorial provides the framework to build an executable
 program through the set-up of the LFRic infrastructure objects and calls
-to algorithms (see [*Driver* section](??LINK) for general and tutorials
-documentation for specific details). They do not need to be modified.
+to algorithms (see the [*Driver* section](
+background/LFRic_structure.md#driver-layer) for general information and
+the individual tutorials documentation for the specific details). The
+provided drivers do not need to be modified.
 
 The algorithm code in each tutorial needs to be completed with the
 appropriate `invoke` calls to kernels (the [first](1_simple_kernels)
@@ -66,7 +71,9 @@ code once that the kernel and algorithm code is completed. There are
 tree targets to the `make` process:
 
 * `make test` calls PSyclone with the prescribed command-line options
-  to generate the processed [Algorithm](??LINK) and [PSy](??LINK) layer;
+  to generate the processed [Algorithm](
+  background/LFRic_structure.md#algorithm-layer) and [PSy](
+  background/LFRic_structure.md#psy-layer) layer;
 * `make` or `make build` builds the tutorial executable from the
   [LFRic pared-down infrastructure](#lfric-code-support) and the
   PSyclone-generated source code above;
@@ -89,6 +96,32 @@ and run the code.
 
 Each of these tutorials also has a `solutions` subdirectory with the
 completed code that can be built and run as a reference.
+
+### Use of PSyclone to process the algorithm code
+
+All algorithm modules in these tutorials have the `x90` extension. This
+is the LFRic custom that indicates to the LFRic build system that the
+source code needs to be processed by PSyclone prior to compilation.
+
+As outlined in the [*Algorithm layer* section](
+background/LFRic_structure.md#algorithm-layer), the full file name of an
+algorithm module can be summarised as `<base_name>_alg_mod.x90`. The
+processed algorithm code is saved as `<base_name>_alg_mod.f90` and the
+generated PSy-layer code is saved as `<base_name>_alg_mod_psy.f90`.
+
+This process, set as the `make test` target (see above), is mimicked
+in all tutorials. See, for instance, this code from the
+[built-ins example `Makefile`](2_built_ins/Makefile)
+
+```make
+%_psy.f90: %.x90
+    psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
+    -opsy $*_psy.f90 -oalg $*.f90 $<
+```
+
+and [here](
+https://psyclone.readthedocs.io/en/stable/psyclone_script.html) for more
+information on running the `psyclone` script.
 
 ## LFRic code support
 

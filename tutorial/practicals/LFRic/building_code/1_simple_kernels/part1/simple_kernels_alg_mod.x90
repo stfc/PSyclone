@@ -96,7 +96,7 @@ contains
 
     !---------------------------------------------------------------------------
     ! TO COMPLETE: Set each field to a constant value by calling the
-    ! respective kernels (use "invoke" syntax)
+    ! respective kernels in a single "invoke"
     !---------------------------------------------------------------------------
 
     ! Check the values of constant fields by printing the min/max values
