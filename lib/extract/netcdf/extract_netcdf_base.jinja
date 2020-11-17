@@ -424,7 +424,9 @@ Contains
         endif
 
         {% for i in range(1, dim+1) %}
-        retval = CheckError(nf90_def_dim(this%ncid, name//"dim{{i}}",  &
+        ! A '%' is added to avoid a clash if the user should have say
+        ! an array 'a', and 'adim1'.
+        retval = CheckError(nf90_def_dim(this%ncid, name//"dim%{{i}}",  &
                                          size(value,{{i}}), dimid{{i}}))
         {% endfor %}
         dimids =  (/ {{vars}} /)
@@ -484,7 +486,7 @@ Contains
         ! First query the dimensions of the original r2d_field from the
         ! netcdf file
         {% for i in range(1, dim+1) %}
-        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim{{i}}"),  &
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%{{i}}"),  &
                                            dim_id))
         retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id,  &
                                                    len=dim_size{{i}}))
