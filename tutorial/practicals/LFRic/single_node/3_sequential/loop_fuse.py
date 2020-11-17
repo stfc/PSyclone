@@ -47,22 +47,16 @@ def trans(psy):
     loop fusion and OpenMP for a particular example.'''
     ftrans = DynamoLoopFuseTrans()
 
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
+    for invoke in psy.invokes.invoke_list:
+        schedule = invoke.schedule
 
-    # Loop fuse the built-in kernels. The 'same_space' flag needs to
-    # be set as built-ins are over ANY_SPACE so we don't know if the
-    # loop bounds are the same.
-    ftrans.same_space = True
-
-    try:
-        while True:
-            ftrans.apply(schedule[0], schedule[1])
-    except TransformationError:
-        pass
+        try:
+            while True:
+                ftrans.apply(schedule[0], schedule[1])
+        except TransformationError as info:
+            print (str(info.value))
 
     # take a look at what we've done
     schedule.view()
-    schedule.dag(file_format="png")
 
     return psy

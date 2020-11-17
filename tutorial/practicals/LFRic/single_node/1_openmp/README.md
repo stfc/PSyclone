@@ -288,4 +288,4 @@ option in the script, changing the config file and re-running.
 
 ## Finished
 
-Well done, you have finished the LFRic OpenMP part of the tutorial
+Well done, you have finished the LFRic OpenMP part of the tutorial.
