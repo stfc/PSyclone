@@ -203,6 +203,9 @@
 
 	65) PR #983 for #982 - Improve 'kernels' auto-profiling for NEMO API.
 
+        66) PR #977 for #976. Fix dimension parameter for Jinja templates
+        in the PSyData libraries.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
