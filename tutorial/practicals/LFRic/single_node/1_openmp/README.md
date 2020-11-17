@@ -196,6 +196,12 @@ reduction clause. PSyclone has determined that a reduction is required
 (from the kernel metadata) and automatically added the appropriate
 OpenMP clause. Therefore the user does not need to worry about this.
 
+## Reproducible reductions
+
+REPROD = True in config file ...
+
+> psyclone -oalg /dev/null -opsy psy.f90 -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code --config psyclone.cfg
+
 One issue
 
 Reduction has been parallelised. However is not guaranteed to provide the same results from one run to the next as spec says can sum up in any order.
