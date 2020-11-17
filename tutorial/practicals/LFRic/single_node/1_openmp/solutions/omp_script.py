@@ -39,7 +39,7 @@ API to apply loop fusion and then OpenMP parallelisation to an invoke
 with two Kernels. This can be applied via the -s option in the
 generator.py script.'''
 from psyclone.transformations import DynamoOMPParallelLoopTrans, \
-    TransformationError, Dynamo0p3ColourTrans
+    DynamoLoopFuseTrans, TransformationError, Dynamo0p3ColourTrans
 from psyclone.psyGen import Loop
 from psyclone.domain.lfric.function_space import FunctionSpace
 
@@ -47,12 +47,18 @@ def trans(psy):
     ''' PSyclone transformation script for the dynamo0p3 API to apply
     loop fusion and OpenMP for a particular example.'''
     otrans = DynamoOMPParallelLoopTrans()
+    ctrans = Dynamo0p3ColourTrans()
 
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
 
+        for loop in schedule.walk(Loop):
+            if loop.field_space.orig_name not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
+               and loop.iteration_space == "cell_column":
+                ctrans.apply(loop)
+                
         # Add OpenMP parallel do directives to the loops
-        for loop in schedule.loops():
+        for loop in schedule.walk(Loop):
             try:
                 otrans.apply(loop)
             except TransformationError as info:
