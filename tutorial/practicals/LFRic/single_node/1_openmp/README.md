@@ -198,19 +198,93 @@ OpenMP clause. Therefore the user does not need to worry about this.
 
 ## Reproducible reductions
 
-REPROD = True in config file ...
+According to the OpenMP specification an OpenMP reduction does not
+need to guarantee the order in which the operations in a reduction
+takes place. Therefore an OpenMP reduction might return different
+results from one run to the next due to rounding errors when summing
+values in different orders.
+
+This can cause problems for correctness checking and debugging. In
+fact the ability to get reproducible results (via a switch in the
+code) is actually a requirement in the current Met Office model.
+
+PSyclone therefore provides an option to compute reductions in a
+reproducible way. This implementation requires the use of OMP PARALLEL
+and OMP LOOP directives rather than the single OMP PARALLEL LOOP
+directive that we have been using so far.
+
+Let's modify the script. Create the following two new transformations
+next to the existing ones:
+
+    ptrans = OMPParallelTrans()
+    ltrans = Dynamo0p3OMPLoopTrans()
+
+Replace the following line in the script:
+
+                otrans.apply(loop)
+
+with
+
+                if loop.reductions():
+                    ptrans.apply(loop)
+		    ltrans.apply(loop)
+                else:
+                    otrans.apply(loop)
+
+The reductions() method in a loop node is handy here!
+
+If you rerun:
+
+> psyclone -oalg /dev/null -opsy psy.f90 -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
+
+You should see the psy-layer PSyIR that is output to the screen having an OMP parallel and an OMP do directive around the last loop. You should also see the reprod=False clause.
+
+Take a look at the generated code
+
+> my_fav_editor psy.f90.
+
+The generated code is very similar to what we were generating before,
+it just now has two directives around the reduction loop rather than
+one.
+
+Now we can specify that we would like a reproducible reduction
+
+In the script replace:
+
+                    ltrans.apply(loop)
+
+with
+
+                    ltrans.apply(loop, {"reprod": True})
+
+The PSyIR that is output to the screen should now specify that reprod=True for the OMP DO directive.
+
+Take a look at the generated code:
+
+> my_fav_editor psy.f90.
+
+In this version the values for each thread are summed separately in
+the parallel loop and then these partial sums are then added together
+serially at the end. This is a more complicated solution but PSyclone
+takes care of it without the user needing to worry.
+
+If you look at the allocation of the l_sum array, you will see that it
+is padded by 8. This is to avoid false sharing between the threads. If
+these value needs to be changed it can be modified in the
+configuration file. A copy of the configuration file is provided in
+this directory if you would like to try this. Modify, the
+REPROD_PAD_SIZE to whatever value you think appropriate. You can
+select to use this configuration file by adding --config psyclone.cfg
+to the pscylone command i.e.
 
 > psyclone -oalg /dev/null -opsy psy.f90 -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code --config psyclone.cfg
 
-One issue
 
-Reduction has been parallelised. However is not guaranteed to provide the same results from one run to the next as spec says can sum up in any order.
-
-Can modify transformation to produce reproducible global sums ...
-
-Now we sum to private values and add the thread results in a sequential order, rather than using the reduction. Notice padding added to avoid false sharing. Size of padding can be configured for particular architecture.
-
-*** GET ERROR ON MASTER ***
+Notice that you could also set REPRODUCIBLE_REDUCTIONS to true in the
+config file rather than setting it in the script. This would make all
+reductions reproducible by default, rather than selectively doing it
+in the script. You can try this out if you like by removing the reprod
+option in the script, changing the config file and re-running.
 
 ## Finished
 
