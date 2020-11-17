@@ -1,10 +1,6 @@
 In this example you will see how to parallelise code with OpenMP
 directives using the LFRic API.
 
-## Assumptions
-
-???
-
 ## Example
 
 We will be using the same example that was used in the distributed
@@ -12,6 +8,25 @@ memory part of the tutorial.  This example is extracted from the LFRic
 model and is one of the most computationally costly sections of the
 LFRic dynamical core. Note, that all of the executable code has been
 removed apart from the part we are interested in, the invoke call.
+
+It is probably worth reminding yourself of the content of the invoke call:
+
+    call invoke( setval_c(grad_p, 0.0_r_def),                                &
+                 scaled_matrix_vector_kernel_type(grad_p, p, div_star,       &
+                                                  hb_inv),                   &
+                 enforce_bc_kernel_type( grad_p ),                           &
+                 apply_variable_hx_kernel_type(                              &
+                       Hp, grad_p, mt_lumped_inv, p,                         &
+                       compound_div, p3theta, ptheta2, m3_exner_star,        &
+                       tau_t, timestep_term) )
+
+setval_c is a builtin that iterates over dofs,
+scaled_matrix_vector_kernel_type and enforce_variable_hx_kernel_type
+are references to kernels that can modify kernels that are continuous
+or discontinuous as specified in their kernel metadata (and therefore
+it must be assumed that the modified field is continuous) and
+apply_variable_hx_kernel_type is a reference to a kernel that modifies
+a discontinuous field as specified in its kernel metadata.
 
 ## Add OpenMP parallel loop directives
 
@@ -28,22 +43,23 @@ transformation that is used in the omp_script.py script:
 
 Transformation Error: Error in DynamoOMPParallelLoopTrans transformation. The kernel has an argument with INC access. Colouring is required.
 
-If you take a look at the script omp_script.py you will see that we
-try to apply OpenMP parallelisation to all loops but the
-transformation does not let us do this is certain cases, raises an
-exception and we print this exception out.
+If you take a look at omp_script.py you will see that we
+try to apply OpenMP parallelisation to all loops but if the
+transformation does not let us do this and raises an
+exception we print out the exception text.
 
 > my_favourite_editor omp_script.py
 
-While we are here you can see that rather than using the walk method
-to iterate over all nodes of type loop as we have done in the previous
-tutorial section (schedule.walk(Loop)) we use a shortcut method built
-in to the node to do this instead.
+While you are looking at this script you will also see that rather
+than using the walk method to iterate over all nodes of type loop as
+we have done in the previous tutorial section (schedule.walk(Loop)) we
+use a shortcut method built in to the node to do this instead
+(schedule.loops()).
 
 # Mixed mode MPI and OpenMP code
 
-Before moving on it is worth mentioning that you are generating mixed
-mode (MPI and OpenMP) parallel code here which many manually
+Before moving on it is worth mentioning that you have just generating
+mixed mode (MPI and OpenMP) parallel code here which many manually
 parallelised codes do not support. If you just want to generate OpenMP
 code you can switch off the distributed memory generation option as
 you did in the previous tutorial section (i.e. add the -nodm options
@@ -65,7 +81,7 @@ other.
 There are various solutions to this problem. The one typically taken
 in finite element codes is to colour the loop. Colouring should
 hopefully have already been explained to you so we will not go into
-much detail here. Essentially iterations are grouped together into
+much detail here. Essentially loop iterations are grouped together into
 sets that are independent of each other. Each of these groups is
 called a colour. Iterations with the same colour can be run in
 parallel but iterations with different colours can not. Therefore
@@ -91,10 +107,10 @@ and add the following within the invoke for loop after schedule is declared
 What happens when we run this?
 
 The reason we get an exception in the colouring transformation is
-because the first loop may modify a continuous function but it
-iterates over dofs and therefore does not need to be coloured (as all
-accesses to dofs are independent). The colouring transformation knows
-this and therefore complains when its validation method is called.
+because the first loop containing the builtin may modify a continuous
+function but it iterates over dofs and therefore does not need to be
+coloured (as all accesses to dofs are independent). The colouring
+transformation checks for this and therefore raises an exception.
 
 Let's fix this problem by adding another clause to the if test to make
 sure we only colour loops which iterate over cells ...
@@ -111,9 +127,16 @@ single colour) is parallelised using OpenMP.
 Notice that you have not had to change the OpenMP transformation
 logic, it has just done the right thing. This is because the script
 tries to parallelise all loops and the OpenMP transformation refuses
-to parallelise a loop that it knows to be serial. It knows this as the
-loop class has a property which can be used to identify the type of
-loop it is.
+to parallelise a loop that it knows to be serial. It knows this as
+PSyclone has specified that this loop is of type "colours". You can
+see the loop types in the psy-layer PSyIR code that is output to the
+screen.
+
+If you take a look above the psy-layer PSyIR code that is output to
+the screen you will see messages from the transformation saying that
+it will not parallelise a loop that iterates over colours:
+
+Transformation Error: Error in DynamoOMPParallelLoopTrans transformation. The requested loop is over colours and must be computed serially.
 
 ## Generated code
 
@@ -121,25 +144,59 @@ So far we have only looked at the PSyIR. Let's now take a look at the generated 
 
 > my_fav_edtitor psy.f90
 
-Notice that the OpenMP parallel directives have clauses on them
-specifying what is shared and what is private. Normally the HPC expert
-would have to work these out and check them when the code was
-modified. PSyclone works them out and adds them automatically.
+Notice that the OpenMP parallel directives have clauses specifying
+what is shared and what is private. Normally the HPC expert would have
+to work these out and check them when the code was modified. PSyclone
+works them out and adds them automatically.
 
 The OpenMP parallel directives also default to a static schedule. The
-OpenMP schedule can be chaged in the transformation arguments. Try:
+OpenMP schedule can be changed when creating the transformation
+object. Valid values are:
 
-******
+['runtime', 'static', 'dynamic', 'guided', 'auto']
 
-Also notice that the coloured loops have loop bounds that calls
-infrastructure to provide the bounds and that the dofmaps now have
-"cmap" lookups in them. These changes are all taken care of by
-PSyclone. However, PSyclone is not responsible for working out the
-number of colours, the colour map etc, PSyclone relies on the LFRic
-infrastructure to provide this information and simply asks for it via
-the LFRic infrastructure's API.
+Try setting the value and see if the generated code changes, e.g.:
+
+    otrans = DynamoOMPParallelLoopTrans(omp_schedule="dynamic")
+
+Feel free to try to provide an invalid value, you should get an
+exception.
+
+Take a look a the generated coloured loops. They call infrastructure
+functions to provide the bounds and the dofmaps now have "cmap"
+lookups in them. These changes are all taken care of by
+PSyclone. However, note that PSyclone is not responsible for working
+out the number of colours, the colour map etc, PSyclone relies on the
+LFRic infrastructure to provide this information and simply asks for
+it via the LFRic infrastructure's API.
 
 ## Reductions
+
+The example we have been using does not make use of
+reductions. Therefore lets modify the example slightly to add one
+in. This has already been done in the helmholtz_solver_alg_mod.x90
+algorithm file in this directory. The only difference to the original
+example is that an inner produce builtin has been added at the end of
+the invoke call.
+
+From this directory run:
+
+> psyclone -oalg /dev/null -opsy psy.f90 -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
+
+The -d option tells PSyclone where to look for the kernel code. You
+can try without it if you like. PSyclone will complain that it can't
+find one of the required files.
+
+The psy-layer PSyIR the is output to the screen is showing that the innerproduct builtin has been parallelised. Take a look at the generaetd code:
+
+> my_fav_editor psy.f90
+
+Notice that the OpenMP directive around the inner product loop has a
+reduction clause. PSyclone has determined that a reduction is required
+(from the kernel metadata) and automatically added the appropriate
+OpenMP clause. Therefore the user does not need to worry about this.
+
+One issue
 
 Reduction has been parallelised. However is not guaranteed to provide the same results from one run to the next as spec says can sum up in any order.
 
