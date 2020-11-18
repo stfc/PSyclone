@@ -73,8 +73,8 @@
 ! -----------------------------------------------------------------------------
 ! Authors J. Henrichs, Bureau of Meteorology
 
-!> This module implements a verification that all floating point
-!! values are 'normal' (ie. NAN, infinity, ...)
+!> This module implements a PSyData-based verification that floating point
+!! input and output parameters are not NAN and not infinite.
 !! 
 
 module nan_test_base_mod
@@ -104,14 +104,6 @@ module nan_test_base_mod
 
     end type NANTestBaseType
 
-    {# Create a generic interface for all ComputeChecksum functions #}
-    {# ------------------------------------------------------------ #}
-    {% set all_compute = [] %}
-    {% for name, type, bits in ALL_TYPES %}
-      {% for dim in ALL_DIMS %}
-        {{ all_compute.append("CheckNAN"~dim~"d"~name) or "" -}}
-      {% endfor %}
-    {% endfor %}
     {% set indent="        " %}
 
 Contains
@@ -129,7 +121,6 @@ Contains
     ! -------------------------------------------------------------------------
     !> This subroutine checks if a floating point value is NAN or infinite
     !! using the IEEE_IS_FINIT function (and does nothing for integer types).
-    !! (depending on this%verify_checksums) for a single {{name}}.
     !! @param[inout] this The instance of the NANTestBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
