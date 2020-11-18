@@ -109,6 +109,7 @@ module prop_perturbation_kernel_mod
                                     ndf_wchi, undf_wchi, map_wchi, &
                                     basis_wchi)
 
+ !   use ieee_arithmetic
     implicit none
 
     ! Arguments
@@ -154,6 +155,7 @@ module prop_perturbation_kernel_mod
       end do
 
     end do
+!        perturbation( map_w3(1) ) = IEEE_VALUE(perturbation( map_w3(1) ), IEEE_QUIET_NAN)
 
   end subroutine prop_perturbation_code
 
