@@ -9,7 +9,7 @@ Each kernel in this tutorial performs one simple mathematical operation
 in order to learn how to work with the basic building blocks of an
 [LFRic kernel](LFRic_kernel_structure.md):
 
-* Kernel metadata (LFRic_kernel_structure.md#kernel-metadata) and
+* [Kernel metadata](LFRic_kernel_structure.md#kernel-metadata) and
 * [Kernel subroutine](LFRic_kernel_structure.md#kernel-subroutine) including
   - [Argument list and declarations](
     LFRic_kernel_structure.md#argument-list-and-declarations) and
@@ -20,8 +20,7 @@ The tutorial is further subdivided into two parts in order to learn how to
 1. Create and call kernels that update a field on the specific
    [LFRic function spaces](
    https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces);
-2. Create and call general-purpose kernels that update a field on any
-   function space.
+2. Create and call generic kernels that update a field on any function space.
 
 ## Supporting source and scripts
 

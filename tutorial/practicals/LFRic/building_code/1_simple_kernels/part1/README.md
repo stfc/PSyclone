@@ -18,7 +18,7 @@ The working directory for this part of the tutorial is
 `<PSYCLONEHOME>/tutorial/practicals/LFRic/building_code/1_simple_kernels/part1`
 where `<PSYCLONEHOME>` is the full path to the local PSyclone repository.
 
-## Step 1: Complete the `setval_field_w0_kernel_mod.f90` kernel
+## Step 1: Complete the `setval_field_w3_kernel_mod.f90` kernel
 
 Navigate to the working directory for this part of the tutorial, copy the
 supplied kernel stub [`setval_field_w0_kernel_mod.f90`](../

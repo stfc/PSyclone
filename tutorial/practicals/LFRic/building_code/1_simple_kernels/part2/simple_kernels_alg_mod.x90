@@ -34,9 +34,8 @@
 ! Author: I. Kavcic, Met Office
 !
 ! -----------------------------------------------------------------------------
-! A module that creates fields on W0 and W3 function spaces and calls
-! general-purpose kernels to initialise and add the fields on the same
-! function space.
+! A module that creates fields on W0 and W3 function spaces and calls generic
+! kernels to initialise and add the fields on the same function space.
 ! -----------------------------------------------------------------------------
 module simple_kernels_alg_mod
 
@@ -106,8 +105,8 @@ contains
 
     !---------------------------------------------------------------------------
     ! TO COMPLETE: Set each W0 field on different function spaces to a constant
-    ! value and add them in the same invoke using the general-purpose kernels
-    ! that can operate on fields on any function space
+    ! value and add them in the same invoke using the generic kernels that can
+    ! operate on fields on any function space.
     ! Set each W0 field to a constant value and add them in the same invoke
 
     ! Set each W3 field to a constant value and add them in the same invoke

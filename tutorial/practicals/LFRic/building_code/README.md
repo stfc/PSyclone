@@ -18,7 +18,7 @@ This tutorial shows how to create and use simple LFRic kernels to
 perform mathematical operations on the LFRic field data. It starts with
 different kernels for different LFRic finite-element [function spaces](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces)
-and uses them as a template to write general-purpose kernels that can
+and uses them as a template to write generic kernels that can
 operate on any function space.
 
 The mathematical operations in this tutorial are quite simple (initialisation

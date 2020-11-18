@@ -1,9 +1,9 @@
-# Tutorial 1, Part 2: Update fields on a general function space
+# Tutorial 1, Part 2: Update fields on a generic function space
 
 In this part of the [first tutorial](../README.md), we will repurpose
 the completed `setval_field_w0_kernel_mod.f90` from the
 [Part 1](../part1/README.md) to assign a value to a field on any
-function space. After that we will create another general-purpose
+function space. After that we will create another generic
 kernel that adds two fields on any function space and stores the
 result in a third field on the same space.
 
@@ -48,12 +48,12 @@ continuous function space `W0` (see [here](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
 for more information of valid access modes depending on the function
 space that the argument is defined on). This is according to the rule that
-the general function spaces need to be treated as continuous (the "worst
+the generic function spaces need to be treated as continuous (the "worst
 case scenario").
 
 Unlike the specific function space identifier `W0` that is located
 in the `fs_continuity_mod` LFRic infrastructure module, the metadata
-identifiers for the general-purpose function spaces are located in
+identifiers for the generic function spaces are located in
 the `argument_mod` LFRic infrastructure module. We will need to remove
 the `use fs_continuity_mod, only: W0` statement and add the generic
 `ANY_SPACE_1` metadata identifier to the `use argument_mod, only: ...`
@@ -83,7 +83,7 @@ kernel in the [Solutions of Part 2 directory](../solutions/part2).
 ## Step 2: Create the `add_fields_any_kernel_mod.f90` kernel
 
 We will now use the completed `setval_field_any_kernel_mod.f90` as a
-template for a general-purpose kernel that adds two fields on any
+template for a generic kernel that adds two fields on any
 function space and stored the result in a third field on the same
 space.
 
@@ -105,7 +105,7 @@ arguments:
          /)
 ```
 
-*Note* that all fields use the same general-purpose function space
+*Note* that all fields use the same generic function space
 identifier.
 
 The argument list has changed significantly so we need to run the
@@ -159,7 +159,7 @@ Open the supplied algorithm source, `simple_kernels_alg_mod.x90`, in an
 editor and look for the comment that marks the place to complete
 the `invoke` calls, `! TO COMPLETE: Set each ...`.
 
-We will now create the `invoke` call to the above general-purpose kernels to
+We will now create the `invoke` call to the above generic kernels to
 1. Initialise the output field `field_w0_out` to `0`,
 2. Initialise the input fields `field1_w0_in` and `field2_w0_in` to
    different constant scalar values and
