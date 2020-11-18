@@ -5,7 +5,7 @@ the completed `setval_field_w0_kernel_mod.f90` from the
 [Part 1](../part1/README.md) to assign a value to a field on any
 function space. After that we will create another generic
 kernel that adds two fields on any function space and stores the
-result in a third field on the same space.
+result in a third field on the same generic space.
 
 We will then modify the supplied algorithm
 [`simple_kernels_alg_mod.x90`](simple_kernels_alg_mod.x90) to call
@@ -18,7 +18,7 @@ where `<PSYCLONEHOME>` is the full path to the local PSyclone repository.
 ## Step 1: Repurpose the `setval_field_w0_kernel_mod.f90` kernel
 
 Navigate to the working directory for this part of the tutorial and copy
-the completed kernel [`setval_field_w0_kernel_mod.f90`] source from the
+the completed kernel `setval_field_w0_kernel_mod.f90` source from the
 [Part 1](../part1) directory as
 
 ```shell
@@ -42,26 +42,29 @@ field on any function space as
          /)
 ```
 
-*Note* that the access mode for the updated field in this kernel,
+**Note** that the access mode for the updated field in this kernel,
 `GH_INC`, is the same as the access for an updated field on a
 continuous function space `W0` (see [here](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
 for more information of valid access modes depending on the function
-space that the argument is defined on). This is according to the rule that
-the generic function spaces need to be treated as continuous (the "worst
-case scenario").
+space that an argument is defined on). The generic function spaces are
+treated as continuous (the "worst case scenario") except in the case of
+a generic discontinuous function space `ANY_DISCONTINUOUS_SPACE_n`
+(see [here](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces)
+for information on the supported function spaces).
 
 Unlike the specific function space identifier `W0` that is located
-in the `fs_continuity_mod` LFRic infrastructure module, the metadata
+in the LFRic infrastructure module `fs_continuity_mod`, the metadata
 identifiers for the generic function spaces are located in
-the `argument_mod` LFRic infrastructure module. We will need to remove
+the LFRic infrastructure module `argument_mod`. We will need to remove
 the `use fs_continuity_mod, only: W0` statement and add the generic
 `ANY_SPACE_1` metadata identifier to the `use argument_mod, only: ...`
 statement.
 
 After that we need to change the kernel code unit names accordingly,
 e.g. `setval_field_w0_` becomes `setval_field_any_`, and then we
-will then run the kernel stub generator on the renamed kernel
+will run the kernel stub generator on the renamed kernel
 
 ```shell
 genkernelstub setval_field_any_kernel_mod.f90
@@ -83,8 +86,8 @@ kernel in the [Solutions of Part 2 directory](../solutions/part2).
 ## Step 2: Create the `add_fields_any_kernel_mod.f90` kernel
 
 We will now use the completed `setval_field_any_kernel_mod.f90` as a
-template for a generic kernel that adds two fields on any
-function space and stored the result in a third field on the same
+template to create a generic kernel that adds two fields on any
+function space and stores the result in a third field on the same
 space.
 
 Copy the created `setval_field_any_kernel_mod.f90` kernel into the new
@@ -105,7 +108,7 @@ arguments:
          /)
 ```
 
-*Note* that all fields use the same generic function space
+**Note** that all fields use the same generic function space
 identifier.
 
 The argument list has changed significantly so we need to run the
@@ -124,9 +127,9 @@ something like
 
 The `_aspc1_field_1` appendix comes from the `ANY_SPACE_1` metadata
 identifier as described above and the "write-field" name, `field_1`.
-This additional field identifier is added because the `ANY_SPACE_1`
-function space of an updated field in one kernel not having to be the
-same as in another kernel.
+This additional field identifier is added because a generic `ANY_SPACE_1`
+function space of an updated field in one kernel does not have to be
+the same as `ANY_SPACE_1` in another kernel.
 
 You will now need to update the implementation of the kernel loop so
 that it updates the elements of `field_1` to the sum of elements of
@@ -157,7 +160,7 @@ to call the created kernels.
 
 Open the supplied algorithm source, `simple_kernels_alg_mod.x90`, in an
 editor and look for the comment that marks the place to complete
-the `invoke` calls, `! TO COMPLETE: Set each ...`.
+the `invoke` calls, `! TO COMPLETE: Set each ...`
 
 We will now create the `invoke` call to the above generic kernels to
 1. Initialise the output field `field_w0_out` to `0`,
@@ -188,10 +191,12 @@ The completed `invoke` call for the `W0` fields would be something like
 ```
 
 We will then create another `invoke` that repeats the calls for the `W3`
-fields, but with the different values of scalar literals for setting the
-`field1_w3_in` and `field2_w3_in`. Unlike in the [Part 1](../part1) of
-this tutorial, there is no need for the different versions of kernels
-depending on the function space of the kernel arguments.
+fields, but with the different values of scalar literals for initialising
+the fields `field1_w3_in` and `field2_w3_in`.
+
+**Note** that, unlike in the [Part 1](../part1) of this tutorial, there is no
+need for the different versions of kernels depending on the function space of the
+kernel arguments.
 
 The completed algorithm can be found in the [Solutions of Part 2 directory](
 ../solutions/part2).
@@ -210,7 +215,7 @@ cp ../simple_kernels_driver.f90 .
 
 and then run `make` to create the executable `simple_kernels_part2` using
 the provided LFRic infrastructure [code support](
-../../README.md#lfric-code-support] (note that the PSyclone code generation
+../../README.md#lfric-code-support) (note that the PSyclone code generation
 is integrated into the full build process). If the build is successful we can
 run the executable
 
