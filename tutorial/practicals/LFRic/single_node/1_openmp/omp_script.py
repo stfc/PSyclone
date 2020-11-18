@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,12 +37,16 @@
 '''File containing a PSyclone transformation script for the dynamo0p3
 API to apply loop fusion and then OpenMP parallelisation to an invoke
 with two Kernels. This can be applied via the -s option in the
-generator.py script.'''
+generator.py script.
+
+'''
+from __future__ import print_function
 from psyclone.transformations import DynamoOMPParallelLoopTrans, \
     TransformationError, Dynamo0p3ColourTrans, OMPParallelTrans, \
     Dynamo0p3OMPLoopTrans
 from psyclone.psyGen import Loop
 from psyclone.domain.lfric.function_space import FunctionSpace
+
 
 def trans(psy):
     ''' PSyclone transformation script for the dynamo0p3 API to apply
@@ -57,7 +61,7 @@ def trans(psy):
             try:
                 otrans.apply(loop)
             except TransformationError as info:
-                print (str(info.value))
+                print(str(info.value))
 
         # take a look at what we've done
         schedule.view()
