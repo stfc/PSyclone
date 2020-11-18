@@ -32,26 +32,54 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
-'''A PSyclone transformation script that outputs a textual
-representation of the PSyIR representing the PSy-layer for the first
-invoke found in the algorithm layer code.
+'''A PSyclone transformation script that transforms a specific
+synchronous halo exchange into an asynchronous halo exchange and
+moves the halo exchange start part as early as possible in the
+schedule in order to maximise the overlap of communication and
+computation. Also outputs a textual view of the transformed PSyIR
+representing the PSy-layer.
+
+This is a kernel-specific implementation that will only work for
+schedules with a halo exchange in a hard-coded location and a
+resultant halo exchange start that can be moved to a hard-coded
+location.
+
+It is designed to work with the helmholtz example with the annexed
+dofs option set to false.
 
 This PSyclone transformation script is designed to be passed to
 PSyclone, it is not designed to be run directly from python.
 
 '''
+from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, MoveTrans
+
 def trans(psy):
-    '''Output a textual view of the PSyIR representing the PSy-layer for
-    the first invoke found in the algorithm layer code.
+    '''Transforms a specific synchronous halo exchange into an
+    asynchronous halo exchange and moves the halo exchange start part
+    as early as possible in the schedule in order to maximise the
+    overlap of communication and computation. Also outputs a textual
+    view of the transformed PSyIR representing the PSy-layer.
 
     :param psy: a PSyclone PSy object which captures the algorithm and \
         kernel information required by PSyclone.
     :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
 
     '''
-    # Get the object representing the first PSy-layer invoke
+    # Create the required transformations
+    async_hex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    move_trans = MoveTrans()
+
+    # Get a specific invoke
     invoke = psy.invokes.invoke_list[0]
     # Get the schedule (the PSyIR representation of the PSy-layer)
     schedule = invoke.schedule
-    # Take a look at the PSy-layer PSyIR
+    # Reference a specific node that we can move
+    hex_node = schedule[2]
+    async_hex_trans.apply(hex_node)
+
+    # Move the (specific) halo exchange start node to the start of the
+    # schedule
+    move_trans.apply(schedule[2], schedule[0])
+
+    # Take a look at the modified PSy-layer PSyIR
     schedule.view()

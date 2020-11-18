@@ -9,7 +9,9 @@ costly routines in the LFRic dynamical core.
 
 ## 2: Make a prediction
 
-Generate the code again:
+Generate the code again. (Please note that the command below and all
+subsequent commands in this file assume that you are in the same
+directory as this README.md file):
 
 > psyclone -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
 
@@ -25,50 +27,52 @@ code, whatever you prefer. You might want/need to refer to the kernel
 metadata as well.
 
 Reminder: the annexed dof optimisation ensures that annexed dofs are
-computed redundantly (by changing the loop bounds of loops that
+computed redundantly (by changing the upper bounds of loops that
 iterate over dofs).
 
 ## 3: The config file
 
 You will see a configuration file in the directory called
-"psyclone.cfg". The file format conforms to the Python configparser
+"psyclone.cfg". This file conforms to the Python
+[configparser](https://docs.python.org/3/library/configparser.html)
 format.
 
 This file is an exact copy of the configuration file found in
 <psyclone_home>/config which is what PSyclone uses by default. You can
 diff the two files to check if you like.
 
-Open this file in your favourite editor. You will see that it has
+Open this file in your favourite editor. You will see that it has a
 general (default) section for settings that are common to all APIs and
-separate section and sections for each of the APIs.
+subsequent, separate sections for each of the APIs.
 
 We are using the API called "dynamo0.3". Note, this is a historical
 name which will be changed to "lfric".
 
 Find the dynamo0.3 section and the COMPUTE_ANNEXED_DOFS option within that section.
 
-This option is set to false by default so change this value to true
-and then save the modified file.
+This option is set to `false` by default so change this value to
+`true` and then save the modified file.
 
-## 5: Rerun PSyclone
+## 5: Re-run PSyclone
 
 PSyclone allows you to specify a particular config file on the command
-line, so lets use this feature to rerun using the one we have just
-modified. Let's also save the generated psy-layer code to a different
+line, so lets use this feature to re-run using the one we have just
+Modified. Let's also save the generated psy-layer code to a different
 file.
 
-> psyclone -oalg /dev/null -opsy psy_annexed.f90 -s ./schedule.py helmholtz_solver_alg_mod.x90 --config psyclone.cfg
+> psyclone -oalg /dev/null -opsy psy_annexed.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
 
 ## 5: Differences
 
 You should see a difference in the schedule view that is output to the
 screen and in the generated psy-layer code.
 
-You might also like to see the difference between the two generated psy-layer codes.
+You might also like to see the difference between the two psy layers
+that have been generated.
 
 > diff psy.f90 psy_annexed.f90
 
-Are the changes what you predicted? If so, well done. If not, don't
+Are the changes what you predicted? If so, well done! If not, don't
 worry, determining where to place halo exchanges in parallel code and
 where to do redundant computation to reduce the number of halo
 exchanges is a difficult and error prone task, especially if the

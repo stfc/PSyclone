@@ -1,6 +1,6 @@
 
 In this example you will see how to how to switch from generating sequential
-code to parallel distributed memory code using the LFRic API. You can then
+code to parallel distributed-memory code using the LFRic API. You can then
 take a look at the generated code and understand why it is
 generated this way.
 
@@ -17,38 +17,45 @@ LFRic infrastructure and how it is called by users and by PSyclone.
 ## 1: The example
 
 Use your favourite editor to take a look at the algorithm code example
-to familiarise yourself with the kernels that are called from this
-algorithm-layer code from the invoke call.
+to familiarise yourself with the kernels that are called from the
+algorithm layer using an invoke. The path below is relative to the
+directory in which this README.md file resides.
 
 > my_fav_editor ../code/helmholtz_solver_alg_mod.x90
 
 This example is extracted from the LFRic model and is one of the most
-computationally costly sections of the LFRic dynamical core. Note, that
-all of the executable code has been removed apart from the part we are
-interested in, the invoke call.
+computationally costly sections of the LFRic dynamical core. Note
+that all of the executable code has been removed apart from the invoke
+call which we are interested in.
 
 ## 2: Creating a sequential PSy-layer
 
-From this directory run ...
+From this directory run:
 
 > psyclone -nodm -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
 
-The default is to create parallel code so we need to add the -nodm
-flag to request sequential code. We are not interested in looking at
-the algorithm code so we just send that to /dev/null. We store the
-generated psy layer in psy.f90 and use a script to take a look at the
-PSyIR PSy-layer ntermediate representation, which is output to the terminal.
+Notice the schedule.py script requires a path (./ in this case). The
+script will not be found by PSyclone if a path is not supplied.
+
+The default behaviour of PSyclone is to create parallel code so we
+need to add the -nodm flag to request sequential code. We are not
+interested in looking at the algorithm code so we just send that to
+/dev/null. We store the generated psy layer in psy.f90 and use a
+script to take a look at the PSyIR (PSyclone Internal Representation),
+which is output to the terminal.
 
 If the terminal output is not coloured you might like to install
-termcolour (sudo pip install termcolor) and re-run.
+termcolor (pip install termcolor if using a virtualenv) and re-run.
 
-From inspection of the PSyIR intermediate representation you will see
-that the kernels are called in the same order as specified in the
-invoke call. A loop has also been created for each of the kernel
-calls. The first of these is for a builtin and iterates over "dofs",
-with an upper loop bound of "ndofs". The next three loops contain
-coded kernels and they iterate over "cells" (an empty "type" in the
-description means "cells"!) with an upper loop bound of "ncells".
+From inspection of the PSyIR you will see that the kernels are called
+in the same order as specified in the invoke call. A loop has also
+been created for each of the kernel calls and kernel calls that are
+builtins are distinguished from kernel calls that are coded
+kernels.. The first of these loops is for a builtin and iterates over
+"dofs", with an upper loop bound of "ndofs". The next three loops
+contain coded kernels and they iterate over "cells" (an empty "type"
+in the description means "cells"!) with an upper loop bound of
+"ncells".
 
 ## 3: View the generated sequential PSy-layer code
 
@@ -95,25 +102,25 @@ Take a look at the generated psy-layer Fortran code
 As before, the code performing the looping (after the "Call our
 kernels" comment) is relatively short and concise. You should see the
 halo exchange calls placed at the locations shown in the PSyIR
-psy-layer. Notice that the halo exchanges which had check_dirty=True
+of the psy-layer. Notice that the halo exchanges which had check_dirty=True
 are enclosed within an if condition whereas the halo exchange which
-had check_dorty=False does not. Also notice the set_dirty() calls that
-appear after some of the loop psy-layer loops.
+had check_dirty=False does not. Also notice the set_dirty() calls that
+appear after some of the loops.
 
 The distributed memory model, placement of halo exchanges and
 set_dirty() calls will be introduced next.
 
 ## Key points
 
-* The sequential or distributed memory parallel code is generated - no
+* The sequential or distributed-memory parallel code is generated - no
   manual code writing is required.
   
-* Switching between sequential and distributed memory parallel code
+* Switching between sequential and distributed-memory parallel code
   generation is done with a single flag.
 
 * The science code (algorithm and kernel code) does not change,
   therefore science developers do not need to be concerned with
-  parallelism issues.
+  issues related to parallelism.
 
 ## Congratulations
 
