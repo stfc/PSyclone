@@ -78,5 +78,5 @@ main_alg.f90: main_psy.f90
 	psyclone --config ../../../config/psyclone.cfg -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 clean:
-	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90 \
-	$(LFRIC_PATH)/*.o $(LFRIC_PATH)/*.mod $(LFRIC_PATH)/*.a
+	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
+	make -C $(LFRIC_PATH) clean

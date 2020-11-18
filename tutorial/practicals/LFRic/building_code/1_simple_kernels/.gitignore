@@ -1,0 +1,10 @@
+*.o
+*.mod
+*_alg_mod.f90
+*_alg_mod_psy.f90
+simple_kernels_part1
+simple_kernels_part2
+part1/*_driver.f90
+part1/*_kernel_mod.f90
+part2/*_driver.f90
+part2/*_kernel_mod.f90

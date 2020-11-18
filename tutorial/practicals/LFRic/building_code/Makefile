@@ -31,52 +31,19 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
+# Author: I. Kavcic, Met Office
 
-# The compiler to use may be specified via the F90 environment
-#
-# export F90=gfortran
-# export F90FLAGS="-Wall -g -fcheck=bound"
+# Top-level Makefile to build all solutions of the LFRic hands-on tutorials on
+# building code.
 
-F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound
+# Targets
+# build (default): complete build to run examples
+# test: PSyclone target for continuous integration
+# clean: Remove generated and compiled code
+.PHONY: build test clean
 
-OBJ = main_psy.o main_alg.o testkern_w0_mod.o
-
-EXEC = example
-LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME=lfric_netcdf
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-
-F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
-
-default: $(EXEC)
-
-$(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) $$(nf-config --flibs) 
-
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) netcdf
-
-# Dependencies
-main_psy.o:	testkern_w0_mod.o
-main_alg.o:	main_psy.o
-
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
-
-# Keep the generated psy and alg files
-.precious: main_psy.f90 main_alg.f90
-
-main_alg.f90: main_psy.f90
-
-%_psy.f90:	%.x90
-	psyclone --config ../../../config/psyclone.cfg -opsy $*_psy.f90 -oalg $*_alg.f90 $<
-
-clean:
-	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
-	make -C $(LFRIC_PATH) clean
+build test clean:
+	${MAKE} -C 1_simple_kernels/solutions/part1 $@
+	${MAKE} -C 1_simple_kernels/solutions/part2 $@
+	${MAKE} -C 2_built_ins/solutions $@
+	${MAKE} -C 3_time_evolution/solutions $@

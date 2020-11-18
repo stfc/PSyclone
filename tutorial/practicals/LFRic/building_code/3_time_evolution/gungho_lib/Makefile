@@ -31,37 +31,29 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
-
-# The compiler to use may be specified via the F90 environment
-#
-# export F90=gfortran
-# export F90FLAGS="-Wall -g -fcheck=bound"
+# Authors: I. Kavcic, Met Office and J. Henrichs, Bureau of Meteorology
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
-OBJ = main_psy.o main_alg.o testkern_w0_mod.o
-
-EXEC = example
-LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME=lfric_netcdf
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-
+# LFRic infrastructure library
+PSYCLONE_RELPATH = ../../../../../..
+LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_NAME = lfric_netcdf
+LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
 
-default: $(EXEC)
+GHLIB_SRC = $(wildcard *.F90) $(wildcard *.f90)
 
-$(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) $$(nf-config --flibs) 
+GHLIB_OBJ = $(filter %.o,$(GHLIB_SRC:.F90=.o) $(GHLIB_SRC:.f90=.o))
 
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) netcdf
+default: $(GHLIB_OBJ)
+	$(AR) $(ARFLAGS) libgungho.a $(GHLIB_OBJ)
+default: $(LIB)
 
 # Dependencies
-main_psy.o:	testkern_w0_mod.o
-main_alg.o:	main_psy.o
+# ------------
+assign_coordinate_field_mod.o: base_mesh_config_mod.o planet_config_mod.o
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
@@ -69,14 +61,5 @@ main_alg.o:	main_psy.o
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
-# Keep the generated psy and alg files
-.precious: main_psy.f90 main_alg.f90
-
-main_alg.f90: main_psy.f90
-
-%_psy.f90:	%.x90
-	psyclone --config ../../../config/psyclone.cfg -opsy $*_psy.f90 -oalg $*_alg.f90 $<
-
 clean:
-	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
-	make -C $(LFRIC_PATH) clean
+	rm -f *.o *.mod *.a
