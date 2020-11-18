@@ -120,10 +120,6 @@ Other supporting modules and libraries (no modifications required) are:
   calling routines from `diagnostic_alg_mod.x90`;
 * [`diagnostic_alg_mod.x90`](diagnostic_alg_mod.x90) - calls kernels to map
   fields from one space to another for diagnostic output and calls I/O routine;
-* [`nodal_coordinates_kernel_mod.F90`](nodal_coordinates_kernel_mod.F90) - an
-  LFRic kernel that maps coordinate fields from its own function space to the
-  function space of the output field (otherwise the number of data points or
-  DoFs would be different);
 * [`gungho_lib`](gungho_lib) - collection of LFRic infrastructure and
   science-like libraries for assigning coordinate fields, reading namelists
   and outputting results.
