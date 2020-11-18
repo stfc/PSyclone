@@ -54,7 +54,6 @@
    coding-style
    zz_bibliography
 
-..   tutorial
 ..   FAQS
 
 .. when generating latex the index and module index are generated
