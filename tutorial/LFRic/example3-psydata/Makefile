@@ -106,7 +106,8 @@ $(ALGORITHM_SRC): $(PSY_SRC)
 example3_alg_mod_psy.f90: example3_alg_mod.x90
 	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
 	-opsy example3_alg_mod_psy.f90  -oalg example3_alg_mod.f90 \
-	-s ./extract_transform.py  $<
+	-s ./nan_transform.py  $<
+	#-s ./extract_transform.py  $<
 
 clean:
 	rm -f *.o *.mod *.txt $(LFRIC_PATH)/*.o $(LFRIC_PATH)/*.mod $(LFRIC_PATH)/*.a \
