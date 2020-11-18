@@ -45,6 +45,5 @@
 build test clean:
 	${MAKE} -C 1_simple_kernels/solutions/part1 $@
 	${MAKE} -C 1_simple_kernels/solutions/part2 $@
-	${MAKE} -C 1_simple_kernels/solutions/part3 $@
 	${MAKE} -C 2_built_ins/solutions $@
 	${MAKE} -C 3_time_evolution/solutions $@
