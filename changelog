@@ -210,6 +210,10 @@
 	subfolder of the tutorial directory ready for the addition of
 	"practicals" tutorials
 
+	68) PR #958 for #957. Add checks that raise an exception at code
+	generation time if there are any orphan OpenACC or OpenMP
+	directives e.g. OpenMP loop should be within OpenMP parallel.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
