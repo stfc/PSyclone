@@ -110,14 +110,12 @@ module extract_netcdf_base_mod
         !! in the same order in which their value is provided
 
         integer, dimension(:), allocatable :: var_id
-        !> Number of variables that are written before the
-        !! instrumented region.
 
     contains
 
         ! The various procedures used
-        procedure :: PreStart, PreEndDeclaration, PreEnd
-        procedure :: PostStart, PostEnd
+        procedure :: PreStart, PreEndDeclaration
+        procedure :: PostEnd
         procedure :: OpenRead
 
         {# Declare the jinja created procedures #}
@@ -210,15 +208,15 @@ Contains
     !! @param[inout] this The instance of the ExtractNetcdfBaseType.
     !! @param[in] module_name The name of the module of the instrumented
     !!            region.
-    !! @param[in] kernel_name The name of the instrumented region.
-    subroutine OpenRead(this, module_name, kernel_name)
+    !! @param[in] region_name The name of the instrumented region.
+    subroutine OpenRead(this, module_name, region_name)
         use netcdf, only : nf90_open, NF90_NOWRITE
         implicit none
         class(ExtractNetcdfBaseType), intent(inout), target :: this
-        character(*), intent(in) :: module_name, kernel_name
+        character(*), intent(in) :: module_name, region_name
         integer :: retval
 
-        retval = CheckError(nf90_open(module_name//"-"//kernel_name//".nc", &
+        retval = CheckError(nf90_open(module_name//"-"//region_name//".nc", &
                                         NF90_NOWRITE, this%ncid))
     end subroutine OpenRead
 
@@ -240,30 +238,6 @@ Contains
     end subroutine PreEndDeclaration
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is called after the value of all variables has been
-    !! provided (and declared). After this call the instrumented region will
-    !! be executed. For this NetCDF interface this function is not required,
-    !! so it is empty.
-    !! @param[inout] this The instance of the ExtractNetcdfBaseType.
-    subroutine PreEnd(this)
-        implicit none
-        class(ExtractNetcdfBaseType), intent(inout), target :: this
-        call this%PSyDataBaseType%PreEnd()
-    end subroutine PreEnd
-
-    ! -------------------------------------------------------------------------
-    !> This subroutine is called after the instrumented region has been
-    !! executed. After this call the value of variables after the instrumented
-    !! region will be provided. For this NetCDF interface this function is
-    !! not required, so it is empty.
-    !! @param[inout] this The instance of the ExtractNetcdfBaseType.
-    subroutine PostStart(this)
-        implicit none
-        class(ExtractNetcdfBaseType), intent(inout), target :: this
-        call this%PSyDataBaseType%PostStart()
-    end subroutine PostStart
-
-    ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
     !! executed and all values of variables after the instrumented
     !! region have been provided. This will close the NetCDF file.
@@ -280,15 +254,14 @@ Contains
 {# This defines a mapping of the 'userfriendly' names to the NetCDF data types. #}
 {% set NCDF_TYPE_MAPPING = { "Double": "NF90_DOUBLE",
                              "Real":   "NF90_REAL",
-                             "Int":    "NF90_INT"}%}
-
+                             "Int":    "NF90_INT"} -%}
 
 {% for name, type, bits in ALL_TYPES %}
     {% set NETCDF_TYPE = NCDF_TYPE_MAPPING[name] %}
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a scalar integer value. A corresponding
-    !! variable definition is added to the NetCDF file, and the variable
-    !! id is stored in the var_id field.
+    !> This subroutine declares a scalar {{type}} value.
+    !! A corresponding variable definition is added to the NetCDF file, and
+    !! the variable id is stored in the var_id field.
     !! @param[inout] this The instance of the ExtractNetcdfBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -305,9 +278,9 @@ Contains
     end subroutine DeclareScalar{{name}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine writes the value of a scalar {{name}} variable to the
-    !! NetCDF file. It takes the variable id from the corresponding
-    !! declaration.
+    !> This subroutine writes the value of a scalar {{type}}
+    !! variable to the NetCDF file. It takes the variable id from the
+    !!corresponding declaration.
     !! @param[inout] this The instance of the ExtractNetcdfBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -324,11 +297,11 @@ Contains
     end subroutine WriteScalar{{name}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine reads the value of a scalar {{name}} variable from
-    !! the NetCDF file and returns it to the user. Note that this function
-    !! is not part of the PSyData API, but it is convenient to have these
-    !! functions together here. The driver can then be linked with this
-    !! PSyData library and will be able to read the files.
+    !> This subroutine reads the value of a scalar {{type}}
+    !! variable from the NetCDF file and returns it to the user. Note that
+    !! this function is not part of the PSyData API, but it is convenient to
+    !! have these functions together here. The driver can then be linked with
+    !! this  PSyData library and will be able to read the files.
     !! @param[inout] this The instance of the ExtractNetcdfBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[out] value The read value is stored here.
@@ -355,8 +328,8 @@ Contains
     {% set vars = "dimid"~range(1,dim+1)|join(",dimid") %}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a double precision field as defined in
-    !! dl_esm_info (r2d_field). A corresponding variable definition is added
+    !> This subroutine declares a {{dim}}d-array of {{type}}.
+    !! A corresponding variable and dimension definitions are added
     !! to the NetCDF file, and the variable id is stored in the var_id field.
     !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
@@ -366,7 +339,6 @@ Contains
         use netcdf
         implicit none
 
-        !class(PSyDataBaseType         ), intent(inout), target :: this
         class(ExtractNetcdfBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
         {{type}}, dimension({{DIMENSION}}), intent(in) :: value
@@ -388,7 +360,7 @@ Contains
     end subroutine DeclareArray{{dim}}d{{name}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine writes a for a {{dim}}d-array of {{type}}
+    !> This subroutine writes a {{dim}}d-array of {{type}}
     !! to the NetCDF file.
     !! @param[inout] this The instance of the ExtractNetcdfBaseType.
     !! @param[in] name The name of the variable (string).
@@ -410,10 +382,10 @@ Contains
     end subroutine WriteArray{{dim}}d{{name}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine reads the values of a dl_esm_inf field (r2d_field).
-    !! It allocates a 2d-double precision array to store the read values
-    !! which is then returned to the caller. If the memory for the array can
-    !! not be allocated, the application will be stopped.
+    !> This subroutine reads the values of a {{dim}}d-array of {{type}}
+    !! It allocates memory for the allocatable parameter 'value' to store the
+    !!read values which is then returned to the caller. If the memory for the
+    !! array cannot be allocated, the application will be stopped.
     !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[out] value An allocatable, unallocated 2d-double precision array
@@ -433,7 +405,7 @@ Contains
         integer :: ierr
         character(100) :: x
 
-        ! First query the dimensions of the original r2d_field from the
+        ! First query the dimensions of the original array from the
         ! netcdf file
         {% for i in range(1, dim+1) %}
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim{{i}}"),  &
@@ -449,8 +421,11 @@ Contains
                     " of size ", {{dim_sizes}}, " in ReadArray{{dim}}d{{name}}."
             stop
         endif
+
         ! Initialise it with 0, so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
         value = 0.0d0
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
