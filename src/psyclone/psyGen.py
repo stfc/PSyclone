@@ -1522,8 +1522,8 @@ class ACCLoopDirective(ACCDirective):
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user can
         # apply transformations to the code). As an orphaned loop directive,
-        # we must have an ACCParallelDirective as an ancestor somewhere
-        # back up the tree.
+        # we must have an ACCParallelDirective or an ACCKernelsDirective as
+        # an ancestor somewhere back up the tree.
         if not self.ancestor((ACCParallelDirective, ACCKernelsDirective)):
             raise GenerationError(
                 "ACCLoopDirective must have an ACCParallelDirective or "
