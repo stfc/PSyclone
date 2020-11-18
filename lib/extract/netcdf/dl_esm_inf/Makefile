@@ -38,17 +38,31 @@
 # It also uses nf-config to query for flags required for NetCDF compilation.
 
 F90 ?= gfortran
+F90FLAGS ?=
 
 DL_DIR = ../../../../external/dl_esm_inf/finite_difference/src
 
-F90FLAGS ?= 
 F90FLAGS += $$(nf-config --fflags) -I$(DL_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
+PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
+                       -dims=2
+
 default: $(LIB_NAME)
 
-$(LIB_NAME):	kernel_data_netcdf.o
+$(LIB_NAME): psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
+
+kernel_data_netcdf.o:	extract_netcdf_base.o
+extract_netcdf_base.o:	psy_data_base.o
+
+psy_data_base.f90: ../../../psy_data_base.jinja Makefile
+	../../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+
+
+extract_netcdf_base.f90: ../extract_netcdf_base.jinja Makefile
+	../../../process.py $(PROCESS_ARGS) $< > extract_netcdf_base.f90
+
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
