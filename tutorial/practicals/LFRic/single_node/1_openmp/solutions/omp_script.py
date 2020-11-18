@@ -37,7 +37,10 @@
 '''File containing a PSyclone transformation script for the dynamo0p3
 API to apply loop fusion and then OpenMP parallelisation to an invoke
 with two Kernels. This can be applied via the -s option in the
-generator.py script.'''
+generator.py script.
+
+'''
+from __future__ import print_function
 from psyclone.transformations import DynamoOMPParallelLoopTrans, \
     TransformationError, Dynamo0p3ColourTrans, OMPParallelTrans, \
     Dynamo0p3OMPLoopTrans
