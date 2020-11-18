@@ -4,7 +4,7 @@ The tutorials in this directory give an overview of building LFRic code,
 with PSyclone as an integral part of this process. There are four
 subdirectories, one with the
 [introduction to LFRic](background/LFRic_intro.md) (including the
-overview of the [LFRic code structure}(background/LFRic_structure.md)
+overview of the [LFRic code structure](background/LFRic_structure.md)
 and how PSyclone is used in LFRic) and three hands-on tutorials briefly
 described below.
 
@@ -136,11 +136,13 @@ directory of the PSyclone repository. For more information on LFRic code
 structure and functionality see the [*LFRic code structure* section](
 background/LFRic_structure.md).
 
-### Distributed memory
+### Parallel code support
 
 The pared-down LFRic infrastructure used in these tutorials does not
-have the support for distributed memory (done via the [YAXT library](
+have the support for [distributed memory](../distributed_memory) (done
+via the [YAXT library](
 https://www.dkrz.de/redmine/projects/yaxt) in LFRic). Also, none of
 the [PSyclone transformations](
-https://psyclone.readthedocs.io/en/stable/transformations.html) are
-applied here so the code is generated and run in serial.
+https://psyclone.readthedocs.io/en/stable/transformations.html) for
+the [shared memory](../single_node) support are applied here so the
+code is generated and run in serial.

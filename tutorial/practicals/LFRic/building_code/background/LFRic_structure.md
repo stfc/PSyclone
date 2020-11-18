@@ -100,10 +100,10 @@ passed from the algorithm layer, referred to as `<class_name>_proxy`
 the object proxies. The data and other required information is then
 passed to kernel and built-in calls.
 
-PSyclone also generates code for distributed and shared memory
-support, however this is not utilised in this tutorial as explained
-in the main [README document](../README.md). The generated code in these
-tutorials is purely serial.
+PSyclone also generates code for [distributed](../../distributed_memory) and
+[shared memory](../../single_node) support, however this is not utilised
+in this tutorial as explained in the main [README document](../README.md).
+The generated PSy-layer code in these tutorials is purely serial.
 
 ## Kernel layer
 
