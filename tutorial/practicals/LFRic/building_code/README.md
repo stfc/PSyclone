@@ -83,6 +83,7 @@ tree targets to the `make` process:
 
 ---
 **NOTE**
+
 It is advisable to run `make test` whilst completing the kernel and
 and algorithm code to ensure that the code is correct. PSyclone checks
 that the source is syntactically correct and that it abides by the
