@@ -151,7 +151,10 @@ Contains
         type(field_proxy_type) :: value_proxy
         
         if (.not. is_enabled) return
-        print *,"PSYDATA - testing ", name
+
+        if (this%verbosity>1) then
+            write(stderr, *) "PSYDATA - testing ", name
+        endif
         value_proxy = value%get_proxy()
         call this%ProvideArray1DDouble(name, value_proxy%data)
     end subroutine ProvideFieldDouble
@@ -192,6 +195,10 @@ Contains
         character(8) :: index_string   ! Enough for a 6 digit number plus '()'
 
         if (.not. is_enabled) return
+
+        if (this%verbosity>1) then
+            write(stderr, *) "PSYDATA - testing ", name
+        endif
 
         ! Provide each member of the vector as a normal field. This way
         ! the checksum will be computed for each member individually.
