@@ -21,7 +21,9 @@ builtins_alg_mod.x90) to
 * Print out the min/max values of the modified fields.
 
 The working directory for this part of the tutorial is
-`<PSYCLONEHOME>/tutorial/practicals/LFRic/building_code/2_built_ins`
+```
+<PSYCLONEHOME>/tutorial/practicals/LFRic/building_code/2_built_ins
+```
 where `<PSYCLONEHOME>` is the full path to the local PSyclone repository.
 
 ## Supporting source and scripts

@@ -12,7 +12,9 @@ We will then modify the supplied algorithm
 these kernels.
 
 The working directory for this part of the tutorial is
-`<PSYCLONEHOME>/tutorial/practicals/LFRic/building_code/1_simple_kernels/part2`
+```
+<PSYCLONEHOME>/tutorial/practicals/LFRic/building_code/1_simple_kernels/part2
+```
 where `<PSYCLONEHOME>` is the full path to the local PSyclone repository.
 
 ## Step 1: Repurpose the `setval_field_w0_kernel_mod.f90` kernel
