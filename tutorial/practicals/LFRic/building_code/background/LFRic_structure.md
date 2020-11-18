@@ -114,11 +114,10 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#kernel)
 LFRic kernels perform mathematical operations on [a subset of data points](
 https://psyclone.readthedocs.io/en/stable/kernel_layer.html#kernel-layer)
 of LFRic data objects (fields, operators and scalars) passed
-from the [algorithm](LFRic_algorithm.md) through the
-[PSy layer](#psy-layer).
+from the [algorithm](#algorithm-layer) through the [PSy layer](#psy-layer).
 
 Scalar values are passed to a kernel from the [algorithm layer](
-LFRic_algorithm.md) as they are. In the case of fields and
+#algorithm-layer) as they are. In the case of fields and
 operators, however, LFRic kernels operate on a subset of the degrees
 of freedom (DoFs) of these objects, e.g. those on a single column of
 cells or even a single DoF. Such a subset occupies a portion

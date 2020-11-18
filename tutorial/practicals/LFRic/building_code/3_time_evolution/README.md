@@ -185,9 +185,9 @@ that calls an algorithm to calculate the "model state" for one timestep.
 
 ### Algorithm structure
 
-As said in the [*LFRic algorithm*](
-../background/LFRic_algorithm.md) section, it is usual for an
-algorithm to have multiple subroutines, `<base_name>_init`
+As said in the LFRic [*Algorithm layer section*](
+../background/LFRic_structure.md#algorithm-layer) section, it is usual for
+an algorithm to have multiple subroutines, `<base_name>_init`
 (initialisation of the required algorithm data), `<base_name>_step`
 (calculations of model state in one timestep) and `<base_name>_final`
 (usually clean-up of memory related to objects used in algorithms).

@@ -18,7 +18,7 @@ The working directory for this part of the tutorial is
 `<PSYCLONEHOME>/tutorial/practicals/LFRic/building_code/1_simple_kernels/part1`
 where `<PSYCLONEHOME>` is the full path to the local PSyclone repository.
 
-## Task 1: Complete the `setval_field_w0_kernel_mod.f90` kernel
+## Step 1: Complete the `setval_field_w0_kernel_mod.f90` kernel
 
 Navigate to the working directory for this part of the tutorial, copy the
 supplied kernel stub [`setval_field_w0_kernel_mod.f90`](../
@@ -73,7 +73,7 @@ You should now have the completed `setval_field_w0_kernel_mod.f90`
 kernel. To check that everything is correct, look into the completed
 kernel in the [Solutions of Part 1 directory](../solutions/part1).
 
-## Task 2: Create the `setval_field_w3_kernel_mod.f90` kernel
+## Step 2: Create the `setval_field_w3_kernel_mod.f90` kernel
 
 We will now use the completed `setval_field_w0_kernel_mod.f90` as a
 template for a kernel that assigns a value to a field on the `W3`
@@ -100,16 +100,16 @@ genkernelstub setval_field_w3_kernel_mod.f90
 and update the kernel if required. The completed kernel can also be found
 in the [Solutions of Part 1 directory](../solutions/part1).
 
-## Task 3: Call kernels from the supplied algorithm
+## Step 3: Call kernels from the supplied algorithm
 
 The structure and the role of the algorithm
 [`simple_kernels_alg_mod.x90`](simple_kernels_alg_mod.x90) is described in
 the [*Algorithm structure* section](../README.md#algorithm-structure) of
-this tutorial. In this task we will focus on using PSyclone `invoke`s to
+this tutorial. In this step we will focus on using PSyclone `invoke`s to
 call the created kernels.
 
 Open the supplied algorithm source, `simple_kernels_alg_mod.x90`, in an
-editor and look for the commented-out code that marks the place to complete
+editor and look for the comment that marks the place to complete
 the `invoke` calls, `! TO COMPLETE: Set each field ...`.
 
 We will now create the `invoke` calls to the two created kernels. The
@@ -140,17 +140,17 @@ optimisations. This is what we will do in this example, so the completed
 The completed algorithm can be found in the [Solutions of Part 1 directory](
 ../solutions/part1).
 
-## Task 4: Use PSyclone to generate algorithm and PSy-layer source
+## Step 4: Use PSyclone to generate algorithm and PSy-layer source
 
 We will first check that the kernels and the algorithm are correctly created
 and updated by running `make test` to process the algorithm source with
 PSyclone. If the code is correct, this will result in the generated algorithm
-source file `simple_kernels_alg_mod.f90` and PSy-layer source file
-`simple_kernels_alg_mod_psy.f90`.
+source file `simple_kernels_alg_mod.f90` and the generated PSy-layer source
+file `simple_kernels_alg_mod_psy.f90`.
 
 Looking at the generated algorithm file `simple_kernels_alg_mod.f90` we can
-see that the orginal `invoke` call to two kernel types from has become a call
-to a single subroutine with arguments passed to both kernels:
+see that the original `invoke` call to two kernel types from has become a call
+to a single subroutine with all field arguments passed to the kernel calls:
 
 ```fortran
     CALL invoke_0(field_w0, scalar_w0, field_w3, scalar_w3)
@@ -248,7 +248,7 @@ the LFRic repository).
 
 ---
 
-## Task 5: Build and run the code
+## Step 5: Build and run the code
 
 We will now copy the `simple_kernels_driver.f90` file to this working directory
 

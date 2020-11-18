@@ -56,7 +56,7 @@ These utilities do not need to be modified. The
 [*Driver structure*](#driver-structure) section below outlines the role
 of the driver layer in this tutorial.
 
-## Driver structure
+### Driver structure
 
 As outlined in the [overview of the LFRic driver layer](
 ../background/LFRic_structure.md#driver-layer), the
@@ -69,14 +69,14 @@ calls are likely to be different due to the [reduced version](
 ../README.md#lfric-code-support) of the LFRic infrastructure used
 in this example.
 
-1) Create a global 2D mesh object and allocate the data from the
-   unit-test planar mesh constructor:
+1) Create a global 2D mesh object, allocate the data from the unit-test
+   planar mesh constructor and return a pointer to the global mesh:
    ```fortran
    global_mesh = global_mesh_type()
    global_mesh_ptr => global_mesh
    ```
 
-2) Create a 1x1 (`xproc`, `yproc`) planar partition object:
+2) Create a 1x1 (`xproc`, `yproc`) planar partition object
    ```fortran
    partitioner_ptr => partitioner_planar
    partition = partition_type( global_mesh_ptr,   &
@@ -87,7 +87,10 @@ in this example.
                                local_rank,        &
                                total_ranks )
     ```
-   for one process (`total_ranks`) as we are running in serial.
+   for one process (`total_ranks`) as we are running in serial. Note that
+   we need to point to implementation of the `partition` class for a
+   planar mesh (`partitioner_ptr => partitioner_planar`) and the global mesh
+   (`global_mesh_ptr`).
 
 3) Create a uniform vertical extrusion object
    ```fortran
@@ -95,7 +98,7 @@ in this example.
    extrusion_ptr => extrusion
    ```
    with the specified atmosphere height (`domain_top`) and number of layers
-   for the full 3D mesh.
+   for the full 3D mesh. Return a pointer to it (`extrusion_ptr`).
 
 4) Create a full 3D partitioned mesh object mesh using the global mesh,
    partition and extrusion information:
@@ -103,28 +106,32 @@ in this example.
    mesh = mesh_type( global_mesh_ptr, partition, extrusion_ptr )
    ```
 
-## Algorithm structure
+### Algorithm structure
 
 The [algorithm layer](
 ../background/LFRic_structure.md#algorithm-layer) in this tutorial
-creates function space and field objects with the help of input data from
-the driver layer. The related Fortran calls are explained below on the
-example of the [`simple_kernels_alg_mod.x90` in Part 1](
+creates function space and field objects with the input mesh and
+finite-element order information from the driver layer. The related
+Fortran calls are explained below on the example of the
+[`simple_kernels_alg_mod.x90` in Part 1](
 part1/simple_kernels_alg_mod.x90) of this tutorial for one of
 the "(function space, field) pairs" (as explained [above](#driver-structure),
 the order of creating objects is the same as in the full LFRic model
 however the specific calls may be different).
 
-1) Create the `W0` function space with single-valued field data points
+1) Create a `W0` function space object with single-valued field data
+   points (`ndata_sz`) and initialise a pointer to it
    ```fortran
    fs_w0 = function_space_type( mesh, element_order, W0, ndata_sz )
    fs_w0_ptr => fs_w0
    ```
 
-2) Create a field on this function space:
+2) Create a field on the `W0` function space
    ```fortran
    call field_w0%initialise( vector_space = fs_w0_ptr, name = "field_w0" )
    ```
+   by providing the mandatory pointer to the speified function space object
+   (`fs_w0_ptr`) and the optional string for the field name (`"field_w0"`).
 
 3) Operate on field objects by `invoke` calls to the specified kernels
    (to be completed in each part of this tutorial). The kernel objects
@@ -137,7 +144,7 @@ The algorithm also calls one of the LFRic field class procedures,
 `log_minmax`, to check the minimum and maximum values of the fields after
 calling the kernels that update them.
 
-### `use` statements and encapsulation
+#### `use` statements and encapsulation
 
 As can be seen from this [algorithm example](
 part1/simple_kernels_alg_mod.x90), the `use` statements in algorithms

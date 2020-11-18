@@ -15,7 +15,7 @@ The working directory for this part of the tutorial is
 `<PSYCLONEHOME>/tutorial/practicals/LFRic/building_code/1_simple_kernels/part2`
 where `<PSYCLONEHOME>` is the full path to the local PSyclone repository.
 
-## Task 1: Repurpose the `setval_field_w0_kernel_mod.f90` kernel
+## Step 1: Repurpose the `setval_field_w0_kernel_mod.f90` kernel
 
 Navigate to the working directory for this part of the tutorial and copy
 the completed kernel [`setval_field_w0_kernel_mod.f90`] source from the
@@ -80,7 +80,7 @@ You should now have the completed `setval_field_any_kernel_mod.f90`
 kernel. To check that everything is correct, look into the completed
 kernel in the [Solutions of Part 2 directory](../solutions/part2).
 
-## Task 2: Create the `add_fields_any_kernel_mod.f90` kernel
+## Step 2: Create the `add_fields_any_kernel_mod.f90` kernel
 
 We will now use the completed `setval_field_any_kernel_mod.f90` as a
 template for a general-purpose kernel that adds two fields on any
@@ -146,17 +146,17 @@ The completed kernel can also be found in the
 [Solutions of Part 2 directory](../solutions/part2) (note shorter
 argument names after removing of the `_field_1` appendix).
 
-## Task 3: Call kernels from the supplied algorithm
+## Step 3: Call kernels from the supplied algorithm
 
 The structure and the role of the algorithm
 [`simple_kernels_alg_mod.x90`](simple_kernels_alg_mod.x90) is very similar
 to the [Part 1 algorithm](../part1/simple_kernels_alg_mod.x90) described
 in the [*Algorithm structure* section](../README.md#algorithm-structure)
-of this tutorial. In this task we will focus on using PSyclone `invoke`s
+of this tutorial. In this step we will focus on using PSyclone `invoke`s
 to call the created kernels.
 
 Open the supplied algorithm source, `simple_kernels_alg_mod.x90`, in an
-editor and look for the commented-out code that marks the place to complete
+editor and look for the comment that marks the place to complete
 the `invoke` calls, `! TO COMPLETE: Set each ...`.
 
 We will now create the `invoke` call to the above general-purpose kernels to
@@ -174,6 +174,9 @@ literal scalar values as the kernel arguments, e.g.
                  setval_field_any_kernel_type(field1_w0_in, -2.0_r_def), &
                  ...
 ```
+
+It is customary in LFRic to specify the Fortran `kind` of a literal value,
+e.g. `r_def` for the `real`-valued literals in these calls.
 
 The completed `invoke` call for the `W0` fields would be something like
 
@@ -193,7 +196,7 @@ depending on the function space of the kernel arguments.
 The completed algorithm can be found in the [Solutions of Part 2 directory](
 ../solutions/part2).
 
-## Task 4: Build and run the code
+## Step 4: Build and run the code
 
 The PSyclone code generation is illustrated in the [Part 1](
 ../part1/README.md) of this tutorial, so in this tutorial we go directly
