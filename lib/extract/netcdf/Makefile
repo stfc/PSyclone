@@ -31,30 +31,46 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# -----------------------------------------------------------------------------
+# Author: J. Henrichs, Australian Bureau of Meteorology
 
-''' This module contains pytest tests for the TypeSymbol class. '''
+# This Makefile just creates the Fortran base class for all extraction
+# libraries from the jinja template. The compile functionality it offers is
+# only meant for testing, each library should create and compile its own
+# version of the base class (with therefore consistent compiler and
+# jinja settings).
 
-from __future__ import absolute_import
-import pytest
-from psyclone.psyir.symbols import TypeSymbol, DeferredType
+F90 ?= gfortran
+F90FLAGS ?= 
 
+F90FLAGS += $$(nf-config --fflags)
 
-def test_create_typesymbol():
-    ''' Check that a basic TypeSymbol can be created with the expected
-    properties. '''
-    sym = TypeSymbol("my_type", DeferredType())
-    assert sym.name == "my_type"
-    assert isinstance(sym.datatype, DeferredType)
-    assert str(sym) == "my_type : TypeSymbol"
+# The extract library is implemented for int, real and
+# double scalars and 2-dimension arrays
+PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
+		       -dims=2
 
+default: extract_netcdf_base.o psy_data_base.o
+process: extract_netcdf_base.f90
 
-def test_create_typesymbol_wrong_datatype():
-    ''' Check that attempting to specify the type of a TypeSymbol with an
-    invalid type results in the expected error. '''
-    sym = TypeSymbol("my_type", DeferredType())
-    with pytest.raises(TypeError) as err:
-        sym.datatype = "integer"
-    assert ("datatype of a TypeSymbol must be specified using a "
-            "DataType but got: 'str'" in str(err.value))
+.PHONY: default process clean
+
+# The dependencies
+# ----------------
+extract_netcdf_base.o: psy_data_base.o
+
+# Jinja rules for creating the base class, and the
+# netcdf extraction class
+# ------------------------------------------------
+psy_data_base.f90:	../../psy_data_base.jinja
+	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+
+extract_netcdf_base.f90:	extract_netcdf_base.jinja
+	../../process.py $(PROCESS_ARGS) $< > extract_netcdf_base.f90
+
+# Compilation
+# -----------
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
+
+clean:
+	rm -f extract_netcdf_base.f90 psy_data_base.f90 *.o *.mod
