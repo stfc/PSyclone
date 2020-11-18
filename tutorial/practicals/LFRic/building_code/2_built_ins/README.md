@@ -350,7 +350,6 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#dynamo0-3-function-spac
 for more information).
 
 ---
-
 ** NOTE **
 
 As for [LFRic kernels](../1_simple_kernels/LFRic_kernel_structure.md#appendix),
@@ -362,4 +361,5 @@ become `operates_on = DOF`.
 The current built-ins are defined for `real`-valued field data.
 Built-ins for `integer`-valued fields will be introduced as part
 of the support for the field data of other intrinsic types.
+
 ---
