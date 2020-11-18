@@ -33,7 +33,7 @@ be explained in the specific steps of the tutorial.
 
 The working directory for this part of the tutorial is
 ```
-<PSYCLONEHOME>/tutorial/practicals/LFRic/building_code/3_time_evolution`
+<PSYCLONEHOME>/tutorial/practicals/LFRic/building_code/3_time_evolution
 ```
 where `<PSYCLONEHOME>` is the full path to the local PSyclone repository.
 
@@ -93,11 +93,11 @@ Utilities to build and run the code and read the input parameters are:
   the mesh are written down in the *`domain_size`* namelist (must not be
   modified) in the `configuration.nml` file. Viewing the file requires
   [`ncdump` utility](
-  https://www.unidata.ucar.edu/software/netcdf/docs/netcdf_utilities_guide.html#ncdump_guide).
+  https://www.unidata.ucar.edu/software/netcdf/docs/netcdf_utilities_guide.html#ncdump_guide);
 
 * [`plot_xy_slices_ex3.py`](plot_xy_slices_ex3.py), a Python plotting script
   for model outputs. It takes output of a `model_state_tstep_<n>.txt` file name
-  (where `<n>` stands for an integer-valued string denoting the timestep index)
+  (where `<n>` stands for an `integer`-valued string denoting the timestep index)
   and a string of comma-separated model levels in the range of
   `[0, number_of_layers]`. E.g.
 
@@ -177,8 +177,8 @@ where these loops call algorithm subroutines that calculate the
 "model state" for one timestep.
 
 The diagnostic output is produced as a file named `model_state_tstep_<n>.txt`
-where `<n>` stands for an integer-valued string denoting the timestep index.
-It is produced twice, just after the fields are initialised
+where `<n>` stands for an `integer`-valued string denoting the timestep
+index. It is produced twice, just after the fields are initialised
 (`model_state_tstep_0.txt`) and after the timestepping is completed.
 
 ### Algorithm structure
@@ -312,7 +312,7 @@ Open the supplied algorithm source,
 editor and look for the comment that marks the place to complete
 the `invoke` call in the `time_evolution_alg_init` subroutine,
 `! TO COMPLETE (in the same invoke)`. Create the appropriate `invoke`
-call to the `setval_c` built-in and `init_perturbation_kernel_type`.
+call to the `setval_c` built-in and the `init_perturbation_kernel_type`.
 
 After that check the minimum and maximum values of the perturbation
 field by using the `log_minmax` function (look for the comment pointers
@@ -377,9 +377,8 @@ time_evolution_alg_mod.x90) algorithm to:
 The total propagation time, `t_tot`, is calculated as the timestep size
 in seconds, `dt`, multiplied by the current timestep passed from the
 [`time_evolution_driver.f90`](time_evolution_driver.f90) as `tstep`.
-Look for the comment that marks the place to complete calculate the
-total time and complete the `invoke` call in the
-`time_evolution_alg_step` subroutine,
+Look for the comment that marks the place to calculate the total time
+and complete the `invoke` call in the `time_evolution_alg_step` subroutine,
 `! TO COMPLETE: Propagate the perturbation field in a loop over timesteps`
 and write the expression to calculate `t_tot` as outlined above.
 
@@ -422,13 +421,8 @@ Besides these simple checks, the driver also calls the diagnostics
 subroutine `write_diagnostics` to output the coordinate and perturbation
 field data to text files, `model_state_tstep_0.txt` and
 `model_state_tstep_<timestep_end>.txt`, as outlined in the
-[*Driver structure* section](#driver-structure) above.
-
-The diagnostic output is produced as a file named `model_state_tstep_<n>.txt`
-where `<n>` stands for an integer-valued string denoting the timestep index.
-It is produced twice, just after the fields are initialised
-(`model_state_tstep_0.txt`) and after the timestepping is completed (the
-`timestep_end` in the `timestepping` namelist is set to 10 but can be
+[*Driver structure* section](#driver-structure) above (the `timestep_end`
+parameter in the `timestepping` namelist is set to 10 but can be
 changed as mentioned above).
 
 *Note:* The generated source and the compiled objects and libraries
@@ -442,5 +436,6 @@ to plot the output of the `model_state_tstep_<n>.txt` files.
 
 If the algorithm and kernel code was updated and created correctly,
 the perturbation signal would just move position between the beginning
-and the end of the model run. Its maximum amplitude, though, should stay
+and the end of the model run (provided that it has not moved outside of
+the model domain). Its maximum amplitude, though, should stay
 the same if plotted at the same model levels.
