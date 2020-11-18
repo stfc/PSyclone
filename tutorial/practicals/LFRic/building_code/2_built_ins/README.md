@@ -352,7 +352,7 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#dynamo0-3-function-spac
 for more information).
 
 ---
-** NOTE **
+**NOTE**
 
 As for [LFRic kernels](../1_simple_kernels/LFRic_kernel_structure.md#appendix),
 the kernel metadata for the iteration spaces are changing to indicate the
