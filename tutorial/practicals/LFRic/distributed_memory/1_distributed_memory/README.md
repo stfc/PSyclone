@@ -1,4 +1,4 @@
-# PSyclone and LFRic: distributed-memory tutorial part 1 #
+# PSyclone and LFRic distributed-memory tutorial: parallel code #
 
 In this example you will see how to how to switch from generating
 sequential code to parallel distributed-memory code using the LFRic
