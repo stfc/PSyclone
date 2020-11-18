@@ -58,7 +58,7 @@ contains
   !> @brief Initalise a perturbation field using mesh and coordinate data
   !> @param[in, out] perturbation Perturbation field to initialise
   !> @param[in] mesh Partitioned 3D mesh object
-  !> @param[in] chi Coordinate fields on Wchi space
+  !> @param[in] chi Coordinate fields
   subroutine time_evolution_alg_init(perturbation, mesh, chi)
 
     use init_perturbation_kernel_mod, only : init_perturbation_kernel_type
@@ -93,7 +93,7 @@ contains
   !> @brief Propagate perturbation field for one timestep using coordinate
   !!        data and timestep size
   !> @param[in,out] perturbation Perturbation field to propagate
-  !> @param[in] chi Coordinate fields on Wchi space
+  !> @param[in] chi Coordinate fields
   !> @param[in] step Current timestep
   subroutine time_evolution_alg_step(perturbation, chi, tstep)
 

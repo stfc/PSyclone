@@ -42,10 +42,9 @@
 module init_perturbation_kernel_mod
 
   use argument_mod,      only: arg_type, func_type,   &
-                               GH_FIELD, CELLS,       &
-                               GH_READWRITE, GH_READ, &
-                               GH_BASIS, GH_EVALUATOR
-  use fs_continuity_mod, only: W3, Wchi
+                               GH_FIELD, GH_READ,     &
+                               GH_READWRITE, CELLS
+  use fs_continuity_mod, only: W3
   use constants_mod,     only: r_def, i_def
   use kernel_mod,        only: kernel_type
   use perturbation_bell_config_mod, &
@@ -66,13 +65,9 @@ module init_perturbation_kernel_mod
     private
     type(arg_type), dimension(2) :: meta_args = (/ &
          arg_type(GH_FIELD,   GH_READWRITE, W3),   &
-         arg_type(GH_FIELD*3, GH_READ,      Wchi)  &
-         /)
-    type(func_type) :: meta_funcs(1) = (/          &
-         func_type(Wchi, GH_BASIS)                 &
+         arg_type(GH_FIELD*3, GH_READ,      W3)    &
          /)
     integer :: iterates_over = CELLS
-    integer :: gh_shape = GH_EVALUATOR
   contains
     procedure, nopass :: init_perturbation_code
   end type init_perturbation_kernel_type
@@ -93,37 +88,24 @@ module init_perturbation_kernel_mod
   !!                   perturbation field
   !> @param[in] map_w3 Dofmap for the cell at the base of the column for the
   !!                   perturbation field
-  !> @param[in] ndf_wchi Number of degrees of freedom per cell for the
-  !!                    coordinate fields
-  !> @param[in] undf_wchi Number of unique degrees of freedom for the
-  !!                      coordinate fields
-  !> @param[in] map_wchi Dofmap for the cell at the base of the column for the
-  !!                     coordinate fields
-  !> @param[in] basis_chi Basis functions of the Wchi function space evaluated
-  !!                      at the nodal points of the x function space
-  subroutine init_perturbation_code(nlayers, perturbation,         &
-                                    chi_1, chi_2, chi_3,           &
-                                    ndf_w3, undf_w3, map_w3,       &
-                                    ndf_wchi, undf_wchi, map_wchi, &
-                                    basis_wchi)
+  subroutine init_perturbation_code(nlayers, perturbation, &
+                                    chi_1, chi_2, chi_3,   &
+                                    ndf_w3, undf_w3, map_w3)
 
     implicit none
 
     ! Arguments
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_w3
-    integer(kind=i_def), intent(in) :: ndf_wchi
-    integer(kind=i_def), intent(in) :: undf_w3, undf_wchi
+    integer(kind=i_def), intent(in) :: undf_w3
     integer(kind=i_def), intent(in), dimension(ndf_w3)   :: map_w3
-    integer(kind=i_def), intent(in), dimension(ndf_wchi) :: map_wchi
     real(kind=r_def), intent(inout), dimension(undf_w3) :: perturbation
-    real(kind=r_def), intent(in),    dimension(undf_wchi) :: chi_1
-    real(kind=r_def), intent(in),    dimension(undf_wchi) :: chi_2
-    real(kind=r_def), intent(in),    dimension(undf_wchi) :: chi_3
-    real(kind=r_def), intent(in), dimension(1,ndf_wchi,ndf_w3) :: basis_wchi
+    real(kind=r_def), intent(in),    dimension(undf_w3) :: chi_1
+    real(kind=r_def), intent(in),    dimension(undf_w3) :: chi_2
+    real(kind=r_def), intent(in),    dimension(undf_w3) :: chi_3
 
     ! Internal variables
-    integer(kind=i_def)  :: k, df, df1
+    integer(kind=i_def)  :: k, df
     real(kind=r_def)     :: x(3), xt, yt, ampl
 
     ! Initialise perturbation field
@@ -131,13 +113,10 @@ module init_perturbation_kernel_mod
 
       do df = 1, ndf_w3
 
-        ! Calculate coordinates on W3 DoFs
-        x(:) = 0.0_r_def
-        do df1 = 1, ndf_wchi
-          x(1) = x(1) + chi_1(map_wchi(df1) + k)*basis_wchi(1,df1,df)
-          x(2) = x(2) + chi_2(map_wchi(df1) + k)*basis_wchi(1,df1,df)
-          x(3) = x(3) + chi_3(map_wchi(df1) + k)*basis_wchi(1,df1,df)
-        end do
+        ! Get coordinate values on each DoF
+        x(1) = chi_1(map_w3(df) + k)
+        x(2) = chi_2(map_w3(df) + k)
+        x(3) = chi_3(map_w3(df) + k)
 
         !-----------------------------------------------------------------------
         ! TO COMPLETE: Initialise perturbation field to the prescribed

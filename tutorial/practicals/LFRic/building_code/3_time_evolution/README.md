@@ -16,10 +16,10 @@ height-dependent amplitude of perturbation.
 
 The symbols are as follows:
 
-* *x*, *y*, *z* - model coordinates on `Wchi` function space
+* *x*, *y*, *z* - model coordinates on the `W3` function space
  (calculated by the supplied LFRic routine `assign_coordinate_field_mod.F90`
- in the `gungho_lib` directory;
-* *p(x,y,z)* - a bell-shaped perturbation field;
+ in the `gungho_lib` directory);
+* *p(x,y,z)* - a bell-shaped perturbation field on the `W3` function space;
 * *p<sub>0</sub>* - maximum height of the perturbation (not higher than
   the model domain top);
 * *s<sub>p</sub>* - scaling factor for the amplitude of perturbation;
