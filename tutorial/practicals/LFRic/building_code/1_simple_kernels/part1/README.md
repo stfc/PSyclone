@@ -31,7 +31,7 @@ cp ../setval_field_w0_kernel_mod.f90 .
 and open the kernel stub file in an editor. The `arg_type` [metadata](
 ../LFRic_kernel_structure.md#metadata) of this kernel stub
 
-```shell
+```fortran
     type(arg_type), dimension(2) :: meta_args = (/ &
          arg_type(GH_FIELD, GH_INC, W0),           &
          arg_type(GH_REAL,  GH_READ)               &
@@ -137,7 +137,7 @@ optimisations. This is what we will do in this example, so the completed
                  setval_field_w3_kernel_type(field_w3, scalar_w3) )
 ```
 
-The completed algorithm be found in the [Solutions of Part 1 directory](
+The completed algorithm can be found in the [Solutions of Part 1 directory](
 ../solutions/part1).
 
 ## Task 4: Use PSyclone to generate algorithm and PSy-layer source

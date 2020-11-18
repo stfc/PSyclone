@@ -34,9 +34,9 @@
 ! Author: I. Kavcic, Met Office
 !
 ! -----------------------------------------------------------------------------
-! A module that creates fields on multiple function space, initialises and
-! adds them (here continuous "velocity space" W2 and discontinuous "potential
-! temperature space" Wtheta)
+! A module that creates fields on W0 and W3 function spaces and calls
+! general-purpose kernels to initialise and add the fields on the same
+! function space.
 ! -----------------------------------------------------------------------------
 module simple_kernels_alg_mod
 
@@ -46,7 +46,7 @@ module simple_kernels_alg_mod
   use mesh_mod,                    only : mesh_type
   use function_space_mod,          only : function_space_type
   use field_mod,                   only : field_type
-  use fs_continuity_mod,           only : W2, Wtheta
+  use fs_continuity_mod,           only : W0, W3
   use setval_field_any_kernel_mod, only : setval_field_any_kernel_type
   use add_fields_any_kernel_mod,   only : add_fields_any_kernel_type
 
@@ -69,71 +69,70 @@ contains
     type(mesh_type), intent(in)        :: mesh
     integer(i_def),  intent(in)        :: element_order
     ! Function spaces W2 and Wtheta and fields on them
-    type(function_space_type), target  :: fs_w2
-    type(function_space_type), target  :: fs_wtheta
-    type(function_space_type), pointer :: fs_w2_ptr => null(), &
-                                          fs_wtheta_ptr => null()
-    type(field_type)                   :: u_out, u1_in, u2_in
-    type(field_type)                   :: theta_out, theta1_in, &
-                                          theta2_in
+    type(function_space_type), target  :: fs_w0
+    type(function_space_type), target  :: fs_w3
+    type(function_space_type), pointer :: fs_w0_ptr => null(), &
+                                          fs_w3_ptr => null()
+    type(field_type)                   :: field_w0_out, field1_w0_in, &
+                                          field2_w0_in
+    type(field_type)                   :: field_w3_out, field1_w3_in, &
+                                          field2_w3_in
     ! Number of values per degree of freedom for function spaces
     integer(i_def), parameter          :: ndata_sz = 1
 
     call log_event( "simple_kernels_alg: Running algorithm", LOG_LEVEL_INFO )
 
-    ! Create W2 and Wtheta function spaces with single-valued data points
-    fs_w2 = function_space_type( mesh, element_order, W2, ndata_sz )
-    fs_w2_ptr => fs_w2
-    fs_wtheta = function_space_type( mesh, element_order, &
-                                     Wtheta, ndata_sz )
-    fs_wtheta_ptr => fs_wtheta
+    ! Create W0 and W3 function spaces with single-valued data points
+    fs_w0 = function_space_type( mesh, element_order, W0, ndata_sz )
+    fs_w0_ptr => fs_w0
+    fs_w3 = function_space_type( mesh, element_order, W3, ndata_sz )
+    fs_w3_ptr => fs_w3
 
     ! Create velocity fields on W2 function space
-    call u_out%initialise( vector_space = fs_w2_ptr, name = "u_out" )
-    call u1_in%initialise( vector_space = fs_w2_ptr, name = "u1_in" )
-    call u2_in%initialise( vector_space = fs_w2_ptr, name = "u2_in" )
+    call field_w0_out%initialise( vector_space = fs_w0_ptr, &
+                                  name = "field_w0_out" )
+    call field1_w0_in%initialise( vector_space = fs_w0_ptr, &
+                                  name = "field1_w0_in" )
+    call field2_w0_in%initialise( vector_space = fs_w0_ptr, &
+                                  name = "field2_w0_in" )
 
     ! Create temperature fields on Wtheta function space
-    call theta_out%initialise( vector_space = fs_wtheta_ptr, &
-                               name = "theta_out" )
-    call theta1_in%initialise( vector_space = fs_wtheta_ptr, &
-                               name = "theta1_in" )
-    call theta2_in%initialise( vector_space = fs_wtheta_ptr, &
-                               name = "theta2_in" )
+    call field_w3_out%initialise( vector_space = fs_w3_ptr, &
+                                  name = "field_w3_out" )
+    call field1_w3_in%initialise( vector_space = fs_w3_ptr, &
+                                  name = "field1_w3_in" )
+    call field2_w3_in%initialise( vector_space = fs_w3_ptr, &
+                                  name = "field2_w3_in" )
 
     !---------------------------------------------------------------------------
-    ! TO COMPLETE: Set each field on different function spaces to a constant
-    ! value and add them in the same invoke using the general kernels that can
-    ! operate on fields on any function space
-    ! Set each velocity field to a constant value and add them in the same invoke
-    call invoke( name = "Add fields on W2 space",                 &
-                 setval_field_any_kernel_type(u_out,  0.0_r_def), &
-                 setval_field_any_kernel_type(u1_in, -2.0_r_def), &
-                 setval_field_any_kernel_type(u2_in,  6.0_r_def), &
-                 add_fields_any_kernel_type(u_out, u1_in, u2_in) )
+    ! TO COMPLETE: Set each W0 field on different function spaces to a constant
+    ! value and add them in the same invoke using the general-purpose kernels
+    ! that can operate on fields on any function space
+    ! Set each W0 field to a constant value and add them in the same invoke
+    call invoke( setval_field_any_kernel_type(field_w0_out,  0.0_r_def), &
+                 setval_field_any_kernel_type(field1_w0_in, -2.0_r_def), &
+                 setval_field_any_kernel_type(field2_w0_in,  6.0_r_def), &
+                 add_fields_any_kernel_type(field_w0_out, field1_w0_in, field2_w0_in) )
 
-    ! Set each temperature field to a constant value and add them in
-    ! the same invoke
-    call invoke( name = "Add fields on Wtheta space",                    &
-                 setval_field_any_kernel_type(theta_out,    0.0_r_def),  &
-                 setval_field_any_kernel_type(theta1_in,  373.15_r_def), &
-                 setval_field_any_kernel_type(theta2_in, -273.15_r_def), &
-                 add_fields_any_kernel_type(theta_out, theta1_in, theta2_in) )
+    ! Set each W3 field to a constant value and add them in the same invoke
+    call invoke( setval_field_any_kernel_type(field_w3_out,  0.0_r_def),  &
+                 setval_field_any_kernel_type(field1_w3_in,  55.5_r_def), &
+                 setval_field_any_kernel_type(field2_w3_in,  44.5_r_def), &
+                 add_fields_any_kernel_type(field_w3_out, field1_w3_in, field2_w3_in) )
     !---------------------------------------------------------------------------
 
-    ! Check the values of constant velocity fields by printing the min/max values
-    call u_out%log_minmax(LOG_LEVEL_INFO, u_out%name)
-    call u1_in%log_minmax(LOG_LEVEL_INFO, u1_in%name)
-    call u2_in%log_minmax(LOG_LEVEL_INFO, u2_in%name)
+    ! Check the values of W0 fields by printing the min/max values
+    call field_w0_out%log_minmax(LOG_LEVEL_INFO, field_w0_out%name)
+    call field1_w0_in%log_minmax(LOG_LEVEL_INFO, field1_w0_in%name)
+    call field2_w0_in%log_minmax(LOG_LEVEL_INFO, field2_w0_in%name)
 
-    ! Check the values of constant temperature fields by printing the
-    ! min/max values
-    call theta_out%log_minmax(LOG_LEVEL_INFO, theta_out%name)
-    call theta1_in%log_minmax(LOG_LEVEL_INFO, theta1_in%name)
-    call theta2_in%log_minmax(LOG_LEVEL_INFO, theta2_in%name)
+    ! Check the values of W3 fields by printing the min/max values
+    call field_w3_out%log_minmax(LOG_LEVEL_INFO, field_w3_out%name)
+    call field1_w3_in%log_minmax(LOG_LEVEL_INFO, field1_w3_in%name)
+    call field2_w3_in%log_minmax(LOG_LEVEL_INFO, field2_w3_in%name)
 
     call log_event( "simple_kernels_alg: Finalising algorithm", LOG_LEVEL_INFO )
-    nullify( fs_w2_ptr, fs_wtheta_ptr )
+    nullify( fs_w0_ptr, fs_w3_ptr )
 
   end subroutine simple_kernels_alg
 

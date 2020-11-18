@@ -37,12 +37,8 @@
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
-# Path to source to use (except for PWD)
-SRC_PATH = ../..
-VPATH = $(SRC_PATH)/
-
 # Source rules
-DRIVER_SRC = $(SRC_PATH)/simple_kernels_driver.f90
+DRIVER_SRC = simple_kernels_driver.f90
 ALGORITHMS = $(wildcard *_alg_mod.x90)
 ALGORITHM_SRC = $(ALGORITHMS:.x90=.f90)
 PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
@@ -55,14 +51,14 @@ PSYCLONE_CMD = -nodm -l all
 EXEC = simple_kernels_part2
 
 # LFRic infrastructure library
-PSYCLONE_RELPATH = ../../../../../../..
+PSYCLONE_RELPATH = ../../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 F90FLAGS += -I$(LFRIC_PATH)
 
 # Object rules
-DRIVER_OBJ = $(notdir $(filter %.o,$(DRIVER_SRC:.f90=.o)))
+DRIVER_OBJ = $(filter %.o,$(DRIVER_SRC:.f90=.o))
 ALGORITHM_OBJ = $(filter %.o,$(ALGORITHM_SRC:.f90=.o))
 PSY_OBJ = $(filter %.o,$(PSY_SRC:.f90=.o))
 KERNEL_OBJ = $(filter %.o,$(KERNEL_SRC:.f90=.o))
