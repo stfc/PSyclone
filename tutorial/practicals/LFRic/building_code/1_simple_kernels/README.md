@@ -127,7 +127,11 @@ however the specific calls may be different).
    ```
 
 3) Operate on field objects by `invoke` calls to the specified kernels
-   (to be completed in each part of this tutorial).
+   (to be completed in each part of this tutorial). The kernel objects
+   must be made accessible to an algorithm through `use` statements, e.g.
+   ```fortran
+     use setval_field_w0_kernel_mod, only : setval_field_w0_kernel_type
+   ```
 
 The algorithm also calls one of the LFRic field class procedures,
 `log_minmax`, to check the minimum and maximum values of the fields after

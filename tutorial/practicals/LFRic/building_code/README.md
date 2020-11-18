@@ -123,6 +123,9 @@ and [here](
 https://psyclone.readthedocs.io/en/stable/psyclone_script.html) for more
 information on running the `psyclone` script.
 
+As in LFRic, the generated algorithm and PSy-layer source is not kept in
+this tutorial repository.
+
 ## LFRic code support
 
 All the tutorials here use a pared-down version of the LFRic infrastructure

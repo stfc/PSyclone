@@ -48,10 +48,10 @@ KERNEL_SRC = $(wildcard *_kernel_mod.f90)
 PSYCLONE_CMD = -nodm -l all
 
 # Executable
-EXEC = simple_kernels
+EXEC = simple_kernels_part1
 
 # LFRic infrastructure library
-PSYCLONE_RELPATH = ../../../../..
+PSYCLONE_RELPATH = ../../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a

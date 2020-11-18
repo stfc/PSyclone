@@ -96,10 +96,7 @@ contains
 
     !---------------------------------------------------------------------------
     ! TO COMPLETE: Set each field to a constant value by calling the
-    ! respective kernels (use "invoke" syntax)
-    !call invoke( setval_field_w0_kernel_type(field_w0, scalar_w0) )
-    !call invoke( setval_field_w3_kernel_type(field_w3, scalar_w3) )
-    ! Group calls to kernels into a single invoke
+    ! respective kernels in a single "invoke"
     call invoke( setval_field_w0_kernel_type(field_w0, scalar_w0), &
                  setval_field_w3_kernel_type(field_w3, scalar_w3) )
     !---------------------------------------------------------------------------
