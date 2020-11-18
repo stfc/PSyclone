@@ -44,6 +44,7 @@ from psyclone.transformations import ACCEnterDataTrans, \
     ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans, ACCKernelsTrans
 from psyclone.domain.lfric.function_space import FunctionSpace
 
+
 def trans(psy):
     '''PSyclone transformation script for the dynamo0p3 api to apply
     OpenACC loop, parallel and enter data directives generically.
@@ -59,6 +60,6 @@ def trans(psy):
         for loop in schedule.loops():
             kernels_trans.apply([loop])
 
-    schedule.view()
-    
+        schedule.view()
+
     return psy

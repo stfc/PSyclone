@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@ from psyclone.transformations import ACCEnterDataTrans, \
     ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans, ACCKernelsTrans
 from psyclone.domain.lfric.function_space import FunctionSpace
 
+
 def trans(psy):
     '''PSyclone transformation script for the dynamo0p3 api to apply
     OpenACC loop, parallel and enter data directives generically.
@@ -76,6 +77,6 @@ def trans(psy):
 
         enter_trans.apply(schedule)
 
-    schedule.view()
-    
+        schedule.view()
+
     return psy
