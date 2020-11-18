@@ -9,11 +9,8 @@ Silvia Mocavero of CMCC.
 
 ## Prerequisites ##
 
-You will need a Linux shell with a working Python installation in
-which PSyclone has been installed. (See the top-level README.md for
-installation instructions.) In order to compile and run the
-generated code you will also need a Fortran compiler: gfortran is
-fine.
+The requirements for this section are as described in the practicals
+[README.md](../../README.md#Requirements).
 
 Check that PSyclone is installed and configured correctly by doing
 (assuming that your current working directory is the one containing
@@ -147,12 +144,15 @@ via the `-s` flag to PSyclone (note that the directory containing the
 transformation script - `./` in this case - must be specified
 otherwise PSyclone will be unable to find the script):
 
+```bash
     $ psyclone -api nemo -l output -opsy psy.f90 -s ./schedule_view_trans.py ./tra_adv.F90
+```
 
 This should report that it has found one invoke named `tra_adv` (the
 name of the Fortran program) and proceed to display a text view of the
 PSyIR of that invoke. This will be a lot of output, beginning with:
 
+```bash
     Invokes found:
     tra_adv
 
@@ -161,6 +161,7 @@ PSyIR of that invoke. This will be a lot of output, beginning with:
         1: Assignment[]
 	    Reference[name:'r']
         ...
+```
 
 (Note that if you have the `termcolor` Python package installed then
 the PSyIR will be displayed with colour highlighting.) Since the
@@ -228,6 +229,9 @@ a performance point of view.
    (Pdb) cblocks
    [<psyclone.psyir.nodes.codeblock.CodeBlock object at 0x7fee49247790>, <psyclone.psyir.nodes.codeblock.CodeBlock ...]
    ```
+
+   (Once you are done you can *quit the debugger* by doing `Ctrl-d` or
+   by entering the `quit()` command.)
 
 2. Modify the transformation script so that it uses `walk` to search
    for all of the CodeBlocks in the Schedule and prints information
