@@ -87,8 +87,8 @@ contains
     !---------------------------------------------------------------------------
 
     !---------------------------------------------------------------------------
-    ! TO COMPLETE: Check the min/max values of coordinate and perturbation
-    ! fields using 'log_minmax' function
+    ! TO COMPLETE: Check the min/max values of the perturbation field
+    ! using 'log_minmax' function
     call perturbation%log_minmax(LOG_LEVEL_INFO, perturbation%name)
     !---------------------------------------------------------------------------
 
