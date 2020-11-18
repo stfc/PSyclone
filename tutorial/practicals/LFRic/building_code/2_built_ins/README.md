@@ -98,7 +98,7 @@ example are:
   5. Calculate `field2_in_w3 = 2*field1_in_w3`,
   6. Calculate `field_out_w3 = field1_in_w3 - 0.5*field2_in_w3`;
 * Print out min/max values of the output and input fields on `W3` space
-  using the `log_minmax` calls to the `W0` fields as a template;
+  using the `log_minmax` calls to the `W0` fields as a template.
 
 ### Step 1: Create fields on the `W3` function space
 
@@ -118,7 +118,7 @@ Look at the `W0` fields creation code above the comment as a template, e.g.
 ```
 
 and change the function space pointer and the field name accordingly. We need
-to do this for the input fields `W3` fields, too.
+to do this for the input `W3` fields, too.
 
 ### Step 2: Create an `invoke` that calls built-ins
 
@@ -146,7 +146,7 @@ This step consists of applying the following mathematical operations:
 For more information on how the built-ins are named, look into the
 [*Naming scheme* section](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#naming-scheme)
-of the [LFRic built-ins documentation](
+of the [PSyclone LFRic API built-ins documentation](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins).
 
 The calls to some of the listed built-ins are outlined below:
@@ -160,12 +160,13 @@ The calls to some of the listed built-ins are outlined below:
 
 As in the [Part 2](../1_simple_kernels/part2/README.md) of the simple
 kernel tutorial (see the *Step 3* there), we are passing literal scalar
-values, e.g. `0.0_r_def` (in LFRic we specify the Fortran `kind` of a
-literal value, e.g. `r_def` for the `real`-valued literals in these calls).
+values, e.g. `0.0_r_def`, as arguments to the built-in calls (in LFRic we
+specify the Fortran `kind` of a literal value, e.g. `r_def` for the
+`real`-valued literals in these calls).
 
 Copy the `invoke` stub above to the algorithm source and complete it.
 
-### Step 2A (optional): Use name for the `invoke` call
+### Step 2A (optional): Use a name for the `invoke` call
 
 As each `invoke` call generates a PSy-layer subroutine (see the
 [Step 3](#step-3) below for the algorithm code processing), it can be
@@ -193,7 +194,7 @@ source file `builtins_alg_mod.f90` and the generated PSy-layer source file
 
 Looking at the generated algorithm file `builtins_alg_mod.f90` we can
 see that the original `invoke` call to built-ins has become a call
-to a single subroutine with all field arguments passed to the built-in calls:
+to a single subroutine with all field arguments passed to the built-ins:
 
 ```fortran
     CALL invoke_0(field_out_w0, field1_in_w0, field2_in_w0, field_out_w3, &
@@ -248,7 +249,7 @@ PSyclone to be a direct representation of the mathematical operation
 that a built-in performs (PSyclone could also generate calls to e.g.
 an optimised linear-algebra library where appropriate).
 The generated code for the specific mathematical operation here
-(`field_out_w0 = field1_out_w0 + field2_out_w0`) looks like:
+(`field_out_w0 = field1_out_w0 + field2_out_w0`) looks something like:
 
 ```fortran
       !
@@ -272,7 +273,7 @@ the [quick intro to built-ins below](#quick-intro-to-built-ins) below).
 ### Step 4: Print out min/max values of the fields on the `W3` function space
 
 We will use the LFRic field class `log_minmax` procedure to print out the
-min/max values of the fields on the `W3` function space
+min/max values of the fields on the `W3` function space.
 
 Copy the `W0` fields `log_minmax` calls code above the comment
 `! TO COMPLETE: Check the values of W3 fields by printing the min/max values`
@@ -284,14 +285,14 @@ as a template for the `W3` fields, e.g.
 ```
 
 and change the field name accordingly (we need to do this for the input
-fields `W3` fields, too).
+`W3` fields, too).
 
 ### Step 5: Build and run the code
 
 We will now run `make` to create the executable `builtins` using the
 provided [`builtins_driver.f90`](builtins_driver.f90) and the LFRic
 infrastructure [code support](
-../README.md#lfric-code-support]. If the build is successful we can
+../README.md#lfric-code-support). If the build is successful we can
 run the executable
 
 ```shell
@@ -300,7 +301,7 @@ run the executable
 
 The program prints out several log messages about setting up the model
 and calling the algorithm subroutine `builtins_alg`. As outlined
-[above] (#algorithm-structure), the algorithm checks the minimum
+[above](#algorithm-structure), the algorithm checks the minimum
 and maximum values of all fields after calling the built-ins to update
 them. The correct values for the output fields depend on the values you
 set the fields to (for instance, `field_w0_out` should return the
@@ -337,7 +338,7 @@ that adds two fields and stores the result in a third:
 
 The metadata is very similar to a user-defined LFRic kernel metadata
 with one major difference: built-ins are called from the [PSy-layer](
-../background/LFRic-structure.md#psy-layer) loops over degrees of
+../background/LFRic_structure.md#psy-layer) loops over degrees of
 freedom (*DoFs*) of fields in the built-in, hence metadata identifier
 for this way of looping, `DOFS`. This means that the fields passed to
 a built-in call **must be on the same function space**.
@@ -349,10 +350,11 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#dynamo0-3-function-spac
 for more information).
 
 ---
+
 ** NOTE **
 
-As for [LFRic kernels](../background/LFRic_kernel.md#appendix), the
-kernel metadata for the iteration spaces are changing to indicate the
+As for [LFRic kernels](../1_simple_kernels/LFRic_kernel_structure.md#appendix),
+the kernel metadata for the iteration spaces are changing to indicate the
 subset of domain the built-in operates on rather than the PSy-layer
 looping. In the next PSyclone release `iterates_over = DOFS` will
 become `operates_on = DOF`.

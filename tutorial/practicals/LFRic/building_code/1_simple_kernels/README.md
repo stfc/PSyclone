@@ -66,7 +66,7 @@ As outlined in the [overview of the LFRic driver layer](
 `simple_kernels_driver.f90` sets up LFRic object stack required to
 define field objects. The related Fortran calls are explained below.
 
-*NOTE:* The order of creating objects, from the global 2D mesh to the
+**Note:** The order of creating objects, from the global 2D mesh to the
 local 3D mesh is the same as in the full LFRic model, however the specific
 calls are likely to be different due to the [reduced version](
 ../README.md#lfric-code-support) of the LFRic infrastructure used
