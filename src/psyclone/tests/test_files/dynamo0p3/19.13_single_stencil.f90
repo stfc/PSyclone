@@ -31,7 +31,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Modified I. Kavcic and A. Coughtrie, Met Office
 
 program single_stencil
   ! Description: single stencil specified in an invoke call with field
@@ -42,7 +42,8 @@ program single_stencil
 
   implicit none
 
-  type(field_type) :: f2_dofmap, f2, f3
+  type(field_type) :: f2_stencil_map, f2, f3, f3_stencil_map, &
+                      f2_stencil_dofmap, stencil_cross,f3_stencil_dofmap
   integer(i_def)   :: f2_extent = 1, f3_stencil_size = 1
 
   call invoke(                                                    &
