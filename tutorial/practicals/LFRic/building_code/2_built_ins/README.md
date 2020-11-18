@@ -184,6 +184,8 @@ name in the first line of the `invoke` call, e.g.
                  ... )
 ```
 
+The completed algorithm can be found in the [Solutions directory](solutions).
+
 ### Step 3: Use PSyclone to generate algorithm and PSy-layer source
 
 We will first check that the built-in calls in the algorithm code are
