@@ -127,8 +127,8 @@ Contains
     ! Implementation for all {{type}} types
     ! =========================================================================
     ! -------------------------------------------------------------------------
-    !> This subroutine check if a floating point value is not normal using
-    !! the IEEE_IS_NORMAL function (and does nothing for integer types).
+    !> This subroutine checks if a floating point value is NAN or infinite
+    !! using the IEEE_IS_FINIT function (and does nothing for integer types).
     !! (depending on this%verify_checksums) for a single {{name}}.
     !! @param[inout] this The instance of the NANTestBaseType.
     !! @param[in] name The name of the variable (string).
@@ -145,7 +145,7 @@ Contains
         if (.not. is_enabled) return
 
         if (IEEE_SUPPORT_DATATYPE(value)) then
-            if (.not. IEEE_IS_NORMAL(value)) then
+            if (.not. IEEE_IS_FINITE(value)) then
                 write(stderr, *) "PSYDATA: Variable ", name," has invalid value"
                 write(stderr, *) value
                 write(stderr, *) trim(this%module_name), trim(this%region_name)
@@ -171,7 +171,7 @@ Contains
     {% set indent = " "*3*dim %}
 
     ! -------------------------------------------------------------------------
-    !> This method checks if an array contains non-normal IEEE types (it
+    !> This method checks if an array contains NAN or infinite IEEE values (it
     !! does nothing in case that the array is an integer type).
     !! @param[inout] this The instance of the NANTestBaseType.
     !! @param[in] name The name of the variable (string).
@@ -194,7 +194,7 @@ Contains
             {% for j in range(dim, 0, -1) %}
             {{+" "*3*(dim-j)}}do i{{j}}=1, size(value, {{j}})
             {% endfor %}
-            {{indent}}if (.not. IEEE_IS_NORMAL(value({{vars}}))) then
+            {{indent}}if (.not. IEEE_IS_FINITE(value({{vars}}))) then
             {{indent}}    write(stderr, *) "PSYDATA: Variable ", name," has the invalid value"
             {{indent}}    write(stderr, *) value({{vars}}), " at indicies ", {{vars}}
             {{indent}}    write(stderr, *) trim(this%module_name), trim(this%region_name)
