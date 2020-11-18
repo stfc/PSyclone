@@ -210,6 +210,9 @@
 	subfolder of the tutorial directory ready for the addition of
 	"practicals" tutorials
 
+        68) PR #970 for #955. Use Jinja to generate the netcdf extraction
+        library for the GOcean API.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
