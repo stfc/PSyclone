@@ -44,6 +44,7 @@ from psyclone.transformations import DynamoOMPParallelLoopTrans, \
 from psyclone.psyGen import Loop
 from psyclone.domain.lfric.function_space import FunctionSpace
 
+
 def trans(psy):
     ''' PSyclone transformation script for the dynamo0p3 API to apply
     loop fusion and OpenMP for a particular example.'''
@@ -56,10 +57,11 @@ def trans(psy):
         schedule = invoke.schedule
 
         for loop in schedule.walk(Loop):
-            if loop.field_space.orig_name not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
-               and loop.iteration_space == "cell_column":
+            if (loop.field_space.orig_name not in
+                    FunctionSpace.VALID_DISCONTINUOUS_NAMES and
+                    loop.iteration_space == "cell_column"):
                 ctrans.apply(loop)
-                
+
         # Add OpenMP parallel do directives to the loops
         for loop in schedule.walk(Loop):
             try:
@@ -69,7 +71,7 @@ def trans(psy):
                 else:
                     otrans.apply(loop)
             except TransformationError as info:
-                print (str(info.value))
+                print(str(info.value))
 
         # take a look at what we've done
         schedule.view()
