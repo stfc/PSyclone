@@ -206,6 +206,10 @@
         66) PR #977 for #976. Fix dimension parameter for Jinja templates
         in the PSyData libraries.
 
+	67) PR #981 for #980. Move jupyter notebooks into a notebooks
+	subfolder of the tutorial directory ready for the addition of
+	"practicals" tutorials
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
