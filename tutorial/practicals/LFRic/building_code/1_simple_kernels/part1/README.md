@@ -8,21 +8,23 @@ assigns a value to a field on a continuous `W0` function space and
 another on a discontinuous `W3` function space. For this we will use
 the supplied kernel stub file [`setval_field_w0_kernel_mod.f90`](
 ../setval_field_w0_kernel_mod.f90) and the provided documentation on the
-[LFRic kernel structure](LFRic_kernel_structure.md).
+[LFRic kernel structure](../LFRic_kernel_structure.md).
 
 We will then modify the supplied algorithm
 [`simple_kernels_alg_mod.x90`](simple_kernels_alg_mod.x90) to call
 these kernels.
 
 The working directory for this part of the tutorial is
-`<PSYCLONEHOME>/tutorial/practicals/LFRic/building_code/1_simple_kernels/part1`
+```
+<PSYCLONEHOME>/tutorial/practicals/LFRic/building_code/1_simple_kernels/part1
+```
 where `<PSYCLONEHOME>` is the full path to the local PSyclone repository.
 
-## Task 1: Complete the `setval_field_w0_kernel_mod.f90` kernel
+## Step 1: Complete the `setval_field_w3_kernel_mod.f90` kernel
 
 Navigate to the working directory for this part of the tutorial, copy the
-supplied kernel stub [`setval_field_w0_kernel_mod.f90`](../
-setval_field_w0_kernel_mod.f90) here
+supplied kernel stub [`setval_field_w0_kernel_mod.f90`](
+../setval_field_w0_kernel_mod.f90) here
 
 ```shell
 cp ../setval_field_w0_kernel_mod.f90 .
@@ -39,7 +41,7 @@ and open the kernel stub file in an editor. The `arg_type` [metadata](
 ```
 
 describes two arguments: a field (`GH_FIELD`) with the degrees of freedom
-(DoFs) on the `W0` function space that to assign the scalar value to
+(DoFs) on the `W0` function space to update with a scalar value
 (`GH_INC`) and a `real`-valued scalar (`GH_REAL`) whose value is read
 (`GH_READ`) and used to update the field with.
 
@@ -60,7 +62,7 @@ Replace the empty kernel subroutine body with the generated one that
 contains the argument list and then copy the generated declarations.
 The generated `USE constants_mod, ONLY: r_def, i_def` statement can
 be removed as the externally defined parameters are already listed
-in the use statements at the kernel module level.
+in the `use` statements at the kernel module level.
 
 You will now need to complete the implementation of the kernel so
 that it sets elements of the supplied field to the specified scalar
@@ -73,11 +75,11 @@ You should now have the completed `setval_field_w0_kernel_mod.f90`
 kernel. To check that everything is correct, look into the completed
 kernel in the [Solutions of Part 1 directory](../solutions/part1).
 
-## Task 2: Create the `setval_field_w3_kernel_mod.f90` kernel
+## Step 2: Create the `setval_field_w3_kernel_mod.f90` kernel
 
 We will now use the completed `setval_field_w0_kernel_mod.f90` as a
-template for a kernel that assigns a value to a field on the `W3`
-function space. Copy the existing kernel into the new
+template to create a kernel that assigns a value to a field on the
+`W3` function space. Copy the existing kernel into the new
 `setval_field_w3_kernel_mod.f90` kernel and change the function
 space in the kernel metadata, argument names and code unit names
 accordingly (e.g. `map_w0` becomes `map_w3`, `setval_field_w0_`
@@ -88,7 +90,7 @@ The new kernel updates a field on a discontinuous function space
 field from `GH_INC` to `GH_READWRITE` (see [here](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
 for more information of valid access modes depending on the function
-space that the argument is defined on).
+space that a field argument is defined on).
 
 Now run the kernel stub generator on the new kernel to check that the
 generated argument list and all declarations are correct:
@@ -100,17 +102,17 @@ genkernelstub setval_field_w3_kernel_mod.f90
 and update the kernel if required. The completed kernel can also be found
 in the [Solutions of Part 1 directory](../solutions/part1).
 
-## Task 3: Call kernels from the supplied algorithm
+## Step 3: Call kernels from the supplied algorithm
 
 The structure and the role of the algorithm
 [`simple_kernels_alg_mod.x90`](simple_kernels_alg_mod.x90) is described in
 the [*Algorithm structure* section](../README.md#algorithm-structure) of
-this tutorial. In this task we will focus on using PSyclone `invoke`s to
+this tutorial. In this step we will focus on using PSyclone `invoke`s to
 call the created kernels.
 
 Open the supplied algorithm source, `simple_kernels_alg_mod.x90`, in an
-editor and look for the commented-out code that marks the place to complete
-the `invoke` calls, `! TO COMPLETE: Set each field ...`.
+editor and look for the comment that marks the place to complete
+the `invoke` calls, `! TO COMPLETE: Set each field ...`
 
 We will now create the `invoke` calls to the two created kernels. The
 LFRic algorithm calls *kernel objects* that are defined as derived types,
@@ -140,17 +142,17 @@ optimisations. This is what we will do in this example, so the completed
 The completed algorithm can be found in the [Solutions of Part 1 directory](
 ../solutions/part1).
 
-## Task 4: Use PSyclone to generate algorithm and PSy-layer source
+## Step 4: Use PSyclone to generate algorithm and PSy-layer source
 
 We will first check that the kernels and the algorithm are correctly created
 and updated by running `make test` to process the algorithm source with
 PSyclone. If the code is correct, this will result in the generated algorithm
-source file `simple_kernels_alg_mod.f90` and PSy-layer source file
-`simple_kernels_alg_mod_psy.f90`.
+source file `simple_kernels_alg_mod.f90` and the generated PSy-layer source
+file `simple_kernels_alg_mod_psy.f90`.
 
 Looking at the generated algorithm file `simple_kernels_alg_mod.f90` we can
-see that the orginal `invoke` call to two kernel types from has become a call
-to a single subroutine with arguments passed to both kernels:
+see that the original `invoke` call to the two kernel types has become a call
+to a single subroutine with all field arguments passed to the kernel calls:
 
 ```fortran
     CALL invoke_0(field_w0, scalar_w0, field_w3, scalar_w3)
@@ -212,8 +214,9 @@ the proxy data required for the full kernel call argument list (see the
       undf_w3 = field_w3_proxy%vspace%get_undf()
 ```
 
-Finally, there are generated calls to `setval_field_w0_code` and
-`setval_field_w0_code` with the complete argument lists for each kernel
+Finally, there are generated calls to the tow kernel subroutines,
+`setval_field_w0_code` and `setval_field_w0_code`, with the complete
+argument lists for each kernel
 
 ```fortran
       !
@@ -231,7 +234,7 @@ Finally, there are generated calls to `setval_field_w0_code` and
       END DO
 ```
 
-with the same argument order as generated by using `genkernelstub`.
+with the same argument order as generated by using the `genkernelstub`.
 
 The above kernel calls code also illustrates how the `iterates_over = CELLS`
 kernel metadata translates to **loops over cells** (`cell` loop counter)
@@ -248,7 +251,7 @@ the LFRic repository).
 
 ---
 
-## Task 5: Build and run the code
+## Step 5: Build and run the code
 
 We will now copy the `simple_kernels_driver.f90` file to this working directory
 
@@ -258,7 +261,7 @@ cp ../simple_kernels_driver.f90 .
 
 and then run `make` to create the executable `simple_kernels_part1` using
 the provided LFRic infrastructure [code support](
-../../README.md#lfric-code-support]. If the build is successful we can
+../../README.md#lfric-code-support). If the build is successful we can
 run the executable
 
 ```shell

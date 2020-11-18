@@ -30,36 +30,47 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: I. Kavcic, Met Office
+# -----------------------------------------------------------------------------
+# Author: J. Henrichs, Australian Bureau of Meteorology
+
+# This Makefile just creates the Fortran base class for all extraction
+# libraries from the jinja template. The compile functionality it offers is
+# only meant for testing, each library should create and compile its own
+# version of the base class (with therefore consistent compiler and
+# jinja settings).
 
 F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound
+F90FLAGS ?= 
 
-# LFRic infrastructure library
-PSYCLONE_RELPATH = ../../../../../..
-LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME = lfric_netcdf
-LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
-F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
+F90FLAGS += $$(nf-config --fflags)
 
-GHLIB_SRC = $(wildcard *.F90) $(wildcard *.f90)
+# The extract library is implemented for int, real and
+# double scalars and 2-dimension arrays
+PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
+		       -dims=2
 
-GHLIB_OBJ = $(filter %.o,$(GHLIB_SRC:.F90=.o) $(GHLIB_SRC:.f90=.o))
+default: extract_netcdf_base.o psy_data_base.o
+process: extract_netcdf_base.f90
 
-default: $(GHLIB_OBJ)
-	$(AR) $(ARFLAGS) libgungho.a $(GHLIB_OBJ)
-default: $(LIB)
+.PHONY: default process clean
 
-# Dependencies
-# ------------
-assign_coordinate_field_mod.o: base_mesh_config_mod.o planet_config_mod.o
+# The dependencies
+# ----------------
+extract_netcdf_base.o: psy_data_base.o
 
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
+# Jinja rules for creating the base class, and the
+# netcdf extraction class
+# ------------------------------------------------
+psy_data_base.f90:	../../psy_data_base.jinja
+	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
 
+extract_netcdf_base.f90:	extract_netcdf_base.jinja
+	../../process.py $(PROCESS_ARGS) $< > extract_netcdf_base.f90
+
+# Compilation
+# -----------
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod *.a
+	rm -f extract_netcdf_base.f90 psy_data_base.f90 *.o *.mod

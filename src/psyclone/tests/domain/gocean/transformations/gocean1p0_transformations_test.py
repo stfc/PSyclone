@@ -1824,8 +1824,9 @@ def test_accloop(tmpdir):
     # enclosing parallel region
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("ACCLoopDirective must have an ACCParallelDirective as an "
-            "ancestor in the Schedule" in str(err.value))
+    assert ("ACCLoopDirective must have an ACCParallelDirective or "
+            "ACCKernelsDirective as an ancestor in the Schedule" in
+            str(err.value))
 
     # Add an enclosing parallel region
     new_sched, _ = accpara.apply(schedule.children)

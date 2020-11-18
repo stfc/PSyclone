@@ -3,21 +3,22 @@
 The tutorials in this directory give an overview of building LFRic code,
 with PSyclone as an integral part of this process. There are four
 subdirectories, one with the
-[introduction to LFRic](background) (including the overview of LFRic
-code structure and how PSyclone is used in LFRic) and three hands-on
-tutorials described below.
+[introduction to LFRic](background/LFRic_intro.md) (including the
+overview of the [LFRic code structure](background/LFRic_structure.md)
+and how PSyclone is used in LFRic) and three hands-on tutorials briefly
+described below.
 
 The tutorials build on each other so it is important to work through
 them in order. The recommended background sections are highlighted and
 linked as needed in each tutorial.
 
-### [Simple kernels tutorial](1_simple_kernels)
+### [Tutorial 1: Simple kernels](1_simple_kernels)
 
 This tutorial shows how to create and use simple LFRic kernels to
 perform mathematical operations on the LFRic field data. It starts with
 different kernels for different LFRic finite-element [function spaces](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces)
-and uses them as a template to write general-purpose kernels that can
+and uses them as a template to write generic kernels that can
 operate on any function space.
 
 The mathematical operations in this tutorial are quite simple (initialisation
@@ -25,13 +26,13 @@ of a field to a scalar value and adding fields) as the primary purpose of
 the tutorial is to create functional kernels with the required metadata,
 subroutine argument list and loops that update an LFRic field.
 
-### [Built-ins tutorial](2_built_ins)
+### [Tutorial 2: Built-ins](2_built_ins)
 
 This tutorial shows how to use the [PSyclone LFRic (Dynamo 0.3 API) built-ins](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins)
 instead of kernels for simple linear algebra operations on fields.
 
-### [Time-evolution tutorial](3_time_evolution)
+### [Tutorial 3: Time evolution](3_time_evolution)
 
 This tutorial illustrates timestepping in LFRic through propagation of a
 field on a planar mesh (more elaborate example of LFRic code). This requires
@@ -63,8 +64,8 @@ appropriate `invoke` calls to kernels (the [first](1_simple_kernels)
 tutorial), built-ins (the [second](2_built_ins) tutorial) or both (the
 [third](3_time_evolution) tutorial). The kernel code in the
 [first](1_simple_kernels) and the [third](3_time_evolution) tutorial
-needs to either be completed or created (the [second](2_built_ins)
-tutorial does not require kernels).
+needs to either be completed or created (the second tutorial does not
+require kernels).
 
 Each tutorial directory contains `Makefile`s to build and run the
 code once that the kernel and algorithm code is completed. There are
@@ -82,11 +83,12 @@ tree targets to the `make` process:
 
 ---
 **NOTE**
+
 It is advisable to run `make test` whilst completing the kernel and
 and algorithm code to ensure that the code is correct. PSyclone checks
 that the source is syntactically correct and that it abides by the
-[LFRIC API](https://psyclone.readthedocs.io/en/stable/dynamo0p3.html)
-rules.
+PSyclone [LFRIC (Dynamo 0.3) API](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html) rules.
 
 ---
 
@@ -135,11 +137,13 @@ directory of the PSyclone repository. For more information on LFRic code
 structure and functionality see the [*LFRic code structure* section](
 background/LFRic_structure.md).
 
-### Distributed memory
+### Parallel code support
 
 The pared-down LFRic infrastructure used in these tutorials does not
-have the support for distributed memory (done via the [YAXT library](
+have the support for [distributed memory](../distributed_memory) (done
+via the [YAXT library](
 https://www.dkrz.de/redmine/projects/yaxt) in LFRic). Also, none of
 the [PSyclone transformations](
-https://psyclone.readthedocs.io/en/stable/transformations.html) are
-applied here so the code is generated and run in serial.
+https://psyclone.readthedocs.io/en/stable/transformations.html) for
+the [shared memory](../single_node) support are applied here so the
+code is generated and run in serial.

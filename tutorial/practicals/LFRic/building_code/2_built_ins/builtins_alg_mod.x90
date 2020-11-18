@@ -100,11 +100,11 @@ contains
     !---------------------------------------------------------------------------
 
     !---------------------------------------------------------------------------
-    ! TO COMPLETE (preferably in the same invoke):
-    ! Use built-ins to
-    ! - Initialise 'field_out_w0' and 'field_out_w3' to 0
+    ! TO COMPLETE (in the same invoke) - Use built-ins to:
+    ! - Initialise 'field_out_w0' to 0
     ! - Initialise 'field1_in_w0' to 1 and 'field2_in_w0' to 2
     ! - Calculate 'field_out_w0 = field1_out_w0 + field2_out_w0'
+    ! - Initialise 'field_out_w3' to 0
     ! - Initialise 'field1_in_w3' to -1
     ! - Calculate 'field2_in_w3 = 2*field1_in_w3'
     ! - Calculate 'field_out_w3 = field1_in_w3 - 0.5*field2_in_w3'

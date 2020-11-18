@@ -38,11 +38,11 @@ F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
 # Source rules
-DRIVER_SRC = time_evolution_driver.f90
+DRIVER_SRC = write_diagnostics_mod.f90 time_evolution_driver.f90
 ALGORITHMS = $(wildcard *_alg_mod.x90)
 ALGORITHM_SRC = $(ALGORITHMS:.x90=.f90)
 PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
-KERNEL_SRC = $(wildcard *_kernel_mod.F90) $(wildcard *_kernel_mod.f90)
+KERNEL_SRC = $(wildcard *_kernel_mod.f90)
 
 # PSyclone command-line options
 PSYCLONE_CMD = -nodm -l all

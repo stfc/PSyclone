@@ -100,10 +100,10 @@ passed from the algorithm layer, referred to as `<class_name>_proxy`
 the object proxies. The data and other required information is then
 passed to kernel and built-in calls.
 
-PSyclone also generates code for distributed and shared memory
-support, however this is not utilised in this tutorial as explained
-in the main [README document](../README.md). The generated code in these
-tutorials is purely serial.
+PSyclone also generates code for [distributed](../../distributed_memory) and
+[shared memory](../../single_node) support, however this is not utilised
+in this tutorial as explained in the main [README document](../README.md).
+The generated PSy-layer code in these tutorials is purely serial.
 
 ## Kernel layer
 
@@ -114,11 +114,10 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#kernel)
 LFRic kernels perform mathematical operations on [a subset of data points](
 https://psyclone.readthedocs.io/en/stable/kernel_layer.html#kernel-layer)
 of LFRic data objects (fields, operators and scalars) passed
-from the [algorithm](LFRic_algorithm.md) through the
-[PSy layer](#psy-layer).
+from the [algorithm](#algorithm-layer) through the [PSy layer](#psy-layer).
 
 Scalar values are passed to a kernel from the [algorithm layer](
-LFRic_algorithm.md) as they are. In the case of fields and
+#algorithm-layer) as they are. In the case of fields and
 operators, however, LFRic kernels operate on a subset of the degrees
 of freedom (DoFs) of these objects, e.g. those on a single column of
 cells or even a single DoF. Such a subset occupies a portion

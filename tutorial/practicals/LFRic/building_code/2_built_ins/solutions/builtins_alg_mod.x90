@@ -106,20 +106,20 @@ contains
     !---------------------------------------------------------------------------
 
     !---------------------------------------------------------------------------
-    ! TO COMPLETE (preferably in the same invoke):
-    ! Use built-ins to
-    ! - Initialise 'field_out_w0' and 'field_out_w3' to 0
+    ! TO COMPLETE (in the same invoke) - Use built-ins to:
+    ! - Initialise 'field_out_w0' to 0
     ! - Initialise 'field1_in_w0' to 1 and 'field2_in_w0' to 2
     ! - Calculate 'field_out_w0 = field1_out_w0 + field2_out_w0'
+    ! - Initialise 'field_out_w3' to 0
     ! - Initialise 'field1_in_w3' to -1
     ! - Calculate 'field2_in_w3 = 2*field1_in_w3'
     ! - Calculate 'field_out_w3 = field1_in_w3 - 0.5*field2_in_w3'
     call invoke( name = "Builtins on W0 and W3 fields",              &
                  setval_c(field_out_w0, 0.0_r_def),                  &
-                 setval_c(field_out_w3, 0.0_r_def),                  &
                  setval_c(field1_in_w0, 1.0_r_def),                  &
                  setval_c(field2_in_w0, 2.0_r_def),                  &
                  X_plus_Y(field_out_w0, field1_in_w0, field2_in_w0), &
+                 setval_c(field_out_w3, 0.0_r_def),                  &
                  setval_c(field1_in_w3, -1.0_r_def),                 &
                  a_times_X(field2_in_w3, 2.0_r_def, field1_in_w3),   &
                  X_minus_bY(field_out_w3, field1_in_w3, 0.5_r_def, field2_in_w3) )

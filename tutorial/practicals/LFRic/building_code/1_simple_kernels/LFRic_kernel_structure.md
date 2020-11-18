@@ -6,7 +6,7 @@ kernel and how to create or modify a kernel.
 ---
 **NOTE**
 
-*Note:* For the high-level overview of the LFRic kernel layer role and
+For the high-level overview of the LFRic kernel layer role and
 relevant links see the [Kernel layer](
 ../background/LFRic_structure.md#kernel-layer) section in the
 [LFRic code structure document](../background/LFRic_structure.md).
