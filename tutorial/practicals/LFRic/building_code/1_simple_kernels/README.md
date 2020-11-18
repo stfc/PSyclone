@@ -17,10 +17,14 @@ in order to learn how to work with the basic building blocks of an
 
 The tutorial is further subdivided into two parts in order to learn how to
 
-1. Create and call kernels that update a field on the specific
-   [LFRic function spaces](
-   https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces);
-2. Create and call generic kernels that update a field on any function space.
+1. Create and call kernels that update a field on a
+   [specific function space](part1/README.md);
+2. Create and call generic kernels that update a field on
+   [any function space](part2/README.md).
+
+*For more information on the supported LFRic function spaces in PSyclone
+please refer to this PSyclone [user guide section](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces).
 
 ## Supporting source and scripts
 
@@ -87,9 +91,9 @@ in this example.
                                total_ranks )
     ```
    for one process (`total_ranks`) as we are running in serial. Note that
-   we need to point to implementation of the `partition` class for a
-   planar mesh (`partitioner_ptr => partitioner_planar`) and the global mesh
-   (`global_mesh_ptr`).
+   we need to point to the global mesh (`global_mesh_ptr`) and the
+   implementation of the `partitioner` class for a planar mesh
+   (`partitioner_ptr => partitioner_planar`).
 
 3) Create a uniform vertical extrusion object
    ```fortran
@@ -97,7 +101,9 @@ in this example.
    extrusion_ptr => extrusion
    ```
    with the specified atmosphere height (`domain_top`) and number of layers
-   for the full 3D mesh. Return a pointer to it (`extrusion_ptr`).
+   for the full 3D mesh (the ground level is set at the scalar literal
+   `0.0_r_def` where `r_def` is an LFRc-defined Fortran `kind` for the
+   `real`-valued literals). Return a pointer to it (`extrusion_ptr`).
 
 4) Create a full 3D partitioned mesh object mesh using the global mesh,
    partition and extrusion information:
@@ -129,8 +135,8 @@ however the specific calls may be different).
    ```fortran
    call field_w0%initialise( vector_space = fs_w0_ptr, name = "field_w0" )
    ```
-   by providing the mandatory pointer to the speified function space object
-   (`fs_w0_ptr`) and the optional string for the field name (`"field_w0"`).
+   by providing a mandatory pointer to the specified function space object
+   (`fs_w0_ptr`) and an optional string for the field name (`"field_w0"`).
 
 3) Operate on field objects by `invoke` calls to the specified kernels
    (to be completed in each part of this tutorial). The kernel objects
