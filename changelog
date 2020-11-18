@@ -198,6 +198,14 @@
 	63) PR #965. Add github actions for CI - runs flake8, pytest,
 	codecov and examples for python 2.7, 3.5 and 3.8.
 
+	64) PR #975 for #972 - correct use of str(err) with str(err.value)
+	in a couple of recently-added tests.
+
+	65) PR #983 for #982 - Improve 'kernels' auto-profiling for NEMO API.
+
+        66) PR #977 for #976. Fix dimension parameter for Jinja templates
+        in the PSyData libraries.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include

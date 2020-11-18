@@ -46,6 +46,7 @@ in DIMENSIONS and each type listed in ALL_TYPES. PREFIX can be
 used to add a prefix to static functions defined in the template.
 '''
 
+from __future__ import print_function
 
 import argparse
 import sys
@@ -102,7 +103,7 @@ dims = args.dims.split(",")
 
 # Convert to empty list if an empty dims argument was given:
 if dims == ['']:
-  dims = []
+    dims = []
 
 for dim in dims:
     try:
@@ -124,5 +125,5 @@ with open(args.template_name, "r") as file:
 env = Environment(trim_blocks=True, lstrip_blocks=True)
 template = env.from_string(template_string)
 
-print(template.render(ALL_TYPES=all_types, DIMENSIONS=dims,
+print(template.render(ALL_TYPES=all_types, ALL_DIMS=dims,
                       PREFIX=args.prefix))
