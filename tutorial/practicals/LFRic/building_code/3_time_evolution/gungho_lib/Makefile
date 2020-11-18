@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Authors: I. Kavcic, Met Office and J. Henrichs, Bureau of Meteorology
+# Author: I. Kavcic, Met Office
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound

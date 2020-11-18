@@ -38,6 +38,7 @@
   for an overview). If you are not using `gfortran` then you will probably
   have to build NetCDF yourself. This process is described [here](
   https://www.unidata.ucar.edu/software/netcdf/docs/getting_and_building_netcdf.html).
+
   *Note*, if you need to build NetCDF from source, the following libraries
-  are also required: [HDF5](https://www.hdfgroup.org/solutions/hdf5),`zlib`
+  are also required: [HDF5](https://www.hdfgroup.org/solutions/hdf5), `zlib`
   and `curl` (the latter two can be installed via the package manager).
