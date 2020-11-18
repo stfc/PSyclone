@@ -58,7 +58,7 @@ def test_extract_trans():
     '''Tests basic functions in NanTestTrans.'''
     nan_test = NanTestTrans()
     assert str(nan_test) == "Create a sub-tree of the PSyIR that has " \
-                             "a NanTestNode at its root."
+                            "a node of type NanTestNode at its root."
     assert nan_test.name == "NanTestTrans"
 
 
@@ -109,7 +109,7 @@ def test_nan_test_options():
                            "gocean1.0", idx=0, dist_mem=False)
     nan_test = NanTestTrans()
     _, _ = nan_test.apply(invoke.schedule[0].loop_body[0],
-                           options={"region_name": ("a", "b")})
+                          options={"region_name": ("a", "b")})
     code = str(invoke.gen())
 
     assert 'CALL nan_test_psy_data%PreStart("a", "b", 2, 2)' in code
@@ -127,13 +127,14 @@ def test_invalid_apply():
     _, _ = omp.apply(invoke.schedule[0])
     with pytest.raises(TransformationError) as err:
         _, _ = nan_test.apply(invoke.schedule[0].dir_body[0],
-                               options={"region_name": ("a", "b")})
-    assert "Error in NanTestTrans: NAN test of a Loop without its "\
+                              options={"region_name": ("a", "b")})
+
+    assert "Error in NanTestTrans: Application to a Loop without its "\
            "parent Directive is not allowed." in str(err.value)
 
     with pytest.raises(TransformationError) as err:
         _, _ = nan_test.apply(invoke.schedule[0].dir_body[0].loop_body[0],
-                               options={"region_name": ("a", "b")})
+                              options={"region_name": ("a", "b")})
 
-    assert "Error in NanTestTrans: NAN test of Nodes enclosed within a "\
+    assert "Error in NanTestTrans: Application to Nodes enclosed within a "\
            "thread-parallel region is not allowed." in str(err.value)

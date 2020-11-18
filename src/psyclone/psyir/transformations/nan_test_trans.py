@@ -34,37 +34,37 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 
-'''This module contains the base class for verifying read-only access in
-   a region of code."
+'''This module contains the base class for verifying that input and output
+   parameters of a region of code is not NAN and not infinite. It is basically
+   identical to ReadOnlyVerifyTrans (which provides input parameter before
+   and output parameter after a kernel), from which it inherits all
+   actual code.
 '''
 
 from __future__ import absolute_import
-from psyclone.psyGen import (Directive, OMPParallelDirective,
-                             ACCParallelDirective)
+
 from psyclone import psyGen
-from psyclone.psyir.nodes import Loop, NanTestNode, Schedule
+from psyclone.psyir.nodes import NanTestNode
 from psyclone.psyir import nodes
 from psyclone.psyir.transformations.read_only_verify_trans \
     import ReadOnlyVerifyTrans
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
 
 
 class NanTestTrans(ReadOnlyVerifyTrans):
-    '''This transformation inserts a IEEEXXX or a node derived
-    from ReadOnlyVerifyNode into the PSyIR of a schedule. At code creation
-    time this node will use the PSyData API to create code that will
-    verify that read-only quantities are not modified.
+    '''This transformation inserts a NanTestNode into the PSyIR of a
+    schedule. At code creation time this node will use the PSyData API
+    to create code that will verify all input parameters are not NANs
+    and not infinite, and the same for all output parameters.
 
     After applying the transformation the Nodes marked for verification are
-    children of the ReadOnlyVerifyNode.
+    children of the NanTestNode.
     Nodes to verify can be individual constructs within an Invoke (e.g.
     Loops containing a Kernel or BuiltIn call) or entire Invokes.
 
     :param node_class: The class of Node which will be inserted \
-        into the tree (defaults to ReadOnlyVerifyNode), but can be any \
+        into the tree (defaults to NanTestNode), but can be any \
         derived class.
-    :type node_class: :py:class:`psyclone.psyir.nodes.ReadOnlyVerifyNode` or \
+    :type node_class: :py:class:`psyclone.psyir.nodes.NanTestNode` or \
         derived class
 
     '''
@@ -75,18 +75,10 @@ class NanTestTrans(ReadOnlyVerifyTrans):
     def __init__(self, node_class=NanTestNode):
         super(NanTestTrans, self).__init__(node_class=node_class)
 
-    def __str__(self):
-        return ("Create a sub-tree of the PSyIR that has a "
-                "NanTestNode at its root.")
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "NanTestTrans"
-
     def validate(self, node_list, options=None):
         '''Performs validation checks specific to nan-test
-        transformations.
+        transformations. This function is only here so that it
+        is documented.
 
         :param node_list: the list of Node(s) we are checking.
         :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
@@ -105,32 +97,8 @@ class NanTestTrans(ReadOnlyVerifyTrans):
                                      Directive.
 
         '''
-        # Check ReadOnlyVerifyTrans specific constraints.
-        # Check constraints not covered by valid_node_types for
-        # individual Nodes in node_list.
+        # pylint: disable=useless-super-delegation
 
-        for node in node_list:
-
-            # Check that a ReadOnlyVerifyNode is not inserted between a Loop
-            # and its parent Directive when optimisations are applied, as
-            # this may result in including the end Directive for verification
-            # but not the beginning.
-            if isinstance(node, Loop) and isinstance(node.parent, Schedule) \
-               and isinstance(node.parent.parent, Directive):
-                raise TransformationError(
-                    "Error in {0}: NAN test of a Loop without its parent "
-                    "Directive is not allowed.".format(str(self.name)))
-
-            # Check that the ReadOnlyVerifyNode is not inserted within a
-            # thread parallel region when optimisations are applied.
-            if node.ancestor((OMPParallelDirective, ACCParallelDirective)):
-                raise TransformationError(
-                    "Error in {0}: NAN test of Nodes enclosed within "
-                    "a thread-parallel region is not allowed."
-                    .format(str(self.name)))
-
-        # Performs validation checks specific to PSyData-based
-        # transformations.
         super(NanTestTrans, self).validate(node_list, options)
 
 
