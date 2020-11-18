@@ -39,8 +39,13 @@
 '''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes import NanTestNode, Schedule
-from psyclone.psyir.transformations.read_only_verify_trans import ReadOnlyVerifyTrans
+from psyclone.psyGen import (Directive, OMPParallelDirective,
+                             ACCParallelDirective)
+from psyclone import psyGen
+from psyclone.psyir.nodes import Loop, NanTestNode, Schedule
+from psyclone.psyir import nodes
+from psyclone.psyir.transformations.read_only_verify_trans \
+    import ReadOnlyVerifyTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -63,8 +68,6 @@ class NanTestTrans(ReadOnlyVerifyTrans):
         derived class
 
     '''
-    from psyclone.psyir import nodes
-    from psyclone import psyGen
     # The types of node that this transformation can enclose
     valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
                         psyGen.Directive, nodes.Literal, nodes.Reference)
@@ -105,9 +108,6 @@ class NanTestTrans(ReadOnlyVerifyTrans):
         # Check ReadOnlyVerifyTrans specific constraints.
         # Check constraints not covered by valid_node_types for
         # individual Nodes in node_list.
-        from psyclone.psyir.nodes import Loop
-        from psyclone.psyGen import Directive, \
-            OMPParallelDirective, ACCParallelDirective
 
         for node in node_list:
 
@@ -118,14 +118,14 @@ class NanTestTrans(ReadOnlyVerifyTrans):
             if isinstance(node, Loop) and isinstance(node.parent, Schedule) \
                and isinstance(node.parent.parent, Directive):
                 raise TransformationError(
-                    "Error in {0}: Extraction of a Loop without its parent "
+                    "Error in {0}: NAN test of a Loop without its parent "
                     "Directive is not allowed.".format(str(self.name)))
 
             # Check that the ReadOnlyVerifyNode is not inserted within a
             # thread parallel region when optimisations are applied.
             if node.ancestor((OMPParallelDirective, ACCParallelDirective)):
                 raise TransformationError(
-                    "Error in {0}: Extraction of Nodes enclosed within "
+                    "Error in {0}: NAN test of Nodes enclosed within "
                     "a thread-parallel region is not allowed."
                     .format(str(self.name)))
 
