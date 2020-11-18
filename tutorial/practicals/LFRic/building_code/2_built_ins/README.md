@@ -21,7 +21,7 @@ builtins_alg_mod.x90) to
 * Print out the min/max values of the modified fields.
 
 The working directory for this part of the tutorial is
-`<PSYCLONEHOME>/tutorial/practicals/LFRic/building_code/2_built-ins`
+`<PSYCLONEHOME>/tutorial/practicals/LFRic/building_code/2_built_ins`
 where `<PSYCLONEHOME>` is the full path to the local PSyclone repository.
 
 ## Supporting source and scripts
@@ -53,8 +53,8 @@ of the driver layer in this tutorial.
 ### Driver structure
 
 The [`builtins_driver.f90`](builtins_driver.f90) sets up the
-*global 2D mesh*, *partition*, *extrusion* and *local 3D mesh* object
-stack required to define field objects as outlined in the
+**global 2D mesh**, **partition**, **extrusion** and **local 3D mesh**
+object stack required to define field objects as outlined in the
 [overview of the LFRic driver layer](
 ../background/LFRic_structure.md#driver-layer).
 This structure is identical to the driver structure of the
@@ -66,8 +66,8 @@ for the explanation of the relevant Fortran calls.
 
 As in the [simple kernels tutorial](
 ../1_simple_kernels/README.md#algorithm-structure),
-[`builtins_alg_mod.x90`](builtins_alg_mod.x90) creates *function space*
-and *field* objects with the input mesh and finite-element order
+[`builtins_alg_mod.x90`](builtins_alg_mod.x90) creates **function space**
+and **field** objects with the input mesh and finite-element order
 information from the driver layer. The names of fields on `W0` and `W3`
 function spaces and the general set-up is identical to the
 [`simple_kernels_alg_mod.x90`](
