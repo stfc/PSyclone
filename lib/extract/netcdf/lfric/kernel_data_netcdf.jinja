@@ -73,7 +73,7 @@
 !! interface. It is specific to the LFRic infrastructure library.
 !! A Fortran code instrumented with corresponding calls
 !! to the PSyData API and linked in with this library will write
-!! the requested input- and output-parameters to a netcdfile file.
+!! the requested input- and output-parameters to a NetCDF file.
 !! 
 
 module extract_psy_data_mod
@@ -128,9 +128,10 @@ module extract_psy_data_mod
             {{all_writes|join(", &\n"+indent) }}
 
         !> The generic interface for reading in variables previously
-        !! written. Used in a driver that e.g. read previously written
-        !! files. The driver does not use fields, so no need to provided
-        !! field specific read functions.
+        !! written. This is not part of the standard PSyData API, but
+        !! it is convenient for a driver that e.g. reads previously written
+        !! files. The driver does not use LFRic fields (only Fortran arrays),
+        !! so there is no need to provided field-specific read functions.
         generic, public :: ReadVariable => &
             {{all_reads|join(", &\n"+indent) }}
 
@@ -139,9 +140,8 @@ module extract_psy_data_mod
 Contains
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a double precision field as defined in
-    !! dl_esm_info (r2d_field). A corresponding variable definition is added
-    !! to the NetCDF file, and the variable id is stored in the var_id field.
+    !> This subroutine declares a double precision LFRic field.
+    !! It uses the 1d-double precision array function provided by the base class.
     !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -160,9 +160,9 @@ Contains
     end subroutine DeclareFieldDouble
 
     ! -------------------------------------------------------------------------
-    !> This subroutine writes the value of a dl_esm_field (r2d_field)
-    !! to the NetCDF file. It takes the variable id from the corresponding
-    !! declaration.
+    !> This subroutine writes the value of a double precision LFRic field
+    !! to the NetCDF file. It uses the 1d-double precision array
+    !! writing function from the base class.
     !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -181,7 +181,9 @@ Contains
     end subroutine WriteFieldDouble
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a field vector.
+    !> This subroutine declares an LFric field vector. Each component of the
+    !! vector is stored as a separate variable, using the 1d-double precision
+    !! array function of the base class.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -198,8 +200,7 @@ Contains
         type(field_proxy_type) :: value_proxy
         character(9)           :: number
 
-
-        ! Provide each dimension of the vector as an individual 1d array.
+        ! Provide each component of the vector as an individual 1d array.
         ! The base class will re-allocate internal array sizes if required
         do i = 1, size(value)
             value_proxy = value(1)%get_proxy()
@@ -214,9 +215,9 @@ Contains
     end subroutine DeclareFieldVectorDouble
 
     ! -------------------------------------------------------------------------
-    !> This subroutine writes a field vector to the netcdf file. It needs a
-    !! temporary field to store the data, if the memory for this array cannot
-    !! be allocated,the application will abort.
+    !> This subroutine writes an LFRic field vector to the netcdf file. Each
+    !! component is stored as an individual variable using the 1d-double
+    !! precision array function from the base class.
     !! @param[inout] this The instance of the read_only_verify_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -224,6 +225,7 @@ Contains
         use netcdf,    only: nf90_put_var
         use field_mod, only: field_type, field_proxy_type
         implicit none
+
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
         type(field_type), dimension(:), intent(in)        :: value

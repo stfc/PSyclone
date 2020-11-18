@@ -77,7 +77,7 @@
 ! -----------------------------------------------------------------------------
 ! Authors J. Henrichs, Bureau of Meteorology
 
-!> This module implements a simple netcdf writer using the PSyData 
+!> This module implements a simple NetCDF writer using the PSyData
 !! interface. A Fortran code instrumented with corresponding calls
 !! to the PSyData API and linked in with this library will create
 !! a NetCDF file that contains all scalar values, and the dimensions
@@ -136,13 +136,13 @@ module extract_netcdf_base_mod
 Contains
 
     ! -------------------------------------------------------------------------
-    !> Checks if the return value from a netcdf call indicates an error.
+    !> Checks if the return value from a NetCDF call indicates an error.
     !! If so, print the corresponding error message and aborts the program.
     !! It is typically used as a wrapper around NetCDF calls:
     !! retval = CheckError(nf90_close(ncid))
     !! @param[in] retval The return value from a NetCDF operation.
     !! Returns the return value.
-    function CheckError(retval) 
+    function CheckError(retval)
         use netcdf, only: nf90_noerr, nf90_strerror
         implicit none
 
@@ -204,12 +204,12 @@ Contains
         ! variables that are going to be declared. Note that there might
         ! actually be more variables stored (in LFRic vector fields are
         ! stored as individual NetCDF variables, so a 3d vector field
-        ! would actually use 3 netcdf variables). If required, this
+        ! would actually use 3 individual NetCDF variables). If required,
         ! this array will be re-allocated in the declare functions.
         if (.not. allocated(this%var_id)) then
             allocate(this%var_id(num_pre_vars+num_post_vars))
         endif
-        
+
     end subroutine PreStart
 
     ! -------------------------------------------------------------------------
