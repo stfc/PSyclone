@@ -34,7 +34,7 @@
 # Author: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' Module containing tests for NANTestTrans and NanTestNode
+''' Module containing tests for NanTestTrans and NanTestNode
 '''
 
 from __future__ import absolute_import

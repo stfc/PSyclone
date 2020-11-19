@@ -48,7 +48,7 @@ from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 class NanTestNode(PSyDataNode):
     '''
     This class can be inserted into a Schedule to mark Nodes for \
-    code NAN-checking using the NanTestTrans transformation. By \
+    NAN-checking using the NanTestTrans transformation. By \
     applying the transformation the Nodes marked for checking become \
     children of (the Schedule of) a NanTestNode.
 
