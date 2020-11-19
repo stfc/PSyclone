@@ -52,7 +52,7 @@ process: read_only_base.f90
 .PHONY: default process clean
 
 %.f90:	%.jinja
-	../process.py $< > $*.f90
+	../process.py $(PROCESS_ARGS) $< > $*.f90
 
 psy_data_base.f90:	../psy_data_base.jinja
 	../process.py $(PROCESS_ARGS) $< > psy_data_base.f90

@@ -64,6 +64,9 @@ script:
   - ( make -C examples transform > /dev/null )
   # Execute all example Jupyter notebooks
   - ( make -C examples notebook )
+  # Execute the LFRic tutorials on building code 'solutions' scripts
+  # (just PSyclone part of compilation)
+  - ( make -C tutorial/practicals/LFRic/building_code test > /dev/null )
 after_success:
   - codecov
 # Configure travis to deploy to the pypi server when a new
