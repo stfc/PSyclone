@@ -207,7 +207,7 @@ the code evolves.
 
 You've written a generic script. If you have enough time now re-write
 your script so that it is only applied to a specific halo
-exchange. However, keep your original general code as you will need to
+exchange. However, keep your original generic script as you will need to
 use this again in a bit (you might like to use a different script file
 in order to keep both).
 
@@ -259,25 +259,26 @@ InvokeSchedule[invoke='invoke_0', dm=True]
 ```
 
 In the above example we could try to move the haloexchangestart at
-position 1 before the loop at position 0. However, the move
-transformation will not allow this as this halo exchange is added
-there because the field `grad_p` is modified in the first loop.
+position 1 so that it ends up before the loop currently at position
+0. However, the move transformation will not allow this as this halo
+exchange has been added there because the field `grad_p` is modified
+in the first loop, so it must happen after the loop art position 0.
 
-Therefore let's try the second haloexchangestart at position 3 (in our case).
+Therefore let's try the next haloexchangestart (at position 3 in our case).
 
-First import the `MoveTrans` transformation
+First import the `MoveTrans` transformation:
 
 ```python
 from psyclone.transformations import MoveTrans
 ```
 
-Next create an instance of the transformation
+Next create an instance of the transformation:
 
 ```python
     move_trans = MoveTrans()
 ```
 
-Finally apply the transformation to the selected locations
+Finally apply the transformation to the selected locations:
 
 ```python
     move_trans.apply(schedule[3], schedule[0])
@@ -287,30 +288,34 @@ The first argument of the `MoveTrans` transformation apply method is
 the PSyIR node you want to move and its second argument is where you
 want to place the node.
 
-Note, clearly the above transformation should be applied after the
+Note, clearly the above transformation needs to be applied after the
 asynchronous halo exchange transformation.
 
-Run your transformation script and see if you have managed to move the
-halo exchange start node.
+Run your modified transformation script and see if you have managed to move the
+halo exchange start node. If so, well done!
 
-If you have time you might like to repeat this transformation to move
-more of the halo exchange starts to as early as possible in the
-schedule.
+If you have time you might like to repeat this transformation in your
+script to move more of the halo exchange starts as early as
+possible in the schedule.
 
-Of course the approach taken is not generic so will only work for
-this example code and codes with a very similar structure.
+## Generic approach ##
+
+Of course the approach we have taken so far is not generic so will
+only work for this example code and codes with a very similar
+structure.
 
 It is obviously possible to make the script generic. Try to do this if
 you have the time and expertise. If not, you might like to take a look
 at the `overlap_generic.py` script in the `solutions` directory to see
 one way to do this.
 
-If you are planning to do this yourself, the suggested approach is to
-find each haloexchangestart node, and for each of these nodes try to
-bubble the node back in the tree by repeatedly applying the MoveTrans
-transformation until it can't be moved any further. Hint, the
-MoveTrans transformation will raise a TransformationError exception if
-it is invalid to move the node to the selected location.
+If you are planning to write your own generic script, the suggested
+approach is to find each halo exchange start node, and for each of these
+nodes try to bubble the node back in the tree by repeatedly applying
+the `MoveTrans` transformation until it can't be moved any
+further. As mentioned earlier, the `MoveTrans` transformation will raise a
+`TransformationError` exception if it is invalid to move the node to the
+selected location and this can be used as the termination condition.
 
 ## 6. Generated code
 
