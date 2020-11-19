@@ -391,6 +391,24 @@ code that is output is the same as the original (but looks different
 as it has been translated to PSyIR and then output by the PSyIR
 fortran back-end).
 
+Example 16: Kernel Extraction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The subdirectory ``full_example_extract`` contains a runnable example
+of LFRic code that creates a NetCDF file with the input and output
+parameters of a simple kernel. This examples requires the installation
+of a Fortran compiler and NetCDF development environment. After compilation
+of the code, you can run the example. which will produce a NetCDF file:
+
+.. code-block:: bash
+
+    cd full_example_extraction
+    make
+    ./extract
+    ncdump ./main-update.nc | less
+
+
+
 NEMO
 ----
 

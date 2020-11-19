@@ -8,12 +8,16 @@ code region, and verify the results (or compare performance).
 ## Dependencies
 
 The following dependencies must be available:
+- A Fortran compiler (e.g. ``gfortran``, which you can
+  install via your package manager).
 - This library uses NetCDF to store the data, so NetCDF must
-  be available on the system. It can be downloaded from
-  https://www.unidata.ucar.edu/software/netcdf/
-- The LFRIc inftrastructure library. It needs a separate
-  installation of LFRic at this stage.
+  be available on the system. You should be able to find a
+  NetCDF development package in your package manager, if not
+  it be downloaded from
+  https://www.unidata.ucar.edu/software/netcdf.
+
 It uses the PSyData API to interface with the application.
+
 
 ## Compilation
 
@@ -24,15 +28,13 @@ The environment variables ``$F90`` and ``$F90FLAGS`` can be set
 to point to the Fortran compiler and flags to use. They default to
 ``gfortran`` and the empty string. The NetCDF helper program
 ``nf-config`` is used to get the NetCDF-specific include paths.
-
-.. note::
-    Certain versions of Fedora have a broken ``nf-config`` script. In
-    this case you have to modify the Makefile to provide the required
-    information (you can try to see if ``nc-config`` can be used,
-    or you have to explicitly provide the required paths and options).
+By default it will use the LFRic infrastructure library included
+in PSyclone, if you need to use a different version, you can use
+the environment variable ``LFRID_DIR`` to point to a different
+directory.
 
 The application needs to provide the parameters to link in
-this netcdf-kernel-extraction library, the infrastructure library
+this NetCDF-kernel-extraction library, the infrastructure library
 and the required NetCDF parameters when compiling and linking:
 
 ```sh
@@ -41,3 +43,12 @@ gfortran  ... -L../../../lib/extract/dl_esm_inf/netcdf -l_kernel_data_netcdf \
           $(nf-config --flibs)
 
 ```
+It is the responsibility of the user to make sure that the module
+files used when compiling the LFRic extraction library is identical
+to the ones used when running an LFRic application.
+
+### Note
+Certain versions of Fedora have a broken ``nf-config`` script. In
+this case you have to modify the Makefile to provide the required
+information (you can try to see if ``nc-config`` can be used,
+or you have to explicitly provide the required paths and options).

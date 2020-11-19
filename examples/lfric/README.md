@@ -284,6 +284,17 @@ psyclone -s ./matvec_opt.py \
 -oalg /dev/null -opsy /dev/null
 ```
 
+## Example 16: Code Extraction
+The subdirectory ``full_example_extract`` contains a runnable example
+of LFRic code that creates a NetCDF file with the input and output
+parameters of a simple kernel. The requirements are listed in the README.me file.
+```sh
+cd full_example_extraction
+make
+./extract
+ncdump ./main-update.nc | less
+```
+
 ## Code
 
 Location of LFRic algorithm and kernel code that is used by two or
