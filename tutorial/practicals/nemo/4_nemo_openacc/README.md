@@ -32,6 +32,11 @@ execute the code you will need access to a machine with a GPU but that
 too is optional. Note that if you are doing this we will assume you
 are familiar with executing code on a GPU in your local environment.
 
+Note that the Makefile for this part of the tutorial does *not* compile
+the generated code by default. If you have a suitable compiler and
+want to actually perform the compilation then use the `tra_adv.exe`
+target, i.e. `make tra_adv.exe`.
+
 ## Parallelisation using KERNELS ##
 
 The simplest way to add OpenACC directives to a code is often to use
@@ -398,7 +403,7 @@ You will then need to generalise your script so that it only applies
 the `ACCLoopTrans` to valid loop nests. (Hint: you will need to examine
 the nodes in the `loop_body` of the candidate latitude loop.)
 
-## Managed Memory ##
+## 5. Managed Memory ##
 
 In practice, the work being done to extend PSyclone to process the
 whole of the NEMO code is currently using NVIDIA's 'managed memory'
@@ -409,9 +414,9 @@ something working on the GPU but it has actually proved to work well
 in general.
 
 
-## Conclusion ##
+## 6. Conclusion ##
 
-Congratulations! You have now completed the OpenACC part of the
+Congratulations, you have now completed the OpenACC part of the
 tutorial.  You should now understand the basic OpenACC transformations
 provided by PSyclone and how these can be used to accelerate
 NEMO-style code on a GPU.

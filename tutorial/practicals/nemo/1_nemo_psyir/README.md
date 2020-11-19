@@ -175,7 +175,7 @@ represented in PSyclone by a single Invoke. The content of the program
 
 The structure and means of navigating the PSyIR are covered in the
 PSyIR part of the
-[tutorial](https://github.com/stfc/PSyclone/blob/master/tutorial/psyir/psyir_example2.ipynb). In
+[tutorial](../../../notebooks/psyir/psyir_example2.ipynb). In
 summary, all nodes in the PSyIR have `parent` and `children`
 properties and a `walk` method which may be used to find all nodes of
 a given type (or types) below the current node. Various sub-classes of
@@ -190,7 +190,7 @@ without requiring that it be fully understood. Since PSyclone uses
 fparser2 to parse Fortran, a `CodeBlock` stores the nodes of the
 underlying fparser2 parse tree that cannot be represented in the
 PSyIR. For more information on fparser2 see the associated
-[tutorial](https://github.com/stfc/PSyclone#tutorial) or the [User
+[tutorial](../../../notebooks/fparser2/parsing_fortran.ipynb) or the [User
 Guide](https://fparser.readthedocs.io/en/latest/).
 
 We can see from the fparser2 node types printed in the description of
@@ -271,9 +271,10 @@ source code.
    kernels[0].view()
    ```
 
+## 4. Conclusion
+
+Congratulations, you have now completed this section of the tutorial.
 At this point you should be able to run PSyclone on a Fortran source
 containing NEMO-style code, use a transformation script to access the
 PSyIR of the code and be able to understand the structure of the PSyIR
 and how it relates to the original Fortran.
-
-Congratulations, you have now completed this section of the tutorial.

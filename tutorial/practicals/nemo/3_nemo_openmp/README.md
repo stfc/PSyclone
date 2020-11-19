@@ -331,12 +331,13 @@ steps to achieve this are:
 5. Parallelise all remaining children of the iteration loop that are
    loops over levels;
 
-## Conclusion ##
+## 5. Conclusion ##
 
-This completes part 3 of the NEMO tutorial. We have looked in more
-detail at the process of creating an optimisation script and have
-used PSyclone to add OpenMP parallelisation to the tracer-advection
-mini-app. With the caveats noted earlier, you should have been able
-to measure a performance improvement.
+Congratulations, you have now completed part 3 of the NEMO
+tutorial. We have looked in more detail at the process of creating an
+optimisation script and have used PSyclone to add OpenMP
+parallelisation to the tracer-advection mini-app. With the caveats
+noted earlier, you should have been able to measure a performance
+improvement.
 
 

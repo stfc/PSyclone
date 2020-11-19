@@ -65,7 +65,7 @@ you have time at the end of this session.)
    `CALL profile_psydatashutdown()` as the final statement before the
    `END PROGRAM`. (This is the reason that the mini-app has been
    restructured slightly for this tutorial - the profiling would work
-   fine without it but this way the manual modifcations are made to
+   fine without it but this way the manual modifications are made to
    a separate file.)
 
    Rebuild the application (`make`) and run it. You should now
@@ -197,6 +197,8 @@ transformation script to perform finer-grained profiling.
    [bitbucket](https://bitbucket.org/apeg/dl_timer/src/master/). You
    will need to obtain the source for this library and then update the
    three `PROFILE_*` variables in the Makefile in this directory.
+
+## 4. Conclusion
 
 Congratulations, you have now completed this part of the tutorial. We
 have now used a PSyclone transformation to add profiling
