@@ -47,7 +47,8 @@
 
 # This directory points to an external, compiled version of the LFRic,
 # which is required to find the module files when compiling this library:
-LFRIC_DIR ?= ../../../../lfric/trunk/miniapps/gravity_wave/working/field
+LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure/
+LFRIC_LIB=$(LFRIC_DIR)/liblfric.a
 
 # The LFRic ReadOnly library needs the PreDeclareVariable() and
 # ProvideVariable() routines for the basic Fortran types real, int,
@@ -71,16 +72,10 @@ default: $(LIB_NAME)
 $(LIB_NAME): $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
-
-# Give a useful error message if field_mod cannot be found
-$(LFRIC_DIR)/field_mod.mod:
-	$(error "Cannot find field_mod.mod in $(LFRIC_DIR).")
-
 # Add all dependencies. The LFRic ReadOnly library extends the
 # ReadOnlyBase type, which in turn extends the PSyDataBase type.
 # --------------------------------------------------------------
-read_only.o: 	  $(LFRIC_DIR)/field_mod.mod read_only.f90 \
-			 	  read_only_base.o
+read_only.o: 	  $(LFRIC_LIB) read_only.f90 read_only_base.o
 
 read_only_base.o: psy_data_base.o
 
@@ -101,6 +96,10 @@ psy_data_base.f90: ../../psy_data_base.jinja Makefile
 
 read_only_base.f90: ../read_only_base.jinja Makefile
 	../../process.py $(PROCESS_ARGS) $< > read_only_base.f90
+
+# Create LFRic infrastructure library if required
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_DIR)
 
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.* read_only.f90
