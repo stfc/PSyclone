@@ -104,7 +104,7 @@ so we will now use a script to achieve the same result as the first step
 in this tutorial.
 
 1. Alter the Makefile so that the `psyclone` command uses the provided
-   `profiling_trans.py` script instead of the `--profile` option (or
+   `profile_trans.py` script instead of the `--profile` option (or
    run psyclone separately on the command line). If you look at the
    script, you will see that it encloses all child nodes of the
    Schedule within a single profiling region.
@@ -118,7 +118,7 @@ in this tutorial.
        ===========================================
 
    If you examine the PSyIR that is displayed when running PSyclone with
-   the `profiling_trans.py` script, you will see that the whole Schedule
+   the `profile_trans.py` script, you will see that the whole Schedule
    now has a `Profile` node at its root:
 
    ```bash
