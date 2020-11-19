@@ -11,8 +11,8 @@
    and for 1- to 4- dimensional arrays. It only implements the
    required support for LFRic fields and vector-fields. Still,
    this subroutine has to create the generic interfaces to
-   ALL these functions (the ones fromthe base class and
-   and for fields/vector-fields), for which jinja is used. -#}
+   ALL these functions (the ones from the base class and
+   for fields/vector-fields), for which jinja is used. -#}
 
 {% if ALL_DIMS is not defined -%}
    {# Support 1 to 4 dimensional arrays if not specified #}
@@ -92,8 +92,8 @@ module extract_psy_data_mod
  
     contains
         ! The various procedures defined here
-        procedure :: DeclareFieldDouble,       WriteFieldDouble
-        procedure :: DeclareFieldVectorDouble, WriteFieldVectorDouble
+        procedure :: DeclareField,       WriteField
+        procedure :: DeclareFieldVector, WriteFieldVector
 
         {# Collect the various procedures for the same generic interface #}
         {# ------------------------------------------------------------- #}
@@ -114,17 +114,16 @@ module extract_psy_data_mod
         {% set indent="            " %}
         !> Declare generic interface for PreDeclareVariable:
         generic, public :: PreDeclareVariable => &
-            DeclareFieldDouble, &
-            DeclareFieldVectorDouble, &
+            DeclareField,       &
+            DeclareFieldVector, &
             {{all_declares|join(", &\n"+indent) }}
 
         !> The generic interface for providing the value of variables,
-        !! which in case of the read-only verification either computes
-        !! the checksum (before a kernel), or compares a checksum (after
-        !! a kernel call).
+        !! which in case of the kernel extraction writes the data to
+        !! the NetCDF file.
         generic, public :: ProvideVariable => &
-            WriteFieldDouble,       &
-            WriteFieldVectorDouble, &
+            WriteField,       &
+            WriteFieldVector, &
             {{all_writes|join(", &\n"+indent) }}
 
         !> The generic interface for reading in variables previously
@@ -140,12 +139,14 @@ module extract_psy_data_mod
 Contains
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a double precision LFRic field.
-    !! It uses the 1d-double precision array function provided by the base class.
+    !> This subroutine declares an LFRic field.
+    !! It calls the PreDeclareVariable function provided by the base class
+    !! (depending on the type of the argument, e.g. it might call
+    !! DeclareArray1dDouble).
     !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine DeclareFieldDouble(this, name, value)
+    subroutine DeclareField(this, name, value)
         use field_mod, only : field_type, field_proxy_type
         implicit none
 
@@ -156,17 +157,17 @@ Contains
         type(field_proxy_type) :: value_proxy
 
         value_proxy = value%get_proxy()
-        call this%ExtractNetcdfBaseType%DeclareArray1dDouble(name, value_proxy%data)
-    end subroutine DeclareFieldDouble
+        call this%PreDeclareVariable(name, value_proxy%data)
+    end subroutine DeclareField
 
     ! -------------------------------------------------------------------------
-    !> This subroutine writes the value of a double precision LFRic field
-    !! to the NetCDF file. It uses the 1d-double precision array
-    !! writing function from the base class.
+    !> This subroutine writes the value of an LFRic field
+    !! to the NetCDF file. It uses the corresponding function
+    !! provided by the base class.
     !! @param[inout] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine WriteFieldDouble(this, name, value)
+    subroutine WriteField(this, name, value)
         use field_mod, only: field_type, field_proxy_type
         implicit none
 
@@ -177,17 +178,17 @@ Contains
         type(field_proxy_type) :: value_proxy
 
         value_proxy = value%get_proxy()
-        call this%ExtractNetcdfBaseType%WriteArray1dDouble(name, value_proxy%data)
-    end subroutine WriteFieldDouble
+        call this%ProvideVariable(name, value_proxy%data)
+    end subroutine WriteField
 
     ! -------------------------------------------------------------------------
     !> This subroutine declares an LFric field vector. Each component of the
-    !! vector is stored as a separate variable, using the 1d-double precision
+    !! vector is stored as a separate variable, using the corresponding
     !! array function of the base class.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[inout] this The instance of the extract_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine DeclareFieldVectorDouble(this, name, value)
+    subroutine DeclareFieldVector(this, name, value)
         use netcdf, only: nf90_def_dim, nf90_def_var, NF90_REAL8
         use field_mod, only : field_type, field_proxy_type
         implicit none
@@ -203,25 +204,24 @@ Contains
         ! Provide each component of the vector as an individual 1d array.
         ! The base class will re-allocate internal array sizes if required
         do i = 1, size(value)
-            value_proxy = value(1)%get_proxy()
+            value_proxy = value(i)%get_proxy()
             ! We add a '%' here to avoid a potential name clash if
             ! the user should have a vector field 'a' (which is now stored
             ! as a%1, a%2, ...), and a field 'a1'
             write(number, '("%",i0)') i
-            call this%ExtractNetcdfBaseType%  &
-                 DeclareArray1dDouble(name//trim(number), value_proxy%data)
+            call this%PreDeclareVariable(name//trim(number), value_proxy%data)
         enddo
 
-    end subroutine DeclareFieldVectorDouble
+    end subroutine DeclareFieldVector
 
     ! -------------------------------------------------------------------------
     !> This subroutine writes an LFRic field vector to the netcdf file. Each
-    !! component is stored as an individual variable using the 1d-double
-    !! precision array function from the base class.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! component is stored as an individual variable using the corresponding
+    !! array function of the base class.
+    !! @param[inout] this The instance of the extract_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine WriteFieldVectorDouble(this, name, value)
+    subroutine WriteFieldVector(this, name, value)
         use netcdf,    only: nf90_put_var
         use field_mod, only: field_type, field_proxy_type
         implicit none
@@ -235,15 +235,13 @@ Contains
         character(9)           :: number
 
         ! Provide each dimension of the vector as an individual 1d array.
-        value_proxy = value(1)%get_proxy()
         do i=1, size(value, 1)
             value_proxy = value(i)%get_proxy()
             write(number, '("%",i0)') i
-            call this%ExtractNetcdfBaseType% &
-                 WriteArray1dDouble(name//trim(number), value_proxy%data)
+            call this%ProvideVariable(name//trim(number), value_proxy%data)
         enddo
 
-    end subroutine WriteFieldVectorDouble
+    end subroutine WriteFieldVector
 
 
 end module extract_psy_data_mod
