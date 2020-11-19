@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel extraction code to
+'''Python script intended to be passed to PSyclone via the -s option.
+It adds kernel extraction code to
 the invokes. When the transformed program is compiled and run, it
 will create one NetCDF file for each of the two invokes. A separate
 driver program is also created for each invoke which can read the
@@ -44,6 +44,8 @@ missing (TODO: #647)
 '''
 
 from __future__ import print_function
+
+from psyclone.psyir.transformations import ExtractTrans
 
 
 def trans(psy):
@@ -57,25 +59,23 @@ def trans(psy):
     :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    from psyclone.psyir.transformations import ExtractTrans
     extract = ExtractTrans()
 
     # We don't support builtins yet, so the initialisation
     # cannot be instrumented, TODO #637
-    #invoke = psy.invokes.get("invoke_initialise_fields")
-    #schedule = invoke.schedule
-    #_, _ = extract.apply(schedule.children,
-    #                     {"create_driver": True,
-    #                      "region_name": ("main", "init")})
+    # invoke = psy.invokes.get("invoke_initialise_fields")
+    # schedule = invoke.schedule
+    # _, _ = extract.apply(schedule.children,
+    #                      {"create_driver": True,
+    #                       "region_name": ("main", "init")})
 
     invoke = psy.invokes.get("invoke_testkern_w0")
     schedule = invoke.schedule
 
     # Enclose everything in a extract region
-    newschedule, _ = extract.apply(schedule.children,
-                                   {"create_driver": True,
-                                    "region_name": ("main", "update")})
+    _, _ = extract.apply(schedule.children,
+                         {"create_driver": True,
+                          "region_name": ("main", "update")})
 
-    invoke.schedule = newschedule
-    newschedule.view()
+    schedule.view()
     return psy

@@ -39,9 +39,7 @@
 
 F90 ?= gfortran
 F90FLAGS ?=
-
-# For now pick up the compile environment from an
-# external installation of LFRIc
+# This defaults to the infrastructure library included in PSyclone
 LFRIC_DIR ?= ../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 
 F90FLAGS ?= 
