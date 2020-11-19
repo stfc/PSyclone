@@ -396,7 +396,7 @@ Example 16: Kernel Extraction
 
 The subdirectory ``full_example_extract`` contains a runnable example
 of LFRic code that creates a NetCDF file with the input and output
-parameters of a simple kernel. This examples requires the installation
+parameters of a simple kernel. This example requires the installation
 of a Fortran compiler and NetCDF development environment. After compilation
 of the code, you can run the example. which will produce a NetCDF file:
 

@@ -29,8 +29,8 @@ to point to the Fortran compiler and flags to use. They default to
 ``gfortran`` and the empty string. The NetCDF helper program
 ``nf-config`` is used to get the NetCDF-specific include paths.
 By default it will use the LFRic infrastructure library included
-in PSyclone, if you need to use a different version, you can use
-the environment variable ``LFRID_DIR`` to point to a different
+with PSyclone. If you need to use a different version, you can use
+the environment variable ``LFRIC_DIR`` to point to a different
 directory.
 
 The application needs to provide the parameters to link in
@@ -44,7 +44,7 @@ gfortran  ... -L../../../lib/extract/dl_esm_inf/netcdf -l_kernel_data_netcdf \
 
 ```
 It is the responsibility of the user to make sure that the module
-files used when compiling the LFRic extraction library is identical
+files used when compiling the LFRic extraction library are identical
 to the ones used when running an LFRic application.
 
 ### Note
