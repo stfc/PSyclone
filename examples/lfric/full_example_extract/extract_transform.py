@@ -30,61 +30,52 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
-# Modifications: A. R. Porter, STFC Daresbury Laboratory
 
-# The compiler to use may be specified via the F90 environment
-#
-# export F90=gfortran
-# export F90FLAGS="-Wall -g -fcheck=bound"
-include ../../common.mk
+'''Python script intended to be passed to PSyclone via the -s option.
+It adds kernel extraction code to
+the invokes. When the transformed program is compiled and run, it
+will create one NetCDF file for each of the two invokes. A separate
+driver program is also created for each invoke which can read the
+created NetCDF files, execute the invokes and then compare the results.
+At this stage it does not compile (TODO: #644), and the comparison is
+missing (TODO: #647)
+'''
 
-.DEFAULT_GOAL := $(EXEC)
+from __future__ import print_function
 
-GENERATED_FILES = main_psy.f90 main_alg.f90
+from psyclone.psyir.transformations import ExtractTrans
 
-F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound
 
-OBJ = main_psy.o main_alg.o testkern_w0_mod.o
+def trans(psy):
+    '''
+    Take the supplied psy object, and add kernel extraction code.
 
-EXEC = example
-LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
+    :param psy: the PSy layer to transform.
+    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
 
-F90FLAGS += -I$(LFRIC_PATH)
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
-compile: $(EXEC)
+    '''
+    extract = ExtractTrans()
 
-$(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+    # We don't support builtins yet, so the initialisation
+    # cannot be instrumented, TODO #637
+    # invoke = psy.invokes.get("invoke_initialise_fields")
+    # schedule = invoke.schedule
+    # _, _ = extract.apply(schedule.children,
+    #                      {"create_driver": True,
+    #                       "region_name": ("main", "init")})
 
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
+    invoke = psy.invokes.get("invoke_testkern_w0")
+    schedule = invoke.schedule
 
-# Dependencies
-main_psy.o:	testkern_w0_mod.o
-main_alg.o:	main_psy.o
+    # Enclose everything in a extract region
+    _, _ = extract.apply(schedule.children,
+                         {"create_driver": True,
+                          "region_name": ("main", "update")})
 
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
-
-# Keep the generated psy and alg files
-.precious: main_psy.f90 main_alg.f90
-
-main_alg.f90: main_psy.f90
-
-transform: main_psy.f90
-
-%_psy.f90:	%.x90
-	${PSYCLONE} -opsy $*_psy.f90 -oalg $*_alg.f90 $<
-
-clean:
-	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
-	make -C $(LFRIC_PATH) clean
+    schedule.view()
+    return psy
