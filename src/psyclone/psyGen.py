@@ -1293,8 +1293,7 @@ class ACCEnterDataDirective(ACCDirective):
         # OpenACC kernels (calls within an OpenACC parallel or kernels directive)
         # 1. Find all parallel and kernels directives. We store this list for later
         #    use in any sub-class.
-        self._acc_dirs = self.root.walk(ACCParallelDirective)
-        self._acc_dirs.extend(self.root.walk(ACCKernelsDirective))
+        self._acc_dirs = self.root.walk((ACCParallelDirective, ACCKernelsDirective))
         # 2. For each directive, loop over each of the fields used by
         #    the kernels it contains (this list is given by var_list)
         #    and add it to our list if we don't already have it
