@@ -223,7 +223,7 @@ NAN or infinite. If they are, an error message like the following
 is printed, but the program is not aborted::
 
      PSYDATA: Variable perturbation has the invalid value
-                       NaN  at indices          701
+                           NaN  at index/indices          351
 
 Is uses the function ``IEEE_IS_FINITE`` from the ieee_arithmetic module
 for this test. Note that only floating point numbers will be tested.
