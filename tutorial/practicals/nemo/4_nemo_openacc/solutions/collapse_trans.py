@@ -95,7 +95,6 @@ def trans(psy):
 
     # Finally, enclose the whole of the 'iteration' loop within
     # a data region
-    # TODO #953 remove `[]` from around tloop argument
-    ACC_DATA_TRANS.apply([tloop])
+    ACC_DATA_TRANS.apply(tloop)
 
     sched.view()

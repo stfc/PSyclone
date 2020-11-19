@@ -55,9 +55,9 @@ region:
     for node in sched.children:
         if isinstance(node, Loop):
 	    try:
-	        ACC_KERNELS_TRANS.apply(node)
-	    except TransformationError:
-	        pass
+                ACC_KERNELS_TRANS.apply(node)
+            except TransformationError:
+                pass
 ```
 
 In doing this we will enclose the outer, 'iteration' loop within a
@@ -107,7 +107,7 @@ various ways in which PSyclone can be used.)
    ```python
     for node in tloop.loop_body.children:
         if isinstance(node, Loop) and node.loop_type == "levels":
-	    ACC_KERNELS_TRANS.apply(node)
+            ACC_KERNELS_TRANS.apply(node)
    ```
 
 2. Use the supplied Makefile to run PSyclone and generate the transformed
@@ -166,7 +166,7 @@ with KERNELS regions in order to perform them on the GPU.
    ```python
         # Enclose array assignments (implicit loops)
         if isinstance(node, Assignment) and node.is_array_range:
-	    ACC_KERNELS_TRANS.apply(node)
+            ACC_KERNELS_TRANS.apply(node)
    ```
 
 2. Once you have this script working, the fragment of Fortran reproduced
@@ -326,8 +326,8 @@ add the necessary option to add the `COLLAPSE` clause.
    Running PSyclone with this transformation script will fail at
    code-generation time because none of the added `ACC LOOP` directives
    are within an OpenACC parallel region:
-   ```bash
-    Error message here. XXXXXXX
+   ```
+   Generation Error: ACCLoopDirective must have an ACCParallelDirective or ACCKernelsDirective as an ancestor in the Schedule
    ```
 
 2. We must therefore extend the optimisation script to add a kernels
