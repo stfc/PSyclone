@@ -47,7 +47,9 @@ Ubuntu 20.04 LTS.
    * If your ubuntu screen does not resize run Devices -> Insert Guest CD.
      After doing this and after reboot you should be able to resize the VM
      screen. If not, try clicking on View -> Auto-resize guest display.
-
+   * In order to enable copy-n-paste between the host and virtual machines
+     please follow the instructions at
+     https://www.howtogeek.com/187535/how-to-copy-and-paste-between-a-virtualbox-host-machine-and-a-guest-machine/
 
 * To install VMWare:
 
