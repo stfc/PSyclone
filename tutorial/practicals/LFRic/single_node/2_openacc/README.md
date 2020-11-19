@@ -44,8 +44,8 @@ immediately after the loop, but they are placed after any `set_clean`
 and `set_dirty` calls.
 
 If you take a look at the `acc_parallel.py` transformation script you
-might notice that we have square brackets around the loop argument to
-the apply method. The reason for this is that the kernel
+might notice that we have square brackets around the `loop` argument
+to the `apply` method. The reason for this is that the kernel
 transformation expects a list of nodes, not a single node. In the
 future it will be changed to accept a single node as well as a list of
 nodes.
@@ -104,7 +104,7 @@ At the moment we are relying on the compiler to determine whether
 loops in the psy-layer are parallel or not. Well we know this in
 PSyclone so let's use the OpenACC `LOOP` directive to tell the compiler
 which loops are safe to parallelise. As described in the OpenMP
-[tutorial](../1_openmp/README.md)) we can't parallelise loops if there
+[tutorial](../1_openmp/README.md), we can't parallelise loops if there
 are dependencies between iterations. Therefore the simplest solution
 is to colour these loops. We'll now modify the transformation script
 to do this.
@@ -233,11 +233,11 @@ Take a look at the generated code.
 You should see an `ENTER DATA` directive with a large number of
 `copyin` variables. As there are structures, PSyclone adds both the
 name of the structure and the contents of the structure, which is
-needed by OpenACC (effectively doing a manual deep copy). Notice the
-error in the list ... we accidentally include the constant value
-`0.0_r_def`. Ignoring any bugs! it is much simpler, less error prone and
-more maintainable to have the computer generate such a list rather
-than the HPC expert.
+needed by OpenACC (effectively doing a manual deep copy). Have you
+noticed an error in the list of variable? We accidentally include the
+constant value `0.0_r_def`. Ignoring any bugs(!) it is much simpler,
+less error prone and more maintainable to have the computer generate
+such a list rather than the HPC expert.
 
 ## More efficient code ##
 
