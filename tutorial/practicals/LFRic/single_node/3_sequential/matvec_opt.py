@@ -36,36 +36,11 @@
 
 '''An example PSyclone transformation script to demonstrate
 optimisations to the matrix vector kernel to improve its performance
-on CPUs.
+on CPUs. It replaces the matmul Fortran intrinsic with inline matrix
+vector code.
 
-The matrix vector kernel has been hand optimised for CPUs. This script
-will automate these optimisations.
-
-Optimising matvec in PSyclone is work in progress. At the moment the
-only automated optimisations possible are the replacement of the
-matmul intrinsic with inline code and the kernel constant
-transformation (see eg13). The latter transformation does little to
-matvec as it stands so the only optimisation included in this script
-is the former transformation.
-
-Below is a list of things that will be implemented to improve
-performance but are not yet supported as transformations in PSyclone.
-
-1) loop fuse gather and matmul loop
-2) move indexing lookup before scatter loop
-3) loop fuse scatter loop and matmul loop
-4) remove scatter and gather
-5) interchange k loop to make it inner
-6) re-order data-layout for matrix
-7) replicate kernel to support specific function spaces (psy-layer
-   optimisation)
-8) add kernel constants for nlayers, ndf2, ndf1 (existing transformation)
-
-This script can be applied via the '-s' option when running PSyclone:
-
-$ psyclone -s ./matvec_opt.py \
-../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
--oalg /dev/null -opsy /dev/null
+This script can be applied via the -s option in the psyclone
+command, it is not designed to be directly run from python.
 
 '''
 from __future__ import print_function
@@ -77,15 +52,17 @@ from psyclone.psyir.backend.fortran import FortranWriter
 
 def trans(psy):
     '''PSyclone transformation script for the Dynamo0.3 API to optimise
-    the matvec kernel for many-core CPUs. For the moment simply find
-    the first matvec kernel in the example, transform the matmul
-    intrinsic to equivalant inline code and then print out its PSyIR
-    representation and output it as Fortran using the PSyIR Fortran
-    back-end.
+    the matvec kernel for many-core CPUs. This is currently limited to
+    running on the scaled_matrix_vector_code kernel but should work
+    more generally. Any matmul calls are replaced with inline matric
+    vector code.
+
+    :param psy: a PSyclone PSy object which captures the algorithm and \
+        kernel information required by PSyclone.
+    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
 
     '''
     matmul2code_trans = Matmul2CodeTrans()
-    #fortran_writer = FortranWriter()
 
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
@@ -97,13 +74,5 @@ def trans(psy):
                 for bin_op in kernel_schedule.walk(BinaryOperation):
                     if bin_op.operator is BinaryOperation.Operator.MATMUL:
                         matmul2code_trans.apply(bin_op)
-                # Future optimisations will go here.
                 kernel_schedule.view()
-                #result = fortran_writer(kernel_schedule)
-                #print(result)
-                # Abort after the first matrix vector kernel for the
-                # time being.
-                #print("Aborting to view the modifications to the matrix "
-                #      "vector kernel")
-                #sys.exit()
     return psy

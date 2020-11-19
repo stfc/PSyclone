@@ -31,13 +31,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
-# Modified: I. Kavcic, Met Office
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''File containing a PSyclone transformation script for the dynamo0p3
-API to apply loop fusion and then OpenMP parallelisation to an invoke
-with two Kernels. This can be applied via the -s option in the
-generator.py script.
+API to apply OpenMP Parallel Loop parallelisation. This script can be
+applied via the -s option in the psyclone command, it is not designed
+to be directly run from python.
 
 '''
 from __future__ import print_function
@@ -49,8 +48,15 @@ from psyclone.domain.lfric.function_space import FunctionSpace
 
 
 def trans(psy):
-    ''' PSyclone transformation script for the dynamo0p3 API to apply
-    loop fusion and OpenMP for a particular example.'''
+    '''PSyclone transformation script for the dynamo0p3 API that applies
+    OpenMP parallel loop parallelisation. It also outputs a textual
+    representation of the transformated PSyIR.
+
+    :param psy: a PSyclone PSy object which captures the algorithm and \
+        kernel information required by PSyclone.
+    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+
+    '''
     otrans = DynamoOMPParallelLoopTrans()
 
     for invoke in psy.invokes.invoke_list:

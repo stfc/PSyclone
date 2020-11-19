@@ -31,12 +31,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Author: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''File containing a PSyclone transformation script for the Dynamo0p3
 API to apply OpenACC Loop, Parallel and Enter Data directives
 generically. This can be applied via the -s option in the psyclone
-script.
+command, it is not designed to be directly run from python.
 
 '''
 from __future__ import print_function
@@ -48,6 +48,10 @@ from psyclone.domain.lfric.function_space import FunctionSpace
 def trans(psy):
     '''PSyclone transformation script for the dynamo0p3 api to apply
     OpenACC loop, parallel and enter data directives generically.
+
+    :param psy: a PSyclone PSy object which captures the algorithm and \
+        kernel information required by PSyclone.
+    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
 
     '''
     kernels_trans = ACCKernelsTrans()
@@ -61,20 +65,24 @@ def trans(psy):
 
         schedule = invoke.schedule
 
+        # Colour loops as required
         for loop in schedule.loops():
             if loop.field_space.orig_name \
                not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
                and loop.iteration_space == "cell_column":
                 ctrans.apply(loop)
 
+        # Add Kernels and Loop directives
         for loop in schedule.loops():
             if loop.loop_type != "colours":
                 kernels_trans.apply([loop])
                 loop_trans.apply(loop)
 
+        # Add Routine directive to kernels
         for kernel in schedule.coded_kernels():
             routine_trans.apply(kernel)
 
+        # Add Enter Data directive covering all of the PSy layer.
         enter_trans.apply(schedule)
 
         schedule.view()

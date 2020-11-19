@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,12 +32,11 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
-# Modified: I. Kavcic, Met Office
 
 '''File containing a PSyclone transformation script for the dynamo0p3
-API to apply loop fusion and then OpenMP parallelisation to an invoke
-with two Kernels. This can be applied via the -s option in the
-generator.py script.
+API to apply colouring and then OpenMP parallelisation to an
+invoke. This script can be applied via the -s option in the psyclone
+command.
 
 '''
 from __future__ import print_function
@@ -49,8 +48,15 @@ from psyclone.domain.lfric.function_space import FunctionSpace
 
 
 def trans(psy):
-    ''' PSyclone transformation script for the dynamo0p3 API to apply
-    loop fusion and OpenMP for a particular example.'''
+    '''PSyclone transformation script for the dynamo0p3 API that applies
+    loop colouring and OpenMP parallel loop parallelisation. It also
+    outputs a textual representation of the transformated PSyIR.
+
+    :param psy: a PSyclone PSy object which captures the algorithm and \
+        kernel information required by PSyclone.
+    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+
+    '''
     otrans = DynamoOMPParallelLoopTrans()
     ctrans = Dynamo0p3ColourTrans()
     ptrans = OMPParallelTrans()
@@ -59,6 +65,7 @@ def trans(psy):
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
 
+        # Colour any loops that need colouring
         for loop in schedule.walk(Loop):
             if (loop.field_space.orig_name not in
                     FunctionSpace.VALID_DISCONTINUOUS_NAMES and
@@ -68,6 +75,7 @@ def trans(psy):
         # Add OpenMP parallel do directives to the loops
         for loop in schedule.walk(Loop):
             try:
+                # Make sure reductions are reproducible
                 if loop.reductions():
                     ptrans.apply(loop)
                     ltrans.apply(loop, {"reprod": True})
