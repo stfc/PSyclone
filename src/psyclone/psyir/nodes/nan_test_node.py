@@ -36,8 +36,7 @@
 
 '''
 This module provides support for verifying that the real inputs and outputs
-of a kernel are valid numbers (i.e. neither NAN nor infinite), and
-that any output parameters are not NAN/infinite.
+of a kernel are valid numbers (i.e. neither NAN nor infinite).
 '''
 
 from __future__ import absolute_import, print_function

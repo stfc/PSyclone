@@ -54,7 +54,7 @@ module nan_test_psy_data_mod
 
     contains
         ! The various procedures used from this class
-        procedure :: DeclareFieldDouble, ProvideFieldDouble
+        procedure :: DeclareField, ProvideField
 
         !> The generic interface for declaring a variable. The 'Declare'
         !! functions are actually not used at all, but they must be provided
@@ -65,7 +65,7 @@ module nan_test_psy_data_mod
                                                  DeclareScalarReal,   &
                                                  DeclareScalarDouble, &
                                                  DeclareArray2dDouble,&
-                                                 DeclareFieldDouble
+                                                 DeclareField
 
         !> The generic interface for providing the value of variables,
         !! which in this case verifies that all floating point values
@@ -74,42 +74,41 @@ module nan_test_psy_data_mod
                                               ProvideScalarReal,   &
                                               ProvideScalarDouble, &
                                               ProvideArray2dDouble,&
-                                              ProvideFieldDouble
+                                              ProvideField
 
     end type nan_test_PSyDataType
 
 Contains
 
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a double precision field as defined in
+    !> This subroutine declares a field as defined in
     !! dl_esm_inf (r2d_field). It does nothing in the NAN checking library.
     !! @param[inout] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     !! @param[inout] this The instance of the nan_test_PSyDataType.
-    subroutine DeclareFieldDouble(this, name, value)
+    subroutine DeclareField(this, name, value)
         use field_mod, only : r2d_field
         implicit none
         class(nan_test_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
-    end subroutine DeclareFieldDouble
+    end subroutine DeclareField
 
     ! -------------------------------------------------------------------------
-    !> This subroutine either computes a checksum or compares a checksum
-    !! (depending on this%verify_checksums) of a dl_esm_field (r2d_field)
+    !> This subroutine checks that a dl_esm_inf field does not contain
+    !! a NAN or infinite floating point value.
     !! @param[inout] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine ProvideFieldDouble(this, name, value)
+    subroutine ProvideField(this, name, value)
         use field_mod, only : r2d_field
         implicit none
         class(nan_test_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
-        integer(kind=int64):: cksum
 
-        call this%ProvideArray2dDouble(name, value%data)
-    end subroutine ProvideFieldDouble
+        call this%ProvideVariable(name, value%data)
+    end subroutine ProvideField
     
 end module nan_test_psy_data_mod
