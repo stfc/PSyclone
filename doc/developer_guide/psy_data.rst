@@ -413,7 +413,6 @@ a detailed description), any of the profiling wrapper libraries
     that all variables have been provided. It will always be created,
     even if no variables are to be provided.
 
-
     .. note::
 
         Only the ``PreDataStart`` call takes the module-
