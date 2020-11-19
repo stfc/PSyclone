@@ -64,7 +64,7 @@ def trans(psy):
     schedule = invoke.schedule
 
     # Enclose everything in a extract region
-    newschedule, _ = extract.apply(schedule.children,
+    newschedule, _ = extract.apply(schedule,
                                    {"create_driver": True,
                                     "region_name": ("main", "update")})
 

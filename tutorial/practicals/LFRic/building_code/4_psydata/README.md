@@ -1,25 +1,96 @@
-# Example 3: Time-evolution of a field on a planar mesh
+# Example 4: Using PSyData Transformations
 
-Accompanying materials:
+In this example you will use some of the available PSyData
+transformation to instrument the previous LFRic example.
 
-* `Makefile` to build the code;
-* `example3_driver.f90` - LFRic-like main program that sets up
-  the model run, runs the main timestep loop by calling routines
-  from `example3_alg_mod.x90` and outputs results by calling
-  routines from `diagnostic_alg_mod.x90` (does not need to be modified);
-* `example3_alg_mod.x90` - an example of LFRic algorithm that
-  calls kernels to initialise fields and runs one model timestep (the
-  `invoke` calls need to be completed);
-* `diagnostic_alg_mod.x90` - calls kernels to map fields from one space
-  to another for diagnostic output and calls I/O routine (does not need
-  to be modified);
-* `init_perturbation_kernel_mod.f90` - kernel that initialises a field
-  on `W3` function space to analytically prescribed function (needs to
-  be completed).
+## Step 1: Compile all required PSyData libraries
+Change directory to PSyclone's lib directory, and trigger
+all compilations
 
--rw-r--r--. 1 ikavcic users   1132 Nov 10 14:23 configuration.nml
-drwxr-xr-x. 2 ikavcic users   4096 Nov 10 14:23 gungho_lib
--rw-r--r--. 1 ikavcic users   6938 Nov 10 14:23 init_perturbation_kernel_mod.f90
--rw-r--r--. 1 ikavcic users 967360 Nov 10 14:23 mesh_planar100x100-1000x1000.nc
--rw-r--r--. 1 ikavcic users   5180 Nov 10 14:23 nodal_coordinates_kernel_mod.F90
--rw-r--r--. 1 ikavcic users   5014 Nov 10 14:23 plot_xy_slices_ex3.py
+    cd $PYTHONHOME/lib
+    make all
+
+## Step 2: Create a transformation script
+This transformation script will be passed in as a parameter
+to PSyclone when building the application. Initially we
+will only transform the kernel in time_evolution_alg_mod.f90.
+Use the simple script ``transform_one.py`` as a template
+to create a new transformation script that applies one of
+the following PSyData transformations;
+
+    from psyclone.domain.lfric.transformations import LFRicExtractTrans
+
+    from psylone.psyir.transformations import ProfileTrans
+
+    from psyclone.psyir.transformations import ReadOnlyVerificationTrans
+    
+    from psyclone.psyir.transformations import NanTestTrans
+
+The ``apply()`` function in this script is called by PSyclone.
+Inside ``apply`` create an instance of the transformation you have picked,
+and apply it to the schedule for "invoke_propagate_perturbation", which
+you can get inside of ``apply`` using:
+
+    invoke = psy.invokes.get("invoke_prop"agate_perturbation")
+    schedule = invoke.schedule
+
+## Step 3: Modify the makefile to use the script
+
+The makefile already contains a separate rule for the file
+time_evolution_alg_mod.x90. You need to add the ``-s`` flag
+to PSyclone and provide the name of your script.
+
+You then also need to provide the include path to the corresponding
+wrapper library in F90FLAGS, and the location and name of the library
+to link with.
+
+## Step 4: Compile
+
+Hopefully this is as simple as typing:
+
+    make
+
+If you should get an error message that your script is not found,
+it is possible that it contains a syntax error. You can quickly
+test this by using:
+
+    python ./your_transformation_script.py
+
+If this command does not return anything, your script is at least
+syntactically correct. 
+
+## Step 5: Look at the produces code for the PSY layer
+Have a quick look at the produced code:
+
+    less  time_evolution_alg_mod_psy.f90
+
+and notice the added PSyData calls, e.g.:
+
+    TYPE(extract_PSyDataType), target, save :: extract_psy_data
+    ....
+    CALL extract_psy_data%PreStart("main", "update", 7, 2)
+    CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
+    CALL extract_psy_data%PreDeclareVariable("perturbation", perturbation)
+    CALL extract_psy_data%PreDeclareVariable("perturbation_post", perturbation)
+    CALL extract_psy_data%PreEndDeclaration
+    CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
+    CALL extract_psy_data%ProvideVariable("perturbation", perturbation)
+    CALL extract_psy_data%PreEnd
+    ! ... kernel call here
+    CALL extract_psy_data%PostStart
+    CALL extract_psy_data%ProvideVariable("cell_post", cell)
+    CALL extract_psy_data%ProvideVariable("perturbation_post", perturbation)
+    CALL extract_psy_data%PostEnd
+
+## Step 6: Run the application and examine the output
+After running the application using:
+
+    ./time_evolution
+
+you should get a new NetCDF file called.
+
+## Step 7: Optional: use other PSyData libraries
+The following wrapper can be used:
+
+...
+

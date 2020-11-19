@@ -108,6 +108,10 @@ test: $(PSY_SRC) $(ALGORITHM_SRC)
 	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
 	-opsy $*_psy.f90 -oalg $*.f90 $<
 
+time_evolution_alg_mod_psy.f90: time_evolution_alg_mod.x90
+	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
+	-s ./extract_transform.py -opsy time_evolution_alg_mod_psy.f90 -oalg $*.f90 time_evolution_alg_mod.x90
+
 clean:
 	rm -f *.o *.mod *.txt $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
 	make -C $(GHLIB_PATH) clean
