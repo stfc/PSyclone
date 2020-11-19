@@ -73,6 +73,7 @@ class NanTestTrans(ReadOnlyVerifyTrans):
                         psyGen.Directive, nodes.Literal, nodes.Reference)
 
     def __init__(self, node_class=NanTestNode):
+        # This function is only here to change the default node type
         super(NanTestTrans, self).__init__(node_class=node_class)
 
     def validate(self, node_list, options=None):
@@ -85,7 +86,6 @@ class NanTestTrans(ReadOnlyVerifyTrans):
         :param options: a dictionary with options for transformations.
         :type options: dict of string:values or NoneType
 
-        :raises TransformationError: if distributed memory is configured.
         :raises TransformationError: if transformation is applied to a \
                                      Kernel or a BuiltIn call without its \
                                      parent Loop.

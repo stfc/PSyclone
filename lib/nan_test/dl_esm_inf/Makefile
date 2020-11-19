@@ -84,8 +84,8 @@ nan_test_base.o: psy_data_base.o
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
-# The dl_esm_inf ReadOnly library is built on the psy-data base library
-# and the read-only base library. So add the rules to process
+# The dl_esm_inf NAN-test library is built on the psy-data base library
+# and the NAN-test base library. So add the rules to process
 # these files to get the plain Fortran files:
 psy_data_base.f90: ../../psy_data_base.jinja Makefile
 	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90

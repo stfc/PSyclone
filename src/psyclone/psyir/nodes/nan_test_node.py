@@ -35,21 +35,23 @@
 # -----------------------------------------------------------------------------
 
 '''
-This module provides support for verifying that input parameters of type
-real of a kernel are valid numbers (i.e. neither NAN nor infinite), and
-that any output parameters are not NAN.
+This module provides support for verifying that the real inputs and outputs
+of a kernel are valid numbers (i.e. neither NAN nor infinite), and
+that any output parameters are not NAN/infinite.
 '''
 
 from __future__ import absolute_import, print_function
+
+from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
 class NanTestNode(PSyDataNode):
     '''
     This class can be inserted into a Schedule to mark Nodes for \
-    code extraction using the ExtractRegionTrans transformation. By \
-    applying the transformation the Nodes marked for extraction become \
-    children of (the Schedule of) an ExtractNode.
+    code NAN-checking using the NanTestTrans transformation. By \
+    applying the transformation the Nodes marked for checking become \
+    children of (the Schedule of) a NanTestNode.
 
     :param ast: reference into the fparser2 parse tree corresponding to \
                 this node.
@@ -63,8 +65,8 @@ class NanTestNode(PSyDataNode):
     :param str options["prefix"]: a prefix to use for the PSyData module name \
         (``prefix_psy_data_mod``) and the PSyDataType
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
-        It defaults to "extract", which means the module name used will be \
-        ``extract_psy_data_mode``, and the data type ``extract_PSyDataType``.
+        It defaults to "nan_test_", which means the module name used will be \
+        ``nan_test_psy_data_mode``, and the data type ``nan_test_PSyDataType``.
 
     '''
     # Textual description of the node.
@@ -76,12 +78,11 @@ class NanTestNode(PSyDataNode):
             my_options = options.copy()
         else:
             my_options = {}
-        # If there is no value specified by in the constructor, default
-        # to the "extract" class.
+        # If there is no value specified in the constructor, default
+        # to the "nan_test" class.
         my_options["prefix"] = my_options.get("prefix", "nan_test")
         super(NanTestNode, self).__init__(ast=ast, children=children,
                                           parent=parent, options=my_options)
-
 
     @property
     def nan_test_body(self):
@@ -97,14 +98,14 @@ class NanTestNode(PSyDataNode):
         '''
         Returns the name to use in a DAG for this Node
 
-        :returns: the dag name of ExtractNode.
+        :returns: the dag name of NanTestNode.
         :rtype: str
         '''
         return "nan_test_" + str(self.position)
 
     def update_vars_and_postname(self):
         '''
-        This function is called after the variables to be extracted
+        This function is called after the variables to be checked
         have been stored in self._input_list and self._output_list.
         It can be used to e.g. remove unnecessary variables (e.g. loop
         counter), or adjust the postfix to assure that no duplicated
@@ -115,29 +116,26 @@ class NanTestNode(PSyDataNode):
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
         '''
-        Generates the code required for verification of the parameters of
-        one or more Nodes. It uses the PSyData API (via the base class
-        PSyDataNode) to create the required callbacks that will allow a
-        library to write the kernel data to a file.
+        Generates the code required for NAN/infinite verification of the
+        parameters of one or more Nodes. It uses the PSyData API (via
+        the base class PSyDataNode) to create the required callbacks
+        that will allow a library to do checks on parameters.
 
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`.
+
         '''
 
-        # Determine the variables to write:
+        # pylint: disable=import-outside-toplevel
+        # This cannot be moved to the top, it would cause a circular import
         from psyclone.psyir.tools.dependency_tools import DependencyTools
+        # Determine the variables to check:
         dep = DependencyTools()
-        self._input_list, self._output_list = dep.get_in_out_parameters(self)
+        input_list, output_list = dep.get_in_out_parameters(self)
 
-        # Add a callback here so that derived classes can adjust the list
-        # of variables to provide, or the suffix used (which might
-        # depend on the variable name which could create clashes).
-        self.update_vars_and_postname()
+        options = {'pre_var_list': input_list,
+                   'post_var_list': output_list}
 
-        options = {'pre_var_list': self._input_list,
-                   'post_var_list': self._output_list}
-
-        from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " NanTestStart"))
         parent.add(CommentGen(parent, ""))

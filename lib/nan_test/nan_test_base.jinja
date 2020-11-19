@@ -187,7 +187,7 @@ Contains
             {% endfor %}
             {{indent}}if (.not. IEEE_IS_FINITE(value({{vars}}))) then
             {{indent}}    write(stderr, *) "PSYDATA: Variable ", name," has the invalid value"
-            {{indent}}    write(stderr, *) value({{vars}}), " at indicies ", {{vars}}
+            {{indent}}    write(stderr, *) value({{vars}}), " at indices ", {{vars}}
             {{indent}}    write(stderr, *) trim(this%module_name), trim(this%region_name)
             {{indent}}endif
             {% for j in range(dim, 0, -1) %}

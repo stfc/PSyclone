@@ -41,18 +41,15 @@
 # export F90FLAGS="-O3"
 # export AR=ar
 
-#TODO: #813 keeps track of adding enough files from LFRic to PSyclone to be
-#      able to compile this library without the need of external
-#      files (or #745, which will try to create a stand-alone example).
-
-# This directory points to an external, compiled version of the LFRic,
-# which is required to find the module files when compiling this library:
+# This variable points to the cut-down version of the LFRic
+# infrastructure distributed with PSyclone. It can be overwritten
+# by the user in order to use a different version.
 LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 
-# The LFRic ReadOnly library needs the PreDeclareVariable() and
+# The LFRic NAN checking library needs the PreDeclareVariable() and
 # ProvideVariable() routines for the basic Fortran types real, int,
 # and double, and for 1-, 2-, 3-, and 4-dimensional arrays. These arguments
-# are used for both base classes: PSyDataBase and ReadOnlyBase to ensure
+# are used for both base classes: PSyDataBase and NANTestBase to ensure
 # consistent code creation.
 PROCESS_ARGS = -prefix=nan_test_ -types=real,int,double \
 		       -dims=1,2,3,4
@@ -75,9 +72,9 @@ $(LFRIC_DIR)/liblfric.a:
 	$(MAKE) F90=$(F90) F90FLAGS=$(F90FLAGS) -C $(LFRIC_DIR)
 
 
-# Add all dependencies. The LFRic ReadOnly library extends the
-# ReadOnlyBase type, which in turn extends the PSyDataBase type.
-# --------------------------------------------------------------
+# Add all dependencies. The LFRic NAN checkin library extends the
+# NanTestBase type, which in turn extends the PSyDataBase type.
+# ---------------------------------------------------------------
 nan_test.o: 	  $(LFRIC_DIR)/field_mod.mod nan_test.f90 \
 			 	  nan_test_base.o
 
@@ -92,8 +89,8 @@ nan_test.f90:	nan_test.jinja Makefile
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
-# The LFRic ReadOnly library is built on the psy-data base library
-# and the read-only base library. So add the rules to process
+# The LFRic NAN checking library is built on the psy-data base library
+# and the NAN-checking base library. So add the rules to process
 # these files to get the plain Fortran files:
 psy_data_base.f90: ../../psy_data_base.jinja Makefile
 	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
@@ -102,4 +99,4 @@ nan_test_base.f90: ../nan_test_base.jinja Makefile
 	../../process.py $(PROCESS_ARGS) $< > nan_test_base.f90
 
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* nan_test_base.* read_only.f90
+	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* nan_test_base.* nan_test.f90

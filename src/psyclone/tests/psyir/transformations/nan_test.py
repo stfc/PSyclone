@@ -34,7 +34,7 @@
 # Author: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' Module containing tests for nanTestTrans and NanTestNode
+''' Module containing tests for NANTestTrans and NanTestNode
 '''
 
 from __future__ import absolute_import
@@ -49,11 +49,8 @@ from psyclone.psyir.transformations import (NanTestTrans,
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPParallelLoopTrans
 
-# --------------------------------------------------------------------------- #
-# ================== Extract Transformation tests =========================== #
-# --------------------------------------------------------------------------- #
 
-
+# --------------------------------------------------------------------------- #
 def test_extract_trans():
     '''Tests basic functions in NanTestTrans.'''
     nan_test = NanTestTrans()
@@ -102,7 +99,7 @@ def test_nan_test_basic(capsys):
 
 # -----------------------------------------------------------------------------
 def test_nan_test_options():
-    '''Check that options are passed to the ReadOnly Node and trigger
+    '''Check that options are passed to the NanTestNode and trigger
     the use of the newly defined names.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",

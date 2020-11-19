@@ -69,7 +69,7 @@ Access Verification:
 
 NAN Test:
   The callbacks can be used to make sure that all floating point input
-  and output parameter of a kernel are not a NAN (not-a-number) or
+  and output parameters of a kernel are not a NAN (not-a-number) or
   infinite. See :ref:`psydata_nan_test` for the full description.
 
 In-situ Visualisation:
@@ -219,17 +219,17 @@ NAN Test
 --------
 This transformation can be used for both LFRic and GOcean APIs. It will
 test all input- and output-parameter of a kernel to make sure they are not
-NAN or infinite. If they should be, an error message like the following
+NAN or infinite. If they are, an error message like the following
 is printed, but the program is not aborted::
 
      PSYDATA: Variable perturbation has the invalid value
-                       NaN  at indicies          701
+                       NaN  at indices          701
 
 Is uses the function ``IEEE_IS_FINITE`` from the ieee_arithmetic module
 for this test. Note that only floating point numbers will be tested.
 Integer numbers do not have a bit pattern for 'infinity' or NAN.
 
-The runtime libraries for GOcean and LFRic are based on a jinja-templace
+The runtime libraries for GOcean and LFRic are based on a jinja-template
 contained in the directory ``<PSYCLONEHOME>/lib/nan_test``.
 The respective API-specific libraries map the internal field structures
 to Fortran basic types and call the functions from the base class to

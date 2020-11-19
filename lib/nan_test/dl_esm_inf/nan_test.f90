@@ -33,11 +33,12 @@
 ! -----------------------------------------------------------------------------
 ! Authors J. Henrichs, Bureau of Meteorology
 
-!> This module implements a verification that read-only fields (in the
-!! dl_esm_inf infrastructure) are not overwritten (due to memory overwrites etc).
-!! It is based on the ReadOnlyBaseType (from which it inherits the handling
-!! of the basic Fortran data types and 2d-arrays, as specified in the Makefile).
-!! It adds the support for the dl_esm_inf-specific field type.
+!> This module implements a PSyData-based verification that floating point
+!! input and output parameters are not NAN and not infinite for the
+!! dl_esm_inf library. It is based on the NANTestBaseType (from which it
+!! inherits the handling of the basic Fortran data types and 2d-arrays,
+!! as specified in the Makefile). It adds the support for the
+!! dl_esm_inf-specific field type.
 
 module nan_test_psy_data_mod
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -49,20 +50,17 @@ module nan_test_psy_data_mod
                  nan_test_PSyDataStart, nan_test_PSyDataStop
     implicit none
 
-    !> This is the data type that stores a checksum for each read-only
-    !! variable. A static instance of this type is created for each
-    !! instrumented region with PSyclone.
     type, extends(NANTestBaseType), public:: nan_test_PSyDataType
 
     contains
         ! The various procedures used from this class
         procedure :: DeclareFieldDouble, ProvideFieldDouble
-        procedure :: Abort
 
-        !> The generic interface for declaring a variable. The ReadOnlyBase
-        !! type will actually create additional methods like DeclareArray2dInt
-        !! but since they are not used in GOcean they do not need to be
-        !! declared here
+        !> The generic interface for declaring a variable. The 'Declare'
+        !! functions are actually not used at all, but they must be provided
+        !! as empty functions (the base class creates other functions, e.g.
+        !! DeclareArray2dInt, but since they are not used by
+        !! GOcean, there is no need to add them here).
         generic, public :: PreDeclareVariable => DeclareScalarInt,    &
                                                  DeclareScalarReal,   &
                                                  DeclareScalarDouble, &
@@ -70,12 +68,8 @@ module nan_test_psy_data_mod
                                                  DeclareFieldDouble
 
         !> The generic interface for providing the value of variables,
-        !! which in this case is the checksum computation (before
-        !! the kernel), and checksum verification after the kernel. The
-        !! same functions are used, they use the variable verify_checksums
-        !! to change the state from checksum computation to verification.
-        !! And again the base class provides additional, unused methods
-        !! like ProvideArray2dInt, which are not needed
+        !! which in this case verifies that all floating point values
+        !! are not NAN and not infinite.
         generic, public :: ProvideVariable => ProvideScalarInt,    &
                                               ProvideScalarReal,   &
                                               ProvideScalarDouble, &
@@ -87,21 +81,8 @@ module nan_test_psy_data_mod
 Contains
 
     ! -------------------------------------------------------------------------
-    !> Displays the message and aborts execution. Use dl_esm_inf'subroutine
-    !! `abort` function.
-    !! @param[in] message Error message to be displayed (string).
-    subroutine Abort(this, message)
-        use gocean_mod, only: gocean_stop
-        implicit none
-        class(nan_test_PSyDataType), intent(inout), target :: this
-        character(*) :: message
-
-        call gocean_stop(message)
-    end subroutine Abort
-
-    ! -------------------------------------------------------------------------
     !> This subroutine declares a double precision field as defined in
-    !! dl_esm_inf (r2d_field). It does nothing for the read-only verification.
+    !! dl_esm_inf (r2d_field). It does nothing in the NAN checking library.
     !! @param[inout] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
