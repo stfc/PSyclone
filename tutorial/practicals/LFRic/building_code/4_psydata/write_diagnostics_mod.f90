@@ -34,11 +34,10 @@
 ! Author: I. Kavcic, Met Office
 !
 ! -----------------------------------------------------------------------------
-! Calls a kernel to map the coordinate fields from its space (W0 or Wchi) to
-! the space of a diagnostic field (W3) and calls IO routine to output the
-! coordinate and diagnostic field data for plotting.
+! Calls IO routine to output the coordinate and diagnostic field data
+! for plotting.
 ! -----------------------------------------------------------------------------
-module diagnostic_alg_mod
+module write_diagnostics_mod
 
   ! Infrastructure
   use constants_mod,                only : i_def, r_def, str_short, &
@@ -48,63 +47,25 @@ module diagnostic_alg_mod
   use field_mod,                    only : field_type
   ! I/O and field mapping
   use write_methods_mod,            only : nodal_write_field
-  use nodal_coordinates_kernel_mod, only : nodal_coordinates_kernel_type
 
   implicit none
 
   private
 
-  type(field_type), allocatable :: chi_map(:)
-
-  public :: diagnostic_alg_init
-  public :: diagnostic_alg_write
+  public :: write_diagnostics
 
 contains
 
-  ! Maps coordinate fields to the function space of the diagnostic field
-  ! @param[in] diag_field Diagnostic field to get the mapping space from
-  ! @param[in] chi Coordinate fields on Wchi space
-  subroutine diagnostic_alg_init(diag_field, chi)
-
-    implicit none
-
-    type(field_type), intent(inout) :: diag_field
-    type(field_type), intent(in)    :: chi(3)
-
-    character(len=str_short) :: cind
-    integer(kind=i_def)      :: i
-
-    ! Allocate mapped coordinate fields after cleaning the memory first
-    if ( allocated(chi_map) ) deallocate(chi_map)
-    allocate(chi_map(3))
-
-    call log_event( "diagnostic_alg_init: Mapping coordinate fields "// &
-                    "to diagnostic field function space ", LOG_LEVEL_INFO )
-
-    ! Create mapped coordinate fields by copying diagnostic field
-    ! properties and initialise them to 0 by using built-ins
-    do i = 1, size(chi_map)
-      write(cind, '(I5)') i  ! Convert integer index to string
-      call diag_field%copy_field_properties( &
-                        chi_map(i), name="chi_map_"//trim(adjustl(cind)))
-      call invoke( setval_c(chi_map(i), 0.0_r_def) )
-    end do
-
-    ! Map coordinates from chi function space to chi_map function space
-    call invoke( nodal_coordinates_kernel_type(chi_map, chi) )
-
-  end subroutine diagnostic_alg_init
-
   !> @brief Output coordinate and diagnostic fields to a text file
   !> @param[in] diag_field Scalar diagnostic field to output
-  !> @param[in] chi Coordinate fields on Wchi space
+  !> @param[in] chi Coordinate fields
   !> @param[in] tstep Timestep value to create the output file name from
-  subroutine diagnostic_alg_write(diag_field, chi, tstep)
+  subroutine write_diagnostics(diag_field, chi, tstep)
 
     implicit none
 
     type(field_type),    intent(in) :: diag_field
-    type(field_type), intent(in)    :: chi(3)
+    type(field_type),    intent(in) :: chi(3)
     integer(kind=i_def), intent(in) :: tstep
 
     type(field_type)            :: diag_write_field(3)
@@ -128,12 +89,11 @@ contains
     end do
 
     ! Output data
-    call log_event( "diagnostic_alg_write: Outputting coordinate and "// &
+    call log_event( "write_diagnostics: Outputting coordinate and "// &
                     "diagnostic field data to file '"//trim(filename)//"'", &
                     LOG_LEVEL_INFO )
-    call nodal_write_field(chi_map, diag_write_field, dim_fs, &
-                           output_unit, filename)
+    call nodal_write_field(chi, diag_write_field, dim_fs, output_unit, filename)
 
-  end subroutine diagnostic_alg_write
+  end subroutine write_diagnostics
 
-end module diagnostic_alg_mod
+end module write_diagnostics_mod

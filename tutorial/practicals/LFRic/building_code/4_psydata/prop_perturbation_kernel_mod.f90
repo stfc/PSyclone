@@ -44,8 +44,8 @@ module prop_perturbation_kernel_mod
   use argument_mod,      only: arg_type, func_type,   &
                                GH_FIELD, GH_REAL,     &
                                GH_READWRITE, GH_READ, &
-                               GH_BASIS, GH_EVALUATOR, CELLS
-  use fs_continuity_mod, only: W3, Wchi
+                               CELLS
+  use fs_continuity_mod, only: W3
   use constants_mod,     only: r_def, i_def
   use kernel_mod,        only: kernel_type
   use perturbation_bell_config_mod, &
@@ -66,14 +66,10 @@ module prop_perturbation_kernel_mod
     private
     type(arg_type), dimension(3) :: meta_args = (/ &
          arg_type(GH_FIELD,   GH_READWRITE, W3),   &
-         arg_type(GH_FIELD*3, GH_READ,      Wchi), &
+         arg_type(GH_FIELD*3, GH_READ,      W3),   &
          arg_type(GH_REAL,    GH_READ)             &
          /)
-    type(func_type) :: meta_funcs(1) = (/          &
-         func_type(Wchi, GH_BASIS)                 &
-         /)
     integer :: iterates_over = CELLS
-    integer :: gh_shape = GH_EVALUATOR
   contains
     procedure, nopass :: prop_perturbation_code
   end type prop_perturbation_kernel_type
@@ -84,7 +80,7 @@ module prop_perturbation_kernel_mod
 
   !> @brief Initialise a perturbation field using coordinate and namelist data
   !> @param[in] nlayers Number of layers
-  !> @param[in,out] perturbation Perturbation field to initialise
+  !> @param[in,out] perturbation Perturbation field to propagate
   !> @param[in] chi_1 Coordinates in the x direction
   !> @param[in] chi_2 Coordinates in the y direction
   !> @param[in] chi_3 Coordinates in the z direction
@@ -95,39 +91,25 @@ module prop_perturbation_kernel_mod
   !!                   perturbation field
   !> @param[in] map_w3 Dofmap for the cell at the base of the column for the
   !!                   perturbation field
-  !> @param[in] ndf_wchi Number of degrees of freedom per cell for the
-  !!                    coordinate fields
-  !> @param[in] undf_wchi Number of unique degrees of freedom for the
-  !!                      coordinate fields
-  !> @param[in] map_wchi Dofmap for the cell at the base of the column for the
-  !!                     coordinate fields
-  !> @param[in] basis_chi Basis functions of the Wchi function space evaluated
-  !!                      at the nodal points of the x function space
-  subroutine prop_perturbation_code(nlayers, perturbation,         &
-                                    chi_1, chi_2, chi_3, t_tot,    &
-                                    ndf_w3, undf_w3, map_w3,       &
-                                    ndf_wchi, undf_wchi, map_wchi, &
-                                    basis_wchi)
+  subroutine prop_perturbation_code(nlayers, perturbation,      &
+                                    chi_1, chi_2, chi_3, t_tot, &
+                                    ndf_w3, undf_w3, map_w3)
 
- !   use ieee_arithmetic
     implicit none
 
     ! Arguments
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_w3
-    integer(kind=i_def), intent(in) :: ndf_wchi
-    integer(kind=i_def), intent(in) :: undf_w3, undf_wchi
-    integer(kind=i_def), intent(in), dimension(ndf_w3)   :: map_w3
-    integer(kind=i_def), intent(in), dimension(ndf_wchi) :: map_wchi
+    integer(kind=i_def), intent(in) :: undf_w3
+    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
     real(kind=r_def), intent(inout), dimension(undf_w3) :: perturbation
-    real(kind=r_def), intent(in),    dimension(undf_wchi) :: chi_1
-    real(kind=r_def), intent(in),    dimension(undf_wchi) :: chi_2
-    real(kind=r_def), intent(in),    dimension(undf_wchi) :: chi_3
+    real(kind=r_def), intent(in),    dimension(undf_w3) :: chi_1
+    real(kind=r_def), intent(in),    dimension(undf_w3) :: chi_2
+    real(kind=r_def), intent(in),    dimension(undf_w3) :: chi_3
     real(kind=r_def), intent(in) :: t_tot
-    real(kind=r_def), intent(in), dimension(1,ndf_wchi,ndf_w3) :: basis_wchi
 
     ! Internal variables
-    integer(kind=i_def)  :: k, df, df1
+    integer(kind=i_def)  :: k, df
     real(kind=r_def)     :: x(3), xt, yt, ampl
 
     ! Initialise perturbation field
@@ -135,13 +117,10 @@ module prop_perturbation_kernel_mod
 
       do df = 1, ndf_w3
 
-        ! Calculate coordinates on W3 DoFs
-        x(:) = 0.0_r_def
-        do df1 = 1, ndf_wchi
-          x(1) = x(1) + chi_1(map_wchi(df1) + k)*basis_wchi(1,df1,df)
-          x(2) = x(2) + chi_2(map_wchi(df1) + k)*basis_wchi(1,df1,df)
-          x(3) = x(3) + chi_3(map_wchi(df1) + k)*basis_wchi(1,df1,df)
-        end do
+        ! Get coordinate values on each DoF
+        x(1) = chi_1(map_w3(df) + k)
+        x(2) = chi_2(map_w3(df) + k)
+        x(3) = chi_3(map_w3(df) + k)
 
         !-----------------------------------------------------------------------
         ! TO COMPLETE: Propagate perturbation field as in the prescribed
@@ -155,7 +134,6 @@ module prop_perturbation_kernel_mod
       end do
 
     end do
-!        perturbation( map_w3(1) ) = IEEE_VALUE(perturbation( map_w3(1) ), IEEE_QUIET_NAN)
 
   end subroutine prop_perturbation_code
 

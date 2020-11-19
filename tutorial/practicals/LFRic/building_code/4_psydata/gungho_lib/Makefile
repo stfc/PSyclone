@@ -31,13 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Authors: I. Kavcic, Met Office and J. Henrichs, Bureau of Meteorology
+# Author: I. Kavcic, Met Office
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
 # LFRic infrastructure library
-PSYCLONE_RELPATH = ../../../..
+PSYCLONE_RELPATH = ../../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME = lfric_netcdf
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
@@ -62,4 +62,4 @@ assign_coordinate_field_mod.o: base_mesh_config_mod.o planet_config_mod.o
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod
+	rm -f *.o *.mod *.a

@@ -38,7 +38,7 @@
 ! Based on the pared-down version of LFRic infrastructure stored in
 ! $PSYCLONE_DIR/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 !------------------------------------------------------------------------------
-program example3_driver
+program time_evolution_driver
 
   ! Infrastructure
   use constants_mod,          only : i_def, i_native, r_def, str_short
@@ -48,7 +48,7 @@ program example3_driver
                                      partitioner_planar, &
                                      partitioner_interface
   use extrusion_mod,          only : uniform_extrusion_type
-  use fs_continuity_mod,      only : W0, Wchi, W3
+  use fs_continuity_mod,      only : W3
   use function_space_mod,     only : function_space_type
   use field_mod,              only : field_type
   use log_mod,                only : log_event,          &
@@ -63,8 +63,7 @@ program example3_driver
                               only : domain_top, &
                                      number_of_layers
   use finite_element_config_mod, &
-                              only : element_order, &
-                                     coordinate_order
+                              only : element_order
   use partitioning_config_mod, &
                               only : panel_xproc, &
                                      panel_yproc
@@ -76,10 +75,9 @@ program example3_driver
   use assign_coordinate_field_mod, &
                               only : assign_coordinate_field
   ! Algorithms
-  use example3_alg_mod,       only : example3_alg_init, &
-                                     example3_alg_step
-  use diagnostic_alg_mod,     only : diagnostic_alg_init, &
-                                     diagnostic_alg_write
+  use time_evolution_alg_mod, only : time_evolution_alg_init, &
+                                     time_evolution_alg_step
+  use write_diagnostics_mod,  only : write_diagnostics
 
   implicit none
 
@@ -93,9 +91,7 @@ program example3_driver
   ! Partition
   type(partition_type)                      :: partition
   procedure(partitioner_interface), pointer :: partitioner_ptr => null()
-  ! Function spaces Wchi and W3 for coordinate and perturbation field
-  type(function_space_type), target  :: fs_wchi
-  type(function_space_type), pointer :: fs_wchi_ptr => null()
+  ! Function space W3 for coordinate and perturbation field
   type(function_space_type), target  :: fs_w3
   type(function_space_type), pointer :: fs_w3_ptr => null()
   ! Coordinate fields
@@ -114,21 +110,22 @@ program example3_driver
   ! Total number of MPI ranks (processes) in this job
   integer(kind=i_def)                :: total_ranks
   ! Auxiliary variables for coordinate fields (function space ID, loop counters)
-  integer(kind=i_def)                :: chi_space, i, tstep
+  integer(kind=i_def)                :: i, tstep
   ! Auxiliary variable for naming coordinate fields
   character(len=str_short)           :: cind
 
   !-----------------------------------------------------------------------------
-  ! Set partitioner parameters (planar mesh on a single process)
+  ! Set partitioner parameters (single process)
   !-----------------------------------------------------------------------------
   max_stencil_depth = 0
   local_rank = 0
   total_ranks = 1
 
   !-----------------------------------------------------------------------------
-  ! Set model parameters from the configuration file
+  ! Set model run parameters from the configuration file
   !-----------------------------------------------------------------------------
-  call log_event( "Setting 'example3_driver' model parameters", LOG_LEVEL_INFO )
+  call log_event( "Setting 'time_evolution_driver' model parameters", &
+                  LOG_LEVEL_INFO )
   call read_configuration( "configuration.nml", local_rank )
 
   !-----------------------------------------------------------------------------
@@ -154,38 +151,16 @@ program example3_driver
   ! Create extrusion object
   extrusion = uniform_extrusion_type( 0.0_r_def, domain_top, number_of_layers )
   extrusion_ptr => extrusion
-  ! Create local mesh
+  ! Create local 3D partitioned mesh
   call log_event( "Creating local 3D mesh", LOG_LEVEL_INFO )
   mesh = mesh_type( global_mesh_ptr, partition, extrusion_ptr )
 
   !-----------------------------------------------------------------------------
-  ! Create and compute coordinate fields
+  ! Create a perturbation field
   !-----------------------------------------------------------------------------
-  ! Select function space based on the coordinate_order parameter
-  if ( coordinate_order == 0 ) then
-    chi_space = W0
-    call log_event( "Computing model coordinates on W0 space", LOG_LEVEL_INFO )
-  else
-    chi_space = Wchi
-    call log_event( "Computing model coordinates on Wchi space", LOG_LEVEL_INFO )
-  end if
-  fs_wchi = function_space_type( mesh, element_order, chi_space, ndata_sz )
-  fs_wchi_ptr => fs_wchi
+  call log_event( "Creating perturbation field on W3 space", LOG_LEVEL_INFO )
 
-  ! Create and compute coordinate fields
-  do i = 1, size(chi)
-    write(cind, '(I5)') i
-    call chi(i)%initialise( vector_space = fs_wchi_ptr, &
-                            name="chi_"//trim(adjustl(cind)) )
-  end do
-  call assign_coordinate_field(chi, mesh)
-
-  !-----------------------------------------------------------------------------
-  ! Create perturbation field
-  !-----------------------------------------------------------------------------
-  call log_event( "Creating perturbation field", LOG_LEVEL_INFO )
-
-  ! Create W3 function space and the perturbation field on it
+  ! Create W3 function space with single-valued data points
   fs_w3 = function_space_type( mesh, element_order, W3, ndata_sz )
   fs_w3_ptr => fs_w3
   ! Create perturbation field on W3 function space
@@ -193,28 +168,41 @@ program example3_driver
                                 name = "perturbation" )
 
   !-----------------------------------------------------------------------------
+  ! Create and compute coordinate fields
+  !-----------------------------------------------------------------------------
+  ! Use the same function space as the perturbation field
+  call log_event( "Computing model coordinates on W3 space", LOG_LEVEL_INFO )
+  ! Create coordinate fields by copying perturbation field properties
+  do i = 1, size(chi)
+    write(cind, '(I5)') i  ! Convert integer index to string
+    call perturbation%copy_field_properties( &
+                      chi(i), name="chi_"//trim(adjustl(cind)))
+  end do
+
+  ! Compute coordinate fields
+  call assign_coordinate_field(chi, mesh)
+
+  !-----------------------------------------------------------------------------
   ! Call algorithms
   !-----------------------------------------------------------------------------
   ! Initialise perturbation field
-  call example3_alg_init(perturbation, mesh, chi)
-  ! Initialise diagnostics and output initial state
-  call diagnostic_alg_init(perturbation, chi)
-  call diagnostic_alg_write(perturbation, chi, 0_i_def)
+  call time_evolution_alg_init(perturbation, mesh, chi)
+  ! Output initial diagnostic state (timestep 0)
+  call write_diagnostics(perturbation, chi, 0_i_def)
 
   ! Propagate perturbation field
   call log_event( "Timestepping loop", LOG_LEVEL_INFO )
   do tstep = timestep_start, timestep_end
-    call example3_alg_step(perturbation, chi, tstep)
+    call time_evolution_alg_step(perturbation, chi, tstep)
   end do
-  ! Output final state
-  call diagnostic_alg_write(perturbation, chi, timestep_end)
+  ! Output final diagnostic state
+  call write_diagnostics(perturbation, chi, timestep_end)
 
   !-----------------------------------------------------------------------------
   ! Tidy up after a run
   !-----------------------------------------------------------------------------
-  call log_event( "Finalising 'example3_driver'", LOG_LEVEL_INFO )
+  call log_event( "Finalising 'time_evolution_driver'", LOG_LEVEL_INFO )
   call final_configuration()
-  nullify( global_mesh_ptr, partitioner_ptr, extrusion_ptr, &
-           fs_wchi_ptr, fs_w3_ptr )
+  nullify( global_mesh_ptr, partitioner_ptr, extrusion_ptr, fs_w3_ptr )
 
-end program example3_driver
+end program time_evolution_driver

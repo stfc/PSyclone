@@ -38,20 +38,20 @@ F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
 # Source rules
-DRIVER_SRC = example3_driver.f90
+DRIVER_SRC = write_diagnostics_mod.f90 time_evolution_driver.f90
 ALGORITHMS = $(wildcard *_alg_mod.x90)
 ALGORITHM_SRC = $(ALGORITHMS:.x90=.f90)
 PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
-KERNEL_SRC = $(wildcard *_kernel_mod.F90) $(wildcard *_kernel_mod.f90)
+KERNEL_SRC = $(wildcard *_kernel_mod.f90)
 
 # PSyclone command-line options
 PSYCLONE_CMD = -nodm -l all
 
 # Executable
-EXEC = example3
+EXEC = time_evolution
 
 # LFRic infrastructure library
-PSYCLONE_RELPATH = ../../..
+PSYCLONE_RELPATH = ../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME = lfric_netcdf
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
@@ -70,12 +70,14 @@ PSY_OBJ = $(filter %.o,$(PSY_SRC:.f90=.o))
 KERNEL_OBJ = $(filter %.o,$(KERNEL_SRC:.F90=.o) $(KERNEL_SRC:.f90=.o))
 EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
 
-default: $(EXEC)
+# Targets
+.PHONY: build test clean
+
+build: test $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(GHLIB_LIB) $(EXAMPLE_OBJ)
 	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) \
-	-l$(LFRIC_NAME) $$(nf-config --flibs) -L$(GHLIB_PATH) -l$(GHLIB_NAME) \
-	-L $$HOME/work/psyclone/lib/extract/netcdf/lfric -l_kernel_data_netcdf
+	-l$(LFRIC_NAME) $$(nf-config --flibs) -L$(GHLIB_PATH) -l$(GHLIB_NAME)
 
 $(GHLIB_LIB):
 	$(MAKE) -C $(GHLIB_PATH)
@@ -94,22 +96,19 @@ $(PSY_OBJ): $(KERNEL_OBJ)
 %.o %.mod: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
+$(ALGORITHM_SRC): $(PSY_SRC)
+
 # Keep the generated Alg and PSy files
 .precious: $(ALGORITHM_SRC) $(PSY_SRC)
 
-$(ALGORITHM_SRC): $(PSY_SRC)
+# Test PSyclone target for continuous integration
+test: $(PSY_SRC) $(ALGORITHM_SRC)
 
 %_psy.f90: %.x90
 	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
 	-opsy $*_psy.f90 -oalg $*.f90 $<
 
-example3_alg_mod_psy.f90: example3_alg_mod.x90
-	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
-	-opsy example3_alg_mod_psy.f90  -oalg example3_alg_mod.f90 \
-	-s ./nan_transform.py  $<
-	#-s ./extract_transform.py  $<
-
 clean:
-	rm -f *.o *.mod *.txt $(LFRIC_PATH)/*.o $(LFRIC_PATH)/*.mod $(LFRIC_PATH)/*.a \
-	$(GHLIB_PATH)/*.o $(GHLIB_PATH)/*.mod $(GHLIB_PATH)/*.a \
-	$(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
+	rm -f *.o *.mod *.txt $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
+	make -C $(GHLIB_PATH) clean
+	make -C $(LFRIC_PATH) clean

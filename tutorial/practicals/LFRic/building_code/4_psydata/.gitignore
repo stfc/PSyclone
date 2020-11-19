@@ -3,5 +3,5 @@
 *_alg_mod.f90
 *_alg_mod_psy.f90
 *.txt
-example3
+time_evolution
 main-update.nc
