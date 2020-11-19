@@ -85,8 +85,8 @@ module nan_test_psy_data_mod
 
     contains
         ! The LFRic-specific procedures defined here
-        procedure :: DeclareFieldDouble,  ProvideFieldDouble
-        procedure :: DeclareFieldVectorDouble,  ProvideFieldVectorDouble
+        procedure :: DeclareField,  ProvideField
+        procedure :: DeclareFieldVector,  ProvideFieldVector
 
         {# Collect the various procedures for the same generic interface #}
         {# ------------------------------------------------------------- #}
@@ -104,15 +104,15 @@ module nan_test_psy_data_mod
         {% set indent="            " %}
         ! Declare generic interface for PreDeclareVariable:
         generic, public :: PreDeclareVariable => &
-            DeclareFieldDouble, &
-            DeclareFieldVectorDouble, &
+            DeclareField, &
+            DeclareFieldVector, &
             {{all_declares|join(", &\n"+indent) }}
 
         !> The generic interface for providing the value of variables
         !! (which checks for non normal IEEE numbers)
         generic, public :: ProvideVariable => &
-            ProvideFieldDouble,       &
-            ProvideFieldVectorDouble, &
+            ProvideField,       &
+            ProvideFieldVector, &
             {{all_provides|join(", &\n"+indent) }}
                                               
     end type nan_test_PSyDataType
@@ -126,13 +126,13 @@ Contains
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     !! @param[inout] this The instance of the nan_test_PSyDataType.
-    subroutine DeclareFieldDouble(this, name, value)
+    subroutine DeclareField(this, name, value)
         implicit none
         class(nan_test_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(field_type), intent(in) :: value
 
-    end subroutine DeclareFieldDouble
+    end subroutine DeclareField
 
     ! -------------------------------------------------------------------------
     !> This subroutine checks whether an LFRic field has NAN or infinite
@@ -140,7 +140,7 @@ Contains
     !! @param[inout] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine ProvideFieldDouble(this, name, value)
+    subroutine ProvideField(this, name, value)
         use field_mod, only : field_type, field_proxy_type
         implicit none
 
@@ -157,7 +157,7 @@ Contains
         endif
         value_proxy = value%get_proxy()
         call this%ProvideVariable(name, value_proxy%data)
-    end subroutine ProvideFieldDouble
+    end subroutine ProvideField
 
     ! -------------------------------------------------------------------------
     !> This subroutine declares LFRic vector fields. No functionality is
@@ -165,14 +165,14 @@ Contains
     !! @param[inout] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine DeclareFieldVectorDouble(this, name, value)
+    subroutine DeclareFieldVector(this, name, value)
         use field_mod, only : field_type
         implicit none
 
         class(nan_test_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                           :: name
         type(field_type), dimension(:), intent(in)         :: value
-    end subroutine DeclareFieldVectorDouble
+    end subroutine DeclareFieldVector
 
     ! -------------------------------------------------------------------------
     !> This subroutine checks whether an LFRic vector field has NAN or
@@ -180,7 +180,7 @@ Contains
     !! @param[inout] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The vector of fields.
-    subroutine ProvideFieldVectorDouble(this, name, value)
+    subroutine ProvideFieldVector(this, name, value)
         use field_mod, only : field_type
         implicit none
 
@@ -201,9 +201,9 @@ Contains
         ! the NAN/infinite testing will be done for each member individually.
         do i=1, size(value, 1)
             write(index_string, '("(",i0,")")') i
-            call this%ProvideFieldDouble(name//trim(index_string), value(i))
+            call this%ProvideVariable(name//trim(index_string), value(i))
         enddo
-    end subroutine ProvideFieldVectorDouble
+    end subroutine ProvideFieldVector
 
     ! -------------------------------------------------------------------------
     
