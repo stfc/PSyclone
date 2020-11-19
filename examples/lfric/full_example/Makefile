@@ -32,11 +32,17 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modifications: A. R. Porter, STFC Daresbury Laboratory
 
 # The compiler to use may be specified via the F90 environment
 #
 # export F90=gfortran
 # export F90FLAGS="-Wall -g -fcheck=bound"
+include ../../common.mk
+
+.DEFAULT_GOAL := $(EXEC)
+
+GENERATED_FILES = main_psy.f90 main_alg.f90
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
@@ -50,7 +56,7 @@ LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 F90FLAGS += -I$(LFRIC_PATH)
 
-default: $(EXEC)
+compile: $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
@@ -73,8 +79,10 @@ main_alg.o:	main_psy.o
 
 main_alg.f90: main_psy.f90
 
+transform: main_psy.f90
+
 %_psy.f90:	%.x90
-	psyclone --config ../../../config/psyclone.cfg -opsy $*_psy.f90 -oalg $*_alg.f90 $<
+	${PSYCLONE} -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 clean:
 	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90

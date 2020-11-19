@@ -32,11 +32,17 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modifications: A. R. Porter, STFC Daresbury Laboratory
 
 # The compiler to use may be specified via the F90 environment
 #
 # export F90=gfortran
 # export F90FLAGS="-Wall -g -fcheck=bound"
+include ../../common.mk
+
+.DEFAULT_GOAL := $(EXEC)
+
+GENERATED_FILES = main_psy.f90 main_alg.f90
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
@@ -81,7 +87,7 @@ main_alg.o:	main_psy.o
 main_alg.f90: main_psy.f90
 
 %_psy.f90:	%.x90
-	psyclone --config ../../../config/psyclone.cfg -s ./extract_transform.py \
+	${PSYCLONE} -s ./extract_transform.py \
 	-nodm -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 clean:
