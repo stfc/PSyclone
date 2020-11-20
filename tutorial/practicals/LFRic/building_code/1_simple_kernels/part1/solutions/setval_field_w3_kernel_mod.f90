@@ -40,7 +40,7 @@ module setval_field_w3_kernel_mod
 
   use argument_mod,      only: arg_type,          &
                                GH_FIELD, GH_REAL, &
-                               GH_READWRITE, GH_READ, CELLS
+                               GH_WRITE, GH_READ, CELLS
   use fs_continuity_mod, only: W3
   use constants_mod,     only: r_def, i_def
   use kernel_mod,        only: kernel_type
@@ -56,7 +56,7 @@ module setval_field_w3_kernel_mod
   type, public, extends(kernel_type) :: setval_field_w3_kernel_type
     private
     type(arg_type), dimension(2) :: meta_args = (/ &
-         arg_type(GH_FIELD, GH_READWRITE, W3),     &
+         arg_type(GH_FIELD, GH_WRITE, W3),         &
          arg_type(GH_REAL,  GH_READ)               &
          /)
     integer :: iterates_over = CELLS
@@ -70,7 +70,7 @@ module setval_field_w3_kernel_mod
 
   !> @brief Sets a field on W3 function space to a scalar value
   !> @param[in] nlayers Number of layers
-  !> @param[in,out] field_1_w3 Field to update to a scalar
+  !> @param[out] field_1_w3 Field to update to a scalar
   !> @param[in] rscalar_2 Value to set the field to
   !> @param[in] ndf_w3 Number of degrees of freedom per cell for the
   !!                   updated field
@@ -89,7 +89,7 @@ module setval_field_w3_kernel_mod
     integer(kind=i_def), intent(in) :: undf_w3
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
     real(kind=r_def), intent(in) :: rscalar_2
-    real(kind=r_def), intent(inout), dimension(undf_w3) :: field_1_w3
+    real(kind=r_def), intent(out), dimension(undf_w3) :: field_1_w3
 
     ! Internal variables
     integer(kind=i_def) :: k, df

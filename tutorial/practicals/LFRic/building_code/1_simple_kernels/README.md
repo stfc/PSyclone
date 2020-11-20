@@ -3,55 +3,73 @@
 In this tutorial we will learn how to
 
 * Create simple functional kernels to update LFRic fields;
+
 * Call the created kernels from an algorithm.
+
+There are two parts of this tutorial and each should be done in turn.
+
+* In [Part 1](part1/README.md) we will create and call kernels that
+  update a field on a specific function space.
+
+* In [Part 2](part2/README.md) we will create and call generic kernels
+  that update a field on any function space.
+
+*Note:* For more information on the supported LFRic function spaces in
+PSyclone please refer to this PSyclone [user guide section](
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces).
 
 Each kernel in this tutorial performs one simple mathematical operation
 in order to learn how to work with the basic building blocks of an
 [LFRic kernel](LFRic_kernel_structure.md):
 
 * [Kernel metadata](LFRic_kernel_structure.md#kernel-metadata) and
+
 * [Kernel subroutine](LFRic_kernel_structure.md#kernel-subroutine) including
   - [Argument list and declarations](
     LFRic_kernel_structure.md#argument-list-and-declarations) and
   - [Loops](LFRic_kernel_structure.md#loops) to update LFRic field objects.
 
-The tutorial is further subdivided into two parts in order to learn how to
-
-1. Create and call kernels that update a field on a
-   [specific function space](part1/README.md);
-2. Create and call generic kernels that update a field on
-   [any function space](part2/README.md).
-
-*For more information on the supported LFRic function spaces in PSyclone
-please refer to this PSyclone [user guide section](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces).
-
 ## Supporting source and scripts
 
-We will use the following modules as templates to create and call the
-kernels in this tutorial:
+In [Part 1](part1) will use the following modules as templates to create and
+call the kernels:
 
-* [`setval_field_w0_kernel_mod.f90`](setval_field_w0_kernel_mod.f90), a
-  stub of an LFRic kernel to be completed and used as a template in each
-  part of this tutorial;
+* [`setval_field_w0_kernel_mod.f90`](part1/setval_field_w0_kernel_mod.f90),
+  a stub of an LFRic kernel that updates a field on the `W0` function space.
+  The kernels needs to be completed and used as a template to create
+  a similar kernel on the `W3` function space;
 
-* `simple_kernels_alg_mod.x90`, an example of an LFRic [algorithm](
+* [`simple_kernels_alg_mod.x90`](part1/simple_kernels_alg_mod.x90), an
+  example of an LFRic [algorithm](
   ../background/LFRic_structure.md#algorithm-layer) that sets up fields
   and operates on them via the `invoke` calls to the kernels created in
   each part of this tutorial (the `invoke` calls need to be completed).
 
-Specific information on how to complete and use the above kernel and
+In [Part 2](part2) will use the following modules as templates to create and
+call the kernels:
+
+* [`setval_field_any_kernel_mod.f90`](part2/setval_field_any_kernel_mod.f90),
+  a stub of an LFRic kernel that updates a field on a generic function space.
+  The kernels needs to be completed and used as a template to create
+  a kernel that adds two fields on a generic function space;
+
+* [`simple_kernels_alg_mod.x90`](part2/simple_kernels_alg_mod.x90), to set
+  up fields and operate on them via `invoke` calls as above.
+
+Specific information on how to complete and use the above kernels and
 algorithm code is given in the specific tasks in [Part 1](part1/README.md)
 and [Part 2](part2/README.md) of this tutorial. The
 [*Algorithm structure*](#algorithm-structure) section below outlines the
 role of the algorithm layer in this tutorial.
 
-We will also use the following utilities to build and run the code:
+We will also use the following utilities to build and run the code (provided
+for each part of this tutorial):
 
-* [`simple_kernels_driver.f90`](simple_kernels_driver.f90), an example
-  of an LFRic-like [main program (driver)](
-  ../background/LFRic_structure.md#driver-layer) that creates the required
-  LFRic objects and calls the algorithm code in this example;
+* `simple_kernels_driver.f90`, an example of an LFRic-like
+  [main program (driver)](
+  ../background/LFRic_structure.md#driver-layer) that creates the
+  required LFRic objects and calls the algorithm code in this example;
+
 * `Makefile` script that builds the executable program for each part of
   this tutorial.
 

@@ -87,7 +87,7 @@ contains
     fs_w3 = function_space_type( mesh, element_order, W3, ndata_sz )
     fs_w3_ptr => fs_w3
 
-    ! Create velocity fields on W2 function space
+    ! Create fields on W0 function space
     call field_w0_out%initialise( vector_space = fs_w0_ptr, &
                                   name = "field_w0_out" )
     call field1_w0_in%initialise( vector_space = fs_w0_ptr, &
@@ -95,7 +95,7 @@ contains
     call field2_w0_in%initialise( vector_space = fs_w0_ptr, &
                                   name = "field2_w0_in" )
 
-    ! Create temperature fields on Wtheta function space
+    ! Create fields on W3 function space
     call field_w3_out%initialise( vector_space = fs_w3_ptr, &
                                   name = "field_w3_out" )
     call field1_w3_in%initialise( vector_space = fs_w3_ptr, &

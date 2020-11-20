@@ -38,7 +38,7 @@ F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
 # Path to source to use (except for PWD)
-SRC_PATH = ../..
+SRC_PATH = ..
 VPATH = $(SRC_PATH)/
 
 # Source rules
