@@ -46,7 +46,6 @@ DRIVER_SRC = $(SRC_PATH)/builtins_driver.f90
 ALGORITHMS = $(wildcard *_alg_mod.x90)
 ALGORITHM_SRC = $(ALGORITHMS:.x90=.f90)
 PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
-KERNEL_SRC = $(wildcard *_kernel_mod.f90)
 
 # PSyclone command-line options
 PSYCLONE_CMD = -nodm -l all
@@ -65,8 +64,7 @@ F90FLAGS += -I$(LFRIC_PATH)
 DRIVER_OBJ = $(notdir $(filter %.o,$(DRIVER_SRC:.f90=.o)))
 ALGORITHM_OBJ = $(filter %.o,$(ALGORITHM_SRC:.f90=.o))
 PSY_OBJ = $(filter %.o,$(PSY_SRC:.f90=.o))
-KERNEL_OBJ = $(filter %.o,$(KERNEL_SRC:.f90=.o))
-EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
+EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ)
 
 # Targets
 .PHONY: build test clean
@@ -80,9 +78,8 @@ $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
-$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
-$(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ)
-$(PSY_OBJ): $(KERNEL_OBJ)
+$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ)
+$(ALGORITHM_OBJ): $(PSY_OBJ)
 
 %.o %.mod: %.F90
 	$(F90) $(F90FLAGS) -c $<

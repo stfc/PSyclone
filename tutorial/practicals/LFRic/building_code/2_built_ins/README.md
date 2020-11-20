@@ -36,8 +36,15 @@ We will use the following module to call built-ins in this tutorial:
   operations via a group of `invoke` calls to PSyclone LFRic API built-ins
   (`invoke` call needs to be completed).
 
-The [*Algorithm structure*](#algorithm-structure) section below outlines
-the role of the algorithm layer in this tutorial.
+As in the [simple kernels tutorial](
+../1_simple_kernels/README.md#algorithm-structure),
+[`builtins_alg_mod.x90`](builtins_alg_mod.x90) creates *function space*
+and *field* objects with the input mesh and finite-element order
+information from the driver layer. The names of fields on `W0` and `W3`
+function spaces and the general set-up is identical to the
+[`simple_kernels_alg_mod.x90`](
+../1_simple_kernels/part2/simple_kernels_alg_mod.x90) from the
+[Part 2 of Tutorial 1](../1_simple_kernels/part2).
 
 We will also use the following utilities to build and run the code:
 
@@ -48,59 +55,28 @@ We will also use the following utilities to build and run the code:
 
 * `Makefile` script that builds the executable program called `builtins`.
 
-These utilities do not need to be modified. The
-[*Driver structure*](#driver-structure) section below outlines the role
-of the driver layer in this tutorial.
-
-### Driver structure
-
-The [`builtins_driver.f90`](builtins_driver.f90) sets up the
-**global 2D mesh**, **partition**, **extrusion** and **local 3D mesh**
-object stack required to define field objects as outlined in the
+These utilities do not need to be modified. The `builtins_driver.f90` sets
+up the LFRic object stack as outlined in the
 [overview of the LFRic driver layer](
-../background/LFRic_structure.md#driver-layer).
-This structure is identical to the driver structure of the
+../background/LFRic_structure.md#driver-layer) and its structure is
+identical to the driver structure of the
 [simple kernels tutorial](
 ../1_simple_kernels/README.md#driver-structure), so please look there
 for the explanation of the relevant Fortran calls.
-
-### Algorithm structure
-
-As in the [simple kernels tutorial](
-../1_simple_kernels/README.md#algorithm-structure),
-[`builtins_alg_mod.x90`](builtins_alg_mod.x90) creates **function space**
-and **field** objects with the input mesh and finite-element order
-information from the driver layer. The names of fields on `W0` and `W3`
-function spaces and the general set-up is identical to the
-[`simple_kernels_alg_mod.x90`](
-../1_simple_kernels/part2/simple_kernels_alg_mod.x90) from the
-[Part 2 of Tutorial 1](../1_simple_kernels/part2).
-
-There is one major difference from the algorithm code in the first
-tutorial and that is the lack of the algorithm-level `use` statements
-for built-in classes. The built-in kernel classes are defined in
-PSyclone (see the [*Quick intro* section](#quick-intro-to-built-ins)
-below).
 
 ## Tutorial exercise
 
 The provided [`builtins_alg_mod.x90`](builtins_alg_mod.x90) source
 defines output and two input fields on function spaces `W0` and `W3`,
 respectively. It outlines the creation of fields on the `W0` function
-space and prints out their `min` and `max` values. The tasks in this
-example are:
+space and prints out their `min` and `max` values. In summary, the
+tasks in this example are:
 
 * Create the output and input fields on the `W3` space using the `W0`
   fields as a template;
-* Use built-ins to perform the following mathematical operations:
-  1. Initialise output fields (`field_out_w0` and `field_out_w3`) to `0`,
-  2. Initialise `field1_in_w0` to `1` and `field2_in_w0` to `2`,
-  3. Calculate `field_out_w0 = field1_out_w0 + field2_out_w0`,
-  4. Initialise `field1_in_w3` to `-1`,
-  5. Calculate `field2_in_w3 = 2*field1_in_w3`,
-  6. Calculate `field_out_w3 = field1_in_w3 - 0.5*field2_in_w3`;
-* Print out min/max values of the output and input fields on `W3` space
-  using the `log_minmax` calls to the `W0` fields as a template.
+
+* Use built-ins to perform various mathematical operations on the fields
+  (listed in the *Step 1* below).
 
 ### Step 1: Create fields on the `W3` function space
 
@@ -131,19 +107,32 @@ place the code below the comment line
 
 This step consists of applying the following mathematical operations:
 
-* Initialising (setting) fields to a scalar value (e.g. `field_out_w0 = 0`),
-  described by the [`setval_c` built-in](
-  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#setval-c);
-* Adding two fields (`field_out_w0 = field1_out_w0 + field2_out_w0`),
-  described by the [`X_plus_Y` built-in](
-  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#x-plus-y);
-* Multiplying one field by a scalar value (`field2_in_w3 = 2*field1_in_w3`),
-  described by the [`a_times_X` built-in](
-  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#a-times-x);
-* Subtracting scaled fields
-  (`field_out_w3 = field1_in_w3 - 0.5*field2_in_w3`), described by the
-  [`X_minus_bY` built-in](
-  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#x-minus-by).
+1. Initialise output `field_out_w0` to `0`,
+2. Initialise input `field1_in_w0` to `1`,
+3. Initialise input `field2_in_w0` to `2`,
+4. Calculate `field_out_w0 = field1_in_w0 + field2_in_w0`,
+5. Initialise output `field_out_w3` to `0`,
+6. Initialise input `field1_in_w3` to `-1`,
+7. Calculate `field2_in_w3 = 2*field1_in_w3`,
+8. Calculate `field_out_w3 = field1_in_w3 - 0.5*field2_in_w3`.
+
+The following built-ins need to be used for the operations above:
+
+* [`setval_c` built-in](
+  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#setval-c) for
+  initialising (setting) fields to a scalar value (e.g. `field_out_w0 = 0`);
+
+* [`X_plus_Y` built-in](
+  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#x-plus-y)
+  for adding two fields (`field_out_w0 = field1_in_w0 + field2_in_w0`);
+
+* [`a_times_X` built-in](
+  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#a-times-x) for
+  multiplying a field by a scalar value (`field2_in_w3 = 2*field1_in_w3`);
+
+* [`X_minus_bY` built-in](
+  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#x-minus-by) for
+  subtracting scaled fields (`field_out_w3 = field1_in_w3 - 0.5*field2_in_w3`).
 
 For more information on how the built-ins are named, look into the
 [*Naming scheme* section](
@@ -155,6 +144,7 @@ The calls to some of the listed built-ins are outlined below:
 
 ```fortran
     call invoke( setval_c(field_out_w0, 0.0_r_def),                  &
+                 setval_c(field_out_w0, 1.0_r_def),                  &
                  ...
                  X_plus_Y(field_out_w0, field1_in_w0, field2_in_w0), &
                  setval_c(field_out_w3, 0.0_r_def),                  &
@@ -166,12 +156,51 @@ values, e.g. `0.0_r_def`, as arguments to the built-in calls (in LFRic we
 specify the Fortran `kind` of a literal value, e.g. `r_def` for the
 `real`-valued literals in these calls).
 
-Copy the `invoke` stub above to the algorithm source and complete it.
+---
+**NOTE**
+
+Sometimes PSyclone will generate invalid PSy-layer code if the kernel
+arguments in the wrong order. This happens because there is currently no
+validation of the arguments supplied in the Algorithm layer. This support
+will be implemented in the future.
+
+---
+
+Copy the `invoke` stub above to the algorithm source and complete it. As
+this is a long `invoke`, it is advisable to add one built-in call at a time
+and check that the code builds with PSyclone in between. E.g. start with:
+
+```fortran
+    call invoke( setval_c(field_out_w0, 0.0_r_def) )
+```
+
+and the process the modified algorithm by calling `make test` as outlined
+in the *Step 3* below. Then add the next built-in:
+
+```fortran
+    call invoke( setval_c(field_out_w0, 0.0_r_def), &
+                 setval_c(field_out_w0, 1.0_r_def) )
+```
+
+and repeat the process (and so on for the subsequent built-in calls).
+
+---
+**NOTE**
+
+There is one major difference from the algorithm code in the
+first tutorial, [`simple_kernels_alg_mod.x90`](
+../1_simple_kernels/part2/simple_kernels_alg_mod.x90), and this algorithm,
+and that is the lack of the algorithm-level `use` statements for the
+built-in classes. The built-in kernel classes are defined in
+PSyclone (see the [*Quick intro* section](#quick-intro-to-built-ins)
+below).
+
+---
 
 ### Step 2A (optional): Use a name for the `invoke` call
 
 As each `invoke` call generates a PSy-layer subroutine (see the
-[Step 3](#step-3) below for the algorithm code processing), it can be
+*Step 3* below for the algorithm code processing), it can be
 easier to specify a [label (name) for an `invoke`](
 https://psyclone.readthedocs.io/en/stable/algorithm_layer.html#named-invokes)
 (and hence the subroutine) call to make it easier to search for in the
@@ -179,41 +208,45 @@ generated code. To do this here modify the completed `invoke` by adding a
 name in the first line of the `invoke` call, e.g.
 
 ```fortran
-    call invoke( name = "Builtins on W0 and W3 fields",              &
+    call invoke( name = "builtins_on_w0_and_w3_fields",              &
                  setval_c(field_out_w0, 0.0_r_def),                  &
                  ...
                  X_plus_Y(field_out_w0, field1_in_w0, field2_in_w0), &
                  ... )
 ```
 
-The completed algorithm can be found in the [Solutions directory](solutions).
+The completed algorithm can be found in the [`solutions` directory](solutions).
 
 ### Step 3: Use PSyclone to generate algorithm and PSy-layer source
 
 We will first check that the built-in calls in the algorithm code are
 correct by running `make test` to process the algorithm source with
-PSyclone. If the code is correct, this will result in the generated algorithm
-source file `builtins_alg_mod.f90` and the generated PSy-layer source file
+PSyclone. As explained in the *Step 2* above, it is best doing this as
+the `invoke` is extended before the final check in this step. If the code
+is correct, this will result in the generated algorithm source file
+`builtins_alg_mod.f90` and the generated PSy-layer source file
 `builtins_alg_mod_psy.f90`.
 
 Looking at the generated algorithm file `builtins_alg_mod.f90` we can
 see that the original `invoke` call to built-ins has become a call
-to a single subroutine with all field arguments passed to the built-ins:
+to a single subroutine with all of the field arguments that were passed
+to the built-ins:
 
 ```fortran
     CALL invoke_0(field_out_w0, field1_in_w0, field2_in_w0, field_out_w3, &
          field1_in_w3, field2_in_w3)
 ```
 
-(if the `invoke` call was named in the [Step 2A](#step-2a), the subroutine
+(if the `invoke` call was named in the *Step 2A* above, the subroutine
 name would be `invoke_builtins_on_w0_and_w3_fields`).
 
 The generated `invoke` subroutine code is located in the generated PSy-layer
 file, `builtins_alg_mod_psy.f90`. We will look at the generated code for
 just the `X_plus_Y` built-in below.
 
-As for a kernel call there are, amongst other things, generated declarations
-and calls to the `field_out_w0`, `field1_in_w0` and `field2_in_w0` proxies
+As for a call to a user-supplied kernel, there are, amongst other things,
+generated declarations and calls to the `field_out_w0`, `field1_in_w0`
+and `field2_in_w0` proxies
 
 ```fortran
       TYPE(field_proxy_type) field_out_w0_proxy, field1_in_w0_proxy, ...
@@ -247,13 +280,23 @@ the proxy data
       undf_aspc1_field2_in_w0 = field2_in_w0_proxy%vspace%get_undf()
 ```
 
+---
+**NOTE**
+
+Since built-ins work on any space, PSyclone cannot assume that a field
+passed to one built-in is on the same space as that passed to a
+different built-in. Some of this information could be deduced by static
+analysis but we have yet to implement that.
+
+---
+
 Unlike the PSy-layer kernel code calls, the generated code for the
 built-in calls is not provided by the user. Instead it is specified by
 PSyclone to be a direct representation of the mathematical operation
 that a built-in performs (PSyclone could also generate calls to e.g.
 an optimised linear-algebra library where appropriate).
 The generated code for the specific mathematical operation here
-(`field_out_w0 = field1_out_w0 + field2_out_w0`) looks something like:
+(`field_out_w0 = field1_in_w0 + field2_in_w0`) looks something like:
 
 ```fortran
       !
@@ -274,24 +317,7 @@ metadata in the definition of `X_plus_Y_code` translates to a
 space metadata `ANY_SPACE_1` used to define built-ins in PSyclone (see
 the [quick intro to built-ins below](#quick-intro-to-built-ins) below).
 
-### Step 4: Print out min/max values of the fields on the `W3` function space
-
-We will use the LFRic field class `log_minmax` procedure to print out the
-min/max values of the fields on the `W3` function space.
-
-Copy the `W0` fields `log_minmax` calls code above the comment
-`! TO COMPLETE: Check the values of W3 fields by printing the min/max values`
-as a template for the `W3` fields, e.g.
-
-```fortran
-    ! Check the values of W0 fields by printing the min/max values
-    call field_out_w0%log_minmax(LOG_LEVEL_INFO, field_out_w0%name)
-```
-
-and change the field name accordingly (we need to do this for the input
-`W3` fields, too).
-
-### Step 5: Build and run the code
+### Step 4: Build and run the code
 
 We will now run `make` to create the executable `builtins` using the
 provided [`builtins_driver.f90`](builtins_driver.f90) and the LFRic
@@ -352,18 +378,3 @@ Built-ins need to work with fields on any function space, hence using the
 [*Supported Function Spaces* section](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#dynamo0-3-function-space)
 for more information).
-
----
-**NOTE**
-
-As for [LFRic kernels](../1_simple_kernels/LFRic_kernel_structure.md#appendix),
-the kernel metadata for the iteration spaces are changing to indicate the
-subset of domain the built-in operates on rather than the PSy-layer
-looping. In the next PSyclone release `iterates_over = DOFS` will
-become `operates_on = DOF`.
-
-The current built-ins are defined for `real`-valued field data.
-Built-ins for `integer`-valued fields will be introduced as part
-of the support for the field data of other intrinsic types.
-
----

@@ -43,7 +43,7 @@
 .PHONY: build test clean
 
 build test clean:
-	${MAKE} -C 1_simple_kernels/solutions/part1 $@
-	${MAKE} -C 1_simple_kernels/solutions/part2 $@
+	${MAKE} -C 1_simple_kernels/part1/solutions $@
+	${MAKE} -C 1_simple_kernels/part2/solutions $@
 	${MAKE} -C 2_built_ins/solutions $@
 	${MAKE} -C 3_time_evolution/solutions $@
