@@ -108,6 +108,8 @@ module prop_perturbation_kernel_mod
     real(kind=r_def), intent(in),    dimension(undf_w3) :: chi_3
     real(kind=r_def), intent(in) :: t_tot
 
+    integer(kind=8) :: offset
+
     ! Internal variables
     integer(kind=i_def)  :: k, df
     real(kind=r_def)     :: x(3), xt, yt, ampl
@@ -134,6 +136,12 @@ module prop_perturbation_kernel_mod
       end do
 
     end do
+
+    ! VERY DIRTY CODE HERE. REMOVE THE COMMENT LINES TO OVERWRITE
+    ! ONE ENTRY OF chi_1. YOU MUST MAKE SURE TO HAVE ARRAY BOUNDS CHECKING
+    ! DISABLED IN THE COMPILER
+    !offset = ( loc(chi_1(map_w3(1)))- loc(perturbation(map_w3(1)))) / sizeof(chi_1(map_w3(1)))
+    !perturbation(map_w3(1)+offset) = 123.0
 
   end subroutine prop_perturbation_code
 
