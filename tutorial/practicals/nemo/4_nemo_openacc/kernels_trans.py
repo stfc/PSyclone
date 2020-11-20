@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,47 +31,54 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
-# -----------------------------------------------------------------------------
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''This module provides the Profile transformation.
+'''A skeleton transformation script that acts as a starting point for
+adding OpenACC KERNELS directives to NEMO style code.  In order to use it you
+must first install PSyclone. See README.md in the top-level psyclone directory.
+
+Once you have psyclone installed, this may be used by doing:
+
+ $ psyclone -api nemo -s ./kernels_trans.py some_source_file.f90
+
+This should produce a lot of output, ending with generated
+Fortran. Note that the Fortran source files provided to PSyclone must
+have already been preprocessed (if required).
+
 '''
 
-from psyclone.psyir.nodes import Return, ProfileNode
-from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
+from __future__ import print_function
+from psyclone.psyir.nodes import Loop, Assignment
+from psyclone.transformations import (TransformationError, ACCKernelsTrans,
+                                      ACCDataTrans)
 
 
-class ProfileTrans(PSyDataTrans):
-    ''' Create a profile region around a list of statements. For
-    example:
+# Get the PSyclone transformations we will use
+ACC_DATA_TRANS = ACCDataTrans()
+ACC_KERNELS_TRANS = ACCKernelsTrans()
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory, GenerationError
-    >>> from psyclone.psyir.transformations import ProfileTrans
-    >>> api = "gocean1.0"
-    >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>>
-    >>> p_trans = ProfileTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
-    >>>
-    >>> # Enclose all children within a single profile region
-    >>> newschedule, _ = p_trans.apply(schedule.children)
-    >>> newschedule.view()
 
-    This implementation relies completely on the base class PSyDataTrans
-    for the actual work, it only adjusts the name etc, and the list
-    of valid nodes.
+def trans(psy):
+    '''A PSyclone-script compliant transformation function.
+
+    :param psy: The PSy layer object to apply transformations to.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+
+    :returns: the transformed PSy layer object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    # Unlike other transformations we can be fairly relaxed about the nodes
-    # that a region can contain as we don't have to understand them.
-    excluded_node_types = (Return,)
+    # Get the Schedule of the target routine
+    sched = psy.invokes.get('tra_adv').schedule
 
-    def __init__(self):
-        super(ProfileTrans, self).__init__(ProfileNode)
+    # Find the outer, 'iteration' loop
+    tloop = None
+    for node in sched.children:
+        if isinstance(node, Loop) and node.loop_type == "tracers":
+            tloop = node
+            break
+
+    # Loop through the children of the loop body and transform those
+    # that are over levels
+
+    sched.view()

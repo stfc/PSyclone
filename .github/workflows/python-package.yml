@@ -80,6 +80,9 @@ jobs:
       run: |
         ( make -C examples transform > /dev/null )
         ( make -C examples notebook )
+    - name: Run tutorials
+      run: |
+        ( make -C tutorial/practicals/nemo test > /dev/null)
     - name: Test with pytest
       run: |
         pytest --cov=psyclone --cov-report=xml src/psyclone/tests
