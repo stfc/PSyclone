@@ -39,19 +39,20 @@
 
 F90 ?= gfortran
 F90FLAGS ?=
+# This defaults to the infrastructure library included in PSyclone
+LFRIC_DIR ?= ../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 
-DL_DIR = ../../../../external/dl_esm_inf/finite_difference/src
-
-F90FLAGS += $$(nf-config --fflags) -I$(DL_DIR)
+F90FLAGS ?= 
+F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
-                       -dims=2
-
-default: $(LIB_NAME)
+                       -dims=1,2,3,4
 
 $(LIB_NAME): psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
+
+default: $(LIB_NAME)
 
 kernel_data_netcdf.o:	extract_netcdf_base.o
 extract_netcdf_base.o:	psy_data_base.o
@@ -63,10 +64,11 @@ psy_data_base.f90: ../../../psy_data_base.jinja Makefile
 extract_netcdf_base.f90: ../extract_netcdf_base.jinja Makefile
 	../../../process.py $(PROCESS_ARGS) $< > extract_netcdf_base.f90
 
+kernel_data_netcdf.f90: kernel_data_netcdf.jinja Makefile
+	../../../process.py $(PROCESS_ARGS) $< > kernel_data_netcdf.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.f90 extract_netcdf_base.f90
-

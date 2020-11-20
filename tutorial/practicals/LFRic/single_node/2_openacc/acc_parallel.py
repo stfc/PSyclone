@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,12 +31,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Author: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''File containing a PSyclone transformation script for the Dynamo0p3
-API to apply OpenACC Loop, Parallel and Enter Data directives
-generically. This can be applied via the -s option in the psyclone
-script.
+API to apply the Kernels directive to all loops generically. This can
+be applied via the -s option in the psyclone command, it is not
+designed to be directly run from python.
 
 '''
 from __future__ import print_function
@@ -47,7 +47,12 @@ from psyclone.domain.lfric.function_space import FunctionSpace
 
 def trans(psy):
     '''PSyclone transformation script for the dynamo0p3 api to apply
-    OpenACC loop, parallel and enter data directives generically.
+    OpenACC Kernels directives to all loops generically. It also
+    outputs a textual representation of the transformated PSyIR.
+
+    :param psy: a PSyclone PSy object which captures the algorithm and \
+        kernel information required by PSyclone.
+    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
 
     '''
     kernels_trans = ACCKernelsTrans()
@@ -57,6 +62,8 @@ def trans(psy):
 
         schedule = invoke.schedule
 
+        # Apply kernels directives to any loops nodes that are
+        # children of the schedule node.
         for loop in schedule.loops():
             kernels_trans.apply([loop])
 

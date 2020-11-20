@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,45 +31,46 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: J. Henrichs, Australian Bureau of Meteorology
 
-'''File containing a PSyclone transformation script for the dynamo0p3
-API to apply OpenMP Parallel Loop parallelisation. This script can be
-applied via the -s option in the psyclone command, it is not designed
-to be directly run from python.
+# This Makefile just creates the Fortran base class for all extraction
+# libraries from the jinja template. The compile functionality it offers is
+# only meant for testing, each library should create and compile its own
+# version of the base class (with therefore consistent compiler and
+# jinja settings).
 
-'''
-from __future__ import print_function
-from psyclone.transformations import DynamoOMPParallelLoopTrans, \
-    TransformationError, Dynamo0p3ColourTrans, OMPParallelTrans, \
-    Dynamo0p3OMPLoopTrans
-from psyclone.psyGen import Loop
-from psyclone.domain.lfric.function_space import FunctionSpace
+F90 ?= gfortran
+F90FLAGS ?= 
 
+F90FLAGS += $$(nf-config --fflags)
 
-def trans(psy):
-    '''PSyclone transformation script for the dynamo0p3 API that applies
-    OpenMP parallel loop parallelisation. It also outputs a textual
-    representation of the transformated PSyIR.
+# The extract library is implemented for int, real and
+# double scalars and 2-dimension arrays
+PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
+		       -dims=2
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
-        kernel information required by PSyclone.
-    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+default: extract_netcdf_base.o psy_data_base.o
+process: extract_netcdf_base.f90
 
-    '''
-    otrans = DynamoOMPParallelLoopTrans()
+.PHONY: default process clean
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
+# The dependencies
+# ----------------
+extract_netcdf_base.o: psy_data_base.o
 
-        # Add OpenMP parallel do directives to the loops
-        for loop in schedule.loops():
-            try:
-                otrans.apply(loop)
-            except TransformationError as info:
-                print(str(info.value))
+# Jinja rules for creating the base class, and the
+# netcdf extraction class
+# ------------------------------------------------
+psy_data_base.f90:	../../psy_data_base.jinja
+	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
 
-        # take a look at what we've done
-        schedule.view()
+extract_netcdf_base.f90:	extract_netcdf_base.jinja
+	../../process.py $(PROCESS_ARGS) $< > extract_netcdf_base.f90
 
-        return psy
+# Compilation
+# -----------
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
+
+clean:
+	rm -f extract_netcdf_base.f90 psy_data_base.f90 *.o *.mod

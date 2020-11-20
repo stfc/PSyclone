@@ -64,6 +64,8 @@ script:
   - ( make -C examples transform > /dev/null )
   # Execute all example Jupyter notebooks
   - ( make -C examples notebook )
+  # Execute the LFRic tutorial scripts
+  - ( make -C tutorial/practicals/LFRic test  > /dev/null )
 after_success:
   - codecov
 # Configure travis to deploy to the pypi server when a new

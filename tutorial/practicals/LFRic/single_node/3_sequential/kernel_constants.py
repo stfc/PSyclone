@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,14 +47,10 @@ The DynKernelConstTrans transformation is work in progress and the
 current version is limited to printing out the arguments that would be
 transformed and the values they would take.
 
-This script can be applied via the '-s' option when running PSyclone:
-
-$ psyclone -s ./kernel_constants.py \
-../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
--oalg alg.f90 -opsy psy.f90
+This script can be applied via the -s option in the psyclone command,
+it is not designed to be directly run from python.
 
 '''
-
 from __future__ import print_function
 from psyclone.transformations import Dynamo0p3KernelConstTrans, \
     TransformationError
@@ -75,6 +71,10 @@ CONSTANT_QUADRATURE = True
 def trans(psy):
     '''PSyclone transformation script for the Dynamo0.3 API to make the
     kernel values of ndofs, nlayers and nquadrature-point sizes constant.
+
+    :param psy: a PSyclone PSy object which captures the algorithm and \
+        kernel information required by PSyclone.
+    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
 
     '''
     const_trans = Dynamo0p3KernelConstTrans()

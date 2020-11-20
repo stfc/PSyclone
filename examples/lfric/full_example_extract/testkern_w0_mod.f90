@@ -1,6 +1,6 @@
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -28,27 +28,56 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: R. W. Ford, STFC Daresbury Lab
-!
-!-------------------------------------------------------------------------------
+! Author R. W. Ford, STFC Daresbury Lab
+! Modified by J. Henrichs, Bureau of Meteorology
 
-! Example code with a single invoke and a series of builtin
-! calls. This code was created to demonstrate PSyclone's ability to
-! perform loop fusion.
+module testkern_w0_mod
 
-subroutine example_code(field1, sum)
-use field_mod, only : field_type
-use constants_mod, only : r_def
+  use argument_mod
+  use kernel_mod
+  use fs_continuity_mod, only: W0
 
-type(field_type), intent(in) :: field1
-real(kind=r_def), intent(out) :: sum
-real(field_type) :: field2, field3
+  use constants_mod
 
-call invoke( &
-  setval_c(field2, 2.0_r_def), &
-  x_plus_y(result, field1, field2), &
-  inc_x_times_y(field3, result), &
-  x_innerproduct_y(sum, field3, field1) &
-)
+  implicit none
 
-end subroutine example_code
+  private
+
+  type, public, extends(kernel_type) :: testkern_w0_type
+     private
+     type(arg_type), dimension(2) :: meta_args =  &
+          (/ arg_type(gh_field, gh_inc,  w0),     &
+             arg_type(gh_field, gh_read, w0)      &
+           /)
+     integer :: operates_on = cell_column
+   contains
+     procedure, nopass :: code => testkern_w0_code
+  end type testkern_w0_type
+
+  public :: testkern_w0_code
+
+contains
+
+  subroutine testkern_w0_code(nlayers, fld1, fld2, ndf_w0, undf_w0, map_w0)
+
+    use constants_mod, only: r_def, i_def
+    
+    implicit none
+
+    integer                                             :: nlayers
+    real(kind=r_def), dimension(undf_w0), intent(inout) :: fld1
+    real(kind=r_def), dimension(undf_w0), intent(in)    :: fld2
+    integer(kind=i_def)                                 :: ndf_w0, undf_w0
+    integer(kind=i_def), dimension(ndf_w0)              :: map_w0
+
+    integer(kind=i_def)                                 :: i, k
+
+    do k=0, nlayers-1
+      do i=1, ndf_w0
+        fld1(map_w0(i)+k) = fld1(map_w0(i)+k) + fld2(map_w0(i)+k)
+      end do
+    end do
+
+  end subroutine testkern_w0_code
+
+end module testkern_w0_mod

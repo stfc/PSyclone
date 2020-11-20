@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,45 +31,51 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 
-'''File containing a PSyclone transformation script for the dynamo0p3
-API to apply OpenMP Parallel Loop parallelisation. This script can be
-applied via the -s option in the psyclone command, it is not designed
-to be directly run from python.
-
+'''Python script intended to be passed to PSyclone via the -s option.
+It adds kernel extraction code to
+the invokes. When the transformed program is compiled and run, it
+will create one NetCDF file for each of the two invokes. A separate
+driver program is also created for each invoke which can read the
+created NetCDF files, execute the invokes and then compare the results.
+At this stage it does not compile (TODO: #644), and the comparison is
+missing (TODO: #647)
 '''
+
 from __future__ import print_function
-from psyclone.transformations import DynamoOMPParallelLoopTrans, \
-    TransformationError, Dynamo0p3ColourTrans, OMPParallelTrans, \
-    Dynamo0p3OMPLoopTrans
-from psyclone.psyGen import Loop
-from psyclone.domain.lfric.function_space import FunctionSpace
+
+from psyclone.psyir.transformations import ExtractTrans
 
 
 def trans(psy):
-    '''PSyclone transformation script for the dynamo0p3 API that applies
-    OpenMP parallel loop parallelisation. It also outputs a textual
-    representation of the transformated PSyIR.
+    '''
+    Take the supplied psy object, and add kernel extraction code.
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
-        kernel information required by PSyclone.
-    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+    :param psy: the PSy layer to transform.
+    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
+
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    otrans = DynamoOMPParallelLoopTrans()
+    extract = ExtractTrans()
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
+    # We don't support builtins yet, so the initialisation
+    # cannot be instrumented, TODO #637
+    # invoke = psy.invokes.get("invoke_initialise_fields")
+    # schedule = invoke.schedule
+    # _, _ = extract.apply(schedule.children,
+    #                      {"create_driver": True,
+    #                       "region_name": ("main", "init")})
 
-        # Add OpenMP parallel do directives to the loops
-        for loop in schedule.loops():
-            try:
-                otrans.apply(loop)
-            except TransformationError as info:
-                print(str(info.value))
+    invoke = psy.invokes.get("invoke_testkern_w0")
+    schedule = invoke.schedule
 
-        # take a look at what we've done
-        schedule.view()
+    # Enclose everything in a extract region
+    _, _ = extract.apply(schedule.children,
+                         {"create_driver": True,
+                          "region_name": ("main", "update")})
 
-        return psy
+    schedule.view()
+    return psy

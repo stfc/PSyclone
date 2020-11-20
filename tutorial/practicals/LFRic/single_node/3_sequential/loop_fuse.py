@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,22 +31,30 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
-# Modified: I. Kavcic, Met Office
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''File containing a PSyclone transformation script for the dynamo0p3
-API to apply loop fusion and then OpenMP parallelisation to an invoke
-with two Kernels. This can be applied via the -s option in the
-generator.py script.'''
+API to apply loop fusion.
 
+This script can be applied via the -s option to the psyclone command,
+it is not designed to be directly run from python.
+
+'''
 from __future__ import print_function
 from psyclone.transformations import DynamoOMPParallelLoopTrans, \
     DynamoLoopFuseTrans, TransformationError
 
 
 def trans(psy):
-    ''' PSyclone transformation script for the dynamo0p3 API to apply
-    loop fusion and OpenMP for a particular example.'''
+    '''PSyclone transformation script for the dynamo0p3 API to apply loop
+    fusion for a particular example - it is not meant to work
+    generically.
+
+    :param psy: a PSyclone PSy object which captures the algorithm and \
+        kernel information required by PSyclone.
+    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+
+    '''
     ftrans = DynamoLoopFuseTrans()
 
     for invoke in psy.invokes.invoke_list:

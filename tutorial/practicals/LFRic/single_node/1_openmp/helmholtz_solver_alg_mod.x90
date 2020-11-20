@@ -82,7 +82,7 @@ contains
                        Hp, grad_p, mt_lumped_inv, p,                         &
                        compound_div, p3theta, ptheta2, m3_exner_star,        &
                        tau_t, timestep_term),                                &
-		 x_innerproduct_x(sum, p))
+                 x_innerproduct_x(sum, p))
 
   end subroutine apply_helmholtz_lhs
 

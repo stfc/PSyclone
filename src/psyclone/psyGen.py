@@ -1293,8 +1293,7 @@ class ACCEnterDataDirective(ACCDirective):
         # OpenACC kernels (calls within an OpenACC parallel or kernels directive)
         # 1. Find all parallel and kernels directives. We store this list for later
         #    use in any sub-class.
-        self._acc_dirs = self.root.walk(ACCParallelDirective)
-        self._acc_dirs.extend(self.root.walk(ACCKernelsDirective))
+        self._acc_dirs = self.root.walk((ACCParallelDirective, ACCKernelsDirective))
         # 2. For each directive, loop over each of the fields used by
         #    the kernels it contains (this list is given by var_list)
         #    and add it to our list if we don't already have it
@@ -1512,6 +1511,24 @@ class ACCLoopDirective(ACCDirective):
         text += "]"
         return text
 
+    def _pre_gen_validate(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this ACCLoopDirective is not enclosed \
+                            within some OpenACC parallel or kernels region.
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user can
+        # apply transformations to the code). As an orphaned loop directive,
+        # we must have an ACCParallelDirective or an ACCKernelsDirective as
+        # an ancestor somewhere back up the tree.
+        if not self.ancestor((ACCParallelDirective, ACCKernelsDirective)):
+            raise GenerationError(
+                "ACCLoopDirective must have an ACCParallelDirective or "
+                "ACCKernelsDirective as an ancestor in the Schedule")
+
     def gen_code(self, parent):
         '''
         Generate the f2pygen AST entries in the Schedule for this OpenACC
@@ -1523,18 +1540,7 @@ class ACCLoopDirective(ACCDirective):
         :raises GenerationError: if this "!$acc loop" is not enclosed within \
                                  an ACC Parallel region.
         '''
-
-        # It is only at the point of code generation that we can check
-        # for correctness (given that we don't mandate the order that
-        # a user can apply transformations to the code). As an
-        # orphaned loop directive, we must have an
-        # ACCParallelDirective or an ACCKernelsDirective as an
-        # ancestor somewhere back up the tree.
-        if not (self.ancestor(ACCParallelDirective) or \
-           self.ancestor(ACCKernelsDirective)):
-            raise GenerationError(
-                "ACCLoopDirective must have an ACCParallelDirective or an "
-                "ACCKernelsDirective as an ancestor in the Schedule")
+        self._pre_gen_validate()
 
         # Add any clauses to the directive
         options = []
@@ -1556,7 +1562,10 @@ class ACCLoopDirective(ACCDirective):
         '''
         Update the existing fparser2 parse tree with the code associated with
         this ACC LOOP directive.
+
         '''
+        self._pre_gen_validate()
+
         text = "LOOP"
         if self._sequential:
             text += " SEQ"
@@ -1914,6 +1923,25 @@ class OMPDoDirective(OMPDirective):
         ''' returns whether reprod has been set for this object or not '''
         return self._reprod
 
+    def _pre_gen_validate(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPDoDirective is not enclosed \
+                            within some OpenMP parallel region.
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). As an orphaned loop
+        # directive, we must have an OMPParallelDirective as an ancestor
+        # somewhere back up the tree.
+        if not self.ancestor(OMPParallelDirective,
+                             excluding=OMPParallelDoDirective):
+            raise GenerationError(
+                "OMPDoDirective must be inside an OMP parallel region but "
+                "could not find an ancestor OMPParallelDirective node")
+
     def gen_code(self, parent):
         '''
         Generate the f2pygen AST entries in the Schedule for this OpenMP do
@@ -1926,15 +1954,7 @@ class OMPDoDirective(OMPDirective):
                                  an OMP Parallel region.
 
         '''
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). As an orphaned loop
-        # directive, we must have an OMPRegionDirective as an ancestor
-        # somewhere back up the tree.
-        if not self.ancestor(OMPParallelDirective,
-                             excluding=OMPParallelDoDirective):
-            raise GenerationError("OMPOrphanLoopDirective must have an "
-                                  "OMPRegionDirective as ancestor")
+        self._pre_gen_validate()
 
         if self._reprod:
             local_reduction_string = ""
@@ -1986,6 +2006,8 @@ class OMPDoDirective(OMPDirective):
                                  correct structure to permit the insertion \
                                  of the OpenMP parallel do.
         '''
+        self._pre_gen_validate()
+
         # Since this is an OpenMP do, it can only be applied
         # to a single loop.
         if len(self.dir_body.children) != 1:
