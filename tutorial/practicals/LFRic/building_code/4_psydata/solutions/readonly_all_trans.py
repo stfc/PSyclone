@@ -57,14 +57,30 @@ def trans(psy):
     :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    from psyclone.psyir.transformations import ExtractTrans
-    extract = ExtractTrans()
+    from psyclone.psyir.transformations import ReadOnlyVerifyTrans
+    readonly = ReadOnlyVerifyTrans()
 
-    invoke = psy.invokes.get("invoke_propagate_perturbation")
-    schedule = invoke.schedule
+    # ------------------------------------------------------
+    # TOOD: import the transformation and create an instance
+    # ------------------------------------------------------
+    # from ... import ...
+    # my_transform = ...()
 
-    # Enclose everything in a extract region
-    extract.apply(schedule, {"region_name": ("time_evolution", "propagate")})
 
-    schedule.view()
+    for invoke_name in psy.invokes.names:
+        print(invoke_name)
+
+        invoke = psy.invokes.get(invoke_name)
+
+        # Now get the schedule, to which we want to apply the transformation
+        schedule = invoke.schedule
+
+
+        # Apply the transformation
+        readonly.apply(schedule, {"region_name": ("time_evolution", invoke_name)})
+
+        # Just as feedback: show the modified schedule, which should have
+        # a new node at the top:
+        schedule.view()
+
     return psy

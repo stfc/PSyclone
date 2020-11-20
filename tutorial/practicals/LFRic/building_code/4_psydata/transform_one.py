@@ -70,8 +70,10 @@ def trans(psy):
     # Now get the schedule, to which we want to apply the transformation
     schedule = invoke.schedule
 
-    # Apply the transformation
-    extract.apply(schedule)
+    # ------------------------------------------------------
+    # TODO: Apply the transformation
+    # ------------------------------------------------------
+    ... .apply(schedule)
 
     # Just as feedback: show the modified schedule, which should have
     # a new node at the top:
