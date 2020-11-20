@@ -64,7 +64,7 @@ def trans(psy):
     schedule = invoke.schedule
 
     # Enclose everything in a extract region
-    extract.apply(schedule)
+    extract.apply(schedule, {"region_name": ("time_evolution", "propagate")})
 
     schedule.view()
     return psy

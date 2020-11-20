@@ -56,7 +56,7 @@ def trans(psy):
     # ------------------------------------------------------
     # TOOD: import the transformation and create an instance
     # ------------------------------------------------------
-    # from ... import
+    # from ... import ...
     # my_transform = ...()
 
 

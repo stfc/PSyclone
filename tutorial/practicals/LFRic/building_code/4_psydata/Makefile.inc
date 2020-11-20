@@ -36,7 +36,7 @@
 
 # Compiler settings
 F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound
+F90FLAGS ?= -Wall -g
 
 # Source rules
 DRIVER_SRC = write_diagnostics_mod.f90 time_evolution_driver.f90
@@ -65,17 +65,17 @@ GHLIB_NAME = gungho
 GHLIB_LIB = $(GHLIB_PATH)/lib$(GHLIB_NAME).a
 F90FLAGS += -I$(GHLIB_PATH)
 
+# Settings from the PSyData-specific library are done by the
+# Makefile including this file.
+PSYDATA_LIB=$(PSYDATA_PATH)/lib_$(PSYDATA_LIB_NAME).a
+F90FLAGS += -I $(PSYDATA_PATH)
+
 # Object rules
 DRIVER_OBJ = $(filter %.o,$(DRIVER_SRC:.f90=.o))
 ALGORITHM_OBJ = $(filter %.o,$(ALGORITHM_SRC:.f90=.o))
 PSY_OBJ = $(filter %.o,$(PSY_SRC:.f90=.o))
 KERNEL_OBJ = $(filter %.o,$(KERNEL_SRC:.F90=.o) $(KERNEL_SRC:.f90=.o))
 EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
-
-# Settings from the PSyData-specific library are done by the
-# Makefile including this file.
-PSYDATA_LIB=$(PSYDATA_PATH)/lib_$(PSYDATA_LIB_NAME).a
-F90FLAGS += -I $(PSYDATA_PATH)
 
 # Targets
 .PHONY: build test clean
@@ -90,12 +90,15 @@ $(GHLIB_LIB):
 	$(MAKE) -C $(GHLIB_PATH)
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) netcdf 
+	$(MAKE) -C $(LFRIC_PATH) netcdf
+
+$(PSYDATA_LIB):
+	$(MAKE) -C $(PSYDATA_PATH)
 
 # Dependencies
 $(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
 $(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ)
-$(PSY_OBJ): $(KERNEL_OBJ)
+$(PSY_OBJ): $(KERNEL_OBJ) $(PSYDATA_LIB)
 
 %.o %.mod: %.F90
 	$(F90) $(F90FLAGS) -c $<

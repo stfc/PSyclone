@@ -40,7 +40,7 @@ extraction transformation and apply it to the schedule for
 "invoke_propagate_perturbation". The template contains
 most of the required calls, you only need to fill in the details.
 
-## Step 3: Modify the makefile to use the script
+## Step 3: Modify the makefile so that PSyclone invokes the script
 
 There is a set of makefiles provided in this directory, one for
 each of the available PSyData transformation. They all include
@@ -51,19 +51,12 @@ with the PSyData libraries.
 Each of the makefile already contains a separate rule for the file
 ``time_evolution_alg_mod.x90``. For this part of the exercise,
 add the ``-s`` flag to the ``psycline`` invocation in
-``Makefile.extract`` and provide the name of your script so
-that PSyclone will invoke it. You can the create your application
-using:
+``Makefile.extract`` and provide the path to your script so
+that PSyclone will invoke it. You have start with ``./``, otherwise
+Python will not find our file (unless you modify ``PYTHONPATH``).
+You can the create your application using:
 
     make -f Makefile.extract
-
-
-
-## Step 4: Compile
-
-Hopefully this is as simple as typing:
-
-    make
 
 If you should get an error message that your script is not found,
 it is possible that it contains a syntax error. You can quickly
@@ -72,9 +65,11 @@ test this by using:
     python ./your_transformation_script.py
 
 If this command does not return anything, your script is at least
-syntactically correct. 
+syntactically correct, otherwise Python will print out a hopefully
+useful error message.
 
-## Step 5: Look at the produces code for the PSY layer
+
+## Step 4: Look at the produces code for the PSY layer
 Have a quick look at the produced code:
 
     less  time_evolution_alg_mod_psy.f90
@@ -83,6 +78,7 @@ and notice the added PSyData calls, e.g.:
 
     TYPE(extract_PSyDataType), target, save :: extract_psy_data
     ....
+    CALL extract_psy_data%PreStart("time_evolution_alg_mod_psy", "invoke_propagate_perturbation:prop_perturbation_code:r0", 7, 2)
     CALL extract_psy_data%PreStart("main", "update", 7, 2)
     CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
     CALL extract_psy_data%PreDeclareVariable("perturbation", perturbation)
@@ -97,15 +93,87 @@ and notice the added PSyData calls, e.g.:
     CALL extract_psy_data%ProvideVariable("perturbation_post", perturbation)
     CALL extract_psy_data%PostEnd
 
-## Step 6: Run the application and examine the output
+
+## Step 5: Run the application
 After running the application using:
 
     ./time_evolution
 
-you should get a new NetCDF file called.
+you should get a new NetCDF file called
+``time_evolution_alg_mod_psy-invoke_propagate_perturbation:prop_perturbation_code:r0.nc``.
+This is just the concatenation of the two parameters to the ``PreStart`` function.
+The long and convoluted name is caused by PSyclone creating unique module and
+local name. You can actually provide a more user friendly name by providing a
+``region_name`` as an option to the transformation. The region name is a pair of strings,
+the first one being a module name, the second a region name. The options are provided
+as an additional dictionary with "region" as key, and first a module name, then a local
+name. You could use:
 
-## Step 7: Optional: use other PSyData libraries
-The following wrapper can be used:
+    {"region_name": ("time_evolution", "propagate")}
 
-...
+Add this dictionary to your transformation script, and rebuild your application. You
+have to do a
+
+    make -f Makefile.extract clean
+
+since the Makefile does not have a dependency on your script (though it would be
+recommended to add this to the Makefile so that a change in your script automatically
+triggers that PSyclone is run again).
+
+You should now see that the psy-layer contains:
+
+    CALL extract_psy_data%PreStart("time_evolution", "propagate", 7, 2)
+
+I.e. it uses the names you have provided, and running the binary will now create
+a NetCDF file called ``time_evolution-propagate.nc``.
+
+## Step 6: Examining the output
+
+The NetCDF command ``ncdump`` can be used to check the content of the created file:
+
+    ncdump time_evolution-propagate.nc | less
+
+You will see that the dimension are defined for the fields used. Some variables
+are listed with the prefix ``post``, e.g. ``perturbation_post``. These are the
+values of the variable after the kernel call, so it allows the NetCDF file
+to store perturbation as input parameter (just ``perturbation``), and its
+values after the kernel (``perturbation_post``).
+
+At this stage no driver is created that can read in the file.
+
+
+## Step 7: Optional: Instrument more than one invoke
+
+The transformation script can be slightly change to instrument all invokes
+in a file. While this might not be useful for kernel extraction, it is
+essential for say parameter verification. Use the template ``instrument_all.py``
+to apply the extraction transformation to all invokes. This script actually
+requires less changes than the ``transform_one.py`` template.
+Following the same process, just using this more general transformation script,
+will result in a binary that creates two NetCDF files at run time.
+
+## Step 8: Try other PSyData libraries
+The following set of PSyData libraries is available and can be tested.
+
+### Readonly Verification
+This library makes sure that read-only parameter are not modified. The compiler
+should make sure that a variable declared with ``intent(in)`` is not explicitly
+overwritten, but a memory overwrite because of an out-of-bound access to a
+different array is still possible. To import the transformation use:
+
+    from psyclone.psyir.transformations import ReadOnlyVerifyTrans
+
+and in general a variation of the ``transform_all.py`` script. If you run
+this script, nothing happens. To see that the verification is working, set
+the environment variable ``PSYDATA_VERBOSE`` to either 1 or 2 - the latter
+will provide more output including each variable that is checked:
+
+   PSYDATA_VERBOSE=2 ./time_evolution
+
+If you are really daring you can modify ``prop_perturbation_kernel_mod.f90``.
+It contains some commented out code at the bottom that will overwrite
+a read-only field by using out-of-bounds array accesses (obviously you
+need make sure the compiler is not doing array bounds checking).
+
+
 
