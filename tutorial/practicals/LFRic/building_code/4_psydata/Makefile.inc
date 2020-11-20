@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
-# Modified by J. Henrichs, Bureau of Meterology
+# Modified by J. Henrichs, Bureau of Meteorology
 
 # Compiler settings
 F90 ?= gfortran
