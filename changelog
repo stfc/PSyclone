@@ -217,6 +217,17 @@
         69) PR #970 for #955. Use Jinja to generate the netcdf extraction
         library for the GOcean API.
 
+        70) PR #986 for #819. Adds support for NetCDF data extraction
+        for the LFRic API.
+
+	71) PR #964 for #933. Adds nemo practical 'hands-on' tutorial
+	documentation and examples.
+
+        72) PR #905 for #989. Adds PSyData wrapper libraries for dl_esm_inf
+        and LFRic that provide NAN/infinity checking for real inputs/outputs
+        to a kernel. Also adds the NanTestNode and a NanTestTrans (which
+        inserts an instance of the former).
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include

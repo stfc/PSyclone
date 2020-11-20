@@ -66,7 +66,8 @@ script:
   - ( make -C examples notebook )
   # Execute the tutorial 'solutions' scripts
   - ( make -C tutorial/practicals/LFRic test  > /dev/null )
-  after_success:
+  - ( make -C tutorial/practicals/nemo test  > /dev/null )
+after_success:
   - codecov
 # Configure travis to deploy to the pypi server when a new
 # version is tagged on master

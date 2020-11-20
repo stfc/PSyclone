@@ -52,6 +52,7 @@ from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.extract_node import ExtractNode
 from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
+from psyclone.psyir.nodes.nan_test_node import NanTestNode
 from psyclone.psyir.nodes.profile_node import ProfileNode
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.read_only_verify_node import ReadOnlyVerifyNode
@@ -78,6 +79,7 @@ __all__ = [
         'KernelSchedule',
         'Literal',
         'Loop',
+        'NanTestNode',
         'NaryOperation',
         'Node',
         'Operation',
