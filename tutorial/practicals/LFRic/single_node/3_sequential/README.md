@@ -42,7 +42,7 @@ as an argument when the transformation is created:
     ftrans = DynamoLoopFuseTrans(same_space=True)
 ```
 
-Rerun psyclone. You should now see that all the loops have been fused
+Rerun PSyclone. You should now see that all the loops have been fused
 together so that the resulting schedule contains just one loop.
 
 ## Kernel constants ##
@@ -73,7 +73,7 @@ The resultant modified kernel code is output in the same directory as
 this file by default e.g. `apply_variable_hx_kernel_0_mod.f90`.
 
 If you take a look at the modified code you should see that
-e.g. `nevels` is now an integer parameter set to `20`.
+e.g. `nlevels` is now an integer parameter set to `20`.
 
 Feel free to play with the values in the `kernel_constants.py` script
 and check whether the values change in the modified kernel code as
@@ -107,8 +107,8 @@ where the relevant file should be the one with the largest value of
 `[NUM]` (as that is the latest transformed file). You should see that
 the `matmul` has been replaced within this file.
 
-If you noticed that the new loop indices `i` and `j` are not declared,
-well done. This is a bug in the transformation.
+If you noticed that the new loop indices `i` and `j` are not
+explicitly declared, well done. This is a bug in the transformation.
 
 ## Mixing kernel transformations ##
 

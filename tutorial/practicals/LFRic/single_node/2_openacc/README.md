@@ -57,7 +57,7 @@ reason for this is because OpenACC requires any subroutines called
 within in OpenACC parallel region (within `KERNELS` or `PARALLEL`
 directives) to contain an `OpenACC ROUTINE` directive. Let's add one in.
 
-Create an OpenACC `ROUTINE` transformation, adding it after to the
+Create an OpenACC `ROUTINE` transformation, adding it after the
 existing `kernels_trans = ACCKernelsTrans()` transformation
 
 ```python

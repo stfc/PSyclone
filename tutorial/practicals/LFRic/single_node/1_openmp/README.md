@@ -11,7 +11,7 @@ model and is one of the most computationally costly sections of the
 LFRic dynamical core. Note that all of the executable code has been
 removed apart from the invoke call that we are interested in.
 
-Note, for the timebeing, please ignore the Fortran file provided in
+Note, for the time being, please ignore the Fortran file provided in
 the same directory as this `README.md` file. That will be used later.
 
 It is probably worth reminding yourself of the content of the invoke call:
@@ -135,7 +135,7 @@ existing "OpenMP" loop in the script - that should remain.)
                 ctrans.apply(loop)
 ```
 
-The `loop` `field_space` method returns the information about which
+The `loop.field_space` method returns the information about which
 function space is being used to determine the iteration space of the
 loop. The `orig_name` method returns the original name of that
 function space as specified in the kernel metadata. This is not a

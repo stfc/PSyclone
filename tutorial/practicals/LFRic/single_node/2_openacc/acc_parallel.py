@@ -62,7 +62,7 @@ def trans(psy):
 
         schedule = invoke.schedule
 
-        # Apply kernels directives to any loops nodes that are
+        # Apply kernels directives to any loop nodes that are
         # children of the schedule node.
         for loop in schedule.loops():
             kernels_trans.apply([loop])
