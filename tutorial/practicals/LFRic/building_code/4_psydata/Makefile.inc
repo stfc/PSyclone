@@ -52,23 +52,23 @@ PSYCLONE_CMD = -nodm -l all
 # Executable
 EXEC = time_evolution
 
+# Settings from the PSyData-specific library are done by the
+# Makefile including this file.
+PSYDATA_LIB=$(PSYDATA_PATH)/lib_$(PSYDATA_LIB_NAME).a
+F90FLAGS += -I $(PSYDATA_PATH)
+
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME = lfric_netcdf
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
-F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
+F90FLAGS += -I$(LFRIC_PATH) $$(nf-config --fflags)
 
 # GungHo auxiliary libraries
 GHLIB_PATH = gungho_lib
 GHLIB_NAME = gungho
 GHLIB_LIB = $(GHLIB_PATH)/lib$(GHLIB_NAME).a
 F90FLAGS += -I$(GHLIB_PATH)
-
-# Settings from the PSyData-specific library are done by the
-# Makefile including this file.
-PSYDATA_LIB=$(PSYDATA_PATH)/lib_$(PSYDATA_LIB_NAME).a
-F90FLAGS += -I $(PSYDATA_PATH)
 
 # Object rules
 DRIVER_OBJ = $(filter %.o,$(DRIVER_SRC:.f90=.o))
