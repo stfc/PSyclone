@@ -33,14 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel extraction code to
-the invokes. When the transformed program is compiled and run, it
-will create one NetCDF file for each of the two invokes. A separate
-driver program is also created for each invoke which can read the
-created NetCDF files, execute the invokes and then compare the results.
-At this stage it does not compile (TODO: #644), and the comparison is
-missing (TODO: #647)
+'''Python script intended to be passed to PSyclone using the -s option.
+This is a template that doesn't do anything, but it contains the
+framework to find a certain invoke.
 '''
 
 from __future__ import print_function
@@ -51,20 +46,35 @@ def trans(psy):
     Take the supplied psy object, and add kernel extraction code.
 
     :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
+    :type psy: :py:class:`psyclone.psyGen.PSy`
 
     :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
+    :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    from psyclone.psyir.transformations import ExtractTrans
-    extract = ExtractTrans()
 
-    invoke = psy.invokes.get("invoke_propagate_perturbation")
+    # ------------------------------------------------------
+    # TOOD: import the transformation and create an instance
+    # ------------------------------------------------------
+    # from ... import
+    # my_transform = ...()
+
+
+    # ------------------------------------------------------
+    # TODO: use the name that is specified for the perturbation
+    # propagation invoke here. Note that it will get a "invoke_"
+    # as prefix!
+    # ------------------------------------------------------
+    invoke = psy.invokes.get("")
+
+    # Now get the schedule, to which we want to apply the transformation
     schedule = invoke.schedule
 
-    # Enclose everything in a extract region
+    # Apply the transformation
     extract.apply(schedule)
 
+    # Just as feedback: show the modified schedule, which should have
+    # a new node at the top:
     schedule.view()
+
     return psy

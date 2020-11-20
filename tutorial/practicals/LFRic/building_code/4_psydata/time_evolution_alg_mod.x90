@@ -81,7 +81,7 @@ contains
     !   perturbation = ampl(z)* exp( -((x - x_centre)/half_width_x)**2 &
     !                                -((y - y_centre)/half_width_y)**2 )
     !   where ampl(z) = max(perturbation_height - z, 0)/perturbation_scale
-    call invoke( name = "Initialise perturbation",  &
+    call invoke( name = "initialise_perturbation",  &
                  setval_c(perturbation, 0.0_r_def), &
                  init_perturbation_kernel_type(perturbation, chi) )
     !---------------------------------------------------------------------------
@@ -126,7 +126,7 @@ contains
     !                       -((y - y_centre - v_vel*t_tot)/half_width_y)**2 )
     !   where ampl(z) = max(perturbation_height - z, 0)/perturbation_scale
      t_tot = tstep*dt
-     call invoke( name = "Propagate perturbation",  &
+     call invoke( name = "propagate_perturbation",  &
                   prop_perturbation_kernel_type(perturbation, chi, t_tot) )
     !---------------------------------------------------------------------------
 

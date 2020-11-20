@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meterology
 
 # Compiler settings
 F90 ?= gfortran
@@ -43,6 +44,7 @@ ALGORITHMS = $(wildcard *_alg_mod.x90)
 ALGORITHM_SRC = $(ALGORITHMS:.x90=.f90)
 PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
 KERNEL_SRC = $(wildcard *_kernel_mod.f90)
+
 
 # PSyclone command-line options
 PSYCLONE_CMD = -nodm -l all
@@ -70,6 +72,11 @@ PSY_OBJ = $(filter %.o,$(PSY_SRC:.f90=.o))
 KERNEL_OBJ = $(filter %.o,$(KERNEL_SRC:.F90=.o) $(KERNEL_SRC:.f90=.o))
 EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
 
+# Settings from the PSyData-specific library are done by the
+# Makefile including this file.
+PSYDATA_LIB=$(PSYDATA_PATH)/lib_$(PSYDATA_LIB_NAME).a
+F90FLAGS += -I $(PSYDATA_PATH)
+
 # Targets
 .PHONY: build test clean
 
@@ -77,7 +84,7 @@ build: test $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(GHLIB_LIB) $(EXAMPLE_OBJ)
 	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) \
-	-l$(LFRIC_NAME) $$(nf-config --flibs) -L$(GHLIB_PATH) -l$(GHLIB_NAME)
+	-l$(LFRIC_NAME) -L$(PSYDATA_PATH) -l$(PSYDATA_LIB_NAME) $$(nf-config --flibs) -L$(GHLIB_PATH) -l$(GHLIB_NAME)
 
 $(GHLIB_LIB):
 	$(MAKE) -C $(GHLIB_PATH)
@@ -108,11 +115,9 @@ test: $(PSY_SRC) $(ALGORITHM_SRC)
 	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
 	-opsy $*_psy.f90 -oalg $*.f90 $<
 
-time_evolution_alg_mod_psy.f90: time_evolution_alg_mod.x90
-	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
-	-s ./extract_transform.py -opsy time_evolution_alg_mod_psy.f90 -oalg $*.f90 time_evolution_alg_mod.x90
-
 clean:
 	rm -f *.o *.mod *.txt $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
+
+allclean: clean
 	make -C $(GHLIB_PATH) clean
 	make -C $(LFRIC_PATH) clean

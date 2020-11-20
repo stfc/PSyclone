@@ -2,47 +2,62 @@
 
 In this example you will use some of the available PSyData
 transformation to instrument the previous LFRic example.
+Initially we will be using kernel extraction as an example,
+but a list of other applications is provided.
+
 
 ## Step 1: Compile all required PSyData libraries
-Change directory to PSyclone's lib directory, and trigger
-all compilations
+Change directory to PSyclone's ``lib`` directory, and trigger
+compilation of all PSyData libraries.
 
-    cd $PYTHONHOME/lib
+    cd $PSYCLONEHOME/lib
     make all
 
+You need the NetCDF development package installed, the makefiles
+will be using ``nf-config`` to get the appropriate compiler and
+linker flags. Additionalompiler and compiler flags can be provided
+using the environment variables F90 and F90FLAGS:
+
+    F90=ifort F90flags="-O2 -traceback" make all
+
+By default gfortran will be used.
+
+
 ## Step 2: Create a transformation script
-This transformation script will be passed in as a parameter
-to PSyclone when building the application. Initially we
-will only transform the kernel in time_evolution_alg_mod.f90.
+This transformation script will be used as a parameter
+to PSyclone when building the application. It will insert
+code to extract input- and output-data of a kernel. Initially
+we will only transform the kernel in ``time_evolution_alg_mod.f90``.
 Use the simple script ``transform_one.py`` as a template
-to create a new transformation script that applies one of
-the following PSyData transformations;
+to create a new transformation script that applies the
+LFRic-specific kernel extraction transformation. The class
+is contained in ``psyclone.domain.lfric.transformations``
+and called ``LFRicExtractTrans``.
 
-    from psyclone.domain.lfric.transformations import LFRicExtractTrans
-
-    from psylone.psyir.transformations import ProfileTrans
-
-    from psyclone.psyir.transformations import ReadOnlyVerificationTrans
-    
-    from psyclone.psyir.transformations import NanTestTrans
-
-The ``apply()`` function in this script is called by PSyclone.
-Inside ``apply`` create an instance of the transformation you have picked,
-and apply it to the schedule for "invoke_propagate_perturbation", which
-you can get inside of ``apply`` using:
-
-    invoke = psy.invokes.get("invoke_prop"agate_perturbation")
-    schedule = invoke.schedule
+The ``apply()`` function in this script is called by PSyclone before
+code is created. Inside ``apply`` create an instance of the
+extraction transformation and apply it to the schedule for 
+"invoke_propagate_perturbation". The template contains
+most of the required calls, you only need to fill in the details.
 
 ## Step 3: Modify the makefile to use the script
 
-The makefile already contains a separate rule for the file
-time_evolution_alg_mod.x90. You need to add the ``-s`` flag
-to PSyclone and provide the name of your script.
+There is a set of makefiles provided in this directory, one for
+each of the available PSyData transformation. They all include
+``Makefile.inc`` which defines all of the rules, the PSyData-specific
+makefiles just supply different settings for compiling and linking
+with the PSyData libraries.
 
-You then also need to provide the include path to the corresponding
-wrapper library in F90FLAGS, and the location and name of the library
-to link with.
+Each of the makefile already contains a separate rule for the file
+``time_evolution_alg_mod.x90``. For this part of the exercise,
+add the ``-s`` flag to the ``psycline`` invocation in
+``Makefile.extract`` and provide the name of your script so
+that PSyclone will invoke it. You can the create your application
+using:
+
+    make -f Makefile.extract
+
+
 
 ## Step 4: Compile
 
