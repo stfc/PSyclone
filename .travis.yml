@@ -68,6 +68,7 @@ script:
   # (just PSyclone part of compilation)
   - ( make -C tutorial/practicals/LFRic/building_code test > /dev/null )
   # Execute the tutorial 'solutions' scripts
+  - ( make -C tutorial/practicals/LFRic test  > /dev/null )
   - ( make -C tutorial/practicals/nemo test  > /dev/null )
 after_success:
   - codecov
