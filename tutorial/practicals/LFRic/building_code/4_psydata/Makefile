@@ -34,13 +34,12 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 
+# We want to avoid that a user accidentally starts this Makefile, since then
+# unexpected transformations might be applied. So we disable the default
+# target here and ask the user to select a different Makefile.
 default:
 	@echo "Please use one of the transformation-specific Makefiles, e.g."
 	@echo "make -f Makefile.extract"
 
+# This will define a 'test' target, that tutorial checking will use
 include Makefile.inc
-
-time_evolution_alg_mod_psy.f90: time_evolution_alg_mod.x90 nan_all_trans.py
-	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
-	-s ./solutions/nan_all_trans.py -opsy time_evolution_alg_mod_psy.f90              \
-	-oalg time_evolution_alg_mod.f90 time_evolution_alg_mod.x90
