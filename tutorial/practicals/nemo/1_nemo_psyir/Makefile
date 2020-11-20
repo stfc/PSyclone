@@ -31,8 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author: A. R. Porter, STFC Daresbury Lab
 
-EXAMPLES=$(wildcard eg*) scripts $(wildcard full_example*)
+.PHONY: test
 
-include ../top_level.mk
+test:
+	psyclone -api nemo -s ./schedule_view_trans.py -opsy /dev/null tra_adv.F90

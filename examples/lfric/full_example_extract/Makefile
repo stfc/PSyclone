@@ -31,8 +31,64 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author: J. Henrichs, Bureau of Meteorology
+# Modifications: A. R. Porter, STFC Daresbury Laboratory
 
-EXAMPLES=$(wildcard eg*) scripts $(wildcard full_example*)
+# The compiler to use may be specified via the F90 environment
+#
+# export F90=gfortran
+# export F90FLAGS="-Wall -g -fcheck=bound"
+include ../../common.mk
 
-include ../top_level.mk
+.DEFAULT_GOAL := $(EXEC)
+
+GENERATED_FILES = main_psy.f90 main_alg.f90
+
+F90 ?= gfortran
+F90FLAGS ?= -Wall -g
+
+OBJ = main_psy.o main_alg.o testkern_w0_mod.o
+
+EXEC = extract
+EXTRACT_DIR ?= ../../../lib/extract/netcdf/lfric
+EXTRACT_NAME =_kernel_data_netcdf
+EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
+LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_NAME=lfric
+LFRIC_LIB=$(LFRIC_DIR)/lib$(LFRIC_NAME).a
+
+F90FLAGS += -I$(LFRIC_DIR) -I$(EXTRACT_DIR)
+
+default: $(EXEC)
+
+$(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(EXTRACT_DIR) -l$(EXTRACT_NAME) \
+	      -L$(LFRIC_DIR) -l$(LFRIC_NAME) $$(nf-config --flibs)
+
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_DIR)
+
+$(EXTRACT_LIB):
+	$(MAKE) -C $(EXTRACT_DIR)
+
+# Dependencies
+main_psy.o:	testkern_w0_mod.o
+main_alg.o:	main_psy.o
+
+%.o: %.F90
+	$(F90) $(F90FLAGS) -c $<
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
+
+# Keep the generated psy and alg files
+.precious: main_psy.f90 main_alg.f90
+
+main_alg.f90: main_psy.f90
+
+%_psy.f90:	%.x90
+	${PSYCLONE} -s ./extract_transform.py \
+	-nodm -opsy $*_psy.f90 -oalg $*_alg.f90 $<
+
+clean:
+	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90 main-update.nc

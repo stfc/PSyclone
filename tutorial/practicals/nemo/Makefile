@@ -31,8 +31,16 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author: A. R. Porter, STFC Daresbury Lab
 
-EXAMPLES=$(wildcard eg*) scripts $(wildcard full_example*)
+# Top-level Makefile to test all of the NEMO hands-on tutorials.
 
-include ../top_level.mk
+TUTORIAL_DIRS = $(wildcard ?_nemo_*)
+
+.PHONY: test ${TUTORIAL_DIRS}
+
+test: ${TUTORIAL_DIRS}
+
+${TUTORIAL_DIRS}:
+	${MAKE} -C $@ test
+

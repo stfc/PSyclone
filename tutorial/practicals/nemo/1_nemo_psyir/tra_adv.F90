@@ -1,12 +1,44 @@
-   !!=====================================================================================
-   !! ***  traadv kernel extracted from the NEMO software (http://www.nemo-ocean.eu ) ***
-   !! ***          governed by the CeCILL licence (http://www.cecill.info)            ***
-   !!                                                   
-   !! ***                             IS-ENES2 - CMCC/STFC                            ***
-   !!=====================================================================================
+!!=====================================================================================
+!! ***  traadv kernel extracted from the NEMO software (http://www.nemo-ocean.eu ) ***
+!! ***          governed by the CeCILL licence (http://www.cecill.info)            ***
+!!
+!! ***                             IS-ENES2 - CMCC/STFC                            ***
+!!=====================================================================================
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Modifications copyright (c) 2020, Science and Technology Facilities
+! Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Modified by A. R. Porter, STFC Daresbury Lab
+
 PROGRAM tra_adv
-   USE dl_timer, only: timer_init, timer_register, timer_start, timer_stop, &
-       timer_report
    USE iso_c_binding, only: C_INT64_T
    ! The below should be e.g. wp = KIND(1.0d0) but PSyclone does not support
    ! the KIND intrinsic yet: TODO #585.
@@ -25,8 +57,6 @@ PROGRAM tra_adv
    ! not yet support such syntax.
    INTEGER(KIND=C_INT64_T) :: it
    CHARACTER(len=10) :: env
-   !> Timer indexes, one for initialisation, one for the 'time-stepping'
-   INTEGER :: init_timer, step_timer
 
    CALL get_environment_variable("JPI", env)
    READ ( env, '(i10)' ) jpi
@@ -37,15 +67,16 @@ PROGRAM tra_adv
    CALL get_environment_variable("IT", env)
    READ ( env, '(i10)' ) it
 
-   ! Set-up our timers
-
-   CALL timer_init()
-   CALL timer_register(init_timer, label='Initialisation')
-   CALL timer_register(step_timer, label='Time-stepping', num_repeats=it)
+   IF(jpi < 1) STOP 'Width of grid, JPI, must be > 0'
+   IF(jpj < 1) STOP 'Height of grid, JPJ, must be > 0'
+   IF(jpk < 1) STOP 'Depth of grid, JPK, must be > 0'
+   IF(it < 1) STOP  'Number of iterations, IT, must be > 0'
+   
+   WRITE (*, "('Tracer-advection Mini-app:')")
+   WRITE (*, "('Domain is ', I4, 'x', I4, ' grid points')") jpi, jpj
+   WRITE (*, "('Performing ', I4, ' iterations')") it
 
    ! Initialisation
-
-   call timer_start(init_timer)
 
    ALLOCATE( mydomain (jpi,jpj,jpk))
    ALLOCATE( zwx (jpi,jpj,jpk))
@@ -102,12 +133,9 @@ PROGRAM tra_adv
       rnfmsk_z(jk)=jk/jpk
    END DO
 
-   call timer_stop(init_timer)
-
 !***********************
 !* Start of the symphony
 !***********************
-   call timer_start(step_timer)
 
    DO jt = 1, it
       DO jk = 1, jpk
@@ -256,8 +284,6 @@ PROGRAM tra_adv
       END DO
    END DO
 
-   call timer_stop(step_timer)
-
    OPEN(unit = 4, file = 'output.dat', form='formatted')
   
    DO jk = 1, jpk-1
@@ -288,6 +314,6 @@ PROGRAM tra_adv
    DEALLOCATE( rnfmsk_z)
    DEALLOCATE( tsn)
 
-   CALL timer_report()
+   WRITE (*, "('Mini-app finished.')")
 
 END PROGRAM tra_adv

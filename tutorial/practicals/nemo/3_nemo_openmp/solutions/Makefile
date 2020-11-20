@@ -31,8 +31,24 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author: A. R. Porter, STFC Daresbury Lab
 
-EXAMPLES=$(wildcard eg*) scripts $(wildcard full_example*)
+# Makefile to test the example transfromation scripts contained in
+# this directory.
 
-include ../top_level.mk
+.PHONY: clean test
+
+TARGET = psy.f90
+
+test:
+	${MAKE} clean
+	${MAKE} TRANS_SCRIPT=solutions/omp_trans.py -C ../ ${TARGET}
+	${MAKE} clean
+	${MAKE} TRANS_SCRIPT=solutions/all_levels_loops_omp_trans.py -C ../ ${TARGET}
+	${MAKE} clean
+	${MAKE} TRANS_SCRIPT=solutions/parallel_region_omp_trans.py -C ../ ${TARGET}
+	${MAKE} clean
+	${MAKE} TRANS_SCRIPT=solutions/general_parallel_region_omp_trans.py -C ../ ${TARGET}
+
+clean:
+	${MAKE} -C ../ clean

@@ -31,8 +31,53 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author: A. R. Porter, STFC Daresbury Lab
 
-EXAMPLES=$(wildcard eg*) scripts $(wildcard full_example*)
+.PHONY: clean allclean test
 
-include ../top_level.mk
+# We use the PSyData simple_timing implementation since it has no
+# dependencies.
+PROFILE_DIR ?= ../../../../lib/profiling/simple_timing
+PROFILE_LINK = -lsimple_timing
+PROFILE_LIB = ${PROFILE_DIR}/libsimple_timing.a
+
+NAME = tra_adv.exe
+
+# Use gfortran by default
+F90 ?= gfortran
+
+$(NAME): $(KERNELS) psy.o runner.o
+	$(F90) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
+
+psy.f90: tra_adv_mod.F90
+	psyclone --profile invokes -api nemo \
+                     -opsy psy.f90 -l output tra_adv_mod.F90
+#	psyclone -s ./profile_trans.py -api nemo \
+#                     -opsy psy.f90 -l output tra_adv_mod.F90
+
+# Make sure the infrastructure library is compiled, so the mods are found
+$(KERNELS): $(INF_LIB)
+
+# Creating psy.o and runner.o requires that the profiling lib be compiled
+runner.o psy.o: ${PROFILE_LIB}
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -I $(PROFILE_DIR) -c $<
+
+${PROFILE_LIB}:
+	${MAKE} -C ${PROFILE_DIR}
+
+clean:
+	rm -f psy.f90 *.o *.mod
+
+allclean: clean
+	rm -f ${NAME}
+	${MAKE} -C ${PROFILE_DIR}  clean
+
+test:
+	psyclone --profile invokes -api nemo \
+                     -opsy psy.f90 -l output tra_adv_mod.F90
+	psyclone -s ./profile_trans.py -api nemo \
+                     -opsy psy.f90 -l output tra_adv_mod.F90
+	psyclone -s ./solutions/named_profile_trans.py -api nemo \
+                     -opsy psy.f90 -l output tra_adv_mod.F90

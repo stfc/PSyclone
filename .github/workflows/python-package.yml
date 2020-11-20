@@ -80,6 +80,9 @@ jobs:
       run: |
         ( make -C examples transform > /dev/null )
         ( make -C examples notebook )
+    - name: Run NEMO tutorials
+      run: |
+        ( make -C tutorial/practicals/nemo test > /dev/null)
     - name: Run LFRic tutorials on building code
       run: |
         ( make -C tutorial/practicals/LFRic/building_code test > /dev/null)

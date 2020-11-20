@@ -3,10 +3,12 @@
    !! ***          governed by the CeCILL licence (http://www.cecill.info)            ***
    !!                                                   
    !! ***                             IS-ENES2 - CMCC/STFC                            ***
-   !!=====================================================================================
-PROGRAM tra_adv
-   USE dl_timer, only: timer_init, timer_register, timer_start, timer_stop, &
-       timer_report
+!!=====================================================================================
+module tra_adv_mod
+
+contains
+
+subroutine tra_adv()
    USE iso_c_binding, only: C_INT64_T
    ! The below should be e.g. wp = KIND(1.0d0) but PSyclone does not support
    ! the KIND intrinsic yet: TODO #585.
@@ -37,15 +39,17 @@ PROGRAM tra_adv
    CALL get_environment_variable("IT", env)
    READ ( env, '(i10)' ) it
 
-   ! Set-up our timers
-
-   CALL timer_init()
-   CALL timer_register(init_timer, label='Initialisation')
-   CALL timer_register(step_timer, label='Time-stepping', num_repeats=it)
+   IF(jpi < 1) STOP 'Width of grid, JPI, must be > 0'
+   IF(jpj < 1) STOP 'Height of grid, JPJ, must be > 0'
+   IF(jpk < 1) STOP 'Depth of grid, JPK, must be > 0'
+   IF(it < 1) STOP  'Number of iterations, IT, must be > 0'
+   
+   WRITE (*, "('Tracer-advection Mini-app:')")
+   WRITE (*, "('Domain is ', I4, ' x', I4, ' grid points with ', I3, &
+             & ' vertical levels')") jpi, jpj, jpk
+   WRITE (*, "('Performing ', I4, ' iterations')") it
 
    ! Initialisation
-
-   call timer_start(init_timer)
 
    ALLOCATE( mydomain (jpi,jpj,jpk))
    ALLOCATE( zwx (jpi,jpj,jpk))
@@ -102,12 +106,9 @@ PROGRAM tra_adv
       rnfmsk_z(jk)=jk/jpk
    END DO
 
-   call timer_stop(init_timer)
-
 !***********************
 !* Start of the symphony
 !***********************
-   call timer_start(step_timer)
 
    DO jt = 1, it
       DO jk = 1, jpk
@@ -256,8 +257,6 @@ PROGRAM tra_adv
       END DO
    END DO
 
-   call timer_stop(step_timer)
-
    OPEN(unit = 4, file = 'output.dat', form='formatted')
   
    DO jk = 1, jpk-1
@@ -288,6 +287,8 @@ PROGRAM tra_adv
    DEALLOCATE( rnfmsk_z)
    DEALLOCATE( tsn)
 
-   CALL timer_report()
+   WRITE (*, "('Mini-app finished.')")
 
-END PROGRAM tra_adv
+END SUBROUTINE tra_adv
+
+end module tra_adv_mod

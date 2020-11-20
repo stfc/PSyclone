@@ -31,8 +31,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author: A. R. Porter, STFC Daresbury Lab
 
-EXAMPLES=$(wildcard eg*) scripts $(wildcard full_example*)
+# Set environment variables required to define the domain size and number of
+# time steps for the tra_adv benchmark.
+setenv JPK 30
+setenv JPJ 100
+setenv JPI 100
+setenv IT 10
 
-include ../top_level.mk
