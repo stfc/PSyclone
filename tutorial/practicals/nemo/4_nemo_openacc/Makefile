@@ -31,58 +31,61 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Laboratory
+# Author: A. R. Porter, STFC Daresbury Lab
 
-# The compiler to use may be specified via the F90 environment
-#
-# export F90=gfortran
-# export F90FLAGS="-Wall -g -fcheck=bound"
-include ../../common.mk
+# Makefile for the PSyclone NEMO OpenACC tutorial.
 
-.DEFAULT_GOAL := $(EXEC)
+# By default we only generate the transformed code
+.DEFAULT_GOAL := psy.f90
 
-GENERATED_FILES = main_psy.f90 main_alg.f90
+# The PSyclone transformation script to use
+TRANS_SCRIPT ?= ./kernels_trans.py
 
+# Use gfortran by default
 F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound
+F90FLAGS ?= -fopenacc -O2
 
-OBJ = main_psy.o main_alg.o testkern_w0_mod.o
+# For NVIDIA we could use:
+# F90FLAGS = -acc -ta=tesla -O2 -Minfo=all
+# F90 = nvfortran
 
-EXEC = example
-LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
+# We use the PSyData simple_timing implementation since it has no
+# dependencies.
+PROFILE_DIR ?= ../../../../lib/profiling/simple_timing
+PROFILE_LINK = -lsimple_timing
+PROFILE_LIB = ${PROFILE_DIR}/libsimple_timing.a
 
-F90FLAGS += -I$(LFRIC_PATH)
+# ------------------------------------------------------------------------------
+NAME = tra_adv.exe
 
-compile: $(EXEC)
+.PHONY: clean allclean test
 
-$(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+$(NAME): $(KERNELS) psy.o runner.o
+	$(F90) $(F90FLAGS) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
 
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
+# Target that uses PSyclone to generate 'psy.f90'
+psy.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
+	psyclone -s ${TRANS_SCRIPT} -api nemo \
+                     -opsy psy.f90 -l output tra_adv_mod.F90
 
-# Dependencies
-main_psy.o:	testkern_w0_mod.o
-main_alg.o:	main_psy.o
+# Make sure the infrastructure library is compiled, so the mods are found
+$(KERNELS): $(INF_LIB)
 
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
+# Creating psy.o and runner.o requires that the profiling lib be compiled
+runner.o psy.o: ${PROFILE_LIB}
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) -I $(PROFILE_DIR) -c $<
 
-# Keep the generated psy and alg files
-.precious: main_psy.f90 main_alg.f90
-
-main_alg.f90: main_psy.f90
-
-transform: main_psy.f90
-
-%_psy.f90:	%.x90
-	${PSYCLONE} -opsy $*_psy.f90 -oalg $*_alg.f90 $<
+${PROFILE_LIB}:
+	${MAKE} -C ${PROFILE_DIR}
 
 clean:
-	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
+	rm -f psy.f90 *.o *.mod
+
+allclean: clean
+	rm -f ${NAME}
+	${MAKE} -C ${PROFILE_DIR}  clean
+
+test:
+	${MAKE} -C solutions test

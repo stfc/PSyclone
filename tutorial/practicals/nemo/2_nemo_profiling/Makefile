@@ -31,58 +31,53 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Laboratory
+# Author: A. R. Porter, STFC Daresbury Lab
 
-# The compiler to use may be specified via the F90 environment
-#
-# export F90=gfortran
-# export F90FLAGS="-Wall -g -fcheck=bound"
-include ../../common.mk
+.PHONY: clean allclean test
 
-.DEFAULT_GOAL := $(EXEC)
+# We use the PSyData simple_timing implementation since it has no
+# dependencies.
+PROFILE_DIR ?= ../../../../lib/profiling/simple_timing
+PROFILE_LINK = -lsimple_timing
+PROFILE_LIB = ${PROFILE_DIR}/libsimple_timing.a
 
-GENERATED_FILES = main_psy.f90 main_alg.f90
+NAME = tra_adv.exe
 
+# Use gfortran by default
 F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound
 
-OBJ = main_psy.o main_alg.o testkern_w0_mod.o
+$(NAME): $(KERNELS) psy.o runner.o
+	$(F90) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
 
-EXEC = example
-LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
+psy.f90: tra_adv_mod.F90
+	psyclone --profile invokes -api nemo \
+                     -opsy psy.f90 -l output tra_adv_mod.F90
+#	psyclone -s ./profile_trans.py -api nemo \
+#                     -opsy psy.f90 -l output tra_adv_mod.F90
 
-F90FLAGS += -I$(LFRIC_PATH)
+# Make sure the infrastructure library is compiled, so the mods are found
+$(KERNELS): $(INF_LIB)
 
-compile: $(EXEC)
-
-$(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
-
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
-
-# Dependencies
-main_psy.o:	testkern_w0_mod.o
-main_alg.o:	main_psy.o
-
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
+# Creating psy.o and runner.o requires that the profiling lib be compiled
+runner.o psy.o: ${PROFILE_LIB}
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) -I $(PROFILE_DIR) -c $<
 
-# Keep the generated psy and alg files
-.precious: main_psy.f90 main_alg.f90
-
-main_alg.f90: main_psy.f90
-
-transform: main_psy.f90
-
-%_psy.f90:	%.x90
-	${PSYCLONE} -opsy $*_psy.f90 -oalg $*_alg.f90 $<
+${PROFILE_LIB}:
+	${MAKE} -C ${PROFILE_DIR}
 
 clean:
-	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
+	rm -f psy.f90 *.o *.mod
+
+allclean: clean
+	rm -f ${NAME}
+	${MAKE} -C ${PROFILE_DIR}  clean
+
+test:
+	psyclone --profile invokes -api nemo \
+                     -opsy psy.f90 -l output tra_adv_mod.F90
+	psyclone -s ./profile_trans.py -api nemo \
+                     -opsy psy.f90 -l output tra_adv_mod.F90
+	psyclone -s ./solutions/named_profile_trans.py -api nemo \
+                     -opsy psy.f90 -l output tra_adv_mod.F90

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,47 +31,51 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
-# -----------------------------------------------------------------------------
+# Author: J. Henrichs, Bureau of Meteorology
 
-'''This module provides the Profile transformation.
+'''Python script intended to be passed to PSyclone via the -s option.
+It adds kernel extraction code to
+the invokes. When the transformed program is compiled and run, it
+will create one NetCDF file for each of the two invokes. A separate
+driver program is also created for each invoke which can read the
+created NetCDF files, execute the invokes and then compare the results.
+At this stage it does not compile (TODO: #644), and the comparison is
+missing (TODO: #647)
 '''
 
-from psyclone.psyir.nodes import Return, ProfileNode
-from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
+from __future__ import print_function
+
+from psyclone.psyir.transformations import ExtractTrans
 
 
-class ProfileTrans(PSyDataTrans):
-    ''' Create a profile region around a list of statements. For
-    example:
+def trans(psy):
+    '''
+    Take the supplied psy object, and add kernel extraction code.
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory, GenerationError
-    >>> from psyclone.psyir.transformations import ProfileTrans
-    >>> api = "gocean1.0"
-    >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>>
-    >>> p_trans = ProfileTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
-    >>>
-    >>> # Enclose all children within a single profile region
-    >>> newschedule, _ = p_trans.apply(schedule.children)
-    >>> newschedule.view()
+    :param psy: the PSy layer to transform.
+    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
 
-    This implementation relies completely on the base class PSyDataTrans
-    for the actual work, it only adjusts the name etc, and the list
-    of valid nodes.
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    # Unlike other transformations we can be fairly relaxed about the nodes
-    # that a region can contain as we don't have to understand them.
-    excluded_node_types = (Return,)
+    extract = ExtractTrans()
 
-    def __init__(self):
-        super(ProfileTrans, self).__init__(ProfileNode)
+    # We don't support builtins yet, so the initialisation
+    # cannot be instrumented, TODO #637
+    # invoke = psy.invokes.get("invoke_initialise_fields")
+    # schedule = invoke.schedule
+    # _, _ = extract.apply(schedule.children,
+    #                      {"create_driver": True,
+    #                       "region_name": ("main", "init")})
+
+    invoke = psy.invokes.get("invoke_testkern_w0")
+    schedule = invoke.schedule
+
+    # Enclose everything in a extract region
+    _, _ = extract.apply(schedule.children,
+                         {"create_driver": True,
+                          "region_name": ("main", "update")})
+
+    schedule.view()
+    return psy
