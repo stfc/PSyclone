@@ -42,7 +42,7 @@ from __future__ import print_function, absolute_import
 import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyGen import PSyFactory, TransInfo, ACCDataDirective
 from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke, Compile
@@ -90,6 +90,18 @@ def test_explicit(parser):
     assert ("  END DO\n"
             "  !$ACC END DATA\n"
             "END PROGRAM explicit_do") in gen_code
+
+
+def test_data_single_node(parser):
+    ''' Check that the ACCDataTrans works if passed a single node rather
+    than a list. '''
+    reader = FortranStringReader(EXPLICIT_DO)
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.get('explicit_do').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    acc_trans.apply(schedule[0])
+    assert isinstance(schedule[0], ACCDataDirective)
 
 
 def test_data_no_gen_code():

@@ -83,6 +83,9 @@ jobs:
     - name: Run LFRic tutorials on building code
       run: |
         ( make -C tutorial/practicals/LFRic/building_code test > /dev/null)
+    - name: Run tutorials
+      run: |
+        ( make -C tutorial/practicals/nemo test > /dev/null)
     - name: Test with pytest
       run: |
         pytest --cov=psyclone --cov-report=xml src/psyclone/tests

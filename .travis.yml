@@ -67,6 +67,8 @@ script:
   # Execute the LFRic tutorials on building code 'solutions' scripts
   # (just PSyclone part of compilation)
   - ( make -C tutorial/practicals/LFRic/building_code test > /dev/null )
+  # Execute the tutorial 'solutions' scripts
+  - ( make -C tutorial/practicals/nemo test  > /dev/null )
 after_success:
   - codecov
 # Configure travis to deploy to the pypi server when a new
