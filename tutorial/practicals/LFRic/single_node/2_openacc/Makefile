@@ -38,3 +38,7 @@
 test:
 	psyclone -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
 	psyclone -s solutions/acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+
+clean:
+	rm -f apply_variable_hx_kernel_*_mod.f90 enforce_bc_kernel_*_mod.f90 \
+              scaled_matrix_vector_kernel_*_mod.f90 psy.f90

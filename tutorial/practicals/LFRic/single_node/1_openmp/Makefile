@@ -41,3 +41,6 @@ test:
 	psyclone -oalg /dev/null -opsy /dev/null -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
 	psyclone -oalg /dev/null -opsy /dev/null -s solutions/omp_script.py ../code/helmholtz_solver_alg_mod.x90
 	psyclone -oalg /dev/null -opsy /dev/null -s solutions/omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
+
+clean:
+	rm -f psy.f90
