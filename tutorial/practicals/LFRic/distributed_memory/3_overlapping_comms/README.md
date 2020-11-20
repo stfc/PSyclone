@@ -66,10 +66,10 @@ As transformations are objects we also need to create an instance of
 ```
 
 If you would like to find out more about this transformation, it is
-documented in our [user guide]
-(https://psyclone.readthedocs.io/en/latest/dynamo0p3.html) (search for
-`Dynamo0p3AsyncHaloExchangeTrans`). Alternatively, if you prefer, a
-pdf of the user guide is also available in <psyclone_home> and is
+documented in our
+[user guide](https://psyclone.readthedocs.io/en/latest/dynamo0p3.html)
+(search for `Dynamo0p3AsyncHaloExchangeTrans`). Alternatively, if you
+prefer, a pdf of the user guide is also available in <psyclone_home> and is
 called psyclone.pdf
 
 Traversing the PSyIR tree is discussed in the [user
