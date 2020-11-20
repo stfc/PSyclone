@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,47 +31,56 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
-# -----------------------------------------------------------------------------
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''This module provides the Profile transformation.
+'''A simple transformation script for the introduction of OpenMP with PSyclone.
+In order to use it you must first install PSyclone. See README.md in the
+top-level psyclone directory.
+
+Once you have PSyclone installed, this script may be used by doing:
+
+ >>> psyclone -api "nemo" -s ./omp_trans.py my_file.F90
+
+This should produce a lot of output, ending with generated
+Fortran.
+
 '''
+from psyclone.psyir.nodes import Loop
+from psyclone.psyGen import Directive
+from psyclone.transformations import OMPParallelLoopTrans, TransformationError
 
-from psyclone.psyir.nodes import Return, ProfileNode
-from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
+# Get the transformation we will apply
+OMP_TRANS = OMPParallelLoopTrans()
 
 
-class ProfileTrans(PSyDataTrans):
-    ''' Create a profile region around a list of statements. For
-    example:
+def trans(psy):
+    ''' Transform a specific Schedule by making all loops
+    over vertical levels OpenMP parallel.
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory, GenerationError
-    >>> from psyclone.psyir.transformations import ProfileTrans
-    >>> api = "gocean1.0"
-    >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>>
-    >>> p_trans = ProfileTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
-    >>>
-    >>> # Enclose all children within a single profile region
-    >>> newschedule, _ = p_trans.apply(schedule.children)
-    >>> newschedule.view()
+    :param psy: the object holding all information on the PSy layer \
+                to be modified.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
 
-    This implementation relies completely on the base class PSyDataTrans
-    for the actual work, it only adjusts the name etc, and the list
-    of valid nodes.
+    :returns: the transformed PSy object
+    :rtype:  :py:class:`psyclone.psyGen.PSy`
 
     '''
-    # Unlike other transformations we can be fairly relaxed about the nodes
-    # that a region can contain as we don't have to understand them.
-    excluded_node_types = (Return,)
+    # Get the Schedule of the target routine
+    sched = psy.invokes.get('tra_adv').schedule
 
-    def __init__(self):
-        super(ProfileTrans, self).__init__(ProfileNode)
+    loops = sched.walk(Loop)
+    for child in loops:
+        if child.loop_type == "levels":
+            try:
+                sched, _ = OMP_TRANS.apply(child)
+            except TransformationError:
+                pass
+
+    directives = sched.walk(Directive)
+    print("Added {0} Directives".format(len(directives)))
+
+    # Display the transformed PSyIR
+    sched.view()
+
+    # Return the modified psy object
+    return psy
