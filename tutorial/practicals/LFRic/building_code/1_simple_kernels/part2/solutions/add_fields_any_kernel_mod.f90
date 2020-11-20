@@ -40,8 +40,8 @@
 module add_fields_any_kernel_mod
 
   use argument_mod,      only: arg_type, GH_FIELD, &
-                               ANY_SPACE_1,        &
-                               GH_INC, GH_READ, CELLS
+                               GH_INC, GH_READ,    &
+                               ANY_SPACE_1, CELLS
   use constants_mod,     only: r_def, i_def
   use kernel_mod,        only: kernel_type
 
@@ -71,38 +71,39 @@ module add_fields_any_kernel_mod
 
   !> @brief Adds two fields on any function space
   !> @param[in] nlayers Number of layers
-  !> @param[in,out] field_1_aspc1 Resulting field
-  !> @param[in] field_2_aspc1 First field to add
-  !> @param[in] field_3_aspc1 Second field to add
-  !> @param[in] ndf_aspc1 Number of degrees of freedom per cell for the
-  !!                      updated field
-  !> @param[in] undf_aspc1 Number of unique degrees of freedom for the
-  !!                       updated field
-  !> @param[in] map_aspc1 Dofmap for the cell at the base of the column for
-  !!                      the updated field
-  subroutine add_fields_any_code(nlayers, field_1_aspc1,       &
-                                 field_2_aspc1, field_3_aspc1, &
-                                 ndf_aspc1, undf_aspc1, map_aspc1)
+  !> @param[in,out] field_1_aspc1_field_1 Resulting field
+  !> @param[in] field_2_aspc1_field_1 First field to add
+  !> @param[in] field_3_aspc1_field_1 Second field to add
+  !> @param[in] ndf_aspc1_field_1 Number of degrees of freedom per cell
+  !!                              for the updated field
+  !> @param[in] undf_aspc1_field_1 Number of unique degrees of freedom
+  !!                               for the updated field
+  !> @param[in] map_aspc1_field_1 Dofmap for the cell at the base of the
+  !!                              column for the updated field
+  subroutine add_fields_any_code(nlayers, field_1_aspc1_field_1,               &
+                                 field_2_aspc1_field_1, field_3_aspc1_field_1, &
+                                 ndf_aspc1_field_1, undf_aspc1_field_1, map_aspc1_field_1)
 
     implicit none
 
     ! Arguments
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_aspc1
-    integer(kind=i_def), intent(in) :: undf_aspc1
-    integer(kind=i_def), intent(in), dimension(ndf_aspc1) :: map_aspc1
-    real(kind=r_def), intent(inout), dimension(undf_aspc1) :: field_1_aspc1
-    real(kind=r_def), intent(in),    dimension(undf_aspc1) :: field_2_aspc1
-    real(kind=r_def), intent(in),    dimension(undf_aspc1) :: field_3_aspc1
+    integer(kind=i_def), intent(in) :: ndf_aspc1_field_1
+    integer(kind=i_def), intent(in), dimension(ndf_aspc1_field_1) :: map_aspc1_field_1
+    integer(kind=i_def), intent(in) :: undf_aspc1_field_1
+    real(kind=r_def), intent(inout), dimension(undf_aspc1_field_1) :: field_1_aspc1_field_1
+    real(kind=r_def), intent(in), dimension(undf_aspc1_field_1) :: field_2_aspc1_field_1
+    real(kind=r_def), intent(in), dimension(undf_aspc1_field_1) :: field_3_aspc1_field_1
 
     ! Internal variables
     integer(kind=i_def) :: k, df
 
     ! Update field
     do k = 0, nlayers-1
-      do df = 1, ndf_aspc1
-        field_1_aspc1( map_aspc1(df) + k ) = &
-          field_2_aspc1( map_aspc1(df) + k ) + field_3_aspc1( map_aspc1(df) + k )
+      do df = 1, ndf_aspc1_field_1
+        field_1_aspc1_field_1( map_aspc1_field_1(df) + k ) =   &
+          field_2_aspc1_field_1( map_aspc1_field_1(df) + k ) + &
+          field_3_aspc1_field_1( map_aspc1_field_1(df) + k )
       end do
     end do
 
