@@ -47,9 +47,9 @@ from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 class NanTestNode(PSyDataNode):
     '''
-    This class can be inserted into a Schedule to mark Nodes for \
-    NAN-checking using the NanTestTrans transformation. By \
-    applying the transformation the Nodes marked for checking become \
+    This class can be inserted into a Schedule to mark Nodes for
+    NAN-checking using the NanTestTrans transformation. By
+    applying the transformation the Nodes marked for checking become
     children of (the Schedule of) a NanTestNode.
 
     :param ast: reference into the fparser2 parse tree corresponding to \
@@ -62,10 +62,10 @@ class NanTestNode(PSyDataNode):
     :param options: a dictionary with options provided via transformations.
     :type options: dictionary of string:values or None
     :param str options["prefix"]: a prefix to use for the PSyData module name \
-        (``prefix_psy_data_mod``) and the PSyDataType
-        (``prefix_PSyDataType``) - a "_" will be added automatically. \
-        It defaults to "nan_test_", which means the module name used will be \
-        ``nan_test_psy_data_mode``, and the data type ``nan_test_PSyDataType``.
+        (``prefix_psy_data_mod``) and the PSyDataType (``prefix_PSyDataType``)\
+        - a "_" will be added automatically. It defaults to "``nan_test_``", \
+        which means the module name used will be ``nan_test_psy_data_mode``, \
+        and the data type ``nan_test_PSyDataType``.
 
     '''
     # Textual description of the node.
