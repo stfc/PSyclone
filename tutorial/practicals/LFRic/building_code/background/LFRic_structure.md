@@ -7,7 +7,7 @@ LFRic_intro.md#separation-of-concerns).
 ## Driver layer
 
 The driver layer in LFRic sets up (e.g. domain, partition, science
-configuration and controls a model run (e.g. timestep loop, checkpoint),
+configuration and controls a model run (e.g. time-step loop, checkpoint),
 including wrappers to external libraries.
 
 The setting-up part mainly consists of setting up the LFRic object stack
@@ -75,9 +75,9 @@ algorithm module is not as strict as for [kernels](
 ../1_simple_kernels/LFRic_kernel_structure.md) and it can be summarised
 as `<base_name>_alg_mod`. Also, unlike for kernels, it is usual for an
 algorithm to have more than one subroutine (for instance, algorithms
-that perform timestepping in LFRic often have `<base_name>_init`,
+that perform time-stepping in LFRic often have `<base_name>_init`,
 `<base_name>_step` and `<base_name>_final` subroutines for different
-requirements in a timestepping scheme).
+requirements in a time-stepping scheme).
 
 ## PSy layer
 

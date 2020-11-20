@@ -114,6 +114,6 @@ test: $(PSY_SRC) $(ALGORITHM_SRC)
 	-opsy $(notdir $*_psy.f90) -oalg $(notdir $*.f90) $<
 
 clean:
-	rm -f *.o *.mod *.txt $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
+	rm -f *.o *.mod *.txt  *.png $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
 	make -C $(GHLIB_PATH) clean
 	make -C $(LFRIC_PATH) clean

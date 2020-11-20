@@ -187,11 +187,11 @@ program time_evolution_driver
   !-----------------------------------------------------------------------------
   ! Initialise perturbation field
   call time_evolution_alg_init(perturbation, mesh, chi)
-  ! Output initial diagnostic state (timestep 0)
+  ! Output initial diagnostic state (time-step 0)
   call write_diagnostics(perturbation, chi, 0_i_def)
 
   ! Propagate perturbation field
-  call log_event( "Timestepping loop", LOG_LEVEL_INFO )
+  call log_event( "Time-stepping loop", LOG_LEVEL_INFO )
   do tstep = timestep_start, timestep_end
     call time_evolution_alg_step(perturbation, chi, tstep)
   end do

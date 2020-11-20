@@ -59,7 +59,7 @@ contains
   !> @brief Output coordinate and diagnostic fields to a text file
   !> @param[in] diag_field Scalar diagnostic field to output
   !> @param[in] chi Coordinate fields
-  !> @param[in] tstep Timestep value to create the output file name from
+  !> @param[in] tstep Time-step value to create the output file name from
   subroutine write_diagnostics(diag_field, chi, tstep)
 
     implicit none
@@ -73,8 +73,8 @@ contains
     character(str_max_filename) :: filename
     integer(kind=i_def)         :: dim_fs, i, output_unit
 
-    ! Convert timestep value to string and create output filename
-    write(tstr, '(I5)') tstep  ! Convert integer timestep to string
+    ! Convert time-step value to string and create output filename
+    write(tstr, '(I5)') tstep  ! Convert integer time-step to string
     filename = "model_state_tstep_"//trim(adjustl(tstr))//".txt"
     ! Set output unit number
     output_unit = 10 + tstep

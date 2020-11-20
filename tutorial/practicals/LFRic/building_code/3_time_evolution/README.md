@@ -1,4 +1,4 @@
-# Tutorial 3: Time-evolution of a field on a planar mesh
+# Tutorial 3: Time evolution of a field on a planar mesh
 
 In the [first tutorial](../1_simple_kernels) we learned how to create and
 use [kernels](../1_simple_kernels/LFRic_kernel_structure.md) for
@@ -16,8 +16,8 @@ Specifically, we will use kernels for two goals: initialisation of
 a "perturbation signal" field to the prescribed analytical function
 and the time evolution of that field.
 
-The time evolution means that we need to have a **timestepping loop**.
-In LFRic the timestepping is handled by the [driver layer](
+The time evolution means that we need to have a **time-stepping loop**.
+In LFRic the time-stepping is handled by the [driver layer](
 ../background/LFRic_structure.md) and this tutorial follows this
 practice. The tutorial also demonstrates the use of setting up the
 model configuration parameters via namelists and calling I/O
@@ -49,7 +49,7 @@ and built-ins in this tutorial:
 
 * [`time_evolution_alg_mod.x90`](time_evolution_alg_mod.x90), an example
   of an LFRic-like algorithm that calls kernels to initialise and propagate
-  the perturbation field and runs one model timestep (the `invoke` calls
+  the perturbation field and runs one model time step (the `invoke` calls
   and the simple field checks via the `log_minmax` field class procedure
   need to be completed).
 
@@ -62,7 +62,7 @@ Other supporting modules and libraries that we will use and that require
 no modifications are:
 
 * [`time_evolution_driver.f90`](time_evolution_driver.f90), an LFRic-like
-  main program that sets up the model run, runs the main timestep loop by
+  main program that sets up the model run, runs the main time-step loop by
   calling subroutines from the `time_evolution_alg_mod.x90` algorithm and
   outputs results calling an I/O routine from the
   `write_diagnostics_mod.f90` module;
@@ -71,9 +71,10 @@ no modifications are:
   output routine to write the "model state" consisting of the coordinate and
   perturbation fields to a file;
 
-* [`gungho_lib`](gungho_lib), a collection of the LFRic infrastructure and
-  science-like libraries for assigning coordinate fields, reading namelists
-  and outputting results.
+* [`gungho_lib`](gungho_lib), LFRic infrastructure and science code support
+  for assigning coordinate fields, [reading namelists](#appendix) and
+  outputting results (not present in the [pared-down infrastructure](
+  ../README.md#lfric-code-support).
 
 Utilities to build and run the code and read the input parameters are:
 
@@ -85,47 +86,25 @@ Utilities to build and run the code and read the input parameters are:
   perturbation parameters). The namelists **`extrusion_uniform`**,
   **`perturbation_bell`** and **`timestepping`** can be modified to explore
   different model height and vertical resolution, perturbation field
-  behaviour and timestepping options;
+  behaviour and time-stepping options;
 
 * `mesh_planar100x100-1000x1000.nc`, an input 2D global planar mesh in the
-  NetCDF-based UGRID format to create the model domain (3D partitioned
-  mesh) from (does not need to be modified). The horizontal limits of
+  NetCDF-based UGRID format from which to create the model domain (3D
+  partitioned mesh) - does not need to be modified. The horizontal limits of
   the mesh are written down in the *`domain_size`* namelist (must not be
-  modified) in the `configuration.nml` file. Viewing the file requires
-  [`ncdump` utility](
-  https://www.unidata.ucar.edu/software/netcdf/docs/netcdf_utilities_guide.html#ncdump_guide);
+  modified) in the `configuration.nml` file;
 
-* [`plot_xy_slices_ex3.py`](plot_xy_slices_ex3.py), a Python plotting script
-  for model outputs. It takes output of a `model_state_tstep_<n>.txt` file name
-  (where `<n>` stands for an `integer`-valued string denoting the timestep index)
-  and a string of comma-separated model levels in the range of
-  `[0, number_of_layers]`. E.g.
-
-  ```python
-  python plot_xy_slices_ex3.py model_state_tstep_10.txt '0,2,4'
-  ```
-  will return plots of model output at the timestep 10 and the listed
-  levels. To plot one level just supply one number.
+* [`plot_xy_slices.py`](plot_xy_slices.py), a Python plotting script
+  for the model outputs produced at the beginning and the end of the
+  model run. For information on how to plot the outputs please refer
+  to the [*Step 6*](#plot-the-output-model-state) below.
 
 ### Driver structure
 
-[`time_evolution_driver.f90`](time_evolution_driver.f90) follows the order
-of setting up LFRic object stack outlined in [this full NetCDF LFRic example](
-../../../../../examples/lfric/full_example_netcdf/README.md):
-**global 2D mesh** read from NetCDF file -> **partition** ->
-**local 3D mesh** -> **function space** -> **field**. In LFRic
-all this information is read from configuration namelists by utilising
-the generated Fortran files for processing namelists. This process
-is mimicked here with the supplied namelist file `configuration.nml`
-and `<namelist_name>_config_mod.f90` files in the `gungho_lib` directory
-that process the namelist inputs.
-
-The Fortran calls to create the required LFRic infrastructure objects are
-pretty much the same as in the [simple kernels](
-../1_simple_kernels/README.md#driver-structure) and
-[built-ins](
-../2_built_ins/README.md#driver-structure) tutorials. The two exceptions are
-outlined below.
+The Fortran calls to create the required LFRic infrastructure objects in
+the [`time_evolution_driver.f90`](time_evolution_driver.f90) code are pretty
+much the same as in the previous tutorials (see the [*Appendix*](#appendix)
+below for more detailed information). The two exceptions are outlined below.
 
 1. Reading in a global 2D mesh from a NetCDF file
    ```fortran
@@ -156,7 +135,7 @@ The coordinate fields `chi(3)` in this tutorial are an example of a
 [field vector object](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#field-vector)
 which is essentially a bundle of fields. The metadata representation
-of a field vector will be shown in the [Step 1](
+of a field vector will be shown in the [*Step 1*](
 #step-1-complete-the-init_perturbation_kernel_modf90-kernel) below where
 we are updating the relevant kernel.
 
@@ -164,7 +143,7 @@ we are updating the relevant kernel.
 
 As said above, this driver also shows two other functions that the driver
 layer in LFRic performs: diagnostic output (or checkpoint/restart) and the
-main model timestepping loop. The main timestepping loop is very similar
+main model time-stepping loop. The main time-stepping loop is very similar
 to the LFRic code
 
 ```fortran
@@ -173,13 +152,12 @@ to the LFRic code
   end do
 ```
 
-where these loops call algorithm subroutines that calculate the
-"model state" for one timestep.
-
-The diagnostic output is produced as a file named `model_state_tstep_<n>.txt`
-where `<n>` stands for an `integer`-valued string denoting the timestep
-index. It is produced twice, just after the fields are initialised
-(`model_state_tstep_0.txt`) and after the timestepping is completed.
+where these loops call algorithm subroutines that calculate the "model state"
+for one time step. The diagnostic output is produced twice, just after the
+fields are initialised and then after the time-stepping is completed. The
+output files are named as `model_state_tstep_<n>.txt`, where `<n>` stands
+for an `integer`-valued string denoting the time-step index (e.g. `0` for
+the initial state).
 
 ### Algorithm structure
 
@@ -187,7 +165,7 @@ As said in the LFRic [*Algorithm layer section*](
 ../background/LFRic_structure.md#algorithm-layer) section, it is usual for
 an algorithm to have multiple subroutines, `<base_name>_init`
 (initialisation of the required algorithm data), `<base_name>_step`
-(calculations of model state in one timestep) and `<base_name>_final`
+(calculations of model state in one time step) and `<base_name>_final`
 (usually clean-up of memory assigned to the objects used in algorithms).
 
 [`time_evolution_alg_mod.x90`](time_evolution_alg_mod.x90) illustrates
@@ -195,12 +173,11 @@ this functionality with the subroutines
 
 * `time_evolution_alg_init` that initialises the perturbation field and
 * `time_evolution_alg_step` that calculates the spatial propagation of
-   the field for one timestep.
+   the field for one time step.
 
 As in the previous two tutorials, this algorithm also calls the LFRic field
 class `log_minmax` procedure for quick checks of the the minimum and maximum
-values of the fields after calling the kernels that update them. One of the
-tasks in this tutorial is to create these calls.
+values of the fields after calling the kernels that update them.
 
 ## Tutorial exercise
 
@@ -284,7 +261,7 @@ There are also local kernel variables `x(3)`, `xt`, `yt`, `ampl` for the
 DoF-wise access to the coordinate fields data and storing the intermediate
 calculation results for the transformed `x` and `y` coordinates and the
 height-varying perturbation amplitude. For instance, the expression
-*(x - x<sub>c</sub> - u\*t<sub>tot</sub>)* can be written in the loop body as
+*(x - x<sub>c</sub>)* can be written in the loop body as
 
 ```fortran
 xt = ( x(1) - x_centre )/half_width_x
@@ -313,12 +290,6 @@ editor and look for the comment that marks the place to complete
 the `invoke` call in the `time_evolution_alg_init` subroutine,
 `! TO COMPLETE (in the same invoke)`. Create the appropriate `invoke`
 call to the `setval_c` built-in and the `init_perturbation_kernel_type`.
-
-After that check the minimum and maximum values of the perturbation
-field by using the `log_minmax` function (look for the comment pointers
-in the code). You can use algorithms from the previous examples as a
-reference, e.g. [`simple_kernels_alg_mod.x90`](
-../1_simple_kernels/part2/simple_kernels_alg_mod.x90).
 
 ### Step 3: Create the `prop_perturbation_kernel_mod.f90` kernel
 
@@ -372,24 +343,22 @@ time_evolution_alg_mod.x90) algorithm to:
 
 * Calculate total propagation time, `t_tot`;
 * Call the kernel `prop_perturbation_kernel_mod.f90` to propagate the
-  perturbation in `x` and `y` directions with each timestep.
+  perturbation in `x` and `y` directions with each time step.
 
-The total propagation time, `t_tot`, is calculated as the timestep size
-in seconds, `dt`, multiplied by the current timestep passed from the
+The total propagation time, `t_tot`, is calculated as the time step size
+in seconds, `dt`, multiplied by the current time step passed from the
 [`time_evolution_driver.f90`](time_evolution_driver.f90) as `tstep`.
 Look for the comment that marks the place to calculate the total time
 and complete the `invoke` call in the `time_evolution_alg_step` subroutine,
-`! TO COMPLETE: Propagate the perturbation field in a loop over timesteps`
+
+```fortran
+! TO COMPLETE: Propagate the perturbation field for a single time-step ...
+```
+
 and write the expression to calculate `t_tot` as outlined above.
 
 After that we need to create the appropriate `invoke` call to the
 `prop_perturbation_kernel_type`.
-
-Finally we will check the minimum and maximum values of the perturbation
-field by using the `log_minmax` function (look for the comment pointers
-in the code). You can use algorithms from the previous examples as a
-reference, e.g. [`simple_kernels_alg_mod.x90`](
-../1_simple_kernels/part2/simple_kernels_alg_mod.x90).
 
 You should now have the completed `time_evolution_alg_mod.x90` algorithm.
 To check that the code is correct, look into the completed algorithm in
@@ -411,18 +380,18 @@ The program prints out several log messages about setting up the model
 and calling the algorithm subroutines `time_evolution_alg_init` and
 `time_evolution_alg_step`. As outlined [above](#algorithm-structure),
 the algorithm checks the minimum and maximum values of the perturbation
-fields in each timestep after calling the kernels to update them.
+fields in each time step after calling the kernels to update them.
 
 The perturbation signal here moves in time but does not change its
 maximum amplitude value so the "max perturbation" values should stay
-roughly the same throughout the timestepping process.
+roughly the same throughout the time-stepping process.
 
 Besides these simple checks, the driver also calls the diagnostics
 subroutine `write_diagnostics` to output the coordinate and perturbation
 field data to text files, `model_state_tstep_0.txt` and
 `model_state_tstep_<timestep_end>.txt`, as outlined in the
 [*Driver structure* section](#driver-structure) above (the `timestep_end`
-parameter in the `timestepping` namelist is set to 10 but can be
+parameter in the `timestepping` namelist is set to `10` but can be
 changed as mentioned above).
 
 *Note:* The generated source and the compiled objects and libraries
@@ -431,11 +400,44 @@ can be removed by running `make clean`.
 ### Step 6: Plot the output model state
 
 As said [above](#supporting-source-and-scripts), the supplied Python
-plotting script [`plot_xy_slices_ex3.py`](plot_xy_slices_ex3.py) can be used
+plotting script [`plot_xy_slices.py`](plot_xy_slices.py) can be used
 to plot the output of the `model_state_tstep_<n>.txt` files.
+
+The script takes the output filename and a string of comma-separated
+model levels in the range of `[0, number_of_layers]`. E.g.
+
+```python
+python plot_xy_slices.py model_state_tstep_10.txt '0,2,4'
+```
+
+will return plots of model output at the time step `10` and the listed
+levels. To plot one level just supply one number.
+
+The plots are saved in `*.png` format for each combination of the
+model level and the time-step, e.g. `Level_0_timestep_0.png`,
+`Level_0_timestep_10.png`.
 
 If the algorithm and kernel code was updated and created correctly,
 the perturbation signal would just move position between the beginning
 and the end of the model run (provided that it has not moved outside of
 the model domain). Its maximum amplitude, though, should stay
 the same if plotted at the same model levels.
+
+*Note:* The generated plots are also removed when running `make clean`.
+
+## Appendix
+
+The [`time_evolution_driver.f90`](time_evolution_driver.f90) follows the
+order of setting up LFRic object stack outlined in
+[this full NetCDF LFRic example](
+../../../../../examples/lfric/full_example_netcdf/README.md):
+**global 2D mesh** read from NetCDF file -> **partition** ->
+**local 3D mesh** -> **function space** -> **field**.
+
+In LFRic all this information is read from configuration namelists by utilising
+Fortran files for processing namelists, generated by the LFRic build
+system as part of the infrastructure support for science operations,
+according to the principle of [*separation of concerns*](
+../background/LFRic_intro.md#separation-of-concerns). These generated
+files are named as `<namelist_name>_config_mod.f90` and they are provided
+in the `gungho_lib` directory.

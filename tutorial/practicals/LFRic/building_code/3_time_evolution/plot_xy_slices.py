@@ -72,8 +72,9 @@ def plot_xy_slices(states, tstep):
         ax_plt.set_title("Output field values at level %i (z = %.2f m) and "
                          "timestep %s" % (level, height, tstep))
 
-    # Show plots on all levels
-    plt.show()
+        # Save plots on each levels as a PNG file
+        fig_name = '_'.join(["Level", str(level), "timestep", tstep])
+        plt.savefig(fig_name+".png")
 
 
 if __name__ == "__main__":
