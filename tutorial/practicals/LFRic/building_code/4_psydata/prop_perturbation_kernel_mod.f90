@@ -95,6 +95,7 @@ module prop_perturbation_kernel_mod
                                     chi_1, chi_2, chi_3, t_tot, &
                                     ndf_w3, undf_w3, map_w3)
 
+    use ieee_arithmetic, only: ieee_value, ieee_quiet_nan
     implicit none
 
     ! Arguments
@@ -137,11 +138,23 @@ module prop_perturbation_kernel_mod
 
     end do
 
-    ! VERY DIRTY CODE HERE. REMOVE THE COMMENT LINES TO OVERWRITE
+    ! ---------------------------------------------------------------------------------------------
+    ! FOR READONLY VERIFICATION:
+    ! ---------------------------------------------------------------------------------------------
+    ! VERY DIRTY CODE HERE. REMOVE THE COMMENT SYMBOLS BELOW TO OVERWRITE
     ! ONE ENTRY OF chi_1. YOU MUST MAKE SURE TO HAVE ARRAY BOUNDS CHECKING
     ! DISABLED IN THE COMPILER
     !offset = ( loc(chi_1(map_w3(1)))- loc(perturbation(map_w3(1)))) / sizeof(chi_1(map_w3(1)))
     !perturbation(map_w3(1)+offset) = 123.0
+    ! ---------------------------------------------------------------------------------------------
+
+
+    ! ---------------------------------------------------------------------------------------------
+    ! FOR NAN VERIFICATION:
+    ! ---------------------------------------------------------------------------------------------
+    ! Set a NAN into one return value:
+    !perturbation( map_w3(1) ) = IEEE_VALUE(perturbation( map_w3(1) ), IEEE_QUIET_NAN)
+    ! ---------------------------------------------------------------------------------------------
 
   end subroutine prop_perturbation_code
 

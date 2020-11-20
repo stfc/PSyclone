@@ -4,26 +4,13 @@ In this example you will use some of the available PSyData
 transformation to instrument the previous LFRic example.
 Initially we will be using kernel extraction as an example,
 but a list of other PSyData applications is provided at the end.
+The ``solutions`` directory contains working versions of the
+transformation scripts and Makefile. If you are having problems,
+you can just copy the corresponding Makefile and python script
+into this directory.
 
 
-## Step 1: Compile all required PSyData libraries
-Change directory to PSyclone's ``lib`` directory, and trigger
-compilation of all PSyData libraries.
-
-    cd $PSYCLONEHOME/lib
-    make all
-
-You need the NetCDF development package installed, the makefiles
-will be using ``nf-config`` to get the appropriate compiler and
-linker flags. Additionally, compiler and compiler flags can be provided
-using the environment variables F90 and F90FLAGS:
-
-    F90=ifort F90flags="-O2 -traceback" make all
-
-By default gfortran will be used.
-
-
-## Step 2: Create a transformation script
+## Step 1: Create a transformation script
 This transformation script will be used as a parameter
 to PSyclone when building the application. The script will apply
 transformation to insert
@@ -35,14 +22,14 @@ LFRic-specific kernel extraction transformation. The transformation
 can be imported from ``psyclone.domain.lfric.transformations``
 and is called ``LFRicExtractTrans``.
 
-The ``apply()`` function in this script is called by PSyclone before
-any code is created. Inside ``apply`` create an instance of the
+The ``trans()`` function in this script is called by PSyclone before
+any code is created. Inside ``trans`` create an instance of the
 extraction transformation and apply it to the schedule for
 "invoke_propagate_perturbation". The template file ``transform_one.py``
 contains most of the required calls, you only need to fill in the
 details.
 
-## Step 3: Modify the makefile so that PSyclone invokes the script
+## Step 2: Modify the makefile so that PSyclone invokes the script
 
 There is a set of makefiles provided in this directory, one for
 each of the available PSyData transformation. They all include
@@ -59,6 +46,16 @@ You can then create your application using:
 
     make -f Makefile.extract
 
+You need the NetCDF development package installed, the makefiles
+will be using ``nf-config`` to get the appropriate compiler and
+linker flags. Additionally, compiler and compiler flags can be provided
+using the environment variables F90 and F90FLAGS:
+
+    F90=ifort F90flags="-O2 -traceback" make -f Makefile.extract
+
+By default gfortran will be used. This will also automatically compile
+the required PSyData library as well.
+
 If you should get an error message that your script is not found,
 it is possible that it contains a syntax error. You can quickly
 test this by using:
@@ -70,7 +67,7 @@ syntactically correct, otherwise Python will print out a hopefully
 useful error message.
 
 
-## Step 4: Look at the produces code for the PSY layer
+## Step 3: Look generated PSy layer
 Have a quick look at the produced code:
 
     less  time_evolution_alg_mod_psy.f90
@@ -100,7 +97,7 @@ the name ``perturbation_post``. This variable is an input- and output-variable,
 so its values are stored twice, just with a different name.
 
 
-## Step 5: Run the application
+## Step 4: Run the application
 After running the application using:
 
     ./time_evolution
@@ -111,12 +108,13 @@ This is just the concatenation of the two parameters to the ``PreStart`` functio
 The long and convoluted name is caused by PSyclone automatically creating a unique module 
 and local name. 
 
-# Step 6: Provide a more user friendly name
+# Step 5: Provide a more user friendly name
 You can provide a more user friendly name by providing a
 ``region_name`` as an option to the transformation. The region name is a pair of strings,
 the first one being a module name, the second a region name. You can use them in any
-way you like. The options are provided as an additional dictionary to the apply function
-with "region" as key, and first a module name, then a local name. You could use:
+way you like. The options are provided as an additional dictionary to the ``apply``
+function of a transformation, with "region" as key, and first a module name, then a
+local name. You could use:
 
     {"region_name": ("time_evolution", "propagate")}
 
@@ -136,7 +134,7 @@ You should now see that the psy-layer contains:
 I.e. it uses the names you have provided, and running the binary will now create
 a NetCDF file called ``time_evolution-propagate.nc``.
 
-## Step 7: Examining the output
+## Step 6: Examining the output
 
 The NetCDF command ``ncdump`` can be used to check the content of the created file:
 
@@ -151,12 +149,12 @@ values after the kernel (``perturbation_post``).
 At this stage no driver is created that can read in the file.
 
 
-## Step 8: Instrument more than one invoke
+## Step 7: Instrument more than one invoke
 
 The transformation script can be slightly changed to instrument all invokes
 in a file. While this might not be useful for kernel extraction, it is
 essential for e.g. parameter verification, where you typically want to
-check all invokes contained in a program. Use the template ``instrument_all.py``
+check all invokes contained in a program. Use the template ``transform_all.py``
 to apply the extraction transformation to all invokes. This script actually
 requires less changes than the ``transform_one.py`` template (since it
 works on all )
@@ -164,7 +162,7 @@ Following the same process, just using this more general transformation script,
 will result in a binary that creates two NetCDF files at run time.
 
 
-## Step 9: Try other PSyData libraries
+## Step 8: Try other PSyData libraries
 The following set of PSyData libraries is available and can be tested.
 Corresponding Makefiles are provided.
 
@@ -202,4 +200,17 @@ see:
 Note that this error is only printed in the first time step, since after the first modification
 the modified value is not changed again.
 
+### NAN Verification
+This library verifies that all input- and output-parameters of a kernel are
+neither NAN nor an infinite number. If such a value is detected, a message
+like this will be printed:
 
+     PSYDATA: Variable perturbation has the invalid value
+                       NaN  at index/indices        85241
+
+The transformation ``NanTestTrans`` is imported from ``psyclone.psyir.transformations``.
+This example by itself will not print any message (since there is no invalid floating
+point number), so you have to use ``PSYDATA_VERBOSE`` and set it to 1 or 2 to see that
+tests are actually happening. Alternatively, the file
+``prop_perturbation_kernel_mod.f90`` contains code that you can uncomment that will
+introduce a NAN into the result field.
