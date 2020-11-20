@@ -34,13 +34,8 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel extraction code to
-the invokes. When the transformed program is compiled and run, it
-will create one NetCDF file for each of the two invokes. A separate
-driver program is also created for each invoke which can read the
-created NetCDF files, execute the invokes and then compare the results.
-At this stage it does not compile (TODO: #644), and the comparison is
-missing (TODO: #647)
+function via the -s option. It adds read-only verification code to
+the invokes.
 '''
 
 from __future__ import print_function
@@ -48,7 +43,7 @@ from __future__ import print_function
 
 def trans(psy):
     '''
-    Take the supplied psy object, and add kernel extraction code.
+    Take the supplied psy object, and add read-only verification code.
 
     :param psy: the PSy layer to transform.
     :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
