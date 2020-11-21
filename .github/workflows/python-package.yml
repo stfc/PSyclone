@@ -47,13 +47,7 @@ on:
     branches: [ master ]
 jobs:
   build:
-    # if: contains(toJson(github.event.commits), '[skip ci]') == false
-    # if: github.event_name == 'push' && contains(toJson(github.event.commits), '***NO_CI***') == false && contains(toJson(github.event.commits), '[ci skip]') == false && contains(toJson(github.event.commits), '[skip ci]') == false
-    #  if: "!contains(github.event.commits[0].message, '[skip ci]')"
-    # This always returns False
-    if: "contains(toJSON(github.event.commits.*.message), 'skip ci') == false"
     runs-on: ubuntu-latest
-    # if: "! contains(toJSON(github.event.head_commit.message), 'skip ci')"
     strategy:
       matrix:
         python-version: [2.7, 3.5, 3.8]
@@ -61,6 +55,11 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
+    - name: get commit message
+        run: |
+           echo ::set-env name=commitmsg::$(git log --format=%B -n 1 ${{ github.event.after }})
+    - name: show commit message
+        run : echo $commitmsg
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
@@ -87,6 +86,7 @@ jobs:
         ( make -C examples transform > /dev/null )
         ( make -C examples notebook )
     - name: Test with pytest
+      if: !contains( env.commitmsg, 'skip ci' )
       run: |
         pytest --cov=psyclone --cov-report=xml src/psyclone/tests
     - name: Upload coverage to Codecov
