@@ -85,6 +85,10 @@ jobs:
       run: |
         ( make -C examples transform > /dev/null )
         ( make -C examples notebook )
+    - name: Run tutorials
+      run: |
+        ( make -C tutorial/practicals/nemo test > /dev/null )
+        ( make -C tutorial/practicals/LFRic test > /dev/null )
     - name: Test with pytest
       if: !contains( env.commitmsg, 'skip ci' )
       run: |
