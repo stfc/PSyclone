@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel extraction code to
-all invokes.
+'''Python script intended to be passed to PSyclone using the -s option.
+This is a template that doesn't do anything, but it contains the
+framework to find a certain invoke.
 '''
 
 from __future__ import print_function
@@ -52,24 +52,31 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    from psyclone.psyir.transformations import ExtractTrans
-    extract = ExtractTrans()
+
+    # ------------------------------------------------------
+    # TOOD: import the transformation and create an instance
+    # ------------------------------------------------------
+    # from ... import ...
+    # extract = ...()
 
 
-    for invoke_name in psy.invokes.names:
-        print(invoke_name)
+    # ------------------------------------------------------
+    # TODO: use the name that is specified for the perturbation
+    # propagation invoke here. Note that it will get a "invoke_"
+    # as prefix!
+    # ------------------------------------------------------
+    invoke = psy.invokes.get("")
 
-        invoke = psy.invokes.get(invoke_name)
+    # Now get the schedule, to which we want to apply the transformation
+    schedule = invoke.schedule
 
-        # Now get the schedule, to which we want to apply the transformation
-        schedule = invoke.schedule
+    # ------------------------------------------------------
+    # TODO: Apply the transformation
+    # ------------------------------------------------------
+    ... .apply(schedule)
 
-
-        # Apply the transformation
-        readonly.apply(schedule, {"region_name": ("time_evolution", invoke_name)})
-
-        # Just as feedback: show the modified schedule, which should have
-        # a new node at the top:
-        schedule.view()
+    # Just as feedback: show the modified schedule, which should have
+    # a new node at the top:
+    schedule.view()
 
     return psy

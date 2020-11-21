@@ -46,10 +46,10 @@ def trans(psy):
     Take the supplied psy object, and add NAN verification code.
 
     :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
+    :type psy: :py:class:`psyclone.psyGen.PSy`
 
     :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
+    :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
     from psyclone.psyir.transformations import NanTestTrans

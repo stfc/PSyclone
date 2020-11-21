@@ -11,24 +11,43 @@ into this directory.
 
 
 ## Step 1: Create a transformation script
-This transformation script will be used as a parameter
-to PSyclone when building the application. The script will apply
-a transformation to insert
-code to extract the input- and output-data of a kernel. Initially
-we will only transform the kernel in ``time_evolution_alg_mod.x90``.
-Use the simple script ``transform_one.py`` (in the same directory
-as this README) as a template
-to create a new transformation script that applies the
-LFRic-specific kernel extraction transformation. The transformation
-can be imported from ``psyclone.domain.lfric.transformations``
-and is called ``LFRicExtractTrans``.
+The transformation script will be used as a parameter
+to PSyclone when building the application.  The ``trans()``
+function in this script is called by PSyclone before
+any code is created and can be used to modify the PSyIR
+trans, and this is were you can add transformations to a code.
 
-The ``trans()`` function in this script is called by PSyclone before
-any code is created. Inside ``trans`` create an instance of the
-extraction transformation and apply it to the schedule for
-"invoke_propagate_perturbation". The template file ``transform_one.py``
-contains most of the required calls, you only need to fill in the
-details.
+In this exercise you will create a script that will apply
+the existing kernel extraction transformation to an invoke.
+This will insert code that writes the input- and output-data
+of a kernel to a file. Initially
+we will only transform the kernel that propagates the perturbation.
+Open the file ``extract_transform.py`` in an editor and follow
+these steps:
+
+
+### Step 1.1: Creating the transformations
+The kernel extraction transformation for LFRic is called
+``LFRicExtractTrans`` and can be imported from
+``psyclone.domain.lfric.transformations``. Add the import statement
+and then create an instance of the transformation (see line 59
+and 60 of the script).
+
+### Step 1.2: Get the invoke object to be transformed
+The easiest way of getting this invoke in the transformation script
+is to use the name that was given to the invoke call. Look at the
+file ``time_evolution_alg_mod.x90`` and find the name given to the
+invoke statement that propagates the perturbation.
+
+PSyclone adds ``invoke_`` as a prefix to the name given to an invoke.
+This name can then be used to get the invoke object from
+``psy.invokes``. Use this name in the script (see line 68).
+
+### Step 1.3: Apply the transformation to the schedule
+Next you need to apply the transformation to the schedule.
+See lines 76 - call the ``apply`` method of the transformation
+object with the schedule as parameter.
+
 
 ## Step 2: Modify the makefile so that PSyclone invokes the script
 
@@ -36,14 +55,15 @@ There is a set of makefiles provided in this directory, one for
 each of the available PSyData transformations. They all include
 ``Makefile.inc`` which defines all of the rules. The PSyData-specific
 makefiles just supply different settings for compiling and linking
-with the PSyData libraries, and they contain the rule to run PSyclone
-on the file ``time_evolution_alg_mod.x90``.
+with the PSyData libraries, and they contain a special rule to run
+PSyclone on the file ``time_evolution_alg_mod.x90``.
 
 For this part of the exercise add the ``-s`` flag to the ``psyclone``
 invocation in ``Makefile.extract`` and provide the path to your script
 so that PSyclone will invoke it. It must start with ``./``, otherwise
-Python will not find our file (unless you modify ``PYTHONPATH``).
-You can then create your application using:
+Python will not find our file. 
+
+Once this is done, you can then create your application using:
 
     make -f Makefile.extract
 
@@ -54,8 +74,8 @@ using the environment variables F90 and F90FLAGS:
 
     F90=ifort F90flags="-O2 -traceback" make -f Makefile.extract
 
-By default gfortran will be used. This will also automatically compile
-the required PSyData library as well.
+By default gfortran will be used. The Makefile will automatically
+compile the required PSyData library as well.
 
 If you should get an error message that your script is not found,
 it is possible that it contains a syntax error. You can quickly

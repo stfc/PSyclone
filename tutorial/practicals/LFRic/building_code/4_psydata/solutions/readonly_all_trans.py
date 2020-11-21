@@ -46,21 +46,14 @@ def trans(psy):
     Take the supplied psy object, and add read-only verification code.
 
     :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
+    :type psy: :py:class:`psyclone.psyGen.PSy`
 
     :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
+    :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
     from psyclone.psyir.transformations import ReadOnlyVerifyTrans
     readonly = ReadOnlyVerifyTrans()
-
-    # ------------------------------------------------------
-    # TOOD: import the transformation and create an instance
-    # ------------------------------------------------------
-    # from ... import ...
-    # my_transform = ...()
-
 
     for invoke_name in psy.invokes.names:
         print(invoke_name)

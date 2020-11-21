@@ -56,6 +56,7 @@ process: extract_netcdf_base.f90
 
 all:
 	$(MAKE) -C dl_esm_inf
+	$(MAKE) -C lfric
 
 
 # The dependencies
