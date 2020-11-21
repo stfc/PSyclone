@@ -270,3 +270,7 @@ introduce a NAN into the result field. Search for the comment
     ! FOR NAN VERIFICATION:
 
 in this file and uncomment the indicated lines. Then recompile and run your application.
+When you run this application again, a significant number of NANs will be reported (over 500k).
+While we only overwrite one entry in a field in the kernel, this LFRic kernel is called once
+for each column. And after the first time this is reported as an invalid input parameter,
+and then as an invalid output value.
