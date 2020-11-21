@@ -37,3 +37,6 @@
 
 test:
 	psyclone -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
+
+clean:
+	@echo "Nothing to clean"
