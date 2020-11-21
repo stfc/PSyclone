@@ -31,12 +31,35 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Author: I. Kavcic, Met Office
 
-.PHONY: test
+F90 ?= gfortran
+F90FLAGS ?= -Wall -g -fcheck=bound
 
-test:
-	psyclone -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
+# LFRic infrastructure library
+PSYCLONE_RELPATH = ../../../../../..
+LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_NAME = lfric_netcdf
+LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
+F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
+
+GHLIB_SRC = $(wildcard *.F90) $(wildcard *.f90)
+
+GHLIB_OBJ = $(filter %.o,$(GHLIB_SRC:.F90=.o) $(GHLIB_SRC:.f90=.o))
+
+default: $(GHLIB_OBJ)
+	$(AR) $(ARFLAGS) libgungho.a $(GHLIB_OBJ)
+default: $(LIB)
+
+# Dependencies
+# ------------
+assign_coordinate_field_mod.o: base_mesh_config_mod.o planet_config_mod.o
+
+%.o: %.F90
+	$(F90) $(F90FLAGS) -c $<
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	@echo "Nothing to clean"
+	rm -f *.o *.mod *.a

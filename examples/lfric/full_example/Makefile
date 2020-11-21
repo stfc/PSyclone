@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Laboratory
+# Modifications: A. R. Porter, STFC Daresbury Laboratory,
+#                I. Kavcic, Met Office
 
 # The compiler to use may be specified via the F90 environment
 #
@@ -86,3 +87,4 @@ transform: main_psy.f90
 
 clean:
 	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
+	make -C $(LFRIC_PATH) clean

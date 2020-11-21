@@ -31,12 +31,76 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Author: I. Kavcic, Met Office
 
-.PHONY: test
+# Compiler settings
+F90 ?= gfortran
+F90FLAGS ?= -Wall -g -fcheck=bound
 
-test:
-	psyclone -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
+# Path to source to use (except for PWD)
+SRC_PATH = ..
+VPATH = $(SRC_PATH)/
+
+# Source rules
+DRIVER_SRC = $(SRC_PATH)/builtins_driver.f90
+ALGORITHMS = $(wildcard *_alg_mod.x90)
+ALGORITHM_SRC = $(ALGORITHMS:.x90=.f90)
+PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
+
+# PSyclone command-line options
+PSYCLONE_CMD = -nodm -l all
+
+# Executable
+EXEC = builtins
+
+# LFRic infrastructure library
+PSYCLONE_RELPATH = ../../../../../..
+LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_NAME=lfric
+LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
+F90FLAGS += -I$(LFRIC_PATH)
+
+# Object rules
+DRIVER_OBJ = $(notdir $(filter %.o,$(DRIVER_SRC:.f90=.o)))
+ALGORITHM_OBJ = $(filter %.o,$(ALGORITHM_SRC:.f90=.o))
+PSY_OBJ = $(filter %.o,$(PSY_SRC:.f90=.o))
+EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ)
+
+# Targets
+.DEFAULT_GOAL := compile
+
+.PHONY: compile test clean
+
+compile: test $(EXEC)
+
+$(EXEC): $(LFRIC_LIB) $(EXAMPLE_OBJ)
+	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_PATH)
+
+# Dependencies
+$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ)
+$(ALGORITHM_OBJ): $(PSY_OBJ)
+
+%.o %.mod: %.F90
+	$(F90) $(F90FLAGS) -c $<
+
+%.o %.mod: %.f90
+	$(F90) $(F90FLAGS) -c $<
+
+$(ALGORITHM_SRC): $(PSY_SRC)
+
+# Keep the generated Alg and PSy files
+.precious: $(ALGORITHM_SRC) $(PSY_SRC)
+
+# Test PSyclone target for continuous integration
+test: $(PSY_SRC) $(ALGORITHM_SRC)
+
+%_psy.f90: %.x90
+	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
+	-opsy $*_psy.f90 -oalg $*.f90 $<
 
 clean:
-	@echo "Nothing to clean"
+	rm -f *.o *.mod $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
+	make -C $(LFRIC_PATH) clean

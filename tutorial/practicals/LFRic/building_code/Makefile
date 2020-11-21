@@ -31,12 +31,21 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Author: I. Kavcic, Met Office
 
-.PHONY: test
+# Top-level Makefile for all solutions of the LFRic hands-on tutorials on
+# building code.
 
-test:
-	psyclone -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
+# Targets
+# compile (default): complete build to run examples
+# test: PSyclone target for continuous integration
+# clean: Remove generated and compiled code
+.DEFAULT_GOAL := compile
 
-clean:
-	@echo "Nothing to clean"
+.PHONY: compile test clean
+
+compile test clean:
+	${MAKE} -C 1_simple_kernels/part1/solutions $@
+	${MAKE} -C 1_simple_kernels/part2/solutions $@
+	${MAKE} -C 2_built_ins/solutions $@
+	${MAKE} -C 3_time_evolution/solutions $@

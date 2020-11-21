@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2020,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
@@ -9,7 +9,8 @@
 
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities
+! Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,7 +38,8 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by J. Henrichs, Bureau of Meteorology
+! Modified by: J. Henrichs, Bureau of Meteorology,
+!              I. Kavcic, Met Office
 
 !> @brief A module providing field related classes.
 !>
@@ -719,7 +721,11 @@ contains
 
     write( log_scratch_space, '( A, A, A, 2E16.8 )' ) &
          "Min/max ", trim( label ),                   &
-         " = ", fmin%get_min(), fmax%get_max()
+    ! Functions get_min() and get_max() rely on MPI comms so
+    ! these calls are disabled here. Min and max are simply
+    ! values of fmin and fmax scalars.
+    !     " = ", fmin%get_min(), fmax%get_max()
+         " = ", fmin%value, fmax%value
     call log_event( log_scratch_space, log_level )
 
   end subroutine log_minmax
@@ -750,7 +756,10 @@ contains
     fmax = scalar_type( maxval( abs(self%data(1:undf)) ) )
 
     write( log_scratch_space, '( A, A, E16.8 )' ) &
-         trim( label ), " = ", fmax%get_max()
+    ! Function get_max() relies on MPI comms so this call is
+    ! disabled here. Max is simply the values of fmax scalar.
+    !     trim( label ), " = ", fmax%get_max()
+         trim( label ), " = ", fmax%value
     call log_event( log_scratch_space, log_level )
 
   end subroutine log_absmax
