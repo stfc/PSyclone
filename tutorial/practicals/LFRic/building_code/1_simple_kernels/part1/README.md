@@ -7,8 +7,8 @@ create the argument list and declarations for two kernels, one that
 assigns a value to a field on a continuous `W0` function space and
 another on a discontinuous `W3` function space. For this we will use
 the supplied kernel stub file [`setval_field_w0_kernel_mod.f90`](
-../setval_field_w0_kernel_mod.f90) and the provided documentation on the
-[LFRic kernel structure](../LFRic_kernel_structure.md).
+setval_field_w0_kernel_mod.f90) and the provided documentation
+on the [LFRic kernel structure](../LFRic_kernel_structure.md).
 
 We will then modify the supplied algorithm
 [`simple_kernels_alg_mod.x90`](simple_kernels_alg_mod.x90) to call
@@ -24,7 +24,7 @@ where `<PSYCLONEHOME>` is the full path to the local PSyclone repository.
 
 Navigate to the working directory for this part of the tutorial and open
 the supplied kernel stub file [`setval_field_w0_kernel_mod.f90`](
-../setval_field_w0_kernel_mod.f90) in an editor. The `arg_type` [metadata](
+setval_field_w0_kernel_mod.f90) in an editor. The `arg_type` [metadata](
 ../LFRic_kernel_structure.md#metadata) of this kernel stub
 
 ```fortran

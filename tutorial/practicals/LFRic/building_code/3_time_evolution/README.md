@@ -97,7 +97,7 @@ Utilities to build and run the code and read the input parameters are:
 * [`plot_xy_slices.py`](plot_xy_slices.py), a Python plotting script
   for the model outputs produced at the beginning and the end of the
   model run. For information on how to plot the outputs please refer
-  to the [*Step 6*](#plot-the-output-model-state) below.
+  to the [*Step 6*](#step-6-plot-the-output-model-state) below.
 
 ### Driver structure
 
@@ -233,7 +233,7 @@ in the configuration file [`configuration.nml`](configuration.nml):
 (*y<sub>c</sub>*), `half_width_x` (*hw<sub>x</sub>*) and
 `half_width_y` (*hw<sub>y</sub>*).
 
-The parameters are read and processed by the
+The parameters are read and processed by the [generated](#appendix)
 [`perturbation_bell_config_mod.f90`](
 gungho_lib/perturbation_bell_config_mod.f90) configuration module in
 the [`gungho_lib`](gungho_lib) directory and are accessed by the kernel
@@ -272,7 +272,7 @@ DoF in the loop (`perturbation( map_w3(df) + k ) = ...`).
 
 You should now have the completed `init_perturbation_kernel_mod.f90`
 kernel. To check that everything is correct, look into the completed
-kernel in the [Solutions directory](solutions).
+kernel in the [`solutions` directory](solutions).
 
 ### Step 2: Initialise the perturbation field
 
@@ -332,7 +332,7 @@ xt = ( x(1) - x_centre - u_vel*t_tot )/half_width_x
 
 You should now have the completed `prop_perturbation_kernel_mod.f90`
 kernel. To check that everything is correct, look into the completed
-kernel in the [Solutions directory](solutions).
+kernel in the [`solutions` directory](solutions).
 
 ### Step 4: Propagate the perturbation field
 
@@ -362,7 +362,7 @@ After that we need to create the appropriate `invoke` call to the
 
 You should now have the completed `time_evolution_alg_mod.x90` algorithm.
 To check that the code is correct, look into the completed algorithm in
-the [Solutions directory](solutions).
+the [`solutions` directory](solutions).
 
 ### Step 5: Build and run the code
 

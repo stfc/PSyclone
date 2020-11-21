@@ -14,7 +14,7 @@ relevant links see the [Kernel layer](
 ---
 
 We use the supplied [`setval_field_w0_kernel_mod.f90`](
-setval_field_w0_kernel_mod.f90) kernel stub to illustrate the structure
+part1/setval_field_w0_kernel_mod.f90) kernel stub to illustrate the structure
 of an LFRic kernel:
 
 ```fortran

@@ -25,7 +25,7 @@ where `<PSYCLONEHOME>` is the full path to the local PSyclone repository.
 
 Navigate to the working directory for this part of the tutorial and open
 the supplied kernel stub file [`setval_field_any_kernel_mod.f90`](
-../setval_field_any_kernel_mod.f90) in an editor. The `arg_type` [metadata](
+setval_field_any_kernel_mod.f90) in an editor. The `arg_type` [metadata](
 ../LFRic_kernel_structure.md#metadata) of this kernel stub
 
 ```fortran
@@ -65,7 +65,7 @@ the LFRic infrastructure module `argument_mod`, so the statement
 ---
 
 The kernel `setval_field_any_code()` subroutine body is empty and needs
-to be populated. As in [Part 1](../pasrt1), we will first create the code
+to be populated. As in [Part 1](../part1), we will first create the code
 for the argument list and declarations by running the PSyclone kernel
 stub generator:
 
@@ -86,10 +86,12 @@ The argument list and declarations are generated in one line per
 statement each, so in this case of long argument names they may overrun
 the free-form Fortran line-length limit of 132 characters and PSyclone
 will complain when building the code (see e.g. [here](
-https://psyclone.readthedocs.io/en/stable/line_length.html)). To prevent
-this break the long generated lines by using the Fortran continuation
-character `&` (see [here](
-http://fortranwiki.org/fortran/show/Continuation+lines) for examples).
+https://psyclone.readthedocs.io/en/stable/line_length.html)). To wrap
+long lines just use the `-l` flag when running the stub generator, e.g.
+
+```shell
+genkernelstub -l setval_field_any_kernel_mod.f90
+```
 
 ---
 
