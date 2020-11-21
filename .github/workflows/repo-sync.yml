@@ -6,6 +6,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+    - run: echo "REPOSITORY_NAME=${{ github.repository }}"
+      shell: bash
     - uses: actions/checkout@master
       with:
         persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal token
@@ -15,6 +17,7 @@ jobs:
         git config --local user.email "${{ secrets.EMAIL }}"
         git config --local user.name "${{ secrets.USERNAME }}"
     - name: Push changes
+      if: ${{ github.repository == 'stfc/PSyclone' }}
       uses: ad-m/github-push-action@master
       with:
         github_token: ${{ secrets.SECRET_TOKEN }}
