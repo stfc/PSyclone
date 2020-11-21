@@ -20,10 +20,9 @@ trans, and this is were you can add transformations to a code.
 In this exercise you will create a script that will apply
 the existing kernel extraction transformation to an invoke.
 This will insert code that writes the input- and output-data
-of a kernel to a file. Initially
-we will only transform the kernel that propagates the perturbation.
-Open the file ``extract_transform.py`` in an editor and follow
-these steps:
+of a kernel to a file. Initially we will only transform one kernel,
+the one that propagates the perturbation. Open the file
+``extract_one_transform.py`` in an editor and follow these steps:
 
 
 ### Step 1.1: Creating the transformations
@@ -59,20 +58,20 @@ with the PSyData libraries, and they contain a special rule to run
 PSyclone on the file ``time_evolution_alg_mod.x90``.
 
 For this part of the exercise add the ``-s`` flag to the ``psyclone``
-invocation in ``Makefile.extract`` and provide the path to your script
+invocation in ``Makefile.extract_one`` and provide the path to your script
 so that PSyclone will invoke it. It must start with ``./``, otherwise
-Python will not find our file. 
+Python will not find our file.
 
 Once this is done, you can then create your application using:
 
-    make -f Makefile.extract
+    make -f Makefile.extract_one
 
 You need the NetCDF development package installed, the makefiles
 will be using ``nf-config`` to get the appropriate compiler and
 linker flags. Additionally, compiler and compiler flags can be provided
 using the environment variables F90 and F90FLAGS:
 
-    F90=ifort F90flags="-O2 -traceback" make -f Makefile.extract
+    F90=ifort F90flags="-O2 -traceback" make -f Makefile.extract_one
 
 By default gfortran will be used. The Makefile will automatically
 compile the required PSyData library as well.
@@ -136,15 +135,15 @@ You can provide a more user friendly name by providing a
 ``region_name`` as an option to the transformation. The region name is a pair of strings,
 the first one being a module name, the second a region name. You can use them in any
 way you like. The options are provided as an additional dictionary argument to the ``apply``
-function of a transformation, with "region_name" as key, and then a tuple containing first a module name, then a
-local name. You could use:
+function of a transformation, with "region_name" as key, and then a tuple containing first
+a module name, then a local name. You could use:
 
     {"region_name": ("time_evolution", "propagate")}
 
 Add this dictionary to your transformation script, and rebuild your application. You
 have to do a
 
-    make -f Makefile.extract clean
+    make clean
 
 since the Makefile does not have a dependency on your script (though it would be
 recommended to add this to the Makefile so that a change in your script automatically
@@ -159,7 +158,8 @@ You should now see that the psy-layer contains:
 I.e. it uses the names you have provided, and running the binary will now create
 a NetCDF file called ``time_evolution-propagate.nc``.
 
-## Step 6: Examining the output
+
+## Step 6: Examining the NetCDF output file
 
 The NetCDF command ``ncdump`` can be used to check the content of the created file:
 
@@ -181,12 +181,13 @@ At this stage no driver is created that can read in the file.
 The transformation script can be slightly changed to instrument all invokes
 in a file. While this might not be useful for kernel extraction, it is
 essential for e.g. parameter verification, where you typically want to
-check all invokes contained in a program. Use the template ``transform_all.py``
-to apply the extraction transformation to all invokes. This script actually
-requires less changes than the ``transform_one.py`` template (since it
-works on all )
-Following the same process, just using this more general transformation script,
-will result in a binary that creates two NetCDF files at run time.
+check all invokes contained in a program. Use the template ``extract_all_transform.py``
+to apply the extraction transformation to all invokes in a file. This script
+actually requires less changes than the``extract_one_transform.py`` template (since it
+works on all invokes). Then modify ``Makefile.extract_all`` to supply your
+``extract_all_transform.py`` script to PSyclone.
+Following the same process as above will result in a binary that creates
+two NetCDF files at run time - one for each invoke in the file.
 
 
 ## Step 8: Try other PSyData libraries
@@ -194,17 +195,28 @@ The following set of PSyData libraries is available and can be tested.
 Corresponding Makefiles are provided.
 
 ### Readonly Verification
-This library makes sure that kernel arguments that are declared as read-only (in metadata) are not modified. The compiler
+This library makes sure that kernel arguments that are declared as read-only
+(in the kernel metadata) are not modified. The compiler
 should make sure that a variable declared with ``intent(in)`` is not explicitly
 overwritten, but a memory overwrite because of an out-of-bound access to a
-different array is always possible. To import the transformation use:
+different array is always possible. This library will catch this kind of
+memory overwrite. To import the transformation use:
 
 ```python
     from psyclone.psyir.transformations import ReadOnlyVerifyTrans
 ```
+Then create a transformation script based on ``readonly_all_transform.py``
+script to instrument your application. Modify ``Makefile.readonly_all``
+to use your transformation script (using the ``-s`` flag). Do a
 
-Then create a transformation script based on ``transform_all.py`` script to
-instrument your application. If you run this script, nothing seems to happen.
+    make clean
+
+to make sure PSyclone will get invoked again, and recompile your application
+using
+
+    make -f makefile.readonly_all
+
+If you run the created binary, nothing seems to happen.
 To see that the verification is actually working, set
 the environment variable ``PSYDATA_VERBOSE`` to either 1 or 2 - the latter
 will provide more output including each variable that is checked:
@@ -213,12 +225,17 @@ will provide more output including each variable that is checked:
     PSYDATA_VERBOSE=2 ./time_evolution
 ```
 
-If you are really daring you can modify ``prop_perturbation_kernel_mod.f90``.
+If you are really daring you can modify the file
+``prop_perturbation_kernel_mod.f90``.
 It contains some commented out code at the bottom that will overwrite
-a read-only field by using out-of-bounds array accesses (obviously you
-need make sure the compiler is not doing array bounds checking). After
-recompiling and running (even without setting ``PSYDATA_VERBOSE``), you will
-see:
+a read-only field by using out-of-bounds array accesses. Look for the
+comment:
+
+    ! FOR READONLY VERIFICATION
+
+in the file, Obviously you need make sure not to enable any array bounds
+checking in the compiler. After recompiling and running (even without
+setting ``PSYDATA_VERBOSE``), you will see:
 
     20201120203040.272+1100:INFO : time_evolution_alg_step: Propagating perturbation field at timestep 1
      ------------- PSyData -------------------------
@@ -228,8 +245,9 @@ see:
      ------------- PSyData -------------------------
     20201120203040.286+1100:INFO : Min/max perturbation =   0.00000000E+00  0.41618197E+04
 
-Note that this error is only printed in the first time step, since after the first modification
-the modified value is not changed again.
+Note that this error is only printed in the first time step. After the first modification
+the modified value is not changed again in the application, so no change to the read-only
+field is detected.
 
 ### NAN Verification
 This library verifies that all input- and output-parameters of a kernel are
@@ -240,8 +258,15 @@ like this will be printed:
                        NaN  at index/indices        85241
 
 The transformation ``NanTestTrans`` is imported from ``psyclone.psyir.transformations``.
+You can use the template ``nan_all_trans.py`` for your script, and ``Makefile.nan_all``
+for the makefile to use.
+
 This example by itself will not print any message (since there is no invalid floating
 point number), so you have to use ``PSYDATA_VERBOSE`` and set it to 1 or 2 to see that
 tests are actually happening. Alternatively, the file
 ``prop_perturbation_kernel_mod.f90`` contains code that you can uncomment that will
-introduce a NAN into the result field.
+introduce a NAN into the result field. Search for the comment
+
+    ! FOR NAN VERIFICATION:
+
+in this file and uncomment the indicated lines. Then recompile and run your application.
