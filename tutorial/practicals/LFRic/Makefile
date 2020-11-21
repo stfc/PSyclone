@@ -32,14 +32,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
 
 # Top-level Makefile to test all of the LFRic hands-on tutorials.
+.PHONY: test clean
 
-TUTORIAL_DIRS = $(wildcard */?_*)
-
-.PHONY: test ${TUTORIAL_DIRS}
-
-test: ${TUTORIAL_DIRS}
-
-${TUTORIAL_DIRS}:
-	${MAKE} -C $@ test
+test clean:
+	${MAKE} -C building_code $@
+	${MAKE} -C distributed_memory $@
+	${MAKE} -C single_node $@

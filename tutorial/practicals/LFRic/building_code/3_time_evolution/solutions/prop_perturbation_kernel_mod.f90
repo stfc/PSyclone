@@ -41,9 +41,9 @@
 ! -----------------------------------------------------------------------------
 module prop_perturbation_kernel_mod
 
-  use argument_mod,      only: arg_type, func_type,   &
-                               GH_FIELD, GH_REAL,     &
-                               GH_READWRITE, GH_READ, &
+  use argument_mod,      only: arg_type, func_type, &
+                               GH_FIELD, GH_REAL,   &
+                               GH_WRITE, GH_READ,   &
                                CELLS
   use fs_continuity_mod, only: W3
   use constants_mod,     only: r_def, i_def
@@ -65,8 +65,8 @@ module prop_perturbation_kernel_mod
   type, public, extends(kernel_type) :: prop_perturbation_kernel_type
     private
     type(arg_type), dimension(3) :: meta_args = (/ &
-         arg_type(GH_FIELD,   GH_READWRITE, W3),   &
-         arg_type(GH_FIELD*3, GH_READ,      W3),   &
+         arg_type(GH_FIELD,   GH_WRITE, W3),       &
+         arg_type(GH_FIELD*3, GH_READ,  W3),       &
          arg_type(GH_REAL,    GH_READ)             &
          /)
     integer :: iterates_over = CELLS

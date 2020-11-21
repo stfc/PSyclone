@@ -103,7 +103,7 @@ contains
     ! TO COMPLETE (in the same invoke) - Use built-ins to:
     ! - Initialise 'field_out_w0' to 0
     ! - Initialise 'field1_in_w0' to 1 and 'field2_in_w0' to 2
-    ! - Calculate 'field_out_w0 = field1_out_w0 + field2_out_w0'
+    ! - Calculate 'field_out_w0 = field1_in_w0 + field2_in_w0'
     ! - Initialise 'field_out_w3' to 0
     ! - Initialise 'field1_in_w3' to -1
     ! - Calculate 'field2_in_w3 = 2*field1_in_w3'
@@ -115,9 +115,10 @@ contains
     call field1_in_w0%log_minmax(LOG_LEVEL_INFO, field1_in_w0%name)
     call field2_in_w0%log_minmax(LOG_LEVEL_INFO, field2_in_w0%name)
 
-    !---------------------------------------------------------------------------
-    ! TO COMPLETE: Check the values of W3 fields by printing the min/max values
-    !---------------------------------------------------------------------------
+    ! Check the values of W3 fields by printing the min/max values
+    call field_out_w3%log_minmax(LOG_LEVEL_INFO, field_out_w3%name)
+    call field1_in_w3%log_minmax(LOG_LEVEL_INFO, field1_in_w3%name)
+    call field2_in_w3%log_minmax(LOG_LEVEL_INFO, field2_in_w3%name)
 
     call log_event( "builtins_alg: Finalising algorithm", LOG_LEVEL_INFO )
     nullify( fs_w0_ptr, fs_w3_ptr )

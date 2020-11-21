@@ -31,12 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Author: I. Kavcic, Met Office
 
-.PHONY: test
+# Top-level Makefile for all LFRic hands-on tutorials on shared memory
 
-test:
-	psyclone -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
+.PHONY: test clean
 
-clean:
-	@echo "Nothing to clean"
+test clean:
+	${MAKE} -C 1_openmp $@
+	${MAKE} -C 2_openacc $@
+	${MAKE} -C 3_sequential $@

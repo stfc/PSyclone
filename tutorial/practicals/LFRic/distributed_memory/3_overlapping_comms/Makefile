@@ -1,3 +1,4 @@
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -40,3 +41,6 @@ test:
 	psyclone -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
 	psyclone -s ./solutions/overlap_generic.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
 	psyclone -s ./solutions/overlap_specific.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
+
+clean:
+	@echo "Nothing to clean"

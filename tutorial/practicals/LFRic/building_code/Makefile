@@ -33,18 +33,20 @@
 # ------------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
 
-# Top-level Makefile to build all solutions of the LFRic hands-on tutorials on
+# Top-level Makefile for all solutions of the LFRic hands-on tutorials on
 # building code.
 
 # Targets
-# build (default): complete build to run examples
+# compile (default): complete build to run examples
 # test: PSyclone target for continuous integration
 # clean: Remove generated and compiled code
-.PHONY: build test clean
+.DEFAULT_GOAL := compile
 
-build test clean:
-	${MAKE} -C 1_simple_kernels/solutions/part1 $@
-	${MAKE} -C 1_simple_kernels/solutions/part2 $@
+.PHONY: compile test clean
+
+compile test clean:
+	${MAKE} -C 1_simple_kernels/part1/solutions $@
+	${MAKE} -C 1_simple_kernels/part2/solutions $@
 	${MAKE} -C 2_built_ins/solutions $@
 	${MAKE} -C 3_time_evolution/solutions $@
 	${MAKE} -C 4_psydata $@

@@ -32,8 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
-# Modifications: A. R. Porter, STFC Daresbury Laboratory
+# Modifications: A. R. Porter, STFC Daresbury Laboratory,
+#                I. Kavcic, Met Office
 
 # The compiler to use may be specified via the F90 environment
 #

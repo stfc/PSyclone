@@ -34,7 +34,7 @@ instead of kernels for simple linear algebra operations on fields.
 
 ### [Tutorial 3: Time evolution](3_time_evolution)
 
-This tutorial illustrates timestepping in LFRic through propagation of a
+This tutorial illustrates time-stepping in LFRic through propagation of a
 field on a planar mesh (more elaborate example of LFRic code). This requires
 information to set the model initialisation and run parameters that needs to
 be used throughout the model, including the kernels. The information in this
@@ -75,7 +75,7 @@ tree targets to the `make` process:
   to generate the processed [Algorithm](
   background/LFRic_structure.md#algorithm-layer) and [PSy](
   background/LFRic_structure.md#psy-layer) layer;
-* `make` or `make build` builds the tutorial executable from the
+* `make` or `make compile` builds the tutorial executable from the
   [LFRic pared-down infrastructure](#lfric-code-support) and the
   PSyclone-generated source code above;
 * `make clean` removes the generated source and the compiled objects

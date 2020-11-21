@@ -38,7 +38,7 @@ F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
 # Path to source to use (except for PWD)
-SRC_PATH = ../..
+SRC_PATH = ..
 VPATH = $(SRC_PATH)/
 
 # Source rules
@@ -52,7 +52,7 @@ KERNEL_SRC = $(wildcard *_kernel_mod.f90)
 PSYCLONE_CMD = -nodm -l all
 
 # Executable
-EXEC = simple_kernels_part2
+EXEC = simple_kernels_part1
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../../../..
@@ -69,9 +69,11 @@ KERNEL_OBJ = $(filter %.o,$(KERNEL_SRC:.f90=.o))
 EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
 
 # Targets
-.PHONY: build test clean
+.DEFAULT_GOAL := compile
 
-build: test $(EXEC)
+.PHONY: compile test clean
+
+compile: test $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(EXAMPLE_OBJ)
 	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)

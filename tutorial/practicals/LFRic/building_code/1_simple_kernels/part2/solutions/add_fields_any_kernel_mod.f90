@@ -34,14 +34,14 @@
 ! Author: I. Kavcic, Met Office
 !
 ! -----------------------------------------------------------------------------
-! A kernel that assigns a value to a field on a discontinuous function space W3
+! A kernel that adds two fields on any function space (must be the same space)
+! and stores the result in the field on a same space
 ! -----------------------------------------------------------------------------
-module setval_field_w3_kernel_mod
+module add_fields_any_kernel_mod
 
-  use argument_mod,      only: arg_type,          &
-                               GH_FIELD, GH_REAL, &
-                               GH_READWRITE, GH_READ, CELLS
-  use fs_continuity_mod, only: W3
+  use argument_mod,      only: arg_type, GH_FIELD, &
+                               GH_INC, GH_READ,    &
+                               ANY_SPACE_1, CELLS
   use constants_mod,     only: r_def, i_def
   use kernel_mod,        only: kernel_type
 
@@ -53,54 +53,60 @@ module setval_field_w3_kernel_mod
   ! The type declaration for the kernel. Contains the metadata needed by
   ! the PSy layer.
   !-----------------------------------------------------------------------------
-  type, public, extends(kernel_type) :: setval_field_w3_kernel_type
+  type, public, extends(kernel_type) :: add_fields_any_kernel_type
     private
-    type(arg_type), dimension(2) :: meta_args = (/ &
-         arg_type(GH_FIELD, GH_READWRITE, W3),     &
-         arg_type(GH_REAL,  GH_READ)               &
+    type(arg_type), dimension(3) :: meta_args = (/ &
+         arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1), &
+         arg_type(GH_FIELD, GH_READ, ANY_SPACE_1), &
+         arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)  &
          /)
     integer :: iterates_over = CELLS
   contains
-    procedure, nopass :: setval_field_w3_code
-  end type setval_field_w3_kernel_type
+    procedure, nopass :: add_fields_any_code
+  end type add_fields_any_kernel_type
 
-  public setval_field_w3_code
+  public add_fields_any_code
 
   contains
 
-  !> @brief Sets a field on W3 function space to a scalar value
+  !> @brief Adds two fields on any function space
   !> @param[in] nlayers Number of layers
-  !> @param[in,out] field_1_w3 Field to update to a scalar
-  !> @param[in] rscalar_2 Value to set the field to
-  !> @param[in] ndf_w3 Number of degrees of freedom per cell for the
-  !!                   updated field
-  !> @param[in] undf_w3 Number of unique degrees of freedom for the
-  !!                    updated field
-  !> @param[in] map_w3 Dofmap for the cell at the base of the column for
-  !!                   the updated field
-  subroutine setval_field_w3_code(nlayers, field_1_w3, rscalar_2, &
-                                  ndf_w3, undf_w3, map_w3)
+  !> @param[in,out] field_1_aspc1_field_1 Resulting field
+  !> @param[in] field_2_aspc1_field_1 First field to add
+  !> @param[in] field_3_aspc1_field_1 Second field to add
+  !> @param[in] ndf_aspc1_field_1 Number of degrees of freedom per cell
+  !!                              for the updated field
+  !> @param[in] undf_aspc1_field_1 Number of unique degrees of freedom
+  !!                               for the updated field
+  !> @param[in] map_aspc1_field_1 Dofmap for the cell at the base of the
+  !!                              column for the updated field
+  subroutine add_fields_any_code(nlayers, field_1_aspc1_field_1,               &
+                                 field_2_aspc1_field_1, field_3_aspc1_field_1, &
+                                 ndf_aspc1_field_1, undf_aspc1_field_1, map_aspc1_field_1)
 
     implicit none
 
     ! Arguments
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_w3
-    integer(kind=i_def), intent(in) :: undf_w3
-    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
-    real(kind=r_def), intent(in) :: rscalar_2
-    real(kind=r_def), intent(inout), dimension(undf_w3) :: field_1_w3
+    integer(kind=i_def), intent(in) :: ndf_aspc1_field_1
+    integer(kind=i_def), intent(in), dimension(ndf_aspc1_field_1) :: map_aspc1_field_1
+    integer(kind=i_def), intent(in) :: undf_aspc1_field_1
+    real(kind=r_def), intent(inout), dimension(undf_aspc1_field_1) :: field_1_aspc1_field_1
+    real(kind=r_def), intent(in), dimension(undf_aspc1_field_1) :: field_2_aspc1_field_1
+    real(kind=r_def), intent(in), dimension(undf_aspc1_field_1) :: field_3_aspc1_field_1
 
     ! Internal variables
     integer(kind=i_def) :: k, df
 
     ! Update field
     do k = 0, nlayers-1
-      do df = 1, ndf_w3
-        field_1_w3( map_w3(df) + k ) = rscalar_2
+      do df = 1, ndf_aspc1_field_1
+        field_1_aspc1_field_1( map_aspc1_field_1(df) + k ) =   &
+          field_2_aspc1_field_1( map_aspc1_field_1(df) + k ) + &
+          field_3_aspc1_field_1( map_aspc1_field_1(df) + k )
       end do
     end do
 
-  end subroutine setval_field_w3_code
+  end subroutine add_fields_any_code
 
-end module setval_field_w3_kernel_mod
+end module add_fields_any_kernel_mod
