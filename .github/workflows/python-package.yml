@@ -57,7 +57,7 @@ jobs:
         submodules: recursive
     - name: get commit message
         run: |
-           echo ::set-env name=commitmsg::$(git log --format=%B -n 1 ${{ github.event.after }})
+           echo "::set-env name=commitmsg::$(git log --format=%B -n 1 ${{ github.event.after }})"
     - name: show commit message
         run : echo $commitmsg
     - name: Set up Python ${{ matrix.python-version }}
@@ -90,7 +90,7 @@ jobs:
         ( make -C tutorial/practicals/nemo test > /dev/null )
         ( make -C tutorial/practicals/LFRic test > /dev/null )
     - name: Test with pytest
-      if: !contains( env.commitmsg, 'skip ci' )
+      if: "!contains( env.commitmsg, 'skip ci' )"
       run: |
         pytest --cov=psyclone --cov-report=xml src/psyclone/tests
     - name: Upload coverage to Codecov
