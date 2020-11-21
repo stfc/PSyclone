@@ -183,8 +183,13 @@ in a file. While this might not be useful for kernel extraction, it is
 essential for e.g. parameter verification, where you typically want to
 check all invokes contained in a program. Use the template ``extract_all_transform.py``
 to apply the extraction transformation to all invokes in a file. This script
-actually requires less changes than the``extract_one_transform.py`` template (since it
-works on all invokes). Then modify ``Makefile.extract_all`` to supply your
+actually requires less changes than the``extract_one_transform.py`` template
+(since it works on all invokes):
+
+1. Import the required transformation and create an instance (line 59).
+2. In the loop over all invokes apply the transformation (line 75).
+
+ Then modify ``Makefile.extract_all`` to supply your
 ``extract_all_transform.py`` script to PSyclone.
 Following the same process as above will result in a binary that creates
 two NetCDF files at run time - one for each invoke in the file.
