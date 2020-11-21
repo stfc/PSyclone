@@ -263,7 +263,7 @@ like this will be printed:
                        NaN  at index/indices        85241
 
 The transformation ``NanTestTrans`` is imported from ``psyclone.psyir.transformations``.
-You can use the template ``nan_all_trans.py`` for your script, and ``Makefile.nan_all``
+You can use the template ``nan_all_transform.py`` for your script, and ``Makefile.nan_all``
 for the makefile to use.
 
 This example by itself will not print any message (since there is no invalid floating
