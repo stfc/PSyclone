@@ -38,25 +38,7 @@
 # offers is only meant for testing, each library should compile its own version
 # of the base class (with therefore consistent compiler settings).
 
-F90 ?= gfortran
-F90FLAGS ?= 
-
-default: psy_data_base.o
-process: psy_data_base.f90
-
-.PHONY: default process clean all
-
+.PHONEY: all
+	
 all:
-	$(MAKE) -C extract all
-	$(MAKE) -C profiling all
-	$(MAKE) -C read_only all
-
-%.f90:	%.jinja process.py
-	./process.py $< > $*.f90
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
-
-
-clean:
-	rm -f psy_data_base.f90
+	$(MAKE) -C netcdf all

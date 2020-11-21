@@ -52,7 +52,12 @@ PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
 default: extract_netcdf_base.o psy_data_base.o
 process: extract_netcdf_base.f90
 
-.PHONY: default process clean
+.PHONY: default process clean all
+
+all:
+	$(MAKE) -C dl_esm_inf
+	$(MAKE) -C lfric
+
 
 # The dependencies
 # ----------------

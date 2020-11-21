@@ -30,33 +30,52 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-#------------------------------------------------------------------------------
-# Authors: J. Henrichs, Australian Bureau of Meteorology
+# -----------------------------------------------------------------------------
+# Author: J. Henrichs, Bureau of Meteorology
 
-# This Makefile just creates the Fortran base class for the PSyData library
-# from the jinja template psy_data_base.jinja. The compile functionality it
-# offers is only meant for testing, each library should compile its own version
-# of the base class (with therefore consistent compiler settings).
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option. It adds NAN verification code to
+the invokes.
+'''
 
-F90 ?= gfortran
-F90FLAGS ?= 
-
-default: psy_data_base.o
-process: psy_data_base.f90
-
-.PHONY: default process clean all
-
-all:
-	$(MAKE) -C extract all
-	$(MAKE) -C profiling all
-	$(MAKE) -C read_only all
-
-%.f90:	%.jinja process.py
-	./process.py $< > $*.f90
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+from __future__ import print_function
 
 
-clean:
-	rm -f psy_data_base.f90
+def trans(psy):
+    '''
+    Take the supplied psy object, and add NAN verification code.
+
+    :param psy: the PSy layer to transform.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
+
+    '''
+
+    # ------------------------------------------------------
+    # TOOD: import the transformation and create an instance
+    # ------------------------------------------------------
+    # from ... import ...
+    # my_transform = ...()
+
+
+    for invoke_name in psy.invokes.names:
+        print(invoke_name)
+
+        invoke = psy.invokes.get(invoke_name)
+
+        # Now get the schedule, to which we want to apply the transformation
+        schedule = invoke.schedule
+
+
+        # ------------------------------------------------------
+        # TODO: Apply the transformation
+        # ------------------------------------------------------
+        ....apply(schedule, {"region_name": ("time_evolution", name)})
+
+        # Just as feedback: show the modified schedule, which should have
+        # a new node at the top:
+        schedule.view()
+
+    return psy

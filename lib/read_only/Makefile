@@ -49,7 +49,11 @@ PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
 default: read_only_base.o psy_data_base.o
 process: read_only_base.f90
 
-.PHONY: default process clean
+.PHONY: default process clean all
+
+all:
+	$(MAKE) -C dl_esm_inf
+	$(MAKE) -C lfric
 
 %.f90:	%.jinja
 	../process.py $(PROCESS_ARGS) $< > $*.f90

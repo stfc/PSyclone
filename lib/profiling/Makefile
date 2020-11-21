@@ -38,7 +38,9 @@ F90=gfortran
 FFLAGS=-g
 LDFLAGS=
 
-ALL_LIBS=template simple_timing dl_timer drhook nvidia
+# We don't build dl_timer, drhook and nvidia since they require
+# external libraries to be available.
+ALL_LIBS=template simple_timing
 
 .PHONY: default all $(ALL_LIBS) clean
 

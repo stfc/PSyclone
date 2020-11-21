@@ -30,33 +30,36 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-#------------------------------------------------------------------------------
-# Authors: J. Henrichs, Australian Bureau of Meteorology
-
-# This Makefile just creates the Fortran base class for the PSyData library
-# from the jinja template psy_data_base.jinja. The compile functionality it
-# offers is only meant for testing, each library should compile its own version
-# of the base class (with therefore consistent compiler settings).
+# ------------------------------------------------------------------------------
+# Author: I. Kavcic, Met Office
 
 F90 ?= gfortran
-F90FLAGS ?= 
+F90FLAGS ?= -Wall -g -fcheck=bound
 
-default: psy_data_base.o
-process: psy_data_base.f90
+# LFRic infrastructure library
+PSYCLONE_RELPATH = ../../../../../..
+LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_NAME = lfric_netcdf
+LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
+F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
 
-.PHONY: default process clean all
+GHLIB_SRC = $(wildcard *.F90) $(wildcard *.f90)
 
-all:
-	$(MAKE) -C extract all
-	$(MAKE) -C profiling all
-	$(MAKE) -C read_only all
+GHLIB_OBJ = $(filter %.o,$(GHLIB_SRC:.F90=.o) $(GHLIB_SRC:.f90=.o))
 
-%.f90:	%.jinja process.py
-	./process.py $< > $*.f90
+default: $(GHLIB_OBJ)
+	$(AR) $(ARFLAGS) libgungho.a $(GHLIB_OBJ)
+default: $(LIB)
+
+# Dependencies
+# ------------
+assign_coordinate_field_mod.o: base_mesh_config_mod.o planet_config_mod.o
+
+%.o: %.F90
+	$(F90) $(F90FLAGS) -c $<
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
-
 clean:
-	rm -f psy_data_base.f90
+	rm -f *.o *.mod *.a
