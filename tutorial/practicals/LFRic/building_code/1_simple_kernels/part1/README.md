@@ -74,9 +74,8 @@ end do
 ```
 
 into the subroutine body after the declarations. This is a typical
-loop structure for the LFRic kernels and the background information
-is also given in the [*Loops* section](
-../LFRic_kernel_structure.md#loops).
+loop structure for LFRic kernels, for more details see the
+[*Loops* section](../LFRic_kernel_structure.md#loops).
 
 You should now have the completed `setval_field_w0_kernel_mod.f90`
 kernel. To check that everything is correct, look into the completed

@@ -31,8 +31,8 @@ in order to learn how to work with the basic building blocks of an
 
 ## Supporting source and scripts
 
-In [Part 1](part1) will use the following modules as templates to create and
-call the kernels:
+In [Part 1](part1) we will use the following modules as templates to create
+and call the kernels:
 
 * [`setval_field_w0_kernel_mod.f90`](part1/setval_field_w0_kernel_mod.f90),
   a stub of an LFRic kernel that updates a field on the `W0` function space.

@@ -159,10 +159,10 @@ specify the Fortran `kind` of a literal value, e.g. `r_def` for the
 ---
 **NOTE**
 
-Sometimes PSyclone will generate invalid PSy-layer code if the kernel
-arguments in the wrong order. This happens because there is currently no
-validation of the arguments supplied in the Algorithm layer. This support
-will be implemented in the future.
+Sometimes PSyclone will generate invalid PSy-layer code if the user
+makes a mistake in the ordering of the kernel arguments. This happens
+because there is currently no validation of the arguments supplied in
+the Algorithm layer. This support will be implemented in the future.
 
 ---
 
@@ -174,7 +174,7 @@ and check that the code builds with PSyclone in between. E.g. start with:
     call invoke( setval_c(field_out_w0, 0.0_r_def) )
 ```
 
-and the process the modified algorithm by calling `make test` as outlined
+and then process the modified algorithm by calling `make test` as outlined
 in the *Step 3* below. Then add the next built-in:
 
 ```fortran
