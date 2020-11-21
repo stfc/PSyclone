@@ -37,9 +37,19 @@
 
 TUTORIAL_DIRS = $(wildcard */?_*)
 
-.PHONY: test ${TUTORIAL_DIRS}
+.PHONY: test ${TUTORIAL_DIRS} clean
 
 test: ${TUTORIAL_DIRS}
 
 ${TUTORIAL_DIRS}:
 	${MAKE} -C $@ test
+
+clean:
+	${MAKE} -C building_code clean
+	${MAKE} -C distributed_memory/1_distributed_memory clean
+	${MAKE} -C distributed_memory/2_annexed_dofs clean
+	${MAKE} -C distributed_memory/3_overlapping_comms clean
+	${MAKE} -C distributed_memory/4_reductions clean
+	${MAKE} -C single_node/1_openmp clean
+	${MAKE} -C single_node/2_openacc clean
+	${MAKE} -C single_node/3_sequential clean
