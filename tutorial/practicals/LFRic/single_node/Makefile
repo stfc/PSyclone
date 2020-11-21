@@ -31,13 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Author: I. Kavcic, Met Office
 
-# Top-level Makefile to test all of the LFRic hands-on tutorials.
+# Top-level Makefile for all LFRic hands-on tutorials on shared memory
+
 .PHONY: test clean
 
 test clean:
-	${MAKE} -C building_code $@
-	${MAKE} -C distributed_memory $@
-	${MAKE} -C single_node $@
+	${MAKE} -C 1_openmp $@
+	${MAKE} -C 2_openacc $@
+	${MAKE} -C 3_sequential $@

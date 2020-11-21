@@ -33,73 +33,14 @@
 # ------------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
 
-# Compiler settings
-F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound
+# Top-level Makefile for all LFRic hands-on tutorials on distributed memory
 
-# Source rules
-DRIVER_SRC = simple_kernels_driver.f90
-ALGORITHMS = $(wildcard *_alg_mod.x90)
-ALGORITHM_SRC = $(ALGORITHMS:.x90=.f90)
-PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
-KERNEL_SRC = $(wildcard *_kernel_mod.f90)
+.PHONY: test clean
 
-# PSyclone command-line options
-PSYCLONE_CMD = -nodm -l all
-
-# Executable
-EXEC = simple_kernels_part1
-
-# LFRic infrastructure library
-PSYCLONE_RELPATH = ../../../../../..
-LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-F90FLAGS += -I$(LFRIC_PATH)
-
-# Object rules
-DRIVER_OBJ = $(filter %.o,$(DRIVER_SRC:.f90=.o))
-ALGORITHM_OBJ = $(filter %.o,$(ALGORITHM_SRC:.f90=.o))
-PSY_OBJ = $(filter %.o,$(PSY_SRC:.f90=.o))
-KERNEL_OBJ = $(filter %.o,$(KERNEL_SRC:.f90=.o))
-EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
-
-# Targets
-.DEFAULT_GOAL := compile
-
-.PHONY: compile test clean
-
-compile: test $(EXEC)
-
-$(EXEC): $(LFRIC_LIB) $(EXAMPLE_OBJ)
-	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
-
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
-
-# Dependencies
-$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
-$(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ)
-$(PSY_OBJ): $(KERNEL_OBJ)
-
-%.o %.mod: %.F90
-	$(F90) $(F90FLAGS) -c $<
-
-%.o %.mod: %.f90
-	$(F90) $(F90FLAGS) -c $<
-
-$(ALGORITHM_SRC): $(PSY_SRC)
-
-# Keep the generated Alg and PSy files
-.precious: $(ALGORITHM_SRC) $(PSY_SRC)
-
-# Test PSyclone target for continuous integration
-test: $(PSY_SRC) $(ALGORITHM_SRC)
-
-%_psy.f90: %.x90
-	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
-	-opsy $*_psy.f90 -oalg $*.f90 $<
+test:
+	${MAKE} -C 1_distributed_memory $@
+	${MAKE} -C 2_annexed_dofs $@
+	${MAKE} -C 3_overlapping_comms $@
+	${MAKE} -C 4_reductions $@
 
 clean:
-	rm -f *.o *.mod $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
-	make -C $(LFRIC_PATH) clean

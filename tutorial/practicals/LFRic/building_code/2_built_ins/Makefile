@@ -63,9 +63,11 @@ PSY_OBJ = $(filter %.o,$(PSY_SRC:.f90=.o))
 EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ)
 
 # Targets
-.PHONY: build test clean
+.DEFAULT_GOAL := compile
 
-build: test $(EXEC)
+.PHONY: compile test clean
+
+compile: test $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(EXAMPLE_OBJ)
 	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)

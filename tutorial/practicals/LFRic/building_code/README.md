@@ -75,7 +75,7 @@ tree targets to the `make` process:
   to generate the processed [Algorithm](
   background/LFRic_structure.md#algorithm-layer) and [PSy](
   background/LFRic_structure.md#psy-layer) layer;
-* `make` or `make build` builds the tutorial executable from the
+* `make` or `make compile` builds the tutorial executable from the
   [LFRic pared-down infrastructure](#lfric-code-support) and the
   PSyclone-generated source code above;
 * `make clean` removes the generated source and the compiled objects

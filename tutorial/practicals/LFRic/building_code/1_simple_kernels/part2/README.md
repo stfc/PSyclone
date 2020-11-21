@@ -24,8 +24,8 @@ where `<PSYCLONEHOME>` is the full path to the local PSyclone repository.
 ## Step 1: Complete the `setval_field_any_kernel_mod.f90` kernel
 
 Navigate to the working directory for this part of the tutorial and open
-the supplied kernel stub file [`setval_field_w0_kernel_mod.f90`](
-../setval_field_w0_kernel_mod.f90) in an editor. The `arg_type` [metadata](
+the supplied kernel stub file [`setval_field_any_kernel_mod.f90`](
+../setval_field_any_kernel_mod.f90) in an editor. The `arg_type` [metadata](
 ../LFRic_kernel_structure.md#metadata) of this kernel stub
 
 ```fortran
