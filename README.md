@@ -24,9 +24,9 @@ by clicking the 'show' link next to the 'Build logs' heading.)
 
 # Tutorial #
 
-The PSyclone tutorial may be found in the tutorial directory. Since this takes
-the form of a series of Jupyter notebooks, it too may be launched on 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=tutorial%2Fintroduction.ipynb).
+The PSyclone tutorial may be found in the tutorial directory. Since part of
+this takes the form of a series of Jupyter notebooks, it too may be launched on
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=tutorial%2Fnotebooks%2Fintroduction.ipynb).
 
 # Installation #
 
@@ -68,7 +68,7 @@ README.gource  	    | Information on how to generate a gource video from the rep
 README.uml     	    | Information on how to create UML class diagrams from the source using pyreverse
 src/psyclone   	    | The python source code
 src/psyclone/tests/ | Unit and functional tests using pytest
-tutorial/           | Tutorial using Jupyter notebooks
+tutorial/notebooks  | Tutorial using Jupyter notebooks
 
 # Status #
 
