@@ -1290,10 +1290,10 @@ class ACCEnterDataDirective(ACCDirective):
         from psyclone.f2pygen import CommentGen
 
         # We must generate a list of all of the fields accessed by
-        # OpenACC kernels (calls within an OpenACC parallel directive)
-        # 1. Find all parallel directives. We store this list for later
+        # OpenACC kernels (calls within an OpenACC parallel or kernels directive)
+        # 1. Find all parallel and kernels directives. We store this list for later
         #    use in any sub-class.
-        self._acc_dirs = self.root.walk(ACCParallelDirective)
+        self._acc_dirs = self.root.walk((ACCParallelDirective, ACCKernelsDirective))
         # 2. For each directive, loop over each of the fields used by
         #    the kernels it contains (this list is given by var_list)
         #    and add it to our list if we don't already have it
@@ -1313,8 +1313,8 @@ class ACCEnterDataDirective(ACCDirective):
             # There should be at least one variable to copyin.
             raise GenerationError(
                 "ACCEnterData directive did not find any data to copyin. "
-                "Perhaps there are no ACCParallel directives within the "
-                "region.")
+                "Perhaps there are no ACCParallel or ACCKernels directives "
+                "within the region.")
         parent.add(DirectiveGen(parent, "acc", "begin", "enter data",
                                 copy_in_str))
         # 5. Call an API-specific subclass of this class in case
@@ -4098,6 +4098,27 @@ class ACCKernelsDirective(ACCDirective):
         for child in self.children:
             child.gen_code(parent)
         parent.add(DirectiveGen(parent, "acc", "end", "kernels", ""))
+
+    @property
+    def ref_list(self):
+        '''
+        Returns a list of the references (whether to arrays or objects)
+        required by the Kernel call(s) that are children of this
+        directive. This is the list of quantities that must be
+        available on the remote device (probably a GPU) before
+        the parallel region can be begun.
+
+        :returns: list of variable names
+        :rtype: list of str
+        '''
+        variables = []
+
+        # Look-up the kernels that are children of this node
+        for call in self.kernels():
+            for arg in call.arguments.acc_args:
+                if arg not in variables:
+                    variables.append(arg)
+        return variables
 
     def update(self):
         '''
