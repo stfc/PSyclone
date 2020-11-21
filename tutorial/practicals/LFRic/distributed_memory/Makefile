@@ -37,10 +37,8 @@
 
 .PHONY: test clean
 
-test:
+test clean:
 	${MAKE} -C 1_distributed_memory $@
 	${MAKE} -C 2_annexed_dofs $@
 	${MAKE} -C 3_overlapping_comms $@
 	${MAKE} -C 4_reductions $@
-
-clean:
