@@ -26,7 +26,7 @@ where `<PSYCLONEHOME>` is the full path to the local PSyclone repository.
 Navigate to the working directory for this part of the tutorial and open
 the supplied kernel stub file [`setval_field_any_kernel_mod.f90`](
 setval_field_any_kernel_mod.f90) in an editor. The `arg_type` [metadata](
-../LFRic_kernel_structure.md#metadata) of this kernel stub
+../LFRic_kernel_structure.md#kernel-metadata) of this kernel stub
 
 ```fortran
     type(arg_type), dimension(2) :: meta_args = (/ &
@@ -138,8 +138,8 @@ Copy the created `setval_field_any_kernel_mod.f90` kernel into the new
 We will first change the new kernel code unit names from
 `setval_field_any_` to `add_fields_any_`. After that we need to
 modify the `arg_type` [metadata](
-../LFRic_kernel_structure.md#metadata) to make sure that we
-have one updated field and two read-only fields as the kernel
+../LFRic_kernel_structure.md#kernel-metadata) to make sure that
+we have one updated field and two read-only fields as the kernel
 arguments:
 
 ```fortran
