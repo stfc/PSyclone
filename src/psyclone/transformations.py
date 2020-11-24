@@ -3314,10 +3314,6 @@ class ACCRoutineTrans(KernelTrans):
                 "supported and kernel '{0}' is of type '{1}'".
                 format(kern.name, type(kern)))
 
-        if kern.module_inline:
-            raise TransformationError("Cannot transform kernel {0} because "
-                                      "it will be module-inlined.".
-                                      format(kern.name))
         if kern.modified:
             raise TransformationError(
                 "Cannot transform kernel '{0}' because it has previously been "
