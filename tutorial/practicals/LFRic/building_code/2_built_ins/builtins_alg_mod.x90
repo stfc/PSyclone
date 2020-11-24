@@ -1,0 +1,128 @@
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2020, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author: I. Kavcic, Met Office
+!
+! -----------------------------------------------------------------------------
+! A module that creates fields on W0 and W3 function spaces and uses PSyclone
+! built-ins to initialise and add the fields
+! -----------------------------------------------------------------------------
+module builtins_alg_mod
+
+  use constants_mod,              only : i_def, r_def
+  use log_mod,                    only : log_event, &
+                                         LOG_LEVEL_INFO
+  use mesh_mod,                   only : mesh_type
+  use function_space_mod,         only : function_space_type
+  use field_mod,                  only : field_type
+  use fs_continuity_mod,          only : W0, W3
+
+  implicit none
+
+  private
+
+  public :: builtins_alg
+
+contains
+
+  !> @brief Creates and adds fields on W0 and W3 function spaces using built-ins
+  !> @param[in] mesh Partitioned 3D mesh object
+  !> @param[in] element_order Finite-element method (FEM) order
+  subroutine builtins_alg(mesh, element_order)
+
+    implicit none
+
+    ! Input arguments from the driver: Mesh and FEM order
+    type(mesh_type), intent(in)        :: mesh
+    integer(i_def),  intent(in)        :: element_order
+    ! Function spaces W0 and W3 and fields on them
+    type(function_space_type), target  :: fs_w0
+    type(function_space_type), target  :: fs_w3
+    type(function_space_type), pointer :: fs_w0_ptr => null(), &
+                                          fs_w3_ptr => null()
+    type(field_type)                   :: field_out_w0, &
+                                          field1_in_w0, &
+                                          field2_in_w0
+    type(field_type)                   :: field_out_w3, &
+                                          field1_in_w3, &
+                                          field2_in_w3
+    ! Number of values per degree of freedom for function spaces
+    integer(i_def), parameter          :: ndata_sz = 1
+
+    call log_event( "builtins_alg: Running algorithm", LOG_LEVEL_INFO )
+
+    ! Create W0 and W3 function spaces with single-valued data points
+    fs_w0 = function_space_type( mesh, element_order, W0, ndata_sz )
+    fs_w0_ptr => fs_w0
+    fs_w3 = function_space_type( mesh, element_order, W3, ndata_sz )
+    fs_w3_ptr => fs_w3
+
+    ! Create fields on W0 function space
+    call field_out_w0%initialise( vector_space = fs_w0_ptr, &
+                                  name = "field_out_w0" )
+    call field1_in_w0%initialise( vector_space = fs_w0_ptr, &
+                                  name = "field1_in_w0" )
+    call field2_in_w0%initialise( vector_space = fs_w0_ptr, &
+                                  name = "field2_in_w0" )
+
+    !---------------------------------------------------------------------------
+    ! TO COMPLETE: Create fields on W3 function space
+    !---------------------------------------------------------------------------
+
+    !---------------------------------------------------------------------------
+    ! TO COMPLETE (in the same invoke) - Use built-ins to:
+    ! - Initialise 'field_out_w0' to 0
+    ! - Initialise 'field1_in_w0' to 1 and 'field2_in_w0' to 2
+    ! - Calculate 'field_out_w0 = field1_in_w0 + field2_in_w0'
+    ! - Initialise 'field_out_w3' to 0
+    ! - Initialise 'field1_in_w3' to -1
+    ! - Calculate 'field2_in_w3 = 2*field1_in_w3'
+    ! - Calculate 'field_out_w3 = field1_in_w3 - 0.5*field2_in_w3'
+    !---------------------------------------------------------------------------
+
+    ! Check the values of W0 fields by printing the min/max values
+    call field_out_w0%log_minmax(LOG_LEVEL_INFO, field_out_w0%name)
+    call field1_in_w0%log_minmax(LOG_LEVEL_INFO, field1_in_w0%name)
+    call field2_in_w0%log_minmax(LOG_LEVEL_INFO, field2_in_w0%name)
+
+    ! Check the values of W3 fields by printing the min/max values
+    call field_out_w3%log_minmax(LOG_LEVEL_INFO, field_out_w3%name)
+    call field1_in_w3%log_minmax(LOG_LEVEL_INFO, field1_in_w3%name)
+    call field2_in_w3%log_minmax(LOG_LEVEL_INFO, field2_in_w3%name)
+
+    call log_event( "builtins_alg: Finalising algorithm", LOG_LEVEL_INFO )
+    nullify( fs_w0_ptr, fs_w3_ptr )
+
+  end subroutine builtins_alg
+
+end module builtins_alg_mod

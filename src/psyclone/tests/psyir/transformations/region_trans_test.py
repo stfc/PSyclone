@@ -186,3 +186,9 @@ def test_validate_ok():
     node_list = [schedule.children[0], schedule.children[1],
                  schedule.children[2]]
     my_rt.validate(node_list)
+
+    # Check that a single Node is accepted
+    my_rt.validate(schedule.children[0])
+
+    # Check that a single Schedule is accepted
+    my_rt.validate(schedule)

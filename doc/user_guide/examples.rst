@@ -157,7 +157,7 @@ This example shows the use of kernel data extraction in PSyclone.
 It instruments each of the two invokes in the example program
 with the PSyData-based kernel extraction code.
 It uses the dl_esm_inf-specific extraction library 'netcdf'
-(``lib/extract/dl_esm_inf/netcdf``), and needs NetCDF to be
+(``lib/extract/netcdf/dl_esm_inf``), and needs NetCDF to be
 available (including ``nf-config`` to detect installation-specific
 paths). You need to compile the NetCDF extraction library
 (see :ref:`psyke_netcdf`).
@@ -391,6 +391,24 @@ code that is output is the same as the original (but looks different
 as it has been translated to PSyIR and then output by the PSyIR
 fortran back-end).
 
+Example 16: Kernel Extraction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The subdirectory ``full_example_extract`` contains a runnable example
+of LFRic code that creates a NetCDF file with the input and output
+parameters of a simple kernel. This example requires the installation
+of a Fortran compiler and NetCDF development environment. After compilation
+of the code, you can run the example. which will produce a NetCDF file:
+
+.. code-block:: bash
+
+    cd full_example_extraction
+    make
+    ./extract
+    ncdump ./main-update.nc | less
+
+
+
 NEMO
 ----
 
@@ -431,10 +449,16 @@ PSyIR
 -----
 
 Examples may all be found in the ``example/psyir`` directory. Read the
-``README.md`` file in this directory for details.
+``README.md`` file in this directory for full details.
 
-create.py: Constructing PSyIR
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example 1: Constructing PSyIR and Generating Code
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A Python script that demonstrates the use of ``create`` methods to
-build a PSyIR tree from scratch.
+``create.py`` is a Python script that demonstrates the use of the various
+``create`` methods to build a PSyIR tree from scratch.
+
+Example 2: Creating PSyIR for Aggregate Types
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``create_aggregate_types.py`` demonstrates the representation of
+aggregate types (i.e. Fortran derived types or C structs) in the PSyIR.

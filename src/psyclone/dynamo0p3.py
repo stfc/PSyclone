@@ -97,8 +97,8 @@ QUADRATURE_TYPE_MAP = {
 SUPPORTED_FORTRAN_DATATYPES = ["real", "integer", "logical"]
 
 # ---------- Mapping from metadata data_type to Fortran intrinsic type ------ #
-MAPPING_DATA_TYPES = dict(zip(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
-                              SUPPORTED_FORTRAN_DATATYPES[0:2]))
+MAPPING_DATA_TYPES = OrderedDict(zip(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
+                                     SUPPORTED_FORTRAN_DATATYPES[0:2]))
 
 # ---------- Loops (bounds, types, names) ----------------------------------- #
 # These are loop bound names which identify positions in a field's

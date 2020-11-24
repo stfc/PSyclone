@@ -38,10 +38,13 @@
 
 from __future__ import print_function, absolute_import
 import pytest
-from psyclone.psyGen import TransInfo
+from fparser.common.readfortran import FortranStringReader
+from psyclone.psyGen import TransInfo, PSyFactory
 from psyclone.errors import InternalError, GenerationError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
+from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
+from psyclone.psyGen import OMPDoDirective
 
 # Constants
 API = "nemo"
@@ -115,7 +118,6 @@ def test_omp_private_declaration():
 def test_omp_parallel():
     ''' Check insertion of an OpenMP parallel region containing a single,
     explicit loop. '''
-    from psyclone.transformations import OMPParallelTrans
     otrans = OMPParallelTrans()
     psy, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
     schedule = invoke_info.schedule
@@ -135,7 +137,6 @@ def test_omp_parallel():
 def test_omp_add_region_invalid_data_move():
     ''' Check that _add_region() raises the expected error if an invalid
     value for data_movement is supplied. '''
-    from psyclone.transformations import OMPParallelTrans
     otrans = OMPParallelTrans()
     _, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
     schedule = invoke_info.schedule
@@ -150,7 +151,6 @@ def test_omp_add_region_invalid_data_move():
 def test_omp_parallel_multi():
     ''' Check insertion of an OpenMP parallel region containing more than
     one node. '''
-    from psyclone.transformations import OMPParallelTrans
     from psyclone.psyGen import OMPParallelDirective
     otrans = OMPParallelTrans()
     psy, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
@@ -186,10 +186,29 @@ def test_omp_parallel_multi():
     assert old_ast is directive.ast
 
 
+def test_omp_do_missing_region(parser):
+    ''' Check that the correct error is raised if an OMPDoDirective is
+    found outside an OMP parallel region at code-generation time. '''
+    reader = FortranStringReader("program do_loop\n"
+                                 "integer :: ji, jpj\n"
+                                 "real :: sto_tmp(jpj)\n"
+                                 "do ji = 1,jpj\n"
+                                 "  sto_tmp(ji) = 1.0d0\n"
+                                 "end do\n"
+                                 "end program do_loop\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop_trans = OMPLoopTrans()
+    loop_trans.apply(schedule[0])
+    with pytest.raises(GenerationError) as err:
+        str(psy.gen)
+    assert ("OMPDoDirective must be inside an OMP parallel region but could "
+            "not find an ancestor OMPParallelDirective" in str(err.value))
+
+
 def test_omp_do_update():
     '''Check the OMPDoDirective update function.'''
-    from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
-    from psyclone.psyGen import OMPDoDirective
     psy, invoke = get_invoke("imperfect_nest.f90", api=API, idx=0)
     schedule = invoke.schedule
     par_trans = OMPParallelTrans()
@@ -235,7 +254,6 @@ wmask(ji, jj, jk)
 def test_omp_parallel_errs():
     ''' Check that we raise the expected errors when incorrectly attempting
     to add an OpenMP parallel region containing more than one node. '''
-    from psyclone.transformations import OMPParallelTrans
     otrans = OMPParallelTrans()
     psy, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
     schedule = invoke_info.schedule

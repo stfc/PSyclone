@@ -1354,7 +1354,7 @@ def test_module_inline_and_compile(tmpdir):
     '''
     Compile.skip_if_compilation_disabled()
     psy, invoke = get_invoke("test14_module_inline_same_kernel.f90", API,
-                             idx=0)
+                             idx=0, dist_mem=False)
     schedule = invoke.schedule
     kern_call = schedule.children[0].loop_body[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
@@ -1824,8 +1824,9 @@ def test_accloop(tmpdir):
     # enclosing parallel region
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("ACCLoopDirective must have an ACCParallelDirective as an "
-            "ancestor in the Schedule" in str(err.value))
+    assert ("ACCLoopDirective must have an ACCParallelDirective or "
+            "ACCKernelsDirective as an ancestor in the Schedule" in
+            str(err.value))
 
     # Add an enclosing parallel region
     new_sched, _ = accpara.apply(schedule.children)

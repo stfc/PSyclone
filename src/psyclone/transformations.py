@@ -3381,13 +3381,13 @@ class ACCKernelsTrans(RegionTrans):
         '''
         return "ACCKernelsTrans"
 
-    def apply(self, node_list, options=None):
+    def apply(self, nodes, options=None):
         '''
         Enclose the supplied list of PSyIR nodes within an OpenACC
         Kernels region.
 
-        :param node_list: the list of nodes in the PSyIR to enclose.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param nodes: a node or list of nodes in the PSyIR to enclose.
+        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["default_present"]: whether or not the kernels \
@@ -3400,6 +3400,10 @@ class ACCKernelsTrans(RegionTrans):
                             :py:class:`psyclone.undoredo.Memento`).
 
         '''
+        # Ensure we are always working with a list of nodes, even if only
+        # one was supplied via the `nodes` argument.
+        node_list = self.get_node_list(nodes)
+
         self.validate(node_list, options)
 
         # Keep a record of this transformation
@@ -3429,14 +3433,14 @@ class ACCKernelsTrans(RegionTrans):
         # Return the now modified kernel
         return schedule, keep
 
-    def validate(self, node_list, options):
+    def validate(self, nodes, options):
         '''
-        Check that we can safely enclose the supplied list of nodes within
-        OpenACC kernels ... end kernels directives.
+        Check that we can safely enclose the supplied node or list of nodes
+        within OpenACC kernels ... end kernels directives.
 
-        :param node_list: the proposed list of PSyIR nodes to enclose in the \
-                          kernels region.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param nodes: the proposed PSyIR node or nodes to enclose in the \
+                      kernels region.
+        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -3449,6 +3453,10 @@ class ACCKernelsTrans(RegionTrans):
         from psyclone.nemo import NemoInvokeSchedule
         from psyclone.dynamo0p3 import DynInvokeSchedule
         from psyclone.psyir.nodes import Loop, Assignment
+
+        # Ensure we are always working with a list of nodes, even if only
+        # one was supplied via the `nodes` argument.
+        node_list = self.get_node_list(nodes)
 
         # Check that the front-end is valid
         sched = node_list[0].ancestor((NemoInvokeSchedule, DynInvokeSchedule))
@@ -3506,13 +3514,12 @@ class ACCDataTrans(RegionTrans):
         '''
         return "ACCDataTrans"
 
-    def apply(self, node_list, options=None):
+    def apply(self, nodes, options=None):
         '''
-        Put the supplied list of nodes within an OpenACC data region.
+        Put the supplied node or list of nodes within an OpenACC data region.
 
-        :param node_list: the list of PSyIR nodes to enclose in the data \
-                          region.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param nodes: the PSyIR node(s) to enclose in the data region.
+        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -3521,6 +3528,10 @@ class ACCDataTrans(RegionTrans):
                 :py:class:`psyclone.undoredo.Memento`).
 
         '''
+        # Ensure we are always working with a list of nodes, even if only
+        # one was supplied via the `nodes` argument.
+        node_list = self.get_node_list(nodes)
+
         self.validate(node_list, options)
 
         # Keep a record of this transformation
@@ -3545,15 +3556,14 @@ class ACCDataTrans(RegionTrans):
         # Return the now modified kernel
         return schedule, keep
 
-    def validate(self, node_list, options):
+    def validate(self, nodes, options):
         '''
         Check that we can safely add a data region around the supplied list
         of nodes.
 
-        :param node_list: the proposed list of nodes to enclose in a data \
-                          region.
-        :type node_list: list of subclasses of \
-                         :py:class:`psyclone.psyir.nodes.Node`
+        :param nodes: the proposed node(s) to enclose in a data region.
+        :type nodes: (list of) subclasses of \
+                     :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -3563,6 +3573,10 @@ class ACCDataTrans(RegionTrans):
                                      data directives.
         '''
         from psyclone.psyGen import ACCEnterDataDirective
+        # Ensure we are always working with a list of nodes, even if only
+        # one was supplied via the `nodes` argument.
+        node_list = self.get_node_list(nodes)
+
         super(ACCDataTrans, self).validate(node_list, options)
 
         # Check that the Schedule to which the nodes belong does not already
