@@ -46,8 +46,8 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
-    ContainerSymbol, ScalarType, ArrayType, SymbolTable, RoutineSymbol, \
-    LocalInterface, GlobalInterface, Symbol
+    ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
+    SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
     Reference, Literal, KernelSchedule
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
@@ -408,6 +408,14 @@ class FortranWriter(PSyIRVisitor):
                 "gen_vardecl requires the symbol '{0}' to have a Local or "
                 "an Argument interface but found a '{1}' interface."
                 "".format(symbol.name, type(symbol.interface).__name__))
+
+        if isinstance(symbol.datatype, UnknownType):
+            if isinstance(symbol.datatype, UnknownFortranType):
+                return symbol.datatype.declaration
+            # The Fortran backend only handles unknown *Fortran* declarations.
+            raise VisitorError(
+                "The Fortran backend cannot handle the declaration of a "
+                "symbol of '{0}' type.".format(type(symbol.datatype).__name__))
 
         datatype = gen_datatype(symbol)
         result = "{0}{1}".format(self._nindent, datatype)

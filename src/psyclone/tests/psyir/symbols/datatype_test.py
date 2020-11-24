@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Perform py.test tests on the psygen.psyir.symbols.datatype module '''
@@ -39,7 +39,8 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
-    ArrayType, UnknownType, DataSymbol
+    ArrayType, UnknownFortranType, DataSymbol, StructureType, \
+    INTEGER_TYPE, REAL_TYPE, Symbol, TypeSymbol
 from psyclone.psyir.nodes import Literal, BinaryOperation, Reference
 from psyclone.errors import InternalError
 
@@ -353,14 +354,72 @@ def test_arraytype_immutable():
         data_type.shape = []
 
 
-def test_unknown_type():
+def test_unknown_fortran_type():
     ''' Check the constructor and 'declaration' property of the
-    UnknownType class. '''
+    UnknownFortranType class. '''
     with pytest.raises(TypeError) as err:
-        UnknownType(1)
+        UnknownFortranType(1)
     assert ("constructor expects the original variable declaration as a "
             "string but got an argument of type 'int'" in str(err.value))
     decl = "type(some_type) :: var"
-    utype = UnknownType(decl)
-    assert str(utype) == "UnknownType('" + decl + "')"
+    utype = UnknownFortranType(decl)
+    assert str(utype) == "UnknownFortranType('" + decl + "')"
     assert utype.declaration == decl
+
+
+# StructureType tests
+
+def test_structure_type():
+    ''' Check the StructureType constructor and that we can add components. '''
+    stype = StructureType()
+    assert str(stype) == "StructureType<>"
+    assert not stype.components
+    stype.add("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC)
+    flag = stype.lookup("flag")
+    assert isinstance(flag, StructureType.ComponentType)
+    with pytest.raises(TypeError) as err:
+        stype.add(1, "hello", "hello")
+    assert ("name of a component of a StructureType must be a 'str' but got "
+            "'int'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add("hello", "hello", "hello")
+    assert ("type of a component of a StructureType must be a 'DataType' "
+            "or 'TypeSymbol' but got 'str'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add("hello", INTEGER_TYPE, "hello")
+    assert ("visibility of a component of a StructureType must be an instance "
+            "of 'Symbol.Visibility' but got 'str'" in str(err.value))
+    with pytest.raises(KeyError):
+        stype.lookup("missing")
+    # Cannot have a recursive type definition
+    with pytest.raises(TypeError) as err:
+        stype.add("hello", stype, Symbol.Visibility.PUBLIC)
+    assert ("attempting to add component 'hello' - a StructureType definition "
+            "cannot be recursive" in str(err.value))
+
+
+def test_create_structuretype():
+    ''' Test the create() method of StructureType. '''
+    # One member will have its type defined by a TypeSymbol
+    tsymbol = TypeSymbol("my_type", DeferredType())
+    stype = StructureType.create([
+        ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("george", REAL_TYPE, Symbol.Visibility.PRIVATE),
+        ("barry", tsymbol, Symbol.Visibility.PUBLIC)])
+    assert len(stype.components) == 3
+    george = stype.lookup("george")
+    assert isinstance(george, StructureType.ComponentType)
+    assert george.name == "george"
+    assert george.datatype == REAL_TYPE
+    assert george.visibility == Symbol.Visibility.PRIVATE
+    barry = stype.lookup("barry")
+    assert isinstance(barry, StructureType.ComponentType)
+    assert barry.datatype is tsymbol
+    assert barry.visibility == Symbol.Visibility.PUBLIC
+    with pytest.raises(TypeError) as err:
+        StructureType.create([
+            ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+            ("george", Symbol.Visibility.PRIVATE)])
+    assert ("Each component must be specified using a 3-tuple of (name, "
+            "type, visibility) but found a tuple with 2 members: ("
+            "'george', " in str(err.value))

@@ -42,9 +42,11 @@
 import abc
 import six
 
-from psyclone.psyGen import Kern, Node, Schedule, Transformation
+from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.psyir.nodes import Schedule, Node, IfBlock, Loop
+from psyclone.nemo import NemoInvokeSchedule
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -109,13 +111,13 @@ class RegionTrans(Transformation):
                                   "object of type: {1}".
                                   format(self.name, arg_type))
 
-    def validate(self, node_list, options=None):
+    def validate(self, nodes, options=None):
         '''Checks that the nodes in node_list are valid for a region
         transformation.
 
-        :param node_list: list of PSyIR nodes or a single Schedule.
-        :type node_list: :py:class:`psyclone.psyir.nodes.Schedule` or a \
-                         list of :py:class:`psyclone.psyir.nodes.Node`
+        :param nodes: list of PSyIR nodes or a single node.
+        :type nodes: subclass of :py:class:`psyclone.psyir.nodes.Node` or \
+                a list of subclasses of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["node-type-check"]: this flag controls if the \
@@ -137,8 +139,10 @@ class RegionTrans(Transformation):
 
         '''
         # pylint: disable=too-many-branches
-        from psyclone.psyir.nodes import IfBlock, Loop
-        from psyclone.nemo import NemoInvokeSchedule
+
+        # Ensure we are always validating a list of nodes, even if only
+        # one was supplied via the `node_list` argument.
+        node_list = self.get_node_list(nodes)
 
         if not options:
             options = {}
@@ -181,12 +185,12 @@ class RegionTrans(Transformation):
         # of an IfBlock would imply that the transformation is being applied
         # around both the if-body and the else-body and that doesn't make
         # sense.
-        if isinstance(node_list, list) and len(node_list) > 1 and \
-           any([isinstance(node, Schedule) for node in node_list]):
+        if (len(node_list) > 1 and
+                any([isinstance(node, Schedule) for node in node_list])):
             raise TransformationError(
-                "Cannot apply a transformation to multiple nodes when one or "
-                "more is a Schedule. Either target a single Schedule or the"
-                " children of a Schedule.")
+                "Cannot apply a transformation to multiple nodes when one "
+                "or more is a Schedule. Either target a single Schedule "
+                "or the children of a Schedule.")
 
         # Sanity check that we've not been passed the condition part of
         # an If statement or the bounds of a Loop. If the parent node is

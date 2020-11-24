@@ -216,19 +216,6 @@ def test_regiontrans_wrong_children():
             "is a Schedule" in str(err.value))
 
 
-def test_regiontrans_wrong_options():
-    '''Check that the validate method raises the expected error if passed
-        options that are not contained in a dictionary.
-
-    '''
-    # RegionTrans is abstract so use a concrete sub-class
-    region_trans = ACCParallelTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        RegionTrans.validate(region_trans, None, options="invalid")
-    assert ("Transformation apply method options argument must be a "
-            "dictionary but found 'str'." in str(excinfo.value))
-
-
 def test_parallelregion_refuse_codeblock():
     ''' Check that ParallelRegionTrans.validate() rejects a loop nest that
     encloses a CodeBlock. We use OMPParallelTrans as ParallelRegionTrans
