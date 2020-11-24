@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic and A. Coughtrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
@@ -97,8 +97,8 @@ QUADRATURE_TYPE_MAP = {
 SUPPORTED_FORTRAN_DATATYPES = ["real", "integer", "logical"]
 
 # ---------- Mapping from metadata data_type to Fortran intrinsic type ------ #
-MAPPING_DATA_TYPES = dict(zip(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
-                              SUPPORTED_FORTRAN_DATATYPES[0:2]))
+MAPPING_DATA_TYPES = OrderedDict(zip(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
+                                     SUPPORTED_FORTRAN_DATATYPES[0:2]))
 
 # ---------- Loops (bounds, types, names) ----------------------------------- #
 # These are loop bound names which identify positions in a field's
@@ -1417,6 +1417,27 @@ class DynStencils(DynCollection):
         return symtab.name_from_tag(unique, root=root_name)
 
     @staticmethod
+    def max_branch_length_name(symtab, arg):
+        '''
+        Create a valid unique name for the maximum length of a stencil branch
+        (in cells) of a 2D stencil dofmap in the PSy layer. This is required
+        in the kernels for defining the maximum possible length of one of the
+        dofmap array dimensions.
+
+        :param symtab: symbol table that will contain (or already contains) \
+            the symbol with this name.
+        :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :returns: a Fortran variable name for the max stencil branch length.
+        :rtype: str
+        '''
+        root_name = arg.name + "_max_branch_length"
+        unique = DynStencils.stencil_unique_str(arg, "length")
+        return symtab.name_from_tag(unique, root=root_name)
+
+    @staticmethod
     def direction_name(symtab, arg):
         '''
         Creates a Fortran variable name to hold the direction of the stencil
@@ -1559,6 +1580,7 @@ class DynStencils(DynCollection):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
         parent.add(CommentGen(parent, ""))
+        api_config = Config.get().api_conf("dynamo0.3")
         stencil_map_names = []
         for arg in self._kern_args:
             map_name = self.map_name(arg)
@@ -1566,6 +1588,7 @@ class DynStencils(DynCollection):
                 # Only initialise maps once.
                 stencil_map_names.append(map_name)
                 stencil_type = arg.descriptor.stencil['type']
+                symtab = self._symbol_table
                 if stencil_type == "xory1d":
                     direction_name = arg.stencil.direction_arg.varname
                     for direction in ["x", "y"]:
@@ -1580,6 +1603,24 @@ class DynStencils(DynCollection):
                                 "STENCIL_1D" + direction.upper() +
                                 ","+self.extent_value(arg)+")"))
                         parent.add(if_then)
+                elif stencil_type == "cross2d":
+                    parent.add(
+                        AssignGen(parent, pointer=True, lhs=map_name,
+                                  rhs=arg.proxy_name_indexed +
+                                  "%vspace%get_stencil_2D_dofmap(" +
+                                  "STENCIL_2D_CROSS" + "," +
+                                  self.extent_value(arg) + ")"))
+                    # Max branch length in the CROSS2D stencil is used when
+                    # defining the stencil_dofmap dimensions at declaration of
+                    # the dummy argument in the kernel. This value is 1
+                    # greater than the stencil extent as the central cell
+                    # is included as part of the stencil_dofmap.
+                    parent.add(
+                        AssignGen(parent,
+                                  lhs=self.max_branch_length_name(symtab,
+                                                                  arg),
+                                  rhs=self.extent_value(arg) + " + 1_" +
+                                  api_config.default_kind["integer"]))
                 else:
                     try:
                         stencil_name = \
@@ -1597,15 +1638,14 @@ class DynStencils(DynCollection):
                                   stencil_name + "," +
                                   self.extent_value(arg) + ")"))
 
-                symtab = self._symbol_table
                 parent.add(AssignGen(parent, pointer=True,
                                      lhs=self.dofmap_name(symtab, arg),
                                      rhs=map_name + "%get_whole_dofmap()"))
 
                 # Add declaration and look-up of stencil size
-                parent.add(AssignGen(parent,
+                parent.add(AssignGen(parent, pointer=True,
                                      lhs=self.dofmap_size_name(symtab, arg),
-                                     rhs=map_name + "%get_size()"))
+                                     rhs=map_name + "%get_stencil_sizes()"))
 
     def _declare_maps_invoke(self, parent):
         '''
@@ -1622,9 +1662,6 @@ class DynStencils(DynCollection):
         if not self._kern_args:
             return
 
-        parent.add(UseGen(parent, name="stencil_dofmap_mod", only=True,
-                          funcnames=["stencil_dofmap_type"]))
-
         symtab = self._symbol_table
         stencil_map_names = []
         for arg in self._kern_args:
@@ -1634,46 +1671,71 @@ class DynStencils(DynCollection):
                 continue
 
             stencil_map_names.append(map_name)
-
-            parent.add(TypeDeclGen(parent, pointer=True,
-                                   datatype="stencil_dofmap_type",
-                                   entity_decls=[map_name+" => null()"]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True,
-                               entity_decls=[self.dofmap_name(symtab, arg) +
-                                             "(:,:,:) => null()"]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=[self.dofmap_size_name(symtab,
-                                                                   arg)]))
-
             stencil_type = arg.descriptor.stencil['type']
-            if stencil_type == "xory1d":
-                parent.add(UseGen(parent, name="flux_direction_mod",
-                                  only=True, funcnames=["x_direction",
-                                                        "y_direction"]))
-                parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                                  only=True, funcnames=["STENCIL_1DX",
-                                                        "STENCIL_1DY"]))
+            if stencil_type == "cross2d":
+                parent.add(UseGen(parent, name="stencil_2D_dofmap_mod",
+                                  only=True,
+                                  funcnames=["stencil_2D_dofmap_type",
+                                             "STENCIL_2D_CROSS"]))
+                parent.add(TypeDeclGen(parent, pointer=True,
+                                       datatype="stencil_2D_dofmap_type",
+                                       entity_decls=[map_name +
+                                                     " => null()"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   pointer=True,
+                                   entity_decls=[self.dofmap_name(symtab,
+                                                                  arg) +
+                                                 "(:,:,:,:) => null()"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   pointer=True,
+                                   entity_decls=[self.dofmap_size_name(symtab,
+                                                                       arg) +
+                                                 "(:,:) => null()"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   entity_decls=[self.max_branch_length_name(
+                                       symtab, arg)]))
             else:
-                try:
-                    stencil_name = \
-                        LFRicArgDescriptor.STENCIL_MAPPING[stencil_type]
-                except KeyError:
-                    raise GenerationError(
-                        "Unsupported stencil type '{0}' supplied. "
-                        "Supported mappings are {1}".
-                        format(arg.descriptor.stencil['type'],
-                               str(LFRicArgDescriptor.STENCIL_MAPPING)))
                 parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                                  only=True, funcnames=[stencil_name]))
-                parent.add(
-                    DeclGen(parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            pointer=True,
-                            entity_decls=[self.dofmap_name(symtab, arg) +
-                                          "(:,:,:) => null()"]))
+                                  only=True,
+                                  funcnames=["stencil_dofmap_type"]))
+                if stencil_type == 'xory1d':
+                    parent.add(UseGen(parent, name="flux_direction_mod",
+                                      only=True, funcnames=["x_direction",
+                                                            "y_direction"]))
+                    parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                                      only=True, funcnames=["STENCIL_1DX",
+                                                            "STENCIL_1DY"]))
+                else:
+                    try:
+                        stencil_name = \
+                            LFRicArgDescriptor.STENCIL_MAPPING[stencil_type]
+                    except KeyError:
+                        raise GenerationError(
+                            "Unsupported stencil type '{0}' supplied. "
+                            "Supported mappings are {1}".
+                            format(arg.descriptor.stencil['type'],
+                                   str(LFRicArgDescriptor.STENCIL_MAPPING)))
+                    parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                                      only=True, funcnames=[stencil_name]))
+
+                parent.add(TypeDeclGen(parent, pointer=True,
+                                       datatype="stencil_dofmap_type",
+                                       entity_decls=[map_name+" => null()"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   pointer=True,
+                                   entity_decls=[self.dofmap_name(symtab,
+                                                                  arg) +
+                                                 "(:,:,:) => null()"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   pointer=True,
+                                   entity_decls=[self.dofmap_size_name(symtab,
+                                                                       arg) +
+                                                 "(:) => null()"]))
 
     def _declare_maps_stub(self, parent):
         '''

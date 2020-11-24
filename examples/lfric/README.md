@@ -284,21 +284,33 @@ psyclone -s ./matvec_opt.py \
 -oalg /dev/null -opsy /dev/null
 ```
 
-## Example 16: Integer fields
+## Example 16: Code Extraction
+The subdirectory ``full_example_extract`` contains a runnable example
+of LFRic code that creates a NetCDF file with the input and output
+parameters of a simple kernel. The requirements are listed in the [README.md](
+full_example_extract/README.md) file.
+```sh
+cd full_example_extraction
+make
+./extract
+ncdump ./main-update.nc | less
+```
+
+## Example 17: Integer fields
 
 This example demonstrates the code generation for integer fields in
 PSyclone LFRic (Dynamo 0.3) API:
 
 1. with distributed memory
 ```
-cd eg16/
+cd eg17/
 psyclone integer_field_app_alg_mod.x90
 # look for %set_dirty and %halo_exchange in the generated code
 ```
 
 2. or with both MPI and OpenMP:
 ```sh
-cd eg16/
+cd eg17/
 psyclone -s ./colouring_and_omp.py integer_field_app_alg_mod.x90
 ```
 

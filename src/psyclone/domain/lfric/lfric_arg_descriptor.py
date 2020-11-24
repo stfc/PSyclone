@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic and A. Coughtrie, Met Office
 
 '''
 This module contains the LFRicArgDescriptor class and related constants
@@ -99,7 +99,8 @@ class LFRicArgDescriptor(Descriptor):
     VALID_OPERATOR_DATA_TYPES = [VALID_ARG_DATA_TYPES[0]]
 
     # Supported LFRic API stencil types and directions
-    VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
+    VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region",
+                           "cross2d"]
     # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
     # file as it causes failures with py.test 2.8.7. Therefore some parts
     # of the code do not use the VALID_STENCIL_DIRECTIONS variable.
@@ -110,7 +111,7 @@ class LFRicArgDescriptor(Descriptor):
     # an option in stencil_dofmap_mod.F90 so it is not included in
     # STENCIL_MAPPING (TODO #194: Add support for region stencils).
     STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
-                       "cross": "STENCIL_CROSS"}
+                       "cross": "STENCIL_CROSS", "cross2d": "STENCIL_2D_CROSS"}
 
     # Supported LFRic API mesh types that may be specified for a field
     # using the mesh_arg=... meta-data element (for inter-grid kernels that

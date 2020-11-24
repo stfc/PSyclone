@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic Met Office,
+# Modified I. Kavcic and A. Coughtrie, Met Office,
 #          C. M. Maynard, Met Office/University of Reading,
 #          J. Henrichs, Bureau of Meteorology.
 
@@ -4210,7 +4210,7 @@ def test_single_stencil_extent(dist_mem, tmpdir):
     output3 = ("      INTEGER(KIND=i_def), intent(in) :: f2_extent\n")
     assert output3 in result
     output4 = (
-        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
@@ -4223,12 +4223,12 @@ def test_single_stencil_extent(dist_mem, tmpdir):
         "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,f2_extent)\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map%get_size()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
         "      !\n")
     assert output5 in result
     output6 = (
         "        CALL testkern_stencil_code(nlayers, f1_proxy%data,"
-        " f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell),"
+        " f2_proxy%data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell),"
         " f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))")
@@ -4264,7 +4264,7 @@ def test_single_stencil_xory1d(dist_mem, tmpdir):
         "      INTEGER(KIND=i_def), intent(in) :: f2_direction\n")
     assert output3 in result
     output4 = (
-        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
@@ -4283,12 +4283,12 @@ def test_single_stencil_xory1d(dist_mem, tmpdir):
         "STENCIL_1DY,f2_extent)\n"
         "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map%get_size()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
         "      !\n")
     assert output5 in result
     output6 = (
         "        CALL testkern_stencil_xory1d_code(nlayers, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size, f2_direction, "
+        "f1_proxy%data, f2_proxy%data, f2_stencil_size(cell), f2_direction, "
         "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
@@ -4315,7 +4315,7 @@ def test_single_stencil_literal(dist_mem, tmpdir):
         "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
     assert output2 in result
     output3 = (
-        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
@@ -4328,7 +4328,7 @@ def test_single_stencil_literal(dist_mem, tmpdir):
         "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,1)\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map%get_size()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
         "      !\n")
     assert output4 in result
     if dist_mem:
@@ -4339,7 +4339,7 @@ def test_single_stencil_literal(dist_mem, tmpdir):
         assert output5 in result
     output6 = (
         "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell), "
+        "f2_proxy%data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell), "
         "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))")
@@ -4360,6 +4360,59 @@ def test_stencil_region_unsupported(dist_mem):
         _ = str(psy.gen)
     assert "Unsupported stencil type 'region' supplied" in \
         str(excinfo.value)
+
+
+def test_single_stencil_cross2d(dist_mem, tmpdir):
+    ''' Test a single stencil access with an extent value passed from the
+    algorithm layer is treated correctly in the PSy layer. Test both
+    sequential and distributed memory.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.25_single_stencil_cross2d.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    result = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    output1 = (
+        "SUBROUTINE invoke_0_testkern_stencil_cross2d_type(f1, f2, f3, f4, "
+        "f2_extent)")
+    assert output1 in result
+    output2 = ("USE stencil_2D_dofmap_mod, ONLY: stencil_2D_dofmap_type, "
+               "STENCIL_2D_CROSS\n")
+    assert output2 in result
+    output3 = ("      INTEGER(KIND=i_def), intent(in) :: f2_extent\n")
+    assert output3 in result
+    output4 = (
+        "      INTEGER(KIND=i_def) f2_max_branch_length\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:,:) => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:,:) => "
+        "null()\n"
+        "      TYPE(stencil_2D_dofmap_type), pointer :: f2_stencil_map => "
+        "null()\n")
+    assert output4 in result
+    output5 = (
+        "      !\n"
+        "      ! Initialise stencil dofmaps\n"
+        "      !\n"
+        "      f2_stencil_map => f2_proxy%vspace%get_stencil_2D_dofmap("
+        "STENCIL_2D_CROSS,f2_extent)\n"
+        "      f2_max_branch_length = f2_extent + 1_i_def\n"
+        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
+        "      !\n")
+    assert output5 in result
+    output6 = (
+        "        CALL testkern_stencil_cross2d_code(nlayers, f1_proxy%data,"
+        " f2_proxy%data, f2_stencil_size(:,cell), f2_max_branch_length,"
+        " f2_stencil_dofmap(:,:,:,cell), f3_proxy%data, f4_proxy%data,"
+        " ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell),"
+        " ndf_w3, undf_w3, map_w3(:,cell))")
+    assert output6 in result
 
 
 def test_single_stencil_xory1d_literal(dist_mem, tmpdir):
@@ -4385,7 +4438,7 @@ def test_single_stencil_xory1d_literal(dist_mem, tmpdir):
         "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
     assert output2 in result
     output3 = (
-        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
@@ -4403,7 +4456,7 @@ def test_single_stencil_xory1d_literal(dist_mem, tmpdir):
         "STENCIL_1DY,2)\n"
         "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map%get_size()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
         "      !\n")
     assert output4 in result
     if dist_mem:
@@ -4414,7 +4467,7 @@ def test_single_stencil_xory1d_literal(dist_mem, tmpdir):
         assert output5 in result
     output6 = (
         "        CALL testkern_stencil_xory1d_code(nlayers, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size, x_direction, "
+        "f1_proxy%data, f2_proxy%data, f2_stencil_size(cell), x_direction, "
         "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
@@ -4446,7 +4499,7 @@ def test_single_stencil_xory1d_literal_mixed(dist_mem, tmpdir):
         "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
     assert output2 in result
     output3 = (
-        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
@@ -4464,7 +4517,7 @@ def test_single_stencil_xory1d_literal_mixed(dist_mem, tmpdir):
         "STENCIL_1DY,2)\n"
         "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map%get_size()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
         "      !\n")
     assert output4 in result
     if dist_mem:
@@ -4475,7 +4528,7 @@ def test_single_stencil_xory1d_literal_mixed(dist_mem, tmpdir):
         assert output5 in result
     output6 = (
         "        CALL testkern_stencil_xory1d_code(nlayers, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size, x_direction, "
+        "f1_proxy%data, f2_proxy%data, f2_stencil_size(cell), x_direction, "
         "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
@@ -4509,17 +4562,17 @@ def test_multiple_stencils(dist_mem, tmpdir):
         "      INTEGER(KIND=i_def), intent(in) :: f3_direction\n")
     assert output3 in result
     output4 = (
-        "      INTEGER(KIND=i_def) f4_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f4_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f4_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
         "null()\n"
-        "      INTEGER(KIND=i_def) f3_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f3_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
         "null()\n"
-        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
@@ -4531,7 +4584,7 @@ def test_multiple_stencils(dist_mem, tmpdir):
         "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,f2_extent)\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map%get_size()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
         "      IF (f3_direction .eq. x_direction) THEN\n"
         "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,f3_extent)\n"
@@ -4541,11 +4594,11 @@ def test_multiple_stencils(dist_mem, tmpdir):
         "STENCIL_1DY,f3_extent)\n"
         "      END IF\n"
         "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
-        "      f3_stencil_size = f3_stencil_map%get_size()\n"
+        "      f3_stencil_size => f3_stencil_map%get_stencil_sizes()\n"
         "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,1)\n"
         "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
-        "      f4_stencil_size = f4_stencil_map%get_size()\n"
+        "      f4_stencil_size => f4_stencil_map%get_stencil_sizes()\n"
         "      !\n")
     assert output5 in result
     if dist_mem:
@@ -4560,9 +4613,9 @@ def test_multiple_stencils(dist_mem, tmpdir):
         assert output6 in result
     output7 = (
         "        CALL testkern_stencil_multi_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell), "
-        "f3_proxy%data, f3_stencil_size, f3_direction, "
-        "f3_stencil_dofmap(:,:,cell), f4_proxy%data, f4_stencil_size, "
+        "f2_proxy%data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell), "
+        "f3_proxy%data, f3_stencil_size(cell), f3_direction, "
+        "f3_stencil_dofmap(:,:,cell), f4_proxy%data, f4_stencil_size(cell), "
         "f4_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))")
@@ -4590,17 +4643,17 @@ def test_multiple_stencil_same_name(dist_mem, tmpdir):
         "      INTEGER(KIND=i_def), intent(in) :: f3_direction\n")
     assert output2 in result
     output3 = (
-        "      INTEGER(KIND=i_def) f4_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f4_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f4_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
         "null()\n"
-        "      INTEGER(KIND=i_def) f3_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f3_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
         "null()\n"
-        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
@@ -4612,7 +4665,7 @@ def test_multiple_stencil_same_name(dist_mem, tmpdir):
         "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,extent)\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map%get_size()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
         "      IF (f3_direction .eq. x_direction) THEN\n"
         "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,extent)\n"
@@ -4622,18 +4675,18 @@ def test_multiple_stencil_same_name(dist_mem, tmpdir):
         "STENCIL_1DY,extent)\n"
         "      END IF\n"
         "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
-        "      f3_stencil_size = f3_stencil_map%get_size()\n"
+        "      f3_stencil_size => f3_stencil_map%get_stencil_sizes()\n"
         "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,extent)\n"
         "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
-        "      f4_stencil_size = f4_stencil_map%get_size()\n"
+        "      f4_stencil_size => f4_stencil_map%get_stencil_sizes()\n"
         "      !\n")
     assert output4 in result
     output5 = (
         "        CALL testkern_stencil_multi_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell), "
-        "f3_proxy%data, f3_stencil_size, f3_direction, "
-        "f3_stencil_dofmap(:,:,cell), f4_proxy%data, f4_stencil_size, "
+        "f2_proxy%data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell), "
+        "f3_proxy%data, f3_stencil_size(cell), f3_direction, "
+        "f3_stencil_dofmap(:,:,cell), f4_proxy%data, f4_stencil_size(cell), "
         "f4_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))")
@@ -4661,17 +4714,17 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
         "      INTEGER(KIND=i_def), intent(in) :: direction\n")
     assert output2 in result
     output3 = (
-        "      INTEGER(KIND=i_def) f4_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f4_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f4_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
         "null()\n"
-        "      INTEGER(KIND=i_def) f3_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f3_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
         "null()\n"
-        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
@@ -4689,7 +4742,7 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
         "STENCIL_1DY,extent)\n"
         "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map%get_size()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
         "      IF (direction .eq. x_direction) THEN\n"
         "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,extent)\n"
@@ -4699,7 +4752,7 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
         "STENCIL_1DY,extent)\n"
         "      END IF\n"
         "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
-        "      f3_stencil_size = f3_stencil_map%get_size()\n"
+        "      f3_stencil_size => f3_stencil_map%get_stencil_sizes()\n"
         "      IF (direction .eq. x_direction) THEN\n"
         "        f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,extent)\n"
@@ -4709,16 +4762,16 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
         "STENCIL_1DY,extent)\n"
         "      END IF\n"
         "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
-        "      f4_stencil_size = f4_stencil_map%get_size()\n"
+        "      f4_stencil_size => f4_stencil_map%get_stencil_sizes()\n"
         "      !\n")
     assert output4 in result
     output5 = (
         "     CALL testkern_stencil_multi_2_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, f2_stencil_size, direction, "
+        "f2_proxy%data, f2_stencil_size(cell), direction, "
         "f2_stencil_dofmap(:,:,cell), "
-        "f3_proxy%data, f3_stencil_size, direction, "
+        "f3_proxy%data, f3_stencil_size(cell), direction, "
         "f3_stencil_dofmap(:,:,cell), "
-        "f4_proxy%data, f4_stencil_size, direction, "
+        "f4_proxy%data, f4_stencil_size(cell), direction, "
         "f4_stencil_dofmap(:,:,cell), "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_adspc1_f4, undf_adspc1_f4, "
@@ -4757,12 +4810,14 @@ def test_multi_kerns_stencils_diff_fields(dist_mem, tmpdir):
         "      INTEGER(KIND=i_def), intent(in) :: f2a_extent, extent\n")
     assert output3 in result
     output4 = (
-        "      INTEGER(KIND=i_def) f2b_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2b_stencil_size(:) => "
+        "null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2b_stencil_dofmap(:,:,:) "
         "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2b_stencil_map "
         "=> null()\n"
-        "      INTEGER(KIND=i_def) f2a_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2a_stencil_size(:) => "
+        "null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2a_stencil_dofmap(:,:,:) "
         "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2a_stencil_map "
@@ -4773,33 +4828,33 @@ def test_multi_kerns_stencils_diff_fields(dist_mem, tmpdir):
         "      f2a_stencil_map => f2a_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,f2a_extent)\n"
         "      f2a_stencil_dofmap => f2a_stencil_map%get_whole_dofmap()\n"
-        "      f2a_stencil_size = f2a_stencil_map%get_size()\n"
+        "      f2a_stencil_size => f2a_stencil_map%get_stencil_sizes()\n"
         "      f2b_stencil_map => f2b_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,extent)\n"
         "      f2b_stencil_dofmap => f2b_stencil_map%get_whole_dofmap()\n"
-        "      f2b_stencil_size = f2b_stencil_map%get_size()\n"
+        "      f2b_stencil_size => f2b_stencil_map%get_stencil_sizes()\n"
         "      !\n")
     assert output5 in result
     output6 = (
         "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-        "f2a_proxy%data, f2a_stencil_size, f2a_stencil_dofmap(:,:,cell), "
-        "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-        "map_w3(:,cell))")
+        "f2a_proxy%data, f2a_stencil_size(cell), "
+        "f2a_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, ndf_w1, "
+        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+        "undf_w3, map_w3(:,cell))")
     assert output6 in result
     output7 = (
         "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-        "f2b_proxy%data, f2b_stencil_size, f2b_stencil_dofmap(:,:,cell), "
-        "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-        "map_w3(:,cell))")
+        "f2b_proxy%data, f2b_stencil_size(cell), "
+        "f2b_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, ndf_w1, "
+        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+        "undf_w3, map_w3(:,cell))")
     assert output7 in result
     output8 = (
         "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-        "f2c_proxy%data, f2b_stencil_size, f2b_stencil_dofmap(:,:,cell), "
-        "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-        "map_w3(:,cell))")
+        "f2c_proxy%data, f2b_stencil_size(cell), "
+        "f2b_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, ndf_w1, "
+        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+        "undf_w3, map_w3(:,cell))")
     assert output8 in result
 
 
@@ -4836,12 +4891,13 @@ def test_extent_name_clash(dist_mem, tmpdir):
         "f3_stencil_dofmap\n")
     assert output3 in result
     output4 = (
-        "      INTEGER(KIND=i_def) f3_stencil_size_1\n"
+        "      INTEGER(KIND=i_def), pointer :: f3_stencil_size_1(:) => "
+        "null()\n"
         "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap_1(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map_1 => "
         "null()\n"
-        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap_1(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 => "
@@ -4862,17 +4918,17 @@ def test_extent_name_clash(dist_mem, tmpdir):
         "STENCIL_CROSS,f2_extent)\n"
         "      f2_stencil_dofmap_1 => "
         "f2_stencil_map_1%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map_1%get_size()\n"
+        "      f2_stencil_size => f2_stencil_map_1%get_stencil_sizes()\n"
         "      f3_stencil_map_1 => f3_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,f3_stencil_size)\n"
         "      f3_stencil_dofmap_1 => "
         "f3_stencil_map_1%get_whole_dofmap()\n"
-        "      f3_stencil_size_1 = f3_stencil_map_1%get_size()\n"
+        "      f3_stencil_size_1 => f3_stencil_map_1%get_stencil_sizes()\n"
         "      !\n")
     assert output7 in result
     output8 = (
         "        CALL testkern_stencil_code(nlayers, "
-        "f2_stencil_map_proxy%data, f2_proxy%data, f2_stencil_size, "
+        "f2_stencil_map_proxy%data, f2_proxy%data, f2_stencil_size(cell), "
         "f2_stencil_dofmap_1(:,:,cell), f2_stencil_dofmap_proxy%data, "
         "stencil_cross_1_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
@@ -4880,7 +4936,7 @@ def test_extent_name_clash(dist_mem, tmpdir):
     assert output8 in result
     output9 = (
         "        CALL testkern_stencil_code(nlayers, "
-        "f3_stencil_map_proxy%data, f3_proxy%data, f3_stencil_size_1, "
+        "f3_stencil_map_proxy%data, f3_proxy%data, f3_stencil_size_1(cell), "
         "f3_stencil_dofmap_1(:,:,cell), f3_stencil_dofmap_proxy%data, "
         "stencil_cross_1_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
@@ -4906,14 +4962,16 @@ def test_two_stencils_same_field(tmpdir, dist_mem):
         "f2_extent, extent)")
     assert output1 in result
     output2 = (
-        "      INTEGER(KIND=i_def) f2_w2_stencil_size_1\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_w2_stencil_size_1(:) => "
+        "null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_w2_stencil_dofmap_1(:,:,:) "
         "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_w2_stencil_map_1 "
         "=> null()")
     assert output2 in result
     output3 = (
-        "      INTEGER(KIND=i_def) f2_w2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_w2_stencil_size(:) => "
+        "null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_w2_stencil_dofmap(:,:,:) "
         "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_w2_stencil_map "
@@ -4924,18 +4982,19 @@ def test_two_stencils_same_field(tmpdir, dist_mem):
         "(STENCIL_CROSS,f2_extent)\n"
         "      f2_w2_stencil_dofmap => "
         "f2_w2_stencil_map%get_whole_dofmap()\n"
-        "      f2_w2_stencil_size = f2_w2_stencil_map%get_size()\n")
+        "      f2_w2_stencil_size => f2_w2_stencil_map%get_stencil_sizes()\n")
     assert output4 in result
     output5 = (
         "      f2_w2_stencil_map_1 => "
         "f2_w2_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS,extent)\n"
         "      f2_w2_stencil_dofmap_1 => "
         "f2_w2_stencil_map_1%get_whole_dofmap()\n"
-        "      f2_w2_stencil_size_1 = f2_w2_stencil_map_1%get_size()\n")
+        "      f2_w2_stencil_size_1 => "
+        "f2_w2_stencil_map_1%get_stencil_sizes()\n")
     assert output5 in result
     output6 = (
         "        CALL testkern_stencil_code(nlayers, f1_w1_proxy%data, "
-        "f2_w2_proxy%data, f2_w2_stencil_size, "
+        "f2_w2_proxy%data, f2_w2_stencil_size(cell), "
         "f2_w2_stencil_dofmap(:,:,cell), "
         "f3_w2_proxy%data, f4_w3_proxy%data, ndf_w1, undf_w1, "
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
@@ -4943,11 +5002,11 @@ def test_two_stencils_same_field(tmpdir, dist_mem):
     assert output6 in result
     output7 = (
         "        CALL testkern_stencil_depth_code(nlayers, "
-        "f1_w3_proxy%data, f1_w1_proxy%data, f1_w1_stencil_size, "
+        "f1_w3_proxy%data, f1_w1_proxy%data, f1_w1_stencil_size(cell), "
         "f1_w1_stencil_dofmap(:,:,cell), f2_w2_proxy%data, "
-        "f2_w2_stencil_size_1, "
+        "f2_w2_stencil_size_1(cell), "
         "f2_w2_stencil_dofmap_1(:,:,cell), f4_w3_proxy%data, "
-        "f4_w3_stencil_size, "
+        "f4_w3_stencil_size(cell), "
         "f4_w3_stencil_dofmap(:,:,cell), ndf_w3, undf_w3, map_w3(:,cell), "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell))")
@@ -4974,12 +5033,14 @@ def test_stencils_same_field_literal_extent(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output1 = (
-        "      INTEGER(KIND=i_def) f2_stencil_size_1\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size_1(:) => "
+        "null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap_1(:,:,:) "
         "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 "
         "=> null()\n"
-        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => "
+        "null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) "
         "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map "
@@ -4990,27 +5051,27 @@ def test_stencils_same_field_literal_extent(dist_mem, tmpdir):
         "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,1)\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map%get_size()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
         "      f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,2)\n"
         "      f2_stencil_dofmap_1 => "
         "f2_stencil_map_1%get_whole_dofmap()\n"
-        "      f2_stencil_size_1 = f2_stencil_map_1%get_size()\n"
+        "      f2_stencil_size_1 => f2_stencil_map_1%get_stencil_sizes()\n"
         "      !")
     assert output2 in result
     output3 = (
         "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell), "
+        "f2_proxy%data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell), "
         "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))")
     assert result.count(output3) == 2
     output4 = (
         "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, f2_stencil_size_1, f2_stencil_dofmap_1(:,:,cell), "
-        "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-        "map_w3(:,cell))")
+        "f2_proxy%data, f2_stencil_size_1(cell), "
+        "f2_stencil_dofmap_1(:,:,cell), f3_proxy%data, f4_proxy%data, "
+        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
+        "ndf_w3, undf_w3, map_w3(:,cell))")
     assert result.count(output4) == 1
 
     if dist_mem:
@@ -5040,12 +5101,13 @@ def test_stencils_same_field_literal_direct(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output1 = (
-        "      INTEGER(KIND=i_def) f2_stencil_size_1\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size_1(:) => "
+        "null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap_1(:,:,:) "
         "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 "
         "=> null()\n"
-        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) "
         "=> null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map "
@@ -5062,7 +5124,7 @@ def test_stencils_same_field_literal_direct(dist_mem, tmpdir):
         "STENCIL_1DY,2)\n"
         "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map%get_size()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
         "      IF (y_direction .eq. x_direction) THEN\n"
         "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,2)\n"
@@ -5073,19 +5135,19 @@ def test_stencils_same_field_literal_direct(dist_mem, tmpdir):
         "      END IF\n"
         "      f2_stencil_dofmap_1 => "
         "f2_stencil_map_1%get_whole_dofmap()\n"
-        "      f2_stencil_size_1 = f2_stencil_map_1%get_size()\n"
+        "      f2_stencil_size_1 => f2_stencil_map_1%get_stencil_sizes()\n"
         "      !")
     assert output2 in result
     output3 = (
         "        CALL testkern_stencil_xory1d_code(nlayers, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size, x_direction, "
+        "f1_proxy%data, f2_proxy%data, f2_stencil_size(cell), x_direction, "
         "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
     assert result.count(output3) == 2
     output4 = (
         "        CALL testkern_stencil_xory1d_code(nlayers, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size_1, y_direction, "
+        "f1_proxy%data, f2_proxy%data, f2_stencil_size_1(cell), y_direction, "
         "f2_stencil_dofmap_1(:,:,cell), f3_proxy%data, f4_proxy%data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
@@ -5182,12 +5244,12 @@ def test_one_kern_multi_field_same_stencil(tmpdir, dist_mem):
         "      INTEGER(KIND=i_def), intent(in) :: direction\n")
     assert output2 in result
     output3 = (
-        "      INTEGER(KIND=i_def) f3_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f3_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
         "null()\n"
-        "      INTEGER(KIND=i_def) f1_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f1_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f1_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f1_stencil_map => "
@@ -5199,7 +5261,7 @@ def test_one_kern_multi_field_same_stencil(tmpdir, dist_mem):
         "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,extent)\n"
         "      f1_stencil_dofmap => f1_stencil_map%get_whole_dofmap()\n"
-        "      f1_stencil_size = f1_stencil_map%get_size()\n"
+        "      f1_stencil_size => f1_stencil_map%get_stencil_sizes()\n"
         "      IF (direction .eq. x_direction) THEN\n"
         "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,extent)\n"
@@ -5209,16 +5271,16 @@ def test_one_kern_multi_field_same_stencil(tmpdir, dist_mem):
         "STENCIL_1DY,extent)\n"
         "      END IF\n"
         "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
-        "      f3_stencil_size = f3_stencil_map%get_size()\n"
+        "      f3_stencil_size => f3_stencil_map%get_stencil_sizes()\n"
         "      !\n")
     assert output4 in result
     output5 = (
         "        CALL testkern_multi_field_same_stencil_code(nlayers, "
-        "f0_proxy%data, f1_proxy%data, f1_stencil_size, "
-        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size, "
-        "f1_stencil_dofmap(:,:,cell), f3_proxy%data, f3_stencil_size, "
+        "f0_proxy%data, f1_proxy%data, f1_stencil_size(cell), "
+        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size(cell), "
+        "f1_stencil_dofmap(:,:,cell), f3_proxy%data, f3_stencil_size(cell), "
         "direction, f3_stencil_dofmap(:,:,cell), f4_proxy%data, "
-        "f3_stencil_size, direction, f3_stencil_dofmap(:,:,cell), "
+        "f3_stencil_size(cell), direction, f3_stencil_dofmap(:,:,cell), "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell))")
     assert output5 in result
@@ -5248,29 +5310,29 @@ def test_single_kernel_any_space_stencil(dist_mem, tmpdir):
         "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,extent)\n"
         "      f1_stencil_dofmap => f1_stencil_map%get_whole_dofmap()\n"
-        "      f1_stencil_size = f1_stencil_map%get_size()\n"
+        "      f1_stencil_size => f1_stencil_map%get_stencil_sizes()\n"
         "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,extent)\n"
         "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
-        "      f4_stencil_size = f4_stencil_map%get_size()\n"
+        "      f4_stencil_size => f4_stencil_map%get_stencil_sizes()\n"
         "      f5_stencil_map => f5_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,extent)\n"
         "      f5_stencil_dofmap => f5_stencil_map%get_whole_dofmap()\n"
-        "      f5_stencil_size = f5_stencil_map%get_size()\n"
+        "      f5_stencil_size => f5_stencil_map%get_stencil_sizes()\n"
         "      !\n")
     assert output1 in result
     # Use the same stencil dofmap
     output2 = (
         "        CALL testkern_same_anyspace_stencil_code(nlayers, "
-        "f0_proxy%data, f1_proxy%data, f1_stencil_size, "
-        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size, "
+        "f0_proxy%data, f1_proxy%data, f1_stencil_size(cell), "
+        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1(:,cell))")
     assert output2 in result
     output3 = (
         "        CALL testkern_different_anyspace_stencil_code(nlayers, "
-        "f3_proxy%data, f4_proxy%data, f4_stencil_size, "
-        "f4_stencil_dofmap(:,:,cell), f5_proxy%data, f5_stencil_size, "
+        "f3_proxy%data, f4_proxy%data, f4_stencil_size(cell), "
+        "f4_stencil_dofmap(:,:,cell), f5_proxy%data, f5_stencil_size(cell), "
         "f5_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_aspc1_f4, undf_aspc1_f4, map_aspc1_f4(:,cell), ndf_aspc2_f5, "
         "undf_aspc2_f5, map_aspc2_f5(:,cell))")
@@ -5302,20 +5364,20 @@ def test_multi_kernel_any_space_stencil_1(dist_mem):
         "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
         "STENCIL_CROSS,extent)\n"
         "      f1_stencil_dofmap => f1_stencil_map%get_whole_dofmap()\n"
-        "      f1_stencil_size = f1_stencil_map%get_size()\n"
+        "      f1_stencil_size => f1_stencil_map%get_stencil_sizes()\n"
         "      !\n")
     assert output1 in result
     output2 = (
         "        CALL testkern_same_anyspace_stencil_code(nlayers, "
-        "f0_proxy%data, f1_proxy%data, f1_stencil_size, "
-        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size, "
+        "f0_proxy%data, f1_proxy%data, f1_stencil_size(cell), "
+        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1)")
     assert output2 in result
     output3 = (
         "        CALL testkern_different_anyspace_stencil_code(nlayers, "
-        "f3_proxy%data, f1_proxy%data, f1_stencil_size, "
-        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size, "
+        "f3_proxy%data, f1_proxy%data, f1_stencil_size(cell), "
+        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1, "
         "ndf_aspc2_f2, undf_aspc2_f2, map_aspc2_f2)")
@@ -5347,8 +5409,8 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
     # Use the same stencil dofmap
     output1 = (
         "        CALL testkern_same_any_dscnt_space_stencil_code("
-        "nlayers, f0_proxy%data, f1_proxy%data, f1_stencil_size, "
-        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size, "
+        "nlayers, f0_proxy%data, f1_proxy%data, f1_stencil_size(cell), "
+        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
         "map_wtheta(:,cell), ndf_adspc1_f1, undf_adspc1_f1, "
         "map_adspc1_f1(:,cell))")
@@ -5356,8 +5418,8 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
     # Use a different stencil dofmap
     output2 = (
         "        CALL testkern_different_any_dscnt_space_stencil_code("
-        "nlayers, f3_proxy%data, f4_proxy%data, f4_stencil_size, "
-        "f4_stencil_dofmap(:,:,cell), f5_proxy%data, f5_stencil_size, "
+        "nlayers, f3_proxy%data, f4_proxy%data, f4_stencil_size(cell), "
+        "f4_stencil_dofmap(:,:,cell), f5_proxy%data, f5_stencil_size(cell), "
         "f5_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
         "map_wtheta(:,cell), ndf_adspc1_f4, "
         "undf_adspc1_f4, map_adspc1_f4(:,cell), "
@@ -5397,7 +5459,8 @@ def test_stencil_args_unique_1(dist_mem, tmpdir):
     output2 = ("      INTEGER(KIND=i_def), intent(in) :: f2_stencil_size\n"
                "      INTEGER(KIND=i_def), intent(in) :: nlayers")
     assert output2 in result
-    output3 = "      INTEGER(KIND=i_def) f2_stencil_size_1"
+    output3 = ("      INTEGER(KIND=i_def), pointer :: f2_stencil_size_1(:)"
+               " => null()")
     assert output3 in result
     # therefore the local variable is now declared as nlayers_1"
     output4 = "      INTEGER(KIND=i_def) nlayers_1"
@@ -5414,11 +5477,11 @@ def test_stencil_args_unique_1(dist_mem, tmpdir):
         "STENCIL_1DY,f2_stencil_size)\n"
         "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size_1 = f2_stencil_map%get_size()")
+        "      f2_stencil_size_1 => f2_stencil_map%get_stencil_sizes()")
     assert output6 in result
     output7 = (
         "        CALL testkern_stencil_xory1d_code(nlayers_1, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size_1, nlayers, "
+        "f1_proxy%data, f2_proxy%data, f2_stencil_size_1(cell), nlayers, "
         "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
@@ -5457,7 +5520,7 @@ def test_stencil_args_unique_2(dist_mem, tmpdir):
         "STENCIL_1DY,f2_info)\n"
         "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map%get_size()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
         "      IF (f2_info_3 .eq. x_direction) THEN\n"
         "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,f2_info_2)\n"
@@ -5469,14 +5532,14 @@ def test_stencil_args_unique_2(dist_mem, tmpdir):
     assert output3 in result
     output4 = (
         "        CALL testkern_stencil_xory1d_code(nlayers, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size, f2_info_1, "
+        "f1_proxy%data, f2_proxy%data, f2_stencil_size(cell), f2_info_1, "
         "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
     assert output4 in result
     output5 = (
         "        CALL testkern_stencil_xory1d_code(nlayers, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size_1, f2_info_3, "
+        "f1_proxy%data, f2_proxy%data, f2_stencil_size_1(cell), f2_info_3, "
         "f2_stencil_dofmap_1(:,:,cell), f3_proxy%data, f4_proxy%data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
@@ -5551,7 +5614,7 @@ def test_stencil_vector(dist_mem, tmpdir):
         "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
         in str(result)
     assert(
-        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
@@ -5561,12 +5624,12 @@ def test_stencil_vector(dist_mem, tmpdir):
         "      f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
         "(STENCIL_CROSS,f2_extent)\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map%get_size()\n") \
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n") \
         in str(result)
     assert(
         "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, "
-        "f2_proxy(4)%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell)") \
-        in str(result)
+        "f2_proxy(4)%data, f2_stencil_size(cell), "
+        "f2_stencil_dofmap(:,:,cell)") in str(result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5593,7 +5656,7 @@ def test_stencil_xory_vector(dist_mem, tmpdir):
         "      INTEGER(KIND=i_def), intent(in) :: f2_direction\n") \
         in result
     assert(
-        "      INTEGER(KIND=i_def) f2_stencil_size\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
         "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
         "null()\n"
         "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
@@ -5609,11 +5672,11 @@ def test_stencil_xory_vector(dist_mem, tmpdir):
         "(STENCIL_1DY,f2_extent)\n"
         "      END IF\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map%get_size()\n") \
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n") \
         in result
     assert(
         "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, "
-        "f2_proxy(4)%data, f2_stencil_size, f2_direction, "
+        "f2_proxy(4)%data, f2_stencil_size(cell), f2_direction, "
         "f2_stencil_dofmap(:,:,cell)") \
         in result
 
@@ -6166,7 +6229,7 @@ def test_anyw2_stencils(dist_mem, tmpdir):
         "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap"
         "(STENCIL_CROSS,extent)\n"
         "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size = f2_stencil_map%get_size()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
         "      !\n")
     assert output in generated_code
 
@@ -6953,7 +7016,7 @@ def test_kerncallarglist_positions_quad(dist_mem):
 # Class DynKernelArguments start
 
 
-# (1/4) Method acc_args
+# (1/5) Method acc_args
 def test_dynkernelarguments_acc_args_1():
     '''Test that the acc_args method in the DynKernelArguments class
     returns the expected arguments.
@@ -6972,7 +7035,7 @@ def test_dynkernelarguments_acc_args_1():
         'map_w2', 'ndf_w3', 'undf_w3', 'map_w3']
 
 
-# (2/4) Method acc_args
+# (2/5) Method acc_args
 def test_dynkernelarguments_acc_args_2():
     '''Test that the acc_args method in the DynKernelArguments class
     returns the expected arguments when there is a field vector.
@@ -6993,7 +7056,7 @@ def test_dynkernelarguments_acc_args_2():
         'ndf_w3', 'undf_w3', 'map_w3']
 
 
-# (3/4) Method acc_args
+# (3/5) Method acc_args
 def test_dynkernelarguments_acc_args_3():
     '''Test that the acc_args method in the DynKernelArguments class
     returns the expected arguments when there is a stencil.
@@ -7013,8 +7076,29 @@ def test_dynkernelarguments_acc_args_3():
         'undf_w2', 'map_w2', 'ndf_w3', 'undf_w3', 'map_w3']
 
 
-# (4/4) Method acc_args
+# (4/5) Method acc_args
 def test_dynkernelarguments_acc_args_4():
+    '''Test that the acc_args method in the DynKernelArguments class
+    returns the expected arguments when there is a stencil.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "19.25_single_stencil_cross2d.f90"))
+    psy = PSyFactory(distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_stencil_cross2d_type').schedule
+    kern = sched.kernels()[0]
+    kern_args = kern.arguments
+    acc_args = kern_args.acc_args
+    assert acc_args == [
+        'nlayers', 'f1_proxy', 'f1_proxy%data', 'f2_proxy', 'f2_proxy%data',
+        'f2_stencil_size', 'f2_max_branch_length', 'f2_stencil_dofmap',
+        'f3_proxy', 'f3_proxy%data', 'f4_proxy', 'f4_proxy%data', 'ndf_w1',
+        'undf_w1', 'map_w1', 'ndf_w2', 'undf_w2', 'map_w2', 'ndf_w3',
+        'undf_w3', 'map_w3']
+
+
+# (5/5) Method acc_args
+def test_dynkernelarguments_acc_args_5():
     ''' Test that the acc_args method in the DynKernelArguments class
     returns the expected arguments when there is an operator.
 
