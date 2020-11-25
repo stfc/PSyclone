@@ -649,4 +649,7 @@ class PSyDataNode(Statement):
         pscall = Fortran2003.Call_Stmt(reader)
         pscall.parent = fp_parent
         fp_parent.content.insert(ast_start_index, pscall)
+        # Set the pointers back into the modified parse tree
+        self.ast = pscall
+        self.ast_end = pecall
         self.set_region_identifier(routine_name, region_name)

@@ -42,7 +42,7 @@
 from __future__ import absolute_import, print_function
 from psyclone.errors import GenerationError
 from psyclone.psyir.transformations import ProfileTrans
-from psyclone.psyGen import Kern
+from psyclone.psyGen import Kern, Directive
 
 
 class Profiler():
@@ -129,6 +129,16 @@ class Profiler():
                     target = parent_loop
                     parent_loop = parent_loop.ancestor(loop_class)
                 if target:
+                    # Have to take care that the target loop does not have
+                    # a directive applied to it. We distinguish this case
+                    # from that of a directive defining a region by checking
+                    # the number of children of the directive.
+                    if (isinstance(target.parent.parent, Directive) and
+                            len(target.parent.parent.dir_body.children) == 1):
+                        # Parent is a Directive that has only the current
+                        # loop as a child. Therefore, enclose the Directive
+                        # within the profiling region too.
+                        target = target.parent.parent
                     profile_trans.apply(target)
         if Profiler.profile_invokes():
             profile_trans.apply(schedule.children)

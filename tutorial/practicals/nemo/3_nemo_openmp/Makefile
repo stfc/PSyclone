@@ -50,6 +50,8 @@ F90 ?= gfortran
 F90FLAGS ?= -fopenmp -O2
 
 PSYCLONE = psyclone -api nemo -opsy psy.f90 -l output
+
+# The solutions scripts that the 'test' target will execute
 SOLUTION_SCRIPTS = $(wildcard solutions/*.py)
 
 .PHONY: test clean allclean ${SOLUTION_SCRIPTS}
