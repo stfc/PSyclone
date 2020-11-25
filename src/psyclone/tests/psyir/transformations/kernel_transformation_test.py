@@ -113,22 +113,6 @@ def test_accroutine_module_use():
             " must first" in str(err.value))
 
 
-def test_accroutine_rejects_transformed_kernel():
-    ''' Check that the ACCRoutineTrans rejects an already-transformed
-    kernel (because it still works with the fparser2 parse tree and not
-    the PSyIR - Issue #490). '''
-    rtrans = ACCRoutineTrans()
-    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
-    sched = invoke.schedule
-    kern = sched.coded_kernels()[0]
-    # Pretend that this kernel has previously been transformed
-    kern.modified = True
-    with pytest.raises(TransformationError) as err:
-        rtrans.apply(kern)
-    assert ("Cannot transform kernel 'continuity_code' because it has "
-            "previously been transformed" in str(err.value))
-
-
 def test_accroutine():
     ''' Test that we can transform a kernel by adding a "!$acc routine"
     directive to it. '''

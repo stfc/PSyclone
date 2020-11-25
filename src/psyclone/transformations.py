@@ -3223,6 +3223,8 @@ class ACCRoutineTrans(KernelTrans):
         '''
         Modifies the AST of the supplied kernel so that it contains an
         '!$acc routine' OpenACC directive.
+        This transformation affects the f2pygen and the PSyIR trees of
+        this kernel.
 
         :param kern: the kernel object to transform.
         :type kern: :py:class:`psyclone.psyGen.Kern`
@@ -3302,10 +3304,6 @@ class ACCRoutineTrans(KernelTrans):
         :raises TransformationError: if the target kernel is a built-in.
         :raises TransformationError: if any of the symbols in the kernel are \
                             accessed via a module use statement.
-        :raises TransformationError: if the target kernel has already been \
-                            transformed (since all other transformations work \
-                            on the PSyIR but this one still uses the fparser2 \
-                            parse tree (#490).
         '''
         from psyclone.psyGen import BuiltIn
         if isinstance(kern, BuiltIn):
@@ -3313,12 +3311,6 @@ class ACCRoutineTrans(KernelTrans):
                 "Applying ACCRoutineTrans to a built-in kernel is not yet "
                 "supported and kernel '{0}' is of type '{1}'".
                 format(kern.name, type(kern)))
-
-        if kern.modified:
-            raise TransformationError(
-                "Cannot transform kernel '{0}' because it has previously been "
-                "transformed and this transformation works on the fparser2 "
-                "parse tree rather than the PSyIR (#490).".format(kern.name))
 
         # Perform general validation checks. In particular this checks that
         # the PSyIR of the kernel body can be constructed.
@@ -3338,13 +3330,6 @@ class ACCRoutineTrans(KernelTrans):
                 "currently transform this kernel for execution on an OpenACC "
                 "device (issue #342).".
                 format(kern.name, [sym.name for sym in global_variables]))
-        # Prevent unwanted side effects by removing the kernel schedule that
-        # we have just constructed. This is necessary while
-        # psyGen.Kern.rename_and_write still supports kernels that have been
-        # transformed by manipulation of the fparser2 Parse Tree (as opposed
-        # to the PSyIR).
-        # TODO #490 remove the following line.
-        kern._kern_schedule = None
 
 
 class ACCKernelsTrans(RegionTrans):
@@ -3681,11 +3666,13 @@ class KernelGlobalsToArguments(Transformation):
         kernel = node.get_kernel_schedule()
         symtab = kernel.symbol_table
         invoke_symtab = node.root.symbol_table
+        count_global_vars_removed = 0
 
         # Transform each global variable into an argument.
         # TODO #11: When support for logging is added, we could warn the user
         # if no globals are found in the kernel.
         for globalvar in kernel.symbol_table.global_symbols[:]:
+            count_global_vars_removed += 1
 
             # Resolve the data type information if it is not available
             # pylint: disable=unidiomatic-typecheck
@@ -3744,5 +3731,6 @@ class KernelGlobalsToArguments(Transformation):
             if not kernel.symbol_table.imported_symbols(container) and \
                not container.wildcard_import:
                 kernel.symbol_table.remove(container)
-        # TODO #663 - uncomment line below and fix tests.
-        # node.modified = True
+
+        if count_global_vars_removed > 0:
+            node.modified = True
