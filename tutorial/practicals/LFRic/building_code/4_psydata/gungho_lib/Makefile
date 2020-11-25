@@ -54,6 +54,9 @@ default: $(LIB)
 # Dependencies
 # ------------
 assign_coordinate_field_mod.o: base_mesh_config_mod.o planet_config_mod.o
+configuration_mod.o: extrusion_uniform_config_mod.o finite_element_config_mod.o \
+	partitioning_config_mod.o perturbation_bell_config_mod.o planet_config_mod.o \
+	timestepping_config_mod.o base_mesh_config_mod.o io_utility_mod.o
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
