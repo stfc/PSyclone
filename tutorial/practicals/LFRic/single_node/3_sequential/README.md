@@ -73,7 +73,7 @@ The resultant modified kernel code is output in the same directory as
 this file by default e.g. `apply_variable_hx_kernel_0_mod.f90`.
 
 If you take a look at the modified code you should see that
-e.g. `nlevels` is now an integer parameter set to `20`.
+e.g. `nlayers` is now an integer parameter set to `20`.
 
 Feel free to play with the values in the `kernel_constants.py` script
 and check whether the values change in the modified kernel code as
