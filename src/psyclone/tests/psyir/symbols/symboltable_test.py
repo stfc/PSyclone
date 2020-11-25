@@ -214,12 +214,16 @@ def test_add_1():
     assert len(var1_datatype.shape) == 2
     assert isinstance(var1_datatype.shape[0], Literal)
     assert var1_datatype.shape[0].value == "5"
-    assert var1_datatype.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert var1_datatype.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert (var1_datatype.shape[0].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (var1_datatype.shape[0].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
     assert isinstance(var1_datatype.shape[1], Literal)
     assert var1_datatype.shape[1].value == "1"
-    assert var1_datatype.shape[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert var1_datatype.shape[1].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert (var1_datatype.shape[1].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (var1_datatype.shape[1].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
     assert var1_symbol.interface.container_symbol == my_mod
 
     # Declare a duplicate name symbol

@@ -42,6 +42,7 @@ from collections import OrderedDict, namedtuple
 from enum import Enum
 import six
 from psyclone.errors import InternalError
+from psyclone.psyir.symbols import DataSymbol
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -152,7 +153,6 @@ class ScalarType(DataType):
         UNDEFINED = 3
 
     def __init__(self, intrinsic, precision):
-        from psyclone.psyir.symbols import DataSymbol
         if not isinstance(intrinsic, ScalarType.Intrinsic):
             raise TypeError(
                 "ScalarType expected 'intrinsic' argument to be of type "
@@ -216,15 +216,18 @@ class ArrayType(DataType):
 
     :param datatype: the datatype of the array elements.
     :type datatype: :py:class:`psyclone.psyir.datatypes.DataType`
-    :param list shape: shape of the symbol in column-major order (leftmost \
-        index is contiguous in memory). Each entry represents an array \
-        dimension. If it is DataSymbol.Extent.ATTRIBUTE the extent of that
-        dimension is unknown but can be obtained by querying the run-time \
-        system (e.g. using the SIZE intrinsic in Fortran). If it is \
-        DataSymbol.Extent.DEFERRED then the extent is also unknown and may or \
-        may not be defined at run-time (e.g. the array is ALLOCATABLE in \
-        Fortran). Otherwise it can be an int or a DataNode (that returns an \
-        int).
+    :param list shape: shape of the symbol in column-major order \
+        (leftmost index is contiguous in memory). Each entry \
+        represents an array dimension. If it is \
+        DataSymbol.Extent.ATTRIBUTE the extent of that dimension is \
+        unknown but can be obtained by querying the run-time system \
+        (e.g. using the SIZE intrinsic in Fortran). If it is \
+        DataSymbol.Extent.DEFERRED then the extent is also unknown and \
+        may or may not be defined at run-time (e.g. the array is \
+        ALLOCATABLE in Fortran). Otherwise it can be an int or a \
+        DataNode (that returns an int). Note that providing an int is \
+        supported as a convenience, the provided value will be stored \
+        internally as a Literal node.
 
     :raises TypeError: if the arguments are of the wrong type.
 
@@ -243,6 +246,9 @@ class ArrayType(DataType):
 
     def __init__(self, datatype, shape):
 
+        # This import must be placed here to avoid circular
+        # dependencies.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Literal
 
         if not isinstance(datatype, DataType):
@@ -285,16 +291,16 @@ class ArrayType(DataType):
             (leftmost index is contiguous in memory) with each entry \
             representing an array dimension.
 
-        :rtype: a list of DataSymbol.Extent.ATTRIBUTE,
-            DataSymbol.Extent.DEFERRED,
-            :py:class:`psyclone.psyir.symbols.DataSymbol` or
-            :py:class:`psyclone.psyir.nodes.DataNode`. If an entry is
-            DataSymbol.Extent.ATTRIBUTE the extent of that dimension
-            is unknown but can be obtained by querying the run-time
-            system (e.g. using the SIZE intrinsic in Fortran). If it
-            is DataSymbol.Extent.DEFERRED then the extent is also
-            unknown and may or may not be defined at run-time
-            (e.g. the array is ALLOCATABLE in Fortran). Otherwise an
+        :rtype: a list of DataSymbol.Extent.ATTRIBUTE, \
+            DataSymbol.Extent.DEFERRED, \
+            :py:class:`psyclone.psyir.symbols.DataSymbol` or \
+            :py:class:`psyclone.psyir.nodes.DataNode`. If an entry is \
+            DataSymbol.Extent.ATTRIBUTE the extent of that dimension \
+            is unknown but can be obtained by querying the run-time \
+            system (e.g. using the SIZE intrinsic in Fortran). If it \
+            is DataSymbol.Extent.DEFERRED then the extent is also \
+            unknown and may or may not be defined at run-time \
+            (e.g. the array is ALLOCATABLE in Fortran). Otherwise an \
             entry is a DataSymbol or DataNode that returns an int.
 
         '''
@@ -317,7 +323,9 @@ class ArrayType(DataType):
             DataSymbol, int, ArrayType.Extent or DataNode.
 
         '''
-        from psyclone.psyir.symbols.datasymbol import DataSymbol
+        # This import must be placed here to avoid circular
+        # dependencies.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import DataNode, Reference
         if not isinstance(extents, list):
             raise TypeError(
@@ -379,7 +387,9 @@ class ArrayType(DataType):
             found.
 
         '''
-        from psyclone.psyir.symbols import DataSymbol
+        # This import must be placed here to avoid circular
+        # dependencies.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import DataNode
         dims = []
         for dimension in self.shape:

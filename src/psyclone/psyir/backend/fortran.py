@@ -49,7 +49,7 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
     SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
-    Reference, Literal, KernelSchedule
+    Reference, Literal, KernelSchedule, DataNode, CodeBlock
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.errors import InternalError
 
@@ -294,7 +294,7 @@ class FortranWriter(PSyIRVisitor):
 
     '''
 
-    def gen_dims(self, symbol):
+    def _gen_dims(self, symbol):
         '''Given a DataSymbol instance as input, return a list of strings
         representing the symbol's array dimensions.
 
@@ -302,14 +302,13 @@ class FortranWriter(PSyIRVisitor):
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :returns: the Fortran representation of the symbol's dimensions as \
-        a list.
+            a list.
         :rtype: list of str
 
         :raises NotImplementedError: if the format of the dimension is not \
-        supported.
+            supported.
 
         '''
-        from psyclone.psyir.nodes import DataNode
         dims = []
         for index in symbol.shape:
             if isinstance(index, DataSymbol):
@@ -326,7 +325,6 @@ class FortranWriter(PSyIRVisitor):
                 raise NotImplementedError(
                     "unsupported gen_dims index '{0}'".format(str(index)))
         return dims
-
 
     def gen_use(self, symbol, symbol_table):
         ''' Performs consistency checks and then creates and returns the
@@ -426,7 +424,7 @@ class FortranWriter(PSyIRVisitor):
                     "A Fortran declaration of an allocatable array must have"
                     " the extent of every dimension as 'DEFERRED' but "
                     "symbol '{0}' has shape: {1}.".format(
-                        symbol.name, self.gen_dims(symbol)))
+                        symbol.name, self._gen_dims(symbol)))
             # A 'deferred' array extent means this is an allocatable array
             result += ", allocatable"
         if ArrayType.Extent.ATTRIBUTE in symbol.shape:
@@ -440,8 +438,8 @@ class FortranWriter(PSyIRVisitor):
                         "An assumed-size Fortran array must only have its "
                         "last dimension unspecified (as 'ATTRIBUTE') but "
                         "symbol '{0}' has shape: {1}."
-                        "".format(symbol.name, self.gen_dims(symbol)))
-        dims = self.gen_dims(symbol)
+                        "".format(symbol.name, self._gen_dims(symbol)))
+        dims = self._gen_dims(symbol)
         if dims:
             result += ", dimension({0})".format(",".join(dims))
         intent = gen_intent(symbol)
@@ -1005,7 +1003,6 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        from psyclone.psyir.nodes import CodeBlock
         result = ""
         if node.structure == CodeBlock.Structure.STATEMENT:
             # indent and newlines required

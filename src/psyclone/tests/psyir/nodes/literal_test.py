@@ -44,6 +44,7 @@ from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import ScalarType, ArrayType, \
     REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
 
 def test_literal_init():
@@ -60,12 +61,16 @@ def test_literal_init():
     assert len(literal.datatype.shape) == 2
     assert isinstance(literal.datatype.shape[0], Literal)
     assert literal.datatype.shape[0].value == '10'
-    assert literal.datatype.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert literal.datatype.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert (literal.datatype.shape[0].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (literal.datatype.shape[0].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
     assert isinstance(literal.datatype.shape[1], Literal)
     assert literal.datatype.shape[1].value == '10'
-    assert literal.datatype.shape[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert literal.datatype.shape[1].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert (literal.datatype.shape[1].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (literal.datatype.shape[1].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
 
     literal = Literal("true", BOOLEAN_TYPE)
     assert literal.value == "true"
@@ -154,8 +159,6 @@ def test_literal_value():
 
 def test_literal_node_str():
     ''' Check the node_str method of the Literal class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-
     # scalar literal
     literal = Literal("1", INTEGER_SINGLE_TYPE)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])

@@ -39,10 +39,12 @@
 
 from __future__ import absolute_import
 import pytest
+import fparser
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part, \
-    Type_Declaration_Stmt, Execution_Part, Name
+    Type_Declaration_Stmt, Execution_Part, Name, Stmt_Function_Stmt, \
+    Dimension_Attr_Spec, Assignment_Stmt, Return_Stmt, Subroutine_Subprogram
 from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference, \
     Array, Container, Literal, Range, KernelSchedule
@@ -890,14 +892,18 @@ def test_process_array_declarations():
     assert len(l5_datatype.shape) == 1
     assert isinstance(l5_datatype.shape[0], Literal)
     assert l5_datatype.shape[0].value == '2'
-    assert l5_datatype.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert l5_datatype.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert (l5_datatype.shape[0].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l5_datatype.shape[0].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
     l6_datatype = fake_parent.symbol_table.lookup("l6").datatype
     assert len(l6_datatype.shape) == 1
     assert isinstance(l6_datatype.shape[0], Literal)
     assert l6_datatype.shape[0].value == '3'
-    assert l6_datatype.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert l6_datatype.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert (l6_datatype.shape[0].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l6_datatype.shape[0].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
 
     # Test that component-array-spec has priority over dimension attribute
     reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
@@ -909,12 +915,16 @@ def test_process_array_declarations():
     l7_datatype = l7_datasymbol.datatype
     assert isinstance(l7_datatype.shape[0], Literal)
     assert l7_datatype.shape[0].value == '3'
-    assert l7_datatype.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert l7_datatype.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert (l7_datatype.shape[0].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l7_datatype.shape[0].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
     assert isinstance(l7_datatype.shape[1], Literal)
     assert l7_datatype.shape[1].value == '2'
-    assert l7_datatype.shape[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert l7_datatype.shape[1].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert (l7_datatype.shape[1].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l7_datatype.shape[1].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
 
     # Allocatable
     reader = FortranStringReader("integer, allocatable :: l8(:)")
@@ -1269,7 +1279,6 @@ def test_process_declarations_stmt_functions():
     '''Test that process_declarations method handles statement functions
     appropriately.
     '''
-    from fparser.two.Fortran2003 import Stmt_Function_Stmt
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
@@ -1325,7 +1334,6 @@ def test_parse_array_dimensions_attributes():
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
-    from fparser.two.Fortran2003 import Dimension_Attr_Spec
 
     sym_table = SymbolTable()
     reader = FortranStringReader("dimension(:)")
@@ -1495,8 +1503,6 @@ def test_parse_array_dimensions_unhandled(monkeypatch):
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
-    from fparser.two.Fortran2003 import Dimension_Attr_Spec
-    import fparser
 
     def walk_ast_return(_1, _2, _3=None, _4=None):
         '''Function that returns a unique object that will not be part
@@ -2221,7 +2227,6 @@ def test_case_default():
     TODO #754 fix test so that 'disable_declaration_check' fixture is not
     required.
     '''
-    from fparser.two.Fortran2003 import Assignment_Stmt
     case_clauses = ["CASE default\nbranch3 = 1\nbranch3 = branch3 * 2\n",
                     "CASE (label1)\nbranch1 = 1\n",
                     "CASE (label2)\nbranch2 = 1\n"]
@@ -2559,7 +2564,6 @@ def test_handling_return_stmt():
     ''' Test that fparser2 Return_Stmt is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import Return_Stmt
     reader = FortranStringReader("return")
     return_stmt = Execution_Part.match(reader)[0][0]
     assert isinstance(return_stmt, Return_Stmt)
@@ -2577,7 +2581,6 @@ def test_handling_return_stmt():
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_end_subroutine_stmt():
     ''' Test that fparser2 End_Subroutine_Stmt are ignored.'''
-    from fparser.two.Fortran2003 import Subroutine_Subprogram
     reader = FortranStringReader('''
         subroutine dummy_code()
         end subroutine dummy_code
