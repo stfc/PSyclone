@@ -480,6 +480,32 @@ def test_codedkern_module_inline_gen_code(tmpdir):
             "yet.") in str(err.value)
 
 
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_codedkern_module_inline_gen_code_modified_kernels(tmpdir):
+    ''' Check that a CodedKern marked as modified can still be
+    module-inlined. '''
+    # Use a Dynamo example that has a repeated CodedKern
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    coded_kern = schedule.children[0].loop_body[0]
+
+    # Set modified and module-inline at the same time
+    coded_kern.modified = True
+    coded_kern.module_inline = True
+
+    # In this case the code generation still works but ...
+    gen = str(psy.gen)
+    assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
+    # ... since this subroutine is modified the kernel has now a new suffix
+    assert "SUBROUTINE ru_0_code(" in gen
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
 def test_kern_coloured_text():
     ''' Check that the coloured_name method of both CodedKern and
     BuiltIn return what we expect. '''
