@@ -47,7 +47,8 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
-    SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol
+    SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol, \
+    TypeSymbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
     Reference, Literal, KernelSchedule
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
@@ -150,6 +151,15 @@ def gen_datatype(symbol):
     is an unsupported type.
 
     '''
+    if isinstance(symbol.datatype, TypeSymbol):
+        # Symbol is of derived type
+        return "type({0})".format(symbol.datatype.name)
+
+    if (isinstance(symbol.datatype, ArrayType) and
+            isinstance(symbol.datatype.intrinsic, TypeSymbol)):
+        # Symbol is an array of derived types
+        return "type({0})".format(symbol.datatype.intrinsic.name)
+
     try:
         fortrantype = TYPE_MAP_TO_FORTRAN[symbol.datatype.intrinsic]
     except KeyError:

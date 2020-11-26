@@ -39,6 +39,7 @@
 
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface
+from psyclone.psyir.symbols.componentsymbol import ComponentSymbol
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
@@ -57,6 +58,7 @@ __all__ = ['TYPE_MAP_TO_PYTHON',
            'Symbol',
            'SymbolError',
            'SymbolTable',
+           'ComponentSymbol',
            'DataSymbol',
            'DataType',
            'LocalInterface',
