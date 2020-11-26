@@ -2717,6 +2717,8 @@ class CodedKern(Kern):
         my_schedule = self.ancestor(InvokeSchedule)
         for kernel in my_schedule.walk(Kern):
             if kernel.name == self.name:
+                # We directly modify the other kernel field instead of
+                # calling the setter to avoid an infinite recursive call.
                 # pylint: disable=protected-access
                 kernel._module_inline = value
 
@@ -2741,8 +2743,8 @@ class CodedKern(Kern):
         :param parent: The parent of this kernel call in the f2pygen AST.
         :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
 
-        :raises NotImplementedError: if there is a name clash preventing to \
-            module-inline the kernel without changing its name.
+        :raises NotImplementedError: if there is a name clash that prevents \
+            the kernel from being module-inlined without changing its name.
         '''
         from psyclone.f2pygen import CallGen, UseGen, PSyIRGen
 
@@ -2772,8 +2774,11 @@ class CodedKern(Kern):
                 existing_symbol = None
 
             if not existing_symbol:
-                # If it doesn't exist already, module-inline the subroutine
+                # If it doesn't exist already, module-inline the subroutine by:
+                # 1) Registering the subroutine symbol in the Container
                 self.root.symbol_table.add(RoutineSymbol(self._name))
+                # 2) Converting the PSyIR kernel into a f2pygen node (of
+                # PSyIRGen kind) under the PSy-layer f2pygen module.
                 module.add(PSyIRGen(module, self.get_kernel_schedule()))
             else:
                 # If the symbol already exists, make sure it refers
@@ -2785,15 +2790,18 @@ class CodedKern(Kern):
                         " names of module-inlined subroutines is not "
                         "implemented yet.".format(self._name, existing_symbol))
 
-                # Make sure the generated code is an exact match
-                found = False
+                # Make sure the generated code is an exact match by creating
+                # the f2pygen node (which in turn creates the fparser1) of the
+                # kernel_schedule and then compare it to the fparser1 trees of
+                # the PSyIRGen f2pygen nodes children of module.
                 search = PSyIRGen(module, self.get_kernel_schedule()).root
                 for child in module.children:
                     if isinstance(child, PSyIRGen):
                         if child.root == search:
-                            found = True
-
-                if not found:
+                            # If there is an exact match (the implementation is
+                            # the same), it is safe to continue.
+                            break
+                else:
                     raise NotImplementedError(
                         "Can not inline subroutine '{0}' because another "
                         "subroutine with the same name already exists and"

@@ -400,7 +400,7 @@ def test_codedkern_node_str():
 def test_codedkern_module_inline_getter_and_setter():
     ''' Check that the module_inline setter changes the module inline
     attribute to all the same kernels in the invoke'''
-    # Use a Dynamo example that has a repeated CodedKern
+    # Use LFRic example with a repeated CodedKern
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
         api="dynamo0.3")
@@ -432,7 +432,7 @@ def test_codedkern_module_inline_getter_and_setter():
 def test_codedkern_module_inline_gen_code(tmpdir):
     ''' Check that a CodedKern with module-inline gets copied into the
     local module appropriately when the PSy-layer is generated'''
-    # Use a Dynamo example that has a repeated CodedKern
+    # Use LFRic example with a repeated CodedKern
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
         api="dynamo0.3")
@@ -484,7 +484,7 @@ def test_codedkern_module_inline_gen_code(tmpdir):
 def test_codedkern_module_inline_gen_code_modified_kernels(tmpdir):
     ''' Check that a CodedKern marked as modified can still be
     module-inlined. '''
-    # Use a Dynamo example that has a repeated CodedKern
+    # Use LFRic example with a repeated CodedKern
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
         api="dynamo0.3")
@@ -510,7 +510,7 @@ def test_kern_coloured_text():
     ''' Check that the coloured_name method of both CodedKern and
     BuiltIn return what we expect. '''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    # Use a Dynamo example that has both a CodedKern and a BuiltIn
+    # Use LFRic example with both a CodedKern and a BuiltIn
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
