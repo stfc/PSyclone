@@ -31,17 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Authors: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
 include ../../common.mk
 
-GENERATED_FILES += kern_use_var_*.cl
+GENERATED_FILES += kern_use_var_*.cl kern_use_var_*_mod.f90
 
-.PHONY: basic opencl others
+.PHONY: basic opencl openacc others
 
 all: transform
 
-transform: basic opencl others
+transform: basic opencl openacc others
 
 basic:
 	${PSYCLONE} -api "gocean1.0" alg_kern_use_var.f90
@@ -49,13 +49,14 @@ basic:
 opencl:
 	${PSYCLONE} -api "gocean1.0" -s ./ocl_transform.py alg_kern_use_var.f90
 
+openacc:
+	${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_use_var.f90
+
 others:
-	# The following currently fail as work is in progress to support
-	# transforming kernels that access data or routines from modules.
-	# TODO #490 and #342 and #663"
-	#${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_use_var.f90
-	#${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_call_kern.f90
-	#${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_nested_use.f90
+	# The following currently fail as work is in progress to support transforming
+	# kernels that access nested modules or call kernels from modules (TODO #342).
+	# ${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_call_kern.f90
+	# ${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_nested_use.f90
 
 compile:
 	@echo "No compilation targets for this example"
