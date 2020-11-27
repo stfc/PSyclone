@@ -2982,6 +2982,10 @@ class CodedKern(Kern):
         # If this kernel is being module in-lined then we do not need to
         # write it to file.
         if self.module_inline:
+            # TODO #1013: However, the file is already created (opened) and
+            # currently this file is needed for the name versioning, so this
+            # will create an unnecessary file.
+            os.close(fdesc)
             return
 
         if self.root.opencl:
