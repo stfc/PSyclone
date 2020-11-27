@@ -107,6 +107,7 @@ SYMBOL_TABLE.add(FIELD_BUNDLE)
 # in the type definition associated with FIELD_SYMBOL.
 ARRAY_TYPE = ArrayType(SCALAR_TYPE, [10])
 DATA_SYMBOL = ComponentSymbol("data", ARRAY_TYPE, FIELD_SYMBOL)
+# We have a second "data" ComponentSymbol associated with FIELD_BUNDLE
 CHI_DATA_SYMBOL = ComponentSymbol("data", ARRAY_TYPE, FIELD_BUNDLE)
 
 # Create a reference to element two of the "chi" array
@@ -117,8 +118,6 @@ CHI_DATA_REF = Array.create(CHI_DATA_SYMBOL, [INT_ONE], CHI_ARRAY_REF)
 
 # For now we can't do much more than print out the symbol tables as
 # there's a lot of functionality still to implement.
-# TODO #363 remove these prints and update example to use the Fortran
-# backend.
 print("Kernel Symbol Table:")
 print(str(SYMBOL_TABLE))
 print("Container Symbol Table:")
@@ -152,7 +151,6 @@ CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
                              [KERNEL_SCHEDULE])
 
 # Write out the code as Fortran.
-# TODO #363 Backend does not currently support derived types
 WRITER = FortranWriter()
 RESULT = WRITER(CONTAINER)
 print(RESULT)
