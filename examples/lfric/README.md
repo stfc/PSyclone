@@ -284,14 +284,24 @@ psyclone -s ./matvec_opt.py \
 -oalg /dev/null -opsy /dev/null
 ```
 
-## Example 16: Generate LFRic code using LFRic PSyIR
+## Example 16: Code Extraction
+The subdirectory ``full_example_extract`` contains a runnable example
+of LFRic code that creates a NetCDF file with the input and output
+parameters of a simple kernel. The requirements are listed in the README.md file.
+```sh
+cd full_example_extraction
+make
+./extract
+ncdump ./main-update.nc | less
+```
+
+## Example 17: Generate LFRic code using LFRic PSyIR
 
 This example shows how LFRic-specific PSyIR can be used to create
 LFRic code. To run:
 ```sh
-cd eg16/
+cd eg17/
 python create.py
-```
 
 ## Code
 

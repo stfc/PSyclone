@@ -304,6 +304,7 @@ def test_derived_type_deref_naming(tmpdir):
 
 FAKE_KERNEL_METADATA = '''
 module dummy_mod
+  use argument_mod
   type, extends(kernel_type) :: dummy_type
      type(arg_type), meta_args(3) =                    &
           (/ arg_type(gh_field, gh_write,     w3),     &
@@ -1723,8 +1724,8 @@ def test_acc_datadevice_virtual():
 def test_accenterdatadirective_gencode_1():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, raises the expected exception as there is no
-    following OpenACC Parallel directive and at least one is
-    required. This test uses the dynamo0.3 API.
+    following OpenACC Parallel or OpenACC Kernels directive as at
+    least one is required. This test uses the dynamo0.3 API.
 
     '''
     acc_enter_trans = ACCEnterDataTrans()
@@ -1735,16 +1736,16 @@ def test_accenterdatadirective_gencode_1():
     with pytest.raises(GenerationError) as excinfo:
         str(psy.gen)
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
-            "there are no ACCParallel directives within the region."
-            in str(excinfo.value))
+            "there are no ACCParallel or ACCKernels directives within the "
+            "region." in str(excinfo.value))
 
 
 # (2/4) Method gen_code
 def test_accenterdatadirective_gencode_2():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with multiple loops, raises the expected exception, as there is no
-    following OpenACC Parallel directive and at least one is
-    required. This test uses the dynamo0.3 API.
+    following OpenACC Parallel or OpenACCKernels directive and at
+    least one is required. This test uses the dynamo0.3 API.
 
     '''
     acc_enter_trans = ACCEnterDataTrans()
@@ -1755,24 +1756,25 @@ def test_accenterdatadirective_gencode_2():
     with pytest.raises(GenerationError) as excinfo:
         str(psy.gen)
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
-            "there are no ACCParallel directives within the region."
-            in str(excinfo.value))
+            "there are no ACCParallel or ACCKernels directives within the "
+            "region." in str(excinfo.value))
 
 
 # (3/4) Method gen_code
-def test_accenterdatadirective_gencode_3():
+@pytest.mark.parametrize("trans", [ACCParallelTrans, ACCKernelsTrans])
+def test_accenterdatadirective_gencode_3(trans):
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, produces the expected code (there should be
-    "copy in" data as there is a following OpenACC parallel
+    "copy in" data as there is a following OpenACC parallel or kernels
     directive). This test uses the dynamo0.3 API.
 
     '''
-    acc_par_trans = ACCParallelTrans()
+    acc_trans = trans()
     acc_enter_trans = ACCEnterDataTrans()
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
-    _ = acc_par_trans.apply(sched.children)
+    _ = acc_trans.apply(sched.children)
     _ = acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
@@ -1783,21 +1785,27 @@ def test_accenterdatadirective_gencode_3():
 
 
 # (4/4) Method gen_code
-def test_accenterdatadirective_gencode_4():
+@pytest.mark.parametrize("trans1,trans2",
+                         [(ACCParallelTrans, ACCParallelTrans),
+                          (ACCParallelTrans, ACCKernelsTrans),
+                          (ACCKernelsTrans, ACCParallelTrans),
+                          (ACCKernelsTrans, ACCKernelsTrans)])
+def test_accenterdatadirective_gencode_4(trans1, trans2):
     '''Test that an OpenACC Enter Data directive, when added to a schedule
-    with multiple loops and multiple OpenACC parallel directives,
-    produces the expected code (when the same argument is used in
-    multiple loops there should only be one entry). This test uses the
-    dynamo0.3 API.
+    with multiple loops and multiple OpenACC parallel and/or Kernel
+    directives, produces the expected code (when the same argument is
+    used in multiple loops there should only be one entry). This test
+    uses the dynamo0.3 API.
 
     '''
-    acc_par_trans = ACCParallelTrans()
+    acc_trans1 = trans1()
+    acc_trans2 = trans2()
     acc_enter_trans = ACCEnterDataTrans()
     _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0').schedule
-    _ = acc_par_trans.apply(sched.children[1])
-    _ = acc_par_trans.apply(sched.children[0])
+    _ = acc_trans1.apply([sched.children[1]])
+    _ = acc_trans2.apply([sched.children[0]])
     _ = acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (

@@ -35,7 +35,8 @@
 
 include ../../common.mk
 
-all:
+transform:
 	${PYTHON} module_inline_example.py
 
-compile: all
+compile:
+	@echo "No compilation target supported for inlining example"

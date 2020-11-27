@@ -49,9 +49,9 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
-    Symbol, RoutineSymbol, GlobalInterface, ArgumentInterface, \
-    UnresolvedInterface, LocalInterface, \
-    ScalarType, ArrayType, DeferredType, UnknownType
+    Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
+    LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
+    UnknownFortranType, StructureType, TypeSymbol, RoutineSymbol, SymbolTable
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -1244,15 +1244,17 @@ class Fparser2Reader(object):
                 raise NotImplementedError("Found unsupported USE statement: "
                                           "'{0}'".format(str(decl)))
 
-    def _process_decln(self, parent, decl, default_visibility,
+    def _process_decln(self, parent, symbol_table, decl, default_visibility,
                        visibility_map=None):
         '''
         Process the supplied fparser2 parse tree for a declaration. For each
-        entity that is declared, a symbol is added to the symbol table
-        associated with the parent node.
+        entity that is declared, a symbol is added to the supplied symbol
+        table.
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+        :param symbol_table: the symbol table to which to add new symbols.
+        :type symbol_table: py:class:`psyclone.psyir.symbols.SymbolTable`
         :param decl: fparser2 parse tree of declaration to process.
         :type decl: :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
         :param default_visibility: the default visibility of symbols in the \
@@ -1290,8 +1292,11 @@ class Fparser2Reader(object):
         '''
         (type_spec, attr_specs, entities) = decl.items
 
-        # Parse type_spec, currently just 'real', 'double precision',
-        # 'integer', 'logical' and 'character' intrinsic types are supported.
+        base_type = None
+        precision = None
+
+        # Parse the type_spec
+
         if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
             fort_type = str(type_spec.items[0]).lower()
             try:
@@ -1309,8 +1314,31 @@ class Fparser2Reader(object):
             else:
                 # Check for precision being specified.
                 precision = self._process_precision(type_spec, parent)
+            if not precision:
+                precision = default_precision(data_name)
+            base_type = ScalarType(data_name, precision)
+        elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
+            # This is a variable of derived type
+            type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
+            # Do we already have a Symbol for this derived type?
+            type_symbol = parent.find_or_create_symbol(type_name)
+            # pylint: disable=unidiomatic-typecheck
+            if type(type_symbol) == Symbol:
+                # We do but we didn't know what kind of symbol it was. Create
+                # a TypeSymbol to replace it.
+                new_symbol = TypeSymbol(type_name, DeferredType(),
+                                        interface=type_symbol.interface)
+                table = type_symbol.find_symbol_table(parent)
+                table.swap(type_symbol, new_symbol)
+                type_symbol = new_symbol
+            elif not isinstance(type_symbol, TypeSymbol):
+                raise SymbolError(
+                    "Search for a TypeSymbol named '{0}' (required by "
+                    "declaration '{1}') found a '{2}' instead.".format(
+                        type_name, str(decl), type(type_symbol).__name__))
+            base_type = type_symbol
         else:
-            # Not an intrinsic type so not yet supported.
+            # Not a supported declaration.
             raise NotImplementedError()
 
         # Parse declaration attributes:
@@ -1371,9 +1399,11 @@ class Fparser2Reader(object):
                             "attribute '{1}'.".format(decl.items,
                                                       str(attr)))
                         six.raise_from(InternalError(message), info)
-                elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
+                elif isinstance(attr,
+                                (Fortran2003.Dimension_Attr_Spec,
+                                 Fortran2003.Dimension_Component_Attr_Spec)):
                     attribute_shape = \
-                        self._parse_dimensions(attr, parent.symbol_table)
+                        self._parse_dimensions(attr, symbol_table)
                 elif isinstance(attr, Fortran2003.Access_Spec):
                     if attr.string.lower() == 'public':
                         decln_access_spec = Symbol.Visibility.PUBLIC
@@ -1390,9 +1420,6 @@ class Fparser2Reader(object):
                         "Unrecognised attribute type '{1}'.".format(
                             str(decl), str(type(attr).__name__)))
 
-        if not precision:
-            precision = default_precision(data_name)
-
         # Parse declarations RHS and declare new symbol into the
         # parent symbol table for each entity found.
         for entity in entities.items:
@@ -1403,7 +1430,7 @@ class Fparser2Reader(object):
             # Otherwise use the declaration attribute shape.
             if array_spec is not None:
                 entity_shape = \
-                    self._parse_dimensions(array_spec, parent.symbol_table)
+                    self._parse_dimensions(array_spec, symbol_table)
             else:
                 entity_shape = attribute_shape
 
@@ -1435,7 +1462,7 @@ class Fparser2Reader(object):
                     # If it is a parameter parse its initialization into
                     # a dummy Assignment inside a Schedule which temporally
                     # hijacks the parent's node symbol table
-                    tmp_sch = Schedule(symbol_table=parent.symbol_table)
+                    tmp_sch = Schedule(symbol_table=symbol_table)
                     dummynode = Assignment(parent=tmp_sch)
                     tmp_sch.addchild(dummynode)
                     expr = initialisation.items[1]
@@ -1467,13 +1494,12 @@ class Fparser2Reader(object):
 
             if entity_shape:
                 # array
-                datatype = ArrayType(ScalarType(data_name, precision),
-                                     entity_shape)
+                datatype = ArrayType(base_type, entity_shape)
             else:
                 # scalar
-                datatype = ScalarType(data_name, precision)
+                datatype = base_type
 
-            if sym_name not in parent.symbol_table:
+            if sym_name not in symbol_table:
                 try:
                     sym = DataSymbol(sym_name, datatype,
                                      visibility=visibility,
@@ -1484,17 +1510,92 @@ class Fparser2Reader(object):
                     raise NotImplementedError()
                 # We don't want to check ancestor symbol tables as we're
                 # currently processing a *local* variable declaration.
-                parent.symbol_table.add(sym, check_ancestors=False)
+                symbol_table.add(sym, check_ancestors=False)
             else:
                 # The symbol table already contains an entry with this name
                 # so update its interface information.
-                sym = parent.symbol_table.lookup(sym_name)
+                sym = symbol_table.lookup(sym_name)
                 if not sym.is_unresolved:
                     raise SymbolError(
                         "Symbol '{0}' already present in SymbolTable with "
                         "a defined interface ({1}).".format(
                             sym_name, str(sym.interface)))
                 sym.interface = interface
+
+    def _process_derived_type_decln(self, parent, decl, default_visibility,
+                                    visibility_map):
+        '''
+        Process the supplied fparser2 parse tree for a derived-type
+        declaration. A TypeSymbol representing the derived-type is added to
+        the symbol table associated with the parent node.
+
+        :param parent: PSyIR node in which to insert the symbols found.
+        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
+        :param decl: fparser2 parse tree of declaration to process.
+        :type decl: :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
+        :param default_visibility: the default visibility of symbols in the \
+                                   current declaration section.
+        :type default_visibility: \
+            :py:class:`psyclone.symbols.Symbol.Visibility`
+        :param visibility_map: mapping of symbol name to visibility (for \
+            those symbols listed in an accessibility statement).
+        :type visibility_map: dict with str keys and \
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility` values
+
+        :raises SymbolError: if a Symbol already exists with the same name \
+            as the derived type being defined and it is not a TypeSymbol.
+
+        '''
+        name = str(walk(decl.children[0], Fortran2003.Type_Name)[0])
+        # Create a new StructureType for this derived type
+        dtype = StructureType()
+
+        # Look for any private-components-stmt (R447) within the type
+        # decln. In the absence of this, the default visibility of type
+        # components is public.
+        private_stmts = walk(decl, Fortran2003.Private_Components_Stmt)
+        if private_stmts:
+            default_compt_visibility = Symbol.Visibility.PRIVATE
+        else:
+            default_compt_visibility = Symbol.Visibility.PUBLIC
+
+        # The visibility of the symbol representing this derived type
+        dtype_symbol_vis = visibility_map.get(name, default_visibility)
+
+        # Populate this StructureType by processing the components of
+        # the derived type
+        try:
+            # Re-use the existing code for processing symbols
+            local_table = SymbolTable()
+            for child in walk(decl, Fortran2003.Data_Component_Def_Stmt):
+                self._process_decln(parent, local_table, child,
+                                    default_compt_visibility)
+            # Convert from Symbols to type information
+            for symbol in local_table.symbols:
+                dtype.add(symbol.name, symbol.datatype, symbol.visibility)
+            if name in parent.symbol_table:
+                # An entry already exists for this type.
+                # Check that it is a TypeSymbol
+                tsymbol = parent.symbol_table.lookup(name)
+                if not isinstance(tsymbol, TypeSymbol):
+                    raise SymbolError(
+                        "SymbolTable already contains an entry for '{0}' but "
+                        "it is a '{1}' when it should be a 'TypeSymbol' (for "
+                        "the derived-type definition '{2}')".format(
+                            name, type(tsymbol).__name__, str(decl)))
+                # Update its type with the definition we've found
+                tsymbol.datatype = dtype
+            else:
+                # We don't already have an entry for this type so create one
+                parent.symbol_table.add(
+                    TypeSymbol(name, dtype, visibility=dtype_symbol_vis))
+
+        except NotImplementedError:
+            # Support for this declaration is not fully implemented so create
+            # a TypeSymbol of UnknownFortranType.
+            parent.symbol_table.add(
+                TypeSymbol(name, UnknownFortranType(str(decl)),
+                           visibility=dtype_symbol_vis))
 
     def process_declarations(self, parent, nodes, arg_list,
                              default_visibility=None,
@@ -1546,9 +1647,19 @@ class Fparser2Reader(object):
         # Look at any USE statements
         self._process_use_stmts(parent, nodes)
 
+        # Handle any derived-type declarations/definitions before we look
+        # at general variable declarations in case any of the latter use
+        # the former.
+        for decl in walk(nodes, Fortran2003.Derived_Type_Def):
+            self._process_derived_type_decln(parent, decl,
+                                             default_visibility,
+                                             visibility_map)
+
+        # Now we've captured any derived-type definitions, proceed to look
+        # at the variable declarations.
         for decl in walk(nodes, Fortran2003.Type_Declaration_Stmt):
             try:
-                self._process_decln(parent, decl,
+                self._process_decln(parent, parent.symbol_table, decl,
                                     default_visibility,
                                     visibility_map)
             except NotImplementedError:
@@ -1569,7 +1680,8 @@ class Fparser2Reader(object):
                     # successfully and thus be in the symbol table.
                     try:
                         parent.symbol_table.add(
-                            DataSymbol(symbol_name, UnknownType(str(decl))))
+                            DataSymbol(symbol_name,
+                                       UnknownFortranType(str(decl))))
                     except KeyError:
                         if len(orig_children) == 1:
                             raise SymbolError(
