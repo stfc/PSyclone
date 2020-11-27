@@ -44,7 +44,8 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes import Operation, BinaryOperation, Literal
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.core.access_info import AccessType
-from psyclone.psyir.symbols import Symbol, DataSymbol, ScalarType
+from psyclone.psyir.symbols import Symbol, DataSymbol, ScalarType, \
+    ComponentSymbol
 from psyclone.errors import GenerationError
 
 
@@ -56,6 +57,10 @@ class Reference(DataNode):
     :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
     :param parent: the parent node of this Reference in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+    :param parent_reference: if this reference is to a ComponentSymbol then \
+        this provides the Reference to the Symbol of which it is a component.
+    :type parent_reference: :py:class:`psyclone.psyir.nodes.Reference` \
+        or subclass
 
     :raises TypeError: if the symbol argument is not of type Symbol.
 
@@ -65,12 +70,13 @@ class Reference(DataNode):
     _text_name = "Reference"
     _colour_key = "Reference"
 
-    def __init__(self, symbol, parent=None):
+    def __init__(self, symbol, parent=None, parent_reference=None):
         if not isinstance(symbol, Symbol):
             raise TypeError("In Reference initialisation expecting a symbol "
                             "but found '{0}'.".format(type(symbol).__name__))
         super(Reference, self).__init__(parent=parent)
         self._symbol = symbol
+        self.parent_reference = parent_reference
 
     @property
     def symbol(self):
@@ -91,6 +97,18 @@ class Reference(DataNode):
 
         '''
         return self._symbol.name
+
+    @property
+    def parent_reference(self):
+        return self._parent_reference
+
+    @parent_reference.setter
+    def parent_reference(self, node):
+        if node and not isinstance(node, Reference):
+            raise TypeError("Huh")
+        if node and not isinstance(self.symbol, ComponentSymbol):
+            raise TypeError("Uh oh")
+        self._parent_reference = node
 
     def node_str(self, colour=True):
         ''' Create a text description of this node in the schedule, optionally
@@ -164,7 +182,7 @@ class Array(Reference):
         return isinstance(child, (DataNode, Range))
 
     @staticmethod
-    def create(symbol, children):
+    def create(symbol, children, parent_reference=None):
         '''Create an Array instance given a symbol and a list of Node
         array indices.
 
@@ -172,6 +190,9 @@ class Array(Reference):
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param children: a list of Nodes describing the array indices.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param parent_reference: for a reference to a ComponentSymbol this \
+            provides the reference to the containing symbol.
+        :type parent_reference: :py:class:`psyclone.psyir.nodes.Reference`
 
         :returns: an Array instance.
         :rtype: :py:class:`psyclone.psyir.nodes.Array`
@@ -199,7 +220,7 @@ class Array(Reference):
                 "Expecting '{0}' but found '{1}'.".format(
                     len(children), len(symbol.shape)))
 
-        array = Array(symbol)
+        array = Array(symbol, parent_reference=parent_reference)
         array.children = children
         for child in children:
             child.parent = array

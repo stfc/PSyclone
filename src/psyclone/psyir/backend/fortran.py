@@ -776,6 +776,8 @@ class FortranWriter(PSyIRVisitor):
         for child in node.children:
             args.append(str(self._visit(child)))
         result = "{0}({1})".format(node.name, ",".join(args))
+        if node.parent_reference:
+            result = self._visit(node.parent_reference) + "%" + result
         return result
 
     def range_node(self, node):
@@ -852,6 +854,12 @@ class FortranWriter(PSyIRVisitor):
         else:
             step = self._visit(node.step)
             result += ":{0}".format(step)
+        return result
+
+    def reference_node(self, node):
+        result = node.name
+        if node.parent_reference:
+            result = self._visit(node.parent_reference) + "%" + result
         return result
 
     # pylint: disable=no-self-use

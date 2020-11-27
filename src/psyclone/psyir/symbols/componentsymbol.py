@@ -14,9 +14,6 @@ class ComponentSymbol(DataSymbol):
                                               interface=interface)
         self._parent_structure = parent
 
-    @property
-    def name(self):
-        return ".".join([self._parent_structure.name, self._name])
 
 # For Sphinx auto-api
 __all__ = ['ComponentSymbol']

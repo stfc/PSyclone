@@ -46,17 +46,14 @@ this is a work in progress.
 
 '''
 from __future__ import print_function
-# TODO #363 these classes will be needed once the implementation is
-# complete.
-# from psyclone.psyir.nodes import Array, Assignment, BinaryOperation, Range, \
-#    Reference
+from psyclone.psyir.nodes import Array, Assignment, BinaryOperation, Range, \
+    Reference
 from psyclone.psyir.nodes import Literal, KernelSchedule, Container
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, TypeSymbol, \
     GlobalInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
-    DeferredType, Symbol
-# TODO #363 once the PSyIR support is complete we will write out Fortran.
-# from psyclone.psyir.backend.fortran import FortranWriter
+    DeferredType, Symbol, ComponentSymbol
+from psyclone.psyir.backend.fortran import FortranWriter
 
 
 # Symbol table for container (container itself created after kernel)
@@ -92,6 +89,32 @@ FIELD_SYMBOL = DataSymbol("wind", DTYPE_SYMBOL,
 SYMBOL_TABLE.add(FIELD_SYMBOL)
 SYMBOL_TABLE.specify_argument_list([FIELD_SYMBOL])
 
+# Some predefined scalar datatypes
+TWO = Literal("2.0", SCALAR_TYPE)
+INT_ONE = Literal("1", INTEGER8_TYPE)
+INT_TWO = Literal("2", INTEGER8_TYPE)
+
+INDEX_NAME = SYMBOL_TABLE.new_symbol_name(root_name="i")
+INDEX_SYMBOL = DataSymbol(INDEX_NAME, INTEGER4_TYPE)
+SYMBOL_TABLE.add(INDEX_SYMBOL)
+
+# Create a local array of derived types
+ARRAY_DTYPE = ArrayType(DTYPE_SYMBOL, [10])
+FIELD_BUNDLE = DataSymbol("chi", ARRAY_DTYPE)
+SYMBOL_TABLE.add(FIELD_BUNDLE)
+
+# Symbol representing a component of FIELD_SYMBOL. The name "data" must exist
+# in the type definition associated with FIELD_SYMBOL.
+ARRAY_TYPE = ArrayType(SCALAR_TYPE, [10])
+DATA_SYMBOL = ComponentSymbol("data", ARRAY_TYPE, FIELD_SYMBOL)
+CHI_DATA_SYMBOL = ComponentSymbol("data", ARRAY_TYPE, FIELD_BUNDLE)
+
+# Create a reference to element two of the "chi" array
+CHI_ARRAY_REF = Array.create(FIELD_BUNDLE, [INT_TWO])
+# Create a reference to the first element of the "data" array component
+# of that element
+CHI_DATA_REF = Array.create(CHI_DATA_SYMBOL, [INT_ONE], CHI_ARRAY_REF)
+
 # For now we can't do much more than print out the symbol tables as
 # there's a lot of functionality still to implement.
 # TODO #363 remove these prints and update example to use the Fortran
@@ -101,44 +124,28 @@ print(str(SYMBOL_TABLE))
 print("Container Symbol Table:")
 print(str(CONTAINER_SYMBOL_TABLE))
 
-INDEX_NAME = SYMBOL_TABLE.new_symbol_name(root_name="i")
-INDEX_SYMBOL = DataSymbol(INDEX_NAME, INTEGER4_TYPE)
-SYMBOL_TABLE.add(INDEX_SYMBOL)
-
-# Symbol representing a component of FIELD_SYMBOL. The name "data" must exist
-# in the type definition associated with FIELD_SYMBOL.
-# TODO #363 implement ComponentSymbol
-# DATA_SYMBOL = ComponentSymbol(FIELD_SYMBOL, "data")
-
-# Some predefined scalar datatypes
-TWO = Literal("2.0", SCALAR_TYPE)
-INT_ONE = Literal("1", INTEGER8_TYPE)
-
 # Array reference to component of derived type using a range
-# TODO #363 implement ComponentSymbol
-# LBOUND = BinaryOperation.create(
-#    BinaryOperation.Operator.LBOUND,
-#    Reference(DATA_SYMBOL), INT_ONE)
-# TODO #363 implement ComponentSymbol
-# UBOUND = BinaryOperation.create(
-#    BinaryOperation.Operator.UBOUND,
-#    Reference(DATA_SYMBOL), INT_ONE)
-# TODO #363 implement ComponentSymbol
-# MY_RANGE = Range.create(LBOUND, UBOUND)
+LBOUND = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                Reference(DATA_SYMBOL), INT_ONE)
+UBOUND = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                Reference(DATA_SYMBOL), INT_ONE)
+MY_RANGE = Range.create(LBOUND, UBOUND)
 
-# TODO #363 implement ComponentSymbol
-# TMPARRAY = Array.create(DATA_SYMBOL, [MY_RANGE])
+FLD_REFERENCE = Reference(FIELD_SYMBOL)
+TMPARRAY = Array.create(DATA_SYMBOL, [MY_RANGE], FLD_REFERENCE)
 
-# Routine consists of a single Assignment to the "data" component of the
+# Create assignment to the "data" component of the
 # "wind" argument.
-# TODO #363 implement ComponentSymbol
-# ASSIGN = Assignment.create(TMPARRAY, TWO)
+ASSIGN = Assignment.create(TMPARRAY, TWO)
+
+# Create second assignment to "data" component of second element
+# of "chi" array, i.e. chi(2)%data(1) = 2.0_rkind
+ASSIGN2 = Assignment.create(CHI_DATA_REF, TWO)
 
 # KernelSchedule
-# TODO #363 implement ComponentSymbol - put ASSIGN into list of children
-# passed to create().
 KERNEL_SCHEDULE = KernelSchedule.create(
-    "work", SYMBOL_TABLE, [])
+    "work", SYMBOL_TABLE, [ASSIGN, ASSIGN2])
+KERNEL_SCHEDULE.view()
 
 # Container
 CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
@@ -146,6 +153,6 @@ CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
 
 # Write out the code as Fortran.
 # TODO #363 Backend does not currently support derived types
-# WRITER = FortranWriter()
-# RESULT = WRITER(CONTAINER)
-# print(RESULT)
+WRITER = FortranWriter()
+RESULT = WRITER(CONTAINER)
+print(RESULT)
