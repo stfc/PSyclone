@@ -39,6 +39,7 @@ definitions.
 '''
 # pylint: disable=unused-import
 # pylint: disable=exec-used
+from __future__ import absolute_import
 from collections import namedtuple
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, DeferredType, \
     GlobalInterface, ScalarType, ArrayType
@@ -51,11 +52,11 @@ from psyclone.psyir.nodes import Literal
 # declared by the module.
 
 Module = namedtuple('Module', ["name", "vars"])
-modules = [
+MODULES = [
     Module("constants_mod", ["i_def", "r_def", "l_def"])]
 
 # Generate LFRic module symbols from definitions
-for module in modules:
+for module in MODULES:
     MODULE_NAME = module.name
     # Create the module (using a PSyIR ContainerSymbol)
     exec("{0} = ContainerSymbol('{1}')\n".format(
@@ -75,13 +76,13 @@ for module in modules:
 # above.
 
 GenericScalar = namedtuple('GenericScalar', ["name", "intrinsic", "precision"])
-generic_scalar_datatypes = [
+GENERIC_SCALAR_DATATYPES = [
     GenericScalar("lfric integer scalar", "integer", "i_def"),
     GenericScalar("lfric real scalar", "real", "r_def"),
     GenericScalar("lfric logical scalar", "boolean", "l_def")]
 
 # Generate generic LFRic scalar datatypes and symbols from definitions
-for info in generic_scalar_datatypes:
+for info in GENERIC_SCALAR_DATATYPES:
     NAME = "".join(info.name.title().split())
     INTRINSIC = info.intrinsic.upper()
     PRECISION = info.precision
@@ -126,8 +127,8 @@ class LfricDimension(Literal):
                 "found '{0}'.".format(value))
 
 
-LfricScalarDimension = LfricDimension("1")
-LfricVectorDimension = LfricDimension("3")
+LFRIC_SCALAR_DIMENSION = LfricDimension("1")
+LFRIC_VECTOR_DIMENSION = LfricDimension("3")
 
 # Define specific LFRic scalar datatypes and symbols
 
@@ -139,7 +140,7 @@ LfricVectorDimension = LfricDimension("3")
 # datasymbol class.
 
 Scalar = namedtuple('Scalar', ["name", "generic_type", "properties"])
-specific_scalar_datatypes = [
+SPECIFIC_SCALAR_DATATYPES = [
     Scalar("cell position", "lfric integer scalar", []),
     Scalar("mesh height", "lfric integer scalar", []),
     Scalar("number of cells", "lfric integer scalar", []),
@@ -152,7 +153,7 @@ specific_scalar_datatypes = [
     Scalar("number of qr points", "lfric integer scalar", [])]
 
 # Generate specific LFRic scalar datatypes and symbols from definitions
-for info in specific_scalar_datatypes:
+for info in SPECIFIC_SCALAR_DATATYPES:
     NAME = "".join(info.name.title().split())
     TYPE = "".join(info.generic_type.title().split())
     ARGS = ["self", "name"] + info.properties + ["interface=None"]
@@ -187,7 +188,7 @@ for info in specific_scalar_datatypes:
 # class.
 
 Array = namedtuple('Array', ["name", "scalar_type", "dims", "properties"])
-field_datatypes = [
+FIELD_DATATYPES = [
     Array("real field data", "lfric real scalar", ["number of unique dofs"],
           ["fs"]),
     Array("integer field data", "lfric integer scalar",
@@ -213,7 +214,7 @@ field_datatypes = [
 # function space attribute and the two function spaces must be
 # the same. This is not curently checked.
 
-array_datatypes = [
+ARRAY_DATATYPES = [
     Array("operator", "lfric real scalar",
           ["number of dofs", "number of dofs", "number of cells"],
           ["fs_from", "fs_to"]),
@@ -245,7 +246,7 @@ array_datatypes = [
     Array("qr weights", "lfric real scalar", ["number of qr points"], [])]
 
 # Generate LFRic array (including field) datatypes and symbols from definitions
-for array_type in array_datatypes + field_datatypes:
+for array_type in ARRAY_DATATYPES + FIELD_DATATYPES:
     NAME = "".join(array_type.name.title().split())
     DIMS = array_type.dims
     SCALAR_TYPE = "".join(array_type.scalar_type.title().split())
@@ -275,7 +276,7 @@ for array_type in array_datatypes + field_datatypes:
         "".format(NAME, ", ".join(ARGS), "\n".join(VARS)))
 
 # Generate LFRic vector-field-data symbols as subclasses of field-data symbols
-for array_type in field_datatypes:
+for array_type in FIELD_DATATYPES:
     NAME = "".join(array_type.name.title().split())
     VECTOR_NAME = NAME.replace("Field", "VectorField")
     exec(

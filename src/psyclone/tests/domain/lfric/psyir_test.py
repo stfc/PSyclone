@@ -81,7 +81,7 @@ def test_generic_scalars(data_type, symbol, intrinsic, precision):
     lfric_datatype = data_type()
     assert lfric_datatype.intrinsic == intrinsic
     assert lfric_datatype.precision is precision
-    # precision can be set explicitely
+    # precision can be set explicitly
     lfric_datatype = data_type(precision=4)
     assert lfric_datatype.precision == 4
     # symbol
@@ -93,7 +93,7 @@ def test_generic_scalars(data_type, symbol, intrinsic, precision):
         "symbol", interface=ArgumentInterface(ArgumentInterface.Access.READ))
     assert isinstance(lfric_symbol.interface, ArgumentInterface)
     assert lfric_symbol.interface.access == ArgumentInterface.Access.READ
-    # precision can be set explicitely
+    # precision can be set explicitly
     lfric_symbol = symbol("symbol", precision=4)
     assert lfric_symbol.datatype.precision == 4
 
@@ -102,18 +102,22 @@ def test_generic_scalars(data_type, symbol, intrinsic, precision):
 def test_scalar_literals():
     '''Test the scalar literals are defined correctly.'''
     # LfricDimension class
-    assert isinstance(lfric_psyir.LfricDimension("1"), lfric_psyir.LfricDimension)
-    assert isinstance(lfric_psyir.LfricDimension("3"), lfric_psyir.LfricDimension)
+    assert isinstance(lfric_psyir.LfricDimension("1"),
+                      lfric_psyir.LfricDimension)
+    assert isinstance(lfric_psyir.LfricDimension("3"),
+                      lfric_psyir.LfricDimension)
     with pytest.raises(ValueError) as info:
         lfric_psyir.LfricDimension("2")
     assert("An LFRic dimension object must be '1' or '3', but found '2'."
            in str(info.value))
-    # LfricScalarDimension instance
-    assert isinstance(lfric_psyir.LfricScalarDimension, lfric_psyir.LfricDimension)
-    assert lfric_psyir.LfricScalarDimension.value == "1"
-    # LfricVectorDimension instance
-    assert isinstance(lfric_psyir.LfricVectorDimension, lfric_psyir.LfricDimension)
-    assert lfric_psyir.LfricVectorDimension.value == "3"
+    # LFRIC_SCALAR_DIMENSION instance
+    assert isinstance(lfric_psyir.LFRIC_SCALAR_DIMENSION,
+                      lfric_psyir.LfricDimension)
+    assert lfric_psyir.LFRIC_SCALAR_DIMENSION.value == "1"
+    # LFRIC_VECTOR_DIMENSION instance
+    assert isinstance(lfric_psyir.LFRIC_VECTOR_DIMENSION,
+                      lfric_psyir.LfricDimension)
+    assert lfric_psyir.LFRIC_VECTOR_DIMENSION.value == "3"
 
 
 # Specific scalar datatypes

@@ -37,12 +37,14 @@
 kernel based on the kernel metadata.
 
 '''
+from __future__ import absolute_import
+import six
 from psyclone.domain.lfric import ArgOrdering
-# pylint: disable=no-member
 from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.errors import InternalError
+from psyclone.core.access_info import AccessType
 
 
 # pylint: disable=too-many-public-methods
@@ -110,12 +112,28 @@ class KernelInterface(ArgOrdering):
             py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        super(KernelInterface, self).generate()
+        super(KernelInterface, self).generate(var_accesses=var_accesses)
         # Set the argument list for the symbol table. This is done at
-        # the end after incrementally adding symbols to the _arglist
+        # the end after incrementally adding symbols to the _args
         # list, as it is not possible to incrementally add symbols to
         # the symbol table argument list.
         self._symbol_table.specify_argument_list(self._arglist)
+        # While data dependence analysis does not use the symbol
+        # table, see #845, we have to provide variable information
+        # separately. This is done by using the base class append()
+        # method. However, this method also adds the variable names to the
+        # internal _arglist list which we do not want as we have
+        # already added our symbols there. Therefore we need to remove
+        # them afterwards.
+        # Map from symbol table accesses to dependence analysis accesses.
+        mapping = {ArgumentInterface.Access.READ: AccessType.READ,
+                   ArgumentInterface.Access.READWRITE: AccessType.READWRITE,
+                   ArgumentInterface.Access.WRITE: AccessType.WRITE}
+        len_arglist = len(self._arglist)
+        for symbol in self._symbol_table.symbols:
+            self.append(symbol.name, var_accesses,
+                        mode=mapping[symbol.interface.access])
+        self._arglist = self._arglist[:len_arglist]
 
     def cell_position(self, var_accesses=None):
         '''Create an LFRic cell-position object and add it to the symbol table
@@ -201,10 +219,10 @@ class KernelInterface(ArgOrdering):
         try:
             field_class = self.vector_field_mapping[
                 argvect.intrinsic_type]
-        except KeyError:
-            raise NotImplementedError(
-                "kernel interface does not support a vector field of type "
-                "'{0}'.".format(argvect.intrinsic_type))
+        except KeyError as info:
+            message = ("kernel interface does not support a vector field of "
+                       "type '{0}'.".format(argvect.intrinsic_type))
+            six.raise_from(NotImplementedError(message), info)
         for idx in range(argvect.vector_size):
             tag = "{0}_v{1}".format(argvect.name, idx)
             field_data_symbol = self._create_symbol(
@@ -240,11 +258,10 @@ class KernelInterface(ArgOrdering):
 
         try:
             field_class = self.field_mapping[arg.intrinsic_type]
-        except KeyError:
-            # pylint: disable=raise-missing-from
-            raise NotImplementedError(
-                "kernel interface does not support a field of type "
-                "'{0}'.".format(arg.intrinsic_type))
+        except KeyError as info:
+            message = ("kernel interface does not support a field of type "
+                       "'{0}'.".format(arg.intrinsic_type))
+            six.raise_from(NotImplementedError(message), info)
         field_data_symbol = self._create_symbol(
             arg.name, field_class, dims=[undf_symbol], extra_args=[fs_name],
             interface=ArgumentInterface(INTENT_MAPPING[arg.intent]))
@@ -375,11 +392,11 @@ class KernelInterface(ArgOrdering):
             symbol = self._create_symbol(
                 scalar_arg.name, mapping[scalar_arg.intrinsic_type],
                 interface=ArgumentInterface(INTENT_MAPPING[scalar_arg.intent]))
-        except KeyError:
-            # pylint: disable=raise-missing-from
-            raise NotImplementedError(
+        except KeyError as info:
+            message = (
                 "scalar of type '{0}' not implemented in KernelInterface "
                 "class.".format(scalar_arg.intrinsic_type))
+            six.raise_from(NotImplementedError(message), info)
         self._arglist.append(symbol)
 
     def fs_common(self, function_space, var_accesses=None):
@@ -496,6 +513,8 @@ class KernelInterface(ArgOrdering):
 
         '''
         basis_name_func = function_space.get_basis_name
+        # This import must be placed here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynBasisFunctions
         first_dim_value_func = DynBasisFunctions.basis_first_dim_value
         self._create_basis(function_space, self.basis_mapping,
@@ -515,6 +534,8 @@ class KernelInterface(ArgOrdering):
 
         '''
         basis_name_func = function_space.get_diff_basis_name
+        # This import must be placed here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynBasisFunctions
         first_dim_value_func = DynBasisFunctions.diff_basis_first_dim_value
         self._create_basis(function_space, self.diff_basis_mapping,
@@ -612,10 +633,10 @@ class KernelInterface(ArgOrdering):
                 weights_xy = self._create_symbol(
                     "weights_xy", lfric_psyir.QrWeightsInXyDataSymbol,
                     dims=[nqp_xy])
-                weights_v = self._create_symbol(
-                    "weights_v", lfric_psyir.QrWeightsInZDataSymbol,
+                weights_z = self._create_symbol(
+                    "weights_z", lfric_psyir.QrWeightsInZDataSymbol,
                     dims=[nqp_z])
-                self._arglist.extend([nqp_xy, nqp_z, weights_xy, weights_v])
+                self._arglist.extend([nqp_xy, nqp_z, weights_xy, weights_z])
             elif shape == "gh_quadrature_face":
                 nfaces = self._create_symbol(
                     "nfaces", lfric_psyir.NumberOfFacesDataSymbol)
@@ -734,6 +755,8 @@ class KernelInterface(ArgOrdering):
 
         '''
         # pylint: disable=too-many-locals
+        # This import must be placed here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import VALID_EVALUATOR_SHAPES
         for shape in self._kern.eval_shapes:
             # self._create_symbol(...) will create and add an ndf

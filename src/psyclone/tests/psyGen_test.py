@@ -369,10 +369,10 @@ def test_invokeschedule_can_be_printed():
 
 # Kern class test
 
-def test_kern_get_kernel_schedule(monkeypatch):
+def test_kern_get_kernel_schedule():
     ''' Tests the get_kernel_schedule method in the Kern class.
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,"1_single_invoke.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule

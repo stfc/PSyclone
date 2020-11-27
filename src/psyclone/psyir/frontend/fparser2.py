@@ -77,6 +77,7 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
                   "out": ArgumentInterface.Access.WRITE,
                   "inout": ArgumentInterface.Access.READWRITE}
 
+
 def _check_args(array, dim):
     '''Utility routine used by the _check_bound_is_full_extent and
     _check_array_range_literal functions to check common arguments.
@@ -1364,11 +1365,12 @@ class Fparser2Reader(object):
                     try:
                         interface = ArgumentInterface(
                             INTENT_MAPPING[normalized_string])
-                    except KeyError:
-                        raise InternalError(
+                    except KeyError as info:
+                        message = (
                             "Could not process {0}. Unexpected intent "
                             "attribute '{1}'.".format(decl.items,
                                                       str(attr)))
+                        six.raise_from(InternalError(message), info)
                 elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
                     attribute_shape = \
                         self._parse_dimensions(attr, parent.symbol_table)

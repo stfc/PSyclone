@@ -38,8 +38,6 @@ metadata, are created and declared within a symbol table using
 LFRic-specific PSyIR classes.
 
 '''
-
-# p#y#l#int: disable=no-name-in-module
 from __future__ import absolute_import
 import os
 import pytest
@@ -50,6 +48,7 @@ from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse
 from psyclone.errors import InternalError
+from psyclone.core.access_info import VariableAccessInfo, AccessType
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          os.pardir, os.pardir, "test_files", "dynamo0p3")
@@ -68,7 +67,8 @@ def test_init():
     assert kernel_interface._arglist == []
 
 
-def test_generate():
+@pytest.mark.parametrize("var_accesses", [None, VariableAccessInfo("test")])
+def test_generate(var_accesses):
     '''Test that the KernelInterface class generate method creates the
     expected symbols and adds them to the symbol table and its
     argument list (in the required order).
@@ -85,7 +85,7 @@ def test_generate():
     schedule = psy.invokes.invoke_list[0].schedule
     kernel0 = schedule[0].loop_body[0]
     kernel_interface = KernelInterface(kernel0)
-    kernel_interface.generate()
+    kernel_interface.generate(var_accesses=var_accesses)
     # Check symbols
     nlayers_symbol = kernel_interface._symbol_table.lookup("nlayers")
     assert isinstance(nlayers_symbol, lfric_psyir.MeshHeightDataSymbol)
@@ -121,6 +121,23 @@ def test_generate():
     assert arg_list[3] is f2_field_symbol
     assert arg_list[4] is ndf_w0_symbol
     assert arg_list[5] is dofmap_w0_symbol
+    if var_accesses:
+        # Check that the names of variables and their intent has been
+        # captured by the data dependence analysis
+        accesses = var_accesses.all_accesses
+        assert len(accesses) == 6
+        assert accesses[0].access_type == "nlayers"
+        assert accesses[0].location == AccessType.READ
+        assert accesses[1].access_type == "undf_w0"
+        assert accesses[1].location == AccessType.READ
+        assert accesses[2].access_type == "f1"
+        assert accesses[2].location == AccessType.READWRITE
+        assert accesses[3].access_type == "f2"
+        assert accesses[3].location == AccessType.READ
+        assert accesses[4].access_type == "ndf_w0"
+        assert accesses[4].location == AccessType.READ
+        assert accesses[5].access_type == "dofmap_w0"
+        assert accesses[5].location == AccessType.READ
 
 
 def test_cell_position():
@@ -814,16 +831,16 @@ def test_quad_rule_xyoz():
     assert kernel_interface._arglist[-2] is weightsh_symbol
     assert len(weightsh_symbol.shape) == 1
     assert weightsh_symbol.shape[0] is nqph_symbol
-    # weights_v declared and added to argument list
-    weightsv_symbol = kernel_interface._symbol_table.lookup("weights_v")
+    # weights_z declared and added to argument list
+    weightsz_symbol = kernel_interface._symbol_table.lookup("weights_z")
     assert isinstance(
-        weightsv_symbol, lfric_psyir.QrWeightsInZDataSymbol)
-    assert isinstance(weightsv_symbol.interface, ArgumentInterface)
-    assert (weightsv_symbol.interface.access ==
+        weightsz_symbol, lfric_psyir.QrWeightsInZDataSymbol)
+    assert isinstance(weightsz_symbol.interface, ArgumentInterface)
+    assert (weightsz_symbol.interface.access ==
             kernel_interface._read_access.access)
-    assert kernel_interface._arglist[-1] is weightsv_symbol
-    assert len(weightsv_symbol.shape) == 1
-    assert weightsv_symbol.shape[0] is nqpv_symbol
+    assert kernel_interface._arglist[-1] is weightsz_symbol
+    assert len(weightsz_symbol.shape) == 1
+    assert weightsz_symbol.shape[0] is nqpv_symbol
 
 
 def test_quad_rule_face():
