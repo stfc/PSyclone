@@ -83,7 +83,7 @@ def test_call_create():
     routine = RoutineSymbol("ellie")
     array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
     arguments = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
-                 Array(DataSymbol("arg2", array_type))]
+                 ArrayReference(DataSymbol("arg2", array_type))]
     call = Call.create(routine, arguments)
     assert call.routine is routine
     for idx, child, in enumerate(call.children):

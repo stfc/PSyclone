@@ -137,7 +137,7 @@ def test_where_array_notation_rank():
     '''
     array_type = ArrayType(REAL_TYPE, [10])
     symbol = DataSymbol("my_array", array_type)
-    my_array = Array(symbol)
+    my_array = ArrayReference(symbol)
     processor = Fparser2Reader()
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
@@ -145,9 +145,10 @@ def test_where_array_notation_rank():
             "'my_array'" in str(err.value))
     from psyclone.psyir.nodes import Range
     array_type = ArrayType(REAL_TYPE, [10])
-    my_array = Array.create(DataSymbol("my_array", array_type),
-                            [Range.create(Literal("1", INTEGER_TYPE),
-                                          Literal("10", INTEGER_TYPE))])
+    my_array = ArrayReference.create(
+        DataSymbol("my_array", array_type),
+        [Range.create(Literal("1", INTEGER_TYPE),
+                      Literal("10", INTEGER_TYPE))])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
     assert ("Only array notation of the form my_array(:, :, ...) is "
@@ -312,7 +313,7 @@ def test_elsewhere():
     # Check that this IF block has an else body
     assert ifblock.else_body is not None
     assert isinstance(ifblock.else_body[0], Assignment)
-    assert isinstance(ifblock.else_body[0].lhs, Array)
+    assert isinstance(ifblock.else_body[0].lhs, ArrayReference)
     assert ifblock.else_body[0].lhs.name == "z1_st"
 
 
