@@ -51,7 +51,8 @@ from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
     Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
-    UnknownFortranType, StructureType, TypeSymbol, RoutineSymbol, SymbolTable
+    UnknownFortranType, StructureType, TypeSymbol, RoutineSymbol, \
+    SymbolTable, ComponentSymbol
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -585,6 +586,7 @@ class Fparser2Reader(object):
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
             Fortran2003.Assignment_Stmt: self._assignment_handler,
+            Fortran2003.Data_Ref: self._data_ref_handler,
             Fortran2003.Name: self._name_handler,
             Fortran2003.Parenthesis: self._parenthesis_handler,
             Fortran2003.Part_Ref: self._part_ref_handler,
@@ -2457,6 +2459,56 @@ class Fparser2Reader(object):
                     symbol = array.find_or_create_symbol(loop_vars[range_idx])
                     array.children[idx] = Reference(symbol, parent=array)
                     range_idx += 1
+
+    def _data_ref_handler(self, node, parent):
+        '''
+        Construct the PSyIR of a reference to a structure component.
+
+        From the Fortran specification:
+
+        R612 data-ref is part-ref [ % part-ref ] ...
+        R613 part-ref is part-name [ ( section-subscript-list ) ]
+
+        :param node: node in the fparser2 parse tree representing the \
+                     reference.
+        :type node: :py:class:`fparser.two.Fortran2003.Data_Ref`
+        :param parent: parent node in the PSyIR.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: XXXX
+        :rtype: :py:class:`psyclone.psyir.nodes.XXXXX`
+
+        '''
+        # The fparser2 parse tree has each part-ref as a child of the
+        # data-ref. However, they are not stored as part-ref objects but
+        # as e.g. Name.
+        # The leftmost part name must be the name of a data object. It
+        # could be an array reference
+        leftmost = node.children[0]
+        #self.process_nodes(parent, [leftmost])
+        import pdb; pdb.set_trace()
+        # Ultimately we want a reference to the rightmost part-ref that
+        # will then refer back up a chain to the leftmost data object.
+        rightmost = node.children[-1]
+        csymbol = ComponentSymbol(rightmost.string, DeferredType(),
+                                  parent_symbol)
+        last_ref = Reference(csymbol, parent, None)
+        for child in reversed(node.children[:-1]):
+            ref = Reference(csymbol, parent)
+            last_ref.parent_reference = ref
+            last_ref = ref
+        last_node = None  #parent.children[0]
+        for child in node.children[:-1]:
+            ref = self._add_component_reference(child, parent_reference=last_node)
+            last_node = ref
+
+    def _add_component_reference(self, node, parent, parent_reference):
+        # The symbol table will not contain entries for ComponentSymbols
+        # (since they are only defined within a type).
+        if isinstance(node, Fortran2003.Name):
+            csymbol = ComponentSymbol(node.string, DeferredType(),
+                                      parent_reference.symbol)
+            return Reference(csymbol, parent, parent_reference)
 
     def _where_construct_handler(self, node, parent):
         '''

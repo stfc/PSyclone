@@ -184,3 +184,16 @@ def test_derived_type_accessibility():
     assert flag.visibility == Symbol.Visibility.PRIVATE
     scale = sym.datatype.lookup("scale")
     assert scale.visibility == Symbol.Visibility.PUBLIC
+
+
+def test_derived_type_reference(f2008_parser):
+    processor = Fparser2Reader()
+    reader = FortranStringReader("program dtype\n"
+                                 "  use my_mod, only: atype\n"
+                                 "  type(atype) :: my_var\n"
+                                 "  my_var%flag = 1\n"
+                                 "end program dtype\n")
+    fpspec = f2008_parser(reader)
+    sched = processor.generate_schedule("dtype", fpspec)
+    sched.view()
+    assert 0

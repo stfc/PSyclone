@@ -119,7 +119,13 @@ class Reference(DataNode):
         :return: text description of this node.
         :rtype: str
         '''
-        return self.coloured_name(colour) + "[name:'" + self.name + "']"
+        import pdb; pdb.set_trace()
+        name = self.name
+        parent_ref = self.parent_reference
+        while parent_ref:
+            name += "->" + parent_ref.name
+            parent_ref = parent_ref.parent_reference
+        return self.coloured_name(colour) + "[name:'" + name + "']"
 
     def __str__(self):
         return self.node_str(False)
