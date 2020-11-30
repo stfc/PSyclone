@@ -193,10 +193,6 @@ Contains
 
         if (.not. is_enabled) return
 
-        if (this%verbosity>1) then
-            write(stderr, *) "PSYDATA - testing ", name
-        endif
-
         ! Provide each member of the vector as a normal field. This way
         ! the NAN/infinite testing will be done for each member individually.
         do i=1, size(value, 1)
