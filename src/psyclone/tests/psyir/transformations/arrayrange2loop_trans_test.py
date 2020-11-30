@@ -300,9 +300,9 @@ def test_same_range():
             "ArrayReference but found 'NoneType'." in str(info.value))
 
     array_type = ArrayType(REAL_TYPE, [10])
-    array_value = Array.create(
+    array_value = ArrayReference.create(
         DataSymbol("dummy", array_type), children=[DataNode("x")])
-    array_range = Array.create(
+    array_range = ArrayReference.create(
         DataSymbol("dummy", array_type), children=[Range()])
 
     with pytest.raises(TypeError) as info:
@@ -505,7 +505,7 @@ def test_str():
 
     '''
     assert (str(ArrayRange2LoopTrans()) == "Convert a PSyIR assignment to an "
-            "Array Range into a PSyIR Loop.")
+            "array Range into a PSyIR Loop.")
 
 
 def test_name():
@@ -546,9 +546,9 @@ def test_validate():
         "supplied Assignment node should be a PSyIR ArrayReference with at "
         "least one "
         "of its dimensions being a Range, but found None in "
-        "'ArrayArrayReference[name:'x']\\nLiteral[value:'1', Scalar<INTEGER, "
-        "UNDEFINED>]\\nLiteral[value:'1', Scalar<INTEGER, UNDEFINED>]\\n'."
-        in str(info.value))
+        "'ArrayReferenceArrayReference[name:'x']\\nLiteral[value:'1', "
+        "Scalar<INTEGER, UNDEFINED>]\\nLiteral[value:'1', Scalar<INTEGER, "
+        "UNDEFINED>]\\n'." in str(info.value))
 
     array_x = create_array_x(SymbolTable())
     assignment = Assignment.create(
@@ -562,8 +562,9 @@ def test_validate():
         "The ArrayRange2LoopTrans transformation only supports ranges that "
         "are known to be the same as each other but array access 'x' "
         "dimension 0 and 'x' dimension 0 are either different or can't be "
-        "determined in the assignment 'Assignment[]\\nArrayArrayReference["
-        "name:'x']\\nRange[]\\nArrayArrayReference[name:'x']\\nRange[]\\n'."
+        "determined in the assignment 'Assignment[]\\n"
+        "ArrayReferenceArrayReference[name:'x']\\nRange[]\\n"
+        "ArrayReferenceArrayReference[name:'x']\\nRange[]\\n'."
         in str(info.value))
 
 
@@ -587,6 +588,7 @@ def test_validate_intrinsic():
     assert (
         "Error in ArrayRange2LoopTrans transformation. The rhs of the "
         "supplied Assignment node 'BinaryOperation[operator:'MATMUL']\\n"
-        "ArrayArrayReference[name:'y2']\\nRange[]\\nRange[]\\n\\n"
-        "ArrayArrayReference[name:'x']\\nRange[]\\n' contains the MATMUL "
-        "operator which can't be performed elementwise." in str(info.value))
+        "ArrayReferenceArrayReference[name:'y2']\\nRange[]\\nRange[]\\n\\n"
+        "ArrayReferenceArrayReference[name:'x']\\nRange[]\\n' contains the "
+        "MATMUL operator which can't be performed elementwise." in
+        str(info.value))
