@@ -40,7 +40,8 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Assignment, Reference, Literal, Array, Range
+from psyclone.psyir.nodes import Assignment, Reference, Literal, \
+    ArrayReference, Range
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
     INTEGER_SINGLE_TYPE, REAL_TYPE, ArrayType, INTEGER_TYPE
 from psyclone.errors import InternalError, GenerationError

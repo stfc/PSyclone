@@ -38,7 +38,7 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Call, Reference, Array, Schedule
+from psyclone.psyir.nodes import Call, Reference, ArrayReference, Schedule
 from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 from psyclone.psyir.symbols import ArrayType, INTEGER_TYPE, DataSymbol, \
     RoutineSymbol
