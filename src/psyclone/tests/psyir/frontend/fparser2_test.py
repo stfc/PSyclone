@@ -966,7 +966,7 @@ def test_process_array_declarations():
     reference = symbol.shape[0]
     assert isinstance(reference, Reference)
     assert reference.name == "udim"
-    assert reference.symbol is udim    
+    assert reference.symbol is udim
     assert isinstance(reference.symbol.datatype, UnknownFortranType)
 
     # Extent given by variable with DeferredType
