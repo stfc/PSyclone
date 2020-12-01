@@ -60,6 +60,7 @@ OBJS = nan_test.o psy_data_base.o nan_test_base.o
 # 2-dimensional arrays, and int, real- and double basic Fortran types
 PROCESS_ARGS = -prefix=nan_test_ -types=int,real,double \
 		       -dims=2
+PROCESS=$$(../../get_python.sh) ../../process.py
 
 default: $(LIB_NAME)
 
@@ -88,10 +89,10 @@ nan_test_base.o: psy_data_base.o
 # and the NAN-test base library. So add the rules to process
 # these files to get the plain Fortran files:
 psy_data_base.f90: ../../psy_data_base.jinja Makefile
-	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 nan_test_base.f90: ../nan_test_base.jinja Makefile
-	../../process.py $(PROCESS_ARGS) $< > nan_test_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > nan_test_base.f90
 
 # The dl_esm_inf library
 $(INF_LIB):
