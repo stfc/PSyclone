@@ -6,8 +6,10 @@ Initially we will be using kernel extraction as an example
 but a list of other PSyData applications is provided at the end.
 The ``solutions`` directory contains working versions of the
 transformation scripts and a Makefile. If you are having problems,
-you can just copy the corresponding Makefile and python script
-into this directory.
+you can look at the scripts and various makefiles in that directory.
+You can also directly invoke them using for example:
+
+    make -f solutions/Makefile.extract_one
 
 
 ## Step 1: Create a transformation script
