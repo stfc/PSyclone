@@ -620,10 +620,11 @@ def test_profile_nemo_openmp(parser):
             "  do jj = 1, jpj" in code)
 
 
-def test_profile_nemo_acc_kernels(parser):
-    ''' Check the automatic kernel-level profiling for the case of two
-    kernels within an OpenACC kernels region. In this case it is safe
-    to put the timing calls between the directive and the loop nests. '''
+def test_profile_nemo_no_acc_kernels(parser):
+    ''' Check that the automatic kernel-level profiling does not add any
+    calls for the case of two kernels within an OpenACC kernels region.
+    No calls are added because the PSyData routines would have to have been
+    compiled for execution on the GPU. '''
     acctrans = ACCKernelsTrans()
     Profiler.set_options([Profiler.KERNELS])
     psy, schedule = get_nemo_schedule(parser,
@@ -642,18 +643,7 @@ def test_profile_nemo_acc_kernels(parser):
     acctrans.apply(schedule.children)
     Profiler.add_profile_nodes(schedule, Loop)
     code = str(psy.gen).lower()
-    assert ("  type(profile_psydatatype), target, save :: profile_psy_data1\n"
-            "  !$acc kernels\n"
-            "  call profile_psy_data0 % prestart('do_loop', 'r0', 0, 0)\n"
-            "  do jj = 1, jpj" in code)
-    assert ("  end do\n"
-            "  call profile_psy_data0 % postend\n"
-            "  call profile_psy_data1 % prestart('do_loop', 'r1', 0, 0)\n"
-            "  do ji = 1, jpi\n" in code)
-    assert ("  end do\n"
-            "  call profile_psy_data1 % postend\n"
-            "  !$acc end kernels\n"
-            "end program do_loop" in code)
+    assert "profile_psy" not in code
 
 
 def test_profile_nemo_loop_imperfect_nest(parser):

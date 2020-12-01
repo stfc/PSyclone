@@ -42,7 +42,7 @@
 from __future__ import absolute_import, print_function
 from psyclone.errors import GenerationError
 from psyclone.psyir.transformations import ProfileTrans
-from psyclone.psyGen import Kern, Directive
+from psyclone.psyGen import Kern, Directive, ACCDirective
 
 
 class Profiler():
@@ -128,7 +128,10 @@ class Profiler():
                         break
                     target = parent_loop
                     parent_loop = parent_loop.ancestor(loop_class)
-                if target:
+                # We only add profiling if we're not within some OpenACC
+                # region (as otherwise, the PSyData routines being called
+                # would have to be compiled for the GPU).
+                if target and not target.ancestor(ACCDirective):
                     # Have to take care that the target loop does not have
                     # a directive applied to it. We distinguish this case
                     # from that of a directive defining a region by checking
