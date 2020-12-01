@@ -48,6 +48,7 @@ LIB_NAME = lib_kernel_data_netcdf.a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=1,2,3,4
+PROCESS=$$(../../../get_python.sh) ../../../process.py
 
 $(LIB_NAME): psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
@@ -58,14 +59,14 @@ kernel_data_netcdf.o:	extract_netcdf_base.o
 extract_netcdf_base.o:	psy_data_base.o
 
 psy_data_base.f90: ../../../psy_data_base.jinja Makefile
-	../../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 
 extract_netcdf_base.f90: ../extract_netcdf_base.jinja Makefile
-	../../../process.py $(PROCESS_ARGS) $< > extract_netcdf_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > extract_netcdf_base.f90
 
 kernel_data_netcdf.f90: kernel_data_netcdf.jinja Makefile
-	../../../process.py $(PROCESS_ARGS) $< > kernel_data_netcdf.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > kernel_data_netcdf.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<

@@ -53,6 +53,7 @@ LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 # consistent code creation.
 PROCESS_ARGS = -prefix=nan_test_ -types=real,int,double \
 		       -dims=1,2,3,4
+PROCESS=$$(../../get_python.sh) ../../process.py
 
 F90 ?= gfortran
 F90FLAGS ?=
@@ -84,7 +85,7 @@ nan_test_base.o: psy_data_base.o
 # Rules for file creation:
 # ------------------------
 nan_test.f90:	nan_test.jinja Makefile
-	../../process.py $(PROCESS_ARGS) nan_test.jinja > nan_test.f90
+	$(PROCESS) $(PROCESS_ARGS) nan_test.jinja > nan_test.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
@@ -93,10 +94,10 @@ nan_test.f90:	nan_test.jinja Makefile
 # and the NAN-checking base library. So add the rules to process
 # these files to get the plain Fortran files:
 psy_data_base.f90: ../../psy_data_base.jinja Makefile
-	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 nan_test_base.f90: ../nan_test_base.jinja Makefile
-	../../process.py $(PROCESS_ARGS) $< > nan_test_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > nan_test_base.f90
 
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* nan_test_base.* nan_test.f90
