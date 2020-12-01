@@ -562,7 +562,7 @@ class PSyIRGen(BaseGen):
         fparser1_parser = FortranParser(reader, ignore_comments=False)
         fparser1_parser.parse()
 
-        # Update the f2pygen with the newly parsed fparser1 AST content
+        # Update the f2pygen AST with the newly parsed fparser1 AST content
         BaseGen.__init__(self, parent, fparser1_parser.block.content[0])
         self.root.parent = parent.root
 

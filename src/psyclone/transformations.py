@@ -3284,7 +3284,7 @@ class ACCRoutineTrans(KernelTrans):
         # Flag that the kernel has been modified
         kern.modified = True
 
-        # At the 'cmt' directive into the PSyIR as a CodeBlock
+        # Add the 'cmt' directive into the PSyIR as a CodeBlock
         kernel_schedule = kern.get_kernel_schedule()
         kernel_schedule.addchild(
             CodeBlock([cmt], CodeBlock.Structure.STATEMENT), 0)

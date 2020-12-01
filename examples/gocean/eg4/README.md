@@ -64,7 +64,8 @@ psyclone -api "gocean1.0" -s ./acc_transform.py alg_kern_use_var.f90
 which write the OpenACC PSy- and Algorithm-layer code to stdout with
 the used kernel inlined in the PSy-layer.
 
-However, attempting the  `alg_kern_call_kern`, although the kernels
+However, attempting to perform the same transformation for the
+`alg_kern_call_kern` example will not work - although the kernels
 named in the Invoke would be transformed, the other kernels that they
 then call would not and this means that they would not be compiled for
 execution on the OpenACC device.
