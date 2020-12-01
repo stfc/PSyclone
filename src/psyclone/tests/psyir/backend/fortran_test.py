@@ -117,8 +117,9 @@ def test_gen_dims(fort_writer):
     one = Literal("1", scalar_type)
     arg_plus_1 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, Reference(arg), one)
-    array_type = ArrayType(INTEGER_TYPE, [arg, 2, literal, arg_plus_1,
-                                          ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(INTEGER_TYPE,
+                           [Reference(arg), 2, literal, arg_plus_1,
+                            ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("dummy", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
@@ -1415,7 +1416,8 @@ def test_fw_nemokern(fort_writer, parser):
     # Generate fparser2 parse tree from Fortran code.
     code = (
         "program test\n"
-        "  integer :: i, j, k, n\n"
+        "  integer, parameter :: n=20\n"
+        "  integer :: i, j, k\n"
         "  real :: a(n,n,n)\n"
         "  do k=1,n\n"
         "    do j=1,n\n"

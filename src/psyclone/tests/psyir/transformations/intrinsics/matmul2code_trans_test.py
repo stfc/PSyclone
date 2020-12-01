@@ -494,7 +494,7 @@ def test_get_array_bound():
 
     '''
     scalar_symbol = DataSymbol("n", INTEGER_TYPE, constant_value=20)
-    array_type = ArrayType(REAL_TYPE, [10, scalar_symbol,
+    array_type = ArrayType(REAL_TYPE, [10, Reference(scalar_symbol),
                                        ArrayType.Extent.DEFERRED,
                                        ArrayType.Extent.ATTRIBUTE])
     array_symbol = DataSymbol("x", array_type)

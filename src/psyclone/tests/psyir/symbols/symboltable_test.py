@@ -42,7 +42,8 @@ from __future__ import absolute_import
 import re
 from collections import OrderedDict
 import pytest
-from psyclone.psyir.nodes import Schedule, Container, KernelSchedule, Literal
+from psyclone.psyir.nodes import Schedule, Container, KernelSchedule, \
+    Literal, Reference
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
@@ -469,7 +470,7 @@ def test_swap_symbol_properties():
     symbol3 = DataSymbol("dim2", INTEGER_TYPE,
                          interface=ArgumentInterface(
                              ArgumentInterface.Access.READ))
-    array_type = ArrayType(REAL_TYPE, [symbol2, symbol3])
+    array_type = ArrayType(REAL_TYPE, [Reference(symbol2), Reference(symbol3)])
     symbol4 = DataSymbol("var2", array_type,
                          interface=ArgumentInterface(
                              ArgumentInterface.Access.READWRITE))
@@ -515,7 +516,9 @@ def test_swap_symbol_properties():
     assert symbol1.name == "var1"
     assert symbol1.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert symbol1.datatype.precision == ScalarType.Precision.UNDEFINED
-    assert symbol1.datatype.shape == [symbol2, symbol3]
+    assert len(symbol1.datatype.shape) == 2
+    assert symbol1.datatype.shape[0].symbol == symbol2
+    assert symbol1.datatype.shape[1].symbol == symbol3
     assert symbol1.is_argument
     assert symbol1.constant_value is None
     assert symbol1.interface.access == ArgumentInterface.Access.READWRITE

@@ -292,8 +292,7 @@ class ArrayType(DataType):
             representing an array dimension.
 
         :rtype: a list of DataSymbol.Extent.ATTRIBUTE, \
-            DataSymbol.Extent.DEFERRED, \
-            :py:class:`psyclone.psyir.symbols.DataSymbol` or \
+            DataSymbol.Extent.DEFERRED, or \
             :py:class:`psyclone.psyir.nodes.DataNode`. If an entry is \
             DataSymbol.Extent.ATTRIBUTE the extent of that dimension \
             is unknown but can be obtained by querying the run-time \
@@ -301,7 +300,7 @@ class ArrayType(DataType):
             is DataSymbol.Extent.DEFERRED then the extent is also \
             unknown and may or may not be defined at run-time \
             (e.g. the array is ALLOCATABLE in Fortran). Otherwise an \
-            entry is a DataSymbol or DataNode that returns an int.
+            entry is a DataNode that returns an int.
 
         '''
         return self._shape
@@ -312,15 +311,14 @@ class ArrayType(DataType):
 
         :param extents: list of extents, one for each array dimension.
         :type extents: list of \
-            :py:class:`psyclone.psyir.symbols.DataSymbol`, \
             :py:class:`psyclone.psyir.symbols.ArrayType.Extent`, int \
             or subclass of :py:class:`psyclone.psyir.nodes.DataNode`
 
         :raises TypeError: if extents is not a list.
         :raises TypeError: if one or more of the supplied extents is a \
             DataSymbol that is not a scalar integer or of Unknown/DeferredType.
-        :raises TypeError: if one or more of the supplied extents is not a \
-            DataSymbol, int, ArrayType.Extent or DataNode.
+        :raises TypeError: if one or more of the supplied extents is not an \
+            int, ArrayType.Extent or DataNode.
 
         '''
         # This import must be placed here to avoid circular
@@ -333,33 +331,26 @@ class ArrayType(DataType):
                 "".format(type(extents).__name__))
 
         for dimension in extents:
-            if isinstance(dimension, DataSymbol):
-                if isinstance(dimension.datatype, (UnknownType, DeferredType)):
-                    # We allow symbols of Unknown or Deferred Type
-                    continue
-                if not (dimension.is_scalar and
-                        dimension.datatype.intrinsic ==
-                        ScalarType.Intrinsic.INTEGER):
-                    raise TypeError(
-                        "DataSymbols that are part of another symbol shape can"
-                        " only be scalar integers, but found '{0}'."
-                        "".format(str(dimension)))
-                # Issue #948. Check for invalid dimension
-                # variables. The check below is commented out as it
-                # causes a lot of test failures, so it has been given
-                # a separate issue.
-                # if dimension.is_local and not dimension.is_constant:
-                #    # The datasymbol has no value.
-                #    raise TypeError(
-                #        "If a local datasymbol is used to declare a "
-                #        "dimension "
-                #        "then it should be a constant, but '{0}' is not."
-                #        "".format(dimension.name))
-            elif isinstance(dimension, DataNode):
+            if isinstance(dimension, DataNode):
                 # When issue #685 is addressed then check that the
-                # datatype returned is an int (or is unknown).
-
-                # Check that any references are not to local a
+                # datatype returned is an int (or is unknown). For the
+                # moment, just check that if the DataNode is a
+                # Reference then the associated symbol is a scalar
+                # integer or is unknown.
+                if isinstance(dimension, Reference):
+                    # Check the DataSymbol instance is a scalar
+                    # integer or is unknown
+                    symbol = dimension.symbol
+                    if not ((symbol.is_scalar and symbol.datatype.intrinsic ==
+                             ScalarType.Intrinsic.INTEGER) or
+                            isinstance(symbol.datatype,
+                                       (UnknownFortranType, DeferredType))):
+                        raise TypeError(
+                            "If a datasymbol is used as a dimension "
+                            "declaration then it should be a scalar "
+                            "integer or an unknown type, but '{0}' is a "
+                            "'{1}'.".format(symbol.name, symbol.datatype))
+                # Check that any references are not to a local
                 # datasymbol that is not constant (as this would have
                 # no value).
                 references = dimension.walk(Reference)
@@ -375,8 +366,8 @@ class ArrayType(DataType):
             elif not isinstance(dimension, (self.Extent, int)):
                 raise TypeError(
                     "DataSymbol shape list elements can only be "
-                    "'DataSymbol', 'int', ArrayType.Extent or 'DataNode' "
-                    "but found '{0}'.".format(type(dimension).__name__))
+                    "'int', ArrayType.Extent or 'DataNode' but found "
+                    "'{0}'.".format(type(dimension).__name__))
 
     def __str__(self):
         '''
@@ -393,16 +384,14 @@ class ArrayType(DataType):
         from psyclone.psyir.nodes import DataNode
         dims = []
         for dimension in self.shape:
-            if isinstance(dimension, DataSymbol):
-                dims.append(dimension.name)
-            elif isinstance(dimension, DataNode):
+            if isinstance(dimension, DataNode):
                 dims.append(str(dimension))
             elif isinstance(dimension, ArrayType.Extent):
                 dims.append("'{0}'".format(dimension.name))
             else:
                 raise InternalError(
-                    "ArrayType shape list elements can only be 'DataSymbol', "
-                    "'DataNode' or 'ArrayType.Extent', but found '{0}'."
+                    "ArrayType shape list elements can only be 'DataNode', "
+                    "or 'ArrayType.Extent', but found '{0}'."
                     "".format(type(dimension).__name__))
         return ("Array<{0}, shape=[{1}]>".format(
             self._datatype, ", ".join(dims)))

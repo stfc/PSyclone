@@ -953,7 +953,8 @@ def test_process_array_declarations():
                             ArrayType.Extent.ATTRIBUTE]
 
     # Extent given by variable with UnknownFortranType
-    udim = DataSymbol("udim", UnknownFortranType("integer :: udim"))
+    udim = DataSymbol("udim", UnknownFortranType("integer :: udim"),
+                      interface=UnresolvedInterface())
     fake_parent.symbol_table.add(udim)
     reader = FortranStringReader("integer :: l11(udim)")
     fparser2spec = Specification_Part(reader).content[0]
@@ -962,9 +963,11 @@ def test_process_array_declarations():
     assert symbol.name == "l11"
     assert len(symbol.shape) == 1
     # Extent symbol should be udim
-    assert symbol.shape[0].name == "udim"
-    assert symbol.shape[0] is udim
-    assert isinstance(symbol.shape[0].datatype, UnknownFortranType)
+    reference = symbol.shape[0]
+    assert isinstance(reference, Reference)
+    assert reference.name == "udim"
+    assert reference.symbol is udim    
+    assert isinstance(reference.symbol.datatype, UnknownFortranType)
 
     # Extent given by variable with DeferredType
     ddim = DataSymbol("ddim", DeferredType(),
@@ -977,9 +980,10 @@ def test_process_array_declarations():
     assert symbol.name == "l12"
     assert len(symbol.shape) == 1
     # Extent symbol should now be ddim
-    assert symbol.shape[0].name == "ddim"
-    assert symbol.shape[0] is ddim
-    assert isinstance(symbol.shape[0].datatype, DeferredType)
+    reference = symbol.shape[0]
+    assert reference.name == "ddim"
+    assert reference.symbol is ddim
+    assert isinstance(reference.symbol.datatype, DeferredType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1356,7 +1360,7 @@ def test_parse_array_dimensions_attributes():
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
-    assert shape[0] == sym_table.lookup('var1')
+    assert shape[0].symbol == sym_table.lookup('var1')
 
     # Assumed size arrays not supported
     reader = FortranStringReader("dimension(*)")
@@ -1433,7 +1437,7 @@ def test_unresolved_array_size():
     reader = FortranStringReader("real, dimension(N) :: array4")
     fparser2spec = Specification_Part(reader).content
     processor.process_declarations(fake_parent, fparser2spec, [])
-    assert fake_parent.symbol_table.lookup("array4").shape[0] is dim_sym
+    assert fake_parent.symbol_table.lookup("array4").shape[0].symbol is dim_sym
 
 
 @pytest.mark.usefixtures("f2008_parser")

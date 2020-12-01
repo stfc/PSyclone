@@ -311,11 +311,9 @@ class FortranWriter(PSyIRVisitor):
         '''
         dims = []
         for index in symbol.shape:
-            if isinstance(index, DataSymbol):
-                # references another symbol
-                dims.append(index.name)
-            elif isinstance(index, DataNode):
-                # literal constant or computed dimension
+            if isinstance(index, DataNode):
+                # literal constant, symbol reference, or computed
+                # dimension
                 expression = self._visit(index)
                 dims.append(expression)
             elif isinstance(index, ArrayType.Extent):
