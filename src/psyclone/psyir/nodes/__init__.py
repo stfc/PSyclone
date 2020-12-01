@@ -53,6 +53,7 @@ from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.extract_node import ExtractNode
 from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
+from psyclone.psyir.nodes.member_reference import MemberReference
 from psyclone.psyir.nodes.nan_test_node import NanTestNode
 from psyclone.psyir.nodes.profile_node import ProfileNode
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
@@ -61,6 +62,7 @@ from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.call import Call
 
 # The entities in the __all__ list are made available to import directly from
@@ -80,6 +82,7 @@ __all__ = [
         'KernelSchedule',
         'Literal',
         'Loop',
+        'MemberReference',
         'NanTestNode',
         'NaryOperation',
         'Node',
@@ -93,4 +96,5 @@ __all__ = [
         'Routine',
         'Schedule',
         'Statement',
+        'StructureReference',
         'UnaryOperation']

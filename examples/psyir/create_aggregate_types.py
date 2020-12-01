@@ -48,15 +48,15 @@ this is a work in progress.
 from __future__ import print_function
 # TODO #363 these classes will be needed once the implementation is
 # complete.
-# from psyclone.psyir.nodes import ArrayReference, Reference, Assignment, \
+# from psyclone.psyir.nodes import ArrayReference, Reference, \
 #    BinaryOperation, Range
-from psyclone.psyir.nodes import Literal, KernelSchedule, Container
+from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
+    StructureReference, Assignment
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, TypeSymbol, \
     GlobalInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
     DeferredType, Symbol
-# TODO #363 once the PSyIR support is complete we will write out Fortran.
-# from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.fortran import FortranWriter
 
 
 # Symbol table for container (container itself created after kernel)
@@ -84,9 +84,13 @@ SYMBOL_TABLE.add(CONT)
 DTYPE_SYMBOL = TypeSymbol("field_type", DeferredType(),
                           interface=GlobalInterface(CONT))
 SYMBOL_TABLE.add(DTYPE_SYMBOL)
+
+FIELD_TYPE_DEF = StructureType.create(
+    [("data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC),
+     ("grid", XXXX)])
 # Create an argument of this derived type. At this point we know only that
 # DTYPE_SYMBOL refers to a type defined in the CONT container.
-FIELD_SYMBOL = DataSymbol("wind", DTYPE_SYMBOL,
+FIELD_SYMBOL = DataSymbol("wind", FIELD_TYPE_DEF, #DTYPE_SYMBOL,
                           interface=ArgumentInterface(
                               ArgumentInterface.Access.READWRITE))
 SYMBOL_TABLE.add(FIELD_SYMBOL)
@@ -105,9 +109,20 @@ INDEX_NAME = SYMBOL_TABLE.new_symbol_name(root_name="i")
 INDEX_SYMBOL = DataSymbol(INDEX_NAME, INTEGER4_TYPE)
 SYMBOL_TABLE.add(INDEX_SYMBOL)
 
-# Symbol representing a component of FIELD_SYMBOL. The name "data" must exist
-# in the type definition associated with FIELD_SYMBOL.
-# TODO #363 implement ComponentSymbol
+# Reference to the "flag" scalar component of FIELD_SYMBOL, "field%flag"
+#FLAG_REF = StructureReference.create(
+#    FIELD_SYMBOL, ["flag"])
+#    MemberReference(FIELD_SYMBOL.datatype.components["flag"]))
+
+# Reference to "field%grid%dx"
+DX_REF = StructureReference.create(FIELD_SYMBOL, ["grid", "dx"])
+
+# Reference to the "data" array component of FIELD_SYMBOL.
+#FIELD_REF = StructureReference(
+#    FIELD_SYMBOL,
+#    ArrayMemberReference(FIELD_SYMBOL,
+#                         FIELD_SYMBOL.datatype.components["data"]))
+
 # DATA_SYMBOL = ComponentSymbol(FIELD_SYMBOL, "data")
 
 # Some predefined scalar datatypes
@@ -134,18 +149,19 @@ INT_ONE = Literal("1", INTEGER8_TYPE)
 # TODO #363 implement ComponentSymbol
 # ASSIGN = Assignment.create(TMPARRAY, TWO)
 
+ASSIGN_DX = Assignment.create(DX_REF, TWO)
+
 # KernelSchedule
 # TODO #363 implement ComponentSymbol - put ASSIGN into list of children
 # passed to create().
 KERNEL_SCHEDULE = KernelSchedule.create(
-    "work", SYMBOL_TABLE, [])
+    "work", SYMBOL_TABLE, [ASSIGN_DX])
 
 # Container
 CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
                              [KERNEL_SCHEDULE])
 
 # Write out the code as Fortran.
-# TODO #363 Backend does not currently support derived types
-# WRITER = FortranWriter()
-# RESULT = WRITER(CONTAINER)
-# print(RESULT)
+WRITER = FortranWriter()
+RESULT = WRITER(CONTAINER)
+print(RESULT)
