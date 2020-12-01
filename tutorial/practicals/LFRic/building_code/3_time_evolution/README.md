@@ -88,7 +88,7 @@ Utilities to build and run the code and read the input parameters are:
   different model height and vertical resolution, perturbation field
   behaviour and time-stepping options;
 
-* `mesh_planar100x100-1000x1000.nc`, an input 2D global planar mesh in the
+* `../data/mesh_planar100x100-1000x1000.nc`, an input 2D global planar mesh in the
   NetCDF-based UGRID format from which to create the model domain (3D
   partitioned mesh) - does not need to be modified. The horizontal limits of
   the mesh are written down in the *`domain_size`* namelist (must not be
