@@ -71,6 +71,10 @@ def _get_array_bound(array, index):
         not supported.
 
     '''
+    # Added import here to avoid circular dependencies.
+    # pylint: disable=import-outside-toplevel
+    from psyclone.psyir.transformations import TransformationError
+
     my_dim = array.symbol.shape[index]
     if isinstance(my_dim, DataNode):
         lower_bound = Literal("1", INTEGER_TYPE)
@@ -86,9 +90,6 @@ def _get_array_bound(array, index):
             BinaryOperation.Operator.UBOUND, Reference(array.symbol),
             Literal(str(index), INTEGER_TYPE))
     else:
-        # Added import here to avoid circular dependencies.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.transformations import TransformationError
         raise TransformationError(
             "Unsupported index type '{0}' found for dimension {1} of array "
             "'{2}'.".format(type(my_dim).__name__, index+1, array.name))

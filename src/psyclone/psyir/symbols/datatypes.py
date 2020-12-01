@@ -287,7 +287,8 @@ class ArrayType(DataType):
 
     @property
     def shape(self):
-        ''':returns: the shape of the symbol in column-major order \
+        '''
+        :returns: the shape of the symbol in column-major order \
             (leftmost index is contiguous in memory) with each entry \
             representing an array dimension.
 
