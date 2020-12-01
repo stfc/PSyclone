@@ -68,7 +68,7 @@ import psyclone.expression as expr
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import BinaryOperation, Reference, Return, IfBlock
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
-    IfThenGen, UseGen, ModuleGen, SubroutineGen,  TypeDeclGen
+    IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen
 
 
 # The different grid-point types that a field can live on

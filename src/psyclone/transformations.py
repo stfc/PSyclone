@@ -43,6 +43,11 @@
 from __future__ import absolute_import, print_function
 import abc
 import six
+from fparser.two.utils import walk
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.Fortran2003 import Subroutine_Subprogram, \
+    Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
+    Implicit_Part, Comment
 from psyclone import psyGen
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule
 from psyclone.errors import InternalError
@@ -53,6 +58,8 @@ from psyclone.domain.lfric import FunctionSpace
 from psyclone.psyir.transformations import RegionTrans, TransformationError
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
+from psyclone.psyir.nodes import CodeBlock
+
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -3240,13 +3247,6 @@ class ACCRoutineTrans(KernelTrans):
 
         '''
         # pylint: disable=too-many-locals
-
-        from fparser.two.Fortran2003 import Subroutine_Subprogram, \
-            Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
-            Implicit_Part, Comment
-        from fparser.two.utils import walk
-        from fparser.common.readfortran import FortranStringReader
-        from psyclone.psyir.nodes import CodeBlock
 
         # Check that we can safely apply this transformation
         self.validate(kern, options)
