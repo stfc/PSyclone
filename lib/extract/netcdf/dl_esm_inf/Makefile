@@ -48,6 +48,7 @@ LIB_NAME = lib_kernel_data_netcdf.a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=2
+PROCESS=$$(../../../get_python.sh) ../../../process.py
 
 default: $(LIB_NAME)
 
@@ -58,11 +59,11 @@ kernel_data_netcdf.o:	extract_netcdf_base.o $(INF_LIB)
 extract_netcdf_base.o:	psy_data_base.o
 
 psy_data_base.f90: ../../../psy_data_base.jinja Makefile
-	../../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 
 extract_netcdf_base.f90: ../extract_netcdf_base.jinja Makefile
-	../../../process.py $(PROCESS_ARGS) $< > extract_netcdf_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > extract_netcdf_base.f90
 
 # The dl_esm_inf library
 $(INF_LIB):

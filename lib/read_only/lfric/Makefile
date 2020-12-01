@@ -57,6 +57,7 @@ LFRIC_LIB=$(LFRIC_DIR)/liblfric.a
 # consistent code creation.
 PROCESS_ARGS = -prefix=read_only_verify_ -types=real,int,double \
 		       -dims=1,2,3,4
+PROCESS=$$(../../get_python.sh) ../../process.py
 
 F90 ?= gfortran
 F90FLAGS ?=
@@ -83,7 +84,7 @@ read_only_base.o: psy_data_base.o
 # Rules for file creation:
 # ------------------------
 read_only.f90:	read_only.jinja Makefile
-	../../process.py $(PROCESS_ARGS) read_only.jinja > read_only.f90
+	$(PROCESS) $(PROCESS_ARGS) read_only.jinja > read_only.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
@@ -92,10 +93,10 @@ read_only.f90:	read_only.jinja Makefile
 # and the read-only base library. So add the rules to process
 # these files to get the plain Fortran files:
 psy_data_base.f90: ../../psy_data_base.jinja Makefile
-	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 read_only_base.f90: ../read_only_base.jinja Makefile
-	../../process.py $(PROCESS_ARGS) $< > read_only_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > read_only_base.f90
 
 # Create LFRic infrastructure library if required
 $(LFRIC_LIB):

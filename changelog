@@ -243,6 +243,10 @@
 	77) PR #1000 for #988. Add missing dependencies in gungho_lib/Makefile
 	in LFRic building_code tutorials 3 and 4.
 
+        78) PR #1012 for #1001. Adds a wrapper script to find a python
+        executable when building any of the PSyData wrapper libraries. (Required
+        because some distributions now only ship with 'python3').
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
