@@ -1,12 +1,12 @@
 ''' This module contains the implementation of the MemberReference node.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.member_reference import MemberReference
 from psyclone.psyir.symbols import TypeSymbol
 from psyclone.psyir.symbols.datatypes import StructureType
 
 
-class MemberReference(DataNode):
+class StructureMemberReference(MemberReference):
     '''
     Node representing a reference to a member of a structure (derived type).
     As such it is a leaf in the PSyIR tree.
@@ -14,7 +14,7 @@ class MemberReference(DataNode):
     '''
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
-    _text_name = "MemberReference"
+    _text_name = "StructureMemberReference"
 
     def __init__(self, target, member, parent=None):
         # Avoid circular dependency
@@ -46,9 +46,5 @@ class MemberReference(DataNode):
     def component(self):
         return self._component
 
-    @property
-    def name(self):
-        return self._component.name
 
-
-__all__ = ['MemberReference']
+__all__ = ['StructureMemberReference']

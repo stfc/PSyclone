@@ -42,6 +42,9 @@ from psyclone.psyir.nodes.node import colored, Node, SCHEDULE_COLOUR_MAP
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.return_stmt import Return
 from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.array_member_reference import ArrayMemberReference
+from psyclone.psyir.nodes.array_structure_member_reference import \
+    ArrayStructureMemberReference
 from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
     BinaryOperation, NaryOperation
 from psyclone.psyir.nodes.literal import Literal
@@ -63,6 +66,8 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.structure_reference import StructureReference
+from psyclone.psyir.nodes.structure_member_reference import \
+    StructureMemberReference
 from psyclone.psyir.nodes.call import Call
 
 # The entities in the __all__ list are made available to import directly from
@@ -70,7 +75,9 @@ from psyclone.psyir.nodes.call import Call
 __all__ = [
         'colored',
         'SCHEDULE_COLOUR_MAP',
+        'ArrayMemberReference',
         'ArrayReference',
+        'ArrayStructureMemberReference',
         'Assignment',
         'BinaryOperation',
         'Call',
@@ -96,5 +103,6 @@ __all__ = [
         'Routine',
         'Schedule',
         'Statement',
+        'StructureMemberReference',
         'StructureReference',
         'UnaryOperation']

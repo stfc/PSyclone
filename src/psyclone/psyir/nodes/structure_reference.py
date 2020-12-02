@@ -38,20 +38,24 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.member_reference import MemberReference
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.nodes.array_member_reference import ArrayMemberReference
+from psyclone.psyir.nodes.array_structure_member_reference import \
+    ArrayStructureMemberReference
+from psyclone.psyir.nodes.structure_member_reference import \
+    StructureMemberReference
+from psyclone.psyir.symbols import DataSymbol, TypeSymbol, StructureType, \
+    ScalarType, ArrayType
 from psyclone.errors import GenerationError
 
 
 class StructureReference(Reference):
     '''
-    Node representing a reference to a structure (derived type). As such its
-    children consist of a reference followed by one or more members.
+    Node representing a reference to a structure (derived type).
 
     '''
     # Textual description of the node.
-    _children_valid_format = "[DataNode | MemberReference]*"
+    _children_valid_format = "[MemberReference]"
     _text_name = "StructureReference"
 
     @staticmethod
@@ -66,12 +70,10 @@ class StructureReference(Reference):
 
         '''
         # pylint: disable=unused-argument
-        if position == 0:
-            return isinstance(child, DataNode)
         return isinstance(child, MemberReference)
 
     @staticmethod
-    def create(symbol, members):
+    def create(symbol, members, children=None):
         '''Create a StructureReference instance given a symbol and a
         MemberReference.
 
@@ -104,13 +106,50 @@ class StructureReference(Reference):
         ref = StructureReference(symbol)
         current = ref
         dtype = ref.symbol.datatype
+        if not isinstance(dtype, TypeSymbol):
+            raise NotImplementedError(
+                "Base symbol must a TypeSymbol as its type")
+        if not isinstance(dtype.datatype, StructureType):
+            raise NotImplementedError(
+                "TypeSymbol for Base symbol must have a StructureType defined")
+        dtype = dtype.datatype
+        #import pdb; pdb.set_trace()
         for member in members:
-            subref = MemberReference(dtype,
-                                     member,
-                                     parent=ref)
+            target_dtype = dtype.components[member].datatype
+            if isinstance(target_dtype, TypeSymbol):
+                # This member is also a derived type
+                target_dtype = target_dtype.datatype
+                subref = StructureMemberReference(dtype,
+                                                  member,
+                                                  parent=ref)
+            elif isinstance(target_dtype, ArrayType):
+                if isinstance(target_dtype.intrinsic, TypeSymbol):
+                    # Array of derived types
+                    subref = ArrayStructureMemberReference(dtype,
+                                                           member,
+                                                           parent=ref)
+                else:
+                    # Array of intrinsic quantities
+                    subref = ArrayMemberReference(dtype, member, parent=ref)
+            elif isinstance(target_dtype, ScalarType):
+                # A scalar member
+                subref = MemberReference(dtype, member, parent=ref)
+            else:
+                raise NotImplementedError("Datatype: {0}", type(target_dtype))
             current.addchild(subref)
             current = subref
             dtype = subref.component.datatype
+            if isinstance(dtype, TypeSymbol):
+                dtype = dtype.datatype
+        if children:
+            if not isinstance(subref, (ArrayStructureMemberReference,
+                                       ArrayMemberReference)):
+                raise NotImplementedError(
+                    "Cannot give children if object pointed to is not an "
+                    "array")
+            subref.children = children
+            for child in children:
+                child.parent = subref
         return ref
 
     def __str__(self):

@@ -1,20 +1,20 @@
 ''' This module contains the implementation of the MemberReference node.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.member_reference import MemberReference
 from psyclone.psyir.symbols import TypeSymbol
 from psyclone.psyir.symbols.datatypes import StructureType
 
 
-class MemberReference(DataNode):
+class ArrayMemberReference(MemberReference):
     '''
     Node representing a reference to a member of a structure (derived type).
     As such it is a leaf in the PSyIR tree.
 
     '''
     # Textual description of the node.
-    _children_valid_format = "<LeafNode>"
-    _text_name = "MemberReference"
+    _children_valid_format = "[DataNode | Range]*"
+    _text_name = "ArrayMemberReference"
 
     def __init__(self, target, member, parent=None):
         # Avoid circular dependency
@@ -46,9 +46,20 @@ class MemberReference(DataNode):
     def component(self):
         return self._component
 
-    @property
-    def name(self):
-        return self._component.name
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        from psyclone.psyir.nodes import DataNode, Range
+        # pylint: disable=unused-argument
+        return isinstance(child, (DataNode, Range))
 
 
-__all__ = ['MemberReference']
+__all__ = ['ArrayMemberReference']

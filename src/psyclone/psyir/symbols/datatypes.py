@@ -42,6 +42,7 @@ from collections import OrderedDict, namedtuple
 from enum import Enum
 import six
 from psyclone.errors import InternalError
+from psyclone.psyir.symbols import TypeSymbol
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -243,24 +244,29 @@ class ArrayType(DataType):
 
     def __init__(self, datatype, shape):
 
-        if not isinstance(datatype, DataType):
+        if isinstance(datatype, DataType):
+            self._intrinsic = datatype.intrinsic
+            self._precision = datatype.precision
+        elif isinstance(datatype, TypeSymbol):
+            self._intrinsic = datatype
+            self._precision = None
+        else:
             raise TypeError(
                 "ArrayType expected 'datatype' argument to be of type "
-                "DataType but found '{0}'."
+                "DataType or TypeSymbol but found '{0}'."
                 "".format(type(datatype).__name__))
         # We do not have a setter for shape as it is an immutable property,
         # therefore we have a separate validation routine.
         self._validate_shape(shape)
         self._shape = shape
-        self._intrinsic = datatype.intrinsic
-        self._precision = datatype.precision
         self._datatype = datatype
 
     @property
     def intrinsic(self):
         '''
-        :returns: the intrinsic of each element in the array
-        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
+        :returns: the intrinsic type of each element in the array
+        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic` or \
+                :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return self._intrinsic
 

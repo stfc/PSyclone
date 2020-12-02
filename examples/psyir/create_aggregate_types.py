@@ -46,12 +46,8 @@ this is a work in progress.
 
 '''
 from __future__ import print_function
-# TODO #363 these classes will be needed once the implementation is
-# complete.
-# from psyclone.psyir.nodes import ArrayReference, Reference, \
-#    BinaryOperation, Range
 from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
-    StructureReference, Assignment
+    StructureReference, Assignment, BinaryOperation, Range
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, TypeSymbol, \
     GlobalInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
@@ -89,6 +85,8 @@ SYMBOL_TABLE.add(DTYPE_SYMBOL)
 FIELD_TYPE_DEF = StructureType.create(
     [("data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC),
      ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC),
+     ("sub_meshes", ArrayType(GRID_TYPE_SYMBOL, [3]),
+      Symbol.Visibility.PUBLIC),
      ("flag", INTEGER4_TYPE, Symbol.Visibility.PUBLIC)])
 FIELD_TYPE_SYMBOL = TypeSymbol("field_type", FIELD_TYPE_DEF)
 CONTAINER_SYMBOL_TABLE.add(FIELD_TYPE_SYMBOL)
@@ -118,32 +116,22 @@ FLAG_REF = StructureReference.create(FIELD_SYMBOL, ["flag"])
 # Reference to "field%grid%dx"
 DX_REF = StructureReference.create(FIELD_SYMBOL, ["grid", "dx"])
 
-# Reference to the "data" array component of FIELD_SYMBOL.
-#FIELD_REF = StructureReference(
-#    FIELD_SYMBOL,
-#    ArrayMemberReference(FIELD_SYMBOL,
-#                         FIELD_SYMBOL.datatype.components["data"]))
-
-# DATA_SYMBOL = ComponentSymbol(FIELD_SYMBOL, "data")
 
 # Some predefined scalar datatypes
 TWO = Literal("2.0", SCALAR_TYPE)
 INT_ONE = Literal("1", INTEGER8_TYPE)
 
 # Array reference to component of derived type using a range
-# TODO #363 implement ComponentSymbol
-# LBOUND = BinaryOperation.create(
-#    BinaryOperation.Operator.LBOUND,
-#    Reference(DATA_SYMBOL), INT_ONE)
-# TODO #363 implement ComponentSymbol
-# UBOUND = BinaryOperation.create(
-#    BinaryOperation.Operator.UBOUND,
-#    Reference(DATA_SYMBOL), INT_ONE)
-# TODO #363 implement ComponentSymbol
-# MY_RANGE = Range.create(LBOUND, UBOUND)
+LBOUND = BinaryOperation.create(
+    BinaryOperation.Operator.LBOUND,
+    StructureReference.create(FIELD_SYMBOL, ["data"]), INT_ONE)
+UBOUND = BinaryOperation.create(
+    BinaryOperation.Operator.UBOUND,
+    StructureReference.create(FIELD_SYMBOL, ["data"]), INT_ONE)
+MY_RANGE = Range.create(LBOUND, UBOUND)
 
-# TODO #363 implement ComponentSymbol
-# TMPARRAY = Array.create(DATA_SYMBOL, [MY_RANGE])
+# Reference to the "data" array component of FIELD_SYMBOL.
+DATA_REF = StructureReference.create(FIELD_SYMBOL, ["data"], [MY_RANGE])
 
 # Routine consists of a single Assignment to the "data" component of the
 # "wind" argument.
@@ -152,10 +140,11 @@ INT_ONE = Literal("1", INTEGER8_TYPE)
 
 ASSIGN_DX = Assignment.create(DX_REF, TWO)
 ASSIGN_FLAG = Assignment.create(FLAG_REF, INT_ONE)
+ASSIGN_DATA = Assignment.create(DATA_REF, TWO)
 
 # KernelSchedule
 KERNEL_SCHEDULE = KernelSchedule.create(
-    "work", SYMBOL_TABLE, [ASSIGN_DX, ASSIGN_FLAG])
+    "work", SYMBOL_TABLE, [ASSIGN_DX, ASSIGN_FLAG, ASSIGN_DATA])
 KERNEL_SCHEDULE.view()
 
 # Container
