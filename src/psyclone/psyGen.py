@@ -2712,15 +2712,13 @@ class CodedKern(Kern):
         # Check all kernels in the same invoke as this one and set any
         # with the same name to the same value as this one. This is
         # required as inlining (or not) affects all calls to the same
-        # kernel within an invoke. Note, this will set this kernel as
-        # well so there is no need to set it locally.
+        # kernel within an invoke.
         my_schedule = self.ancestor(InvokeSchedule)
         for kernel in my_schedule.walk(Kern):
-            if kernel.name == self.name:
-                # We directly modify the other kernel field instead of
-                # calling the setter to avoid an infinite recursive call.
-                # pylint: disable=protected-access
-                kernel._module_inline = value
+            if kernel is self:
+                self._module_inline = value
+            elif kernel.name == self.name and kernel.module_inline != value:
+                kernel.module_inline = value
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
