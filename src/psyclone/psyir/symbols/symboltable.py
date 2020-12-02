@@ -43,7 +43,7 @@ from collections import OrderedDict
 import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
-    ContainerSymbol
+    ContainerSymbol, TypeSymbol
 from psyclone.psyir.symbols.symbol import SymbolError
 from psyclone.errors import InternalError
 
@@ -764,6 +764,15 @@ class SymbolTable(object):
         '''
         return [sym for sym in self.symbols if isinstance(sym,
                                                           ContainerSymbol)]
+
+    @property
+    def local_typesymbols(self):
+        '''
+        :returns: the local TypeSymbols present in the Symbol Table.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.TypeSymbol`
+        '''
+        return [sym for sym in self.symbols if
+                (isinstance(sym, TypeSymbol) and sym.is_local)]
 
     @property
     def iteration_indices(self):

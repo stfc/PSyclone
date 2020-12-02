@@ -48,7 +48,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
     SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol, \
-    TypeSymbol, StructureType
+    TypeSymbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
     Reference, Literal, KernelSchedule
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
@@ -127,9 +127,9 @@ def gen_dims(symbol):
     return dims
 
 
-def gen_datatype(symbol):
-    '''Given a DataSymbol instance as input, return the datatype of the
-    symbol including any specific precision properties.
+def gen_datatype(datatype, name):
+    '''Given a DataType instance as input, return the Fortran datatype
+    of the symbol including any specific precision properties.
 
     :param symbol: the symbol instance.
     :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -151,40 +151,39 @@ def gen_datatype(symbol):
     is an unsupported type.
 
     '''
-    if isinstance(symbol.datatype, TypeSymbol):
+    if isinstance(datatype, TypeSymbol):
         # Symbol is of derived type
-        return "type({0})".format(symbol.datatype.name)
+        return "type({0})".format(datatype.name)
 
-    if (isinstance(symbol.datatype, ArrayType) and
-            isinstance(symbol.datatype.intrinsic, TypeSymbol)):
+    if (isinstance(datatype, ArrayType) and
+            isinstance(datatype.intrinsic, TypeSymbol)):
         # Symbol is an array of derived types
-        return "type({0})".format(symbol.datatype.intrinsic.name)
+        return "type({0})".format(datatype.intrinsic.name)
 
     try:
-        fortrantype = TYPE_MAP_TO_FORTRAN[symbol.datatype.intrinsic]
+        fortrantype = TYPE_MAP_TO_FORTRAN[datatype.intrinsic]
     except KeyError:
         raise NotImplementedError(
             "Unsupported datatype '{0}' for symbol '{1}' found in "
-            "gen_datatype().".format(symbol.datatype.intrinsic, symbol.name))
+            "gen_datatype().".format(datatype.intrinsic, name))
 
-    precision = symbol.datatype.precision
+    precision = datatype.precision
 
     if isinstance(precision, int):
         if fortrantype not in ['real', 'integer', 'logical']:
             raise VisitorError("Explicit precision not supported for datatype "
                                "'{0}' in symbol '{1}' in Fortran backend."
-                               "".format(fortrantype, symbol.name))
+                               "".format(fortrantype, name))
         if fortrantype == 'real' and precision not in [4, 8, 16]:
             raise VisitorError(
                 "Datatype 'real' in symbol '{0}' supports fixed precision of "
-                "[4, 8, 16] but found '{1}'.".format(symbol.name,
-                                                     precision))
+                "[4, 8, 16] but found '{1}'.".format(name, precision))
         if fortrantype in ['integer', 'logical'] and precision not in \
            [1, 2, 4, 8, 16]:
             raise VisitorError(
                 "Datatype '{0}' in symbol '{1}' supports fixed precision of "
                 "[1, 2, 4, 8, 16] but found '{2}'."
-                "".format(fortrantype, symbol.name, precision))
+                "".format(fortrantype, name, precision))
         # Precision has an an explicit size. Use the "type*size" Fortran
         # extension for simplicity. We could have used
         # type(kind=selected_int|real_kind(size)) or, for Fortran 2008,
@@ -212,13 +211,13 @@ def gen_datatype(symbol):
         if fortrantype not in ["real", "integer", "logical"]:
             raise VisitorError(
                 "kind not supported for datatype '{0}' in symbol '{1}' in "
-                "Fortran backend.".format(fortrantype, symbol.name))
+                "Fortran backend.".format(fortrantype, name))
         # The precision information is provided by a parameter, so use KIND.
         return "{0}(kind={1})".format(fortrantype, precision.name)
 
     raise VisitorError(
         "Unsupported precision type '{0}' found for symbol '{1}' in Fortran "
-        "backend.".format(type(precision).__name__, symbol.name))
+        "backend.".format(type(precision).__name__, name))
 
 
 def _reverse_map(op_map):
@@ -424,7 +423,7 @@ class FortranWriter(PSyIRVisitor):
                 "The Fortran backend cannot handle the declaration of a "
                 "symbol of '{0}' type.".format(type(symbol.datatype).__name__))
 
-        datatype = gen_datatype(symbol)
+        datatype = gen_datatype(symbol.datatype, symbol.name)
         result = "{0}{1}".format(self._nindent, datatype)
         if ArrayType.Extent.DEFERRED in symbol.shape:
             if not all(dim == ArrayType.Extent.DEFERRED
@@ -460,6 +459,37 @@ class FortranWriter(PSyIRVisitor):
         if symbol.is_constant:
             result += " = {0}".format(self._visit(symbol.constant_value))
         result += "\n"
+        return result
+
+    def gen_typedecl(self, symbol):
+        '''
+        Creates a derived-type declaration for the supplied TypeSymbol.
+
+        :param symbol: the derived-type to declare.
+        :type symbol: :py:class:`psyclone.psyir.symbols.TypeSymbol`
+
+        :returns: the Fortran declaration of the derived type.
+        :rtype: str
+
+        :raises TypeError: if the supplied symbol is of the wrong type.
+
+        '''
+        if not isinstance(symbol, TypeSymbol):
+            raise VisitorError("wrong")
+        result = "{0}type".format(self._nindent)
+        if symbol.visibility == Symbol.Visibility.PRIVATE:
+            result += ", private"
+        result += " :: {0}\n".format(symbol.name)
+
+        self._depth += 1
+        for member in symbol.datatype.components.values():
+            result += "{0}{1} :: {2}\n".format(self._nindent,
+                                               gen_datatype(member.datatype,
+                                                            member.name),
+                                               member.name)
+        self._depth -= 1
+
+        result += "{0}end type {1}\n".format(self._nindent, symbol.name)
         return result
 
     def gen_routine_access_stmts(self, symbol_table):
@@ -577,7 +607,11 @@ class FortranWriter(PSyIRVisitor):
         for symbol in symbol_table.local_datasymbols:
             declarations += self.gen_vardecl(symbol)
 
-        # 4: Accessibility statements for routine symbols
+        # 4: Derived-type declarations
+        for symbol in symbol_table.local_typesymbols:
+            declarations += self.gen_typedecl(symbol)
+
+        # 5: Accessibility statements for routine symbols
         declarations += self.gen_routine_access_stmts(symbol_table)
 
         return declarations

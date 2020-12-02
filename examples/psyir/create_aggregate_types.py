@@ -88,7 +88,8 @@ SYMBOL_TABLE.add(DTYPE_SYMBOL)
 # Create the definition of the 'field_type'
 FIELD_TYPE_DEF = StructureType.create(
     [("data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC),
-     ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC)])
+     ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC),
+     ("flag", INTEGER4_TYPE, Symbol.Visibility.PUBLIC)])
 FIELD_TYPE_SYMBOL = TypeSymbol("field_type", FIELD_TYPE_DEF)
 CONTAINER_SYMBOL_TABLE.add(FIELD_TYPE_SYMBOL)
 
@@ -102,8 +103,6 @@ SYMBOL_TABLE.specify_argument_list([FIELD_SYMBOL])
 
 # For now we can't do much more than print out the symbol tables as
 # there's a lot of functionality still to implement.
-# TODO #363 remove these prints and update example to use the Fortran
-# backend.
 print("Kernel Symbol Table:")
 print(str(SYMBOL_TABLE))
 print("Container Symbol Table:")
@@ -114,9 +113,7 @@ INDEX_SYMBOL = DataSymbol(INDEX_NAME, INTEGER4_TYPE)
 SYMBOL_TABLE.add(INDEX_SYMBOL)
 
 # Reference to the "flag" scalar component of FIELD_SYMBOL, "field%flag"
-#FLAG_REF = StructureReference.create(
-#    FIELD_SYMBOL, ["flag"])
-#    MemberReference(FIELD_SYMBOL.datatype.components["flag"]))
+FLAG_REF = StructureReference.create(FIELD_SYMBOL, ["flag"])
 
 # Reference to "field%grid%dx"
 DX_REF = StructureReference.create(FIELD_SYMBOL, ["grid", "dx"])
@@ -154,10 +151,11 @@ INT_ONE = Literal("1", INTEGER8_TYPE)
 # ASSIGN = Assignment.create(TMPARRAY, TWO)
 
 ASSIGN_DX = Assignment.create(DX_REF, TWO)
+ASSIGN_FLAG = Assignment.create(FLAG_REF, INT_ONE)
 
 # KernelSchedule
 KERNEL_SCHEDULE = KernelSchedule.create(
-    "work", SYMBOL_TABLE, [ASSIGN_DX])
+    "work", SYMBOL_TABLE, [ASSIGN_DX, ASSIGN_FLAG])
 KERNEL_SCHEDULE.view()
 
 # Container
@@ -166,6 +164,5 @@ CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
 
 # Write out the code as Fortran.
 WRITER = FortranWriter()
-#import pdb; pdb.set_trace()
 RESULT = WRITER(CONTAINER)
 print(RESULT)
