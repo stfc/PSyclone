@@ -178,6 +178,7 @@ class PSyIRVisitor(object):
         for method_name in possible_method_names:
             try:
                 # pylint: disable=eval-used
+                print(method_name)
                 return eval("self.{0}(node)".format(method_name))
             except AttributeError as excinfo:
                 if "attribute '{0}'".format(method_name) in str(excinfo):

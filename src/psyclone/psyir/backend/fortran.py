@@ -47,7 +47,8 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
-    SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol
+    SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol, \
+    TypeSymbol, StructureType
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
     Reference, Literal, KernelSchedule
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
@@ -150,6 +151,15 @@ def gen_datatype(symbol):
     is an unsupported type.
 
     '''
+    if isinstance(symbol.datatype, TypeSymbol):
+        # Symbol is of derived type
+        return "type({0})".format(symbol.datatype.name)
+
+    if (isinstance(symbol.datatype, ArrayType) and
+            isinstance(symbol.datatype.intrinsic, TypeSymbol)):
+        # Symbol is an array of derived types
+        return "type({0})".format(symbol.datatype.intrinsic.name)
+
     try:
         fortrantype = TYPE_MAP_TO_FORTRAN[symbol.datatype.intrinsic]
     except KeyError:
@@ -750,6 +760,38 @@ class FortranWriter(PSyIRVisitor):
         except KeyError:
             raise VisitorError("Unexpected N-ary op '{0}'".
                                format(node.operator))
+
+    def structurereference_node(self, node):
+        '''
+        Creates the Fortran for a reference to a derived type.
+
+        :param node: a StructureReference PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.StructureReference`
+
+        :returns: the Fortran code.
+        :rtype: str
+
+        '''
+        result = node.symbol.name
+        if node.children:
+            result += "%" + self._visit(node.children[0])
+        return result
+
+    def memberreference_node(self, node):
+        '''
+        Creates the Fortran for a reference to a member of a derived type.
+
+        :param node: a MemberReference PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.MemberReference`
+
+        :returns: the Fortran code.
+        :rtype: str
+
+        '''
+        result = node.component.name
+        if node.children:
+            result += "%" + self._visit(node.children[0])
+        return result
 
     def arrayreference_node(self, node):
         '''This method is called when an ArrayReference instance is found

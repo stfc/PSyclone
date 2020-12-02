@@ -33,14 +33,18 @@ class MemberReference(DataNode):
 
         if isinstance(target, StructureType):
             # Store the component that this member points to
-            self._children = [target.components[member]]
+            self._component = target.components[member]
         elif isinstance(target, TypeSymbol):
-            # We only have a symbol for this structure type
-            raise NotImplementedError("Huh")
+            if isinstance(target.datatype, StructureType):
+                self._component = target.datatype.components[member]
+            else:
+                # We only have a symbol for this structure type
+                raise NotImplementedError("Huh")
+        self._children = []
 
     @property
-    def member(self):
-        return self._member
+    def component(self):
+        return self._component
 
 
 __all__ = ['MemberReference']

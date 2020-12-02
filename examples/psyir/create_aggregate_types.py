@@ -81,16 +81,20 @@ SYMBOL_TABLE = SymbolTable()
 CONT = ContainerSymbol("kernel_mod")
 SYMBOL_TABLE.add(CONT)
 
-DTYPE_SYMBOL = TypeSymbol("field_type", DeferredType(),
+DTYPE_SYMBOL = TypeSymbol("other_type", DeferredType(),
                           interface=GlobalInterface(CONT))
 SYMBOL_TABLE.add(DTYPE_SYMBOL)
 
+# Create the definition of the 'field_type'
 FIELD_TYPE_DEF = StructureType.create(
     [("data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC),
-     ("grid", XXXX)])
+     ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC)])
+FIELD_TYPE_SYMBOL = TypeSymbol("field_type", FIELD_TYPE_DEF)
+CONTAINER_SYMBOL_TABLE.add(FIELD_TYPE_SYMBOL)
+
 # Create an argument of this derived type. At this point we know only that
 # DTYPE_SYMBOL refers to a type defined in the CONT container.
-FIELD_SYMBOL = DataSymbol("wind", FIELD_TYPE_DEF, #DTYPE_SYMBOL,
+FIELD_SYMBOL = DataSymbol("wind", FIELD_TYPE_SYMBOL,
                           interface=ArgumentInterface(
                               ArgumentInterface.Access.READWRITE))
 SYMBOL_TABLE.add(FIELD_SYMBOL)
@@ -152,10 +156,9 @@ INT_ONE = Literal("1", INTEGER8_TYPE)
 ASSIGN_DX = Assignment.create(DX_REF, TWO)
 
 # KernelSchedule
-# TODO #363 implement ComponentSymbol - put ASSIGN into list of children
-# passed to create().
 KERNEL_SCHEDULE = KernelSchedule.create(
     "work", SYMBOL_TABLE, [ASSIGN_DX])
+KERNEL_SCHEDULE.view()
 
 # Container
 CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
@@ -163,5 +166,6 @@ CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
 
 # Write out the code as Fortran.
 WRITER = FortranWriter()
+#import pdb; pdb.set_trace()
 RESULT = WRITER(CONTAINER)
 print(RESULT)

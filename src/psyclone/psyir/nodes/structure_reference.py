@@ -102,13 +102,15 @@ class StructureReference(Reference):
 #                "expecting the symbol to be an array, not a scalar.")
 
         ref = StructureReference(symbol)
-        current = ref.symbol
+        current = ref
+        dtype = ref.symbol.datatype
         for member in members:
-            subref = MemberReference(current.datatype,
+            subref = MemberReference(dtype,
                                      member,
                                      parent=ref)
             current.addchild(subref)
             current = subref
+            dtype = subref.component.datatype
         return ref
 
     def __str__(self):
@@ -128,7 +130,7 @@ class StructureReference(Reference):
         '''
 
         # This will set the array-name as READ
-        super(ArrayReference, self).reference_accesses(var_accesses)
+        super(StructureReference, self).reference_accesses(var_accesses)
 
         # Now add all children: Note that the class Reference
         # does not recurse to the children (which store the indices), so at
