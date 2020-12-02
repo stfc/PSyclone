@@ -88,6 +88,21 @@ psyclone -api "gocean1.0" -s ./acc_transform.py alg_nested_use.f90
 
 also currently raises a TransformationError for the same reason.
 
+
+Additionally, this example's Makefile has the necessary rules to compile
+the OpenAcc version of the `alg_kern_use_var.f90` version. This is done
+with the `compile-acc` target. Note that this requieres an OpenACC
+compatible compiler (e.g. pgf90) and the infrastructure libraries must
+be built with the same compiler.
+
+```sh
+export F90=pfg90
+make allclean
+make compile-acc
+```
+
+
+
 ## Licence
 
 -----------------------------------------------------------------------------
