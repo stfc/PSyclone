@@ -441,14 +441,15 @@ def test_apply3(tmpdir):
     matrix = matmul.children[0]
     matrix_symbol = matrix.symbol
     matmul.children[0] = Reference(matrix_symbol)
-    matrix_symbol.datatype._shape = [10, 20]
+    matrix_symbol.datatype._shape = [Literal("10", INTEGER_TYPE),
+                                     Literal("20", INTEGER_TYPE)]
     rhs_vector = matmul.children[1]
     rhs_vector_symbol = rhs_vector.symbol
-    rhs_vector_symbol.datatype._shape = [20]
+    rhs_vector_symbol.datatype._shape = [Literal("20", INTEGER_TYPE)]
     matmul.children[1] = Reference(rhs_vector_symbol)
     lhs_vector = matrix.parent.parent.lhs
     lhs_vector_symbol = lhs_vector.symbol
-    lhs_vector_symbol._shape = [10]
+    lhs_vector_symbol._shape = [Literal("10", INTEGER_TYPE)]
     matrix.parent.parent.children[0] = Reference(lhs_vector_symbol)
     trans.apply(matmul)
     writer = FortranWriter()
@@ -493,7 +494,7 @@ def test_get_array_bound():
 
     '''
     scalar_symbol = DataSymbol("n", INTEGER_TYPE, constant_value=20)
-    array_type = ArrayType(REAL_TYPE, [10, scalar_symbol,
+    array_type = ArrayType(REAL_TYPE, [10, Reference(scalar_symbol),
                                        ArrayType.Extent.DEFERRED,
                                        ArrayType.Extent.ATTRIBUTE])
     array_symbol = DataSymbol("x", array_type)
