@@ -38,27 +38,20 @@
 node. '''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.nodes.array_node import ArrayNode
 from psyclone.psyir.nodes.member_reference import MemberReference
 from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.nodes.array_structure_member_reference import \
-    ArrayStructureMemberReference
-from psyclone.psyir.nodes.structure_member_reference import \
-    StructureMemberReference
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols import DataSymbol, TypeSymbol, StructureType, \
-    ScalarType, ArrayType
-from psyclone.errors import GenerationError
 
 
-class ArrayStructureReference(StructureReference):
+class ArrayStructureReference(StructureReference, ArrayNode):
     '''
     Node representing a reference to one or more elements of an array of
     structures (derived types).
 
     '''
     # Textual description of the node.
-    _children_valid_format = "[MemberReference], [DataNode]*"
+    _children_valid_format = "[MemberReference | None] [DataNode]*"
     _text_name = "ArrayStructureReference"
 
     @staticmethod
@@ -72,8 +65,9 @@ class ArrayStructureReference(StructureReference):
         :rtype: bool
 
         '''
-        # pylint: disable=unused-argument
         if position == 0:
+            if child is None:
+                return True
             return isinstance(child, MemberReference)
         else:
             return isinstance(child, DataNode)
