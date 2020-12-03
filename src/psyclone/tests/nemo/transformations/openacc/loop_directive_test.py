@@ -56,7 +56,8 @@ def test_missing_enclosing_region(parser):
     any enclosing parallel or kernels region results in a
     code-generation error. '''
     reader = FortranStringReader("program do_loop\n"
-                                 "integer :: ji, jpj\n"
+                                 "integer :: ji\n"
+                                 "integer, parameter :: jpj=64\n"
                                  "real :: sto_tmp(jpj)\n"
                                  "do ji = 1,jpj\n"
                                  "  sto_tmp(ji) = 1.0d0\n"
@@ -76,7 +77,8 @@ def test_missing_enclosing_region(parser):
 def test_explicit_loop(parser):
     ''' Check that we can apply the transformation to an explicit loop. '''
     reader = FortranStringReader("program do_loop\n"
-                                 "integer :: ji, jpj\n"
+                                 "integer :: ji\n"
+                                 "integer, parameter :: jpj=13\n"
                                  "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
                                  "do ji = 1,jpj\n"
                                  "  sto_tmp(ji) = 1.0d0\n"
@@ -96,7 +98,8 @@ def test_explicit_loop(parser):
                                   {"independent": False})
     code = str(psy.gen)
     assert ("PROGRAM do_loop\n"
-            "  INTEGER :: ji, jpj\n"
+            "  INTEGER :: ji\n"
+            "  INTEGER, PARAMETER :: jpj = 13\n"
             "  REAL :: sto_tmp(jpj), sto_tmp2(jpj)\n"
             "  !$ACC PARALLEL\n"
             "  !$ACC LOOP INDEPENDENT\n"
@@ -112,7 +115,8 @@ def test_explicit_loop(parser):
 
 
 SINGLE_LOOP = ("program do_loop\n"
-               "integer :: ji, jpj\n"
+               "integer :: ji\n"
+               "integer, parameter :: jpj=12\n"
                "real(kind=wp) :: sto_tmp(jpj)\n"
                "do ji = 1,jpj\n"
                "  sto_tmp(ji) = 1.0d0\n"
@@ -120,7 +124,8 @@ SINGLE_LOOP = ("program do_loop\n"
                "end program do_loop\n")
 
 DOUBLE_LOOP = ("program do_loop\n"
-               "integer :: ji, jj, jpi, jpj\n"
+               "integer :: ji, jj\n"
+               "integer, parameter :: jpi=16, jpj=16\n"
                "real(kind=wp) :: sto_tmp(jpi, jpj)\n"
                "do jj = 1,jpj\n"
                "  do ji = 1,jpi\n"

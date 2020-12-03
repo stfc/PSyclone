@@ -39,10 +39,12 @@
 
 from __future__ import absolute_import
 import pytest
+import fparser
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part, \
-    Type_Declaration_Stmt, Execution_Part, Name
+    Type_Declaration_Stmt, Execution_Part, Name, Stmt_Function_Stmt, \
+    Dimension_Attr_Spec, Assignment_Stmt, Return_Stmt, Subroutine_Subprogram
 from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference, \
     ArrayReference, Container, Literal, Range, KernelSchedule
@@ -886,15 +888,43 @@ def test_process_array_declarations():
     reader = FortranStringReader("integer :: l5(2), l6(3)")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l5").datatype.shape == [2]
-    assert fake_parent.symbol_table.lookup("l6").datatype.shape == [3]
+    l5_datatype = fake_parent.symbol_table.lookup("l5").datatype
+    assert len(l5_datatype.shape) == 1
+    assert isinstance(l5_datatype.shape[0], Literal)
+    assert l5_datatype.shape[0].value == '2'
+    assert (l5_datatype.shape[0].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l5_datatype.shape[0].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
+    l6_datatype = fake_parent.symbol_table.lookup("l6").datatype
+    assert len(l6_datatype.shape) == 1
+    assert isinstance(l6_datatype.shape[0], Literal)
+    assert l6_datatype.shape[0].value == '3'
+    assert (l6_datatype.shape[0].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l6_datatype.shape[0].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
 
     # Test that component-array-spec has priority over dimension attribute
     reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l7").name == 'l7'
-    assert fake_parent.symbol_table.lookup("l7").shape == [3, 2]
+    l7_datasymbol = fake_parent.symbol_table.lookup("l7")
+    assert l7_datasymbol.name == 'l7'
+    assert len(l7_datasymbol.shape) == 2
+    l7_datatype = l7_datasymbol.datatype
+    assert isinstance(l7_datatype.shape[0], Literal)
+    assert l7_datatype.shape[0].value == '3'
+    assert (l7_datatype.shape[0].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l7_datatype.shape[0].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
+    assert isinstance(l7_datatype.shape[1], Literal)
+    assert l7_datatype.shape[1].value == '2'
+    assert (l7_datatype.shape[1].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l7_datatype.shape[1].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
 
     # Allocatable
     reader = FortranStringReader("integer, allocatable :: l8(:)")
@@ -923,7 +953,8 @@ def test_process_array_declarations():
                             ArrayType.Extent.ATTRIBUTE]
 
     # Extent given by variable with UnknownFortranType
-    udim = DataSymbol("udim", UnknownFortranType("integer :: udim"))
+    udim = DataSymbol("udim", UnknownFortranType("integer :: udim"),
+                      interface=UnresolvedInterface())
     fake_parent.symbol_table.add(udim)
     reader = FortranStringReader("integer :: l11(udim)")
     fparser2spec = Specification_Part(reader).content[0]
@@ -932,9 +963,11 @@ def test_process_array_declarations():
     assert symbol.name == "l11"
     assert len(symbol.shape) == 1
     # Extent symbol should be udim
-    assert symbol.shape[0].name == "udim"
-    assert symbol.shape[0] is udim
-    assert isinstance(symbol.shape[0].datatype, UnknownFortranType)
+    reference = symbol.shape[0]
+    assert isinstance(reference, Reference)
+    assert reference.name == "udim"
+    assert reference.symbol is udim
+    assert isinstance(reference.symbol.datatype, UnknownFortranType)
 
     # Extent given by variable with DeferredType
     ddim = DataSymbol("ddim", DeferredType(),
@@ -947,9 +980,10 @@ def test_process_array_declarations():
     assert symbol.name == "l12"
     assert len(symbol.shape) == 1
     # Extent symbol should now be ddim
-    assert symbol.shape[0].name == "ddim"
-    assert symbol.shape[0] is ddim
-    assert isinstance(symbol.shape[0].datatype, DeferredType)
+    reference = symbol.shape[0]
+    assert reference.name == "ddim"
+    assert reference.symbol is ddim
+    assert isinstance(reference.symbol.datatype, DeferredType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1249,7 +1283,6 @@ def test_process_declarations_stmt_functions():
     '''Test that process_declarations method handles statement functions
     appropriately.
     '''
-    from fparser.two.Fortran2003 import Stmt_Function_Stmt
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
@@ -1305,7 +1338,6 @@ def test_parse_array_dimensions_attributes():
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
-    from fparser.two.Fortran2003 import Dimension_Attr_Spec
 
     sym_table = SymbolTable()
     reader = FortranStringReader("dimension(:)")
@@ -1328,7 +1360,7 @@ def test_parse_array_dimensions_attributes():
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
-    assert shape[0] == sym_table.lookup('var1')
+    assert shape[0].symbol == sym_table.lookup('var1')
 
     # Assumed size arrays not supported
     reader = FortranStringReader("dimension(*)")
@@ -1405,7 +1437,7 @@ def test_unresolved_array_size():
     reader = FortranStringReader("real, dimension(N) :: array4")
     fparser2spec = Specification_Part(reader).content
     processor.process_declarations(fake_parent, fparser2spec, [])
-    assert fake_parent.symbol_table.lookup("array4").shape[0] is dim_sym
+    assert fake_parent.symbol_table.lookup("array4").shape[0].symbol is dim_sym
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1475,8 +1507,6 @@ def test_parse_array_dimensions_unhandled(monkeypatch):
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
-    from fparser.two.Fortran2003 import Dimension_Attr_Spec
-    import fparser
 
     def walk_ast_return(_1, _2, _3=None, _4=None):
         '''Function that returns a unique object that will not be part
@@ -2201,7 +2231,6 @@ def test_case_default():
     TODO #754 fix test so that 'disable_declaration_check' fixture is not
     required.
     '''
-    from fparser.two.Fortran2003 import Assignment_Stmt
     case_clauses = ["CASE default\nbranch3 = 1\nbranch3 = branch3 * 2\n",
                     "CASE (label1)\nbranch1 = 1\n",
                     "CASE (label2)\nbranch2 = 1\n"]
@@ -2539,7 +2568,6 @@ def test_handling_return_stmt():
     ''' Test that fparser2 Return_Stmt is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import Return_Stmt
     reader = FortranStringReader("return")
     return_stmt = Execution_Part.match(reader)[0][0]
     assert isinstance(return_stmt, Return_Stmt)
@@ -2557,7 +2585,6 @@ def test_handling_return_stmt():
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_end_subroutine_stmt():
     ''' Test that fparser2 End_Subroutine_Stmt are ignored.'''
-    from fparser.two.Fortran2003 import Subroutine_Subprogram
     reader = FortranStringReader('''
         subroutine dummy_code()
         end subroutine dummy_code

@@ -43,7 +43,7 @@ to matrix vector multiply.
 '''
 from __future__ import absolute_import
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Loop, Literal, ArrayReference, Range
+    Loop, Literal, ArrayReference, Range, DataNode
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType
 from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
@@ -71,10 +71,14 @@ def _get_array_bound(array, index):
         not supported.
 
     '''
+    # Added import here to avoid circular dependencies.
+    # pylint: disable=import-outside-toplevel
+    from psyclone.psyir.transformations import TransformationError
+
     my_dim = array.symbol.shape[index]
-    if isinstance(my_dim, int):
+    if isinstance(my_dim, DataNode):
         lower_bound = Literal("1", INTEGER_TYPE)
-        upper_bound = Literal(str(my_dim), INTEGER_TYPE)
+        upper_bound = my_dim
     elif isinstance(my_dim, DataSymbol):
         lower_bound = Literal("1", INTEGER_TYPE)
         upper_bound = Reference(my_dim)
@@ -86,8 +90,6 @@ def _get_array_bound(array, index):
             BinaryOperation.Operator.UBOUND, Reference(array.symbol),
             Literal(str(index), INTEGER_TYPE))
     else:
-        # Added import here to avoid circular dependencies.
-        from psyclone.psyir.transformations import TransformationError
         raise TransformationError(
             "Unsupported index type '{0}' found for dimension {1} of array "
             "'{2}'.".format(type(my_dim).__name__, index+1, array.name))
@@ -144,6 +146,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         # pylint: disable=too-many-branches
 
         # Import here to avoid circular dependencies.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.transformations import TransformationError
 
         super(Matmul2CodeTrans, self).validate(node, options)
