@@ -63,7 +63,7 @@ LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
 
 # GungHo auxiliary libraries
-GHLIB_PATH = ../gungho_lib
+GHLIB_PATH = ../../gungho_lib
 GHLIB_NAME = gungho
 GHLIB_LIB = $(GHLIB_PATH)/lib$(GHLIB_NAME).a
 F90FLAGS += -I$(GHLIB_PATH)
@@ -96,6 +96,11 @@ $(LFRIC_LIB):
 $(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
 $(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ)
 $(PSY_OBJ): $(KERNEL_OBJ)
+time_evolution_alg_mod.o: init_perturbation_kernel_mod.o \
+	prop_perturbation_kernel_mod.o time_evolution_alg_mod_psy.o
+time_evolution_alg_mod_psy.o: init_perturbation_kernel_mod.o \
+	prop_perturbation_kernel_mod.o
+
 
 %.o %.mod: %.F90
 	$(F90) $(F90FLAGS) -c $<

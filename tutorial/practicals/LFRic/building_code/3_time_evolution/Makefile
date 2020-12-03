@@ -58,7 +58,7 @@ LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
 
 # GungHo auxiliary libraries
-GHLIB_PATH = gungho_lib
+GHLIB_PATH = ../gungho_lib
 GHLIB_NAME = gungho
 GHLIB_LIB = $(GHLIB_PATH)/lib$(GHLIB_NAME).a
 F90FLAGS += -I$(GHLIB_PATH)
