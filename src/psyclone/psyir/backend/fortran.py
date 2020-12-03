@@ -303,15 +303,14 @@ class FortranWriter(PSyIRVisitor):
 
     '''
 
-    def _gen_dims(self, symbol):
-        '''Given a DataSymbol instance as input, return a list of strings
-        representing the symbol's array dimensions.
+    def _gen_dims(self, shape):
+        '''Given a list of PSyIR nodes representing the dimensions of an
+        array, return a list of strings representing those array dimensions.
 
-        :param symbol: the symbol instance.
-        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param shape: list of PSyIR nodes.
+        :type symbol: list of :py:class:`psyclone.psyir.symbols.Node`
 
-        :returns: the Fortran representation of the symbol's dimensions as \
-            a list.
+        :returns: the Fortran representation of the dimensions.
         :rtype: list of str
 
         :raises NotImplementedError: if the format of the dimension is not \
@@ -319,7 +318,7 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         dims = []
-        for index in symbol.shape:
+        for index in shape:
             if isinstance(index, DataNode):
                 # literal constant, symbol reference, or computed
                 # dimension
@@ -394,10 +393,12 @@ class FortranWriter(PSyIRVisitor):
         return use_stmts
 
     def gen_vardecl(self, symbol):
-        '''Create and return the Fortran variable declaration for this Symbol.
+        '''Create and return the Fortran variable declaration for this Symbol
+        or derived-type member.
 
-        :param symbol: the symbol instance.
-        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param symbol: the symbol or member instance.
+        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol` or \
+                      :py:class:`psyclone.psyir.nodes.MemberReference`
 
         :returns: the Fortran variable declaration as a string.
         :rtype: str
@@ -405,10 +406,20 @@ class FortranWriter(PSyIRVisitor):
         :raises VisitorError: if the symbol does not specify a \
             variable declaration (it is not a local declaration or an \
             argument declaration).
-        :raises VisitorError: if the symbol has an array with a shape \
-            containing a mixture of DEFERRED and other extents.
+        :raises VisitorError: if the symbol or member is an array with a \
+            shape containing a mixture of DEFERRED and other extents.
+
         '''
-        if not (symbol.is_local or symbol.is_argument):
+        # Whether we're dealing with a Symbol or a member of a derived type
+        is_symbol = isinstance(symbol, DataSymbol)
+        # Whether we're dealing with an array declaration and, if so, the
+        # shape of that array.
+        if isinstance(symbol.datatype, ArrayType):
+            array_shape = symbol.datatype.shape
+        else:
+            array_shape = []
+
+        if is_symbol and not (symbol.is_local or symbol.is_argument):
             raise VisitorError(
                 "gen_vardecl requires the symbol '{0}' to have a Local or "
                 "an Argument interface but found a '{1}' interface."
@@ -424,38 +435,42 @@ class FortranWriter(PSyIRVisitor):
 
         datatype = gen_datatype(symbol.datatype, symbol.name)
         result = "{0}{1}".format(self._nindent, datatype)
-        if ArrayType.Extent.DEFERRED in symbol.shape:
+
+        if ArrayType.Extent.DEFERRED in array_shape:
             if not all(dim == ArrayType.Extent.DEFERRED
                        for dim in symbol.shape):
                 raise VisitorError(
                     "A Fortran declaration of an allocatable array must have"
                     " the extent of every dimension as 'DEFERRED' but "
                     "symbol '{0}' has shape: {1}.".format(
-                        symbol.name, self._gen_dims(symbol)))
+                        symbol.name, self._gen_dims(array_shape)))
             # A 'deferred' array extent means this is an allocatable array
             result += ", allocatable"
-        if ArrayType.Extent.ATTRIBUTE in symbol.shape:
+        if ArrayType.Extent.ATTRIBUTE in array_shape:
             if not all(dim == ArrayType.Extent.ATTRIBUTE
-                       for dim in symbol.shape):
+                       for dim in symbol.datatype.shape):
                 # If we have an 'assumed-size' array then only the last
                 # dimension is permitted to have an 'ATTRIBUTE' extent
-                if symbol.shape.count(ArrayType.Extent.ATTRIBUTE) != 1 or \
-                   symbol.shape[-1] != ArrayType.Extent.ATTRIBUTE:
+                if (array_shape.count(ArrayType.Extent.ATTRIBUTE) != 1 or
+                        array_shape[-1] != ArrayType.Extent.ATTRIBUTE):
                     raise VisitorError(
                         "An assumed-size Fortran array must only have its "
                         "last dimension unspecified (as 'ATTRIBUTE') but "
                         "symbol '{0}' has shape: {1}."
-                        "".format(symbol.name, self._gen_dims(symbol)))
-        dims = self._gen_dims(symbol)
-        if dims:
+                        "".format(symbol.name, self._gen_dims(array_shape)))
+        if array_shape:
+            dims = self._gen_dims(array_shape)
             result += ", dimension({0})".format(",".join(dims))
-        intent = gen_intent(symbol)
-        if intent:
-            result += ", intent({0})".format(intent)
-        if symbol.is_constant:
-            result += ", parameter"
+        if is_symbol:
+            # A member of a derived type cannot have the 'intent' or
+            # 'parameter' attribute.
+            intent = gen_intent(symbol)
+            if intent:
+                result += ", intent({0})".format(intent)
+            if symbol.is_constant:
+                result += ", parameter"
         result += " :: {0}".format(symbol.name)
-        if symbol.is_constant:
+        if is_symbol and symbol.is_constant:
             result += " = {0}".format(self._visit(symbol.constant_value))
         result += "\n"
         return result
@@ -482,10 +497,7 @@ class FortranWriter(PSyIRVisitor):
 
         self._depth += 1
         for member in symbol.datatype.components.values():
-            result += "{0}{1} :: {2}\n".format(self._nindent,
-                                               gen_datatype(member.datatype,
-                                                            member.name),
-                                               member.name)
+            result += self.gen_vardecl(member)
         self._depth -= 1
 
         result += "{0}end type {1}\n".format(self._nindent, symbol.name)
