@@ -110,16 +110,15 @@ INDEX_NAME = SYMBOL_TABLE.new_symbol_name(root_name="i")
 INDEX_SYMBOL = DataSymbol(INDEX_NAME, INTEGER4_TYPE)
 SYMBOL_TABLE.add(INDEX_SYMBOL)
 
+# Some predefined scalar datatypes
+TWO = Literal("2.0", SCALAR_TYPE)
+INT_ONE = Literal("1", INTEGER8_TYPE)
+
 # Reference to the "flag" scalar component of FIELD_SYMBOL, "field%flag"
 FLAG_REF = StructureReference.create(FIELD_SYMBOL, ["flag"])
 
 # Reference to "field%grid%dx"
 DX_REF = StructureReference.create(FIELD_SYMBOL, ["grid", "dx"])
-
-
-# Some predefined scalar datatypes
-TWO = Literal("2.0", SCALAR_TYPE)
-INT_ONE = Literal("1", INTEGER8_TYPE)
 
 # Array reference to component of derived type using a range
 LBOUND = BinaryOperation.create(
@@ -130,21 +129,19 @@ UBOUND = BinaryOperation.create(
     StructureReference.create(FIELD_SYMBOL, ["data"]), INT_ONE)
 MY_RANGE = Range.create(LBOUND, UBOUND)
 
-# Reference to the "data" array component of FIELD_SYMBOL.
-DATA_REF = StructureReference.create(FIELD_SYMBOL, ["data"], [MY_RANGE])
+DATA_REF = StructureReference.create(FIELD_SYMBOL, [("data", [MY_RANGE])])
 
-# Routine consists of a single Assignment to the "data" component of the
-# "wind" argument.
-# TODO #363 implement ComponentSymbol
-# ASSIGN = Assignment.create(TMPARRAY, TWO)
-
-ASSIGN_DX = Assignment.create(DX_REF, TWO)
-ASSIGN_FLAG = Assignment.create(FLAG_REF, INT_ONE)
-ASSIGN_DATA = Assignment.create(DATA_REF, TWO)
+# Reference to "field%sub_meshes(1)%dx"
+DX_REF2 = StructureReference.create(FIELD_SYMBOL, [("sub_meshes", [INT_ONE]),
+                                                   "dx"])
+ASSIGNMENTS = [
+    Assignment.create(DX_REF, TWO),
+    Assignment.create(FLAG_REF, INT_ONE),
+    Assignment.create(DATA_REF, TWO),
+    Assignment.create(DX_REF2, TWO)]
 
 # KernelSchedule
-KERNEL_SCHEDULE = KernelSchedule.create(
-    "work", SYMBOL_TABLE, [ASSIGN_DX, ASSIGN_FLAG, ASSIGN_DATA])
+KERNEL_SCHEDULE = KernelSchedule.create("work", SYMBOL_TABLE, ASSIGNMENTS)
 KERNEL_SCHEDULE.view()
 
 # Container

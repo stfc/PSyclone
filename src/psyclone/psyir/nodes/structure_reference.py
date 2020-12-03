@@ -75,10 +75,17 @@ class StructureReference(Reference):
     @staticmethod
     def create(symbol, members, children=None):
         '''Create a StructureReference instance given a symbol and a
-        MemberReference.
+        list of components. e.g. for "field%bundle(2)%flag" this
+        list would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
 
-        :param symbol: the symbol that this array is associated with.
+        :param symbol: the symbol that this reference is to.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param members: the component(s) of the structure that make up \
+            the full reference. Any components that are array references must \
+            provide the name of the array and a list of DataNodes describing \
+            which part of it is accessed.
+        :type members: list of str or 2-tuples containing (str, \
+            list of nodes describing array access)
         :param children: a list of Nodes describing the array indices.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
 
@@ -113,8 +120,13 @@ class StructureReference(Reference):
             raise NotImplementedError(
                 "TypeSymbol for Base symbol must have a StructureType defined")
         dtype = dtype.datatype
-        #import pdb; pdb.set_trace()
-        for member in members:
+        for component in members:
+            if isinstance(component, tuple):
+                member = component[0]
+                children = component[1]
+            else:
+                member = component
+                children = None
             target_dtype = dtype.components[member].datatype
             if isinstance(target_dtype, TypeSymbol):
                 # This member is also a derived type
@@ -127,27 +139,38 @@ class StructureReference(Reference):
                     # Array of derived types
                     subref = ArrayStructureMemberReference(dtype,
                                                            member,
-                                                           parent=ref)
+                                                           parent=ref,
+                                                           children=children)
                 else:
                     # Array of intrinsic quantities
-                    subref = ArrayMemberReference(dtype, member, parent=ref)
+                    subref = ArrayMemberReference(dtype, member, parent=ref,
+                                                  children=children)
             elif isinstance(target_dtype, ScalarType):
                 # A scalar member
                 subref = MemberReference(dtype, member, parent=ref)
             else:
                 raise NotImplementedError("Datatype: {0}", type(target_dtype))
-            current.addchild(subref)
+
+            # The reference to a sub-component is stored as the first child
+            current.children.insert(0, subref)
+            # Move down to the newly-added child
             current = subref
             dtype = subref.component.datatype
             if isinstance(dtype, TypeSymbol):
+                # This reference is to a derived type
                 dtype = dtype.datatype
+            elif (isinstance(dtype, ArrayType) and
+                  isinstance(dtype.intrinsic, TypeSymbol)):
+                # This reference is to an array of derived types
+                dtype = dtype.intrinsic.datatype
         if children:
+            # The base reference is to part of an array
             if not isinstance(subref, (ArrayStructureMemberReference,
                                        ArrayMemberReference)):
                 raise NotImplementedError(
                     "Cannot give children if object pointed to is not an "
                     "array")
-            subref.children = children
+            subref.children += children
             for child in children:
                 child.parent = subref
         return ref

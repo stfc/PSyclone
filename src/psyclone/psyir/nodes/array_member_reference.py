@@ -16,7 +16,7 @@ class ArrayMemberReference(MemberReference):
     _children_valid_format = "[DataNode | Range]*"
     _text_name = "ArrayMemberReference"
 
-    def __init__(self, target, member, parent=None):
+    def __init__(self, target, member, parent=None, children=None):
         # Avoid circular dependency
         from psyclone.psyir.nodes.structure_reference import StructureReference
 
@@ -41,6 +41,10 @@ class ArrayMemberReference(MemberReference):
                 # We only have a symbol for this structure type
                 raise NotImplementedError("Huh")
         self._children = []
+        if children:
+            self._children = children
+        for child in self._children:
+            child.parent = self
 
     @property
     def component(self):

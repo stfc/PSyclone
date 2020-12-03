@@ -849,6 +849,30 @@ class FortranWriter(PSyIRVisitor):
         #    result += "%" + self._visit(node.children[0])
         #return result
 
+    def arraystructurememberreference_node(self, node):
+        '''
+        This method is called when an ArrayStructureMemberReference is found
+        in the PSyIR tree, i.e. a member of a derived type that is itself
+        an array of derived types.
+
+        :param node: an ArrayStructureMemberReference PSyIR node.
+        :type node: \
+            :py:class:`psyclone.psyir.nodes.ArrayStructureMemberReference`
+
+        :returns: the Fortran code.
+        :rtype: str
+
+        '''
+        # Deal with the array reference first. Array indices are stored
+        # as children 1, 2, ....
+        args = []
+        for child in node.children[1:]:
+            args.append(str(self._visit(child)))
+        result = "{0}({1})".format(node.component.name, ",".join(args))
+        # Now add the reference to the component of the array element
+        result += "%" + self._visit(node.children[0])
+        return result
+
     def arrayreference_node(self, node):
         '''This method is called when an ArrayReference instance is found
         in the PSyIR tree.
