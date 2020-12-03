@@ -134,7 +134,6 @@ class StructureReference(Reference):
             target_dtype = dtype.components[member].datatype
             if isinstance(target_dtype, TypeSymbol):
                 # This member is also a derived type
-                target_dtype = target_dtype.datatype
                 subref = StructureMemberReference(dtype,
                                                   member,
                                                   parent=ref)

@@ -807,12 +807,30 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         result = node.symbol.name
-        if len(node.children) > 1:
-            args = []
-            for child in node.children[1:]:
-                args.append(str(self._visit(child)))
-            result += "({0})".format(",".join(args))
-        if node.children:
+        if node.children[0]:
+            result += "%" + self._visit(node.children[0])
+        return result
+
+    def arraystructurereference_node(self, node):
+        '''
+        Creates the Fortran for a reference to an element of an array of
+        derived types.
+
+        :param node: a ArrayStructureReference PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayStructureReference`
+
+        :returns: the Fortran code.
+        :rtype: str
+
+        '''
+        result = node.symbol.name
+        # Generate the array reference
+        args = []
+        for child in node.children[1:]:
+            args.append(str(self._visit(child)))
+        result += "({0})".format(",".join(args))
+        # Append the reference to a member of the derived type (if any)
+        if node.children[0]:
             result += "%" + self._visit(node.children[0])
         return result
 
@@ -827,15 +845,16 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        result = node.component.name
+        # This reference is to a component, not a symbol
+        result = node.name
         if node.children:
             result += "%" + self._visit(node.children[0])
         return result
 
     def arraymemberreference_node(self, node):
         '''
-        Creates the Fortran for a reference to an array that is a member
-        of a derived type.
+        Creates the Fortran for a reference to an array (of intrinsic type)
+        that is a member of a derived type.
 
         :param node: an ArrayMemberReference PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.ArrayMemberReference`
@@ -846,9 +865,8 @@ class FortranWriter(PSyIRVisitor):
         '''
         # TODO this should probably be sorted out by getting the inheritance
         # of ArrayMemberReference right.
-        if node.children:
-            return self.arrayreference_node(node)
-        return node.name
+        return self.arrayreference_node(node)
+
         #result = node.component.name
         #if node.children:
         #    result += "%" + self._visit(node.children[0])

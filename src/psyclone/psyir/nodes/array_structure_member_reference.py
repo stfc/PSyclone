@@ -2,14 +2,21 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.member_reference import MemberReference
-from psyclone.psyir.symbols import TypeSymbol
+from psyclone.psyir.symbols.typesymbol import TypeSymbol
 from psyclone.psyir.symbols.datatypes import StructureType
 
 
 class ArrayStructureMemberReference(MemberReference):
     '''
-    Node representing a reference to a member of a structure (derived type).
-    As such it is a leaf in the PSyIR tree.
+    Node representing a reference to an element of an array of derived types
+    within a structure (derived type). As it is an array or derived types,
+    its first child is a reference to a member of that derived type (or None)
+    and subsequent children given the array-index expressions.
+
+    :param target:
+    :param member:
+    :param parent:
+    :param children:
 
     '''
     # Textual description of the node.
@@ -27,8 +34,9 @@ class ArrayStructureMemberReference(MemberReference):
         if parent and not isinstance(parent,
                                      (StructureReference, MemberReference)):
             raise TypeError(
-                "The parent of a MemberReference must be a StructureReference "
-                "but found '{0}'.".format(type(parent).__name))
+                "The parent of a MemberReference must be either a "
+                "StructureReference or another MemberReference but found "
+                "'{0}'.".format(type(parent).__name))
         super(MemberReference, self).__init__(parent=parent)
 
         if isinstance(target, StructureType):
@@ -59,6 +67,11 @@ class ArrayStructureMemberReference(MemberReference):
         '''
         from psyclone.psyir.nodes import DataNode, Range
         # pylint: disable=unused-argument
+        if position == 0:
+            # The first child must either be a MemberReference or None.
+            if child:
+                return isinstance(child, MemberReference)
+            return True
         return isinstance(child, (DataNode, Range))
 
     @property

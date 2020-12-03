@@ -46,10 +46,6 @@ class ArrayMemberReference(MemberReference):
         for child in self._children:
             child.parent = self
 
-    @property
-    def component(self):
-        return self._component
-
     @staticmethod
     def _validate_child(position, child):
         '''

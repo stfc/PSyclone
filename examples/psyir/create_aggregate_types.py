@@ -67,8 +67,8 @@ SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
 
 # Derived-type definition in container
 GRID_TYPE = StructureType.create([
-    ("dx", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC),
-    ("dy", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC)])
+    ("dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC),
+    ("dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC)])
 GRID_TYPE_SYMBOL = TypeSymbol("grid_type", GRID_TYPE)
 CONTAINER_SYMBOL_TABLE.add(GRID_TYPE_SYMBOL)
 
