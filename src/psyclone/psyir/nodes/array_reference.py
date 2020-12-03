@@ -49,8 +49,8 @@ from psyclone.psyir.nodes import BinaryOperation, Literal
 
 class ArrayReference(Reference):
     '''
-    Node representing an Array reference. As such it has a reference and a
-    subscript list as children 0 and 1, respectively.
+    Node representing an Array reference. As such it has a symbol that
+    it references and its children represent the subscript list.
 
     '''
     # Textual description of the node.

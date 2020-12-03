@@ -95,38 +95,6 @@ def gen_intent(symbol):
         return None  # non-Arguments do not have intent
 
 
-def gen_dims(symbol):
-    '''Given a DataSymbol instance as input, return a list of strings
-    representing the symbol's array dimensions.
-
-    :param symbol: the symbol instance.
-    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-    :returns: the Fortran representation of the symbol's dimensions as \
-    a list.
-    :rtype: list of str
-
-    :raises NotImplementedError: if the format of the dimension is not \
-    supported.
-
-    '''
-    dims = []
-    for index in symbol.shape:
-        if isinstance(index, DataSymbol):
-            # references another symbol
-            dims.append(index.name)
-        elif isinstance(index, int):
-            # literal constant
-            dims.append(str(index))
-        elif isinstance(index, ArrayType.Extent):
-            # unknown extent
-            dims.append(":")
-        else:
-            raise NotImplementedError(
-                "unsupported gen_dims index '{0}'".format(str(index)))
-    return dims
-
-
 def gen_datatype(datatype, name):
     '''Given a DataType instance as input, return the Fortran datatype
     of the symbol including any specific precision properties.
