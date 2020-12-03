@@ -807,6 +807,11 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         result = node.symbol.name
+        if len(node.children) > 1:
+            args = []
+            for child in node.children[1:]:
+                args.append(str(self._visit(child)))
+            result += "({0})".format(",".join(args))
         if node.children:
             result += "%" + self._visit(node.children[0])
         return result

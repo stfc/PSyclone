@@ -34,29 +34,32 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the implementation of the StructureReference node. '''
+''' This module contains the implementation of the ArrayStructureReference
+node. '''
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member_reference import MemberReference
-from psyclone.psyir.nodes.array_member_reference import ArrayMemberReference
+from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.array_structure_member_reference import \
     ArrayStructureMemberReference
 from psyclone.psyir.nodes.structure_member_reference import \
     StructureMemberReference
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import DataSymbol, TypeSymbol, StructureType, \
     ScalarType, ArrayType
 from psyclone.errors import GenerationError
 
 
-class StructureReference(Reference):
+class ArrayStructureReference(StructureReference):
     '''
-    Node representing a reference to a structure (derived type).
+    Node representing a reference to one or more elements of an array of
+    structures (derived types).
 
     '''
     # Textual description of the node.
-    _children_valid_format = "[MemberReference]"
-    _text_name = "StructureReference"
+    _children_valid_format = "[MemberReference], [DataNode]*"
+    _text_name = "ArrayStructureReference"
 
     @staticmethod
     def _validate_child(position, child):
@@ -70,11 +73,14 @@ class StructureReference(Reference):
 
         '''
         # pylint: disable=unused-argument
-        return isinstance(child, (MemberReference))
+        if position == 0:
+            return isinstance(child, MemberReference)
+        else:
+            return isinstance(child, DataNode)
 
     @staticmethod
-    def create(symbol, members):
-        '''Create a StructureReference instance given a symbol and a
+    def create(symbol, members, children):
+        '''Create an ArrayStructureReference instance given a symbol and a
         list of components. e.g. for "field%bundle(2)%flag" this
         list would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
 
@@ -86,92 +92,27 @@ class StructureReference(Reference):
             which part of it is accessed.
         :type members: list of str or 2-tuples containing (str, \
             list of nodes describing array access)
+        :param children: a list of Nodes describing the array indices.
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: an StructureReference instance.
-        :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
+        :returns: an ArrayReference instance.
+        :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         :raises GenerationError: if the arguments to the create method \
             are not of the expected type.
 
         '''
-        if not isinstance(symbol, DataSymbol):
-            raise GenerationError(
-                "symbol argument in StructureMethod.create method "
-                "should be a DataSymbol but found '{0}'.".format(
-                    type(symbol).__name__))
-#        if not isinstance(children, list):
-#            raise GenerationError(
-#                "children argument in create method of ArrayReference class "
-#                "should be a list but found '{0}'."
-#                "".format(type(children).__name__))
-#        if not symbol.is_array:
-#            raise GenerationError(
-#                "expecting the symbol to be an array, not a scalar.")
+        ref = StructureReference.create(symbol, members)
+        ref.__class__ = ArrayStructureReference
 
-        ref = StructureReference(symbol)
-        current = ref
-
-        if isinstance(ref.symbol.datatype, TypeSymbol):
-            dtype = ref.symbol.datatype.datatype
-        elif (isinstance(ref.symbol.datatype, ArrayType) and
-              isinstance(ref.symbol.datatype.intrinsic, TypeSymbol)):
-            dtype = ref.symbol.datatype.intrinsic.datatype
-        else:
-            raise NotImplementedError(
-                "Base symbol must have a TypeSymbol as its type")
-
-        if not isinstance(dtype, StructureType):
-            raise NotImplementedError(
-                "TypeSymbol for Base symbol must have a StructureType defined")
-
-        for component in members:
-            if isinstance(component, tuple):
-                member = component[0]
-                children = component[1]
-            else:
-                member = component
-                children = None
-            target_dtype = dtype.components[member].datatype
-            if isinstance(target_dtype, TypeSymbol):
-                # This member is also a derived type
-                target_dtype = target_dtype.datatype
-                subref = StructureMemberReference(dtype,
-                                                  member,
-                                                  parent=ref)
-            elif isinstance(target_dtype, ArrayType):
-                if isinstance(target_dtype.intrinsic, TypeSymbol):
-                    # Array of derived types
-                    subref = ArrayStructureMemberReference(dtype,
-                                                           member,
-                                                           parent=ref,
-                                                           children=children)
-                else:
-                    # Array of intrinsic quantities
-                    subref = ArrayMemberReference(dtype, member, parent=ref,
-                                                  children=children)
-            elif isinstance(target_dtype, ScalarType):
-                # A scalar member
-                subref = MemberReference(dtype, member, parent=ref)
-            else:
-                raise NotImplementedError("Datatype: {0}", type(target_dtype))
-
-            # The reference to a sub-component is stored as the first child
-            current.children.insert(0, subref)
-            # Move down to the newly-added child
-            current = subref
-            dtype = subref.component.datatype
-            if isinstance(dtype, TypeSymbol):
-                # This reference is to a derived type
-                dtype = dtype.datatype
-            elif (isinstance(dtype, ArrayType) and
-                  isinstance(dtype.intrinsic, TypeSymbol)):
-                # This reference is to an array of derived types
-                dtype = dtype.intrinsic.datatype
+        ref.children += children
+        for child in children:
+            child.parent = ref
         return ref
 
     def __str__(self):
-        result = ("StructureReference" +
-                  super(StructureReference, self).__str__() + "\n")
+        result = ("ArrayStructureReference" +
+                  super(ArrayStructureReference, self).__str__() + "\n")
         for entity in self._children:
             result += str(entity) + "\n"
         return result

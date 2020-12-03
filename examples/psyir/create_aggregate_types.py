@@ -47,7 +47,8 @@ this is a work in progress.
 '''
 from __future__ import print_function
 from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
-    StructureReference, Assignment, BinaryOperation, Range
+    StructureReference, ArrayStructureReference, Assignment, BinaryOperation, \
+    Range
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, TypeSymbol, \
     GlobalInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
@@ -99,6 +100,10 @@ FIELD_SYMBOL = DataSymbol("wind", FIELD_TYPE_SYMBOL,
 SYMBOL_TABLE.add(FIELD_SYMBOL)
 SYMBOL_TABLE.specify_argument_list([FIELD_SYMBOL])
 
+# Create an array of these derived types
+FIELD_BUNDLE_SYMBOL = DataSymbol("chi", ArrayType(FIELD_TYPE_SYMBOL, [3]))
+SYMBOL_TABLE.add(FIELD_BUNDLE_SYMBOL)
+
 # For now we can't do much more than print out the symbol tables as
 # there's a lot of functionality still to implement.
 print("Kernel Symbol Table:")
@@ -134,11 +139,18 @@ DATA_REF = StructureReference.create(FIELD_SYMBOL, [("data", [MY_RANGE])])
 # Reference to "field%sub_meshes(1)%dx"
 DX_REF2 = StructureReference.create(FIELD_SYMBOL, [("sub_meshes", [INT_ONE]),
                                                    "dx"])
+
+# Reference to "chi(1)%sub_meshes(1)%dx"
+DX_REF3 = ArrayStructureReference.create(FIELD_BUNDLE_SYMBOL,
+                                         [("sub_meshes", [INT_ONE]), "dx"],
+                                         children=[INT_ONE])
+
 ASSIGNMENTS = [
     Assignment.create(DX_REF, TWO),
     Assignment.create(FLAG_REF, INT_ONE),
     Assignment.create(DATA_REF, TWO),
-    Assignment.create(DX_REF2, TWO)]
+    Assignment.create(DX_REF2, TWO),
+    Assignment.create(DX_REF3, TWO)]
 
 # KernelSchedule
 KERNEL_SCHEDULE = KernelSchedule.create("work", SYMBOL_TABLE, ASSIGNMENTS)

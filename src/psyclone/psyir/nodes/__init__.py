@@ -51,6 +51,8 @@ from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.ifblock import IfBlock
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.array_reference import ArrayReference
+from psyclone.psyir.nodes.array_structure_reference import \
+    ArrayStructureReference
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.codeblock import CodeBlock
@@ -78,6 +80,7 @@ __all__ = [
         'ArrayMemberReference',
         'ArrayReference',
         'ArrayStructureMemberReference',
+        'ArrayStructureReference',
         'Assignment',
         'BinaryOperation',
         'Call',
