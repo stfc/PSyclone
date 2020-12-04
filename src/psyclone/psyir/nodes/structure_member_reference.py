@@ -8,12 +8,12 @@ from psyclone.psyir.symbols.datatypes import StructureType
 
 class StructureMemberReference(MemberReference):
     '''
-    Node representing a reference to a member of a structure (derived type).
-    As such it is a leaf in the PSyIR tree.
+    Node representing a reference to a member of a structure (derived type)
+    that is itself a derived type.
 
     '''
     # Textual description of the node.
-    _children_valid_format = "<LeafNode>"
+    _children_valid_format = "[MemberReference | None]"
     _text_name = "StructureMemberReference"
 
     def __init__(self, target, member, parent=None):
@@ -41,6 +41,26 @@ class StructureMemberReference(MemberReference):
                 # We only have a symbol for this structure type
                 raise NotImplementedError("Huh")
         self._children = []
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
+        if position == 0:
+            # The first child must either be a MemberReference or None.
+            if child:
+                return isinstance(child, MemberReference)
+            return True
+        # Only one child is permitted
+        return False
 
     @property
     def component(self):

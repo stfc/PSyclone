@@ -46,7 +46,7 @@ from psyclone.psyir.symbols.datatypes import StructureType
 class ArrayStructureMemberReference(ArrayNode, MemberReference):
     '''
     Node representing a reference to an element of an array of derived types
-    within a structure (derived type). As it is an array or derived types,
+    within a structure (derived type). As it is an array of derived types,
     its first child is a reference to a member of that derived type (or None)
     and subsequent children given the array-index expressions.
 
@@ -57,7 +57,7 @@ class ArrayStructureMemberReference(ArrayNode, MemberReference):
 
     '''
     # Textual description of the node.
-    _children_valid_format = "[DataNode | Range]*"
+    _children_valid_format = "MemberReference [DataNode | Range]*"
     _text_name = "ArrayStructureMemberReference"
 
     def __init__(self, target, member, parent=None, children=None):
@@ -85,10 +85,12 @@ class ArrayStructureMemberReference(ArrayNode, MemberReference):
             else:
                 # We only have a symbol for this structure type
                 raise NotImplementedError("Huh")
-        self._children = []
-        if children:
-            self._children = children
-        for child in self._children:
+
+        # The first child of this node will either be a MemberReference
+        # (to a component of this derived type) or None.
+        self._children = [None]
+        for child in children:
+            self._children.append(child)
             child.parent = self
 
     @staticmethod

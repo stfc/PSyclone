@@ -48,7 +48,8 @@ from psyclone.psyir.backend.fortran import gen_intent, FortranWriter, \
     is_fortran_intrinsic, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
-    KernelSchedule, ArrayReference, ArrayStructureReference, Range
+    KernelSchedule, ArrayReference, ArrayStructureReference, Range, \
+    StructureReference
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -1225,6 +1226,27 @@ def test_fw_range(fort_writer):
     result = fort_writer.arraynode_node(array)
     assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),1:2:3,"
                       "UBOUND(a, 3):LBOUND(a, 3):3)")
+
+
+def test_fw_structureref(fort_writer):
+    ''' Test the FortranWriter support for StructureReference. '''
+    region_type = StructureType.create([
+        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+    region_type_sym = TypeSymbol("grid_type", region_type)
+    region_array_type = ArrayType(region_type_sym, [2, 2])
+    grid_type = StructureType.create([
+        ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("area", region_type_sym, Symbol.Visibility.PUBLIC),
+        ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
+    grid_type_sym = TypeSymbol("grid_type", grid_type)
+    grid_var = DataSymbol("grid", grid_type_sym)
+    grid_ref = StructureReference.create(grid_var, ['area', 'nx'])
+    assert fort_writer.structurereference_node(grid_ref) == "grid%area%nx"
+    level_ref = StructureReference.create(
+        grid_var, [('levels', [Literal("1", INTEGER_TYPE),
+                               Literal("2", INTEGER_TYPE)]), 'ny'])
+    assert fort_writer(level_ref) == "grid%levels(1,2)%ny"
 
 
 def test_fw_arraystructureref(fort_writer):

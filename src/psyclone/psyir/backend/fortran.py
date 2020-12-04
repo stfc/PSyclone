@@ -877,7 +877,7 @@ class FortranWriter(PSyIRVisitor):
         '''
         # This reference is to a component, not a symbol
         result = node.name
-        if node.children:
+        if node.children and node.children[0]:
             result += "%" + self._visit(node.children[0])
         return result
 

@@ -155,7 +155,10 @@ class StructureReference(Reference):
                 raise NotImplementedError("Datatype: {0}", type(target_dtype))
 
             # The reference to a sub-component is stored as the first child
-            current.children.insert(0, subref)
+            if not current.children:
+                current.children = [subref]
+            else:
+                current.children[0] = subref
             # Move down to the newly-added child
             current = subref
             dtype = subref.component.datatype
