@@ -212,10 +212,13 @@ class ScalarType(DataType):
 
 
 class ArrayType(DataType):
-    '''Describes an array datatype.
+    '''Describes an array datatype. Can be an array of intrinsic types (e.g.
+    integer) or of structure types. For the latter, the type must be
+    specified as a TypeSymbol.
 
     :param datatype: the datatype of the array elements.
-    :type datatype: :py:class:`psyclone.psyir.datatypes.DataType`
+    :type datatype: :py:class:`psyclone.psyir.datatypes.DataType` or \
+        :py:class:`psyclone.psyir.symbols.TypeSymbol`
     :param list shape: shape of the symbol in column-major order \
         (leftmost index is contiguous in memory). Each entry \
         represents an array dimension. If it is \
@@ -252,6 +255,11 @@ class ArrayType(DataType):
         from psyclone.psyir.nodes import Literal
 
         if isinstance(datatype, DataType):
+            if isinstance(datatype, StructureType):
+                raise TypeError(
+                    "When creating an array of structures, the type of "
+                    "those structures must be supplied as a TypeSymbol but "
+                    "got a StructureType instead.")
             self._intrinsic = datatype.intrinsic
             self._precision = datatype.precision
         elif isinstance(datatype, TypeSymbol):

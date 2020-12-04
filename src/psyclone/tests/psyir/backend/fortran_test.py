@@ -48,7 +48,7 @@ from psyclone.psyir.backend.fortran import gen_intent, FortranWriter, \
     is_fortran_intrinsic, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
-    KernelSchedule, ArrayReference, Range
+    KernelSchedule, ArrayReference, ArrayStructureReference, Range
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -346,11 +346,10 @@ def test_gen_datatype_exception_2():
 #             "variable 'dummy'." in caplog.text)
 
 
-def test_gen_typedecl_validation(monkeypatch):
+def test_gen_typedecl_validation(fort_writer, monkeypatch):
     ''' Test the various validation checks in gen_typedecl(). '''
-    fwriter = FortranWriter()
     with pytest.raises(VisitorError) as err:
-        fwriter.gen_typedecl("hello")
+        fort_writer.gen_typedecl("hello")
     assert ("gen_typedecl expects a TypeSymbol as argument but got: 'str'" in
             str(err.value))
     # UnknownType is abstract so we create an UnknownFortranType and then
@@ -360,22 +359,21 @@ def test_gen_typedecl_validation(monkeypatch):
     monkeypatch.setattr(tsymbol.datatype, "__class__", UnknownType)
 
     with pytest.raises(VisitorError) as err:
-        fwriter.gen_typedecl(tsymbol)
+        fort_writer.gen_typedecl(tsymbol)
     assert ("cannot generate code for symbol 'my_type' of type "
             "'UnknownType'" in str(err.value))
 
 
-def test_gen_typedecl_unknown_fortran_type():
+def test_gen_typedecl_unknown_fortran_type(fort_writer):
     ''' Check that gen_typedecl() works for a symbol of UnknownFortranType. '''
-    fwriter = FortranWriter()
     tsymbol = TypeSymbol("my_type",
                          UnknownFortranType("type my_type\nend type my_type"))
-    assert fwriter.gen_typedecl(tsymbol) == "type my_type\nend type my_type"
+    assert (fort_writer.gen_typedecl(tsymbol) ==
+            "type my_type\nend type my_type")
 
 
-def test_gen_typedecl():
+def test_gen_typedecl(fort_writer):
     ''' Test normal operation of gen_typedecl(). '''
-    fwriter = FortranWriter()
     atype = ArrayType(REAL_TYPE, [3, 5])
     dynamic_atype = ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED])
     tsymbol = TypeSymbol("grid_type", DeferredType())
@@ -391,7 +389,7 @@ def test_gen_typedecl():
         # Derived type
         ("grid", tsymbol, Symbol.Visibility.PRIVATE)])
     tsymbol = TypeSymbol("my_type", dtype)
-    assert (fwriter.gen_typedecl(tsymbol) ==
+    assert (fort_writer.gen_typedecl(tsymbol) ==
             "type :: my_type\n"
             "  integer :: flag\n"
             "  integer, private :: secret\n"
@@ -400,7 +398,7 @@ def test_gen_typedecl():
             "  type(grid_type), private :: grid\n"
             "end type my_type\n")
     private_tsymbol = TypeSymbol("my_type", dtype, Symbol.Visibility.PRIVATE)
-    gen_code = fwriter.gen_typedecl(private_tsymbol)
+    gen_code = fort_writer.gen_typedecl(private_tsymbol)
     assert gen_code.startswith("type, private :: my_type\n")
 
 
@@ -656,11 +654,25 @@ def test_gen_decls(fort_writer):
     symbol_table.add(argument_variable)
     local_variable = DataSymbol("local", INTEGER_TYPE)
     symbol_table.add(local_variable)
+    dtype = StructureType.create([
+        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+    dtype_variable = TypeSymbol("field", dtype)
+    symbol_table.add(dtype_variable)
+    grid_type = TypeSymbol("grid_type", DeferredType(),
+                           interface=GlobalInterface(
+                               symbol_table.lookup("my_module")))
+    symbol_table.add(grid_type)
+    grid_variable = DataSymbol("grid", grid_type)
+    symbol_table.add(grid_variable)
     result = fort_writer.gen_decls(symbol_table)
     assert (result ==
-            "use my_module, only : my_use\n"
+            "use my_module, only : grid_type, my_use\n"
             "integer :: arg\n"
-            "integer :: local\n")
+            "integer :: local\n"
+            "type(grid_type) :: grid\n"
+            "type :: field\n"
+            "  integer :: flag\n"
+            "end type field\n")
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_decls(symbol_table, args_allowed=False)
     assert ("Arguments are not allowed in this context but this symbol table "
@@ -1213,6 +1225,19 @@ def test_fw_range(fort_writer):
     result = fort_writer.arraynode_node(array)
     assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),1:2:3,"
                       "UBOUND(a, 3):LBOUND(a, 3):3)")
+
+
+def test_fw_arraystructureref(fort_writer):
+    ''' Test the FortranWriter support for ArrayStructureReference. '''
+    grid_type = StructureType.create([
+        ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+    grid_type_sym = TypeSymbol("grid_type", grid_type)
+    grid_array_type = ArrayType(grid_type_sym, [10])
+    grid_var = DataSymbol("grid", grid_array_type)
+    grid_ref = ArrayStructureReference.create(grid_var, ["dx"],
+                                              [Literal("3", INTEGER_TYPE)])
+    assert fort_writer.arraystructurereference_node(grid_ref) == "grid(3)%dx"
+
 
 # literal is already checked within previous tests
 

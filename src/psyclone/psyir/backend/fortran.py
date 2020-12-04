@@ -852,7 +852,9 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         result = node.symbol.name
-        # Generate the array reference
+        # Generate the array reference. We can't using the arraynode handler
+        # here because we need to skip over the first child (as that refers
+        # to the member of the derived type being referenced).
         args = []
         for child in node.children[1:]:
             args.append(str(self._visit(child)))
