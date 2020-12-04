@@ -862,27 +862,6 @@ class FortranWriter(PSyIRVisitor):
             result += "%" + self._visit(node.children[0])
         return result
 
-    def arraymemberreference_node(self, node):
-        '''
-        Creates the Fortran for a reference to an array (of intrinsic type)
-        that is a member of a derived type.
-
-        :param node: an ArrayMemberReference PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayMemberReference`
-
-        :returns: the Fortran code.
-        :rtype: str
-
-        '''
-        # TODO this should probably be sorted out by getting the inheritance
-        # of ArrayMemberReference right.
-        return self.arrayreference_node(node)
-
-        #result = node.component.name
-        #if node.children:
-        #    result += "%" + self._visit(node.children[0])
-        #return result
-
     def arraystructurememberreference_node(self, node):
         '''
         This method is called when an ArrayStructureMemberReference is found
@@ -907,12 +886,12 @@ class FortranWriter(PSyIRVisitor):
         result += "%" + self._visit(node.children[0])
         return result
 
-    def arrayreference_node(self, node):
-        '''This method is called when an ArrayReference instance is found
+    def arraynode_node(self, node):
+        '''This method is called when an ArrayNode instance is found
         in the PSyIR tree.
 
-        :param node: an Array PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
+        :param node: an ArrayNode PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayNode`
 
         :returns: the Fortran code as a string.
         :rtype: str

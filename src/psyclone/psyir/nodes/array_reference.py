@@ -45,7 +45,7 @@ from psyclone.psyir.symbols import DataSymbol
 from psyclone.errors import GenerationError
 
 
-class ArrayReference(Reference, ArrayNode):
+class ArrayReference(ArrayNode, Reference):
     '''
     Node representing an Array reference. As such it has a symbol that
     it references and its children represent the subscript list.
