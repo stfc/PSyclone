@@ -86,21 +86,17 @@ $(EXEC): $(LFRIC_LIB) $(GHLIB_LIB) $(EXAMPLE_OBJ)
 	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) \
 	-l$(LFRIC_NAME) $$(nf-config --flibs) -L$(GHLIB_PATH) -l$(GHLIB_NAME)
 
-$(GHLIB_LIB):
+$(GHLIB_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(GHLIB_PATH)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH) netcdf 
 
 # Dependencies
-$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
-$(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ)
-$(PSY_OBJ): $(KERNEL_OBJ)
-time_evolution_alg_mod.o: init_perturbation_kernel_mod.o \
-	prop_perturbation_kernel_mod.o time_evolution_alg_mod_psy.o
-time_evolution_alg_mod_psy.o: init_perturbation_kernel_mod.o \
-	prop_perturbation_kernel_mod.o
-
+$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ) $(LFRIC_LIB) $(GHLIB_LIB)
+$(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ) $(LFRIC_LIB) $(GHLIB_LIB)
+$(PSY_OBJ): $(KERNEL_OBJ) $(LFRIC_LIB) $(GHLIB_LIB)
+$(KERNEL_OBJ): $(LFRIC_LIB) $(GHLIB_LIB)
 
 %.o %.mod: %.F90
 	$(F90) $(F90FLAGS) -c $<
