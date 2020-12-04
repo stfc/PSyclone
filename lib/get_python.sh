@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -31,52 +33,28 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Australian Bureau of Meteorology
+# Author J. Henrichs, Bureau of Meteorology
+# -----------------------------------------------------------------------------
 
-# This Makefile just creates the Fortran base class for all extraction
-# libraries from the jinja template. The compile functionality it offers is
-# only meant for testing, each library should create and compile its own
-# version of the base class (with therefore consistent compiler and
-# jinja settings).
+# This script finds an executable python command. On
+# certain platforms that have only python3 installed,
+# 'python' is not found.
 
-F90 ?= gfortran
-F90FLAGS ?= 
+# This script first tests the various python commands return
+# by which (if any), then standard locations on linux. Note
+# we redirect to /dev/null in case that 'which' does not exist
+for p in $(which python python3 python2 2>/dev/null) \
+         /usr/bin/python  \
+         /usr/bin/python3 \
+         /usr/bin/python2; do
 
-F90FLAGS += $$(nf-config --fflags)
+    # Necessary in case that 'python' is a directory
+    if [[ -f "$p" && -x $(realpath "$p") ]]; then
+        echo $p;
+        exit
+    fi
+done
 
-# The extract library is implemented for int, real and
-# double scalars and 2-dimension arrays
-PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
-		       -dims=2
-PROCESS=$$(../../get_python.sh) ../../process.py
+echo "Cannot find working python"
 
-default: extract_netcdf_base.o psy_data_base.o
-process: extract_netcdf_base.f90
-
-.PHONY: default process clean all
-
-all:
-	$(MAKE) -C dl_esm_inf
-	$(MAKE) -C lfric
-
-
-# The dependencies
-# ----------------
-extract_netcdf_base.o: psy_data_base.o
-
-# Jinja rules for creating the base class, and the
-# netcdf extraction class
-# ------------------------------------------------
-psy_data_base.f90:	../../psy_data_base.jinja
-	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
-
-extract_netcdf_base.f90:	extract_netcdf_base.jinja
-	$(PROCESS) $(PROCESS_ARGS) $< > extract_netcdf_base.f90
-
-# Compilation
-# -----------
-%.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
-
-clean:
-	rm -f extract_netcdf_base.f90 psy_data_base.f90 *.o *.mod
+exit -1
