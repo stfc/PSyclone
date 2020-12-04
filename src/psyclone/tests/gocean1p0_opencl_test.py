@@ -302,7 +302,7 @@ def test_psy_init(kernel_outputdir):
         "      IF (.not. initialised) THEN\n"
         "        initialised = .True.\n"
         "        ! Initialise the OpenCL environment/device\n"
-        "        CALL ocl_env_init(1)\n"
+        "        CALL ocl_env_init(1, 1, .False., .False.)\n"
         "        ! The kernels this PSy layer module requires\n"
         "        kernel_names(1) = \"compute_cu_code\"\n"
         "        ! Create the OpenCL kernel objects. Expects to find all of "
@@ -327,7 +327,7 @@ def test_psy_init(kernel_outputdir):
         "      IF (.not. initialised) THEN\n"
         "        initialised = .True.\n"
         "        ! Initialise the OpenCL environment/device\n"
-        "        CALL ocl_env_init(5)\n"
+        "        CALL ocl_env_init(5, 1, .False., .False.)\n"
         "        ! The kernels this PSy layer module requires\n"
         "        kernel_names(1) = \"compute_cu_code\"\n"
         "        ! Create the OpenCL kernel objects. Expects to find all of "
@@ -336,9 +336,22 @@ def test_psy_init(kernel_outputdir):
         "        CALL add_kernels(1, kernel_names)\n"
         "      END IF\n"
         "    END SUBROUTINE psy_init\n")
-
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+
+
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_psy_init_with_options():
+    ''' Check that we create a psy_init() routine that sets-up the
+    OpenCL environment with the provided non-default options. '''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+    otrans.apply(sched, options={"end_barrier": True,
+                                 "enable_profiling": True,
+                                 "out_of_order": True})
+    generated_code = str(psy.gen)
+    assert "CALL ocl_env_init(1, 1, .True., .True.)\n" in generated_code
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -360,6 +373,18 @@ def test_opencl_options_validation():
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched, options={'end_barrier': 1})
     assert "InvokeSchedule opencl_option 'end_barrier' should be a boolean." \
+        in str(err.value)
+
+    # enable_profiling option must be a boolean
+    with pytest.raises(TransformationError) as err:
+        otrans.apply(sched, options={'enable_profiling': 1})
+    assert ("InvokeSchedule opencl_option 'enable_profiling' should be a "
+            "boolean." in str(err.value))
+
+    # out_of_order option must be a boolean
+    with pytest.raises(TransformationError) as err:
+        otrans.apply(sched, options={'out_of_order': 1})
+    assert "InvokeSchedule opencl_option 'out_of_order' should be a boolean." \
         in str(err.value)
 
     # Unsupported kernel options are not accepted

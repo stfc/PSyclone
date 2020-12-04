@@ -367,6 +367,8 @@ class Invokes(object):
         opencl_kernels = []
         opencl_num_queues = 1
         generate_ocl_init = False
+        ocl_enable_profiling = None
+        ocl_out_of_order = None
         for invoke in self.invoke_list:
             # If we are generating OpenCL for an Invoke then we need to
             # create routine(s) to set the arguments of the Kernel(s) it
@@ -374,7 +376,24 @@ class Invokes(object):
             # duplication.
             if invoke.schedule.opencl:
                 generate_ocl_init = True
-                for kern in invoke.schedule.coded_kernels():
+                isch = invoke.schedule
+
+                # The enable_profiling option must be equal in all invokes
+                if (ocl_enable_profiling and
+                    (ocl_enable_profiling !=
+                     isch.get_opencl_option('enable_profiling'))):
+                    raise NotImplementedError("")
+                ocl_enable_profiling = isch.get_opencl_option(
+                    'enable_profiling')
+
+                # The out_of_order option must be equal in all invokes
+                if ocl_out_of_order and \
+                   ocl_out_of_order != isch.get_opencl_option('out_of_order'):
+                    raise NotImplementedError("")
+                ocl_out_of_order = isch.get_opencl_option('out_of_order')
+
+                # openCL_num_queues must be the maximum number from any invoke
+                for kern in isch.coded_kernels():
                     if kern.name not in opencl_kernels:
                         # Compute the maximum number of command queues that
                         # will be needed.
@@ -385,10 +404,12 @@ class Invokes(object):
                         kern.gen_arg_setter_code(parent)
             invoke.gen_code(parent)
         if generate_ocl_init:
-            self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues)
+            self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues,
+                              ocl_enable_profiling, ocl_out_of_order)
 
     @staticmethod
-    def gen_ocl_init(parent, kernels, num_queues):
+    def gen_ocl_init(parent, kernels, num_queues, enable_profiling,
+                     out_of_order):
         '''
         Generates a subroutine to initialise the OpenCL environment and
         construct the list of OpenCL kernel objects used by this PSy layer.
@@ -403,6 +424,16 @@ class Invokes(object):
         '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
             CallGen, UseGen, CommentGen, CharDeclGen, IfThenGen
+
+        def bool_to_fortran(value):
+            '''
+            :param bool value: a python boolean value
+            :returns: the Fortran representation of the given boolean value.
+            :rtype: str
+            '''
+            if value:
+                return ".True."
+            return ".False."
 
         sub = SubroutineGen(parent, "psy_init")
         parent.add(sub)
@@ -423,7 +454,11 @@ class Invokes(object):
         # Initialise the OpenCL environment
         ifthen.add(CommentGen(ifthen,
                               " Initialise the OpenCL environment/device"))
-        ifthen.add(CallGen(ifthen, "ocl_env_init", [num_queues]))
+        devices_per_node = Config.get().ocl_devices_per_node
+        ifthen.add(CallGen(ifthen, "ocl_env_init",
+                           [num_queues, devices_per_node,
+                            bool_to_fortran(enable_profiling),
+                            bool_to_fortran(out_of_order)]))
 
         # Create a list of our kernels
         ifthen.add(CommentGen(ifthen,
@@ -798,7 +833,9 @@ class InvokeSchedule(Schedule):
         self._opencl = False  # Whether or not to generate OpenCL
 
         # InvokeSchedule opencl_options default values
-        self._opencl_options = {"end_barrier": True}
+        self._opencl_options = {"end_barrier": True,
+                                "enable_profiling": False,
+                                "out_of_order": False}
 
         # Populate the Schedule Symbol Table with the reserved names.
         if reserved_names:
@@ -833,16 +870,17 @@ class InvokeSchedule(Schedule):
         :type options: dictionary of <string>:<value>
 
         '''
-        valid_opencl_options = ['end_barrier']
+        valid_opencl_options = ['end_barrier', 'enable_profiling',
+                                'out_of_order']
 
         # Validate that the options given are supported and store them
         for key, value in options.items():
             if key in valid_opencl_options:
-                if key == "end_barrier":
-                    if not isinstance(value, bool):
-                        raise TypeError(
-                            "InvokeSchedule opencl_option 'end_barrier' "
-                            "should be a boolean.")
+                # All current options should contain boolean values
+                if not isinstance(value, bool):
+                    raise TypeError(
+                        "InvokeSchedule opencl_option '{0}' "
+                        "should be a boolean.".format(key))
             else:
                 raise AttributeError(
                     "InvokeSchedule does not support the opencl_option '{0}'. "
@@ -850,6 +888,13 @@ class InvokeSchedule(Schedule):
                     "".format(key, valid_opencl_options))
 
             self._opencl_options[key] = value
+
+    def get_opencl_option(self, key):
+        '''
+        :returns: The value of the requested Invoke OpenCL option.
+        :rtype: bool
+        '''
+        return self._opencl_options[key]
 
     @property
     def invoke(self):
