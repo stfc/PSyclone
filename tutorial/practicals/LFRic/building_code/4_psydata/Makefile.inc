@@ -39,8 +39,9 @@ F90 ?= gfortran
 F90FLAGS ?= -Wall -g
 
 # Source rules
-SRC = prop_perturbation_kernel_mod.f90 time_evolution_driver.f90 \
-	  write_diagnostics_mod.f90        time_evolution_alg_mod.x90
+SRC = prop_perturbation_kernel_mod.f90 time_evolution_driver.f90  \
+	  write_diagnostics_mod.f90        time_evolution_alg_mod.x90 \
+	  init_perturbation_kernel_mod.f90
 
 # Object rules
 OBJ = $(addsuffix .o,$(basename $(SRC)))
@@ -85,19 +86,25 @@ $(EXEC): $(LFRIC_LIB) $(GHLIB_LIB) $(PSYDATA_LIB) $(OBJ)
 	-L$(GHLIB_PATH)   -l$(GHLIB_NAME)                      \
 	-L$(LFRIC_PATH)   -l$(LFRIC_NAME) $$(nf-config --flibs)
 
-$(GHLIB_LIB):
+$(GHLIB_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(GHLIB_PATH)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH) netcdf
 
-$(PSYDATA_LIB):
+$(PSYDATA_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(PSYDATA_PATH)
 
 # Dependencies
-time_evolution_alg_mod.o: prop_perturbation_kernel_mod.o
+$(OBJ): $(LFRIC_LIB) $(GHLIB) $(PSYDATA_LIB)
 time_evolution_driver.o:  time_evolution_alg_mod_psy.o time_evolution_alg_mod.o \
 						  write_diagnostics_mod.o
+
+time_evolution_alg_mod.o: init_perturbation_kernel_mod.o \
+	prop_perturbation_kernel_mod.o time_evolution_alg_mod_psy.o
+time_evolution_alg_mod_psy.o: init_perturbation_kernel_mod.o \
+	prop_perturbation_kernel_mod.o
+time_evolution_driver.o: time_evolution_alg_mod.o write_diagnostics_mod.o
 
 %.o %.mod: %.f90
 	$(F90) $(F90FLAGS) -c $<
@@ -115,9 +122,9 @@ clean:
 allclean: clean
 	$(MAKE) -C $(GHLIB_PATH)   clean
 	$(MAKE) -C $(LFRIC_PATH)   clean
-	# If PSYDATA_PATH is not defined (i.e. this is invoked from
-	# Makefile, not solution/Makefile.*), we don't know which
-	# psydata library to clean ...
+# If PSYDATA_PATH is not defined (i.e. this is invoked from
+# Makefile, not solution/Makefile.*), we don't know which
+# psydata library to clean ...
 ifneq ($(PSYDATA_PATH),)
 	$(MAKE) -C $(PSYDATA_PATH) clean
 endif
