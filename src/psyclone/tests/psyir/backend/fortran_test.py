@@ -52,7 +52,8 @@ from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
-    DeferredType, RoutineSymbol, Symbol, UnknownType, UnknownFortranType
+    DeferredType, RoutineSymbol, Symbol, UnknownType, UnknownFortranType, \
+    TypeSymbol, StructureType
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError
@@ -286,6 +287,16 @@ def test_gen_datatype_kind_precision(type_name, result):
                     "{0}(kind={1})".format(result, precision_name))
 
 
+def test_gen_datatype_derived_type():
+    ''' Check that gen_datatype handles derived types. '''
+    # A symbol representing a single derived type
+    tsym = TypeSymbol("my_type", DeferredType())
+    assert gen_datatype(tsym, "my_type") == "type(my_type)"
+    # An array of derived types
+    atype = ArrayType(tsym, [10])
+    assert gen_datatype(atype, "my_list") == "type(my_type)"
+
+
 def test_gen_datatype_exception_1():
     '''Check that an exception is raised if gen_datatype is called with a
     symbol containing an unsupported datatype.
@@ -333,6 +344,64 @@ def test_gen_datatype_exception_2():
 #             "WARNING  Fortran does not support relative precision for the "
 #             "'integer' datatype but 'Precision.DOUBLE' was specified for "
 #             "variable 'dummy'." in caplog.text)
+
+
+def test_gen_typedecl_validation(monkeypatch):
+    ''' Test the various validation checks in gen_typedecl(). '''
+    fwriter = FortranWriter()
+    with pytest.raises(VisitorError) as err:
+        fwriter.gen_typedecl("hello")
+    assert ("gen_typedecl expects a TypeSymbol as argument but got: 'str'" in
+            str(err.value))
+    # UnknownType is abstract so we create an UnknownFortranType and then
+    # monkeypatch it.
+    tsymbol = TypeSymbol("my_type",
+                         UnknownFortranType("type my_type\nend type my_type"))
+    monkeypatch.setattr(tsymbol.datatype, "__class__", UnknownType)
+
+    with pytest.raises(VisitorError) as err:
+        fwriter.gen_typedecl(tsymbol)
+    assert ("cannot generate code for symbol 'my_type' of type "
+            "'UnknownType'" in str(err.value))
+
+
+def test_gen_typedecl_unknown_fortran_type():
+    ''' Check that gen_typedecl() works for a symbol of UnknownFortranType. '''
+    fwriter = FortranWriter()
+    tsymbol = TypeSymbol("my_type",
+                         UnknownFortranType("type my_type\nend type my_type"))
+    assert fwriter.gen_typedecl(tsymbol) == "type my_type\nend type my_type"
+
+
+def test_gen_typedecl():
+    ''' Test normal operation of gen_typedecl(). '''
+    fwriter = FortranWriter()
+    atype = ArrayType(REAL_TYPE, [3, 5])
+    dynamic_atype = ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED])
+    tsymbol = TypeSymbol("grid_type", DeferredType())
+    dtype = StructureType.create([
+        # Scalar integer
+        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        # Private, scalar integer
+        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE),
+        # Static array
+        ("matrix", atype, Symbol.Visibility.PUBLIC),
+        # Allocatable array
+        ("data", dynamic_atype, Symbol.Visibility.PUBLIC),
+        # Derived type
+        ("grid", tsymbol, Symbol.Visibility.PRIVATE)])
+    tsymbol = TypeSymbol("my_type", dtype)
+    assert (fwriter.gen_typedecl(tsymbol) ==
+            "type :: my_type\n"
+            "  integer :: flag\n"
+            "  integer, private :: secret\n"
+            "  real, dimension(3,5) :: matrix\n"
+            "  real, allocatable, dimension(:) :: data\n"
+            "  type(grid_type), private :: grid\n"
+            "end type my_type\n")
+    private_tsymbol = TypeSymbol("my_type", dtype, Symbol.Visibility.PRIVATE)
+    gen_code = fwriter.gen_typedecl(private_tsymbol)
+    assert gen_code.startswith("type, private :: my_type\n")
 
 
 def test_reverse_map():

@@ -439,7 +439,7 @@ class FortranWriter(PSyIRVisitor):
 
         if ArrayType.Extent.DEFERRED in array_shape:
             if not all(dim == ArrayType.Extent.DEFERRED
-                       for dim in symbol.shape):
+                       for dim in array_shape):
                 raise VisitorError(
                     "A Fortran declaration of an allocatable array must have"
                     " the extent of every dimension as 'DEFERRED' but "
@@ -470,6 +470,8 @@ class FortranWriter(PSyIRVisitor):
                 result += ", intent({0})".format(intent)
             if symbol.is_constant:
                 result += ", parameter"
+        if symbol.visibility == Symbol.Visibility.PRIVATE:
+            result += ", private"
         result += " :: {0}".format(symbol.name)
         if is_symbol and symbol.is_constant:
             result += " = {0}".format(self._visit(symbol.constant_value))
@@ -492,15 +494,18 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         if not isinstance(symbol, TypeSymbol):
-            raise VisitorError("wrong")
+            raise VisitorError(
+                "gen_typedecl expects a TypeSymbol as argument but "
+                "got: '{0}'".format(type(symbol).__name__))
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
                 return "{0}{1}".format(self._nindent,
                                        symbol.datatype.declaration)
             raise VisitorError(
-                "Fortran backend cannot generate code for a symbol of "
-                "type '{0}'".format(type(symbol.datatype).__name__))
+                "Fortran backend cannot generate code for symbol '{0}' of "
+                "type '{1}'".format(symbol.name,
+                                    type(symbol.datatype).__name__))
 
         result = "{0}type".format(self._nindent)
         if symbol.visibility == Symbol.Visibility.PRIVATE:
