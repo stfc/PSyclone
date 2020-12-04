@@ -73,7 +73,7 @@ class StructureReference(Reference):
         return isinstance(child, (MemberReference))
 
     @staticmethod
-    def create(symbol, members):
+    def create(symbol, members, parent=None):
         '''Create a StructureReference instance given a symbol and a
         list of components. e.g. for "field%bundle(2)%flag" this
         list would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
@@ -86,6 +86,8 @@ class StructureReference(Reference):
             which part of it is accessed.
         :type members: list of str or 2-tuples containing (str, \
             list of nodes describing array access)
+        :param parent: the parent of this node in the PSyIR.
+        :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: an StructureReference instance.
         :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
@@ -108,7 +110,7 @@ class StructureReference(Reference):
 #            raise GenerationError(
 #                "expecting the symbol to be an array, not a scalar.")
 
-        ref = StructureReference(symbol)
+        ref = StructureReference(symbol, parent=parent)
         current = ref
 
         if isinstance(ref.symbol.datatype, TypeSymbol):

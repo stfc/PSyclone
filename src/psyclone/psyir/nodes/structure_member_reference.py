@@ -11,32 +11,44 @@ class StructureMemberReference(MemberReference):
     Node representing a reference to a member of a structure (derived type)
     that is itself a derived type.
 
+    :param struct_type: the datatype of the structure containing the member \
+                        that is being referenced.
+    :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` or \
+                       :py:class:`psyclone.psyir.symbols.TypeSymbol`
+    :param str member: the member of the 'target_type' structure that is \
+                       being referenced.
+    :param parent: the parent of this node in the PSyIR tree.
+    :type parent: :py:class:`psyclone.psyir.nodes.StructureReference` or \
+                  :py:class:`psyclone.psyir.nodes.MemberReference`
+
     '''
     # Textual description of the node.
     _children_valid_format = "[MemberReference | None]"
     _text_name = "StructureMemberReference"
 
-    def __init__(self, target, member, parent=None):
+    def __init__(self, struct_type, member, parent=None):
         # Avoid circular dependency
         from psyclone.psyir.nodes.structure_reference import StructureReference
 
-        if not isinstance(target, (StructureType, TypeSymbol)):
+        if not isinstance(struct_type, (StructureType, TypeSymbol)):
             raise TypeError(
-                "In MemberReference initialisation expecting a ComponentType "
-                "but found '{0}'.".format(type(target).__name__))
+                "In StructureMemberReference initialisation: expecting a "
+                "datatype of either StructureType or TypeSymbol "
+                "but found '{0}'.".format(type(struct_type).__name__))
         if parent and not isinstance(parent,
                                      (StructureReference, MemberReference)):
             raise TypeError(
-                "The parent of a MemberReference must be a StructureReference "
+                "The parent of a StructureMemberReference must be either a "
+                "StructureReference or MemberReference "
                 "but found '{0}'.".format(type(parent).__name))
         super(MemberReference, self).__init__(parent=parent)
 
-        if isinstance(target, StructureType):
+        if isinstance(struct_type, StructureType):
             # Store the component that this member points to
-            self._component = target.components[member]
-        elif isinstance(target, TypeSymbol):
-            if isinstance(target.datatype, StructureType):
-                self._component = target.datatype.components[member]
+            self._component = struct_type.components[member]
+        elif isinstance(struct_type, TypeSymbol):
+            if isinstance(struct_type.datatype, StructureType):
+                self._component = struct_type.datatype.components[member]
             else:
                 # We only have a symbol for this structure type
                 raise NotImplementedError("Huh")

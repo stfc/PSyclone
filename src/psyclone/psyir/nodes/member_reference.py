@@ -15,6 +15,7 @@ class MemberReference(DataNode):
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "MemberReference"
+    _colour_key = "Reference"
 
     def __init__(self, target, member, parent=None):
         # Avoid circular dependency
@@ -49,6 +50,17 @@ class MemberReference(DataNode):
     @property
     def name(self):
         return self._component.name
+
+    def node_str(self, colour=True):
+        ''' Create a text description of this node in the schedule, optionally
+        including control codes for colour.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :return: text description of this node.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + "[name:'" + self.name + "']"
 
 
 __all__ = ['MemberReference']
