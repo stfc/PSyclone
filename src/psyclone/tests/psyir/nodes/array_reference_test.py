@@ -86,7 +86,7 @@ def test_array_create():
                 Literal("1", INTEGER_SINGLE_TYPE)]
     array = ArrayReference.create(symbol_temp, children)
     check_links(array, children)
-    result = FortranWriter().arrayreference_node(array)
+    result = FortranWriter().arraynode_node(array)
     assert result == "temp(i,j,1)"
 
 

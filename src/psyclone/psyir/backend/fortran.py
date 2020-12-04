@@ -99,8 +99,9 @@ def gen_datatype(datatype, name):
     '''Given a DataType instance as input, return the Fortran datatype
     of the symbol including any specific precision properties.
 
-    :param symbol: the symbol instance.
-    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param datatype: the DataType instance.
+    :type symbol: :py:class:`psyclone.psyir.symbols.DataType`
+    :param str name: the name of the symbol being declared.
 
     :returns: the Fortran representation of the symbol's datatype \
               including any precision properties.
@@ -485,11 +486,22 @@ class FortranWriter(PSyIRVisitor):
         :returns: the Fortran declaration of the derived type.
         :rtype: str
 
-        :raises TypeError: if the supplied symbol is of the wrong type.
+        :raises VisitorError: if the supplied symbol is not a TypeSymbol.
+        :raises VisitorError: if the datatype of the symbol is of UnknownType \
+                              but is not of UnknownFortranType.
 
         '''
         if not isinstance(symbol, TypeSymbol):
             raise VisitorError("wrong")
+
+        if isinstance(symbol.datatype, UnknownType):
+            if isinstance(symbol.datatype, UnknownFortranType):
+                return "{0}{1}".format(self._nindent,
+                                       symbol.datatype.declaration)
+            raise VisitorError(
+                "Fortran backend cannot generate code for a symbol of "
+                "type '{0}'".format(type(symbol.datatype).__name__))
+
         result = "{0}type".format(self._nindent)
         if symbol.visibility == Symbol.Visibility.PRIVATE:
             result += ", private"

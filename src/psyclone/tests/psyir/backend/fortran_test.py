@@ -120,10 +120,8 @@ def test_gen_dims(fort_writer):
     array_type = ArrayType(INTEGER_TYPE,
                            [Reference(arg), 2, literal, arg_plus_1,
                             ArrayType.Extent.ATTRIBUTE])
-    symbol = DataSymbol("dummy", array_type,
-                        interface=ArgumentInterface(
-                            ArgumentInterface.Access.UNKNOWN))
-    assert fort_writer._gen_dims(symbol) == ["arg", "2", "4", "arg + 1_4", ":"]
+    assert fort_writer._gen_dims(array_type.shape) == ["arg", "2", "4",
+                                                       "arg + 1_4", ":"]
 
 
 def test_gen_dims_error(monkeypatch, fort_writer):
@@ -132,12 +130,9 @@ def test_gen_dims_error(monkeypatch, fort_writer):
 
     '''
     array_type = ArrayType(INTEGER_TYPE, [10])
-    symbol = DataSymbol("dummy", array_type,
-                        interface=ArgumentInterface(
-                            ArgumentInterface.Access.UNKNOWN))
     monkeypatch.setattr(array_type, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = fort_writer._gen_dims(symbol)
+        _ = fort_writer._gen_dims(array_type.shape)
     assert "unsupported gen_dims index 'invalid'" in str(excinfo.value)
 
 
@@ -160,7 +155,7 @@ def test_gen_datatype_default_precision(type_name, result):
     array_type = ArrayType(scalar_type, [10, 10])
     for my_type in [scalar_type, array_type]:
         symbol = DataSymbol("dummy", my_type)
-        assert gen_datatype(symbol) == result
+        assert gen_datatype(symbol.datatype, symbol.name) == result
 
 
 @pytest.mark.parametrize(
@@ -186,7 +181,7 @@ def test_gen_datatype_relative_precision(type_name, precision, result):
     array_type = ArrayType(scalar_type, [10, 10])
     for my_type in [scalar_type, array_type]:
         symbol = DataSymbol("dummy", my_type)
-        assert gen_datatype(symbol) == result
+        assert gen_datatype(symbol.datatype, symbol.name) == result
 
 
 @pytest.mark.parametrize("precision", [1, 2, 4, 8, 16, 32])
@@ -208,13 +203,13 @@ def test_gen_datatype_absolute_precision(type_name, precision, fort_name):
         symbol = DataSymbol(symbol_name, my_type)
         if precision in [32]:
             with pytest.raises(VisitorError) as excinfo:
-                gen_datatype(symbol)
+                gen_datatype(symbol.datatype, symbol.name)
             assert ("Datatype '{0}' in symbol '{1}' supports fixed precision "
                     "of [1, 2, 4, 8, 16] but found '{2}'."
                     "".format(fort_name, symbol_name, precision)
                     in str(excinfo.value))
         else:
-            assert (gen_datatype(symbol) ==
+            assert (gen_datatype(symbol.datatype, symbol.name) ==
                     "{0}*{1}".format(fort_name, precision))
 
 
@@ -235,12 +230,13 @@ def test_gen_datatype_absolute_precision_real(precision):
         symbol = DataSymbol(symbol_name, my_type)
         if precision in [1, 2, 32]:
             with pytest.raises(VisitorError) as excinfo:
-                gen_datatype(symbol)
+                gen_datatype(symbol.datatype, symbol.name)
             assert ("Datatype 'real' in symbol '{0}' supports fixed precision "
                     "of [4, 8, 16] but found '{1}'."
                     "".format(symbol_name, precision) in str(excinfo.value))
         else:
-            assert gen_datatype(symbol) == "real*{0}".format(precision)
+            assert (gen_datatype(symbol.datatype, symbol.name) ==
+                    "real*{0}".format(precision))
 
 
 def test_gen_datatype_absolute_precision_character():
@@ -255,7 +251,7 @@ def test_gen_datatype_absolute_precision_character():
     for my_type in [scalar_type, array_type]:
         symbol = DataSymbol(symbol_name, my_type)
         with pytest.raises(VisitorError) as excinfo:
-            gen_datatype(symbol)
+            gen_datatype(symbol.datatype, symbol.name)
         assert ("Explicit precision not supported for datatype '{0}' in "
                 "symbol '{1}' in Fortran backend."
                 "".format("character", symbol_name) in str(excinfo.value))
@@ -279,15 +275,14 @@ def test_gen_datatype_kind_precision(type_name, result):
     scalar_type = ScalarType(type_name, precision=precision)
     array_type = ArrayType(scalar_type, [10, 10])
     for my_type in [scalar_type, array_type]:
-        symbol = DataSymbol(symbol_name, my_type)
         if type_name == ScalarType.Intrinsic.CHARACTER:
             with pytest.raises(VisitorError) as excinfo:
-                gen_datatype(symbol)
+                gen_datatype(my_type, symbol_name)
             assert ("kind not supported for datatype '{0}' in symbol '{1}' "
                     "in Fortran backend.".format("character", symbol_name)
                     in str(excinfo.value))
         else:
-            assert (gen_datatype(symbol) ==
+            assert (gen_datatype(my_type, symbol_name) ==
                     "{0}(kind={1})".format(result, precision_name))
 
 
@@ -300,7 +295,7 @@ def test_gen_datatype_exception_1():
     symbol = DataSymbol("fred", data_type)
     symbol.datatype._intrinsic = None
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = gen_datatype(symbol)
+        _ = gen_datatype(symbol.datatype, symbol.name)
     assert ("Unsupported datatype 'None' for symbol 'fred' found in "
             "gen_datatype()." in str(excinfo.value))
 
@@ -314,7 +309,7 @@ def test_gen_datatype_exception_2():
     symbol = DataSymbol("fred", data_type)
     symbol.datatype._precision = None
     with pytest.raises(VisitorError) as excinfo:
-        _ = gen_datatype(symbol)
+        _ = gen_datatype(symbol.datatype, symbol.name)
     assert ("Unsupported precision type 'NoneType' found for symbol 'fred' "
             "in Fortran backend." in str(excinfo.value))
 
@@ -1115,7 +1110,7 @@ def test_fw_range(fort_writer):
     array = ArrayReference.create(symbol, [Range.create(one, dim1_bound_stop),
                                            Range.create(dim2_bound_start, plus,
                                                         step=three)])
-    result = fort_writer.arrayreference_node(array)
+    result = fort_writer.arraynode_node(array)
     assert result == "a(1:,:b + c:3)"
 
     array_type = ArrayType(REAL_TYPE, [10, 10, 10])
@@ -1125,7 +1120,7 @@ def test_fw_range(fort_writer):
         [Range.create(dim1_bound_start, dim1_bound_stop),
          Range.create(one, two, step=three),
          Range.create(dim3_bound_start, dim3_bound_stop, step=three)])
-    result = fort_writer.arrayreference_node(array)
+    result = fort_writer.arraynode_node(array)
     assert result == "a(:,1:2:3,::3)"
 
     # Make a) lbound and ubound come from a different array and b)
@@ -1146,7 +1141,7 @@ def test_fw_range(fort_writer):
         [Range.create(b_dim1_bound_start, b_dim1_bound_stop),
          Range.create(one, two, step=three),
          Range.create(dim3_bound_stop, dim3_bound_start, step=three)])
-    result = fort_writer.arrayreference_node(array)
+    result = fort_writer.arraynode_node(array)
     assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),1:2:3,"
                       "UBOUND(a, 3):LBOUND(a, 3):3)")
 

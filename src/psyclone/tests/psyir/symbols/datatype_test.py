@@ -235,8 +235,8 @@ def test_arraytype_invalid_datatype():
     '''
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(None, None)
-    assert ("ArrayType expected 'datatype' argument to be of type "
-            "DataType but found 'NoneType'." in str(excinfo.value))
+    assert ("ArrayType expected 'datatype' argument to be of type DataType "
+            "or TypeSymbol but found 'NoneType'." in str(excinfo.value))
 
 
 def test_arraytype_invalid_shape():
