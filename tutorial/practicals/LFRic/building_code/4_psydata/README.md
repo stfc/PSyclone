@@ -244,13 +244,13 @@ in the file, Obviously you need make sure not to enable any array bounds
 checking in the compiler. After recompiling and running (even without
 setting ``PSYDATA_VERBOSE``), you will see:
 
-    20201120203040.272+1100:INFO : time_evolution_alg_step: Propagating perturbation field at timestep 1
+    20201204115251.691+1100:INFO : time_evolution_alg_step: Propagating perturbation field at time-step 1
      ------------- PSyData -------------------------
      Double precision field chi(1) has been modified in time_evolution : invoke_propagate_perturbation
      Original checksum:   4657399313863802880
      New checksum:       -5811961289819291648
      ------------- PSyData -------------------------
-    20201120203040.286+1100:INFO : Min/max perturbation =   0.00000000E+00  0.41618197E+04
+    20201204115251.712+1100:INFO : Min/max perturbation =   0.00000000E+00  0.32369708E+04
 
 Note that this error is only printed in the first time step. After the first modification
 the modified value is not changed again in the application, so no change to the read-only
@@ -261,8 +261,9 @@ This library verifies that all input- and output-parameters of a kernel are
 neither NAN nor an infinite number. If such a value is detected, a message
 like this will be printed:
 
-     PSYDATA: Variable perturbation has the invalid value
-                       NaN  at index/indices        85241
+     PSyData: Variable perturbation has the invalid value
+                           NaN  at index/indices           11
+
 
 The transformation ``NanTestTrans`` is imported from ``psyclone.psyir.transformations``.
 You can use the template ``nan_all_transform.py`` for your script, and ``Makefile.nan_all``
