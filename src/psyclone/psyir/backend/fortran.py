@@ -835,7 +835,7 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         result = node.symbol.name
-        if node.children[0]:
+        if node.children and node.children[0]:
             result += "%" + self._visit(node.children[0])
         return result
 
@@ -852,7 +852,7 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         result = node.symbol.name
-        # Generate the array reference. We can't using the arraynode handler
+        # Generate the array reference. We can't use the arraynode handler
         # here because we need to skip over the first child (as that refers
         # to the member of the derived type being referenced).
         args = []
@@ -860,7 +860,7 @@ class FortranWriter(PSyIRVisitor):
             args.append(str(self._visit(child)))
         result += "({0})".format(",".join(args))
         # Append the reference to a member of the derived type (if any)
-        if node.children[0]:
+        if node.children and node.children[0]:
             result += "%" + self._visit(node.children[0])
         return result
 

@@ -83,9 +83,10 @@ class StructureMemberReference(MemberReference):
                 "TypeSymbol and therefore cannot be the target of a "
                 "StructureMemberReference.".format(member))
 
-        for child in children:
-            self.addchild(child)
-            child.parent = self
+        if children:
+            for child in children:
+                self.addchild(child)
+                child.parent = self
 
     def __str__(self):
         result = super(StructureMemberReference, self).__str__() + "\n"

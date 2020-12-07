@@ -139,21 +139,19 @@ class StructureReference(Reference):
                 # This member is also a derived type
                 subref = StructureMemberReference(dtype,
                                                   member,
-                                                  parent=ref)
+                                                  parent=current)
             elif isinstance(target_dtype, ArrayType):
                 if isinstance(target_dtype.intrinsic, TypeSymbol):
                     # Array of derived types
-                    subref = ArrayStructureMemberReference(dtype,
-                                                           member,
-                                                           parent=ref,
-                                                           indices=children)
+                    subref = ArrayStructureMemberReference.create(
+                        dtype, member, parent=current, indices=children)
                 else:
                     # Array of intrinsic quantities
-                    subref = ArrayMemberReference(dtype, member, parent=ref,
-                                                  indices=children)
+                    subref = ArrayMemberReference.create(
+                        dtype, member, parent=current, indices=children)
             elif isinstance(target_dtype, ScalarType):
                 # A scalar member
-                subref = MemberReference(dtype, member, parent=ref)
+                subref = MemberReference(dtype, member, parent=current)
             else:
                 raise NotImplementedError("Datatype: {0}", type(target_dtype))
 

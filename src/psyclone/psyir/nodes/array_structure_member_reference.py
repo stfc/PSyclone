@@ -61,18 +61,24 @@ class ArrayStructureMemberReference(StructureMemberReference, ArrayNode):
     _children_valid_format = "None | MemberReference [DataNode | Range]*"
     _text_name = "ArrayStructureMemberReference"
 
-    def __init__(self, target, member, parent=None, indices=None):
+    def __init__(self, target, member_name, parent=None):
 
-        # Manually call the StructureMemberReference constructor and then
-        # handle the children separately.
-        StructureMemberReference.__init__(self, target, member, parent=parent)
+        # Manually call the StructureMemberReference constructor
+        StructureMemberReference.__init__(self, target, member_name,
+                                          parent=parent)
 
+    @staticmethod
+    def create(struct_type, member_name, parent=None, indices=None):
+        ''' '''
+        asmr = ArrayStructureMemberReference(struct_type, member_name,
+                                             parent=parent)
         # The first child will be a reference to a member of this structure
-        self.addchild(None)
+        asmr.addchild(None)
         # Subsequent children represent the array-index expressions
         for child in indices:
-            self.addchild(child)
-            child.parent = self
+            asmr.addchild(child)
+            child.parent = asmr
+        return asmr
 
     @staticmethod
     def _validate_child(position, child):
