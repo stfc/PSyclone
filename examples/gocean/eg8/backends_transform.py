@@ -45,7 +45,24 @@ def trans(psy):
 
     invoke = psy.invokes.get('invoke_0_inc_field')
     schedule = invoke.schedule
+
+    print("DSL level view:")
+    schedule.view()
+
+    print("f2pygen code:")
+    print(str(psy.gen))
+
+    # In-place lowering to Language-level PSyIR
+    schedule.lower_to_core_psyir()
+
+    print("")
+    print("Language level view:")
     schedule.view()
 
     fvisitor = FortranWriter()
-    fvisitor(schedule)
+    print("")
+    print("FortranWriter code:")
+    print(fvisitor(psy.psy_container))
+
+    # This script should terminate here
+    exit(0)
