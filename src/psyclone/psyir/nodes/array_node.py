@@ -39,6 +39,8 @@
 ''' This module contains the implementation of the abstract ArrayNode. '''
 
 from __future__ import absolute_import
+import abc
+import six
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.operation import BinaryOperation
@@ -46,9 +48,11 @@ from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.symbols.datatypes import ScalarType
 
 
+@six.add_metaclass(abc.ABCMeta)
 class ArrayNode(DataNode):
     '''
-    Node representing an Array. Its children represent the subscript list.
+    Abstract class representing an Array. Its children represent the subscript
+    list.
 
     '''
     # Textual description of the node.
