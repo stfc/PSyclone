@@ -43,12 +43,12 @@ from collections import OrderedDict
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.backend.fortran import gen_intent, gen_dims, \
-    FortranWriter, gen_datatype, get_fortran_operator, _reverse_map, \
+from psyclone.psyir.backend.fortran import gen_intent, FortranWriter, \
+    gen_datatype, get_fortran_operator, _reverse_map, \
     is_fortran_intrinsic, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
-    KernelSchedule
+    KernelSchedule, Array, Range
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -57,6 +57,8 @@ from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
+from psyclone.psyGen import PSyFactory
+from psyclone.nemo import NemoInvokeSchedule, NemoKern
 
 
 @pytest.fixture(scope="function", name="fort_writer")
@@ -102,23 +104,30 @@ def test_gen_intent_error(monkeypatch):
     assert "Unsupported access ''UNSUPPORTED'' found." in str(excinfo.value)
 
 
-def test_gen_dims():
-    '''Check the gen_dims function produces the expected dimension
+def test_gen_dims(fort_writer):
+    '''Check the _gen_dims function produces the expected dimension
     strings.
 
     '''
     arg = DataSymbol("arg", INTEGER_TYPE,
                      interface=ArgumentInterface(
                          ArgumentInterface.Access.UNKNOWN))
-    array_type = ArrayType(INTEGER_TYPE, [arg, 2, ArrayType.Extent.ATTRIBUTE])
+    scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
+    literal = Literal("4", INTEGER_TYPE)
+    one = Literal("1", scalar_type)
+    arg_plus_1 = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, Reference(arg), one)
+    array_type = ArrayType(INTEGER_TYPE,
+                           [Reference(arg), 2, literal, arg_plus_1,
+                            ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("dummy", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
-    assert gen_dims(symbol) == ["arg", "2", ":"]
+    assert fort_writer._gen_dims(symbol) == ["arg", "2", "4", "arg + 1_4", ":"]
 
 
-def test_gen_dims_error(monkeypatch):
-    '''Check the gen_dims function raises an exception if a symbol shape
+def test_gen_dims_error(monkeypatch, fort_writer):
+    '''Check the _gen_dims method raises an exception if a symbol shape
     entry is not supported.
 
     '''
@@ -128,7 +137,7 @@ def test_gen_dims_error(monkeypatch):
                             ArgumentInterface.Access.UNKNOWN))
     monkeypatch.setattr(array_type, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = gen_dims(symbol)
+        _ = fort_writer._gen_dims(symbol)
     assert "unsupported gen_dims index 'invalid'" in str(excinfo.value)
 
 
@@ -543,7 +552,7 @@ def test_fw_gen_vardecl(fort_writer):
         _ = fort_writer.gen_vardecl(symbol)
     assert ("Fortran declaration of an allocatable array must have the "
             "extent of every dimension as 'DEFERRED' but symbol 'dummy1' "
-            "has shape: [2, " in str(excinfo.value))
+            "has shape: ['2', ':']." in str(excinfo.value))
 
     # An assumed-size array must have only the extent of its outermost
     # rank undefined
@@ -552,8 +561,8 @@ def test_fw_gen_vardecl(fort_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
     assert ("assumed-size Fortran array must only have its last dimension "
-            "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: [2, "
-            in str(excinfo.value))
+            "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: "
+            "['2', ':', '2']." in str(excinfo.value))
     # With two dimensions unspecified, even though one is outermost
     array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE,
                                           ArrayType.Extent.ATTRIBUTE])
@@ -561,8 +570,8 @@ def test_fw_gen_vardecl(fort_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_vardecl(symbol)
     assert ("assumed-size Fortran array must only have its last dimension "
-            "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: [2, "
-            in str(excinfo.value))
+            "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: "
+            "['2', ':', ':']." in str(excinfo.value))
 
 
 def test_gen_decls(fort_writer):
@@ -1074,7 +1083,6 @@ def test_fw_range(fort_writer):
     array index of a Range node).
 
     '''
-    from psyclone.psyir.nodes import Array, Range
     array_type = ArrayType(REAL_TYPE, [10, 10])
     symbol = DataSymbol("a", array_type)
     dim1_bound_start = BinaryOperation.create(
@@ -1373,7 +1381,6 @@ def get_nemo_schedule(parser, code):
     :rtype: :py:class:`psyclone.nemo.NemoInvokeSchedule`
 
     '''
-    from psyclone.psyGen import PSyFactory
     reader = FortranStringReader(code)
     prog = parser(reader)
     psy = PSyFactory(api="nemo").create(prog)
@@ -1387,7 +1394,6 @@ def test_fw_nemoinvokeschedule(fort_writer, parser):
     children).
 
     '''
-    from psyclone.nemo import NemoInvokeSchedule
     code = (
         "program test\n"
         "  integer :: a\n"
@@ -1407,11 +1413,11 @@ def test_fw_nemokern(fort_writer, parser):
     output itself.
 
     '''
-    from psyclone.nemo import NemoKern
     # Generate fparser2 parse tree from Fortran code.
     code = (
         "program test\n"
-        "  integer :: i, j, k, n\n"
+        "  integer, parameter :: n=20\n"
+        "  integer :: i, j, k\n"
         "  real :: a(n,n,n)\n"
         "  do k=1,n\n"
         "    do j=1,n\n"

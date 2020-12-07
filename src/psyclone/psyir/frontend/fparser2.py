@@ -1007,7 +1007,7 @@ class Fparser2Reader(object):
                         sym = DataSymbol(dim_name, default_integer_type(),
                                          interface=UnresolvedInterface())
                         symbol_table.add(sym)
-                    shape.append(sym)
+                    shape.append(Reference(sym))
                 else:
                     _unsupported_type_error(dimensions)
 

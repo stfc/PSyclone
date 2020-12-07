@@ -96,7 +96,8 @@ def test_profile_single_loop(parser):
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
                                       "use kind_mod, only: wp\n"
-                                      "integer :: ji, jpj\n"
+                                      "integer :: ji\n"
+                                      "integer, parameter :: jpj=2\n"
                                       "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
                                       "do ji = 1,jpj\n"
                                       "  sto_tmp(ji) = 1.0d0\n"
@@ -127,7 +128,8 @@ def test_profile_single_loop_named(parser):
     '''
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
-                                      "integer :: ji, jpj\n"
+                                      "integer :: ji\n"
+                                      "integer, parameter :: jpj=34\n"
                                       "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
                                       "do ji = 1,jpj\n"
                                       "  sto_tmp(ji) = 1.0d0\n"
@@ -146,7 +148,8 @@ def test_profile_two_loops(parser):
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
                                       "use kind_mod, only: wp\n"
-                                      "integer :: ji, jpj\n"
+                                      "integer :: ji\n"
+                                      "integer, parameter :: jpj=8\n"
                                       "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
                                       "do ji = 1,jpj\n"
                                       "  sto_tmp(ji) = 1.0d0\n"
@@ -188,7 +191,8 @@ def test_profile_codeblock(parser):
     psy, schedule = get_nemo_schedule(parser,
                                       "subroutine cb_test()\n"
                                       "use kind_mod, only: wp\n"
-                                      "integer :: ji, jpj\n"
+                                      "integer :: ji\n"
+                                      "integer, parameter :: jpj=128\n"
                                       "real :: sto_tmp2(jpj)\n"
                                       "do ji = 1,jpj\n"
                                       "  write(*,*) sto_tmp2(ji)\n"
@@ -212,7 +216,8 @@ def test_profile_inside_if1(parser):
         parser,
         "subroutine inside_if_test()\n"
         "use kind_mod, only: wp\n"
-        "integer :: ji, jpj\n"
+        "integer :: ji\n"
+        "integer, parameter :: jpj=3\n"
         "real :: sto_tmp2(jpj)\n"
         "logical, parameter :: do_this = .true.\n"
         "if(do_this)then\n"
@@ -236,7 +241,8 @@ def test_profile_inside_if2(parser):
         parser,
         "subroutine inside_if_test()\n"
         "use kind_mod, only: wp\n"
-        "integer :: ji, jpj\n"
+        "integer :: ji\n"
+        "integer, parameter :: jp=256\n"
         "real :: sto_tmp2(jpj)\n"
         "logical, parameter :: do_this = .true.\n"
         "if(do_this)then\n"
@@ -260,7 +266,8 @@ def test_profile_single_line_if(parser):
         parser,
         "subroutine one_line_if_test()\n"
         "use kind_mod, only: wp\n"
-        "integer :: ji, jpj\n"
+        "integer :: ji\n"
+        "integer, parameter :: jpj=32\n"
         "real :: sto_tmp2(jpj)\n"
         "logical, parameter :: do_this = .true.\n"
         "if(do_this) write(*,*) sto_tmp2(ji)\n"
@@ -423,7 +430,8 @@ def test_profiling_missing_end(parser):
     the end of the profiled code section in the parse tree. '''
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
-                                      "integer :: jpj, ji\n"
+                                      "integer :: ji\n"
+                                      "integer, parameter :: jpj=32\n"
                                       "real :: sto_tmp(jpj)\n"
                                       "do ji = 1,jpj\n"
                                       "  sto_tmp(ji) = 1.0d0\n"
@@ -553,7 +561,8 @@ def test_profile_nemo_auto_kernels(parser):
     Profiler.set_options([Profiler.KERNELS])
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
-                                      "integer :: jpj, ji\n"
+                                      "integer :: ji\n"
+                                      "integer, parameter :: jpj=32\n"
                                       "real :: sto_tmp(jpj)\n"
                                       "do ji = 1,jpj\n"
                                       "  sto_tmp(ji) = 1.0d0\n"
@@ -579,7 +588,8 @@ def test_profile_nemo_loop_nests(parser):
     Profiler.set_options([Profiler.KERNELS])
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
-                                      "integer :: jpi, jpj, ji, jj\n"
+                                      "integer :: ji, jj\n"
+                                      "integer, parameter :: jpi=4, jpj=8\n"
                                       "real :: sto_tmp(jpi,jpj)\n"
                                       "do jj = 1, jpj\n"
                                       "  do ji = 1,jpi\n"
@@ -652,7 +662,8 @@ def test_profile_nemo_loop_imperfect_nest(parser):
     Profiler.set_options([Profiler.KERNELS])
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
-                                      "integer :: jpi, jpj, ji, jj\n"
+                                      "integer :: ji, jj\n"
+                                      "integer, parameter :: jpi=4, jpj=5\n"
                                       "integer :: npt, jt\n"
                                       "logical :: ln_use_this\n"
                                       "real :: sto_tmp(jpi,jpj)\n"

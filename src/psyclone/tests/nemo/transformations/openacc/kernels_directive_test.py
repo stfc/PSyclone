@@ -52,7 +52,8 @@ from fparser.common.readfortran import FortranStringReader
 API = "nemo"
 
 EXPLICIT_LOOP = ("program do_loop\n"
-                 "integer :: ji, jpj\n"
+                 "integer :: ji\n"
+                 "integer, parameter :: jpj=32\n"
                  "real(kind=wp) :: sto_tmp(jpj)\n"
                  "do ji = 1,jpj\n"
                  "  sto_tmp(ji) = 1.0d0\n"
