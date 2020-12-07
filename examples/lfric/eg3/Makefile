@@ -32,12 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
 .PHONY: vanilla openmp
 
-transform: vanilla openmp
+test: vanilla openmp
 
 vanilla:
 	${PSYCLONE} solver_mod.x90
@@ -45,7 +46,10 @@ vanilla:
 openmp:
 	${PSYCLONE} -s ./colouring_and_omp.py -nodm solver_mod.x90
 
-all: transform compile
-
-compile:
+compile: test
 	@echo "No compilation supported for lfric/eg3"
+
+run: compile
+	@echo "No run targets for lfric/eg3"
+
+all: compile

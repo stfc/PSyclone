@@ -47,10 +47,6 @@
 
 include ../../common.mk
 
-# Reset the default goal to be 'compile', i.e. to include compilation
-.DEFAULT_GOAL:=
-DEFAULT: compile
-
 GENERATED_FILES += *.o *.mod profile_test.* alg.f90 psy.f90
 
 # Location of the infrastucture code (which is a submodule of the
@@ -68,33 +64,42 @@ NAME=profile_test
 
 .PHONY: default template simple_timing drhook dl_timer
 
+run: compile
+	./profile_test.template
+
+test: psy.f90
+
 compile: template
 all: template simple_timing drhook dl_timer
 
-template: PROFILE_DIR?=../../../lib/profiling/template
-template: PROFILE_LINK=-ldummy
-template: ../../../lib/profiling/template/libdummy.a $(NAME).template
+template: WRAPPER_DIR?=../../../lib/profiling/template
+template: WRAPPER_NAME=dummy
+template: PROFILE_LINK=
+template: $(NAME).template
 
 # Build the template profiling library
 ../../../lib/profiling/template/libdummy.a:
 	${MAKE} -C ../../../lib/profiling/template
 
-simple_timing: PROFILE_DIR?=../../../lib/profiling/simple_timing
-simple_timing: PROFILE_LINK=-lsimple_timing
+simple_timing: WRAPPER_DIR=../../../lib/profiling/simple_timing
+simple_timing: WRAPPER_NAME=simple_timing
+simple_timing: PROFILE_LINK=
 simple_timing: $(NAME).simple_timing
 
 # Needs to additionally link with drhook library. As default
 # assume it is installed 'next' to PSyclone
 drhook: DRHOOK_DIR?=../../../../drhook
-drhook: PROFILE_DIR=../../../lib/profiling/drhook
-drhook: PROFILE_LINK=-ldrhook_psy -L $(DRHOOK_DIR)/build/lib -ldrhook
+drhook: WRAPPER_DIR=../../../lib/profiling/drhook
+drhook: WRAPPER_NAME=drhook_psy
+drhook: PROFILE_LINK=-L $(DRHOOK_DIR)/build/lib -ldrhook
 drhook: $(NAME).drhook
 
 # Needs to compile with openmp and link in apeg-dl_timer library. As
 # default assume apeg-dl_timer is installed 'next' to PSyclone.
 dl_timer: DL_TIMER_ROOT?=../../../../apeg-dl_timer
-dl_timer: PROFILE_DIR=../../../lib/profiling/dl_timer
-dl_timer: PROFILE_LINK=-ldl_timer_psy -L$(DL_TIMER_ROOT) -ldl_timer_omp -fopenmp
+dl_timer: WRAPPER_DIR=../../../lib/profiling/dl_timer
+dl_timer: WRAPPER_NAME=dl_timer_psy
+dl_timer: PROFILE_LINK=-L$(DL_TIMER_ROOT) -ldl_timer_omp
 dl_timer: F90FLAGS += -fopenmp   # apeg-dl_timer must be compiled with openmp!
 dl_timer: $(NAME).dl_timer
 
@@ -104,30 +109,36 @@ dl_timer: $(NAME).dl_timer
 # in order to preserve temporary files:
 #.SECONDARY:
 
-$(NAME).%: $(KERNELS) psy_%.o alg.o
-	$(F90) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK) $(INF_LIB)
+$(NAME).%: $(WRAPPER_DIR)/lib$(WRAPPER_NAME).a $(KERNELS) psy.o alg.o
+	$(F90) $(F90FLAGS) $(KERNELS) psy.o alg.o -o $@                             \
+		   -L $(WRAPPER_DIR) -l $(WRAPPER_NAME) \
+		   $(PROFILE_LINK) $(INF_LIB)
 
-alg.f90 psy.f90: transform
+$(WRAPPER_DIR)/lib$(WRAPPER_NAME).a:
+	$(MAKE) -C $(WRAPPER_DIR)
 
-transform: test.x90
+alg.f90 psy.f90: test.x90
 	${PSYCLONE} --profile invokes -api "gocean1.0" \
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
 # Make sure the infrastructure library is compiled, so the mods are found
-$(KERNELS): $(INF_LIB)
+$(KERNELS): $(INF_LIB) $(DEP_LIB)
 
 # The dl_esm_inf library
 $(INF_LIB):
 	$(MAKE) -C $(INF_DIR) F90=$(F90)
 
+$(DEP_LIB):
+	$(MAKE) -C ../../../lib/profiling/simple_timing
+
 # Special rule to create psy_LIBNAME.o for each wrapper library (required
 # since PSyDataType will differ from one wrapper library to the next)
-psy_%.o: psy.f90 $(KERNELS)
-	$(F90) -o $@ $(F90FLAGS) -I $(INF_INC) -I $(PROFILE_DIR) -c $<
+psy.o: psy.f90 $(KERNELS)
+	$(F90) -o $@ $(F90FLAGS) -I $(INF_INC) -I $(WRAPPER_DIR) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -I $(INF_INC) -I $(PROFILE_DIR) -c $<
+	$(F90) $(F90FLAGS) -I $(INF_INC) -I $(WRAPPER_DIR) -c $<
 
 allclean: clean
-	${MAKE} -C ../../../lib/profiling/template clean
-	$(MAKE) -C $(INF_DIR) clean
+	${MAKE} -C ../../../lib/profiling allclean
+	$(MAKE) -C $(INF_DIR) allclean

@@ -32,7 +32,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, STFC Daresbury Laboratory
 
 # This Makefile picks up the compiler to use plus any flags from
 # environment variables. e.g.:
@@ -40,8 +39,8 @@
 #     export F90FLAGS="-O3"
 # The dl_esm_inf infrastructure library:
 #     export INF_DIR=../../../external/dl_esm_inf/finite_difference/src
-# The dl_esm_inf extract wrapper library:
-#     export EXTRACT_DIR = ../../../lib/extract/netcdf/dl_esm_inf
+# The nan-test wrapper library:
+#     export NAN_TEST_DIR = ../../../lib/nan_test/dl_esm_inf
 
 include ../../common.mk
 
@@ -49,8 +48,7 @@ include ../../common.mk
 .DEFAULT_GOAL:=
 default: compile
 
-GENERATED_FILES += *.o *.mod $(NAME) $(DRIVER_INIT) $(DRIVER_INIT).f90 \
-		  $(DRIVER_UPDATE) $(DRIVER_UPDATE).f90 alg.f90 psy.f90
+GENERATED_FILES += *.o *.mod nan_test alg.f90 psy.f90
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -58,82 +56,62 @@ SHARED_DIR ?= ../../../external
 INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
-EXTRACT_DIR ?= ../../../lib/extract/netcdf/dl_esm_inf
+NAN_TEST_DIR = ../../../lib/nan_test/dl_esm_inf
+F90FLAGS += -I$(INF_INC) -I $(NAN_TEST_DIR) 
+LIB_NAME = lib_nan_test.a
 
 # The two kernels used in the application.
 KERNELS = init_field_mod.o update_field_mod.o
 
 # The name of the executable
-NAME = extract_test
+NAME = nan_test
 
-.PHONY: default
+.PHONY: default $(NAN_TEST_DIR)/$(LIB_NAME) $(INF_LIB)
 
-all: run
-
-run: compile
-	./extract_test
-	@echo "TODO the driver cannot be testet yet because of #644"
-
+all: test compile
 compile: test $(NAME)
-	@echo "TODO the driver does not yet compile because of #644"
 
-test: psy.f90
+alg.f90 psy.f90: test
 
-# The name of the stand-alone driver that will do the init invokes.
-DRIVER_INIT = driver-main-init
-
-# The name of the stand-alone driver that will call the update function.
-DRIVER_UPDATE = driver-main-update
-
-F90FLAGS += $$(nf-config --fflags) -I$(INF_INC) -I$(EXTRACT_DIR)
-LIB_NAME = lib_kernel_data_netcdf.a
-
-alg.f90 psy.f90: test.x90 extract_transform.py
-	$(PSYCLONE) -nodm -api "gocean1.0" -s ./extract_transform.py\
+test: test.x90 test_nan_transform.py
+	${PSYCLONE} -nodm -api "gocean1.0" -s ./test_nan_transform.py \
 				-opsy psy.f90 -oalg alg.f90 test.x90
 
-$(NAME): $(INF_LIB) $(EXTRACT_DIR)/lib_kernel_data_netcdf.a $(KERNELS) alg.o psy.o
-	$(F90)  $(KERNELS) alg.o psy.o -o $(NAME) \
-	-L$(EXTRACT_DIR) -l_kernel_data_netcdf    \
-	$(INF_LIB)                                \
-	$$(nf-config --flibs)
+run: compile
+	./nan_test 2>&1| grep "PSYDATA: Variable a_fld has the invalid value"
 
+$(NAME): $(INF_LIB) $(NAN_TEST_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
+	$(F90)  $(KERNELS) alg.o psy.o -o $(NAME) \
+	-L$(NAN_TEST_DIR) -l_nan_test $(INF_LIB)
+
+# The nan-test library
+$(NAN_TEST_DIR)/$(LIB_NAME):
+	@echo "Making dl_esm_inf nan-test wrapper library"
+	@echo "=========================================="
+	$(MAKE) -C $(NAN_TEST_DIR) F90=$(F90)
+	@echo "Finished making dl_esm_inf nan-test wrapper library"
+	@echo "==================================================="
+	@echo
 
 # The dl_esm_inf library
 $(INF_LIB):
+	@echo "Making dl_esm_inf library"
+	@echo "========================="
 	$(MAKE) -C $(INF_DIR) F90=$(F90)
+	@echo "Finished making dl_esm_inf library"
+	@echo "=================================="
+	@echo
 
-# The driver does not yet compile because of #644
-$(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o main.o \
-				$(EXTRACT_DIR)/lib_kernel_data_netcdf.a
-	$(F90) $(KERNELS) $(DRIVER_INIT).o main.o \
-	-o $(DRIVER_INIT)            \
-	-L$(EXTRACT_DIR) -l_kernel_data_netcdf \
-	$$(nf-config --flibs)
-
-# The driver does not yet compile because of #644
-$(DRIVER_UPDATE): $(KERNELS) $(DRIVER_UPDATE).o main.o \
-				$(EXTRACT_DIR)/lib_kernel_data_netcdf.a
-	$(F90) $(KERNELS) $(DRIVER_UPDATE).o main.o \
-	-o $(DRIVER_UPDATE)                         \
-	-L$(EXTRACT_DIR) -l_kernel_data_netcdf      \
-	$$(nf-config --flibs)
+# Kernel compilation needs the .mod files from dl_esm_inf
+$(KERNELS): $(INF_LIB)
 
 alg.o:	psy.o
 
 psy.o:	$(KERNELS)
 
-# Dependency to INF_LIB to make sure the mod file are available
-$(KERNELS):  $(INF_LIB)
-
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
-# This target requires that the netcdf (Fortran) development package be
-# installed
-$(EXTRACT_DIR)/lib_kernel_data_netcdf.a:
-	make -C $(EXTRACT_DIR)
-
 allclean: clean
-	make -C $(INF_DIR) clean
-	make -C $(EXTRACT_DIR) clean
+	$(MAKE) -C $(NAN_TEST_DIR) allclean
+	$(MAKE) -C $(INF_DIR) allclean

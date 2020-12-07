@@ -79,8 +79,8 @@ GENERATED_FILES =
 
 NOTEBOOK_FILES = $(wildcard ./*ipynb)
 
-.PHONY: all compile transform notebook clean test allclean ${NOTEBOOK_FILES}
-.DEFAULT_GOAL := transform
+.PHONY: all test compile run notebook clean test allclean ${NOTEBOOK_FILES}
+.DEFAULT_GOAL := test
 
 # Rule that attempts to execute all Jupyter notebooks in the current dir
 ${NOTEBOOK_FILES}:

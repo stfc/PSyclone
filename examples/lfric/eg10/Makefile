@@ -32,14 +32,17 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
-transform:
+test:
 	${PSYCLONE} intergrid_3levels.x90
 
-compile:
+compile: test
 	@echo "No compilation supported for lfric/eg10"
 
-all: transform compile
+run: compile
+	@echo "No run targets for lfric/eg10"
 
+all: compile

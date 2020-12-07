@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
@@ -39,9 +40,9 @@ GENERATED_FILES += kern_use_var_*.cl
 
 .PHONY: basic opencl others
 
-all: transform
+all: test
 
-transform: basic opencl others
+test: basic opencl others
 
 basic:
 	${PSYCLONE} -api "gocean1.0" alg_kern_use_var.f90
@@ -57,5 +58,8 @@ others:
 	#${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_call_kern.f90
 	#${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_nested_use.f90
 
-compile:
-	@echo "No compilation targets for this example"
+compile: test
+	@echo "No compilation targets for example gocean/eg4"
+
+run: compile
+	@echo "No run targets for example gocean/eg4"

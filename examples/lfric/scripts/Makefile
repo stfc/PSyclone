@@ -37,16 +37,19 @@ include ../../common.mk
 
 SCRIPTS = $(wildcard *.py)
 
-transform: ${SCRIPTS}
+test: ${SCRIPTS}
 
 .PHONY: ${SCRIPTS}
 
 ${SCRIPTS}:
 	${PSYCLONE} -s ./$@ ../eg3/solver_mod.x90 -oalg /dev/null -opsy /dev/null
 
-compile:
+compile: test
 	@echo "No compilation supported for lfric/scripts examples"
 
-all: transform compile
+run: compile
+	@echo "No run targets for lfric/scripts examples"
+
+all: compile
 
 

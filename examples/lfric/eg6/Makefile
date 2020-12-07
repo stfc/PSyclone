@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
@@ -39,7 +40,7 @@ GENERATED_FILES += dag.png dag.svg dag
 
 .PHONY:  serial dm openmp hybrid reprod
 
-transform: serial dm openmp hybrid reprod
+test: serial dm openmp hybrid reprod
 
 serial:
 	${PSYCLONE} -nodm alg.x90
@@ -56,8 +57,10 @@ hybrid:
 reprod:
 	${PSYCLONE} -s ./omp_reprod_script.py alg.x90
 
-compile:
+compile: test
 	@echo "No compilation supported for lfric/eg6"
 
-all: transform compile
+run: compile
+	@echo "No run targets for lfric/eg6"
 
+all: compile

@@ -68,12 +68,15 @@ NAME = read_only_test
 
 .PHONY: default $(READ_ONLY_DIR)/$(LIB_NAME) $(INF_LIB)
 
-all: transform compile
-compile: transform $(NAME)
+all: test compile
+compile: test $(NAME)
+run: compile
+	./read_only_test 2>&1 | \
+		grep "Double precision field b_fld has been modified in main : update"
 
-alg.f90 psy.f90: transform
+alg.f90 psy.f90: test
 
-transform: test.x90 read_only_transform.py
+test: test.x90 read_only_transform.py
 	${PSYCLONE} -nodm -api "gocean1.0" -s ./read_only_transform.py \
 				-opsy psy.f90 -oalg alg.f90 test.x90
 
@@ -110,5 +113,6 @@ psy.o:	$(KERNELS)
 	$(F90) $(F90FLAGS) -c $<
 
 allclean: clean
-	$(MAKE) -C $(READ_ONLY_DIR) clean
+	$(MAKE) -C $(READ_ONLY_DIR) allclean
+	# No allclean target for infrastructure library, so use clean
 	$(MAKE) -C $(INF_DIR) clean

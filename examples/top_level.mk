@@ -36,8 +36,8 @@
 # Include file for 'top-level' Makefiles found in the directories immediately
 # below the one containing this file.
 #
-# Provides support for 'all', 'compile', 'transform' (the default), 'notebook',
-# 'clean' and 'allclean' targets for directories listed in EXAMPLES.
+# Provides support for 'all', 'compile', 'test' (the default), 'notebook',
+# 'run', clean' and 'allclean' targets for directories listed in EXAMPLES.
 # All an including Makefile needs to do is set EXAMPLES appropriately.
 
 all_EXAMPLES=$(addprefix all_,$(EXAMPLES))
@@ -57,13 +57,16 @@ allclean: ${allclean_EXAMPLES}
         ${notebook_EXAMPLES} ${allclean_EXAMPLES}
 
 $(EXAMPLES):
-	${MAKE} -C $@ transform
+	${MAKE} -C $@ test
 
 $(all_EXAMPLES):
 	${MAKE} -C $(patsubst all_%,%,$@) all
 
 $(compile_EXAMPLES):
 	${MAKE} -C $(patsubst compile_%,%,$@) compile
+
+$(compile_EXAMPLES):
+	${MAKE} -C $(patsubst compile_%,%,$@) run
 
 $(notebook_EXAMPLES):
 	${MAKE} -C $(patsubst notebook_%,%,$@) notebook

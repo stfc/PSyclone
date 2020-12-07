@@ -37,7 +37,7 @@ include ../../common.mk
 
 .PHONY: vanilla openmp loopfuse
 
-transform: vanilla openmp loopfuse
+test: vanilla openmp loopfuse
 
 vanilla:
 	${PYTHON} ./runme.py
@@ -48,8 +48,10 @@ openmp:
 loopfuse:
 	${PYTHON} ./runme_loop_fuse.py
 
-compile:
+compile: test
 	@echo "No compilation supported for lfric/eg2"
 
+run: compile
+	@echo "No run targets for lfric/eg2"
 
-all: transform compile
+all: compile

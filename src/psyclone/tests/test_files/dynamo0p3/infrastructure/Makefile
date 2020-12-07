@@ -132,3 +132,5 @@ master_dofmap_mod.o: constants_mod.o
 
 clean:
 	rm -f *.o *.mod  $(LIB) liblfric.a liblfric_netcdf.a
+
+allclean: clean

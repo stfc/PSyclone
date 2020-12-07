@@ -32,12 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
 .PHONY: vanilla openmp
 
-transform: vanilla openmp
+
+test: vanilla openmp
 
 vanilla:
 	${PYTHON} ./runme.py
@@ -45,8 +47,11 @@ vanilla:
 openmp:
 	${PYTHON} ./runme_openmp.py
 
-compile:
+compile: test
 	@echo "No compilation supported for lfric/eg1"
 
-all: transform compile
+run: compile
+	@echo "No run targets for lfric/eg1"
+
+all: compile
 

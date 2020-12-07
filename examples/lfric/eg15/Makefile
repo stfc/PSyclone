@@ -32,15 +32,19 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
-transform:
+test:
 	${PSYCLONE} -s ./matvec_opt.py \
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
   -oalg /dev/null -opsy /dev/null
 
-compile:
+compile: test
 	@echo "No compilation supported for lfric/eg15"
 
-all: transform compile
+run: compile
+	@echo "No run targets for lfric/eg15"
+
+all: compile

@@ -32,12 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
 .PHONY: extract extract_transformed find_kernel
 
-transform: extract extract_transformed find_kernel
+test: extract extract_transformed find_kernel
 
 extract:
 	${PSYCLONE} -nodm -s ./extract_nodes.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
@@ -49,7 +50,10 @@ extract_transformed:
 find_kernel:
 	${PYTHON} find_kernel.py
 
-compile:
+compile: test
 	@echo "No compilation supported for lfric/eg12"
 
-all: transform compile
+run: compile
+	@echo "No run targets for lfric/eg12"
+
+all: compile

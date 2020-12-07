@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 
+.PHONY: clean allclean
 
 # Assume that drhook is 'next' to psyclone
 DRHOOK_ROOT?=../../../../drhook
@@ -59,3 +60,4 @@ $(libname): $(OBJS)
 clean:
 	rm -f $(libname) $(OBJS) profile_psy_data_mod.mod
 
+allclean: clean

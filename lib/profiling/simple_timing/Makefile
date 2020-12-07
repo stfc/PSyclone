@@ -43,7 +43,7 @@ OBJS = $(name).o psy_data_base.o
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
 PROCESS=$$(../../get_python.sh) ../../process.py
 
-.PHONY: default
+.PHONY: default clean allclean
 
 default: $(libname)
 
@@ -61,3 +61,4 @@ psy_data_base.f90: ../../psy_data_base.jinja
 clean:
 	rm -f $(libname) $(OBJS) profile_psy_data_mod.mod psy_data_base.f90 psy_data_base_mod.mod
 
+allclean: clean

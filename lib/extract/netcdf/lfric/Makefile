@@ -73,3 +73,6 @@ kernel_data_netcdf.f90: kernel_data_netcdf.jinja Makefile
 
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.f90 extract_netcdf_base.f90
+
+allclean: clean
+	$(MAKE) -C $(LFRIC_DIR) allclean

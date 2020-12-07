@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
@@ -41,7 +42,7 @@ GENERATED_FILES += compute_cu_*.cl compute_cv_*.cl compute_h_*.cl \
 	compute_z_*.cl psy_gen.f90 alg_gen.f90 ${KERNELS} ${KERNELS:.o=.mod} \
 	alg_opencl.exe allkernels.cl
 
-all: transform compile
+all: test compile
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -53,7 +54,7 @@ FORTCL_DIR ?= ${SHARED_DIR}/FortCL
 FORTCL_INC = ${FORTCL_DIR}/src
 FORTCL_LIB = ${FORTCL_DIR}/src/libFortCL.a
 
-transform:
+test:
 	${PSYCLONE} -api "gocean1.0" -s ./ocl_trans.py alg.f90
 
 # The dl_esm_inf library
@@ -81,5 +82,8 @@ compile-ocl: ${INF_LIB} ${FORTCL_LIB} ${KERNELS} psy_gen.o alg_gen.f90
 %.o: %.f90
 	${F90} ${LDFLAGS} -I${INF_INC} -I${FORTCL_INC} -c $<
 
-compile:
-	echo "This example needs to be compiled with 'make compile-ocl'"
+compile: test
+	@echo "Example gocean/eg3 needs to be compiled with 'make compile-ocl'"
+
+run: compile
+	@echo "No run targets for example gocean/eg3"

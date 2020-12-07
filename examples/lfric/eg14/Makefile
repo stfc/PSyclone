@@ -32,12 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
 .PHONY: kernels parallel_no_dm parallel_dm
 
-transform: kernels parallel_no_dm parallel_dm
+test: kernels parallel_no_dm parallel_dm
 
 kernels:
 	${PSYCLONE} -s ./acc_kernels.py -nodm \
@@ -56,7 +57,10 @@ parallel_dm:
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
   -oalg /dev/null
 
-compile:
+compile: test
 	@echo "No compilation supported for lfric/eg14"
 
-all: transform compile
+run: compile
+  @echo "No run targets for lfric/eg14"
+
+all: compile

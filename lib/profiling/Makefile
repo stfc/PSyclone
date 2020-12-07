@@ -66,3 +66,4 @@ nvidia:
 clean:
 	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) clean; )
 
+allclean: clean

@@ -33,11 +33,11 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-.DEFAULT_GOAL := transform
+.DEFAULT_GOAL := test
 
-.PHONY: all transform compile notebook clean allclean
+.PHONY: all test run compile notebook clean allclean
 
-all transform compile notebook clean allclean:
+all test compile notebook clean allclean:
 	${MAKE} -C gocean $@
 	${MAKE} -C nemo $@
 	${MAKE} -C lfric $@

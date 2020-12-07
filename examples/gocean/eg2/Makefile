@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 
 # Makefile for the 2nd GOcean example. Uses PSyclone (which must
 # be installed) to generate Fortran with OpenACC directives for
@@ -71,9 +72,12 @@ NVTX_LINK = -L${NVTX_DIR} -lnvToolsExt
 
 .PHONY: kernels profile
 
-all: transform compile profile
+all: test compile profile
 
 compile: single.exe
+
+run: compile
+	./single.exe
 
 # Target to make the same application but instrumented for profiling.
 # Requires both the target profiling library and associated
@@ -81,7 +85,7 @@ compile: single.exe
 profile: single_prof.exe
 
 # Perform the PSyclone transformations only
-transform: psy.f90 alg_gen.f90 psy_prof.f90 alg_prof.f90
+test: psy.f90 alg_gen.f90 psy_prof.f90 alg_prof.f90
 
 # The dl_esm_inf library
 ${INF_LIB}:
