@@ -41,16 +41,25 @@ import pytest
 from psyclone.psyir import nodes
 from psyclone.psyir import symbols
 from psyclone.errors import GenerationError
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.tests.utilities import check_links
 
 
 def create_structure_symbol(table):
     '''
+    Utility to create a symbol of derived type and add it to the supplied
+    symbol table.
+
+    :param table: the symbol table to which to add the new symbol.
+    :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+    :returns: the new DataSymbol representing a derived type.
+    :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
     '''
     region_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("ny", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+        ("ny", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
+        ("domain", symbols.TypeSymbol("dom_type", symbols.DeferredType()),
+         symbols.Symbol.Visibility.PUBLIC)])
     region_type_sym = symbols.TypeSymbol("grid_type", region_type)
     region_array_type = symbols.ArrayType(region_type_sym, [2, 2])
     grid_type = symbols.StructureType.create([
@@ -68,12 +77,30 @@ def test_smr_constructor():
     ''' Test the StructureMemberReference constructor. '''
     region_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
-    region_type_sym = symbols.TypeSymbol("grid_type", region_type)
+    region_type_sym = symbols.TypeSymbol("region_type", region_type)
     grid_type = symbols.StructureType.create([
         ("dx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
         ("area", region_type_sym, symbols.Symbol.Visibility.PUBLIC)])
+    grid_type_sym = symbols.TypeSymbol("grid_type", grid_type)
+    # With a StructureType
     smref = nodes.StructureMemberReference(grid_type, "area")
     assert isinstance(smref, nodes.StructureMemberReference)
+    assert smref.component.name == "area"
+    # With a TypeSymbol
+    smref = nodes.StructureMemberReference(grid_type_sym, "area")
+    assert isinstance(smref, nodes.StructureMemberReference)
+    assert smref.component.name == "area"
+
+
+def test_smr_constructor_errors():
+    ''' Test the validation checks in the constructor. '''
+    # Attempt to reference something that cannot be a structure
+    region_type = symbols.StructureType.create([
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+    with pytest.raises(TypeError) as err:
+        nodes.StructureMemberReference(region_type, "nx")
+    assert ("member 'nx' is not of DeferredType, StructureType or a "
+            "TypeSymbol and therefore cannot" in str(err.value))
 
 
 def test_smr_node_str():
@@ -101,5 +128,29 @@ def test_smr_can_be_printed():
     grid_ref = nodes.StructureReference.create(grid_var, ['area', 'nx'],
                                                parent=assignment)
     structure_member_ref = grid_ref.children[0]
-    assert ("StructureMemberReference[name:'area']" in
-            str(structure_member_ref))
+    assert ("StructureMemberReference[name:'area']\n"
+            "MemberReference[name:'nx']\n" in str(structure_member_ref))
+
+
+def test_smr_child_validate():
+    ''' Check the _validate_child() method of StructureMemberReference. '''
+    region_type = symbols.StructureType.create([
+        ("area", symbols.TypeSymbol("area_type", symbols.DeferredType()),
+         symbols.Symbol.Visibility.PUBLIC),
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+    smr = nodes.StructureMemberReference(region_type, "area")
+    with pytest.raises(GenerationError) as err:
+        smr.addchild("hello")
+    assert ("'str' can't be child 0 of 'StructureMemberReference'" in
+            str(err.value))
+    # StructureMemberReference is only permitted to have a single child
+    # which may be None...
+    smr.addchild(None)
+    assert smr.children[0] is None
+    # ...or a MemberReference()
+    smr.children[0] = nodes.MemberReference(region_type, "nx")
+    assert smr.children[0].name == "nx"
+    # Attempting to add a second child should fail
+    with pytest.raises(GenerationError) as err:
+        smr.addchild(None)
+    assert "'NoneType' can't be child 1 of" in str(err.value)

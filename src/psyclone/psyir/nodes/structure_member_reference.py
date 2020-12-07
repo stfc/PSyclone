@@ -1,9 +1,45 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2020, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+
 ''' This module contains the implementation of the MemberReference node.'''
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.member_reference import MemberReference
 from psyclone.psyir.symbols import TypeSymbol
-from psyclone.psyir.symbols.datatypes import StructureType
+from psyclone.psyir.symbols.datatypes import StructureType, DeferredType
 
 
 class StructureMemberReference(MemberReference):
@@ -15,44 +51,37 @@ class StructureMemberReference(MemberReference):
                         that is being referenced.
     :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` or \
                        :py:class:`psyclone.psyir.symbols.TypeSymbol`
-    :param str member: the member of the 'target_type' structure that is \
+    :param str member: the member of the 'struct_type' structure that is \
                        being referenced.
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.StructureReference` or \
                   :py:class:`psyclone.psyir.nodes.MemberReference`
 
+    :raises TypeError: if the type of the specified member is not \
+                       consistent with it being a structure type.
+
     '''
     # Textual description of the node.
-    _children_valid_format = "[MemberReference | None]"
+    _children_valid_format = "MemberReference | None"
     _text_name = "StructureMemberReference"
 
     def __init__(self, struct_type, member, parent=None):
-        # Avoid circular dependency
-        from psyclone.psyir.nodes.structure_reference import StructureReference
 
-        if not isinstance(struct_type, (StructureType, TypeSymbol)):
-            raise TypeError(
-                "In StructureMemberReference initialisation: expecting a "
-                "datatype of either StructureType or TypeSymbol "
-                "but found '{0}'.".format(type(struct_type).__name__))
-        if parent and not isinstance(parent,
-                                     (StructureReference, MemberReference)):
-            raise TypeError(
-                "The parent of a StructureMemberReference must be either a "
-                "StructureReference or MemberReference "
-                "but found '{0}'.".format(type(parent).__name))
-        super(MemberReference, self).__init__(parent=parent)
+        super(StructureMemberReference, self).__init__(struct_type, member,
+                                                       parent=parent)
 
-        if isinstance(struct_type, StructureType):
-            # Store the component that this member points to
-            self._component = struct_type.components[member]
-        elif isinstance(struct_type, TypeSymbol):
-            if isinstance(struct_type.datatype, StructureType):
-                self._component = struct_type.datatype.components[member]
-            else:
-                # We only have a symbol for this structure type
-                raise NotImplementedError("Huh")
-        self._children = []
+        if not isinstance(self.component.datatype,
+                          (DeferredType, StructureType, TypeSymbol)):
+            raise TypeError(
+                "The member '{0}' is not of DeferredType, StructureType or a "
+                "TypeSymbol and therefore cannot be the target of a "
+                "StructureMemberReference.".format(member))
+
+    def __str__(self):
+        result = super(StructureMemberReference, self).__str__() + "\n"
+        if self._children[0]:
+            result += str(self._children[0]) + "\n"
+        return result
 
     @staticmethod
     def _validate_child(position, child):
@@ -73,10 +102,6 @@ class StructureMemberReference(MemberReference):
             return True
         # Only one child is permitted
         return False
-
-    @property
-    def component(self):
-        return self._component
 
 
 __all__ = ['StructureMemberReference']

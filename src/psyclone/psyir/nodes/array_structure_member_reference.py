@@ -37,18 +37,19 @@
 ''' This module contains the implementation of the MemberReference node.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes.member_reference import MemberReference
+from psyclone.psyir.nodes.structure_member_reference import \
+    StructureMemberReference
 from psyclone.psyir.nodes.array_node import ArrayNode
 from psyclone.psyir.symbols.typesymbol import TypeSymbol
 from psyclone.psyir.symbols.datatypes import StructureType
 
 
-class ArrayStructureMemberReference(ArrayNode, MemberReference):
+class ArrayStructureMemberReference(ArrayNode, StructureMemberReference):
     '''
     Node representing a reference to an element of an array of derived types
     within a structure (derived type). As it is an array of derived types,
     its first child is a reference to a member of that derived type (or None)
-    and subsequent children given the array-index expressions.
+    and subsequent children give the array-index expressions.
 
     :param target:
     :param member:
