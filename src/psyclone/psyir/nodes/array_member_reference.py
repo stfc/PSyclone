@@ -40,57 +40,38 @@
 from __future__ import absolute_import
 from psyclone.psyir.nodes.member_reference import MemberReference
 from psyclone.psyir.nodes.array_node import ArrayNode
-from psyclone.psyir.symbols import TypeSymbol
-from psyclone.psyir.symbols.datatypes import StructureType
+from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.ranges import Range
 
 
-class ArrayMemberReference(ArrayNode, MemberReference):
+class ArrayMemberReference(MemberReference, ArrayNode):
     '''
-    Node representing a reference to the element(s) of an array member of a
-    structure (derived type).
+    Node representing a reference to the element(s) of an array that is a
+    member of a structure.
 
-    :param target:
-    :type target:
-    :param str member:
-    :param parent:
-    :type parent:
-    :param children:
-    :type children:
+    :param struct_type: the datatype of the structure containing the member \
+                        that is being referenced.
+    :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` or \
+                       :py:class:`psyclone.psyir.symbols.TypeSymbol`
+    :param str member: the member of the 'struct_type' structure that is \
+                       being referenced.
+    :param parent: the parent of this node in the PSyIR tree.
+    :type parent: :py:class:`psyclone.psyir.nodes.StructureReference` or \
+                  :py:class:`psyclone.psyir.nodes.MemberReference`
+    :param children: PSyIR nodes representing any array-index expressions.
+    :type children: list of :py:class:`psyclone.psyir.nodes.Node` or NoneType
 
     '''
     # Textual description of the node.
     _children_valid_format = "[DataNode | Range]*"
     _text_name = "ArrayMemberReference"
 
-    def __init__(self, target, member, parent=None, children=None):
-        # Avoid circular dependency
-        from psyclone.psyir.nodes.structure_reference import StructureReference
-
-        if not isinstance(target, (StructureType, TypeSymbol)):
-            raise TypeError(
-                "In MemberReference initialisation expecting a ComponentType "
-                "but found '{0}'.".format(type(target).__name__))
-        if parent and not isinstance(parent,
-                                     (StructureReference, MemberReference)):
-            raise TypeError(
-                "The parent of a MemberReference must be a StructureReference "
-                "but found '{0}'.".format(type(parent).__name))
-        super(MemberReference, self).__init__(parent=parent)
-
-        if isinstance(target, StructureType):
-            # Store the component that this member points to
-            self._component = target.components[member]
-        elif isinstance(target, TypeSymbol):
-            if isinstance(target.datatype, StructureType):
-                self._component = target.datatype.components[member]
-            else:
-                # We only have a symbol for this structure type
-                raise NotImplementedError("Huh")
-        self._children = []
-        if children:
-            self._children = children
-        for child in self._children:
-            child.parent = self
+    def __init__(self, struct_type, member, parent=None, children=None):
+        MemberReference.__init__(self, struct_type, member, parent=parent)
+        # The MemberReference node is a leaf so now call the ArrayNode
+        # constructor to set up the children (representing any array-index
+        # expressions).
+        ArrayNode.__init__(self, parent=parent, children=children)
 
     @staticmethod
     def _validate_child(position, child):
@@ -103,9 +84,9 @@ class ArrayMemberReference(ArrayNode, MemberReference):
         :rtype: bool
 
         '''
-        from psyclone.psyir.nodes import DataNode, Range
         # pylint: disable=unused-argument
         return isinstance(child, (DataNode, Range))
 
 
+# For AutoAPI documentation generation
 __all__ = ['ArrayMemberReference']
