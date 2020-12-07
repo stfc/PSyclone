@@ -39,7 +39,8 @@
 from __future__ import absolute_import
 from psyclone.psyir.nodes.member_reference import MemberReference
 from psyclone.psyir.symbols import TypeSymbol
-from psyclone.psyir.symbols.datatypes import StructureType, DeferredType
+from psyclone.psyir.symbols.datatypes import StructureType, DeferredType, \
+    ArrayType
 
 
 class StructureMemberReference(MemberReference):
@@ -61,21 +62,30 @@ class StructureMemberReference(MemberReference):
                        consistent with it being a structure type.
 
     '''
-    # Textual description of the node.
+    # Textual description of the node. Since it represents a reference to a
+    # structure it may have a single child which is a reference to one of its
+    # members.
     _children_valid_format = "MemberReference | None"
     _text_name = "StructureMemberReference"
 
-    def __init__(self, struct_type, member, parent=None):
+    def __init__(self, struct_type, member, parent=None, children=None):
 
         super(StructureMemberReference, self).__init__(struct_type, member,
                                                        parent=parent)
-
-        if not isinstance(self.component.datatype,
+        if isinstance(self.component.datatype, ArrayType):
+            target_type = self.component.datatype.intrinsic
+        else:
+            target_type = self.component.datatype
+        if not isinstance(target_type,
                           (DeferredType, StructureType, TypeSymbol)):
             raise TypeError(
                 "The member '{0}' is not of DeferredType, StructureType or a "
                 "TypeSymbol and therefore cannot be the target of a "
                 "StructureMemberReference.".format(member))
+
+        for child in children:
+            self.addchild(child)
+            child.parent = self
 
     def __str__(self):
         result = super(StructureMemberReference, self).__str__() + "\n"

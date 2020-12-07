@@ -49,7 +49,7 @@ def test_amr_constructor():
                            [nodes.Literal("10", symbols.INTEGER_TYPE)]),
          symbols.Symbol.Visibility.PUBLIC)])
     idx = nodes.Literal("3", symbols.INTEGER_TYPE)
-    amr = nodes.ArrayMemberReference(region_type, "sub_mesh", children=[idx])
+    amr = nodes.ArrayMemberReference(region_type, "sub_mesh", indices=[idx])
     assert len(amr.children) == 1
     assert amr.children[0] is idx
 

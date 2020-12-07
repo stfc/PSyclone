@@ -40,6 +40,7 @@ from __future__ import absolute_import
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member_reference import MemberReference
 from psyclone.psyir.nodes.array_member_reference import ArrayMemberReference
+from psyclone.psyir.nodes.array_node import ArrayNode
 from psyclone.psyir.nodes.array_structure_member_reference import \
     ArrayStructureMemberReference
 from psyclone.psyir.nodes.structure_member_reference import \
@@ -145,11 +146,11 @@ class StructureReference(Reference):
                     subref = ArrayStructureMemberReference(dtype,
                                                            member,
                                                            parent=ref,
-                                                           children=children)
+                                                           indices=children)
                 else:
                     # Array of intrinsic quantities
                     subref = ArrayMemberReference(dtype, member, parent=ref,
-                                                  children=children)
+                                                  indices=children)
             elif isinstance(target_dtype, ScalarType):
                 # A scalar member
                 subref = MemberReference(dtype, member, parent=ref)
@@ -157,10 +158,11 @@ class StructureReference(Reference):
                 raise NotImplementedError("Datatype: {0}", type(target_dtype))
 
             # The reference to a sub-component is stored as the first child
-            if not current.children:
-                current.children = [subref]
-            else:
+            if isinstance(current, ArrayNode):
                 current.children[0] = subref
+            else:
+                current.addchild(subref)
+
             # Move down to the newly-added child
             current = subref
             dtype = subref.component.datatype

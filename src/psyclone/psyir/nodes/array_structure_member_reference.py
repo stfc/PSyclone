@@ -44,7 +44,7 @@ from psyclone.psyir.symbols.typesymbol import TypeSymbol
 from psyclone.psyir.symbols.datatypes import StructureType
 
 
-class ArrayStructureMemberReference(ArrayNode, StructureMemberReference):
+class ArrayStructureMemberReference(StructureMemberReference, ArrayNode):
     '''
     Node representing a reference to an element of an array of derived types
     within a structure (derived type). As it is an array of derived types,
@@ -58,40 +58,20 @@ class ArrayStructureMemberReference(ArrayNode, StructureMemberReference):
 
     '''
     # Textual description of the node.
-    _children_valid_format = "MemberReference [DataNode | Range]*"
+    _children_valid_format = "None | MemberReference [DataNode | Range]*"
     _text_name = "ArrayStructureMemberReference"
 
-    def __init__(self, target, member, parent=None, children=None):
-        # Avoid circular dependency
-        from psyclone.psyir.nodes.structure_reference import StructureReference
+    def __init__(self, target, member, parent=None, indices=None):
 
-        if not isinstance(target, (StructureType, TypeSymbol)):
-            raise TypeError(
-                "In MemberReference initialisation expecting a ComponentType "
-                "but found '{0}'.".format(type(target).__name__))
-        if parent and not isinstance(parent,
-                                     (StructureReference, MemberReference)):
-            raise TypeError(
-                "The parent of a MemberReference must be either a "
-                "StructureReference or another MemberReference but found "
-                "'{0}'.".format(type(parent).__name))
-        super(MemberReference, self).__init__(parent=parent)
+        # Manually call the StructureMemberReference constructor and then
+        # handle the children separately.
+        StructureMemberReference.__init__(self, target, member, parent=parent)
 
-        if isinstance(target, StructureType):
-            # Store the component that this member points to
-            self._component = target.components[member]
-        elif isinstance(target, TypeSymbol):
-            if isinstance(target.datatype, StructureType):
-                self._component = target.datatype.components[member]
-            else:
-                # We only have a symbol for this structure type
-                raise NotImplementedError("Huh")
-
-        # The first child of this node will either be a MemberReference
-        # (to a component of this derived type) or None.
-        self._children = [None]
-        for child in children:
-            self._children.append(child)
+        # The first child will be a reference to a member of this structure
+        self.addchild(None)
+        # Subsequent children represent the array-index expressions
+        for child in indices:
+            self.addchild(child)
             child.parent = self
 
     @staticmethod
@@ -105,18 +85,14 @@ class ArrayStructureMemberReference(ArrayNode, StructureMemberReference):
         :rtype: bool
 
         '''
-        from psyclone.psyir.nodes import DataNode, Range
-        # pylint: disable=unused-argument
+        from psyclone.psyir.nodes import MemberReference, DataNode, Range
         if position == 0:
             # The first child must either be a MemberReference or None.
-            if child:
-                return isinstance(child, MemberReference)
-            return True
+            if child is None:
+                return True
+            return isinstance(child, MemberReference)
         return isinstance(child, (DataNode, Range))
 
-    @property
-    def component(self):
-        return self._component
 
-
+# For AutoAPI automatic documentation generation
 __all__ = ['ArrayStructureMemberReference']

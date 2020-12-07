@@ -66,12 +66,12 @@ class ArrayMemberReference(MemberReference, ArrayNode):
     _children_valid_format = "[DataNode | Range]*"
     _text_name = "ArrayMemberReference"
 
-    def __init__(self, struct_type, member, parent=None, children=None):
+    def __init__(self, struct_type, member, parent=None, indices=None):
         MemberReference.__init__(self, struct_type, member, parent=parent)
         # The MemberReference node is a leaf so now call the ArrayNode
         # constructor to set up the children (representing any array-index
         # expressions).
-        ArrayNode.__init__(self, parent=parent, children=children)
+        ArrayNode.__init__(self, parent=parent, children=indices)
 
     @staticmethod
     def _validate_child(position, child):
