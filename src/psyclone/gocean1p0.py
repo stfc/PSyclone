@@ -62,7 +62,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, Symbol, ArgumentInterface
+    INTEGER_TYPE, DataSymbol, Symbol, ArgumentInterface, ContainerSymbol
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -112,6 +112,16 @@ class GOPSy(PSy):
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
+
+        # Add GOcean infrastructure-specific libraries
+        kind_params_sym = ContainerSymbol("kind_params_mod")
+        kind_params_sym.wildcard_import = True
+        self._psy_container.symbol_table.add(kind_params_sym)
+        field_sym = ContainerSymbol("field_mod")
+        field_sym.wildcard_import = True
+        self._psy_container.symbol_table.add(field_sym)
+
+        # Create invokes
         self._invokes = GOInvokes(invoke_info.calls, self)
 
     @property

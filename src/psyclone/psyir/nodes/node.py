@@ -1061,6 +1061,17 @@ class Node(object):
             return True
         return False
 
+    def lower_to_core_psyir(self):
+        '''
+        In-place replacement of DSL or high-level concepts into generic
+        PSyIR constructs. The generic implementation only recurses down
+        to it's children, but this method must be re-implemented by Nodes
+        that represent high-level concepts.
+
+        '''
+        for child in self.children:
+            child.lower_to_core_psyir()
+
     def gen_code(self, parent):
         '''Abstract base class for code generation function.
 

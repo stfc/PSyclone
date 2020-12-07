@@ -49,7 +49,7 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
     SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
-    Reference, Literal, KernelSchedule, DataNode, CodeBlock
+    Reference, Literal, Routine, DataNode, CodeBlock, Schedule
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.errors import InternalError
 
@@ -586,19 +586,18 @@ class FortranWriter(PSyIRVisitor):
         :raises VisitorError: if the name attribute of the supplied \
         node is empty or None.
         :raises VisitorError: if any of the children of the supplied \
-        Container node are not KernelSchedules.
+        Container node are not Routines.
 
         '''
         if not node.name:
             raise VisitorError("Expected Container node name to have a value.")
 
-        # All children must be KernelSchedules as modules within
+        # All children must be Routine as modules within
         # modules are not supported.
-        if not all([isinstance(child, KernelSchedule)
-                    for child in node.children]):
+        if not all([isinstance(child, Routine) for child in node.children]):
             raise VisitorError(
                 "The Fortran back-end requires all children of a Container "
-                "to be KernelSchedules.")
+                "to be a sub-class of Routine.")
 
         result = "{0}module {1}\n".format(self._nindent, node.name)
 
@@ -623,7 +622,7 @@ class FortranWriter(PSyIRVisitor):
         result += "{0}end module {1}\n".format(self._nindent, node.name)
         return result
 
-    def kernelschedule_node(self, node):
+    def routine_node(self, node):
         '''This method is called when a KernelSchedule instance is found in
         the PSyIR tree.
 
@@ -652,6 +651,8 @@ class FortranWriter(PSyIRVisitor):
         self._depth += 1
         # Declare the kernel data.
         declarations = self.gen_decls(node.symbol_table)
+        #for schedule in node.walk(Schedule):
+        #    declarations += self.gen_decls(schedule.symbol_table)
         # Get the executable statements.
         exec_statements = ""
         for child in node.children:

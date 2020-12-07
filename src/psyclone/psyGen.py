@@ -50,7 +50,8 @@ from psyclone.f2pygen import DirectiveGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import DataSymbol, ArrayType, \
     Symbol, INTEGER_TYPE, BOOLEAN_TYPE
-from psyclone.psyir.nodes import Node, Schedule, Loop, Statement
+from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
+    Routine
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 
@@ -257,6 +258,12 @@ class PSy(object):
     def __init__(self, invoke_info):
         self._name = invoke_info.name
         self._invokes = None
+        # create an empty PSy layer container
+        self._psy_container = Container(self.name)
+
+    @property
+    def psy_container(self):
+        return self._psy_container
 
     def __str__(self):
         return "PSy"
@@ -494,6 +501,8 @@ class Invoke(object):
 
         # create the schedule
         self._schedule = schedule_class(alg_invocation.kcalls, reserved_names)
+        if self.invokes:
+            self.invokes.psy.psy_container.addchild(self._schedule)
 
         # let the schedule have access to me
         self._schedule.invoke = self
@@ -762,7 +771,7 @@ class Invoke(object):
         parent.add(invoke_sub)
 
 
-class InvokeSchedule(Schedule):
+class InvokeSchedule(Routine):
     '''
     Stores schedule information for an invocation call. Schedules can be
     optimised using transformations.
@@ -792,7 +801,7 @@ class InvokeSchedule(Schedule):
 
     def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None):
-        super(InvokeSchedule, self).__init__()
+        super(InvokeSchedule, self).__init__('name')
 
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
@@ -2763,6 +2772,34 @@ class CodedKern(Kern):
         return (self.coloured_name(colour) + " " + self.name + "(" +
                 self.arguments.names + ") " + "[module_inline=" +
                 str(self._module_inline) + "]")
+
+    def lower_to_core_psyir(self):
+        from psyclone.psyir.nodes import Call, Reference
+        from psyclone.psyir.symbols import RoutineSymbol, ContainerSymbol
+
+        # If the kernel has been transformed then we rename it. If it
+        # is *not* being module inlined then we also write it to file.
+        # self.rename_and_write()
+
+        symtab = self.scope.symbol_table
+        rsymbol = RoutineSymbol(self._name)
+        symtab.add(rsymbol)
+        call_node = Call(rsymbol)
+
+        # Swap itself with the appropriate Call node
+        index = self.parent.children.index(self)
+        self.parent.children[index] = call_node
+        call_node.parent = self.parent
+
+        # Add arguments as children
+        for argument in self.arguments.raw_arg_list():
+            argument = argument.split('%')[0]
+            argument_symbol = symtab.lookup(argument)
+            call_node.addchild(Reference(argument_symbol))
+
+        if not self.module_inline:
+            csymbol = ContainerSymbol(self._module_name)
+            symtab.add(csymbol)
 
     def gen_code(self, parent):
         '''
