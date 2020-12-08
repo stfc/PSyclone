@@ -67,7 +67,8 @@ jobs:
         # Some of the examples use Jupyter
         pip install jupyter
         # Install the version of fparser pointed to by the submodule
-        pip install external/fparser
+        # instead of the released version (from pypi).
+        # pip install external/fparser
         pip install .
     - name: Lint with flake8
       run: |
