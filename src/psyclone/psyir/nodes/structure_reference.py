@@ -46,17 +46,18 @@ from psyclone.psyir.nodes.array_structure_member_reference import \
 from psyclone.psyir.nodes.structure_member_reference import \
     StructureMemberReference
 from psyclone.psyir.symbols import DataSymbol, TypeSymbol, StructureType, \
-    ScalarType, ArrayType
-from psyclone.errors import GenerationError
+    ScalarType, ArrayType, DeferredType
 
 
 class StructureReference(Reference):
     '''
-    Node representing a reference to a structure (derived type).
+    Node representing a reference to a structure (derived type). As such
+    it may only have a maximum of one child (representing a reference to a
+    component of the structure).
 
     '''
     # Textual description of the node.
-    _children_valid_format = "[MemberReference]"
+    _children_valid_format = "MemberReference"
     _text_name = "StructureReference"
 
     @staticmethod
@@ -71,7 +72,9 @@ class StructureReference(Reference):
 
         '''
         # pylint: disable=unused-argument
-        return isinstance(child, (MemberReference))
+        if position == 0:
+            return isinstance(child, (MemberReference))
+        return False
 
     @staticmethod
     def create(symbol, members, parent=None):
@@ -90,48 +93,58 @@ class StructureReference(Reference):
         :param parent: the parent of this node in the PSyIR.
         :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: an StructureReference instance.
+        :returns: a StructureReference instance.
         :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
 
-        :raises GenerationError: if the arguments to the create method \
-            are not of the expected type.
+        :raises TypeError: if the arguments to the create method are not of \
+            the expected type.
 
         '''
         if not isinstance(symbol, DataSymbol):
-            raise GenerationError(
-                "symbol argument in StructureMethod.create method "
+            raise TypeError(
+                "The 'symbol' argument to StructureReference.create() "
                 "should be a DataSymbol but found '{0}'.".format(
                     type(symbol).__name__))
-#        if not isinstance(children, list):
-#            raise GenerationError(
-#                "children argument in create method of ArrayReference class "
-#                "should be a list but found '{0}'."
-#                "".format(type(children).__name__))
-#        if not symbol.is_array:
-#            raise GenerationError(
-#                "expecting the symbol to be an array, not a scalar.")
+        if not isinstance(symbol.datatype, (StructureType,
+                                            TypeSymbol,
+                                            DeferredType)):
+            raise TypeError(
+                "A StructureReference must refer to a symbol that is (or "
+                "could be) a structure, however symbol '{0}' has type "
+                "'{1}'.".format(symbol.name, symbol.datatype))
+        if not isinstance(members, list):
+            raise TypeError(
+                "The 'members' argument to StructureReference.create() "
+                "should be a list but found '{0}'."
+                "".format(type(members).__name__))
 
+        # Create the base reference to the symbol that is a structure
         ref = StructureReference(symbol, parent=parent)
         current = ref
 
         if isinstance(ref.symbol.datatype, TypeSymbol):
             dtype = ref.symbol.datatype.datatype
-        elif (isinstance(ref.symbol.datatype, ArrayType) and
-              isinstance(ref.symbol.datatype.intrinsic, TypeSymbol)):
-            dtype = ref.symbol.datatype.intrinsic.datatype
         else:
+            # Currently we only support references to symbols with fully-
+            # specified type information.
+            # TODO #363 support deferred/incomplete types
             raise NotImplementedError(
-                "Base symbol must have a TypeSymbol as its type")
+                "The symbol being referenced must have a TypeSymbol as its "
+                "type but '{0}' has type '{1}'".format(symbol.name,
+                                                       symbol.datatype))
 
         if not isinstance(dtype, StructureType):
+            # TODO #363 support deferred/incomplete types
             raise NotImplementedError(
-                "TypeSymbol for Base symbol must have a StructureType defined")
+                "The TypeSymbol '{0}' for symbol '{1}' must have a defined "
+                "StructureType but found '{2}'".format(
+                    ref.symbol.datatype.name, symbol.name, dtype))
 
         for component in members:
             if isinstance(component, tuple):
                 member = component[0]
                 children = component[1]
-            else:
+            elif isinstance(component, str):
                 member = component
                 children = None
             target_dtype = dtype.components[member].datatype
