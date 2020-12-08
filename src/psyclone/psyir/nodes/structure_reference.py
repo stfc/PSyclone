@@ -47,6 +47,7 @@ from psyclone.psyir.nodes.structure_member_reference import \
     StructureMemberReference
 from psyclone.psyir.symbols import DataSymbol, TypeSymbol, StructureType, \
     ScalarType, ArrayType, DeferredType
+from psyclone.errors import GenerationError
 
 
 class StructureReference(Reference):
@@ -140,31 +141,45 @@ class StructureReference(Reference):
                 "StructureType but found '{2}'".format(
                     ref.symbol.datatype.name, symbol.name, dtype))
 
+        # We now make our way along the list of components that makes up
+        # the full reference.
         for component in members:
             if isinstance(component, tuple):
-                member = component[0]
+                member_name = component[0]
                 children = component[1]
             elif isinstance(component, str):
-                member = component
+                member_name = component
                 children = None
-            target_dtype = dtype.components[member].datatype
+            else:
+                raise TypeError(
+                    "The list of 'members' passed to StructureType.create() "
+                    "must consist of either 'str' or 2-tuple entries but "
+                    "found '{0}' while attempting to create reference to "
+                    "symbol '{1}'".format(type(component).__name__,
+                                          symbol.name))
+            if member_name not in dtype.components:
+                raise GenerationError(
+                    "The type definition for symbol '{0}' does not contain a "
+                    "member named '{1}'".format(symbol.name, member_name))
+
+            target_dtype = dtype.components[member_name].datatype
             if isinstance(target_dtype, TypeSymbol):
                 # This member is also a derived type
                 subref = StructureMemberReference(dtype,
-                                                  member,
+                                                  member_name,
                                                   parent=current)
             elif isinstance(target_dtype, ArrayType):
                 if isinstance(target_dtype.intrinsic, TypeSymbol):
                     # Array of derived types
                     subref = ArrayStructureMemberReference.create(
-                        dtype, member, parent=current, indices=children)
+                        dtype, member_name, parent=current, indices=children)
                 else:
                     # Array of intrinsic quantities
                     subref = ArrayMemberReference.create(
-                        dtype, member, parent=current, indices=children)
+                        dtype, member_name, parent=current, indices=children)
             elif isinstance(target_dtype, ScalarType):
                 # A scalar member
-                subref = MemberReference(dtype, member, parent=current)
+                subref = MemberReference(dtype, member_name, parent=current)
             else:
                 raise NotImplementedError("Datatype: {0}", type(target_dtype))
 

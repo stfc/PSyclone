@@ -92,6 +92,21 @@ def test_struc_ref_create_errors():
             symbols.DataSymbol("grid", tsymbol_unknown), ["missing"])
     assert ("TypeSymbol 'grid_type' for symbol 'grid' must have a defined "
             "StructureType" in str(err.value))
+    grid_type = symbols.StructureType.create([
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+    tsymbol_known = symbols.TypeSymbol("grid_type", grid_type)
+    with pytest.raises(TypeError) as err:
+        _ = nodes.StructureReference.create(
+            symbols.DataSymbol("grid", tsymbol_known), [1])
+    assert ("'members' passed to StructureType.create() must consist of "
+            "either 'str' or 2-tuple entries but found 'int' while "
+            "attempting to create reference to symbol 'grid'" in
+            str(err.value))
+    with pytest.raises(GenerationError) as err:
+        _ = nodes.StructureReference.create(
+            symbols.DataSymbol("grid", tsymbol_known), ["missing"])
+    assert ("The type definition for symbol 'grid' does not contain a "
+            "member named 'missing'" in str(err.value))
 
 
 def test_struc_ref_validate_child():
