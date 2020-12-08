@@ -40,6 +40,7 @@ import pytest
 from psyclone.errors import GenerationError
 from psyclone.psyir import symbols, nodes
 from psyclone.tests.utilities import check_links
+from psyclone.core.access_info import VariablesAccessInfo
 
 
 def test_struc_ref_create():
@@ -49,7 +50,11 @@ def test_struc_ref_create():
     region_type_symbol = symbols.TypeSymbol("region_type", region_type)
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("region", region_type_symbol, symbols.Symbol.Visibility.PRIVATE)])
+        ("region", region_type_symbol, symbols.Symbol.Visibility.PRIVATE),
+        ("sub_grids", symbols.ArrayType(region_type_symbol, [3]),
+         symbols.Symbol.Visibility.PUBLIC),
+        ("data", symbols.ArrayType(symbols.REAL_TYPE, [10, 10]),
+         symbols.Symbol.Visibility.PUBLIC)])
     grid_type_symbol = symbols.TypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
@@ -63,6 +68,27 @@ def test_struc_ref_create():
     assert rref.children[0].name == "region"
     assert rref.children[0].children[0].name == "startx"
     check_links(rref.children[0], rref.children[0].children)
+    # Reference to an element of an array member of the structure
+    aref = nodes.StructureReference.create(
+        ssym,
+        [("data", [nodes.Literal("1", symbols.INTEGER_TYPE),
+                   nodes.Literal("5", symbols.INTEGER_TYPE)])])
+    assert isinstance(aref.children[0], nodes.ArrayMemberReference)
+    assert aref.children[0].name == "data"
+    assert isinstance(aref.children[0].children[1], nodes.Literal)
+    assert aref.children[0].children[1].value == "5"
+    check_links(aref, aref.children)
+    check_links(aref.children[0], aref.children[0].children)
+    # Reference to a scalar member of an element of an array of structures
+    # contained in a structure
+    dref = nodes.StructureReference.create(
+        ssym,
+        [("sub_grids", [nodes.Literal("2", symbols.INTEGER_TYPE)]), "startx"])
+    assert isinstance(dref.children[0], nodes.ArrayStructureMemberReference)
+    assert isinstance(dref.children[0].children[0], nodes.MemberReference)
+    assert isinstance(dref.children[0].children[1], nodes.Literal)
+    check_links(dref, dref.children)
+    check_links(dref.children[0], dref.children[0].children)
 
 
 def test_struc_ref_create_errors():
@@ -107,6 +133,14 @@ def test_struc_ref_create_errors():
             symbols.DataSymbol("grid", tsymbol_known), ["missing"])
     assert ("The type definition for symbol 'grid' does not contain a "
             "member named 'missing'" in str(err.value))
+    # Reference to a member of a struct that does not have a supported type
+    grid_type = symbols.StructureType.create([
+        ("nx", symbols.DeferredType(), symbols.Symbol.Visibility.PUBLIC)])
+    tsymbol_known = symbols.TypeSymbol("grid_type", grid_type)
+    with pytest.raises(NotImplementedError) as err:
+        _ = nodes.StructureReference.create(
+            symbols.DataSymbol("grid", tsymbol_known), ["nx"])
+    assert "member 'nx' of 'grid' is of type 'DeferredType'" in str(err.value)
 
 
 def test_struc_ref_validate_child():
@@ -127,3 +161,29 @@ def test_struc_ref_validate_child():
         sref.children[0] = "wrong"
     assert ("Item 'str' can't be child 0 of 'StructureReference'" in
             str(err.value))
+
+
+def test_struc_ref_str():
+    ''' Test the __str__ method of StructureReference. '''
+    grid_type = symbols.StructureType.create([
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+    grid_type_symbol = symbols.TypeSymbol("grid_type", grid_type)
+    ssym = symbols.DataSymbol("grid", grid_type_symbol)
+    # Reference to scalar member of structure
+    sref = nodes.StructureReference.create(ssym, ["nx"])
+    assert (str(sref) == "StructureReference[name:'grid']\n"
+            "MemberReference[name:'nx']\n")
+
+
+def test_reference_accesses():
+    ''' Test that the reference_accesses method raises a
+    NotImplementedError. This will be addressed by #1028. '''
+    var_access_info = VariablesAccessInfo()
+    dref = nodes.StructureReference(
+        symbols.DataSymbol(
+            "grid",
+            symbols.TypeSymbol("grid_type", symbols.DeferredType())))
+    with pytest.raises(NotImplementedError) as err:
+        dref.reference_accesses(var_access_info)
+    assert ("Dependency analysis has not yet been implemented for "
+            "Structures." in str(err.value))

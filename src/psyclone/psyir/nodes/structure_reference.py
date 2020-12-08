@@ -142,7 +142,8 @@ class StructureReference(Reference):
                     ref.symbol.datatype.name, symbol.name, dtype))
 
         # We now make our way along the list of components that makes up
-        # the full reference.
+        # the full reference. For each entry in this list we go down another
+        # level in the PSyIR tree.
         for component in members:
             if isinstance(component, tuple):
                 member_name = component[0]
@@ -164,13 +165,13 @@ class StructureReference(Reference):
 
             target_dtype = dtype.components[member_name].datatype
             if isinstance(target_dtype, TypeSymbol):
-                # This member is also a derived type
+                # This member is also a structure
                 subref = StructureMemberReference(dtype,
                                                   member_name,
                                                   parent=current)
             elif isinstance(target_dtype, ArrayType):
                 if isinstance(target_dtype.intrinsic, TypeSymbol):
-                    # Array of derived types
+                    # Array of structures
                     subref = ArrayStructureMemberReference.create(
                         dtype, member_name, parent=current, indices=children)
                 else:
@@ -181,9 +182,15 @@ class StructureReference(Reference):
                 # A scalar member
                 subref = MemberReference(dtype, member_name, parent=current)
             else:
-                raise NotImplementedError("Datatype: {0}", type(target_dtype))
+                raise NotImplementedError(
+                    "Structure members must have a type given by a TypeSymbol "
+                    "or be of type ArrayType or ScalarType. However, member "
+                    "'{0}' of '{1}' is of type '{2}'".format(
+                        member_name, current.name, target_dtype))
 
-            # The reference to a sub-component is stored as the first child
+            # The reference to a sub-component is stored as the first child.
+            # If the current node is an ArrayNode then it will already have
+            # a list of children, otherwise it won't.
             if isinstance(current, ArrayNode):
                 current.children[0] = subref
             else:
@@ -202,8 +209,7 @@ class StructureReference(Reference):
         return ref
 
     def __str__(self):
-        result = ("StructureReference" +
-                  super(StructureReference, self).__str__() + "\n")
+        result = super(StructureReference, self).__str__() + "\n"
         for entity in self._children:
             result += str(entity) + "\n"
         return result
@@ -215,24 +221,13 @@ class StructureReference(Reference):
         :param var_accesses: variable access information.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        :raises NotImplementedError: TODO #1028 dependency analysis for \
+            structures needs to be implemented.
+
         '''
-
-        # This will set the array-name as READ
-        super(StructureReference, self).reference_accesses(var_accesses)
-
-        # Now add all children: Note that the class Reference
-        # does not recurse to the children (which store the indices), so at
-        # this stage no index information has been stored:
-        list_indices = []
-        for child in self._children:
-            child.reference_accesses(var_accesses)
-            list_indices.append(child)
-
-        if list_indices:
-            var_info = var_accesses[self.name]
-            # The last entry in all_accesses is the one added above
-            # in super(ArrayReference...). Add the indices to that entry.
-            var_info.all_accesses[-1].indices = list_indices
+        raise NotImplementedError(
+            "Dependency analysis has not yet been implemented for Structures.")
 
 
 # For AutoAPI documentation generation
