@@ -40,7 +40,7 @@ GENERATED_FILES += dag.png dag.svg dag
 
 .PHONY:  serial dm openmp hybrid reprod
 
-test: serial dm openmp hybrid reprod
+transform: serial dm openmp hybrid reprod
 
 serial:
 	${PSYCLONE} -nodm alg.x90
@@ -57,10 +57,8 @@ hybrid:
 reprod:
 	${PSYCLONE} -s ./omp_reprod_script.py alg.x90
 
-compile: test
+compile: transform
 	@echo "No compilation supported for lfric/eg6"
 
 run: compile
 	@echo "No run targets for lfric/eg6"
-
-all: compile

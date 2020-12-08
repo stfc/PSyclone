@@ -40,14 +40,12 @@
 # 'run', clean' and 'allclean' targets for directories listed in EXAMPLES.
 # All an including Makefile needs to do is set EXAMPLES appropriately.
 
-all_EXAMPLES=$(addprefix all_,$(EXAMPLES))
 compile_EXAMPLES=$(addprefix compile_,$(EXAMPLES))
 notebook_EXAMPLES=$(addprefix notebook_,$(EXAMPLES))
 clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
 allclean_EXAMPLES=$(addprefix allclean_,$(EXAMPLES))
 
 transform: ${EXAMPLES}
-all: ${all_EXAMPLES}
 compile: ${compile_EXAMPLES}
 notebook: ${notebook_EXAMPLES}
 clean: ${clean_EXAMPLES}
@@ -58,9 +56,6 @@ allclean: ${allclean_EXAMPLES}
 
 $(EXAMPLES):
 	${MAKE} -C $@ test
-
-$(all_EXAMPLES):
-	${MAKE} -C $(patsubst all_%,%,$@) all
 
 $(compile_EXAMPLES):
 	${MAKE} -C $(patsubst compile_%,%,$@) compile

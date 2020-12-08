@@ -59,7 +59,7 @@ F90FLAGS += -I$(LFRIC_PATH)
 run: compile
 	./example
 
-compile: $(EXEC)
+compile: transform $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
@@ -83,7 +83,7 @@ testkern_w0_mod.o: $(LFRIC_LIB)
 
 main_alg.f90: main_psy.f90
 
-test: main_psy.f90
+transform: main_psy.f90
 
 %_psy.f90:	%.x90
 	${PSYCLONE} -opsy $*_psy.f90 -oalg $*_alg.f90 $<

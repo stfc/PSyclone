@@ -36,13 +36,11 @@
 
 include ../../common.mk
 
-test:
+transform:
 	${PSYCLONE} intergrid_3levels.x90
 
-compile: test
+compile: transform
 	@echo "No compilation supported for lfric/eg10"
 
 run: compile
 	@echo "No run targets for lfric/eg10"
-
-all: compile

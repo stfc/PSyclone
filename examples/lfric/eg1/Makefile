@@ -39,7 +39,7 @@ include ../../common.mk
 .PHONY: vanilla openmp
 
 
-test: vanilla openmp
+transform: vanilla openmp
 
 vanilla:
 	${PYTHON} ./runme.py
@@ -47,11 +47,8 @@ vanilla:
 openmp:
 	${PYTHON} ./runme_openmp.py
 
-compile: test
+compile: transform
 	@echo "No compilation supported for lfric/eg1"
 
 run: compile
 	@echo "No run targets for lfric/eg1"
-
-all: compile
-

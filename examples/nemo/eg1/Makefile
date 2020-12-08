@@ -36,13 +36,11 @@
 
 include ../../common.mk
 
-test:
+transform:
 	./runme_openmp.py
 
-compile: test
+compile: transform
 	@echo "No compilation supported for nemo/eg1"
 
 run: compile
 	@echo "No run targets for nemo/eg1"
-
-all: test

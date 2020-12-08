@@ -58,9 +58,9 @@ LFRIC_LIB=$(LFRIC_DIR)/lib$(LFRIC_NAME).a
 
 F90FLAGS += -I$(LFRIC_DIR) -I$(EXTRACT_DIR)
 
-test: main_psy.f90 main_alg.f90
+transform: main_psy.f90 main_alg.f90
 
-compile: test $(EXEC)
+compile: transform $(EXEC)
 
 run: compile
 	./extract

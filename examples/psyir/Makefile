@@ -39,8 +39,9 @@ transform:
 	${PYTHON} create.py
 	${PYTHON} create_aggregate_types.py
 
-all: transform
-
 compile:
 	@echo "No compilation supported for the PSyIR creation examples"
+
+run: compile
+	@echo "No run targets for PSyIR creation examples"
 

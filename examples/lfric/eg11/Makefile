@@ -36,13 +36,11 @@
 
 include ../../common.mk
 
-test:
+transform:
 	${PSYCLONE} -s ./async_script.py helmholtz_solver_alg_mod.x90
 
-compile: test
+compile: transform
 	@echo "No compilation supported for lfric/eg11"
 
 run: compile
 	@echo "No run targets for lfric/eg11"
-
-all: compile

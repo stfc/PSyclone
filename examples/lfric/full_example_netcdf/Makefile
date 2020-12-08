@@ -60,8 +60,9 @@ F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
 run: compile
 	./example
 
-compile: test $(EXEC)
-test: main_psy.f90
+compile: transform $(EXEC)
+
+transform: main_psy.f90
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) $$(nf-config --flibs)

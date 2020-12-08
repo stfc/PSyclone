@@ -32,12 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
 .PHONY: vanilla openmp loopfuse
 
-test: vanilla openmp loopfuse
+transform: vanilla openmp loopfuse
 
 vanilla:
 	${PYTHON} ./runme.py
@@ -48,10 +49,8 @@ openmp:
 loopfuse:
 	${PYTHON} ./runme_loop_fuse.py
 
-compile: test
+compile: transform
 	@echo "No compilation supported for lfric/eg2"
 
 run: compile
 	@echo "No run targets for lfric/eg2"
-
-all: compile

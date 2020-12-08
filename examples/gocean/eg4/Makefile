@@ -40,9 +40,7 @@ GENERATED_FILES += kern_use_var_*.cl
 
 .PHONY: basic opencl others
 
-all: test
-
-test: basic opencl others
+transform: basic opencl others
 
 basic:
 	${PSYCLONE} -api "gocean1.0" alg_kern_use_var.f90
@@ -58,7 +56,7 @@ others:
 	#${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_call_kern.f90
 	#${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_nested_use.f90
 
-compile: test
+compile: transform
 	@echo "No compilation targets for example gocean/eg4"
 
 run: compile

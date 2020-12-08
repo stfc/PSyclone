@@ -46,10 +46,8 @@ vanilla:
 redundant:
 	${PSYCLONE} -s ./redundant_script.py helmholtz_solver_alg_mod.x90
 
-compile: test
+compile: transform
 	@echo "No compilation supported for lfric/eg8"
 
 run: compile
 	@echo "No run targets for lfric/eg8"
-
-all: compile

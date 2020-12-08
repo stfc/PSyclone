@@ -38,7 +38,7 @@ include ../../common.mk
 
 .PHONY: serial dm
 
-test: serial dm
+transform: serial dm
 
 serial:
 	${PSYCLONE} -nodm solver_mod.x90
@@ -46,10 +46,8 @@ serial:
 dm:
 	${PSYCLONE} solver_mod.x90
 
-compile: test
+compile: transform
 	@echo "No compilation supported for lfric/eg4"
 
 run: compile
 	@echo "No run targets for lfric/eg4"
-
-all: compile

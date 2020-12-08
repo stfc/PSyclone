@@ -73,7 +73,7 @@ dl_timer:
 	${MAKE} -C ${DL_TIMER_ROOT} F90="${F90}" F90FLAGS="${F90FLAGS}" \
    LDFLAGS="${LDFLAGS}" sm_lib
 
-test: kernels managed_mem
+transform: kernels managed_mem
 
 # Need `-l all` to ensure line-lengths in generated code are less than the
 # standard-mandated 132 chars
@@ -90,8 +90,6 @@ psy.f90: kernels
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -I${TIMER_INC} -c $<
-
-all: test compile
 
 allclean: clean
 	# Only clean DL_TIMER if it actually exists

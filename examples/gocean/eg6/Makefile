@@ -45,10 +45,6 @@
 
 include ../../common.mk
 
-# Reset the default goal to be 'compile', i.e. to include compilation
-.DEFAULT_GOAL:=
-default: compile
-
 GENERATED_FILES += *.o *.mod $(NAME) $(DRIVER_INIT) $(DRIVER_INIT).f90 \
 		  $(DRIVER_UPDATE) $(DRIVER_UPDATE).f90 alg.f90 psy.f90
 
@@ -68,16 +64,14 @@ NAME = extract_test
 
 .PHONY: default
 
-all: run
-
 run: compile
 	./extract_test
 	@echo "TODO the driver cannot be testet yet because of #644"
 
-compile: test $(NAME)
+compile: transform $(NAME)
 	@echo "TODO the driver does not yet compile because of #644"
 
-test: psy.f90
+transform: psy.f90
 
 # The name of the stand-alone driver that will do the init invokes.
 DRIVER_INIT = driver-main-init

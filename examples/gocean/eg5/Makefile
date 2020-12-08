@@ -62,12 +62,12 @@ KERNELS = init_field_mod.o update_field_mod.o
 # The name of the executable
 NAME=profile_test
 
-.PHONY: default template simple_timing drhook dl_timer
+.PHONY: all template simple_timing drhook dl_timer
 
 run: compile
 	./profile_test.template
 
-test: psy.f90
+transform: psy.f90
 
 compile: template
 all: template simple_timing drhook dl_timer

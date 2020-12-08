@@ -38,7 +38,7 @@ include ../../common.mk
 
 .PHONY: vanilla openmp
 
-test: vanilla openmp
+transform: vanilla openmp
 
 vanilla:
 	${PSYCLONE} advective_inc_alg_mod.x90
@@ -46,10 +46,8 @@ vanilla:
 openmp:
 	${PSYCLONE} -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90
 
-compile: test
+compile: transform
 	@echo "No compilation supported for lfric/eg9"
 
 run: compile
 	@echo "No run targets for lfric/eg9"
-
-all: compile

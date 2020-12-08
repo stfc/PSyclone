@@ -44,10 +44,6 @@
 
 include ../../common.mk
 
-# Reset the default goal to be 'compile', i.e. to include compilation
-.DEFAULT_GOAL:=
-default: compile
-
 GENERATED_FILES += *.o *.mod read_only_test alg.f90 psy.f90
 
 # Location of the infrastucture code (which is a submodule of the
@@ -66,17 +62,17 @@ KERNELS = init_field_mod.o update_field_mod.o
 # The name of the executable
 NAME = read_only_test
 
-.PHONY: default $(READ_ONLY_DIR)/$(LIB_NAME) $(INF_LIB)
+#.PHONY: $(READ_ONLY_DIR)/$(LIB_NAME) $(INF_LIB)
 
-all: test compile
-compile: test $(NAME)
+compile: transform $(NAME)
+
 run: compile
 	./read_only_test 2>&1 | \
 		grep "Double precision field b_fld has been modified in main : update"
 
-alg.f90 psy.f90: test
+alg.f90 psy.f90: transform
 
-test: test.x90 read_only_transform.py
+transform: test.x90 read_only_transform.py
 	${PSYCLONE} -nodm -api "gocean1.0" -s ./read_only_transform.py \
 				-opsy psy.f90 -oalg alg.f90 test.x90
 

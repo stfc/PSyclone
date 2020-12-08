@@ -41,9 +41,9 @@ ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
 .PHONY: basic openmp mpi loop_fuse dag openacc opencl
 
-test: basic openmp mpi loop_fuse dag openacc opencl
+transform: basic openmp mpi loop_fuse dag openacc opencl
 
-compile: test
+compile: transform
 	@echo "No compilation targets for example gocean/eg1"
 
 run: compile

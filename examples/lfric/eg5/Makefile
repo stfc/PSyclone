@@ -36,13 +36,11 @@
 
 include ../../common.mk
 
-test:
+transform:
 	${PSYCLONE} alg.f90
 
-compile: test
+compile: transform
 	@echo "No compilation supported for lfric/eg5"
 
 run: compile
 	@echo "No run targets for lfric/eg5"
-
-all: compile

@@ -36,7 +36,7 @@
 
 include ../../common.mk
 
-test: basic omp_levels
+transform: basic omp_levels
 .PHONY: basic omp_levels
 
 basic:
@@ -45,10 +45,8 @@ basic:
 omp_levels:
 	${PSYCLONE} -api "nemo" -s ./omp_levels_trans.py ../code/traldf_iso.F90
 
-compile: test
+compile: transform
 	@echo "No compilation supported for nemo/eg2"
 
 run: compile
 	@echo "No run targets for nemo/eg2"
-
-all: test

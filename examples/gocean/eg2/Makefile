@@ -72,8 +72,6 @@ NVTX_LINK = -L${NVTX_DIR} -lnvToolsExt
 
 .PHONY: kernels profile
 
-all: test compile profile
-
 compile: single.exe
 
 run: compile
@@ -85,7 +83,7 @@ run: compile
 profile: single_prof.exe
 
 # Perform the PSyclone transformations only
-test: psy.f90 alg_gen.f90 psy_prof.f90 alg_prof.f90
+transform: psy.f90 alg_gen.f90 psy_prof.f90 alg_prof.f90
 
 # The dl_esm_inf library
 ${INF_LIB}:
