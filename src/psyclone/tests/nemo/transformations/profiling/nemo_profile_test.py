@@ -612,7 +612,8 @@ def test_profile_nemo_openmp(parser):
     Profiler.set_options([Profiler.KERNELS])
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
-                                      "integer :: jpi, jpj, ji, jj\n"
+                                      "integer, parameter :: jpi=5, jpj=5\n"
+                                      "integer :: ji, jj\n"
                                       "real :: sto_tmp(jpi,jpj)\n"
                                       "do jj = 1, jpj\n"
                                       "  do ji = 1,jpi\n"
@@ -639,7 +640,8 @@ def test_profile_nemo_no_acc_kernels(parser):
     Profiler.set_options([Profiler.KERNELS])
     psy, schedule = get_nemo_schedule(parser,
                                       "program do_loop\n"
-                                      "integer :: jpi, jpj, ji, jj\n"
+                                      "integer, parameter :: jpi=5, jpj=5\n"
+                                      "integer :: ji, jj\n"
                                       "real :: sto_tmp(jpi,jpj)\n"
                                       "do jj = 1, jpj\n"
                                       "  do ji = 1,jpi\n"
