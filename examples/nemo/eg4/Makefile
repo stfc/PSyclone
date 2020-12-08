@@ -45,7 +45,7 @@ FORTRAN_FILES = tridiagonal_solve.f90 if_example.f90
 
 .PHONY: ${FORTRAN_FILES} intrinsic
 
-transform: ${FORTRAN_FILES} intrinsic
+test: ${FORTRAN_FILES} intrinsic
 	@echo "nemo/eg4: TODO #714: Skipping copy_stencil.f90 and hori_diff.f90"
 
 ${FORTRAN_FILES}:
@@ -57,7 +57,10 @@ intrinsic:
   -opsy /dev/null
 
 # We don't do any compilation for this example
-compile:
+compile: test
 	@echo "No compilation supported for nemo/eg4"
 
-all: transform compile
+run: compile
+	@echo "No run targets for nemo/eg4"
+
+all: compile

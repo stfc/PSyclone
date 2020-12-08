@@ -32,10 +32,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
-transform: basic omp_levels
+test: basic omp_levels
+.PHONY: basic omp_levels
 
 basic:
 	./runme_openmp.py
@@ -43,7 +45,10 @@ basic:
 omp_levels:
 	${PSYCLONE} -api "nemo" -s ./omp_levels_trans.py ../code/traldf_iso.F90
 
-compile:
+compile: test
 	@echo "No compilation supported for nemo/eg2"
 
-all: transform compile
+run: compile
+	@echo "No run targets for nemo/eg2"
+
+all: test

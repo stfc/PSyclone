@@ -32,13 +32,17 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
-transform:
+test:
 	./runme_openmp.py
 
-compile:
+compile: test
 	@echo "No compilation supported for nemo/eg1"
 
-all: transform compile
+run: compile
+	@echo "No run targets for nemo/eg1"
+
+all: test

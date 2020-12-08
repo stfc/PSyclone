@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 
 # Makefile for the 3rd NEMO example. Uses PSyclone (which must
 # be installed) to generate Fortran with OpenACC directives for
@@ -62,6 +63,9 @@ TIMER_LIB = ${DL_TIMER_ROOT}/libdl_timer_omp.a
 # Compilation requires that dl_timer be installed
 compile: traadv.exe
 
+run: compile
+	 IT=2 JPI=10 JPJ=10 JPK=5  ./traadv.exe
+
 traadv.exe: dl_timer psy.o
 	${F90} ${LDFLAGS} psy.o ${TIMER_LIB} -o traadv.exe
 
@@ -69,7 +73,7 @@ dl_timer:
 	${MAKE} -C ${DL_TIMER_ROOT} F90="${F90}" F90FLAGS="${F90FLAGS}" \
    LDFLAGS="${LDFLAGS}" sm_lib
 
-transform: kernels managed_mem
+test: kernels managed_mem
 
 # Need `-l all` to ensure line-lengths in generated code are less than the
 # standard-mandated 132 chars
@@ -87,7 +91,7 @@ psy.f90: kernels
 %.o: %.f90
 	$(F90) $(F90FLAGS) -I${TIMER_INC} -c $<
 
-all: transform compile
+all: test compile
 
 allclean: clean
 	# Only clean DL_TIMER if it actually exists
