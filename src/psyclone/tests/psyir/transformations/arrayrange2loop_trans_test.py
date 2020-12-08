@@ -546,7 +546,7 @@ def test_validate():
         "supplied Assignment node should be a PSyIR ArrayReference with at "
         "least one "
         "of its dimensions being a Range, but found None in "
-        "'ArrayReferenceArrayReference[name:'x']\\nLiteral[value:'1', "
+        "'ArrayReference[name:'x']\\nLiteral[value:'1', "
         "Scalar<INTEGER, UNDEFINED>]\\nLiteral[value:'1', Scalar<INTEGER, "
         "UNDEFINED>]\\n'." in str(info.value))
 
@@ -563,8 +563,8 @@ def test_validate():
         "are known to be the same as each other but array access 'x' "
         "dimension 0 and 'x' dimension 0 are either different or can't be "
         "determined in the assignment 'Assignment[]\\n"
-        "ArrayReferenceArrayReference[name:'x']\\nRange[]\\n"
-        "ArrayReferenceArrayReference[name:'x']\\nRange[]\\n'."
+        "ArrayReference[name:'x']\\nRange[]\\n"
+        "ArrayReference[name:'x']\\nRange[]\\n'."
         in str(info.value))
 
 
@@ -588,7 +588,7 @@ def test_validate_intrinsic():
     assert (
         "Error in ArrayRange2LoopTrans transformation. The rhs of the "
         "supplied Assignment node 'BinaryOperation[operator:'MATMUL']\\n"
-        "ArrayReferenceArrayReference[name:'y2']\\nRange[]\\nRange[]\\n\\n"
-        "ArrayReferenceArrayReference[name:'x']\\nRange[]\\n' contains the "
+        "ArrayReference[name:'y2']\\nRange[]\\nRange[]\\n\\n"
+        "ArrayReference[name:'x']\\nRange[]\\n' contains the "
         "MATMUL operator which can't be performed elementwise." in
         str(info.value))

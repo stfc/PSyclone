@@ -49,8 +49,8 @@ from psyclone.psyir.nodes import BinaryOperation, Literal
 
 class ArrayReference(Reference):
     '''
-    Node representing an Array reference. As such it has a reference and a
-    subscript list as children 0 and 1, respectively.
+    Node representing a reference to an element or elements of an Array.
+    The array-index expressions are stored as the children of this node.
 
     '''
     # Textual description of the node.
@@ -115,8 +115,7 @@ class ArrayReference(Reference):
         return array
 
     def __str__(self):
-        result = ("ArrayReference" + super(ArrayReference, self).__str__() +
-                  "\n")
+        result = super(ArrayReference, self).__str__() + "\n"
         for entity in self._children:
             result += str(entity) + "\n"
         return result

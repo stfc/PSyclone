@@ -40,6 +40,7 @@
 
 from __future__ import absolute_import
 import pytest
+from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
     Literal, BinaryOperation, Range, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, ArrayType, \
@@ -51,7 +52,6 @@ from psyclone.tests.utilities import check_links
 
 def test_array_node_str():
     ''' Check the node_str method of the ArrayReference class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
     array_type = ArrayType(INTEGER_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("aname", array_type)
