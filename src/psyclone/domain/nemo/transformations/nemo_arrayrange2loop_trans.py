@@ -44,72 +44,95 @@ import six
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.errors import InternalError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-from psyclone.psyir.nodes import Loop, Range, Reference, Array, Assignment, \
-    Node, Operation, BinaryOperation, Literal
+from psyclone.psyir.nodes import Range, Reference, Array, Assignment, \
+    Literal
 from psyclone.nemo import NemoLoop, NemoKern
-from psyclone.psyir.transformations import ArrayRange2LoopTrans
 from psyclone.configuration import Config
 
 
-class NemoArrayRange2LoopTrans(ArrayRange2LoopTrans):
+class NemoArrayRange2LoopTrans(Transformation):
     '''Provides a transformation from a PSyIR Array Range to a PSyIR
     NemoLoop. For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "nemo"
-    >>> filename = "tra_adv_compute.F90"
-    >>> ast, invoke_info = parse(filename, api=api)
-    >>> psy = PSyFactory(api).create(invoke_info)
-    >>> schedule = psy.invokes.invoke_list[0].schedule
-    >>>
-    >>> from psyclone.psyir.nodes import Assignment
-    >>> from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
-    >>> from psyclone.errors import TransformationError
-    >>>
-    >>> schedule.view()
+    >>> schedule = ...
+    >>> range_node = ...
+    >>> from psyclone.domain.nemo.transformations import \
+    >>>     NemoArrayRange2LoopTrans
     >>> trans = NemoArrayRange2LoopTrans()
-    >>> for assignment in schedule.walk(Assignment):
-    >>>     while True:
-    >>>         try:
-    >>>             trans.apply(assignment)
-    >>>         except TransformationError:
-    >>>             break
-    >>> schedule.view()
+    >>> trans.apply(range_node)
 
     '''
     def apply(self, node, options=None):
         '''Apply the NemoArrayRange2Loop transformation to the specified
-        node. The node must be an assignment. The rightmost range node
-        in each array within the assignment is replaced with a loop
-        index with the expected name for the particular loop dimension
-        within a NemoLoop iterating over that index. The bounds of the
-        loop are also determined by the expected bounds for the loop
-        dimension.
+        node. The node must be a Range node within an array reference
+        on the lhs of an assignment. If the bounds of the Range are
+        specified then these are used. If they are not specified then
+        the lbound and ubound intrinsics are used unless the config
+        file has specified bounds, in which case these are used.
 
-        :param node: an Assignment node.
-        :type node: :py:class:`psyclone.psyir.nodes.Assignment`
+        :param node: a Range node.
+        :type node: :py:class:`psyclone.psyir.nodes.Range`
 
         '''
-
         self.validate(node)
 
-        parent = node.parent
+        array_reference = node.parent
+        array_index = array_reference.children.index(node)
+        assignment = array_reference.parent
+        parent = assignment.parent
         symbol_table = node.scope.symbol_table
 
+        # See if there is any configuration information for this array index
         loop_type_order = Config.get().api_conf("nemo").get_index_order()
         loop_type_data = Config.get().api_conf("nemo").get_loop_type_data()
+        try:
+            loop_type = loop_type_order[array_index]
+            loop_type_info = loop_type_data[loop_type]
+            lower_bound_info = loop_type_info['start']
+            upper_bound_info = loop_type_info['stop']
+            loop_variable_name = loop_type_info['var']
+        except IndexError:
+            lower_bound_info = None
+            upper_bound_info = None
+            loop_variable_name = symbol_table.new_symbol_name("idx")
 
-        # Find the outermost dimension of the lhs array assignment
-        # that is a Range
-        loop_idx = _get_outer_index(node)
-        loop_type = loop_type_order[loop_idx]
-        loop_type_info = loop_type_data[loop_type]
-        lower_bound = loop_type_info['start']
-        upper_bound = loop_type_info['stop']
-        loop_variable_name = loop_type_info['var']
-        
+        # Lower bound
+        if not array_reference.is_lower_bound(array_index):
+            # The range specifies a lower bound so use it
+            lower_bound = node.start
+        elif lower_bound_info:
+            # The config metadata specifies a lower bound so use it
+            try:
+                _ = int(lower_bound_info)
+                lower_bound = Literal(lower_bound_info, INTEGER_TYPE)
+            except ValueError:
+                lower_bound = Reference(symbol_table.lookup(lower_bound_info))
+        else:
+            # The lower bound is not set or specified so use the
+            # LBOUND() intrinsic
+            lower_bound = node.start
+
+        # Upper bound
+        if not array_reference.is_upper_bound(array_index):
+            # The range specifies an upper bound so use it
+            upper_bound = node.start
+        elif upper_bound_info:
+            # The config metadata specifies an upper bound so use it
+            try:
+                _ = int(upper_bound_info)
+                upper_bound = Literal(upper_bound_info, INTEGER_TYPE)
+            except ValueError:
+                upper_bound = Reference(symbol_table.lookup(upper_bound_info))
+        else:
+            # The upper bound is not set or specified so use the
+            # UBOUND() intrinsic
+            upper_bound = node.stop
+
+        # Just use the specified step value
+        step = node.step
+
         # Look up the loop variable in the symbol table. If it does
         # not exist then create it.
         try:
@@ -119,47 +142,39 @@ class NemoArrayRange2LoopTrans(ArrayRange2LoopTrans):
             loop_variable_symbol = DataSymbol(loop_variable_name, INTEGER_TYPE)
             symbol_table.add(loop_variable_symbol)
 
-        try:
-            _ = int(lower_bound)
-            lower_bound_reference = Literal(lower_bound, INTEGER_TYPE)
-        except ValueError:
-            lower_bound_reference = Reference(symbol_table.lookup(lower_bound))
-        try:
-            _ = int(upper_bound)
-            upper_bound_reference = Literal(upper_bound, INTEGER_TYPE)
-        except ValueError:
-            upper_bound_reference = Reference(symbol_table.lookup(upper_bound))
-        
-        # Replace the loop_idx array dimension with the loop variable
-        # if it is a range.
-        for array in node.walk(Array):
-            if loop_idx<len(array.children):
-                if isinstance(array.children[loop_idx], Range):
-                    array.children[loop_idx] = Reference(loop_variable_symbol,
-                                                         parent=array)
-        position = node.position
-        loop = NemoLoop.create(loop_variable_symbol, lower_bound_reference,
-                               upper_bound_reference,
-                               Literal("1", INTEGER_TYPE), [node])
+        # Replace the loop_idx array dimension with the loop variable.
+        for array in assignment.walk(Array):
+            try:
+                idx = _get_outer_index(array)
+            except IndexError as info:
+                six.raise_from(InternalError(
+                    "The number of ranges in the arrays within this "
+                    "assignment are not equal. This is invalid PSyIR and "
+                    "should never happen."), info)
+            array.children[idx] = Reference(loop_variable_symbol, parent=array)
+        position = assignment.position
+        loop = NemoLoop.create(loop_variable_symbol, lower_bound,
+                               upper_bound, step, [assignment])
         parent.children[position] = loop
         loop.parent = parent
 
         try:
-            _ = _get_outer_index(node)
+            _ = _get_outer_index(array_reference)
         except IndexError:
             # All valid array ranges have been replaced with explicit
             # loops. We now need to take the content of the loop and
             # place it within a NemoKern (inlined kernel) node.
-            parent = node.parent
+            parent = assignment.parent
             # We do not provide the fparser2 ast of the code as we are
             # moving towards using visitors rather than gen_code when
             # outputting nemo api code
-            inlined_kernel = NemoKern([node], None, parent=parent)
+            inlined_kernel = NemoKern([assignment], None, parent=parent)
             parent.children = [inlined_kernel]
 
     def __str__(self):
-        return ("Convert a PSyIR assignment to an Array Range into a "
-                "PSyIR NemoLoop.")
+        return (
+            "Convert the PSyIR assignment for a specified Array Range "
+            "into a PSyIR NemoLoop.")
 
     @property
     def name(self):
@@ -175,87 +190,71 @@ class NemoArrayRange2LoopTrans(ArrayRange2LoopTrans):
         NemoArrayRange2LoopTrans transformation to the supplied PSyIR Node.
 
         :param node: the node that is being checked.
-        :type node: :py:class:`psyclone.psyir.nodes.Assignment`
+        :type node: :py:class:`psyclone.psyir.nodes.Range`
 
-        :raises TransformationError: if no conformant loop bounds were \
-            found.
-        :raises TransformationError: if an associated loop bound \
-            specified in the config file is not declared in the symbol \
-            table.
+        :raises TransformationError: ...
 
         '''
-        super(NemoArrayRange2LoopTrans, self).validate(node, options=options)
+        # Am I Range node?
+        if not isinstance(node, Range):
+            raise TransformationError(
+                "Error in NemoArrayRange2LoopTrans transformation. The "
+                "supplied node argument should be a PSyIR Range, but "
+                "found '{0}'.".format(type(node).__name__))
+        # Am I within an array reference?
+        if not node.parent or not isinstance(node.parent, Array):
+            raise TransformationError(
+                "Error in NemoArrayRange2LoopTrans transformation. The "
+                "supplied node argument should be within an ArrayReference "
+                "node, but found '{0}'.".format(type(node.parent).__name__))
+        array_ref = node.parent
+        # Is the array reference within an assignment?
+        if not array_ref.parent or not isinstance(array_ref.parent,
+                                                  Assignment):
+            raise TransformationError(
+                "Error in NemoArrayRange2LoopTrans transformation. The "
+                "supplied node argument should be within an ArrayReference "
+                "node that is within an Assignment node, but found '{0}'."
+                .format(type(array_ref.parent).__name__))
+        assignment = array_ref.parent
+        # Is the array reference the lhs of the assignment?
+        if assignment.lhs is not array_ref:
+            raise TransformationError(
+                "Error in NemoArrayRange2LoopTrans transformation. The "
+                "supplied node argument should be within an ArrayReference "
+                "node that is within the left-hand-side of an Assignment "
+                "node, but it is on the right-hand-side.")
+        # Is the Range node the outermost Range (as if not, the
+        # transformation would be invalid).
+        my_index = node.parent.children.index(node)
+        num_siblings = len(node.parent.children)
+        for idx in range(my_index+1, num_siblings):
+            following_node = node.parent.children[idx]
+            if isinstance(following_node, Range):
+                raise TransformationError(
+                    "Error in NemoArrayRange2LoopTrans transformation. This "
+                    "transformation can only be applied to the outermost "
+                    "Range.")
 
-        # Check that there is a valid index in which to apply this
-        # transformation
-        try:
-            loop_idx = _get_outer_index(node)
-        except IndexError as info:
-            message = (
-                "Error in NemoArrayRange2LoopTrans: The lhs of the "
-                "supplied Assignment node should be a PSyIR Array "
-                "with at least one of its dimensions being a Range "
-                "with a valid configuration file loop bound "
-                "specification, but found None.")
-            six.raise_from(TransformationError(message), info)
 
-        # Check that any variables in the specified bounds are already
-        # defined
-        symbol_table = node.scope.symbol_table
-        loop_type_order = Config.get().api_conf("nemo").get_index_order()
-        loop_type_data = Config.get().api_conf("nemo").get_loop_type_data()
-        loop_type = loop_type_order[loop_idx]
-        loop_type_info = loop_type_data[loop_type]
-        lower_bound = loop_type_info['start']
-        upper_bound = loop_type_info['stop']
-        for bound in [lower_bound, upper_bound]:
-            try:
-                _ = int(bound)
-            except ValueError:
-                # bound is not a literal so should be a symbol
-                try:
-                    _ = symbol_table.lookup(bound)
-                except KeyError as info:
-                    # symbol is not found in the symbol table
-                    message = (
-                        "Error in NemoArrayRange2LoopTrans: Loop bound "
-                        "symbol '{0}' is not explicitly declared in the "
-                        "code.".format(bound))
-                    six.raise_from(TransformationError(message), info)
+def _get_outer_index(array):
+    '''Find the outermost index of the array that is a Range node. If one
+    does not exist then raise an exception.
 
+    :param array: the array being examined.
+    :type array: :py:class:`psyclone.psyir.nodes.Array`
 
-def _get_outer_index(node):
-    '''Returns the outermost loop index from the array on the lhs of the
-    assignment node that has a range and has config information that
-    provides values for the start and end of the loop. If one is not
-    found then an exception is raised.
+    :returns: the outermost index of the array that is a Range node.
 
-    :param node: the assignment node.
-    :type node: :py:class:`psyclone.psyir.nodes.Assignment`
-
-    :returns: a loop index.
-    :rtype: int
-
-    :raises IndexError: if no appropriate loop index is found.
+    :raises IndexError: if the array does not contain a Range node.
 
     '''
-    loop_type_order = Config.get().api_conf("nemo").get_index_order()
-    loop_type_data = Config.get().api_conf("nemo").get_loop_type_data()
-    lhs_array = node.lhs
-    for idx, child in reversed(list(enumerate(lhs_array.children))):
-        if isinstance(child, Range) and idx<len(loop_type_order):
-            # This is a range in an array index with config information
-            # defined
-            loop_type = loop_type_order[idx]
-            loop_type_info = loop_type_data[loop_type]
-            lower_bound = loop_type_info['start']
-            upper_bound = loop_type_info['stop']
-            if lower_bound and upper_bound:
-                # The config information specifies values for both
-                # the start and end of the loop so we can
-                # transform it
-                return idx
-    raise IndexError()
+    idx = len(array.children)-1
+    while idx >= 0 and not isinstance(array.children[idx], Range):
+        idx -= 1
+    if idx < 0:
+        raise IndexError
+    return idx
 
 
 __all__ = [
