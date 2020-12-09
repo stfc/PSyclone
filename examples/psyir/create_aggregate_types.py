@@ -48,8 +48,8 @@ this is a work in progress.
 from __future__ import print_function
 # TODO #363 these classes will be needed once the implementation is
 # complete.
-# from psyclone.psyir.nodes import Array, Assignment, BinaryOperation, Range, \
-#    Reference
+# from psyclone.psyir.nodes import ArrayReference, Reference, Assignment, \
+#    BinaryOperation, Range
 from psyclone.psyir.nodes import Literal, KernelSchedule, Container
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, TypeSymbol, \
