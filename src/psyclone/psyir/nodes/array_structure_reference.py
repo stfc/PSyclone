@@ -42,6 +42,7 @@ from psyclone.psyir.nodes.array_node import ArrayNode
 from psyclone.psyir.nodes.member_reference import MemberReference
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir import symbols
 
 
 class ArrayStructureReference(StructureReference, ArrayNode):
@@ -74,7 +75,8 @@ class ArrayStructureReference(StructureReference, ArrayNode):
 
     @staticmethod
     def create(symbol, members, children):
-        '''Create an ArrayStructureReference instance given a symbol and a
+        '''
+        Create an ArrayStructureReference instance given a symbol and a
         list of components. e.g. for "field%bundle(2)%flag" this
         list would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
 
@@ -96,46 +98,27 @@ class ArrayStructureReference(StructureReference, ArrayNode):
             are not of the expected type.
 
         '''
-        ref = StructureReference.create(symbol, members)
-        ref.__class__ = ArrayStructureReference
+        if not isinstance(symbol.datatype, symbols.ArrayType):
+            raise TypeError()
 
-        ref.children += children
+        # First use the StructureReference _create class method to create a
+        # reference to the base structure of the array.
+        # pylint: disable=protected_access
+        ref = ArrayStructureReference._create(
+            symbol, symbol.datatype.intrinsic, members)
+
+        # Then add the array-index expressions. We don't validate the children
+        # as that is handled in _validate_child.
         for child in children:
+            ref.addchild(child)
             child.parent = ref
         return ref
 
     def __str__(self):
-        result = ("ArrayStructureReference" +
-                  super(ArrayStructureReference, self).__str__() + "\n")
+        result = super(ArrayStructureReference, self).__str__() + "\n"
         for entity in self._children:
             result += str(entity) + "\n"
         return result
-
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. All variables used as indices
-        in the access of the array will be added as READ.
-
-        :param var_accesses: variable access information.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-        '''
-
-        # This will set the array-name as READ
-        super(StructureReference, self).reference_accesses(var_accesses)
-
-        # Now add all children: Note that the class Reference
-        # does not recurse to the children (which store the indices), so at
-        # this stage no index information has been stored:
-        list_indices = []
-        for child in self._children:
-            child.reference_accesses(var_accesses)
-            list_indices.append(child)
-
-        if list_indices:
-            var_info = var_accesses[self.name]
-            # The last entry in all_accesses is the one added above
-            # in super(ArrayReference...). Add the indices to that entry.
-            var_info.all_accesses[-1].indices = list_indices
 
 
 # For AutoAPI documentation generation
