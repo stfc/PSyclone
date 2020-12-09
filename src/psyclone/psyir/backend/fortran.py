@@ -466,10 +466,24 @@ class FortranWriter(PSyIRVisitor):
         :raises InternalError: if a Routine symbol with an unrecognised \
                                visibility is encountered.
         '''
+
+        # Find the symbol that represents itself, this one will not need
+        # an accessibility statement
+        try:
+            itself = symbol_table.lookup_with_tag('own_routine_symbol')
+        except KeyError:
+            itself = None
+
         public_routines = []
         private_routines = []
         for symbol in symbol_table.symbols:
             if isinstance(symbol, RoutineSymbol):
+
+                # Skip the symbol representing the routine where this
+                # declarations belong
+                if symbol is itself:
+                    continue
+
                 # It doesn't matter whether this symbol has a local or global
                 # interface - its accessibility in *this* context is determined
                 # by the local accessibility statements. e.g. if we are

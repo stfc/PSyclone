@@ -66,7 +66,13 @@ class Routine(Schedule):
     def __init__(self, name, is_program=False, return_type=None, parent=None):
         super(Routine, self).__init__(parent=parent)
         self.name = name
-        # self.symbol_table.add(RoutineSymbol(name), tag='self_name')
+        if parent and name in parent.scope.symbol_table:
+            if not isinstance(parent.scope.symbol_table.lookup(name),
+                              RoutineSymbol):
+                raise NotImplementedError('')
+        else:
+            self.symbol_table.add(RoutineSymbol(name),
+                                  tag='own_routine_symbol')
 
         if not isinstance(is_program, bool):
             raise TypeError("Routine argument 'is_program' must be a bool but "
