@@ -195,7 +195,8 @@ def test_gen_stencil_2(parser):
     schedule = get_schedule(parser, CODE)
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_stencil(schedule)
-    assert "gen_stencil expected an Array as input" in str(excinfo.value)
+    assert ("gen_stencil expected an ArrayReference as input" in
+            str(excinfo.value))
 
 
 # (3/3) function gen_stencil
@@ -666,18 +667,18 @@ def test_sirwriter_reference_node_2(parser, sir_writer):
 # (1/1) Method array_node
 def test_sirwriter_array_node(parser, sir_writer):
     '''Check the array_node method of the SIRWriter class outputs the
-    expected SIR when given a PSyIR Array node.
+    expected SIR when given a PSyIR ArrayReference node.
 
     '''
     lhs = get_lhs(parser, CODE)
-    assert (sir_writer.array_node(lhs) ==
+    assert (sir_writer.arrayreference_node(lhs) ==
             "make_field_access_expr(\"a\", [0, 0, 0])")
 
 
 # (1/3) Method literal_node
 def test_sirwriter_literal_node_1(parser, sir_writer):
-    '''Check the array_node method of the SIRWriter class outputs the
-    expected SIR when given a PSyIR Literal node with a 'real' value.
+    '''Check the arrayreference_node method of the SIRWriter class outputs
+    the expected SIR when given a PSyIR Literal node with a 'real' value.
 
     '''
     rhs = get_rhs(parser, CODE)
@@ -687,7 +688,7 @@ def test_sirwriter_literal_node_1(parser, sir_writer):
 
 # (2/3) Method literal_node
 def test_sirwriter_literal_node_2(parser, sir_writer):
-    '''Check the array_node method of the SIRWriter class outputs the
+    '''Check the arrayreference_node method of the SIRWriter class outputs the
     expected SIR when given a PSyIR Literal node with an 'integer'
     value.
 
@@ -702,7 +703,7 @@ def test_sirwriter_literal_node_2(parser, sir_writer):
 @pytest.mark.parametrize("value,datatype", [(".true.", "BOOLEAN"),
                                             ("'hello'", "CHARACTER")])
 def test_sirwriter_literal_node_error(parser, sir_writer, value, datatype):
-    '''Check the array_node method of the SIRWriter class raises the
+    '''Check the arrayreference_node method of the SIRWriter class raises the
     expected exception when given a PSyIR Literal node with an
     unsupported value.
 

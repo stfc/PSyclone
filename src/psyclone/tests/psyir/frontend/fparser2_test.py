@@ -47,7 +47,7 @@ from fparser.two.Fortran2003 import Specification_Part, \
     Dimension_Attr_Spec, Assignment_Stmt, Return_Stmt, Subroutine_Subprogram
 from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference, \
-    Array, Container, Literal, Range, KernelSchedule
+    ArrayReference, Container, Literal, Range, KernelSchedule
 from psyclone.psyGen import PSyFactory, Directive
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import (
@@ -106,13 +106,13 @@ def test_check_args():
 
     with pytest.raises(TypeError) as excinfo:
         _check_args(None, None)
-    assert ("'array' argument should be an Array type but found 'NoneType'."
-            in str(excinfo.value))
+    assert ("'array' argument should be an ArrayReference type but found "
+            "'NoneType'." in str(excinfo.value))
 
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
     symbol = DataSymbol('a', array_type)
-    array_reference = Array.create(symbol, [one])
+    array_reference = ArrayReference.create(symbol, [one])
 
     with pytest.raises(TypeError) as excinfo:
         _check_args(array_reference, None)
@@ -141,14 +141,14 @@ def test_is_bound_full_extent():
     # Check that _is_bound_full_extent calls the check_args function.
     with pytest.raises(TypeError) as excinfo:
         _is_bound_full_extent(None, None, None)
-    assert ("'array' argument should be an Array type but found 'NoneType'."
-            in str(excinfo.value))
+    assert ("'array' argument should be an ArrayReference type but found "
+            "'NoneType'." in str(excinfo.value))
 
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
     symbol = DataSymbol('a', array_type)
     my_range = Range.create(one, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     with pytest.raises(TypeError) as excinfo:
         _is_bound_full_extent(array_reference, 1, None)
@@ -162,7 +162,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND, one, one)
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting operator to be Operator.LBOUND, but found
     # Operator.UBOUND
@@ -172,7 +172,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND, one, one)
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference but found Literal
     assert not _is_bound_full_extent(array_reference, 1,
@@ -182,7 +182,7 @@ def test_is_bound_full_extent():
         BinaryOperation.Operator.LBOUND,
         Reference(DataSymbol("x", INTEGER_TYPE)), one)
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference symbol x to be the same as array symbol a
     assert not _is_bound_full_extent(array_reference, 1,
@@ -192,7 +192,7 @@ def test_is_bound_full_extent():
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1.0", REAL_TYPE))
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting integer but found real
     assert not _is_bound_full_extent(array_reference, 1,
@@ -202,7 +202,7 @@ def test_is_bound_full_extent():
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("2", INTEGER_TYPE))
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting literal value 2 to be the same as the current array
     # dimension 1
@@ -213,7 +213,7 @@ def test_is_bound_full_extent():
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1", INTEGER_TYPE))
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # valid
     assert _is_bound_full_extent(array_reference, 1,
@@ -226,8 +226,8 @@ def test_is_array_range_literal():
     # Check that _is_array_range_literal calls the _check_args function.
     with pytest.raises(TypeError) as excinfo:
         _is_array_range_literal(None, None, None, None)
-    assert ("'array' argument should be an Array type but found 'NoneType'."
-            in str(excinfo.value))
+    assert ("'array' argument should be an ArrayReference type but found "
+            "'NoneType'." in str(excinfo.value))
 
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
@@ -236,7 +236,7 @@ def test_is_array_range_literal():
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1", INTEGER_TYPE))
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     with pytest.raises(TypeError) as excinfo:
         _is_array_range_literal(array_reference, 1, None, None)
@@ -270,14 +270,14 @@ def test_is_array_range_literal():
     # Range.create checks for valid datatype. Therefore change to
     # invalid after creation.
     my_range.children[1] = Literal("1.0", REAL_TYPE)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # 1st dimension, second argument to range is a real literal,
     # not an integer literal.
     assert not _is_array_range_literal(array_reference, 1, 1, 1)
 
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
     # 1st dimension, second argument to range has an unexpected
     # value.
     assert not _is_array_range_literal(array_reference, 1, 1, 2)
@@ -296,23 +296,23 @@ def test_is_range_full_extent():
         Reference(symbol), Literal("1", INTEGER_TYPE))
 
     my_range = Range.create(lbound_op, ubound_op, one)
-    _ = Array.create(symbol, [my_range])
+    _ = ArrayReference.create(symbol, [my_range])
     # Valid structure
     _is_range_full_extent(my_range)
 
     # Invalid start (as 1st argument should be lower bound)
     my_range = Range.create(ubound_op, ubound_op, one)
-    _ = Array.create(symbol, [my_range])
+    _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
     # Invalid stop (as 2nd argument should be upper bound)
     my_range = Range.create(lbound_op, lbound_op, one)
-    _ = Array.create(symbol, [my_range])
+    _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
     # Invalid step (as 3rd argument should be Literal)
     my_range = Range.create(lbound_op, ubound_op, ubound_op)
-    _ = Array.create(symbol, [my_range])
+    _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
 
@@ -355,7 +355,7 @@ def test_array_notation_rank():
     # An array with no dimensions raises an exception
     array_type = ArrayType(REAL_TYPE, [10])
     symbol = DataSymbol("a", array_type)
-    array = Array(symbol, [])
+    array = ArrayReference(symbol, [])
     with pytest.raises(NotImplementedError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
     assert ("An Array reference in the PSyIR must have at least one child but "
@@ -381,14 +381,14 @@ def test_array_notation_rank():
     range1 = Range.create(lbound_op1, ubound_op1)
     range2 = Range.create(lbound_op3, ubound_op3)
     one = Literal("1", INTEGER_TYPE)
-    array = Array.create(symbol, [range1, one, range2])
+    array = ArrayReference.create(symbol, [range1, one, range2])
     result = Fparser2Reader._array_notation_rank(array)
     # Two array dimensions use array notation.
     assert result == 2
 
     # Make one of the array notation dimensions differ from what is required.
     range2 = Range.create(lbound_op3, one)
-    array = Array.create(symbol, [range1, one, range2])
+    array = ArrayReference.create(symbol, [range1, one, range2])
     with pytest.raises(NotImplementedError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
     assert ("Only array notation of the form my_array(:, :, ...) is "
@@ -1307,7 +1307,7 @@ def test_process_declarations_stmt_functions():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
-    assert isinstance(array, Array)
+    assert isinstance(array, ArrayReference)
     assert array.name == "a"
 
     # Test that it works with multi-dimensional arrays
@@ -1322,7 +1322,7 @@ def test_process_declarations_stmt_functions():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
-    assert isinstance(array, Array)
+    assert isinstance(array, ArrayReference)
     assert array.name == "b"
 
     # Test that if symbol is not an array, it raises GenerationError
@@ -1621,7 +1621,7 @@ def test_handling_part_ref():
     assignment = fake_parent.children[0]
     assert len(assignment.children) == 2
     new_node = assignment.children[0]
-    assert isinstance(new_node, Array)
+    assert isinstance(new_node, ArrayReference)
     assert new_node.name == "x"
     assert len(new_node.children) == 1  # Array dimensions
 
@@ -1639,7 +1639,7 @@ def test_handling_part_ref():
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent[0].lhs
-    assert isinstance(new_node, Array)
+    assert isinstance(new_node, ArrayReference)
     assert new_node.name == "x"
     assert len(new_node.children) == 3  # Array dimensions
 
@@ -1836,11 +1836,11 @@ def test_array_section():
         has the expected number of dimensions.
 
         :param node: the node to check.
-        :type node: :py:class:`psyclone.psyir.nodes.Array`
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
         :param int ndims: the number of expected array dimensions.
 
         '''
-        assert isinstance(node, Array)
+        assert isinstance(node, ArrayReference)
         assert len(node.children) == ndims
 
     def _check_range(array, dim):
@@ -1849,7 +1849,7 @@ def test_array_section():
         argument "array" is an array.
 
         :param array: the node to check.
-        :type array: :py:class:`psyclone.psyir.nodes.Array`
+        :type array: :py:class:`psyclone.psyir.nodes.ArrayReference`
         :param int dim: the array dimension index to check.
 
         '''
@@ -1869,7 +1869,7 @@ def test_array_section():
         range index is valid.
 
         :param array: the node to check.
-        :type array: :py:class:`pysclone.psyir.node.Array`
+        :type array: :py:class:`pysclone.psyir.node.ArrayReference`
         :param int dim: the dimension index to check.
         :param int index: the index of the range to check (0 is the \
             lower bound, 1 is the upper bound).
