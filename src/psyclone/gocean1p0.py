@@ -209,7 +209,7 @@ class GOInvoke(Invoke):
 
     '''
     def __init__(self, alg_invocation, idx, invokes):
-        self._schedule = GOInvokeSchedule(None)  # for pyreverse
+        self._schedule = GOInvokeSchedule('a', None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
 
         if Config.get().distributed_memory:
@@ -355,8 +355,9 @@ class GOInvokeSchedule(InvokeSchedule):
     # Textual description of the node.
     _text_name = "GOInvokeSchedule"
 
-    def __init__(self, alg_calls, reserved_names=None):
-        InvokeSchedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
+    def __init__(self, name, alg_calls, reserved_names=None):
+        InvokeSchedule.__init__(self, name, GOKernCallFactory,
+                                GOBuiltInCallFactory,
                                 alg_calls, reserved_names)
 
         # The GOcean Constants Loops Bounds Optimization is implemented using

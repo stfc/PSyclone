@@ -334,7 +334,7 @@ def test_invokeschedule_node_str():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     # Create a plain InvokeSchedule
-    sched = InvokeSchedule(None, None)
+    sched = InvokeSchedule('name', None, None)
     # Manually supply it with an Invoke object created with the Dynamo API.
     sched._invoke = psy.invokes.invoke_list[0]
     output = sched.node_str()

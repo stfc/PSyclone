@@ -301,7 +301,7 @@ class NemoInvokeSchedule(InvokeSchedule):
     _text_name = "NemoInvokeSchedule"
 
     def __init__(self, invoke=None):
-        super(NemoInvokeSchedule, self).__init__(None, None)
+        super(NemoInvokeSchedule, self).__init__('None', None, None)
 
         self._invoke = invoke
         # Whether or not we've already checked the associated Fortran for

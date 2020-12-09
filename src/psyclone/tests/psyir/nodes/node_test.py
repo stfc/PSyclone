@@ -463,7 +463,7 @@ def test_dag_names():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     assert super(Schedule, schedule).dag_name == "node_0"
-    assert schedule.dag_name == "routine_name_0"
+    assert schedule.dag_name == "routine_invoke_0_testkern_type_0"
     assert schedule.children[0].dag_name == "checkHaloExchange(f1)_0"
     assert schedule.children[4].dag_name == "loop_5"
     schedule.children[4].loop_type = "colour"
@@ -571,12 +571,12 @@ def test_node_dag_wrong_file_format(monkeypatch):
 # versions. Need a raw-string (r"") to get new-lines handled nicely.
 EXPECTED2 = re.compile(
     r"digraph {\n"
-    r"\s*routine_name_0_start\n"
-    r"\s*routine_name_0_end\n"
+    r"\s*routine_name_0_0_start\n"
+    r"\s*routine_name_0_0_end\n"
     r"\s*loop_1_start\n"
     r"\s*loop_1_end\n"
     r"\s*loop_1_end -> loop_7_start \[color=green\]\n"
-    r"\s*routine_name_0_start -> loop_1_start \[color=blue\]\n"
+    r"\s*routine_name_0_0_start -> loop_1_start \[color=blue\]\n"
     r"\s*schedule_5_start\n"
     r"\s*schedule_5_end\n"
     r"\s*schedule_5_end -> loop_1_end \[color=blue\]\n"
@@ -586,7 +586,7 @@ EXPECTED2 = re.compile(
     r"\s*schedule_5_start -> kernel_testkern_qr_code_6 \[color=blue\]\n"
     r"\s*loop_7_start\n"
     r"\s*loop_7_end\n"
-    r"\s*loop_7_end -> routine_name_0_end \[color=blue\]\n"
+    r"\s*loop_7_end -> routine_name_0_0_end \[color=blue\]\n"
     r"\s*loop_1_end -> loop_7_start \[color=red\]\n"
     r"\s*schedule_11_start\n"
     r"\s*schedule_11_end\n"

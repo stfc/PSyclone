@@ -226,8 +226,8 @@ class GOInvokeSchedule(InvokeSchedule):
     supply our API-specific factories to the base InvokeSchedule class
     constructor. '''
 
-    def __init__(self, alg_calls, reserved_names=None):
-        InvokeSchedule.__init__(self, GOKernCallFactory,
+    def __init__(self, name, alg_calls, reserved_names=None):
+        InvokeSchedule.__init__(self, name, GOKernCallFactory,
                                 GOBuiltInCallFactory, alg_calls,
                                 reserved_names)
 

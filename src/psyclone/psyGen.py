@@ -497,10 +497,10 @@ class Invoke(object):
 
         if not reserved_names:
             reserved_names = []
-        reserved_names.append(self._name)
 
         # create the schedule
-        self._schedule = schedule_class(alg_invocation.kcalls, reserved_names)
+        self._schedule = schedule_class(self._name, alg_invocation.kcalls,
+                                        reserved_names)
         if self.invokes:
             self.invokes.psy.psy_container.addchild(self._schedule)
 
@@ -799,9 +799,9 @@ class InvokeSchedule(Routine):
     # Textual description of the node.
     _text_name = "InvokeSchedule"
 
-    def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
+    def __init__(self, name, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None):
-        super(InvokeSchedule, self).__init__('name')
+        super(InvokeSchedule, self).__init__(name)
 
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL

@@ -37,7 +37,7 @@
 ''' This module contains the Routine node implementation.'''
 
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import DataType
+from psyclone.psyir.symbols import DataType, RoutineSymbol
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols.symboltable import SymbolTable
 
@@ -66,6 +66,7 @@ class Routine(Schedule):
     def __init__(self, name, is_program=False, return_type=None, parent=None):
         super(Routine, self).__init__(parent=parent)
         self.name = name
+        # self.symbol_table.add(RoutineSymbol(name), tag='self_name')
 
         if not isinstance(is_program, bool):
             raise TypeError("Routine argument 'is_program' must be a bool but "

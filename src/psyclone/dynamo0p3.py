@@ -4745,7 +4745,7 @@ class DynInvoke(Invoke):
         if not alg_invocation and not idx:
             # This if test is added to support pyreverse.
             return
-        self._schedule = DynInvokeSchedule(None)  # for pyreverse
+        self._schedule = DynInvokeSchedule('None', None)  # for pyreverse
         reserved_names_list = []
         reserved_names_list.extend(LFRicArgDescriptor.STENCIL_MAPPING.values())
         reserved_names_list.extend(LFRicArgDescriptor.VALID_STENCIL_DIRECTIONS)
@@ -5036,9 +5036,9 @@ class DynInvokeSchedule(InvokeSchedule):
     specific factories for creating kernel and infrastructure calls
     to the base class so it creates the ones we require. '''
 
-    def __init__(self, arg, reserved_names=None):
+    def __init__(self, name, arg, reserved_names=None):
         from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
-        InvokeSchedule.__init__(self, DynKernCallFactory,
+        InvokeSchedule.__init__(self, name, DynKernCallFactory,
                                 DynBuiltInCallFactory, arg, reserved_names)
 
     def node_str(self, colour=True):
