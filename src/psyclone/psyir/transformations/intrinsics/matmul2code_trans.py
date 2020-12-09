@@ -43,7 +43,7 @@ to matrix vector multiply.
 '''
 from __future__ import absolute_import
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Loop, Literal, Array, Range, DataNode
+    Loop, Literal, ArrayReference, Range, DataNode
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType
 from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
@@ -303,20 +303,21 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         if len(result.children) > 1:
             # Add any additional dimensions (in case of an array slice)
             result_dims.extend(result.children[1:])
-        result = Array.create(result_symbol, result_dims)
+        result = ArrayReference.create(result_symbol, result_dims)
         # Create "vector(j)"
         vector_dims = [Reference(j_loop_symbol)]
         if len(vector.children) > 1:
             # Add any additional dimensions (in case of an array slice)
             vector_dims.extend(vector.children[1:])
-        vector_array_reference = Array.create(
+        vector_array_reference = ArrayReference.create(
             vector.symbol, vector_dims)
         # Create "matrix(i,j)"
         array_dims = [Reference(i_loop_symbol), Reference(j_loop_symbol)]
         if len(matrix.children) > 2:
             # Add any additional dimensions (in case of an array slice)
             array_dims.extend(matrix.children[2:])
-        matrix_array_reference = Array.create(matrix.symbol, array_dims)
+        matrix_array_reference = ArrayReference.create(matrix.symbol,
+                                                       array_dims)
         # Create "matrix(i,j) * vector(j)"
         multiply = BinaryOperation.create(
             BinaryOperation.Operator.MUL, matrix_array_reference,
