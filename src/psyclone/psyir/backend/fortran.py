@@ -750,12 +750,12 @@ class FortranWriter(PSyIRVisitor):
             raise VisitorError("Unexpected N-ary op '{0}'".
                                format(node.operator))
 
-    def array_node(self, node):
-        '''This method is called when an Array instance is found in the PSyIR
-        tree.
+    def arrayreference_node(self, node):
+        '''This method is called when an ArrayReference instance is found
+        in the PSyIR tree.
 
         :param node: an Array PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Array`
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         :returns: the Fortran code as a string.
         :rtype: str

@@ -48,7 +48,9 @@ from psyclone.configuration import Config
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import PSyDataNode, Loop, ProfileNode
 from psyclone.psyir.transformations import ProfileTrans, TransformationError
+from psyclone.transformations import OMPParallelLoopTrans, ACCKernelsTrans
 from psyclone.profiler import Profiler
+
 
 # The transformation that most of these tests use
 PTRANS = ProfileTrans()
@@ -601,6 +603,59 @@ def test_profile_nemo_loop_nests(parser):
     assert ("  type(profile_psydatatype), target, save :: profile_psy_data0\n"
             "  call profile_psy_data0 % prestart('do_loop', 'r0', 0, 0)\n"
             "  do jj = 1, jpj" in code)
+
+
+def test_profile_nemo_openmp(parser):
+    ''' Check that the automatic kernel-level profiling handles a
+    tightly-nested loop that has been parallelised using OpenMP. '''
+    omptrans = OMPParallelLoopTrans()
+    Profiler.set_options([Profiler.KERNELS])
+    psy, schedule = get_nemo_schedule(parser,
+                                      "program do_loop\n"
+                                      "integer, parameter :: jpi=5, jpj=5\n"
+                                      "integer :: ji, jj\n"
+                                      "real :: sto_tmp(jpi,jpj)\n"
+                                      "do jj = 1, jpj\n"
+                                      "  do ji = 1,jpi\n"
+                                      "    sto_tmp(ji,jj) = 1.0d0\n"
+                                      "  end do\n"
+                                      "end do\n"
+                                      "end program do_loop\n")
+    omptrans.apply(schedule[0])
+    Profiler.add_profile_nodes(schedule, Loop)
+    code = str(psy.gen).lower()
+    assert ("  type(profile_psydatatype), target, save :: profile_psy_data0\n"
+            "  call profile_psy_data0 % prestart('do_loop', 'r0', 0, 0)\n"
+            "  !$omp parallel do default(shared), private(ji,jj), "
+            "schedule(static)\n"
+            "  do jj = 1, jpj" in code)
+
+
+def test_profile_nemo_no_acc_kernels(parser):
+    ''' Check that the automatic kernel-level profiling does not add any
+    calls for the case of two kernels within an OpenACC kernels region.
+    No calls are added because the PSyData routines would have to have been
+    compiled for execution on the GPU. '''
+    acctrans = ACCKernelsTrans()
+    Profiler.set_options([Profiler.KERNELS])
+    psy, schedule = get_nemo_schedule(parser,
+                                      "program do_loop\n"
+                                      "integer, parameter :: jpi=5, jpj=5\n"
+                                      "integer :: ji, jj\n"
+                                      "real :: sto_tmp(jpi,jpj)\n"
+                                      "do jj = 1, jpj\n"
+                                      "  do ji = 1,jpi\n"
+                                      "    sto_tmp(ji,jj) = 1.0d0\n"
+                                      "  end do\n"
+                                      "end do\n"
+                                      "do ji = 1, jpi\n"
+                                      "  sto_tmp(ji,1) = 0.0d0\n"
+                                      "end do\n"
+                                      "end program do_loop\n")
+    acctrans.apply(schedule.children)
+    Profiler.add_profile_nodes(schedule, Loop)
+    code = str(psy.gen).lower()
+    assert "profile_psy" not in code
 
 
 def test_profile_nemo_loop_imperfect_nest(parser):
