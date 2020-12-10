@@ -68,7 +68,7 @@ class StructureMemberReference(MemberReference):
     _children_valid_format = "MemberReference | None"
     _text_name = "StructureMemberReference"
 
-    def __init__(self, struct_type, member, parent=None, children=None):
+    def __init__(self, struct_type, member, parent=None):
 
         super(StructureMemberReference, self).__init__(struct_type, member,
                                                        parent=parent)
@@ -82,11 +82,6 @@ class StructureMemberReference(MemberReference):
                 "The member '{0}' is not of DeferredType, StructureType or a "
                 "TypeSymbol and therefore cannot be the target of a "
                 "StructureMemberReference.".format(member))
-
-        if children:
-            for child in children:
-                self.addchild(child)
-                child.parent = self
 
     def __str__(self):
         result = super(StructureMemberReference, self).__str__() + "\n"

@@ -40,36 +40,50 @@ from __future__ import absolute_import
 from psyclone.psyir.nodes.structure_member_reference import \
     StructureMemberReference
 from psyclone.psyir.nodes.array_node import ArrayNode
-from psyclone.psyir.symbols.typesymbol import TypeSymbol
-from psyclone.psyir.symbols.datatypes import StructureType
 
 
 class ArrayStructureMemberReference(StructureMemberReference, ArrayNode):
     '''
-    Node representing a reference to an element of an array of derived types
-    within a structure (derived type). As it is an array of derived types,
-    its first child is a reference to a member of that derived type (or None)
-    and subsequent children give the array-index expressions.
+    Node representing a reference to an element of an array of structures
+    within a structure. As it is an array of structures,
+    its first child is a reference to a member of that structure (or None)
+    and any subsequent children give the array-index expressions.
 
-    :param target:
-    :param member:
-    :param parent:
-    :param children:
+    :param struct_type:  the datatype of the structure containing the member \
+                        that is being referenced.
+    :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` or \
+                       :py:class:`psyclone.psyir.symbols.TypeSymbol`
+    :param str member_name: the name of the member of the structure that is \
+        being referenced.
+    :param parent: the parent of this node in the PSyIR tree.
+    :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Textual description of the node.
     _children_valid_format = "None | MemberReference [DataNode | Range]*"
     _text_name = "ArrayStructureMemberReference"
 
-    def __init__(self, target, member_name, parent=None):
-
-        # Manually call the StructureMemberReference constructor
-        StructureMemberReference.__init__(self, target, member_name,
-                                          parent=parent)
-
     @staticmethod
     def create(struct_type, member_name, parent=None, indices=None):
-        ''' '''
+        '''
+        Create a reference to one or more elements of an array of
+        structures that is itself a member of a structure.
+
+        :param struct_type:  the datatype of the structure containing the \
+            member that is being referenced.
+        :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` \
+            or :py:class:`psyclone.psyir.symbols.TypeSymbol`
+        :param str member_name: the name of the member of the structure that \
+            is being referenced.
+        :param parent: the parent of this node in the PSyIR tree.
+        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
+        :param indices: the array-index expressions.
+        :type indices: list of :py:class:`psyclone.psyir.nodes.DataNode`
+
+        :returns: a new ArrayStructureMemberReference object.
+        :rtype: :py:class:`psyclone.psyir.nodes.ArrayStructureMemberReference`
+
+        '''
         asmr = ArrayStructureMemberReference(struct_type, member_name,
                                              parent=parent)
         # The first child will be a reference to a member of this structure
