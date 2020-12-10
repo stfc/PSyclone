@@ -83,3 +83,8 @@ compile-ocl: ${INF_LIB} ${FORTCL_LIB} ${KERNELS} psy_gen.o alg_gen.f90
 
 compile:
 	echo "This example needs to be compiled with 'make compile-ocl'"
+
+# Override allclean rule to include INF_DIR library
+allclean: clean
+	${MAKE} -C ${INF_DIR} distclean
+	${MAKE} -C ${FORTCL_DIR} allclean
