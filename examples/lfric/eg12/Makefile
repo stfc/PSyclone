@@ -48,7 +48,7 @@ extract_transformed:
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 
 find_kernel:
-	${PYTHON} find_kernel.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} find_kernel.py
 
 compile: transform
 	@echo "No compilation supported for lfric/eg12"

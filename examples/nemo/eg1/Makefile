@@ -37,7 +37,7 @@
 include ../../common.mk
 
 transform:
-	./runme_openmp.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ./runme_openmp.py
 
 compile: transform
 	@echo "No compilation supported for nemo/eg1"

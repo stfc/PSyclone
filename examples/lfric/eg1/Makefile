@@ -42,10 +42,10 @@ include ../../common.mk
 transform: vanilla openmp
 
 vanilla:
-	${PYTHON} ./runme.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./runme.py
 
 openmp:
-	${PYTHON} ./runme_openmp.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./runme_openmp.py
 
 compile: transform
 	@echo "No compilation supported for lfric/eg1"

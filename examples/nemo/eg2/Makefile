@@ -40,7 +40,7 @@ transform: basic omp_levels
 .PHONY: basic omp_levels
 
 basic:
-	./runme_openmp.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ./runme_openmp.py
 
 omp_levels:
 	${PSYCLONE} -api "nemo" -s ./omp_levels_trans.py ../code/traldf_iso.F90

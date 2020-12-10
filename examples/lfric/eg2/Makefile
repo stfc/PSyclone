@@ -41,13 +41,13 @@ include ../../common.mk
 transform: vanilla openmp loopfuse
 
 vanilla:
-	${PYTHON} ./runme.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./runme.py
 
 openmp:
-	${PYTHON} ./runme_openmp.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./runme_openmp.py
 
 loopfuse:
-	${PYTHON} ./runme_loop_fuse.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./runme_loop_fuse.py
 
 compile: transform
 	@echo "No compilation supported for lfric/eg2"

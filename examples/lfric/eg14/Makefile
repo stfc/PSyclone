@@ -61,4 +61,4 @@ compile: transform
 	@echo "No compilation supported for lfric/eg14"
 
 run: compile
-  @echo "No run targets for lfric/eg14"
+	@echo "No run targets for lfric/eg14"
