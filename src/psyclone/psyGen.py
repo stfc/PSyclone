@@ -46,11 +46,11 @@ import abc
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.f2pygen import DirectiveGen
+from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.psyir.symbols import DataSymbol, ArrayType, \
+from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     Symbol, INTEGER_TYPE, BOOLEAN_TYPE
-from psyclone.psyir.nodes import Node, Schedule, Loop, Statement
+from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, PSyDataNode
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 
@@ -125,7 +125,6 @@ def zero_reduction_variables(red_call_list, parent):
     '''zero all reduction variables associated with the calls in the call
     list'''
     if red_call_list:
-        from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Zero summation variables"))
         parent.add(CommentGen(parent, ""))
@@ -284,31 +283,6 @@ class PSy(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
 
-    def inline(self, module):
-        '''Inline all kernel subroutines into the module that are marked for
-        inlining. Avoid inlining the same kernel more than once.
-
-        :param module: the module to which the kernel is added for inlining.
-        :type module: :py:class:`psyclone.f2pygen.ModuleGen`
-
-        :raises InternalError: if kernel_code (fparser1 AST of kernel) \
-                is None.
-        '''
-        inlined_kernel_names = []
-        for invoke in self.invokes.invoke_list:
-            schedule = invoke.schedule
-            for kernel in schedule.walk(CodedKern):
-                if kernel.module_inline:
-                    # raise an internal error if kernel_code is None
-                    if kernel._kernel_code is None:
-                        raise InternalError(
-                            "Have no fparser1 AST for kernel {0}."
-                            " Therefore cannot inline it."
-                            .format(kernel))
-                    if kernel.name.lower() not in inlined_kernel_names:
-                        inlined_kernel_names.append(kernel.name.lower())
-                        module.add_raw_subroutine(kernel._kernel_code)
-
 
 class Invokes(object):
     '''Manage the invoke calls.
@@ -402,7 +376,7 @@ class Invokes(object):
                                implementation.
         '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
-            CallGen, UseGen, CommentGen, CharDeclGen, IfThenGen
+            CallGen, UseGen, CharDeclGen, IfThenGen
 
         sub = SubroutineGen(parent, "psy_init")
         parent.add(sub)
@@ -887,8 +861,8 @@ class InvokeSchedule(Schedule):
                        which to add content.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
-            IfThenGen, CallGen
+        from psyclone.f2pygen import UseGen, DeclGen, AssignGen, IfThenGen, \
+            CallGen
 
         # The gen_code methods may generate new Symbol names, however, we want
         # subsequent calls to invoke.gen_code() to produce the exact same code,
@@ -1236,6 +1210,25 @@ class ACCDirective(Directive):
         '''
         return "ACC_directive_" + str(self.abs_position)
 
+    def _pre_gen_validate(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this ACCDirective encloses any form of \
+            PSyData node since calls to PSyData routines within OpenACC \
+            regions are not supported.
+
+        '''
+        data_nodes = self.walk(PSyDataNode)
+        if data_nodes:
+            raise GenerationError(
+                "Cannot include calls to PSyData routines within OpenACC "
+                "regions but found {0} within a region enclosed "
+                "by an '{1}'".format(
+                    [type(node).__name__ for node in data_nodes],
+                    type(self).__name__))
+
 
 @six.add_metaclass(abc.ABCMeta)
 class ACCEnterDataDirective(ACCDirective):
@@ -1287,13 +1280,15 @@ class ACCEnterDataDirective(ACCDirective):
         :raises GenerationError: if no data is found to copy in.
 
         '''
-        from psyclone.f2pygen import CommentGen
+        self._pre_gen_validate()
 
         # We must generate a list of all of the fields accessed by
-        # OpenACC kernels (calls within an OpenACC parallel or kernels directive)
-        # 1. Find all parallel and kernels directives. We store this list for later
-        #    use in any sub-class.
-        self._acc_dirs = self.root.walk((ACCParallelDirective, ACCKernelsDirective))
+        # OpenACC kernels (calls within an OpenACC parallel or kernels
+        # directive)
+        # 1. Find all parallel and kernels directives. We store this list for
+        #    later use in any sub-class.
+        self._acc_dirs = self.root.walk((ACCParallelDirective,
+                                         ACCKernelsDirective))
         # 2. For each directive, loop over each of the fields used by
         #    the kernels it contains (this list is given by var_list)
         #    and add it to our list if we don't already have it
@@ -1365,7 +1360,9 @@ class ACCParallelDirective(ACCDirective):
 
         :param parent: node in the f2pygen AST to which to add node(s).
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
+        self._pre_gen_validate()
 
         # Since we use "default(present)" the Schedule must contain an
         # 'enter data' directive. We don't mandate the order in which
@@ -1458,6 +1455,7 @@ class ACCParallelDirective(ACCDirective):
         Update the underlying fparser2 parse tree with nodes for the start
         and end of this parallel region.
         '''
+        self._pre_gen_validate()
         self._add_region(start_text="PARALLEL", end_text="END PARALLEL")
 
 
@@ -1528,6 +1526,8 @@ class ACCLoopDirective(ACCDirective):
             raise GenerationError(
                 "ACCLoopDirective must have an ACCParallelDirective or "
                 "ACCKernelsDirective as an ancestor in the Schedule")
+
+        super(ACCLoopDirective, self)._pre_gen_validate()
 
     def gen_code(self, parent):
         '''
@@ -1649,8 +1649,7 @@ class OMPParallelDirective(OMPDirective):
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
         code'''
-        from psyclone.f2pygen import AssignGen, UseGen, \
-            CommentGen, DeclGen
+        from psyclone.f2pygen import AssignGen, UseGen, DeclGen
 
         private_list = self._get_private_list()
 
@@ -2721,6 +2720,10 @@ class CodedKern(Kern):
 
     @property
     def module_inline(self):
+        '''
+        :returns: whether or not this kernel is being module-inlined.
+        :rtype: bool
+        '''
         return self._module_inline
 
     @module_inline.setter
@@ -2728,28 +2731,18 @@ class CodedKern(Kern):
         '''
         Setter for whether or not to module-inline this kernel.
 
-        :param bool value: Whether or not to module-inline this kernel.
-        :raises NotImplementedError: if module-inlining is enabled and the \
-                                     kernel has been transformed.
+        :param bool value: whether or not to module-inline this kernel.
         '''
         # Check all kernels in the same invoke as this one and set any
         # with the same name to the same value as this one. This is
         # required as inlining (or not) affects all calls to the same
-        # kernel within an invoke. Note, this will set this kernel as
-        # well so there is no need to set it locally.
-        if value and self.modified:
-            # TODO #229. Kernel in-lining is currently implemented via
-            # manipulation of the fparser1 Parse Tree while
-            # transformations work with the fparser2 Parse Tree-derived
-            # PSyIR.  Therefore there is presently no way to inline a
-            # transformed kernel.
-            raise NotImplementedError(
-                "Cannot module-inline a transformed kernel ({0}).".
-                format(self.name))
+        # kernel within an invoke.
         my_schedule = self.ancestor(InvokeSchedule)
         for kernel in my_schedule.walk(Kern):
-            if kernel.name == self.name:
-                kernel._module_inline = value
+            if kernel is self:
+                self._module_inline = value
+            elif kernel.name == self.name and kernel.module_inline != value:
+                kernel.module_inline = value
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
@@ -2771,19 +2764,71 @@ class CodedKern(Kern):
 
         :param parent: The parent of this kernel call in the f2pygen AST.
         :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
+
+        :raises NotImplementedError: if there is a name clash that prevents \
+            the kernel from being module-inlined without changing its name.
         '''
-        from psyclone.f2pygen import CallGen, UseGen
+        from psyclone.f2pygen import CallGen, UseGen, PSyIRGen
 
         # If the kernel has been transformed then we rename it. If it
         # is *not* being module inlined then we also write it to file.
         self.rename_and_write()
 
-        parent.add(CallGen(parent, self._name,
-                           self.arguments.raw_arg_list()))
+        # Add the subroutine call with the necessary arguments
+        arguments = self.arguments.raw_arg_list()
+        parent.add(CallGen(parent, self._name, arguments))
 
+        # Also add the subroutine declaration, this can just be the import
+        # statement, or the whole subroutine inlined into the module.
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name, only=True,
                               funcnames=[self._name]))
+        else:
+            # Find the root f2pygen module
+            module = parent
+            while module.parent:
+                module = module.parent
+
+            # Check for name clashes
+            try:
+                existing_symbol = self.scope.symbol_table.lookup(self._name)
+            except KeyError:
+                existing_symbol = None
+
+            if not existing_symbol:
+                # If it doesn't exist already, module-inline the subroutine by:
+                # 1) Registering the subroutine symbol in the Container
+                self.root.symbol_table.add(RoutineSymbol(self._name))
+                # 2) Converting the PSyIR kernel into a f2pygen node (of
+                # PSyIRGen kind) under the PSy-layer f2pygen module.
+                module.add(PSyIRGen(module, self.get_kernel_schedule()))
+            else:
+                # If the symbol already exists, make sure it refers
+                # to the exact same subroutine.
+                if not isinstance(existing_symbol, RoutineSymbol):
+                    raise NotImplementedError(
+                        "Can not module-inline subroutine '{0}' because symbol"
+                        "'{1}' with the same name already exists and changing"
+                        " names of module-inlined subroutines is not "
+                        "implemented yet.".format(self._name, existing_symbol))
+
+                # Make sure the generated code is an exact match by creating
+                # the f2pygen node (which in turn creates the fparser1) of the
+                # kernel_schedule and then compare it to the fparser1 trees of
+                # the PSyIRGen f2pygen nodes children of module.
+                search = PSyIRGen(module, self.get_kernel_schedule()).root
+                for child in module.children:
+                    if isinstance(child, PSyIRGen):
+                        if child.root == search:
+                            # If there is an exact match (the implementation is
+                            # the same), it is safe to continue.
+                            break
+                else:
+                    raise NotImplementedError(
+                        "Can not inline subroutine '{0}' because another "
+                        "subroutine with the same name already exists and"
+                        " versioning of module-inlined subroutines is not"
+                        " implemented yet.".format(self._name))
 
     def gen_arg_setter_code(self, parent):
         '''
@@ -2959,11 +3004,11 @@ class CodedKern(Kern):
         # If this kernel is being module in-lined then we do not need to
         # write it to file.
         if self.module_inline:
-            # TODO #229. We cannot currently inline transformed kernels
-            # (because that requires an fparser1 AST and we only have an
-            # fparser2 AST of the modified kernel) so raise an error.
-            raise NotImplementedError("Cannot module-inline a transformed "
-                                      "kernel ({0})".format(self.name))
+            # TODO #1013: However, the file is already created (opened) and
+            # currently this file is needed for the name versioning, so this
+            # will create an unnecessary file.
+            os.close(fdesc)
+            return
 
         if self.root.opencl:
             from psyclone.psyir.backend.opencl import OpenCLWriter
@@ -4090,6 +4135,8 @@ class ACCKernelsDirective(ACCDirective):
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
+        self._pre_gen_validate()
+
         data_movement = ""
         if self._default_present:
             data_movement = "default(present)"
@@ -4124,7 +4171,10 @@ class ACCKernelsDirective(ACCDirective):
         '''
         Updates the fparser2 AST by inserting nodes for this ACC kernels
         directive.
+
         '''
+        self._pre_gen_validate()
+
         data_movement = None
         if self._default_present:
             data_movement = "present"
@@ -4173,5 +4223,6 @@ class ACCDataDirective(ACCDirective):
         directive.
 
         '''
+        self._pre_gen_validate()
         self._add_region(start_text="DATA", end_text="END DATA",
                          data_movement="analyse")
