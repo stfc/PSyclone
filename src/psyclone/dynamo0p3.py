@@ -1023,8 +1023,6 @@ class DynamoPSy(PSy):
 
         # Add all invoke-specific information
         self.invokes.gen_code(psy_module)
-        # Inline kernels where requested
-        self.inline(psy_module)
 
         # Include required infrastructure modules. The sets of required
         # LFRic data structures and their proxies are updated in the
