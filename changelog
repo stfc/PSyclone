@@ -253,7 +253,10 @@
 
 	80) PR #1020 towards #363. Rename the PSyIR node Array to ArrayReference.
 
-        81) PR #951 for #950. Adds f2pygen support for generating code from
+	81) PR #1011 for #1008. Auto kernel profiling can fail after OpenMP
+	transformations.
+
+        82) PR #951 for #950. Adds f2pygen support for generating code from
         PSyIR nodes.
 
 release 1.9.0 20th May 2020

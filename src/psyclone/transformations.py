@@ -1022,6 +1022,10 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>>
 
     '''
+    # The types of node that must be excluded from the section of PSyIR
+    # being transformed.
+    excluded_node_types = (nodes.PSyDataNode)
+
     def __init__(self):
         # Whether to add the "independent" clause
         # to the loop directive.
@@ -1916,7 +1920,7 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> newschedule.view()
 
     '''
-    excluded_node_types = (nodes.CodeBlock, nodes.Return,
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode,
                            psyGen.ACCDataDirective,
                            psyGen.ACCEnterDataDirective)
 
@@ -3356,7 +3360,7 @@ class ACCKernelsTrans(RegionTrans):
     >>> new_sched, _ = ktrans.apply(kernels)
 
     '''
-    excluded_node_types = (nodes.CodeBlock, nodes.Return)
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode)
 
     @property
     def name(self):
@@ -3488,7 +3492,7 @@ class ACCDataTrans(RegionTrans):
     >>> new_sched, _ = dtrans.apply(kernels)
 
     '''
-    excluded_node_types = (nodes.CodeBlock, nodes.Return)
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode)
 
     @property
     def name(self):
