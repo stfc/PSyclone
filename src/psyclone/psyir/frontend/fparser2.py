@@ -45,7 +45,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Container, Assignment, Return, Array, Node, Range, KernelSchedule
+    Container, Assignment, Return, ArrayReference, Node, Range, KernelSchedule
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
@@ -92,10 +92,11 @@ def _check_args(array, dim):
         supplied array argument.
 
     '''
-    if not isinstance(array, Array):
+    if not isinstance(array, ArrayReference):
         raise TypeError(
             "method _check_args 'array' argument should be an "
-            "Array type but found '{0}'.".format(type(array).__name__))
+            "ArrayReference type but found '{0}'.".format(
+                type(array).__name__))
 
     if not isinstance(dim, int):
         raise TypeError(
@@ -133,8 +134,8 @@ def _is_bound_full_extent(array, dim, operator):
     bound Fortran code is captured as longhand lbound and/or
     ubound functions as expected in the PSyIR.
 
-    The supplied "array" argument is assumed to be an Array node and
-    the contents of the specified dimension "dim" is assumed to be a
+    The supplied "array" argument is assumed to be an ArrayReference node
+    and the contents of the specified dimension "dim" is assumed to be a
     Range node.
 
     This routine is only in fparser2.py until #717 is complete as it
@@ -206,7 +207,7 @@ def _is_array_range_literal(array, dim, index, value):
     different context.
 
     :param array: the node to check.
-    :type array: :py:class:`pysclone.psyir.node.Array`
+    :type array: :py:class:`pysclone.psyir.node.ArrayReference`
     :param int dim: the dimension index to check.
     :param int index: the index of the range to check (0 is the \
         lower bound, 1 is the upper bound and 2 is the step).
@@ -745,8 +746,8 @@ class Fparser2Reader(object):
                         break
                 if not found:
                     raise InternalError(
-                        "Array '{0}' present in source code ('{1}') but not "
-                        "identified as being read or written.".
+                        "ArrayReference '{0}' present in source code ('{1}') "
+                        "but not identified as being read or written.".
                         format(name, str(node)))
         # Now we check for any arrays that are both read and written
         readwrites = readers & writers
@@ -1007,7 +1008,7 @@ class Fparser2Reader(object):
                         sym = DataSymbol(dim_name, default_integer_type(),
                                          interface=UnresolvedInterface())
                         symbol_table.add(sym)
-                    shape.append(sym)
+                    shape.append(Reference(sym))
                 else:
                     _unsupported_type_error(dimensions)
 
@@ -1752,7 +1753,7 @@ class Fparser2Reader(object):
                     parent.addchild(assignment)
 
                     # Build lhs
-                    lhs = Array(symbol, parent=assignment)
+                    lhs = ArrayReference(symbol, parent=assignment)
                     self.process_nodes(parent=lhs, nodes=array_subscript)
                     assignment.addchild(lhs)
 
@@ -2375,7 +2376,7 @@ class Fparser2Reader(object):
         "a(:, 2, :)" the rank of the sub-section is 2.
 
         :param array: the array reference to check.
-        :type array: :py:class:`psyclone.psyir.nodes.Array`
+        :type array: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         :returns: rank of the sub-section of the array.
         :rtype: int
@@ -2410,9 +2411,9 @@ class Fparser2Reader(object):
 
     def _array_syntax_to_indexed(self, parent, loop_vars):
         '''
-        Utility function that modifies each Array object in the supplied PSyIR
-        fragment so that they are indexed using the supplied loop variables
-        rather than having colon array notation.
+        Utility function that modifies each ArrayReference object in the
+        supplied PSyIR fragment so that they are indexed using the supplied
+        loop variables rather than having colon array notation.
 
         :param parent: root of PSyIR sub-tree to search for Array \
                        references to modify.
@@ -2434,7 +2435,7 @@ class Fparser2Reader(object):
         # PSyIR (using e.g. the Fortran backend) will not
         # compile. We need to implement robust identification of the
         # types of all symbols in the PSyIR fragment.
-        arrays = parent.walk(Array)
+        arrays = parent.walk(ArrayReference)
         first_rank = None
         for array in arrays:
             # Check that this is a supported array reference and that
@@ -2532,7 +2533,7 @@ class Fparser2Reader(object):
         # parent for this logical expression we will repeat the processing.
         fake_parent = Assignment(parent=parent)
         self.process_nodes(fake_parent, logical_expr)
-        arrays = fake_parent.walk(Array)
+        arrays = fake_parent.walk(ArrayReference)
         if not arrays:
             # If the PSyIR doesn't contain any Arrays then that must be
             # because the code doesn't use explicit array syntax. At least one
@@ -2895,13 +2896,13 @@ class Fparser2Reader(object):
             unsupported PSyIR features and should be placed in a CodeBlock.
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyir.nodes.Array`
+        :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         '''
         reference_name = node.items[0].string.lower()
         symbol = parent.find_or_create_symbol(reference_name)
 
-        array = Array(symbol, parent)
+        array = ArrayReference(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array
 
@@ -2919,7 +2920,7 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
 
         '''
-        # The PSyIR stores array dimension information for the Array
+        # The PSyIR stores array dimension information for the ArrayReference
         # class in an ordered list. As we are processing the
         # dimensions in order, the number of children already added to
         # our parent indicates the current array dimension being

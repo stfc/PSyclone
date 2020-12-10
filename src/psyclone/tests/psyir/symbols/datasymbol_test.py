@@ -84,11 +84,12 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
     assert isinstance(DataSymbol('a', REAL_SINGLE_TYPE), DataSymbol)
     assert isinstance(DataSymbol('a', REAL8_TYPE), DataSymbol)
-    dim = DataSymbol('dim', INTEGER_SINGLE_TYPE)
-    array_type = ArrayType(REAL_SINGLE_TYPE, [dim])
+    dim = DataSymbol('dim', INTEGER_SINGLE_TYPE,
+                     interface=UnresolvedInterface())
+    array_type = ArrayType(REAL_SINGLE_TYPE, [Reference(dim)])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
     array_type = ArrayType(REAL_SINGLE_TYPE,
-                           [3, dim, ArrayType.Extent.ATTRIBUTE])
+                           [3, Reference(dim), ArrayType.Extent.ATTRIBUTE])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
     assert isinstance(
         DataSymbol('a', REAL_SINGLE_TYPE,
@@ -128,14 +129,16 @@ def test_datasymbol_can_be_printed():
     symbol = DataSymbol("sname", REAL_SINGLE_TYPE)
     assert "sname: <Scalar<REAL, SINGLE>, Local>" in str(symbol)
 
-    sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE)
-    assert "s1: <Scalar<INTEGER, SINGLE>, Local>" in str(sym1)
+    sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE,
+                      interface=UnresolvedInterface())
+    assert "s1: <Scalar<INTEGER, SINGLE>, Unresolved>" in str(sym1)
 
     array_type = ArrayType(REAL_SINGLE_TYPE,
-                           [ArrayType.Extent.ATTRIBUTE, 2, sym1])
+                           [ArrayType.Extent.ATTRIBUTE, 2, Reference(sym1)])
     sym2 = DataSymbol("s2", array_type)
-    assert ("s2: <Array<Scalar<REAL, SINGLE>, shape=['ATTRIBUTE', 2, s1]>, "
-            "Local>" in str(sym2))
+    assert ("s2: <Array<Scalar<REAL, SINGLE>, shape=['ATTRIBUTE', "
+            "Literal[value:'2', Scalar<INTEGER, UNDEFINED>], "
+            "Reference[name:'s1']]>, Local>" in str(sym2))
 
     my_mod = ContainerSymbol("my_mod")
     sym3 = DataSymbol("s3", REAL_SINGLE_TYPE,
@@ -251,9 +254,10 @@ def test_datasymbol_scalar_array():
     is_array returns True if the DataSymbol is an array and False if not.
 
     '''
-    sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE)
+    sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE,
+                      interface=UnresolvedInterface())
     array_type = ArrayType(REAL_SINGLE_TYPE,
-                           [ArrayType.Extent.ATTRIBUTE, 2, sym1])
+                           [ArrayType.Extent.ATTRIBUTE, 2, Reference(sym1)])
     sym2 = DataSymbol("s2", array_type)
     assert sym1.is_scalar
     assert not sym1.is_array
@@ -291,13 +295,28 @@ def test_datasymbol_copy():
     assert symbol.name == "myname"
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
-    assert symbol.datatype.shape == [1, 2]
+    assert len(symbol.shape) == 2
+    assert isinstance(symbol.shape[0], Literal)
+    assert symbol.shape[0].value == "1"
+    assert symbol.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert symbol.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert isinstance(symbol.shape[1], Literal)
+    assert symbol.shape[1].value == "2"
+    assert symbol.shape[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert symbol.shape[1].datatype.precision == ScalarType.Precision.UNDEFINED
     assert not symbol.constant_value
 
     # Now check constant_value
     new_symbol.constant_value = 3
 
-    assert symbol.shape == [1, 2]
+    assert isinstance(symbol.shape[0], Literal)
+    assert symbol.shape[0].value == "1"
+    assert symbol.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert symbol.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert isinstance(symbol.shape[1], Literal)
+    assert symbol.shape[1].value == "2"
+    assert symbol.shape[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert symbol.shape[1].datatype.precision == ScalarType.Precision.UNDEFINED
     assert not symbol.constant_value
 
 

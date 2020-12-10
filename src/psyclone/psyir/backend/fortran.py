@@ -49,7 +49,7 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ContainerSymbol, ScalarType, ArrayType, UnknownType, UnknownFortranType, \
     SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
-    Reference, Literal, KernelSchedule
+    Reference, Literal, KernelSchedule, DataNode, CodeBlock
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.errors import InternalError
 
@@ -92,38 +92,6 @@ def gen_intent(symbol):
                                "".format(str(excinfo)))
     else:
         return None  # non-Arguments do not have intent
-
-
-def gen_dims(symbol):
-    '''Given a DataSymbol instance as input, return a list of strings
-    representing the symbol's array dimensions.
-
-    :param symbol: the symbol instance.
-    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-    :returns: the Fortran representation of the symbol's dimensions as \
-    a list.
-    :rtype: list of str
-
-    :raises NotImplementedError: if the format of the dimension is not \
-    supported.
-
-    '''
-    dims = []
-    for index in symbol.shape:
-        if isinstance(index, DataSymbol):
-            # references another symbol
-            dims.append(index.name)
-        elif isinstance(index, int):
-            # literal constant
-            dims.append(str(index))
-        elif isinstance(index, ArrayType.Extent):
-            # unknown extent
-            dims.append(":")
-        else:
-            raise NotImplementedError(
-                "unsupported gen_dims index '{0}'".format(str(index)))
-    return dims
 
 
 def gen_datatype(symbol):
@@ -325,6 +293,37 @@ class FortranWriter(PSyIRVisitor):
     generating Fortran).
 
     '''
+
+    def _gen_dims(self, symbol):
+        '''Given a DataSymbol instance as input, return a list of strings
+        representing the symbol's array dimensions.
+
+        :param symbol: the symbol instance.
+        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :returns: the Fortran representation of the symbol's dimensions as \
+            a list.
+        :rtype: list of str
+
+        :raises NotImplementedError: if the format of the dimension is not \
+            supported.
+
+        '''
+        dims = []
+        for index in symbol.shape:
+            if isinstance(index, DataNode):
+                # literal constant, symbol reference, or computed
+                # dimension
+                expression = self._visit(index)
+                dims.append(expression)
+            elif isinstance(index, ArrayType.Extent):
+                # unknown extent
+                dims.append(":")
+            else:
+                raise NotImplementedError(
+                    "unsupported gen_dims index '{0}'".format(str(index)))
+        return dims
+
     def gen_use(self, symbol, symbol_table):
         ''' Performs consistency checks and then creates and returns the
         Fortran use statement(s) for this ContainerSymbol as required for
@@ -422,8 +421,8 @@ class FortranWriter(PSyIRVisitor):
                 raise VisitorError(
                     "A Fortran declaration of an allocatable array must have"
                     " the extent of every dimension as 'DEFERRED' but "
-                    "symbol '{0}' has shape: {1}".format(symbol.name,
-                                                         symbol.shape))
+                    "symbol '{0}' has shape: {1}.".format(
+                        symbol.name, self._gen_dims(symbol)))
             # A 'deferred' array extent means this is an allocatable array
             result += ", allocatable"
         if ArrayType.Extent.ATTRIBUTE in symbol.shape:
@@ -436,9 +435,9 @@ class FortranWriter(PSyIRVisitor):
                     raise VisitorError(
                         "An assumed-size Fortran array must only have its "
                         "last dimension unspecified (as 'ATTRIBUTE') but "
-                        "symbol '{0}' has shape: {1}".format(symbol.name,
-                                                             symbol.shape))
-        dims = gen_dims(symbol)
+                        "symbol '{0}' has shape: {1}."
+                        "".format(symbol.name, self._gen_dims(symbol)))
+        dims = self._gen_dims(symbol)
         if dims:
             result += ", dimension({0})".format(",".join(dims))
         intent = gen_intent(symbol)
@@ -751,12 +750,12 @@ class FortranWriter(PSyIRVisitor):
             raise VisitorError("Unexpected N-ary op '{0}'".
                                format(node.operator))
 
-    def array_node(self, node):
-        '''This method is called when an Array instance is found in the PSyIR
-        tree.
+    def arrayreference_node(self, node):
+        '''This method is called when an ArrayReference instance is found
+        in the PSyIR tree.
 
         :param node: an Array PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Array`
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         :returns: the Fortran code as a string.
         :rtype: str
@@ -1002,7 +1001,6 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        from psyclone.psyir.nodes import CodeBlock
         result = ""
         if node.structure == CodeBlock.Structure.STATEMENT:
             # indent and newlines required

@@ -57,7 +57,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # Test code with explicit NEMO-style do loop
 EXPLICIT_DO = ("program explicit_do\n"
                "  REAL :: r\n"
-               "  INTEGER :: ji, jj, jk, jpi, jpj, jpk\n"
+               "  INTEGER :: ji, jj, jk\n"
+               "  INTEGER, PARAMETER :: jpi=3, jpj=5, jpk=7\n"
                "  REAL, DIMENSION(jpi, jpj, jpk) :: umask\n"
                "  DO jk = 1, jpk\n"
                "     DO jj = 1, jpj\n"
@@ -529,5 +530,5 @@ def test_missed_array_case(parser):
     acc_trans.apply(schedule.children)
     with pytest.raises(InternalError) as err:
         _ = str(psy.gen)
-    assert ("Array 'ice_mask' present in source code ('ice_mask(ji, jj)') "
-            "but not identified" in str(err.value))
+    assert ("ArrayReference 'ice_mask' present in source code ("
+            "'ice_mask(ji, jj)') but not identified" in str(err.value))

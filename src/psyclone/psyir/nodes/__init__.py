@@ -46,7 +46,8 @@ from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
     BinaryOperation, NaryOperation
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.ifblock import IfBlock
-from psyclone.psyir.nodes.reference import Reference, Array
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.codeblock import CodeBlock
@@ -67,7 +68,7 @@ from psyclone.psyir.nodes.call import Call
 __all__ = [
         'colored',
         'SCHEDULE_COLOUR_MAP',
-        'Array',
+        'ArrayReference',
         'Assignment',
         'BinaryOperation',
         'Call',
