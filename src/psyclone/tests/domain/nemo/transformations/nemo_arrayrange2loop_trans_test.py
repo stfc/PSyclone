@@ -53,6 +53,7 @@ from psyclone.tests.utilities import get_invoke
 from psyclone.nemo import NemoKern, NemoLoop
 from psyclone.psyir.nodes import Schedule
 from psyclone.errors import InternalError
+from psyclone.configuration import Config
 
 # Constants
 API = "nemo"
@@ -71,9 +72,8 @@ def test_transform():
 
 
 def test_apply_bounds():
-    '''Check that the apply method uses a) bounds information from the
-    range if it is supplied, or b) configuration bounds if they are
-    provided or c) lbound and ubound intrinsics when no bounds
+    '''Check that the apply method uses a) configuration bounds if they
+    are provided or b) lbound and ubound intrinsics when no bounds
     information is available. Also check that a NemoKern is added
     between the assignment and the innermost enclosing loop after the
     last range has been transformed into an explicit loop.
@@ -102,6 +102,68 @@ def test_apply_bounds():
         "    do jk = 1, jpk, 1\n"
         "      do jj = 1, jpj, 1\n"
         "        do ji = 1, jpi, 1\n"
+        "          umask(ji,jj,jk,jt,idx)=vmask(ji,jj,jk,jt,idx) + 1.0\n"
+        "        enddo\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n"
+        "enddo" in result)
+
+
+def test_apply_fixed_bounds():
+    '''Check that the apply method uses bounds information from the range
+    node if it is supplied.
+
+    '''
+    _, invoke_info = get_invoke("implicit_do_slice.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
+    assignment = schedule[0]
+    array_ref = assignment.lhs
+    trans = NemoArrayRange2LoopTrans()
+    for index in range(2, -1, -1):
+        range_node = array_ref.children[index]
+        trans.apply(range_node)
+    writer = FortranWriter()
+    result = writer(schedule)
+    assert (
+        "do jk = 1, jpk, 1\n"
+        "  do jj = 2, 2, 1\n"
+        "    do ji = 1, jpi, 1\n"
+        "      umask(ji,jj,jk)=0.0e0\n"
+        "    enddo\n"
+        "  enddo\n"
+        "enddo" in result)
+
+
+def test_apply_reference_literal():
+    '''Check that the apply method add bounds appropriately when the
+    config file specifies a lower bound as a reference and an upper
+    bound as a literal.
+
+    '''
+    _, invoke_info = get_invoke("implicit_many_dims.f90", api=API, idx=0)
+    # Create a new config instance and load a test config file with
+    # the bounds information set the way we want.
+    config = Config.get(do_not_load_file=True)
+    config.load(config_file=TEST_CONFIG)
+    schedule = invoke_info.schedule
+    assignment = schedule[0]
+    array_ref = assignment.lhs
+    trans = NemoArrayRange2LoopTrans()
+    for index in range(4, -1, -1):
+        range_node = array_ref.children[index]
+        trans.apply(range_node)
+    # Remove this config file so the next time the default one will be
+    # loaded (in case we affect other tests)
+    Config._instance = None
+    writer = FortranWriter()
+    result = writer(schedule)
+    assert (
+        "do idx = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
+        "  do jt = 1, UBOUND(umask, 4), 1\n"
+        "    do jk = jpk, 1, 1\n"
+        "      do jj = 1, jpj, 1\n"
+        "        do ji = jpi, 1, 1\n"
         "          umask(ji,jj,jk,jt,idx)=vmask(ji,jj,jk,jt,idx) + 1.0\n"
         "        enddo\n"
         "      enddo\n"

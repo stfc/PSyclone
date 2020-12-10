@@ -50,6 +50,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.errors import GenerationError
 
 
 class NemoFparser2Reader(Fparser2Reader):
@@ -527,7 +528,7 @@ class NemoLoop(Loop):
         step.parent = loop
 
         # Indicate the type of loop
-        loop_type_mapping = Config.get().api_conf("nemo")\
+        loop_type_mapping = Config.get().api_conf("nemo") \
                                         .get_loop_type_mapping()
         if variable.name in loop_type_mapping:
             loop.loop_type = loop_type_mapping[variable.name]
