@@ -47,8 +47,8 @@ from psyclone.errors import GenerationError
 
 class ArrayReference(ArrayNode, Reference):
     '''
-    Node representing an Array reference. As such it has a symbol that
-    it references and its children represent the subscript list.
+    Node representing a reference to an element or elements of an Array.
+    The array-index expressions are stored as the children of this node.
 
     '''
     # Textual description of the node.
@@ -99,8 +99,7 @@ class ArrayReference(ArrayNode, Reference):
         return array
 
     def __str__(self):
-        result = ("ArrayReference" + super(ArrayReference, self).__str__() +
-                  "\n")
+        result = super(ArrayReference, self).__str__() + "\n"
         for entity in self._children:
             result += str(entity) + "\n"
         return result
