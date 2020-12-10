@@ -77,21 +77,28 @@ class ArrayStructureReference(StructureReference, ArrayNode):
     @staticmethod
     def create(symbol, members=None, children=None, parent=None):
         '''
-        Create an ArrayStructureReference instance given a symbol and a
-        list of components. e.g. for "field%bundle(2)%flag" this
-        list would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
+        Create a reference to one or more elements of an array of structures.
+        The symbol to be referred to must be of ArrayType with the 'intrinsic'
+        type of the array specified with a TypeSymbol. If the reference is
+        to a member of the structure then this is specified using the 'members'
+        argument. e.g. for a reference to "field(idx)%bundle(2)%flag" this
+        argument would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
+        The 'children' argument specifies the DataNodes describing the indexing
+        into the array of structures. For the example given previously, this
+        would be [Reference(idx_symbol)] where `idx_symbol` is the Symbol
+        representing the `idx` variable in the Fortran code snippet.
 
         :param symbol: the symbol that this reference is to.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param members: the component(s) of the structure that make up \
-            the full reference. Any components that are array references must \
-            provide the name of the array and a list of DataNodes describing \
-            which part of it is accessed.
+            the full reference or None. Any components that are array \
+            references must provide the name of the array and a list of \
+            DataNodes describing which part of it is accessed.
         :type members: list of str or 2-tuples containing (str, \
             list of nodes describing array access)
-        :param children: a list of Nodes describing the array indices.
+        :param children: a list of Nodes describing the array indices or None.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param parent: the parent of this node in the PSyIR.
+        :param parent: the parent of this node in the PSyIR or None.
         :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: an ArrayReference instance.
@@ -125,12 +132,6 @@ class ArrayStructureReference(StructureReference, ArrayNode):
                 ref.addchild(child)
                 child.parent = ref
         return ref
-
-    def __str__(self):
-        result = super(ArrayStructureReference, self).__str__() + "\n"
-        for entity in self._children:
-            result += str(entity) + "\n"
-        return result
 
 
 # For AutoAPI documentation generation

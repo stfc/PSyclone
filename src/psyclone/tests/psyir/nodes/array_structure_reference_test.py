@@ -97,5 +97,15 @@ def test_asr_create_errors():
 
 
 def test_ast_str():
-    ''' Test the __str__ method of the class. '''
-    pass
+    ''' Test that the __str__ method of the StructureReference class works OK
+    when we have an ArrayStructureReference. '''
+    grid_type = symbols.StructureType.create([
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+    grid_type_symbol = symbols.TypeSymbol("grid_type", grid_type)
+    grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
+    ssym = symbols.DataSymbol("grid", grid_array_type)
+    asref = nodes.ArrayStructureReference.create(
+        ssym, ["nx"], [nodes.Literal("2", symbols.INTEGER_TYPE)])
+    assert (str(asref) == "ArrayStructureReference[name:'grid']\n"
+            "MemberReference[name:'nx']\n"
+            "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n")

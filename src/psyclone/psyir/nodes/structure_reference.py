@@ -40,7 +40,6 @@ from __future__ import absolute_import
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member_reference import MemberReference
 from psyclone.psyir.nodes.array_member_reference import ArrayMemberReference
-from psyclone.psyir.nodes.array_node import ArrayNode
 from psyclone.psyir.nodes.array_structure_member_reference import \
     ArrayStructureMemberReference
 from psyclone.psyir.nodes.structure_member_reference import \
