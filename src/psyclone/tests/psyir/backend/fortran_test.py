@@ -48,7 +48,7 @@ from psyclone.psyir.backend.fortran import gen_intent, FortranWriter, \
     is_fortran_intrinsic, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
-    KernelSchedule, Array, Range
+    KernelSchedule, ArrayReference, Range
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -1076,11 +1076,11 @@ def test_fw_array(fort_writer):
 
 
 def test_fw_range(fort_writer):
-    '''Check the FortranWriter class range_node and array_node methods
+    '''Check the FortranWriter class range_node and arrayreference_node methods
     produce the expected code when an array section is specified. We
     can't test the Range node in isolation as one of the checks in the
-    Range code requires access to the (Array) parent (to determine the
-    array index of a Range node).
+    Range code requires access to the (ArrayReference) parent (to
+    determine the array index of a Range node).
 
     '''
     array_type = ArrayType(REAL_TYPE, [10, 10])
@@ -1112,20 +1112,20 @@ def test_fw_range(fort_writer):
         BinaryOperation.Operator.ADD,
         Reference(DataSymbol("b", REAL_TYPE)),
         Reference(DataSymbol("c", REAL_TYPE)))
-    array = Array.create(symbol, [Range.create(one, dim1_bound_stop),
-                                  Range.create(dim2_bound_start, plus,
-                                               step=three)])
-    result = fort_writer.array_node(array)
+    array = ArrayReference.create(symbol, [Range.create(one, dim1_bound_stop),
+                                           Range.create(dim2_bound_start, plus,
+                                                        step=three)])
+    result = fort_writer.arrayreference_node(array)
     assert result == "a(1:,:b + c:3)"
 
     array_type = ArrayType(REAL_TYPE, [10, 10, 10])
     symbol = DataSymbol("a", array_type)
-    array = Array.create(
+    array = ArrayReference.create(
         symbol,
         [Range.create(dim1_bound_start, dim1_bound_stop),
          Range.create(one, two, step=three),
          Range.create(dim3_bound_start, dim3_bound_stop, step=three)])
-    result = fort_writer.array_node(array)
+    result = fort_writer.arrayreference_node(array)
     assert result == "a(:,1:2:3,::3)"
 
     # Make a) lbound and ubound come from a different array and b)
@@ -1141,12 +1141,12 @@ def test_fw_range(fort_writer):
         BinaryOperation.Operator.UBOUND,
         Reference(symbol_b),
         Literal("1", INTEGER_TYPE))
-    array = Array.create(
+    array = ArrayReference.create(
         symbol,
         [Range.create(b_dim1_bound_start, b_dim1_bound_stop),
          Range.create(one, two, step=three),
          Range.create(dim3_bound_stop, dim3_bound_start, step=three)])
-    result = fort_writer.array_node(array)
+    result = fort_writer.arrayreference_node(array)
     assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),1:2:3,"
                       "UBOUND(a, 3):LBOUND(a, 3):3)")
 

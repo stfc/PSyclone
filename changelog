@@ -251,6 +251,8 @@
 	Literals or expressions). If an int is provided, it is transformed to
 	a Literal.
 
+	80) PR #1020 towards #363. Rename the PSyIR node Array to ArrayReference.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include

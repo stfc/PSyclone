@@ -40,7 +40,8 @@
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Loop, Literal, Reference, Array, Schedule
+from psyclone.psyir.nodes import Loop, Literal, Reference, ArrayReference, \
+    Schedule
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, GenerationError
@@ -275,8 +276,9 @@ class DynLoop(Loop):
             self.stop_expr = Reference(DataSymbol("ncolour", INTEGER_TYPE),
                                        parent=self)
         elif self._loop_type == "colour":
-            self.stop_expr = Array(DataSymbol("ncp_ncolour", INTEGER_TYPE),
-                                   parent=self)
+            self.stop_expr = ArrayReference(DataSymbol("ncp_ncolour",
+                                                       INTEGER_TYPE),
+                                            parent=self)
             self.stop_expr.addchild(
                 Reference(DataSymbol("colour", INTEGER_TYPE)),
                 parent=self.stop_expr)
