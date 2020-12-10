@@ -33,7 +33,7 @@
 
 program implicit_many_dims
   implicit none
-  integer :: jpi, jpj, jpk, jpt, ndim
+  integer, parameter :: jpi=10, jpj=20, jpk=30, jpt=40, ndim=50
   real, dimension(jpi,jpj,jpk,jpt,ndim) :: umask, vmask
 
   umask(:,:,:,:,:) = vmask(:,:,:,:,:) + 1.0

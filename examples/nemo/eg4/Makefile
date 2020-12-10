@@ -48,11 +48,11 @@ ${FORTRAN_FILES}:
 # intrinsic_example.f90 and tracer_advection.f90 make use of a
 # different transformation script
 intrinsic:
-	# ${PSYCLONE} -s ./sir_trans_all.py -api nemo intrinsic_example.f90 \
-	# -opsy /dev/null
+	${PSYCLONE} -s ./sir_trans_all.py -api nemo intrinsic_example.f90 \
+-opsy /dev/null
 tra_adv:
-	# ${PSYCLONE} -s ./sir_trans_all.py -api nemo tra_adv_compute.F90 \
-	#  -opsy /dev/null
+	${PSYCLONE} -s ./sir_trans_all.py -api nemo tra_adv_compute.F90 \
+-opsy /dev/null
 
 # We don't do any compilation for this example
 compile:

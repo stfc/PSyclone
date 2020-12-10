@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module providing a transformation from a PSyIR Array Range to a
-PSyIR NemoLoop. This is useful for capturing the contents of array
-ranges as kernel regions so they can be optimised.
+'''Module providing a transformation from a PSyIR ArrayReference Range
+to a PSyIR NemoLoop. This is useful for capturing the contents of
+array ranges as kernel regions so they can be optimised.
 
 '''
 
@@ -46,15 +46,15 @@ from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-from psyclone.psyir.nodes import Range, Reference, Array, Assignment, \
-    Literal
+from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
+    Assignment, Literal
 from psyclone.nemo import NemoLoop, NemoKern
 from psyclone.configuration import Config
 
 
 class NemoArrayRange2LoopTrans(Transformation):
-    '''Provides a transformation from a PSyIR Array Range to a PSyIR
-    NemoLoop. For example:
+    '''Provides a transformation from a PSyIR ArrayReference Range to a
+    PSyIR NemoLoop. For example:
 
     >>> schedule = ...
     >>> range_node = ...
@@ -143,7 +143,7 @@ class NemoArrayRange2LoopTrans(Transformation):
             symbol_table.add(loop_variable_symbol)
 
         # Replace the loop_idx array dimension with the loop variable.
-        for array in assignment.walk(Array):
+        for array in assignment.walk(ArrayReference):
             try:
                 idx = _get_outer_index(array)
             except IndexError as info:
@@ -173,8 +173,8 @@ class NemoArrayRange2LoopTrans(Transformation):
 
     def __str__(self):
         return (
-            "Convert the PSyIR assignment for a specified Array Range "
-            "into a PSyIR NemoLoop.")
+            "Convert the PSyIR assignment for a specified ArrayReference "
+            "Range into a PSyIR NemoLoop.")
 
     @property
     def name(self):
@@ -202,7 +202,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                 "supplied node argument should be a PSyIR Range, but "
                 "found '{0}'.".format(type(node).__name__))
         # Am I within an array reference?
-        if not node.parent or not isinstance(node.parent, Array):
+        if not node.parent or not isinstance(node.parent, ArrayReference):
             raise TransformationError(
                 "Error in NemoArrayRange2LoopTrans transformation. The "
                 "supplied node argument should be within an ArrayReference "
@@ -242,7 +242,7 @@ def _get_outer_index(array):
     does not exist then raise an exception.
 
     :param array: the array being examined.
-    :type array: :py:class:`psyclone.psyir.nodes.Array`
+    :type array: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
     :returns: the outermost index of the array that is a Range node.
 

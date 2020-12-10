@@ -32,7 +32,8 @@
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 subroutine data_ref()
-  INTEGER :: dummy, ji, n
+  INTEGER, parameter :: n=16
+  INTEGER :: ji
   real :: a(n)
   real :: fconst
   do ji = 1, n

@@ -53,11 +53,10 @@ from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.nemo import NemoKern
 from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
-                                  NaryOperation, Operation, Assignment,
-                                  Array)
+                                  NaryOperation, Operation, Assignment)
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
-    Min2CodeTrans, TransformationError
+    Min2CodeTrans
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 
 
@@ -88,7 +87,7 @@ def trans(psy):
         schedule = invoke.schedule
         for assignment in schedule.walk(Assignment):
             nemo_loop_trans.apply(assignment)
-            
+
         for kernel in schedule.walk(NemoKern):
 
             # The NEMO api currently has no symbol table so create one

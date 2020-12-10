@@ -33,15 +33,15 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module providing a transformation from a PSyIR Array Range to a
-PSyIR NemoLoop. This is useful for capturing the contents of array
-ranges as kernel regions so they can be optimised.
+'''Module providing a transformation from a PSyIR ArrayReference Range
+to a PSyIR NemoLoop. This is useful for capturing the contents of
+array ranges as kernel regions so they can be optimised.
 
 '''
 
 from __future__ import absolute_import
 
-from psyclone.psyir.nodes import Array, Assignment
+from psyclone.psyir.nodes import ArrayReference, Assignment
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations import ArrayRange2LoopTrans
@@ -51,8 +51,8 @@ from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans import \
 
 
 class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
-    '''Provides a transformation from the outermost PSyIR Array Range to a
-    PSyIR NemoLoop. For example:
+    '''Provides a transformation from the outermost PSyIR ArrayReference
+    Range to a PSyIR NemoLoop. For example:
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
@@ -68,7 +68,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
     >>> from psyclone.errors import TransformationError
     >>>
     >>> schedule.view()
-    >>> trans = NemoArrayRange2LoopTrans()
+    >>> trans = NemoOuterArrayRange2LoopTrans()
     >>> for assignment in schedule.walk(Assignment):
     >>>     while True:
     >>>         try:
@@ -100,8 +100,8 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         nemo_arrayrange2loop.apply(lhs_array_ref.children[index])
 
     def __str__(self):
-        return ("Convert a PSyIR assignment to the outermost Array Range "
-                "into a PSyIR NemoLoop.")
+        return ("Convert a PSyIR assignment to the outermost ArrayReference "
+                "Range into a PSyIR NemoLoop.")
 
     @property
     def name(self):
@@ -134,7 +134,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
                 "found '{0}'.".format(type(node).__name__))
 
         # Is the LHS an array reference?
-        if not isinstance(node.lhs, Array):
+        if not isinstance(node.lhs, ArrayReference):
             raise TransformationError(
                 "Error in NemoOuterArrayRange2LoopTrans transformation. The "
                 "supplied assignment node should have an ArrayReference node "

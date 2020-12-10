@@ -223,7 +223,7 @@ def test_str():
 
     '''
     assert (str(NemoArrayRange2LoopTrans()) == "Convert the PSyIR assignment "
-            "for a specified Array Range into a PSyIR NemoLoop.")
+            "for a specified ArrayReference Range into a PSyIR NemoLoop.")
 
 
 def test_name():

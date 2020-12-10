@@ -34,7 +34,7 @@
 program explicit_over_implicit
   implicit none
   integer :: ji, jj, jk
-  integer :: jpi, jpj, jpk
+  integer, parameter :: jpi=10, jpj=20, jpk=30
   real, dimension(jpi,jpj,jpk) :: umask, vmask
 
   ! Test code with explicit NEMO-style do loop over levels containing an

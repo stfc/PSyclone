@@ -33,7 +33,7 @@
 
 program implicit_many_dims
   implicit none
-  integer :: jpi, jpj
+  integer, parameter :: jpi=64, jpj=32
   real, dimension(jpi,jpj) :: umask, vmask
 
   ! This is invalid Fortran
