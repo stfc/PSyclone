@@ -118,12 +118,14 @@ class NemoAllArrayRange2LoopTrans(Transformation):
 
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
+        :param options: a dictionary with options for \
+            transformations. No options are used in this \
+            transformation. This is an optional argument that defaults \
+            to None.
+        :type options: dictionary of string:values or None
 
-        :raises TransformationError: if no conformant loop bounds were \
-            found.
-        :raises TransformationError: if an associated loop bound \
-            specified in the config file is not declared in the symbol \
-            table.
+        :raises TransformationError: if the supplied node is not an \
+            Assignment.
 
         '''
         # Am I an assignment node?
