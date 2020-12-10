@@ -98,7 +98,7 @@ must be built with the same compiler. To make sure the infrastructure and the
 generated files are compiled as described, we can do:
 
 ```sh
-export F90=pfg90
+export F90=pgf90
 make allclean
 make compile-acc
 ```
