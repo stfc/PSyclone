@@ -89,6 +89,11 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
 
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
+        :param options: a dictionary with options for \
+            transformations. No options are used in this \
+            transformation. This is an optional argument that defaults \
+            to None.
+        :type options: dictionary of string:values or None
 
         '''
         self.validate(node)

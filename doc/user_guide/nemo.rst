@@ -154,6 +154,35 @@ Internal Representation of it::
                 Loop[type='lon',field_space='None',it_space='None']
                     CodedKern[]
 
+Transformations
+---------------
+
+The following transformations are specific to the NEMO API.
+
+.. warning:: the transformation below all operate on the PSyIR not the
+fparser2 ast. This means that any changes made by these
+transformations will not be observed in the code that is output by
+psyclone. The changes will only become visible when the PSyIR
+back-ends replace the current fparser2 ast-based backend.
+
+####
+
+.. autoclass:: psyclone.domain.nemo.transformations.NemoArrayRange2LoopTrans
+    :noindex:
+    :members: apply, validate
+
+####
+
+.. autoclass:: psyclone.domain.nemo.transformations.NemoOuterArrayRange2LoopTrans
+    :noindex:
+    :members: apply, validate
+
+####
+
+.. autoclass:: psyclone.domain.nemo.transformations.NemoAllArrayRange2LoopTrans
+    :noindex:
+    :members: apply, validate
+
 .. _limitations:
 
 Limitations

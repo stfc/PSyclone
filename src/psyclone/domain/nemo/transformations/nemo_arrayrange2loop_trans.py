@@ -74,6 +74,11 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         :param node: a Range node.
         :type node: :py:class:`psyclone.psyir.nodes.Range`
+        :param options: a dictionary with options for \
+            transformations. No options are used in this \
+            transformation. This is an optional argument that defaults \
+            to None.
+        :type options: dictionary of string:values or None
 
         '''
         self.validate(node)
