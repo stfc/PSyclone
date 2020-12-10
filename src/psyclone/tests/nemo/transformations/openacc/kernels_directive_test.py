@@ -40,12 +40,14 @@
 
 from __future__ import print_function, absolute_import
 import pytest
-from psyclone.psyGen import PSyFactory, ACCKernelsDirective
+
+from fparser.common.readfortran import FortranStringReader
+
+from psyclone.psyGen import ACCKernelsDirective, Loop, PSyFactory
 from psyclone.psyir.transformations import TransformationError, ProfileTrans
 from psyclone.transformations import ACCKernelsTrans, ACCLoopTrans
 from psyclone.psyir.nodes import Assignment
 from psyclone.errors import GenerationError
-from fparser.common.readfortran import FortranStringReader
 
 
 # The PSyclone API under test
@@ -263,7 +265,6 @@ def test_no_default_present(parser):
 
 def test_kernels_around_where_construct(parser):
     ''' Check that we can put a WHERE construct inside a KERNELS region. '''
-    from psyclone.psyGen import Loop, ACCKernelsDirective
     reader = FortranStringReader("program where_test\n"
                                  "  integer :: flag\n"
                                  "  real :: a(:,:), b(:,:)\n"
