@@ -110,7 +110,7 @@ def test_struc_ref_create_errors():
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
             symbols.DataSymbol("grid", symbols.DeferredType()), 1)
-    assert ("'members' argument to StructureReference.create() should be a "
+    assert ("'members' argument to StructureReference._create() should be a "
             "list but found 'int'" in str(err.value))
     tsymbol_unknown = symbols.TypeSymbol("grid_type", symbols.DeferredType())
     with pytest.raises(NotImplementedError) as err:
@@ -124,7 +124,7 @@ def test_struc_ref_create_errors():
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
             symbols.DataSymbol("grid", tsymbol_known), [1])
-    assert ("'members' passed to StructureType.create() must consist of "
+    assert ("'members' passed to StructureType._create() must consist of "
             "either 'str' or 2-tuple entries but found 'int' while "
             "attempting to create reference to symbol 'grid'" in
             str(err.value))

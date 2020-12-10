@@ -42,6 +42,7 @@ from psyclone.psyir.nodes.array_node import ArrayNode
 from psyclone.psyir.nodes.member_reference import MemberReference
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir import symbols
 
 
@@ -52,7 +53,7 @@ class ArrayStructureReference(StructureReference, ArrayNode):
 
     '''
     # Textual description of the node.
-    _children_valid_format = "[MemberReference | None] [DataNode]*"
+    _children_valid_format = "[MemberReference | None] [DataNode | Range]*"
     _text_name = "ArrayStructureReference"
 
     @staticmethod
@@ -71,10 +72,10 @@ class ArrayStructureReference(StructureReference, ArrayNode):
                 return True
             return isinstance(child, MemberReference)
         else:
-            return isinstance(child, DataNode)
+            return isinstance(child, (DataNode, Range))
 
     @staticmethod
-    def create(symbol, members, children):
+    def create(symbol, members=None, children=None, parent=None):
         '''
         Create an ArrayStructureReference instance given a symbol and a
         list of components. e.g. for "field%bundle(2)%flag" this
@@ -90,28 +91,39 @@ class ArrayStructureReference(StructureReference, ArrayNode):
             list of nodes describing array access)
         :param children: a list of Nodes describing the array indices.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param parent: the parent of this node in the PSyIR.
+        :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: an ArrayReference instance.
         :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
-        :raises GenerationError: if the arguments to the create method \
+        :raises TypeError: if the arguments to the create method \
             are not of the expected type.
 
         '''
+        if not isinstance(symbol, symbols.DataSymbol):
+            raise TypeError(
+                "The 'symbol' argument to ArrayStructureReference.create() "
+                "should be a DataSymbol but found '{0}'.".format(
+                    type(symbol).__name__))
         if not isinstance(symbol.datatype, symbols.ArrayType):
-            raise TypeError()
+            raise TypeError(
+                "An ArrayStructureReference must refer to a symbol of "
+                "ArrayType but symbol '{0}' has type '{1}".format(
+                    symbol.name, symbol.datatype))
 
         # First use the StructureReference _create class method to create a
         # reference to the base structure of the array.
         # pylint: disable=protected_access
         ref = ArrayStructureReference._create(
-            symbol, symbol.datatype.intrinsic, members)
+            symbol, symbol.datatype.intrinsic, members, parent)
 
         # Then add the array-index expressions. We don't validate the children
         # as that is handled in _validate_child.
-        for child in children:
-            ref.addchild(child)
-            child.parent = ref
+        if children:
+            for child in children:
+                ref.addchild(child)
+                child.parent = ref
         return ref
 
     def __str__(self):

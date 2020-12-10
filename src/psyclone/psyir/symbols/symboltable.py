@@ -750,7 +750,6 @@ class SymbolTable(object):
         # Accumulate into a set so as to remove any duplicates
         precision_symbols = set()
         for sym in self.datasymbols:
-            # ARPDBG - use hasattr here instead?
             if (not isinstance(sym.datatype, (DeferredType, TypeSymbol)) and
                     isinstance(sym.datatype.precision, DataSymbol)):
                 precision_symbols.add(sym.datatype.precision)

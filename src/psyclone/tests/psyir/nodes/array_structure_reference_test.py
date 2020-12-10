@@ -39,17 +39,63 @@
 
 from __future__ import absolute_import
 import pytest
+from psyclone.tests.utilities import check_links
 from psyclone.psyir import symbols, nodes
 
 
 def test_asr_create():
     ''' Check the create method. '''
+    region_type = symbols.StructureType.create([
+        ("startx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+    region_type_symbol = symbols.TypeSymbol("region_type", region_type)
     grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
+        ("region", region_type_symbol, symbols.Symbol.Visibility.PUBLIC)])
     grid_type_symbol = symbols.TypeSymbol("grid_type", grid_type)
     grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
     ssym = symbols.DataSymbol("grid", grid_array_type)
-
+    int_one = nodes.Literal("1", symbols.INTEGER_TYPE)
+    # Reference to scalar member of structure in array of structures
     asref = nodes.ArrayStructureReference.create(
-        ssym, ["nx"], [nodes.Literal("1", symbols.INTEGER_TYPE)])
+        ssym, ["nx"], [int_one])
     assert isinstance(asref.children[0], nodes.MemberReference)
+    assert isinstance(asref.children[1], nodes.Literal)
+    check_links(asref, asref.children)
+    # Reference to member of structure member of structure in array of
+    # structures
+    asref = nodes.ArrayStructureReference.create(
+        ssym, ["region", "startx"], [int_one])
+    assert isinstance(asref.children[0], nodes.StructureMemberReference)
+    assert isinstance(asref.children[0].children[0], nodes.MemberReference)
+    # Reference to range of structures
+    lbound = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.LBOUND,
+        nodes.ArrayStructureReference.create(ssym), int_one)
+    ubound = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.UBOUND,
+        nodes.ArrayStructureReference.create(ssym), int_one)
+    my_range = nodes.Range.create(lbound, ubound)
+    asref = nodes.ArrayStructureReference.create(ssym, ["nx"], [my_range])
+    assert isinstance(asref.children[0], nodes.MemberReference)
+    assert isinstance(asref.children[1], nodes.Range)
+    check_links(asref, asref.children)
+    check_links(asref.children[1], asref.children[1].children)
+
+
+def test_asr_create_errors():
+    ''' Test the validation checks within the create method. Most validation
+    is done within the StructureReference class so there's not much to check
+    here. '''
+    with pytest.raises(TypeError) as err:
+        _ = nodes.ArrayStructureReference.create(1)
+    assert ("'symbol' argument to ArrayStructureReference.create() should "
+            "be a DataSymbol but found 'int'" in str(err.value))
+    scalar_symbol = symbols.DataSymbol("scalar", symbols.INTEGER_TYPE)
+    with pytest.raises(TypeError) as err:
+        _ = nodes.ArrayStructureReference.create(scalar_symbol)
+    assert "ArrayType but symbol 'scalar' has type 'Scalar" in str(err.value)
+
+
+def test_ast_str():
+    ''' Test the __str__ method of the class. '''
+    pass

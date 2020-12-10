@@ -78,7 +78,7 @@ class StructureReference(Reference):
         return False
 
     @staticmethod
-    def create(symbol, members, parent=None):
+    def create(symbol, members=None, parent=None):
         '''
         Create a StructureReference instance given a symbol and a
         list of components. e.g. for "field%bundle(2)%flag" this
@@ -98,7 +98,15 @@ class StructureReference(Reference):
         :returns: a StructureReference instance.
         :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
 
+        :raises TypeError: if the supplied symbol is not a DataSymbol.
+
         '''
+        if not isinstance(symbol, DataSymbol):
+            raise TypeError(
+                "The 'symbol' argument to StructureReference.create() "
+                "should be a DataSymbol but found '{0}'.".format(
+                    type(symbol).__name__))
+
         return StructureReference._create(symbol, symbol.datatype, members,
                                           parent=parent)
 
@@ -131,13 +139,10 @@ class StructureReference(Reference):
 
         :raises TypeError: if the arguments to the create method are not of \
             the expected type.
+        :raises NotImplementedError: if any of the structures being referenced\
+            do not have full type information available.
 
         '''
-        if not isinstance(symbol, DataSymbol):
-            raise TypeError(
-                "The 'symbol' argument to StructureReference.create() "
-                "should be a DataSymbol but found '{0}'.".format(
-                    type(symbol).__name__))
         if not isinstance(symbol_type, (StructureType,
                                         TypeSymbol,
                                         DeferredType)):
@@ -145,9 +150,9 @@ class StructureReference(Reference):
                 "A StructureReference must refer to a symbol that is (or "
                 "could be) a structure, however symbol '{0}' has type "
                 "'{1}'.".format(symbol.name, symbol_type))
-        if not isinstance(members, list):
+        if members and not isinstance(members, list):
             raise TypeError(
-                "The 'members' argument to StructureReference.create() "
+                "The 'members' argument to StructureReference._create() "
                 "should be a list but found '{0}'."
                 "".format(type(members).__name__))
 
@@ -173,6 +178,12 @@ class StructureReference(Reference):
                 "StructureType but found '{2}'".format(
                     symbol_type.name, symbol.name, dtype))
 
+        if not members:
+            # This reference does not include a member of the type so the
+            # first child is None.
+            ref.addchild(None)
+            return ref
+
         # We now make our way along the list of components that makes up
         # the full reference. For each entry in this list we go down another
         # level in the PSyIR tree.
@@ -185,7 +196,7 @@ class StructureReference(Reference):
                 children = None
             else:
                 raise TypeError(
-                    "The list of 'members' passed to StructureType.create() "
+                    "The list of 'members' passed to StructureType._create() "
                     "must consist of either 'str' or 2-tuple entries but "
                     "found '{0}' while attempting to create reference to "
                     "symbol '{1}'".format(type(component).__name__,
