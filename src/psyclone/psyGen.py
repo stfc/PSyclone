@@ -46,11 +46,11 @@ import abc
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.f2pygen import DirectiveGen
+from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import DataSymbol, ArrayType, \
     Symbol, INTEGER_TYPE, BOOLEAN_TYPE
-from psyclone.psyir.nodes import Node, Schedule, Loop, Statement
+from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, PSyDataNode
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 
@@ -125,7 +125,6 @@ def zero_reduction_variables(red_call_list, parent):
     '''zero all reduction variables associated with the calls in the call
     list'''
     if red_call_list:
-        from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Zero summation variables"))
         parent.add(CommentGen(parent, ""))
@@ -402,7 +401,7 @@ class Invokes(object):
                                implementation.
         '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
-            CallGen, UseGen, CommentGen, CharDeclGen, IfThenGen
+            CallGen, UseGen, CharDeclGen, IfThenGen
 
         sub = SubroutineGen(parent, "psy_init")
         parent.add(sub)
@@ -887,8 +886,8 @@ class InvokeSchedule(Schedule):
                        which to add content.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
-            IfThenGen, CallGen
+        from psyclone.f2pygen import UseGen, DeclGen, AssignGen, IfThenGen, \
+            CallGen
 
         # The gen_code methods may generate new Symbol names, however, we want
         # subsequent calls to invoke.gen_code() to produce the exact same code,
@@ -1236,6 +1235,25 @@ class ACCDirective(Directive):
         '''
         return "ACC_directive_" + str(self.abs_position)
 
+    def _pre_gen_validate(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this ACCDirective encloses any form of \
+            PSyData node since calls to PSyData routines within OpenACC \
+            regions are not supported.
+
+        '''
+        data_nodes = self.walk(PSyDataNode)
+        if data_nodes:
+            raise GenerationError(
+                "Cannot include calls to PSyData routines within OpenACC "
+                "regions but found {0} within a region enclosed "
+                "by an '{1}'".format(
+                    [type(node).__name__ for node in data_nodes],
+                    type(self).__name__))
+
 
 @six.add_metaclass(abc.ABCMeta)
 class ACCEnterDataDirective(ACCDirective):
@@ -1287,13 +1305,15 @@ class ACCEnterDataDirective(ACCDirective):
         :raises GenerationError: if no data is found to copy in.
 
         '''
-        from psyclone.f2pygen import CommentGen
+        self._pre_gen_validate()
 
         # We must generate a list of all of the fields accessed by
-        # OpenACC kernels (calls within an OpenACC parallel or kernels directive)
-        # 1. Find all parallel and kernels directives. We store this list for later
-        #    use in any sub-class.
-        self._acc_dirs = self.root.walk((ACCParallelDirective, ACCKernelsDirective))
+        # OpenACC kernels (calls within an OpenACC parallel or kernels
+        # directive)
+        # 1. Find all parallel and kernels directives. We store this list for
+        #    later use in any sub-class.
+        self._acc_dirs = self.root.walk((ACCParallelDirective,
+                                         ACCKernelsDirective))
         # 2. For each directive, loop over each of the fields used by
         #    the kernels it contains (this list is given by var_list)
         #    and add it to our list if we don't already have it
@@ -1365,7 +1385,9 @@ class ACCParallelDirective(ACCDirective):
 
         :param parent: node in the f2pygen AST to which to add node(s).
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
+        self._pre_gen_validate()
 
         # Since we use "default(present)" the Schedule must contain an
         # 'enter data' directive. We don't mandate the order in which
@@ -1458,6 +1480,7 @@ class ACCParallelDirective(ACCDirective):
         Update the underlying fparser2 parse tree with nodes for the start
         and end of this parallel region.
         '''
+        self._pre_gen_validate()
         self._add_region(start_text="PARALLEL", end_text="END PARALLEL")
 
 
@@ -1528,6 +1551,8 @@ class ACCLoopDirective(ACCDirective):
             raise GenerationError(
                 "ACCLoopDirective must have an ACCParallelDirective or "
                 "ACCKernelsDirective as an ancestor in the Schedule")
+
+        super(ACCLoopDirective, self)._pre_gen_validate()
 
     def gen_code(self, parent):
         '''
@@ -1649,8 +1674,7 @@ class OMPParallelDirective(OMPDirective):
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
         code'''
-        from psyclone.f2pygen import AssignGen, UseGen, \
-            CommentGen, DeclGen
+        from psyclone.f2pygen import AssignGen, UseGen, DeclGen
 
         private_list = self._get_private_list()
 
@@ -4090,6 +4114,8 @@ class ACCKernelsDirective(ACCDirective):
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
+        self._pre_gen_validate()
+
         data_movement = ""
         if self._default_present:
             data_movement = "default(present)"
@@ -4124,7 +4150,10 @@ class ACCKernelsDirective(ACCDirective):
         '''
         Updates the fparser2 AST by inserting nodes for this ACC kernels
         directive.
+
         '''
+        self._pre_gen_validate()
+
         data_movement = None
         if self._default_present:
             data_movement = "present"
@@ -4173,5 +4202,6 @@ class ACCDataDirective(ACCDirective):
         directive.
 
         '''
+        self._pre_gen_validate()
         self._add_region(start_text="DATA", end_text="END DATA",
                          data_movement="analyse")
