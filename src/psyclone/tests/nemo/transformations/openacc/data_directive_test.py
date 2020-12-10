@@ -530,5 +530,5 @@ def test_missed_array_case(parser):
     acc_trans.apply(schedule.children)
     with pytest.raises(InternalError) as err:
         _ = str(psy.gen)
-    assert ("Array 'ice_mask' present in source code ('ice_mask(ji, jj)') "
-            "but not identified" in str(err.value))
+    assert ("ArrayReference 'ice_mask' present in source code ("
+            "'ice_mask(ji, jj)') but not identified" in str(err.value))
