@@ -239,6 +239,29 @@ def test_arraytype_invalid_datatype():
             "or TypeSymbol but found 'NoneType'." in str(excinfo.value))
 
 
+def test_arraytype_typesymbol_only():
+    ''' Test that we currently refuse to make an ArrayType with an intrinsic
+    type of StructureType. (This limitation is the subject of #1031.) '''
+    with pytest.raises(NotImplementedError) as err:
+        _ = ArrayType(StructureType.create(
+            [("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)]),
+                      [5])
+    assert ("When creating an array of structures, the type of those "
+            "structures must be supplied as a TypeSymbol but got a "
+            "StructureType instead." in str(err.value))
+
+
+def test_arraytype_typesymbol():
+    ''' Test that we can correctly create an ArrayType when the type of the
+    elements is specified as a TypeSymbol. '''
+    tsym = TypeSymbol("my_type", DeferredType())
+    atype = ArrayType(tsym, [5])
+    assert isinstance(atype, ArrayType)
+    assert len(atype.shape) == 1
+    assert atype.intrinsic is tsym
+    assert atype.precision is None
+
+
 def test_arraytype_invalid_shape():
     '''Test that the ArrayType class raises an exception when the shape
     argument is the wrong type.

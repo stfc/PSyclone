@@ -213,8 +213,8 @@ class ScalarType(DataType):
 
 class ArrayType(DataType):
     '''Describes an array datatype. Can be an array of intrinsic types (e.g.
-    integer) or of structure types. For the latter, the type must be
-    specified as a TypeSymbol.
+    integer) or of structure types. For the latter, the type must currently be
+    specified as a TypeSymbol (see #1031).
 
     :param datatype: the datatype of the array elements.
     :type datatype: :py:class:`psyclone.psyir.datatypes.DataType` or \
@@ -233,7 +233,8 @@ class ArrayType(DataType):
         internally as a Literal node.
 
     :raises TypeError: if the arguments are of the wrong type.
-
+    :raises NotImplementedError: if a structure type does not have a \
+                                 TypeSymbol as its type.
     '''
     class Extent(Enum):
         '''
@@ -256,7 +257,8 @@ class ArrayType(DataType):
 
         if isinstance(datatype, DataType):
             if isinstance(datatype, StructureType):
-                raise TypeError(
+                # TODO #1031 remove this restriction.
+                raise NotImplementedError(
                     "When creating an array of structures, the type of "
                     "those structures must be supplied as a TypeSymbol but "
                     "got a StructureType instead.")
