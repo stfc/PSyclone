@@ -58,7 +58,7 @@ from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
     Min2CodeTrans, TransformationError
-from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
+from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 
 
 def trans(psy):
@@ -76,7 +76,7 @@ def trans(psy):
     abs_trans = Abs2CodeTrans()
     sign_trans = Sign2CodeTrans()
     min_trans = Min2CodeTrans()
-    nemo_loop_trans = NemoArrayRange2LoopTrans()
+    nemo_loop_trans = NemoAllArrayRange2LoopTrans()
 
     sir_writer = SIRWriter()
     fortran_writer = FortranWriter()
@@ -87,13 +87,7 @@ def trans(psy):
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
         for assignment in schedule.walk(Assignment):
-            lhs = assignment.lhs
-            if isinstance(lhs, Array):
-                try:
-                    while True:
-                        nemo_loop_trans.apply(assignment)
-                except TransformationError:
-                    pass
+            nemo_loop_trans.apply(assignment)
             
         for kernel in schedule.walk(NemoKern):
 
