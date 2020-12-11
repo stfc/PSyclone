@@ -335,9 +335,10 @@ release of PSyclone must work with a released version of fparser
 and therefore the line described above must be commented out again
 before making a release.
 
-Given that a run of the test-suite on GitHub Actions uses
-approximately 45 minutes of CPU time, ideally we would avoid
-triggering it unnecessarily (e.g. when we know that a certain commit
+A single run of the test suite on GitHub Actions uses
+approximately 15 minutes of CPU time and we run the test suite on three
+different versions of Python. Therefore, ideally we would avoid
+triggering the tests unnecessarily (e.g. when we know that a certain commit
 won't pass). Unfortunately we have yet to find a working solution
 for this - see Issue #973.
 
