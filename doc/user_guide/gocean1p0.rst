@@ -855,6 +855,20 @@ small number of properties that must be defined with the right name:
 |                               | infrastructure library might implement).         |
 +-------------------------------+--------------------------------------------------+
 
+Debug Mode
+++++++++++
+
+The GOcean configuration also includes a boolean parameter to enable or disable
+the generation of additional code which may impact performance but is useful
+for debugging the application. By default it is set to False, but it can be
+changed by updating the following line in the configuration file:
+
+.. code-block:: none
+
+    [gocean1.0]
+    DEBUG_MODE = true
+
+Currently, only the OpenCL Invokes generate additional debugging code.
 
 Transformations
 ---------------

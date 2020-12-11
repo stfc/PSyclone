@@ -31,11 +31,12 @@
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
 !        J. Henrichs, Bureau of Meteorology
+! Modified by R. W. Ford, STFC Daresbury Lab
 
 program explicit_do
   implicit none
   integer :: ji, jj, jk
-  integer :: jpi, jpj, jpk
+  integer, parameter :: jpi=42, jpj=42, jpk=42
   real :: r
   real, dimension(jpi,jpj,jpk) :: umask
 

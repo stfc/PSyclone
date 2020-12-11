@@ -52,6 +52,7 @@ from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
     Literal, Node, Schedule, KernelSchedule
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     OMPParallelDoDirective, InlinedKern, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
@@ -304,6 +305,7 @@ def test_derived_type_deref_naming(tmpdir):
 
 FAKE_KERNEL_METADATA = '''
 module dummy_mod
+  use argument_mod
   type, extends(kernel_type) :: dummy_type
      type(arg_type), meta_args(3) =                    &
           (/ arg_type(gh_field, gh_write,     w3),     &
@@ -395,11 +397,120 @@ def test_codedkern_node_str():
     assert expected_output in out
 
 
+def test_codedkern_module_inline_getter_and_setter():
+    ''' Check that the module_inline setter changes the module inline
+    attribute to all the same kernels in the invoke'''
+    # Use LFRic example with a repeated CodedKern
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    coded_kern_1 = schedule.children[0].loop_body[0]
+    coded_kern_2 = schedule.children[1].loop_body[0]
+
+    # By default they are not module-inlined
+    assert not coded_kern_1.module_inline
+    assert not coded_kern_2.module_inline
+    assert "module_inline=False" in coded_kern_1.node_str()
+    assert "module_inline=False" in coded_kern_2.node_str()
+
+    # It can be turned on (and both kernels change)
+    coded_kern_1.module_inline = True
+    assert coded_kern_1.module_inline
+    assert coded_kern_2.module_inline
+    assert "module_inline=True" in coded_kern_1.node_str()
+    assert "module_inline=True" in coded_kern_2.node_str()
+
+    # It can be turned off (and both kernels change)
+    coded_kern_2.module_inline = False
+    assert not coded_kern_1.module_inline
+    assert not coded_kern_2.module_inline
+
+
+def test_codedkern_module_inline_gen_code(tmpdir):
+    ''' Check that a CodedKern with module-inline gets copied into the
+    local module appropriately when the PSy-layer is generated'''
+    # Use LFRic example with a repeated CodedKern
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    coded_kern = schedule.children[0].loop_body[0]
+    gen = str(psy.gen)
+
+    # Without module-inline the subroutine is used by a module import
+    assert "USE ru_kernel_mod, ONLY: ru_code" in gen
+    assert "SUBROUTINE ru_code(" not in gen
+
+    # With module-inline the subroutine is copied locally only once
+    # even though this kernel has 2 callees.
+    coded_kern.module_inline = True
+    gen = str(psy.gen)
+    assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
+    assert "SUBROUTINE ru_code(" in gen
+    assert gen.count("SUBROUTINE ru_code(") == 1
+    # And the generated code is valid
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Check that name clashes which are not subroutines are detected
+    schedule.symbol_table.add(DataSymbol("ru_code", REAL_TYPE))
+    with pytest.raises(NotImplementedError) as err:
+        gen = str(psy.gen)
+    assert ("Can not module-inline subroutine 'ru_code' because symbol"
+            "'ru_code: <Scalar<REAL, UNDEFINED>, Local>' with the same name "
+            "already exists and changing names of module-inlined subroutines "
+            "is not implemented yet.") in str(err.value)
+
+    # TODO # 898. Manually force removal of previous symbol as
+    # symbol_table.remove() for DataSymbols is not implemented yet.
+    schedule.symbol_table._symbols.pop("ru_code")
+
+    # Check that if a subroutine with the same name already exists and it is
+    # not identical, it fails.
+    schedule.symbol_table.add(RoutineSymbol("ru_code"))
+    with pytest.raises(NotImplementedError) as err:
+        gen = str(psy.gen)
+    assert ("Can not inline subroutine 'ru_code' because another subroutine "
+            "with the same name already exists and versioning of "
+            "module-inlined subroutines is not implemented "
+            "yet.") in str(err.value)
+
+
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_codedkern_module_inline_gen_code_modified_kernels(tmpdir):
+    ''' Check that a CodedKern marked as modified can still be
+    module-inlined. '''
+    # Use LFRic example with a repeated CodedKern
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    coded_kern = schedule.children[0].loop_body[0]
+
+    # Set modified and module-inline at the same time
+    coded_kern.modified = True
+    coded_kern.module_inline = True
+
+    # In this case the code generation still works but ...
+    gen = str(psy.gen)
+    assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
+    # ... since this subroutine is modified the kernel has now a new suffix
+    assert "SUBROUTINE ru_0_code(" in gen
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
 def test_kern_coloured_text():
     ''' Check that the coloured_name method of both CodedKern and
     BuiltIn return what we expect. '''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    # Use a Dynamo example that has both a CodedKern and a BuiltIn
+    # Use LFRic example with both a CodedKern and a BuiltIn
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
@@ -1722,8 +1833,8 @@ def test_acc_datadevice_virtual():
 def test_accenterdatadirective_gencode_1():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, raises the expected exception as there is no
-    following OpenACC Parallel directive and at least one is
-    required. This test uses the dynamo0.3 API.
+    following OpenACC Parallel or OpenACC Kernels directive as at
+    least one is required. This test uses the dynamo0.3 API.
 
     '''
     acc_enter_trans = ACCEnterDataTrans()
@@ -1734,16 +1845,16 @@ def test_accenterdatadirective_gencode_1():
     with pytest.raises(GenerationError) as excinfo:
         str(psy.gen)
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
-            "there are no ACCParallel directives within the region."
-            in str(excinfo.value))
+            "there are no ACCParallel or ACCKernels directives within the "
+            "region." in str(excinfo.value))
 
 
 # (2/4) Method gen_code
 def test_accenterdatadirective_gencode_2():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with multiple loops, raises the expected exception, as there is no
-    following OpenACC Parallel directive and at least one is
-    required. This test uses the dynamo0.3 API.
+    following OpenACC Parallel or OpenACCKernels directive and at
+    least one is required. This test uses the dynamo0.3 API.
 
     '''
     acc_enter_trans = ACCEnterDataTrans()
@@ -1754,24 +1865,25 @@ def test_accenterdatadirective_gencode_2():
     with pytest.raises(GenerationError) as excinfo:
         str(psy.gen)
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
-            "there are no ACCParallel directives within the region."
-            in str(excinfo.value))
+            "there are no ACCParallel or ACCKernels directives within the "
+            "region." in str(excinfo.value))
 
 
 # (3/4) Method gen_code
-def test_accenterdatadirective_gencode_3():
+@pytest.mark.parametrize("trans", [ACCParallelTrans, ACCKernelsTrans])
+def test_accenterdatadirective_gencode_3(trans):
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, produces the expected code (there should be
-    "copy in" data as there is a following OpenACC parallel
+    "copy in" data as there is a following OpenACC parallel or kernels
     directive). This test uses the dynamo0.3 API.
 
     '''
-    acc_par_trans = ACCParallelTrans()
+    acc_trans = trans()
     acc_enter_trans = ACCEnterDataTrans()
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
-    _ = acc_par_trans.apply(sched.children)
+    _ = acc_trans.apply(sched.children)
     _ = acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
@@ -1782,21 +1894,27 @@ def test_accenterdatadirective_gencode_3():
 
 
 # (4/4) Method gen_code
-def test_accenterdatadirective_gencode_4():
+@pytest.mark.parametrize("trans1,trans2",
+                         [(ACCParallelTrans, ACCParallelTrans),
+                          (ACCParallelTrans, ACCKernelsTrans),
+                          (ACCKernelsTrans, ACCParallelTrans),
+                          (ACCKernelsTrans, ACCKernelsTrans)])
+def test_accenterdatadirective_gencode_4(trans1, trans2):
     '''Test that an OpenACC Enter Data directive, when added to a schedule
-    with multiple loops and multiple OpenACC parallel directives,
-    produces the expected code (when the same argument is used in
-    multiple loops there should only be one entry). This test uses the
-    dynamo0.3 API.
+    with multiple loops and multiple OpenACC parallel and/or Kernel
+    directives, produces the expected code (when the same argument is
+    used in multiple loops there should only be one entry). This test
+    uses the dynamo0.3 API.
 
     '''
-    acc_par_trans = ACCParallelTrans()
+    acc_trans1 = trans1()
+    acc_trans2 = trans2()
     acc_enter_trans = ACCEnterDataTrans()
     _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0').schedule
-    _ = acc_par_trans.apply(sched.children[1])
-    _ = acc_par_trans.apply(sched.children[0])
+    _ = acc_trans1.apply([sched.children[1]])
+    _ = acc_trans2.apply([sched.children[0]])
     _ = acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (

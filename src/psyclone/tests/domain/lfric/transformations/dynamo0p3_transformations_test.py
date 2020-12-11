@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic,    Met Office
+# Modified I. Kavcic and A. Coughtrie, Met Office
 #          C.M. Maynard, Met Office / University of Reading
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
@@ -284,7 +284,7 @@ def test_colour_trans_stencil(dist_mem, tmpdir):
     # Check that we index the stencil dofmap appropriately
     assert (
         "          CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, f2_stencil_size, "
+        "f2_proxy%data, f2_stencil_size(cmap(colour, cell)), "
         "f2_stencil_dofmap(:,:,cmap(colour, cell)), f3_proxy%data, "
         "f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cmap(colour, cell)), "
         "ndf_w2, undf_w2, map_w2(:,cmap(colour, cell)), ndf_w3, "
@@ -1389,26 +1389,6 @@ def test_omp_par_and_halo_exchange_error():
         schedule, _ = rtrans.apply(schedule.children)
     assert ("type 'DynHaloExchange' cannot be enclosed by a OMPParallelTrans "
             "transformation" in str(excinfo.value))
-
-
-def test_module_inline_no_code(monkeypatch):
-    '''Tests that if a kernel doesn't have a code AST set
-       _kernel_code = None, for example when an interface is
-       used, the inline transformation produces an error as
-       there is no code to inline.
-    '''
-    psy, invoke = get_invoke("4.6_multikernel_invokes.f90", TEST_API,
-                             name="invoke_0", dist_mem=True)
-    schedule = invoke.schedule
-    kern_call = schedule.children[8].loop_body[0]
-    monkeypatch.setattr(kern_call, "_kernel_code", None)
-    inline_trans = KernelModuleInlineTrans()
-    schedule, _ = inline_trans.apply(kern_call)
-    with pytest.raises(InternalError) as excinfo:
-        _ = psy.gen
-    assert "Have no fparser1 AST for kernel {0}." \
-        " Therefore cannot inline it.".format(kern_call) \
-        in str(excinfo.value)
 
 
 def test_module_inline(monkeypatch, annexed, dist_mem):
