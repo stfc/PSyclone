@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -30,25 +32,29 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+# Author J. Henrichs, Bureau of Meteorology
+# -----------------------------------------------------------------------------
 
-# Makefile to test the example transfromation scripts contained in
-# this directory.
+# This script finds an executable python command. On
+# certain platforms that have only python3 installed,
+# 'python' is not found.
 
-.PHONY: clean test
+# This script first tests the various python commands return
+# by which (if any), then standard locations on linux. Note
+# we redirect to /dev/null in case that 'which' does not exist
+for p in $(which python python3 python2 2>/dev/null) \
+         /usr/bin/python  \
+         /usr/bin/python3 \
+         /usr/bin/python2; do
 
-TARGET = psy.f90
+    # Necessary in case that 'python' is a directory
+    if [[ -f "$p" && -x $(realpath "$p") ]]; then
+        echo $p;
+        exit
+    fi
+done
 
-test:
-	${MAKE} clean
-	${MAKE} TRANS_SCRIPT=solutions/omp_trans.py -C ../ ${TARGET}
-	${MAKE} clean
-	${MAKE} TRANS_SCRIPT=solutions/all_levels_loops_omp_trans.py -C ../ ${TARGET}
-	${MAKE} clean
-	${MAKE} TRANS_SCRIPT=solutions/parallel_region_omp_trans.py -C ../ ${TARGET}
-	${MAKE} clean
-	${MAKE} TRANS_SCRIPT=solutions/general_parallel_region_omp_trans.py -C ../ ${TARGET}
+echo "Cannot find working python"
 
-clean:
-	${MAKE} -C ../ clean
+exit -1

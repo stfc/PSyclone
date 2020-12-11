@@ -45,6 +45,8 @@ F90FLAGS ?=
 # double scalars and 2-dimension arrays
 PROCESS_ARGS = -prefix=nan_test_ -types=int,real,double \
 		       -dims=2
+PROCESS=$$(../get_python.sh) ../process.py
+
 
 default: nan_test_base.o psy_data_base.o
 process: nan_test_base.f90
@@ -52,10 +54,10 @@ process: nan_test_base.f90
 .PHONY: default process clean
 
 %.f90:	%.jinja
-	../process.py $(PROCESS_ARGS) $< > $*.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > $*.f90
 
 psy_data_base.f90:	../psy_data_base.jinja
-	../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 nan_test_base.o: psy_data_base.o
 

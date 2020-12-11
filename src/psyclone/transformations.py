@@ -43,6 +43,11 @@
 from __future__ import absolute_import, print_function
 import abc
 import six
+from fparser.two.utils import walk
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.Fortran2003 import Subroutine_Subprogram, \
+    Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
+    Implicit_Part, Comment
 from psyclone import psyGen
 from psyclone.psyGen import Transformation, Kern, InvokeSchedule
 from psyclone.errors import InternalError
@@ -53,6 +58,8 @@ from psyclone.domain.lfric import FunctionSpace
 from psyclone.psyir.transformations import RegionTrans, TransformationError
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
+from psyclone.psyir.nodes import CodeBlock
+
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -1016,6 +1023,10 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>>
 
     '''
+    # The types of node that must be excluded from the section of PSyIR
+    # being transformed.
+    excluded_node_types = (nodes.PSyDataNode)
+
     def __init__(self):
         # Whether to add the "independent" clause
         # to the loop directive.
@@ -1566,31 +1577,6 @@ class KernelModuleInlineTrans(KernelTrans):
 
         return schedule, keep
 
-    def validate(self, node, options=None):
-        '''
-        Check that the supplied kernel is eligible to be module inlined.
-
-        :param node: the node in the PSyIR that is to be module inlined.
-        :type node: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-        :param bool inline: whether or not the kernel is to be inlined.
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-        :param bool options["inline"]: whether the kernel should be module \
-                                       inlined or not.
-
-        :raises TransformationError: if the supplied kernel has itself been \
-                                     transformed (Issue #229).
-        '''
-        super(KernelModuleInlineTrans, self).validate(node, options)
-
-        if not options:
-            options = {}
-        inline = options.get("inline", True)
-
-        if inline and node.modified:
-            raise TransformationError("Cannot inline kernel {0} because it "
-                                      "has previously been transformed.")
-
 
 class Dynamo0p3ColourTrans(ColourTrans):
 
@@ -1935,7 +1921,7 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> newschedule.view()
 
     '''
-    excluded_node_types = (nodes.CodeBlock, nodes.Return,
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode,
                            psyGen.ACCDataDirective,
                            psyGen.ACCEnterDataDirective)
 
@@ -3249,6 +3235,8 @@ class ACCRoutineTrans(KernelTrans):
         '''
         Modifies the AST of the supplied kernel so that it contains an
         '!$acc routine' OpenACC directive.
+        This transformation affects the f2pygen and the PSyIR trees of
+        this kernel.
 
         :param kern: the kernel object to transform.
         :type kern: :py:class:`psyclone.psyGen.Kern`
@@ -3264,12 +3252,6 @@ class ACCRoutineTrans(KernelTrans):
 
         '''
         # pylint: disable=too-many-locals
-
-        from fparser.two.Fortran2003 import Subroutine_Subprogram, \
-            Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
-            Implicit_Part, Comment
-        from fparser.two.utils import walk
-        from fparser.common.readfortran import FortranStringReader
 
         # Check that we can safely apply this transformation
         self.validate(kern, options)
@@ -3303,8 +3285,15 @@ class ACCRoutineTrans(KernelTrans):
             spec.content.append(cmt)
         else:
             spec.content.insert(posn, cmt)
+
         # Flag that the kernel has been modified
         kern.modified = True
+
+        # Add the 'cmt' directive into the PSyIR as a CodeBlock
+        kernel_schedule = kern.get_kernel_schedule()
+        kernel_schedule.addchild(
+            CodeBlock([cmt], CodeBlock.Structure.STATEMENT), 0)
+
         # Return the now modified kernel
         return kern, keep
 
@@ -3320,10 +3309,6 @@ class ACCRoutineTrans(KernelTrans):
         :raises TransformationError: if the target kernel is a built-in.
         :raises TransformationError: if any of the symbols in the kernel are \
                             accessed via a module use statement.
-        :raises TransformationError: if the target kernel has already been \
-                            transformed (since all other transformations work \
-                            on the PSyIR but this one still uses the fparser2 \
-                            parse tree (#490).
         '''
         from psyclone.psyGen import BuiltIn
         if isinstance(kern, BuiltIn):
@@ -3331,16 +3316,6 @@ class ACCRoutineTrans(KernelTrans):
                 "Applying ACCRoutineTrans to a built-in kernel is not yet "
                 "supported and kernel '{0}' is of type '{1}'".
                 format(kern.name, type(kern)))
-
-        if kern.module_inline:
-            raise TransformationError("Cannot transform kernel {0} because "
-                                      "it will be module-inlined.".
-                                      format(kern.name))
-        if kern.modified:
-            raise TransformationError(
-                "Cannot transform kernel '{0}' because it has previously been "
-                "transformed and this transformation works on the fparser2 "
-                "parse tree rather than the PSyIR (#490).".format(kern.name))
 
         # Perform general validation checks. In particular this checks that
         # the PSyIR of the kernel body can be constructed.
@@ -3360,13 +3335,6 @@ class ACCRoutineTrans(KernelTrans):
                 "currently transform this kernel for execution on an OpenACC "
                 "device (issue #342).".
                 format(kern.name, [sym.name for sym in global_variables]))
-        # Prevent unwanted side effects by removing the kernel schedule that
-        # we have just constructed. This is necessary while
-        # psyGen.Kern.rename_and_write still supports kernels that have been
-        # transformed by manipulation of the fparser2 Parse Tree (as opposed
-        # to the PSyIR).
-        # TODO #490 remove the following line.
-        kern._kern_schedule = None
 
 
 class ACCKernelsTrans(RegionTrans):
@@ -3393,7 +3361,7 @@ class ACCKernelsTrans(RegionTrans):
     >>> new_sched, _ = ktrans.apply(kernels)
 
     '''
-    excluded_node_types = (nodes.CodeBlock, nodes.Return)
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode)
 
     @property
     def name(self):
@@ -3525,7 +3493,7 @@ class ACCDataTrans(RegionTrans):
     >>> new_sched, _ = dtrans.apply(kernels)
 
     '''
-    excluded_node_types = (nodes.CodeBlock, nodes.Return)
+    excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.PSyDataNode)
 
     @property
     def name(self):
@@ -3703,11 +3671,13 @@ class KernelGlobalsToArguments(Transformation):
         kernel = node.get_kernel_schedule()
         symtab = kernel.symbol_table
         invoke_symtab = node.root.symbol_table
+        count_global_vars_removed = 0
 
         # Transform each global variable into an argument.
         # TODO #11: When support for logging is added, we could warn the user
         # if no globals are found in the kernel.
         for globalvar in kernel.symbol_table.global_symbols[:]:
+            count_global_vars_removed += 1
 
             # Resolve the data type information if it is not available
             # pylint: disable=unidiomatic-typecheck
@@ -3766,5 +3736,6 @@ class KernelGlobalsToArguments(Transformation):
             if not kernel.symbol_table.imported_symbols(container) and \
                not container.wildcard_import:
                 kernel.symbol_table.remove(container)
-        # TODO #663 - uncomment line below and fix tests.
-        # node.modified = True
+
+        if count_global_vars_removed > 0:
+            node.modified = True
