@@ -127,10 +127,8 @@ support is being implemented. Although there is support for converting
 global-data accesses into kernel arguments, PSyclone does not yet support
 nested ``use`` of modules (i.e. data accessed via a module that in turn
 imports that symbol from another module) and kernels that call other
-kernels (Issue #342). In addition, the transformation that adds
-``!$ACC ROUTINE`` to kernel code is written to work with the fparser2
-parse tree and therefore does not inter-operate with the other kernel
-transformations that work on the PSyIR (Issue #490).
+kernels (Issue #342).
+
 
 Example 5: Profiling
 ^^^^^^^^^^^^^^^^^^^^

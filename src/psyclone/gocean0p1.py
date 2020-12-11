@@ -137,8 +137,6 @@ class GOPSy(PSy):
                               only=["scalar_field_type"]))
         # add in the subroutines for each invocation
         self.invokes.gen_code(psy_module)
-        # inline kernels where requested
-        self.inline(psy_module)
         return psy_module.root
 
 
