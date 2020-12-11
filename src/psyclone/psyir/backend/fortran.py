@@ -841,8 +841,8 @@ class FortranWriter(PSyIRVisitor):
 
     def arraystructurereference_node(self, node):
         '''
-        Creates the Fortran for a reference to an element of an array of
-        derived types.
+        Creates the Fortran for a reference to one or more elements of an
+        array of derived types.
 
         :param node: a ArrayStructureReference PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.ArrayStructureReference`
@@ -852,6 +852,7 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         result = node.symbol.name
+
         # Generate the array reference. We can't use the arraynode handler
         # here because we need to skip over the first child (as that refers
         # to the member of the derived type being referenced).
@@ -859,8 +860,9 @@ class FortranWriter(PSyIRVisitor):
         for child in node.children[1:]:
             args.append(str(self._visit(child)))
         result += "({0})".format(",".join(args))
-        # Append the reference to a member of the derived type (if any)
-        if node.children and node.children[0]:
+
+        # Append the reference to a member of the structure (if any)
+        if node.children[0]:
             result += "%" + self._visit(node.children[0])
         return result
 
@@ -902,7 +904,8 @@ class FortranWriter(PSyIRVisitor):
             args.append(str(self._visit(child)))
         result = "{0}({1})".format(node.component.name, ",".join(args))
         # Now add the reference to the component of the array element
-        result += "%" + self._visit(node.children[0])
+        if node.children[0]:
+            result += "%" + self._visit(node.children[0])
         return result
 
     def arraynode_node(self, node):

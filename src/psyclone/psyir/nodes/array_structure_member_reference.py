@@ -60,7 +60,7 @@ class ArrayStructureMemberReference(StructureMemberReference, ArrayNode):
 
     '''
     # Textual description of the node.
-    _children_valid_format = "None | MemberReference [DataNode | Range]*"
+    _children_valid_format = "None | MemberReference, [DataNode | Range]*"
     _text_name = "ArrayStructureMemberReference"
 
     @staticmethod

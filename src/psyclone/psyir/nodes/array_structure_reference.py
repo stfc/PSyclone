@@ -53,7 +53,7 @@ class ArrayStructureReference(StructureReference, ArrayNode):
 
     '''
     # Textual description of the node.
-    _children_valid_format = "[MemberReference | None] [DataNode | Range]*"
+    _children_valid_format = "MemberReference | None, [DataNode | Range]*"
     _text_name = "ArrayStructureReference"
 
     @staticmethod

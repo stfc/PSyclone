@@ -57,7 +57,7 @@ class StructureReference(Reference):
 
     '''
     # Textual description of the node.
-    _children_valid_format = "MemberReference"
+    _children_valid_format = "MemberReference | None"
     _text_name = "StructureReference"
 
     @staticmethod
