@@ -69,9 +69,10 @@ for symbol in [NDF_W3, UNDF_W3]:
     SYMBOL_TABLE.add(symbol)
 
 # Create LFRic field data symbols and add them to the symbol table
-FIELD1 = lfric_psyir.RealFieldDataDataSymbol("field1", [UNDF_W3], "w3")
+FIELD1 = lfric_psyir.RealFieldDataDataSymbol(
+    "field1", [Reference(UNDF_W3)], "w3")
 FIELD2 = lfric_psyir.RealFieldDataDataSymbol(
-    "field2", [UNDF_W3], "w3",
+    "field2", [Reference(UNDF_W3)], "w3",
     interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
 for symbol in [FIELD1, FIELD2]:
     SYMBOL_TABLE.add(symbol)
@@ -79,8 +80,8 @@ for symbol in [FIELD1, FIELD2]:
 # Create an LFRic operator and it to the symbol table
 NCELL_3D = lfric_psyir.NumberOfCellsDataSymbol("ncell_3d", interface=READ_ARG)
 OPERATOR = lfric_psyir.OperatorDataSymbol(
-    "oper1", [NDF_W3, NDF_W3, NCELL_3D], fs_from="w3", fs_to="w3",
-    interface=READ_ARG)
+    "oper1", [Reference(NDF_W3), Reference(NDF_W3), Reference(NCELL_3D)],
+    fs_from="w3", fs_to="w3", interface=READ_ARG)
 for symbol in [NCELL_3D, OPERATOR]:
     SYMBOL_TABLE.add(symbol)
 
@@ -92,13 +93,16 @@ NQP_XY = lfric_psyir.NumberOfQrPointsInXyDataSymbol(
 NQP_Z = lfric_psyir.NumberOfQrPointsInZDataSymbol(
     "nqp_z", interface=READ_ARG)
 WEIGHTS_XY = lfric_psyir.QrWeightsInXyDataSymbol(
-    "w_xy", [NQP_XY], interface=READ_ARG)
+    "w_xy", [Reference(NQP_XY)], interface=READ_ARG)
 WEIGHTS_Z = lfric_psyir.QrWeightsInZDataSymbol(
-    "w_z", [NQP_Z], interface=READ_ARG)
+    "w_z", [Reference(NQP_Z)], interface=READ_ARG)
 BASIS_W3 = lfric_psyir.BasisFunctionQrXyozDataSymbol(
-    "basis_w3", [1, NDF_W3, NQP_XY, NQP_Z], "w3", interface=READ_ARG)
+    "basis_w3", [1, Reference(NDF_W3), Reference(NQP_XY), Reference(NQP_Z)],
+    "w3", interface=READ_ARG)
 DIFF_BASIS_W3 = lfric_psyir.DiffBasisFunctionQrXyozDataSymbol(
-    "diff_basis_w3", [3, NDF_W3, NQP_XY, NQP_Z], "w3", interface=READ_ARG)
+    "diff_basis_w3",
+    [3, Reference(NDF_W3), Reference(NQP_XY), Reference(NQP_Z)],
+    "w3", interface=READ_ARG)
 for symbol in [NQP_XY, NQP_Z, WEIGHTS_XY, WEIGHTS_Z, BASIS_W3, DIFF_BASIS_W3]:
     SYMBOL_TABLE.add(symbol)
 

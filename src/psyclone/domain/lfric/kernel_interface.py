@@ -42,6 +42,7 @@ import six
 from psyclone.domain.lfric import ArgOrdering
 from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
+from psyclone.psyir.nodes import Reference
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.errors import InternalError
 from psyclone.core.access_info import AccessType
@@ -226,8 +227,8 @@ class KernelInterface(ArgOrdering):
         for idx in range(argvect.vector_size):
             tag = "{0}_v{1}".format(argvect.name, idx)
             field_data_symbol = self._create_symbol(
-                tag, field_class, dims=[undf_symbol], extra_args=[fs_name],
-                interface=interface)
+                tag, field_class, dims=[Reference(undf_symbol)],
+                extra_args=[fs_name], interface=interface)
             self._arglist.append(field_data_symbol)
 
     def field(self, arg, var_accesses=None):
@@ -263,7 +264,8 @@ class KernelInterface(ArgOrdering):
                        "'{0}'.".format(arg.intrinsic_type))
             six.raise_from(NotImplementedError(message), info)
         field_data_symbol = self._create_symbol(
-            arg.name, field_class, dims=[undf_symbol], extra_args=[fs_name],
+            arg.name, field_class, dims=[Reference(undf_symbol)],
+            extra_args=[fs_name],
             interface=ArgumentInterface(INTENT_MAPPING[arg.intent]))
         self._arglist.append(field_data_symbol)
 
@@ -349,7 +351,8 @@ class KernelInterface(ArgOrdering):
 
         op_arg_symbol = self._create_symbol(
             arg.name, lfric_psyir.OperatorDataSymbol,
-            dims=[ndf_symbol_from, ndf_symbol_to, ncells],
+            dims=[Reference(ndf_symbol_from), Reference(ndf_symbol_to),
+                  Reference(ncells)],
             extra_args=[fs_from_name, fs_to_name],
             interface=ArgumentInterface(INTENT_MAPPING[arg.intent]))
         self._arglist.append(op_arg_symbol)
@@ -464,7 +467,7 @@ class KernelInterface(ArgOrdering):
 
         dofmap_symbol = self._create_symbol(
             "dofmap_{0}".format(fs_name), lfric_psyir.DofMapDataSymbol,
-            dims=[ndf_symbol], extra_args=[fs_name])
+            dims=[Reference(ndf_symbol)], extra_args=[fs_name])
         self._arglist.append(dofmap_symbol)
 
     def banded_dofmap(self, function_space, var_accesses=None):
@@ -632,10 +635,10 @@ class KernelInterface(ArgOrdering):
                     "nqp_z", lfric_psyir.NumberOfQrPointsInZDataSymbol)
                 weights_xy = self._create_symbol(
                     "weights_xy", lfric_psyir.QrWeightsInXyDataSymbol,
-                    dims=[nqp_xy])
+                    dims=[Reference(nqp_xy)])
                 weights_z = self._create_symbol(
                     "weights_z", lfric_psyir.QrWeightsInZDataSymbol,
-                    dims=[nqp_z])
+                    dims=[Reference(nqp_z)])
                 self._arglist.extend([nqp_xy, nqp_z, weights_xy, weights_z])
             elif shape == "gh_quadrature_face":
                 nfaces = self._create_symbol(
@@ -643,7 +646,8 @@ class KernelInterface(ArgOrdering):
                 nqp = self._create_symbol(
                     "nqp", lfric_psyir.NumberOfQrPointsDataSymbol)
                 weights = self._create_symbol(
-                    "weights", lfric_psyir.QrWeightsDataSymbol, dims=[nqp])
+                    "weights", lfric_psyir.QrWeightsDataSymbol,
+                    dims=[Reference(nqp)])
                 self._arglist.extend([nfaces, nqp, weights])
             elif shape == "gh_quadrature_edge":
                 nedges = self._create_symbol(
@@ -651,7 +655,8 @@ class KernelInterface(ArgOrdering):
                 nqp = self._create_symbol(
                     "nqp", lfric_psyir.NumberOfQrPointsDataSymbol)
                 weights = self._create_symbol(
-                    "weights", lfric_psyir.QrWeightsDataSymbol, dims=[nqp])
+                    "weights", lfric_psyir.QrWeightsDataSymbol,
+                    dims=[Reference(nqp)])
                 self._arglist.extend([nedges, nqp, weights])
             else:
                 raise InternalError("Unsupported quadrature shape '{0}' "
@@ -778,7 +783,8 @@ class KernelInterface(ArgOrdering):
                     "nqp_z", lfric_psyir.NumberOfQrPointsInZDataSymbol)
                 arg = mapping["gh_quadrature_xyoz"](
                     basis_tag, [int(first_dim_value_func(function_space)),
-                                ndf_symbol, nqp_xy, nqp_z],
+                                Reference(ndf_symbol), Reference(nqp_xy),
+                                Reference(nqp_z)],
                     fs_name, interface=self._read_access)
             elif shape == "gh_quadrature_face":
                 nfaces = self._create_symbol(
@@ -787,7 +793,8 @@ class KernelInterface(ArgOrdering):
                     "nqp", lfric_psyir.NumberOfQrPointsDataSymbol)
                 arg = mapping["gh_quadrature_face"](
                     basis_tag, [int(first_dim_value_func(function_space)),
-                                ndf_symbol, nqp, nfaces],
+                                Reference(ndf_symbol), Reference(nqp),
+                                Reference(nfaces)],
                     fs_name, interface=self._read_access)
             elif shape == "gh_quadrature_edge":
                 nedges = self._create_symbol(
@@ -796,7 +803,8 @@ class KernelInterface(ArgOrdering):
                     "nqp", lfric_psyir.NumberOfQrPointsDataSymbol)
                 arg = mapping["gh_quadrature_edge"](
                     basis_tag, [int(first_dim_value_func(function_space)),
-                                ndf_symbol, nqp, nedges],
+                                Reference(ndf_symbol), Reference(nqp),
+                                Reference(nedges)],
                     fs_name, interface=self._read_access)
             elif shape in VALID_EVALUATOR_SHAPES:
                 # Need a (diff) basis array for each target space upon
