@@ -259,6 +259,9 @@
         82) PR #951 for #950. Adds f2pygen support for generating code from
         PSyIR nodes.
 
+	83) PR #1026 for #1025. Removes code associated with, and
+	reference to, travis as we have migrated to github actions.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
