@@ -475,7 +475,13 @@ class NemoLoop(Loop):
         variable. Defaults to an empty string.
     '''
     def __init__(self, parent=None, variable=None):
-        valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
+        # The order in which names are returned in
+        # get_valid_loop_types depends on the Python implementation
+        # (as it pulls the values from a dictionary). To make it clear
+        # that there is no implied ordering here we store
+        # valid_loop_types as a set, rather than a list.
+        valid_loop_types = set(
+            Config.get().api_conf("nemo").get_valid_loop_types())
         Loop.__init__(self, parent=parent,
                       variable=variable,
                       valid_loop_types=valid_loop_types)
