@@ -176,13 +176,16 @@ information about the exact location.
 DataTypes
 =========
 
-The PSyIR supports scalar, array and unknown datatypes. These datatypes are
-used when creating instances of DataSymbol and Literal. The 'unknown' type
-is used when an unsupported declaration is encountered when processing
-existing code.
+The PSyIR supports scalar, array, structure, deferred and unknown
+datatypes. These datatypes are used when creating instances of
+DataSymbol and Literal. The 'deferred' and 'unknown' types are both
+used when processing existing code. The former is used when a symbol
+is being imported from some other scope (e.g. via a USE statement in
+Fortran) that hasn't yet been resolved and the latter is used when an
+unsupported form of declaration is encountered.
 
-Scalar DataTypes
-----------------
+Scalar DataType
+---------------
 
 A Scalar datatype consists of an intrinsic and a precision.
 
@@ -220,13 +223,13 @@ and ``INTEGER_DOUBLE_TYPE``;
 ``REAL4_TYPE``, ``REAL8_TYPE``, ``INTEGER4_TYPE`` and
 ``INTEGER8_TYPE``.
 
-Array DataTypes
-----------------
+Array DataType
+---------------
 
-An Array datatype has a scalar datatype specifying the type of its
-elements and a shape. The shape can have an arbitrary number of
-dimensions. Each dimension captures what is known about its extent. It
-is necessary to distinguish between four cases:
+An Array datatype has a scalar or structure datatype (or a TypeSybol)
+specifying the type of its elements and a shape. The shape can have an
+arbitrary number of dimensions. Each dimension captures what is known
+about its extent. It is necessary to distinguish between four cases:
 
 .. tabularcolumns:: |p{9cm}|L|
 
@@ -265,6 +268,15 @@ For example::
    >                                     ArrayType.Extent.ATTRIBUTE])
    >
    > array_type = ArrayType(LOGICAL_TYPE, [ArrayType.Extent.DEFERRED])
+
+Structure Datatype
+------------------
+
+A Structure datatype consists of a dictionary of components where the
+name of each component is used as the corresponding key. Each component
+is stored as a named tuple with ``name``, ``datatype`` and ``visibility``
+members.
+
 
 Unknown DataType
 ----------------
@@ -414,5 +426,5 @@ above example then becomes::
     > reference = Reference(symbol)
     > assignment = Assignment.create(reference, literal)
 
-A more complete example of using this approach can be found in the
+More complete examples of using this approach can be found in the
 PSyclone ``examples/psyir`` directory.
