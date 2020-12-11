@@ -53,7 +53,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
     INTEGER_TYPE
-from psyclone.psyir.nodes import KernelSchedule
+from psyclone.psyir.nodes import KernelSchedule, Reference
 from psyclone.domain.lfric.psyir import LfricRealScalarDataSymbol, \
     RealFieldDataDataSymbol, LfricIntegerScalarDataSymbol, \
     NumberOfUniqueDofsDataSymbol
@@ -261,7 +261,7 @@ def test_validate_kernel_code_arg(monkeypatch):
 
     undf = NumberOfUniqueDofsDataSymbol("undf", fs="w0", interface=read_access)
     lfric_real_field_symbol2 = RealFieldDataDataSymbol(
-        "field", dims=[undf], fs="w0", interface=read_access)
+        "field", dims=[Reference(undf)], fs="w0", interface=read_access)
     # if one of the dimensions is not a datasymbol then the arguments
     # are not checked.
     kernel._validate_kernel_code_arg(lfric_real_field_symbol,
@@ -270,9 +270,9 @@ def test_validate_kernel_code_arg(monkeypatch):
                                      lfric_real_field_symbol)
 
     lfric_real_field_symbol3 = RealFieldDataDataSymbol(
-        "field", dims=[undf], fs="w0", interface=read_access)
+        "field", dims=[Reference(undf)], fs="w0", interface=read_access)
     monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
-                        [undf, undf])
+                        [Reference(undf), Reference(undf)])
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(lfric_real_field_symbol2,
                                          lfric_real_field_symbol3)
@@ -281,7 +281,8 @@ def test_validate_kernel_code_arg(monkeypatch):
             in str(info.value))
 
     lfric_real_field_symbol4 = RealFieldDataDataSymbol(
-        "field", dims=[int_scalar_symbol], fs="w0", interface=read_access)
+        "field", dims=[Reference(int_scalar_symbol)], fs="w0",
+        interface=read_access)
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(
             lfric_real_field_symbol4, lfric_real_field_symbol2)

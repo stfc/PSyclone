@@ -59,7 +59,7 @@ from psyclone.dynamo0p3_builtins import BUILTIN_ITERATION_SPACES
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface)
-from psyclone.psyir.nodes import Loop, Literal, Schedule
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              Arguments, KernelArgument, HaloExchange,
@@ -7630,15 +7630,17 @@ class DynKern(CodedKern):
                                         len(kern_code_arg.shape)))
             for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
                 interface_arg_dim = interface_arg.shape[dim_idx]
-                if (isinstance(kern_code_arg_dim, DataSymbol) and
-                        isinstance(interface_arg_dim, DataSymbol)):
+                if (isinstance(kern_code_arg_dim, Reference) and
+                        isinstance(interface_arg_dim, Reference) and
+                        isinstance(kern_code_arg_dim.symbol, DataSymbol) and
+                        isinstance(interface_arg_dim.symbol, DataSymbol)):
                     # Only check when there is a symbol. Unspecified
                     # dimensions, dimensions with scalar values,
                     # offsets, or dimensions that include arithmetic
                     # are skipped.
                     try:
                         self._validate_kernel_code_arg(
-                            kern_code_arg_dim, interface_arg_dim)
+                            kern_code_arg_dim.symbol, interface_arg_dim.symbol)
                     except GenerationError as info:
                         six.raise_from(GenerationError(
                             "For dimension {0} in array argument '{1}' to "
