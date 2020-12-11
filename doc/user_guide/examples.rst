@@ -57,8 +57,8 @@ This is most easily done by following the links from the top-level
 `README <https://github.com/stfc/PSyclone#try-it-on-binder>`_.
 
 For the purposes of correctness checking, the whole suite of examples
-may be executed using Gnu ``make`` (this functionality is used by Travis
-alongside the test suite). The default target is ``transform`` which
+may be executed using Gnu ``make`` (this functionality is used by GitHub
+Actions alongside the test suite). The default target is ``transform`` which
 just performs the PSyclone code transformation steps for each
 example. For those examples that support it, the ``compile`` target
 also requests that the generated code be compiled. The ``notebook``
