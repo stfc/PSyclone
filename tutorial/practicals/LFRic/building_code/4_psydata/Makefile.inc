@@ -40,8 +40,7 @@ F90FLAGS ?= -Wall -g
 
 # Source rules
 SRC = prop_perturbation_kernel_mod.f90 time_evolution_driver.f90  \
-	  write_diagnostics_mod.f90        time_evolution_alg_mod.x90 \
-	  init_perturbation_kernel_mod.f90
+	  time_evolution_alg_mod.x90 init_perturbation_kernel_mod.f90
 
 # Object rules
 OBJ = $(addsuffix .o,$(basename $(SRC)))
@@ -97,14 +96,13 @@ $(PSYDATA_LIB): $(LFRIC_LIB)
 
 # Dependencies
 $(OBJ): $(LFRIC_LIB) $(GHLIB) $(PSYDATA_LIB)
-time_evolution_driver.o:  time_evolution_alg_mod_psy.o time_evolution_alg_mod.o \
-						  write_diagnostics_mod.o
+time_evolution_driver.o:  time_evolution_alg_mod_psy.o time_evolution_alg_mod.o
 
 time_evolution_alg_mod.o: init_perturbation_kernel_mod.o \
 	prop_perturbation_kernel_mod.o time_evolution_alg_mod_psy.o
 time_evolution_alg_mod_psy.o: init_perturbation_kernel_mod.o \
 	prop_perturbation_kernel_mod.o
-time_evolution_driver.o: time_evolution_alg_mod.o write_diagnostics_mod.o
+time_evolution_driver.o: time_evolution_alg_mod.o
 
 %.o %.mod: %.f90
 	$(F90) $(F90FLAGS) -c $<

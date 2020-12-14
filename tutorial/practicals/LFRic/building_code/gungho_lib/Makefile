@@ -41,7 +41,7 @@ PSYCLONE_RELPATH = ../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME = lfric_netcdf
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
-F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
+F90FLAGS += -I$(LFRIC_PATH)
 
 GHLIB_SRC = $(wildcard *.F90) $(wildcard *.f90)
 
@@ -59,7 +59,9 @@ $(LFRIC_LIB):
 assign_coordinate_field_mod.o: base_mesh_config_mod.o planet_config_mod.o
 configuration_mod.o: base_mesh_config_mod.o extrusion_uniform_config_mod.o \
 	finite_element_config_mod.o io_utility_mod.o partitioning_config_mod.o \
-	perturbation_bell_config_mod.o planet_config_mod.o timestepping_config_mod.o
+	perturbation_bell_config_mod.o planet_config_mod.o timestepping_config_mod.o \
+	write_methods_mod.o
+write_diagnostics_mod.o: write_methods_mod.o
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<

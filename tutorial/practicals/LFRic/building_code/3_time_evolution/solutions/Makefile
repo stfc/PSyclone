@@ -42,8 +42,7 @@ SRC_PATH = ..
 VPATH = $(SRC_PATH)/
 
 # Source rules
-DRIVER_SRC = $(SRC_PATH)/write_diagnostics_mod.f90 \
-	$(SRC_PATH)/time_evolution_driver.f90
+DRIVER_SRC = $(SRC_PATH)/time_evolution_driver.f90
 ALGORITHMS = $(wildcard *_alg_mod.x90)
 ALGORITHM_SRC = $(notdir $(ALGORITHMS:.x90=.f90))
 PSY_SRC = $(notdir $(ALGORITHM_SRC:.f90=_psy.f90))
