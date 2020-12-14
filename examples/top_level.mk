@@ -46,9 +46,9 @@ notebook_EXAMPLES=$(addprefix notebook_,$(EXAMPLES))
 clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
 allclean_EXAMPLES=$(addprefix allclean_,$(EXAMPLES))
 
-run: ${run_EXAMPLES}
-compile: ${compile_EXAMPLES}
 transform: ${EXAMPLES}
+compile: ${compile_EXAMPLES}
+run: ${run_EXAMPLES}
 notebook: ${notebook_EXAMPLES}
 clean: ${clean_EXAMPLES}
 allclean: ${allclean_EXAMPLES}
