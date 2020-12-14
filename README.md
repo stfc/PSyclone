@@ -69,10 +69,11 @@ README.uml     	    | Information on how to create UML class diagrams from the s
 src/psyclone   	    | The python source code
 src/psyclone/tests/ | Unit and functional tests using pytest
 tutorial/notebooks  | Tutorial using Jupyter notebooks
+tutorial/practicals | Hands-on exercises using a local installation of PSyclone
 
 # Status #
 
-[![Build Status](https://travis-ci.org/stfc/PSyclone.svg?branch=master)](https://travis-ci.org/stfc/PSyclone)
+![Build Status](https://github.com/stfc/PSyclone/workflows/PSyclone%20tests%20and%20examples/badge.svg)
 
 [![codecov](https://codecov.io/gh/stfc/PSyclone/branch/master/graph/badge.svg)](https://codecov.io/gh/stfc/PSyclone)
 
