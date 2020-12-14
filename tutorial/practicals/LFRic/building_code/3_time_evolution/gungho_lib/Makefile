@@ -66,3 +66,6 @@ configuration_mod.o: extrusion_uniform_config_mod.o finite_element_config_mod.o 
 
 clean:
 	rm -f *.o *.mod *.a
+
+allclean: clean
+	$(MAKE) -C $(LFRIC_PATH) allclean

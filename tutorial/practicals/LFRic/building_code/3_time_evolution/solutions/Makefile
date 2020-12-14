@@ -53,7 +53,7 @@ KERNEL_SRC = $(wildcard *_kernel_mod.f90)
 PSYCLONE_CMD = -nodm -l all
 
 # Executable
-EXEC = time_evolution
+EXEC = ./time_evolution
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../../..
@@ -63,7 +63,7 @@ LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
 
 # GungHo auxiliary libraries
-GHLIB_PATH = ../gungho_lib
+GHLIB_PATH = ../../gungho_lib
 GHLIB_NAME = gungho
 GHLIB_LIB = $(GHLIB_PATH)/lib$(GHLIB_NAME).a
 F90FLAGS += -I$(GHLIB_PATH)
@@ -78,9 +78,12 @@ EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
 # Targets
 .DEFAULT_GOAL := compile
 
-.PHONY: compile test clean
+.PHONY: transform compile run clean allclean
 
-compile: test $(EXEC)
+compile: transform $(EXEC)
+
+run: compile
+	$(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(GHLIB_LIB) $(EXAMPLE_OBJ)
 	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) \
@@ -93,9 +96,18 @@ $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH) netcdf 
 
 # Dependencies
-$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
-$(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ)
-$(PSY_OBJ): $(KERNEL_OBJ)
+$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ) $(LFRIC_LIB)
+$(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ) $(LFRIC_LIB)
+$(PSY_OBJ): $(KERNEL_OBJ) $(LFRIC_LIB)
+$(KERNEL_OBJ): $(LFRIC_LIB)
+time_evolution_alg_mod.o: init_perturbation_kernel_mod.o \
+	prop_perturbation_kernel_mod.o time_evolution_alg_mod_psy.o \
+	$(GHLIB_LIB) $(LFRIC_LIB)
+time_evolution_alg_mod_psy.o: init_perturbation_kernel_mod.o \
+	prop_perturbation_kernel_mod.o $(GHLIB_LIB) $(LFRIC_LIB)
+prop_perturbation_kernel_mod.o: $(GHLIB_LIB)
+
+time_evolution_driver.o: ../write_diagnostics_mod.o
 
 %.o %.mod: %.F90
 	$(F90) $(F90FLAGS) -c $<
@@ -109,7 +121,7 @@ $(ALGORITHM_SRC): $(PSY_SRC)
 .precious: $(ALGORITHM_SRC) $(PSY_SRC)
 
 # Test PSyclone target for continuous integration
-test: $(PSY_SRC) $(ALGORITHM_SRC)
+transform: $(PSY_SRC) $(ALGORITHM_SRC)
 
 %_psy.f90: %.x90
 	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
@@ -117,5 +129,7 @@ test: $(PSY_SRC) $(ALGORITHM_SRC)
 
 clean:
 	rm -f *.o *.mod *.txt  *.png $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
+
+allclean: clean
 	make -C $(GHLIB_PATH) clean
 	make -C $(LFRIC_PATH) clean

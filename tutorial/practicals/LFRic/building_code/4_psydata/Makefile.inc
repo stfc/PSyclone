@@ -78,9 +78,9 @@ KERNEL_OBJ = $(filter %.o,$(KERNEL_SRC:.F90=.o) $(KERNEL_SRC:.f90=.o))
 EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
 
 # Targets
-.PHONY: build test clean
+.PHONY: transform compile run clean allclean
 
-build: test $(EXEC)
+compile: transform $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(GHLIB_LIB) $(EXAMPLE_OBJ)
 	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) \
@@ -112,7 +112,7 @@ $(ALGORITHM_SRC): $(PSY_SRC)
 .precious: $(ALGORITHM_SRC) $(PSY_SRC)
 
 # Test PSyclone target for continuous integration
-test: $(PSY_SRC) $(ALGORITHM_SRC)
+transform: $(PSY_SRC) $(ALGORITHM_SRC)
 
 %_psy.f90: %.x90
 	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \

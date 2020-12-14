@@ -31,14 +31,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
 
-# Top-level Makefile to test all of the LFRic hands-on tutorials.
-.PHONY: transform compile run clean allclean
+.DEFAULT_GOAL := transform
+ALL_TARGETS = transform compile run clean allclean
+.PHONY: $(ALL_TARGETS)
 
-transform compile run clean allclean:
-	${MAKE} -C building_code $@
-	${MAKE} -C distributed_memory $@
-	${MAKE} -C single_node $@
+$(ALL_TARGETS):
+W	$(MAKE) -c LFRic $@
+	$(MAKE) -C nemo $@

@@ -41,5 +41,5 @@ default:
 	@echo "Please use one of the transformation-specific Makefiles, e.g."
 	@echo "make -f Makefile.extract"
 
-# This will define a 'test' target, that tutorial checking will use
+# This will define a 'transform' target, that tutorial checking will use
 include Makefile.inc
