@@ -36,11 +36,11 @@
 # Makefile to test the example transfromation scripts contained in
 # this directory.
 
-.PHONY: clean test
+.PHONY: clean transform
 
 TARGET = psy.f90
 
-test:
+transform:
 	${MAKE} clean
 	${MAKE} -C ../ ${TARGET}
 	${MAKE} clean

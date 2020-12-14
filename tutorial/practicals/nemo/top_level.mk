@@ -31,68 +31,46 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Laboratory
 # Modified J. Henrichs, Bureau of Meteorology
 
-# Makefile for the PSyclone NEMO OpenACC tutorial.
+# Include file for 'top-level' Makefiles found in the directories immediately
+# below the one containing this file.
+#
+# Provides support for 'all', 'compile', 'transform' (the default), 'notebook',
+# 'run', clean' and 'allclean' targets for directories listed in TUTORIALS.
+# All an including Makefile needs to do is set TUTORIALS appropriately.
 
-include ../../common.mk
+run_TUTORIALS=$(addprefix run_,$(TUTORIALS))
+compile_TUTORIALS=$(addprefix compile_,$(TUTORIALS))
+notebook_TUTORIALS=$(addprefix notebook_,$(TUTORIALS))
+clean_TUTORIALS=$(addprefix clean_,$(TUTORIALS))
+allclean_TUTORIALS=$(addprefix allclean_,$(TUTORIALS))
 
-# By default we only generate the transformed code
-.DEFAULT_GOAL := psy.f90
+run: ${run_TUTORIALS}
+compile: ${compile_TUTORIALS}
+transform: ${TUTORIALS}
+notebook: ${notebook_TUTORIALS}
+clean: ${clean_TUTORIALS}
+allclean: ${allclean_TUTORIALS}
 
-# The PSyclone transformation script to use
-TRANS_SCRIPT ?= ./kernels_trans.py
+.PHONY: ${TUTORIALS} $(all_TUTORIALS) ${compile_TUTORIALS} ${clean_TUTORIALS} \
+        ${notebook_TUTORIALS} ${allclean_TUTORIALS}
 
-# Use gfortran by default
-F90 ?= gfortran
-F90FLAGS ?= -fopenacc -O2
+$(TUTORIALS):
+	${MAKE} -C $@ transform
 
-# For NVIDIA we could use:
-# F90FLAGS = -acc -ta=tesla -O2 -Minfo=all
-# F90 = nvfortran
+$(run_TUTORIALS):
+	${MAKE} -C $(patsubst run_%,%,$@) run
 
-# We use the PSyData simple_timing implementation since it has no
-# dependencies.
-PROFILE_DIR ?= ../../../../lib/profiling/simple_timing
-PROFILE_LINK = -lsimple_timing
-PROFILE_LIB = ${PROFILE_DIR}/libsimple_timing.a
+$(compile_TUTORIALS):
+	${MAKE} -C $(patsubst compile_%,%,$@) compile
 
-# ------------------------------------------------------------------------------
-NAME = ./tra_adv.exe
+$(notebook_TUTORIALS):
+	${MAKE} -C $(patsubst notebook_%,%,$@) notebook
 
-.PHONY: clean allclean transform
+$(clean_TUTORIALS):
+	${MAKE} -C $(patsubst clean_%,%,$@) clean
 
-$(NAME): $(KERNELS) psy.o runner.o
-	$(F90) $(F90FLAGS) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
-
-# Target that uses PSyclone to generate 'psy.f90'
-psy.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
-	$(PSYCLONE) -s ${TRANS_SCRIPT} -api nemo \
-                     -opsy psy.f90 -l output tra_adv_mod.F90
-
-# Make sure the infrastructure library is compiled, so the mods are found
-$(KERNELS): $(INF_LIB)
-
-# Creating psy.o and runner.o requires that the profiling lib be compiled
-runner.o psy.o: ${PROFILE_LIB}
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -I $(PROFILE_DIR) -c $<
-
-${PROFILE_LIB}:
-	${MAKE} -C ${PROFILE_DIR}
-
-clean:
-	rm -f psy.f90 *.o *.mod $(NAME) output.dat
-
-allclean: clean
-	${MAKE} -C ${PROFILE_DIR}  clean
-
-transform:
-	${MAKE} -C solutions transform
-
-compile: transform $(NAME)
-
-run: compile
-	JPK=30 JPJ=100 JPI=100 IT=10 $(NAME)
+$(allclean_TUTORIALS):
+	${MAKE} -C $(patsubst allclean_%,%,$@) allclean

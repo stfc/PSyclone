@@ -31,68 +31,36 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Laboratory
 # Modified J. Henrichs, Bureau of Meteorology
 
-# Makefile for the PSyclone NEMO OpenACC tutorial.
+# Make sure we use the configuration file distributed with PSyclone
+# instead of any locally-installed version.
+#
+# **Note** that this code to find the correct directory only works if
+#          the examples directory is still within the standard PSyclone
+#          source tree. If it has been moved then the PSYCLONE_CONFIG
+#          environment variable will have to be set to the full path
+#          to the config file before make is launched.
+#
+# MAKEFILE_LIST is a Gnu-make variable that contains all of the
+# arguments passed to the first invocation of Make. The last entry
+# in this list is the current file.
 
-include ../../common.mk
+this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 
-# By default we only generate the transformed code
-.DEFAULT_GOAL := psy.f90
+# PSyclone directory is up two from this file
+PSYCLONE_DIR := $(abspath $(dir $(this_file))../..)
 
-# The PSyclone transformation script to use
-TRANS_SCRIPT ?= ./kernels_trans.py
+ifeq (,$(wildcard ${PSYCLONE_DIR}/config/psyclone.cfg))
+  # Failed to find the configuration file so don't attempt to specify it.
+  # Will be picked up from default locations or $PSYCLONE_CONFIG.
+  PSYCLONE ?= psyclone
+  KERNEL_STUB_GEN ?= genkernelstub
+else
+  PSYCLONE ?= psyclone -l output --config ${PSYCLONE_DIR}/config/psyclone.cfg
+  KERNEL_STUB_GEN ?= PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg genkernelstub
+endif
 
-# Use gfortran by default
-F90 ?= gfortran
-F90FLAGS ?= -fopenacc -O2
-
-# For NVIDIA we could use:
-# F90FLAGS = -acc -ta=tesla -O2 -Minfo=all
-# F90 = nvfortran
-
-# We use the PSyData simple_timing implementation since it has no
-# dependencies.
-PROFILE_DIR ?= ../../../../lib/profiling/simple_timing
-PROFILE_LINK = -lsimple_timing
-PROFILE_LIB = ${PROFILE_DIR}/libsimple_timing.a
-
-# ------------------------------------------------------------------------------
-NAME = ./tra_adv.exe
-
-.PHONY: clean allclean transform
-
-$(NAME): $(KERNELS) psy.o runner.o
-	$(F90) $(F90FLAGS) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
-
-# Target that uses PSyclone to generate 'psy.f90'
-psy.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
-	$(PSYCLONE) -s ${TRANS_SCRIPT} -api nemo \
-                     -opsy psy.f90 -l output tra_adv_mod.F90
-
-# Make sure the infrastructure library is compiled, so the mods are found
-$(KERNELS): $(INF_LIB)
-
-# Creating psy.o and runner.o requires that the profiling lib be compiled
-runner.o psy.o: ${PROFILE_LIB}
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -I $(PROFILE_DIR) -c $<
-
-${PROFILE_LIB}:
-	${MAKE} -C ${PROFILE_DIR}
-
-clean:
-	rm -f psy.f90 *.o *.mod $(NAME) output.dat
-
-allclean: clean
-	${MAKE} -C ${PROFILE_DIR}  clean
-
-transform:
-	${MAKE} -C solutions transform
-
-compile: transform $(NAME)
-
-run: compile
-	JPK=30 JPJ=100 JPI=100 IT=10 $(NAME)
+.PHONY: transform compile run clean allclean
+.DEFAULT_GOAL := transform

@@ -34,6 +34,9 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 
 # Makefile for the PSyclone NEMO OpenMP tutorial.
+# Modified J. Henrichs, Bureau of Meteorology
+
+include ../../common.mk
 
 # We use the PSyData simple_timing implementation since it has no
 # dependencies.
@@ -41,7 +44,7 @@ PROFILE_DIR ?= ../../../../lib/profiling/simple_timing
 PROFILE_LINK = -lsimple_timing
 PROFILE_LIB = ${PROFILE_DIR}/libsimple_timing.a
 
-NAME = tra_adv.exe
+NAME = ./tra_adv.exe
 # The PSyclone transformation script to use
 TRANS_SCRIPT ?= ./omp_trans.py
 
@@ -49,19 +52,19 @@ TRANS_SCRIPT ?= ./omp_trans.py
 F90 ?= gfortran
 F90FLAGS ?= -fopenmp -O2
 
-PSYCLONE = psyclone -api nemo -opsy psy.f90 -l output
+MY_PSYCLONE = $(PSYCLONE) -api nemo -opsy psy.f90 -l output
 
-# The solutions scripts that the 'test' target will execute
+# The solutions scripts that the 'transform' target will execute
 SOLUTION_SCRIPTS = $(wildcard solutions/*.py)
 
-.PHONY: test clean allclean ${SOLUTION_SCRIPTS}
+.PHONY: ${SOLUTION_SCRIPTS}
 
 $(NAME): $(KERNELS) psy.o runner.o
 	$(F90) $(F90FLAGS) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
 
 # Target that uses PSyclone to generate 'psy.f90'
 psy.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
-	${PSYCLONE} -s ${TRANS_SCRIPT} tra_adv_mod.F90
+	${MY_PSYCLONE} -s ${TRANS_SCRIPT} tra_adv_mod.F90
 
 # Make sure the infrastructure library is compiled, so the mods are found
 $(KERNELS): $(INF_LIB)
@@ -76,15 +79,21 @@ ${PROFILE_LIB}:
 	${MAKE} -C ${PROFILE_DIR}
 
 clean:
-	rm -f psy.f90 *.o *.mod
+	rm -f psy.f90 *.o *.mod $(NAME) output.dat
 
 allclean: clean
-	rm -f ${NAME}
 	${MAKE} -C ${PROFILE_DIR}  clean
 
-test: ${SOLUTION_SCRIPTS}
+transform: ${SOLUTION_SCRIPTS}
+
+# We need to invoke make transform first so that the
+# files from the solution directory are used.
+compile: transform $(NAME)
+
+run: compile
+	JPK=30 JPJ=100 JPI=100 IT=10 ./$(NAME)
 
 ${SOLUTION_SCRIPTS}:
-	${PSYCLONE} -s $@ tra_adv_mod.F90
-	${PSYCLONE} -s $@ --profile invokes tra_adv_mod.F90
-	${PSYCLONE} -s $@ --profile kernels tra_adv_mod.F90
+	${MY_PSYCLONE} -s $@ tra_adv_mod.F90
+	${MY_PSYCLONE} -s $@ --profile invokes tra_adv_mod.F90
+	${MY_PSYCLONE} -s $@ --profile kernels tra_adv_mod.F90
