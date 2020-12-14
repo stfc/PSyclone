@@ -407,6 +407,27 @@ def test_opencl_options_validation():
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
+@pytest.mark.parametrize("option_to_check", ['enable_profiling',
+                                             'out_of_order'])
+def test_opencl_multi_invoke_options_validation(option_to_check):
+    ''' Check that the OpenCL options constrains when there are multiple
+    invokes are enforced.
+    '''
+    psy, _ = get_invoke("test12_two_invokes_two_kernels.f90", API, idx=0)
+    invoke1_schedule = psy.invokes.invoke_list[0].schedule
+    invoke2_schedule = psy.invokes.invoke_list[1].schedule
+    otrans = OCLTrans()
+    otrans.apply(invoke1_schedule, options={option_to_check: False})
+    otrans.apply(invoke2_schedule, options={option_to_check: True})
+    with pytest.raises(NotImplementedError) as err:
+        _ = str(psy.gen)
+    assert ("The current implementation creates a single OpenCL context for "
+            "all the invokes which needs certain OpenCL options to match "
+            "between invokes. Found '{0}' with unmathcing values between "
+            "invokes.".format(option_to_check) in str(err.value))
+
+
+@pytest.mark.usefixtures("kernel_outputdir")
 def test_opencl_options_effects():
     ''' Check that the OpenCL options produce the expected changes in the
     PSy layer.

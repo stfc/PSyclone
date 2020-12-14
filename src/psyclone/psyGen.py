@@ -338,6 +338,17 @@ class Invokes(object):
         :param parent: the parent node in the AST to which to add content.
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
+        def raise_unmatching_options(option_name):
+            ''' Create unmatching OpenCL options error message.
+
+            :param str option_name: name of the option that failed.
+            :raises NotImplementedError: with the given option_name.
+            '''
+            raise NotImplementedError(
+                "The current implementation creates a single OpenCL context "
+                "for all the invokes which needs certain OpenCL options to "
+                "match between invokes. Found '{0}' with unmathcing values "
+                "between invokes.".format(option_name))
         opencl_kernels = []
         opencl_num_queues = 1
         generate_ocl_init = False
@@ -353,17 +364,17 @@ class Invokes(object):
                 isch = invoke.schedule
 
                 # The enable_profiling option must be equal in all invokes
-                if (ocl_enable_profiling and
-                    (ocl_enable_profiling !=
-                     isch.get_opencl_option('enable_profiling'))):
-                    raise NotImplementedError("")
+                if ocl_enable_profiling is not None and \
+                   ocl_enable_profiling != isch.get_opencl_option(
+                        'enable_profiling'):
+                    raise_unmatching_options('enable_profiling')
                 ocl_enable_profiling = isch.get_opencl_option(
                     'enable_profiling')
 
                 # The out_of_order option must be equal in all invokes
-                if ocl_out_of_order and \
+                if ocl_out_of_order is not None and \
                    ocl_out_of_order != isch.get_opencl_option('out_of_order'):
-                    raise NotImplementedError("")
+                    raise_unmatching_options('out_of_order')
                 ocl_out_of_order = isch.get_opencl_option('out_of_order')
 
                 # openCL_num_queues must be the maximum number from any invoke
