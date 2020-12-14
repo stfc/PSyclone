@@ -2564,6 +2564,7 @@ def test_loopfuse(dist_mem, tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+
 def test_named_psy_routine(dist_mem, tmpdir):
     ''' Check that we generate a subroutine with the expected name
     if an invoke is named. '''
