@@ -383,7 +383,7 @@ def test_ad_field_init_wrong_iteration_space():
             field_arg, metadata.iterates_over)._init_field(
                 field_arg, "ncolours")
     assert ("Invalid operates_on 'ncolours' in the kernel metadata (expected "
-            "one of ['cells', 'cell_column', 'dofs', 'dof'])." in
+            "one of ['cells', 'cell_column', 'domain', 'dofs', 'dof'])." in
             str(excinfo.value))
 
 
@@ -490,8 +490,8 @@ def test_ad_invalid_iteration_space():
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, "colours")
     assert ("Expected operates_on in the kernel metadata to be one of "
-            "['cells', 'cell_column', 'dofs', 'dof'] but got 'colours'." in
-            str(excinfo.value))
+            "['cells', 'cell_column', 'domain', 'dofs', 'dof'] but got "
+            "'colours'." in str(excinfo.value))
 
 
 def test_arg_descriptor_invalid_fs1():
@@ -686,7 +686,7 @@ def test_kernel_call_invalid_iteration_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("The LFRic API supports calls to user-supplied kernels that "
-            "operate on one of ['cells', 'cell_column'], but "
+            "operate on one of ['cells', 'cell_column', 'domain'], but "
             "kernel 'testkern_dofs_code' operates on 'dof'."
             in str(excinfo.value))
 
@@ -3751,10 +3751,10 @@ def test_fs_discontinuous_inc_error():
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
         assert ("In the LFRic API, allowed accesses for fields on "
-                "discontinuous function spaces that are arguments to "
-                "kernels that operate on cell-columns are ['gh_read', "
-                "'gh_write', 'gh_readwrite'], but found 'gh_inc' for "
-                "'{0}'".format(fspace) in str(excinfo.value))
+                "discontinuous function spaces that are arguments to kernels "
+                "that operate on either cell-columns or the domain are "
+                "['gh_read', 'gh_write', 'gh_readwrite'], but found 'gh_inc' "
+                "for '{0}'".format(fspace) in str(excinfo.value))
 
 
 def test_fs_continuous_cells_write_or_readwrite_error():
