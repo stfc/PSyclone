@@ -48,7 +48,7 @@
 # export LDFLAGS="-acc -ta=tesla,cc70"
 include ../../common.mk
 
-GENERATED_FILES += psy.f90 psy.o traadv.exe
+GENERATED_FILES += psy.f90 psy.o traadv.exe output.dat
 
 F90FLAGS ?= -fopenmp
 LDFLAGS ?= -fopenmp
