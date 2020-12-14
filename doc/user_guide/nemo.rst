@@ -160,11 +160,12 @@ Transformations
 
 The following transformations are specific to the NEMO API.
 
-.. warning:: the transformation below all operate on the PSyIR not the
-fparser2 ast. This means that any changes made by these
-transformations will not be observed in the code that is output by
-psyclone. The changes will only become visible when the PSyIR
-back-ends replace the current fparser2 ast-based backend.
+.. warning:: the transformations below all operate on the PSyIR not
+	     the fparser2 ast. This means that any changes made by
+	     these transformations will not be observed in the code
+	     that is output by PSyclone. The changes will only become
+	     visible when the PSyIR back-ends replace the current
+	     fparser2 AST-based backend (see issue #435).
 
 ####
 
