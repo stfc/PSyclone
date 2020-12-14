@@ -613,8 +613,9 @@ def test_basis_face():
     assert (nfaces_symbol.interface.access ==
             kernel_interface._read_access.access)
     # nqp declared
-    nqp_symbol = kernel_interface._symbol_table.lookup("nqp")
-    assert isinstance(nqp_symbol, lfric_psyir.NumberOfQrPointsDataSymbol)
+    nqp_symbol = kernel_interface._symbol_table.lookup("nqp_faces")
+    assert isinstance(
+        nqp_symbol, lfric_psyir.NumberOfQrPointsInFacesDataSymbol)
     assert isinstance(nqp_symbol.interface, ArgumentInterface)
     assert (nqp_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -671,8 +672,9 @@ def test_basis_edge():
     assert (nedges_symbol.interface.access ==
             kernel_interface._read_access.access)
     # nqp declared
-    nqp_symbol = kernel_interface._symbol_table.lookup("nqp")
-    assert isinstance(nqp_symbol, lfric_psyir.NumberOfQrPointsDataSymbol)
+    nqp_symbol = kernel_interface._symbol_table.lookup("nqp_edges")
+    assert isinstance(
+        nqp_symbol, lfric_psyir.NumberOfQrPointsInEdgesDataSymbol)
     assert isinstance(nqp_symbol.interface, ArgumentInterface)
     assert (nqp_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -894,15 +896,16 @@ def test_quad_rule_face():
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-3] is nfaces_symbol
     # nqp declared and added to argument list
-    nqp_symbol = kernel_interface._symbol_table.lookup("nqp")
-    assert isinstance(nqp_symbol, lfric_psyir.NumberOfQrPointsDataSymbol)
+    nqp_symbol = kernel_interface._symbol_table.lookup("nqp_faces")
+    assert isinstance(
+        nqp_symbol, lfric_psyir.NumberOfQrPointsInFacesDataSymbol)
     assert isinstance(nqp_symbol.interface, ArgumentInterface)
     assert (nqp_symbol.interface.access ==
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-2] is nqp_symbol
     # weights declared and added to argument list
-    weights_symbol = kernel_interface._symbol_table.lookup("weights")
-    assert isinstance(weights_symbol, lfric_psyir.QrWeightsDataSymbol)
+    weights_symbol = kernel_interface._symbol_table.lookup("weights_faces")
+    assert isinstance(weights_symbol, lfric_psyir.QrWeightsInFacesDataSymbol)
     assert isinstance(weights_symbol.interface, ArgumentInterface)
     assert (weights_symbol.interface.access ==
             kernel_interface._read_access.access)
@@ -935,15 +938,16 @@ def test_quad_rule_edge():
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-3] is nedges_symbol
     # nqp declared and added to argument list
-    nqp_symbol = kernel_interface._symbol_table.lookup("nqp")
-    assert isinstance(nqp_symbol, lfric_psyir.NumberOfQrPointsDataSymbol)
+    nqp_symbol = kernel_interface._symbol_table.lookup("nqp_edges")
+    assert isinstance(
+        nqp_symbol, lfric_psyir.NumberOfQrPointsInEdgesDataSymbol)
     assert isinstance(nqp_symbol.interface, ArgumentInterface)
     assert (nqp_symbol.interface.access ==
             kernel_interface._read_access.access)
     assert kernel_interface._arglist[-2] is nqp_symbol
     # weights declared and added to argument list
-    weights_symbol = kernel_interface._symbol_table.lookup("weights")
-    assert isinstance(weights_symbol, lfric_psyir.QrWeightsDataSymbol)
+    weights_symbol = kernel_interface._symbol_table.lookup("weights_edges")
+    assert isinstance(weights_symbol, lfric_psyir.QrWeightsInEdgesDataSymbol)
     assert isinstance(weights_symbol.interface, ArgumentInterface)
     assert (weights_symbol.interface.access ==
             kernel_interface._read_access.access)

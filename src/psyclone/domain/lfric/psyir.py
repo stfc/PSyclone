@@ -150,7 +150,8 @@ SPECIFIC_SCALAR_DATATYPES = [
     Scalar("number of edges", "lfric integer scalar", []),
     Scalar("number of qr points in xy", "lfric integer scalar", []),
     Scalar("number of qr points in z", "lfric integer scalar", []),
-    Scalar("number of qr points", "lfric integer scalar", [])]
+    Scalar("number of qr points in faces", "lfric integer scalar", []),
+    Scalar("number of qr points in edges", "lfric integer scalar", [])]
 
 # Generate specific LFRic scalar datatypes and symbols from definitions
 for info in SPECIFIC_SCALAR_DATATYPES:
@@ -224,26 +225,29 @@ ARRAY_DATATYPES = [
            "number of qr points in xy",
            "number of qr points in z"], ["fs"]),
     Array("basis function qr face", "lfric real scalar",
-          [LfricDimension, "number of dofs", "number of qr points",
+          [LfricDimension, "number of dofs", "number of qr points in faces",
            "number of faces"], ["fs"]),
     Array("basis function qr edge", "lfric real scalar",
-          [LfricDimension, "number of dofs", "number of qr points",
+          [LfricDimension, "number of dofs", "number of qr points in edges",
            "number of edges"], ["fs"]),
     Array("diff basis function qr xyoz", "lfric real scalar",
           [LfricDimension, "number of dofs",
            "number of qr points in xy",
            "number of qr points in z"], ["fs"]),
     Array("diff basis function qr face", "lfric real scalar",
-          [LfricDimension, "number of dofs", "number of qr points",
+          [LfricDimension, "number of dofs", "number of qr points in faces",
            "number of faces"], ["fs"]),
     Array("diff basis function qr edge", "lfric real scalar",
-          [LfricDimension, "number of dofs", "number of qr points",
+          [LfricDimension, "number of dofs", "number of qr points in edges",
            "number of edges"], ["fs"]),
     Array("qr weights in xy", "lfric real scalar",
           ["number of qr points in xy"], []),
     Array("qr weights in z", "lfric real scalar",
           ["number of qr points in z"], []),
-    Array("qr weights", "lfric real scalar", ["number of qr points"], [])]
+    Array("qr weights in faces", "lfric real scalar",
+          ["number of qr points in faces"], []),
+    Array("qr weights in edges", "lfric real scalar",
+          ["number of qr points in edges"], [])]
 
 # Generate LFRic array (including field) datatypes and symbols from definitions
 for array_type in ARRAY_DATATYPES + FIELD_DATATYPES:

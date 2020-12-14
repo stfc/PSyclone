@@ -141,7 +141,9 @@ def test_scalar_literals():
      lfric_psyir.LfricIntegerScalarDataType),
     (lfric_psyir.NumberOfQrPointsInZDataType,
      lfric_psyir.LfricIntegerScalarDataType),
-    (lfric_psyir.NumberOfQrPointsDataType,
+    (lfric_psyir.NumberOfQrPointsInFacesDataType,
+     lfric_psyir.LfricIntegerScalarDataType),
+    (lfric_psyir.NumberOfQrPointsInEdgesDataType,
      lfric_psyir.LfricIntegerScalarDataType)])
 def test_specific_scalar_types(data_type, generic_type):
     '''Test the generated specific scalar datatypes are created correctly.
@@ -171,7 +173,9 @@ def test_specific_scalar_types(data_type, generic_type):
      lfric_psyir.LfricIntegerScalarDataSymbol, {}),
     (lfric_psyir.NumberOfQrPointsInZDataSymbol,
      lfric_psyir.LfricIntegerScalarDataSymbol, {}),
-    (lfric_psyir.NumberOfQrPointsDataSymbol,
+    (lfric_psyir.NumberOfQrPointsInFacesDataSymbol,
+     lfric_psyir.LfricIntegerScalarDataSymbol, {}),
+    (lfric_psyir.NumberOfQrPointsInEdgesDataSymbol,
      lfric_psyir.LfricIntegerScalarDataSymbol, {})])
 def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
     '''Test the generated specific scalar symbols are
@@ -263,7 +267,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
               "ndofs", "w1",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
-           lfric_psyir.NumberOfQrPointsDataSymbol(
+           lfric_psyir.NumberOfQrPointsInFacesDataSymbol(
                "qr",
                interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
@@ -278,7 +282,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
           lfric_psyir.NumberOfDofsDataSymbol(
               "ndofs", "w2",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
-       Reference(lfric_psyir.NumberOfQrPointsDataSymbol(
+       Reference(lfric_psyir.NumberOfQrPointsInEdgesDataSymbol(
            "qr",
            interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
@@ -309,7 +313,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
           lfric_psyir.NumberOfDofsDataSymbol(
               "ndofs", "w1",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
-       Reference(lfric_psyir.NumberOfQrPointsDataSymbol(
+       Reference(lfric_psyir.NumberOfQrPointsInFacesDataSymbol(
            "qr",
            interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
@@ -325,7 +329,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
               "ndofs", "w2v",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
-           lfric_psyir.NumberOfQrPointsDataSymbol(
+           lfric_psyir.NumberOfQrPointsInEdgesDataSymbol(
                "qr",
                interface=ArgumentInterface(ArgumentInterface.Access.READ))),
        Reference(
@@ -347,10 +351,19 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
               "qr_z",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {}),
-     (lfric_psyir.QrWeightsDataType, lfric_psyir.QrWeightsDataSymbol,
+     (lfric_psyir.QrWeightsInFacesDataType,
+      lfric_psyir.QrWeightsInFacesDataSymbol,
       lfric_psyir.LfricRealScalarDataType,
       [Reference(
-          lfric_psyir.NumberOfQrPointsDataSymbol(
+          lfric_psyir.NumberOfQrPointsInFacesDataSymbol(
+              "qr",
+              interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
+      {}),
+     (lfric_psyir.QrWeightsInEdgesDataType,
+      lfric_psyir.QrWeightsInEdgesDataSymbol,
+      lfric_psyir.LfricRealScalarDataType,
+      [Reference(
+          lfric_psyir.NumberOfQrPointsInEdgesDataSymbol(
               "qr",
               interface=ArgumentInterface(ArgumentInterface.Access.READ)))],
       {})])

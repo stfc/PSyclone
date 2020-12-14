@@ -644,18 +644,18 @@ class KernelInterface(ArgOrdering):
                 nfaces = self._create_symbol(
                     "nfaces", lfric_psyir.NumberOfFacesDataSymbol)
                 nqp = self._create_symbol(
-                    "nqp", lfric_psyir.NumberOfQrPointsDataSymbol)
+                    "nqp_faces", lfric_psyir.NumberOfQrPointsInFacesDataSymbol)
                 weights = self._create_symbol(
-                    "weights", lfric_psyir.QrWeightsDataSymbol,
+                    "weights_faces", lfric_psyir.QrWeightsInFacesDataSymbol,
                     dims=[Reference(nqp)])
                 self._arglist.extend([nfaces, nqp, weights])
             elif shape == "gh_quadrature_edge":
                 nedges = self._create_symbol(
                     "nedges", lfric_psyir.NumberOfEdgesDataSymbol)
                 nqp = self._create_symbol(
-                    "nqp", lfric_psyir.NumberOfQrPointsDataSymbol)
+                    "nqp_edges", lfric_psyir.NumberOfQrPointsInEdgesDataSymbol)
                 weights = self._create_symbol(
-                    "weights", lfric_psyir.QrWeightsDataSymbol,
+                    "weights_edges", lfric_psyir.QrWeightsInEdgesDataSymbol,
                     dims=[Reference(nqp)])
                 self._arglist.extend([nedges, nqp, weights])
             else:
@@ -790,7 +790,7 @@ class KernelInterface(ArgOrdering):
                 nfaces = self._create_symbol(
                     "nfaces", lfric_psyir.NumberOfFacesDataSymbol)
                 nqp = self._create_symbol(
-                    "nqp", lfric_psyir.NumberOfQrPointsDataSymbol)
+                    "nqp_faces", lfric_psyir.NumberOfQrPointsInFacesDataSymbol)
                 arg = mapping["gh_quadrature_face"](
                     basis_tag, [int(first_dim_value_func(function_space)),
                                 Reference(ndf_symbol), Reference(nqp),
@@ -800,7 +800,7 @@ class KernelInterface(ArgOrdering):
                 nedges = self._create_symbol(
                     "nedges", lfric_psyir.NumberOfEdgesDataSymbol)
                 nqp = self._create_symbol(
-                    "nqp", lfric_psyir.NumberOfQrPointsDataSymbol)
+                    "nqp_edges", lfric_psyir.NumberOfQrPointsInEdgesDataSymbol)
                 arg = mapping["gh_quadrature_edge"](
                     basis_tag, [int(first_dim_value_func(function_space)),
                                 Reference(ndf_symbol), Reference(nqp),
