@@ -65,8 +65,8 @@ program simple
 
   ! Create our grid
   model_grid = grid_type(GO_ARAKAWA_C,                                 &
-                         (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/), &
-                         GO_OFFSET_SW)
+                         (/GO_BC_EXTERNAL,GO_BC_EXTERNAL,GO_BC_NONE/), &
+                         GO_OFFSET_NE)
   !> Generate a domain decomposition
   call model_grid%decompose(jpiglo, jpjglo)
 

@@ -49,9 +49,9 @@ module compute_z_mod
   type, extends(kernel_type) :: compute_z
      type(go_arg), dimension(6) :: meta_args =    &
           (/ go_arg(GO_WRITE, GO_CF, GO_POINTWISE),        & ! z
-             go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
-             go_arg(GO_READ,  GO_CU, GO_POINTWISE),        & ! u
-             go_arg(GO_READ,  GO_CV, GO_POINTWISE),        & ! v
+             go_arg(GO_READ,  GO_CT, GO_STENCIL(000,110,110)),        & ! p
+             go_arg(GO_READ,  GO_CU, GO_STENCIL(000,010,010)),        & ! u
+             go_arg(GO_READ,  GO_CV, GO_STENCIL(000,110,000)),        & ! v
              go_arg(GO_READ,  GO_GRID_DX_CONST),           & ! dx
              go_arg(GO_READ,  GO_GRID_DY_CONST)            & ! dy
            /)

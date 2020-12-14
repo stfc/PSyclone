@@ -56,6 +56,24 @@ kernels. To run the application with this file use the following command:
 FORTCL_KERNELS_FILE=allkernels.cl ./alg_opencl.exe
 ```
 
+This Makefile also provides a target to combine OpenCL and distributed
+memory:
+```sh
+make compile-mpi-ocl
+```
+
+In addition to the details above, the distributed memory target needs an mpi
+compiler in the F90 environment variable and that the libraries have been
+compiled with such compiler. The example can be compiled and executed with
+the following commands:
+
+```sh
+make allclean
+export F90=mpifc
+make compile-mpi-ocl
+FORTCL_KERNELS_FILE=allkernels.cl mpirun -n 2 ./alg_dm_opencl.exe
+```
+
 ## Licence
 
 -----------------------------------------------------------------------------
