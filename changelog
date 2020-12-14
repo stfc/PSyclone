@@ -254,7 +254,13 @@
 	80) PR #1020 towards #363. Rename the PSyIR node Array to ArrayReference.
 
 	81) PR #1011 for #1008. Auto kernel profiling can fail after OpenMP
-	transformations
+	transformations.
+
+        82) PR #951 for #950. Adds f2pygen support for generating code from
+        PSyIR nodes.
+
+	83) PR #1026 for #1025. Removes code associated with, and
+	reference to, travis as we have migrated to github actions.
 
 release 1.9.0 20th May 2020
 
