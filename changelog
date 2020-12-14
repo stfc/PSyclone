@@ -262,6 +262,9 @@
 	83) PR #1026 for #1025. Removes code associated with, and
 	reference to, travis as we have migrated to github actions.
 
+	84) PR #944 towards #925. Added metadata support and constraints
+	tests for operates_on=domain kernels.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
