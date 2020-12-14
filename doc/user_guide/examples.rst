@@ -57,8 +57,8 @@ This is most easily done by following the links from the top-level
 `README <https://github.com/stfc/PSyclone#try-it-on-binder>`_.
 
 For the purposes of correctness checking, the whole suite of examples
-may be executed using Gnu ``make`` (this functionality is used by Travis
-alongside the test suite). The default target is ``transform`` which
+may be executed using Gnu ``make`` (this functionality is used by GitHub
+Actions alongside the test suite). The default target is ``transform`` which
 just performs the PSyclone code transformation steps for each
 example. For those examples that support it, the ``compile`` target
 also requests that the generated code be compiled. The ``notebook``
@@ -127,10 +127,8 @@ support is being implemented. Although there is support for converting
 global-data accesses into kernel arguments, PSyclone does not yet support
 nested ``use`` of modules (i.e. data accessed via a module that in turn
 imports that symbol from another module) and kernels that call other
-kernels (Issue #342). In addition, the transformation that adds
-``!$ACC ROUTINE`` to kernel code is written to work with the fparser2
-parse tree and therefore does not inter-operate with the other kernel
-transformations that work on the PSyIR (Issue #490).
+kernels (Issue #342).
+
 
 Example 5: Profiling
 ^^^^^^^^^^^^^^^^^^^^

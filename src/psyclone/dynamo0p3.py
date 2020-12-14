@@ -142,7 +142,7 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
 # Valid LFRic iteration spaces for user-supplied kernels and built-in kernels
 # TODO #870 rm 'cells' from list below.
-USER_KERNEL_ITERATION_SPACES = ["cells", "cell_column"]
+USER_KERNEL_ITERATION_SPACES = ["cells", "cell_column", "domain"]
 VALID_ITERATION_SPACES = USER_KERNEL_ITERATION_SPACES + \
     BUILTIN_ITERATION_SPACES
 
@@ -655,6 +655,9 @@ class DynKernMetadata(KernelType):
         # Perform checks for inter-grid kernels
         self._validate_inter_grid()
 
+        # Perform checks for a kernel with operates_on == domain
+        self._validate_operates_on_domain(need_evaluator)
+
     def _validate_inter_grid(self):
         '''
         Checks that the kernel meta-data obeys the rules for Dynamo 0.3
@@ -894,6 +897,55 @@ class DynKernMetadata(KernelType):
                 "(column-wise) operator but kernel {0} updates {1}".
                 format(self.name, write_count))
 
+    def _validate_operates_on_domain(self, need_evaluator):
+        '''
+        Check whether a kernel that has operates_on == domain obeys
+        the rules for the LFRic API.
+
+        :raises ParseError: if the kernel metadata does not obey the rules \
+                            for an LFRic kernel with operates_on = domain.
+        '''
+        if self.iterates_over != "domain":
+            return
+
+        # A kernel which operates on the 'domain' is currently restricted
+        # to only accepting scalar and field arguments.
+        valid_arg_types = (LFRicArgDescriptor.VALID_SCALAR_NAMES +
+                           LFRicArgDescriptor.VALID_FIELD_NAMES)
+        for arg in self._arg_descriptors:
+            if arg.argument_type not in valid_arg_types:
+                raise ParseError(
+                    "In the LFRic API a kernel which operates on the 'domain' "
+                    "is only permitted to accept scalar and field arguments "
+                    "but the metadata for kernel '{0}' includes an argument "
+                    "of type '{1}'".format(self.name, arg.argument_type))
+
+        if need_evaluator:
+            raise ParseError(
+                "In the LFRic API a kernel that operates on the 'domain' "
+                "cannot be passed basis/differential basis functions but the "
+                "metadata for kernel '{0}' contains an entry for 'meta_funcs'".
+                format(self.name))
+
+        if self.reference_element.properties:
+            raise ParseError(
+                "Kernel '{0}' operates on the domain but requests properties "
+                "of the reference element ({1}). This is not permitted in the "
+                "LFRic API.".format(self.name,
+                                    self.reference_element.properties))
+
+        if self.mesh.properties:
+            raise ParseError(
+                "Kernel '{0}' operates on the domain but requests properties "
+                "of the mesh ({1}). This is not permitted in the "
+                "LFRic API.".format(self.name, self.mesh.properties))
+
+        if self._is_intergrid:
+            raise ParseError(
+                "Kernel '{0}' operates on the domain but has fields on "
+                "different mesh resolutions (multi-grid). This is not "
+                "permitted in the LFRic API.".format(self.name))
+
     @property
     def func_descriptors(self):
         ''' Returns metadata about the function spaces within a
@@ -1023,8 +1075,6 @@ class DynamoPSy(PSy):
 
         # Add all invoke-specific information
         self.invokes.gen_code(psy_module)
-        # Inline kernels where requested
-        self.inline(psy_module)
 
         # Include required infrastructure modules. The sets of required
         # LFRic data structures and their proxies are updated in the
@@ -7359,15 +7409,21 @@ class DynKern(CodedKern):
         :returns: root of fparser1 AST for the stub routine.
         :rtype: :py:class:`fparser.one.block_statements.Module`
 
-        :raises InternalError: if the supplied kernel stub does not operate \
+        :raises GenerationError: if the supplied kernel stub does not operate \
             on a supported subset of the domain (currently only "cell_column").
 
         '''
+        # The operates-on/iterates-over values supported by the stub generator.
+        supported_operates_on = USER_KERNEL_ITERATION_SPACES[:]
+        # TODO #925 Add support for 'domain' kernels
+        supported_operates_on.remove("domain")
+
         # Check operates-on (iteration space) before generating code
-        if self.iterates_over not in USER_KERNEL_ITERATION_SPACES:
-            raise InternalError(
-                "Expected the kernel to operate on one of {0} but found '{1}' "
-                "in kernel '{2}'.".format(USER_KERNEL_ITERATION_SPACES,
+        if self.iterates_over not in supported_operates_on:
+            raise GenerationError(
+                "The LFRic API kernel-stub generator supports kernels that "
+                "operate on one of {0} but found '{1}' "
+                "in kernel '{2}'.".format(supported_operates_on,
                                           self.iterates_over, self.name))
 
         # Get configuration for valid argument kinds
