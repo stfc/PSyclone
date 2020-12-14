@@ -85,7 +85,7 @@ NOTEBOOK_FILES = $(wildcard ./*ipynb)
 
 # Rule that attempts to execute all Jupyter notebooks in the current dir
 ${NOTEBOOK_FILES}:
-	${JUPYTER} $@
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${JUPYTER} $@
 
 # Standard targets that we want available for every example
 
