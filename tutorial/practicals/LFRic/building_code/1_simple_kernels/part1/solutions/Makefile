@@ -110,7 +110,10 @@ $(ALGORITHM_SRC): $(PSY_SRC)
 	-opsy $*_psy.f90 -oalg $*.f90 $<
 
 clean:
+	# We need to clean the base directory, otherwise invalid files in there
+	# will interfere with compiling the solution properly.
+	$(MAKE) -C .. clean
 	rm -f *.o *.mod $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
 
 allclean: clean
-	make -C $(LFRIC_PATH) allclean
+	$(MAKE) -C $(LFRIC_PATH) allclean
