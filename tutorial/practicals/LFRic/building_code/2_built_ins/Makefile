@@ -65,9 +65,9 @@ EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ)
 # Targets
 .DEFAULT_GOAL := compile
 
-.PHONY: compile test clean
+.PHONY: compile transform clean
 
-compile: test $(EXEC)
+compile: transform $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(EXAMPLE_OBJ)
 	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
@@ -91,7 +91,7 @@ $(ALGORITHM_SRC): $(PSY_SRC)
 .precious: $(ALGORITHM_SRC) $(PSY_SRC)
 
 # Test PSyclone target for continuous integration
-test: $(PSY_SRC) $(ALGORITHM_SRC)
+transform: $(PSY_SRC) $(ALGORITHM_SRC)
 
 %_psy.f90: %.x90
 	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \

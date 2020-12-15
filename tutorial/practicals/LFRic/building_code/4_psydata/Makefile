@@ -39,7 +39,7 @@
 # target here and ask the user to select a different Makefile.
 default:
 	@echo "Please use one of the transformation-specific Makefiles, e.g."
-	@echo "make -f Makefile.extract"
+	@echo "make -f Makefile.extract_one"
 
 PSYDATA_PATH?=$(PSYCLONE_RELPATH)/lib/nan_test/lfric
 PSYDATA_LIB_NAME?=_nan_test
@@ -50,8 +50,6 @@ compile:
 
 run: compile
 	./time_evolution
-
-
 
 # Target for CI, only do the transformation (use all transformation scripts)
 transform:

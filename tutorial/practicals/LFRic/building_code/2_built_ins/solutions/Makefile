@@ -72,7 +72,7 @@ EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ)
 
 .PHONY: transform compile run clean allclean
 
-compile: test $(EXEC)
+compile: transform $(EXEC)
 
 run: compile
 	$(EXEC)

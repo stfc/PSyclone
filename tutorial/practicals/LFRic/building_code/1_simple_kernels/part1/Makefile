@@ -48,7 +48,7 @@ KERNEL_SRC = $(wildcard *_kernel_mod.f90)
 PSYCLONE_CMD = -nodm -l all
 
 # Executable
-EXEC = simple_kernels_part1
+EXEC = ./simple_kernels_part1
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../../..
@@ -67,9 +67,12 @@ EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
 # Targets
 .DEFAULT_GOAL := compile
 
-.PHONY: compile test clean
+.PHONY: compile transform clean
 
-compile: test $(EXEC)
+compile: transform $(EXEC)
+
+run: compile
+	$(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(EXAMPLE_OBJ)
 	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
@@ -93,8 +96,8 @@ $(ALGORITHM_SRC): $(PSY_SRC)
 # Keep the generated Alg and PSy files
 .precious: $(ALGORITHM_SRC) $(PSY_SRC)
 
-# Test PSyclone target for continuous integration
-test: $(PSY_SRC) $(ALGORITHM_SRC)
+# transform: PSyclone target for continuous integration
+transform: $(PSY_SRC) $(ALGORITHM_SRC)
 
 %_psy.f90: %.x90
 	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \

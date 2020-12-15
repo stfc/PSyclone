@@ -38,7 +38,7 @@
 
 # Targets
 # compile (default): complete build to run examples
-# test: PSyclone target for continuous integration
+# transform: PSyclone target for continuous integration
 # clean: Remove generated and compiled code
 .DEFAULT_GOAL := compile
 
@@ -49,4 +49,4 @@ transform compile run clean allclean:
 	${MAKE} -C 1_simple_kernels/part2/solutions $@
 	${MAKE} -C 2_built_ins/solutions $@
 	${MAKE} -C 3_time_evolution/solutions $@
-	${MAKE} -C 4_psydata -f 4_psydata/solutions/Makefile.nan $@
+	${MAKE} -C 4_psydata $@

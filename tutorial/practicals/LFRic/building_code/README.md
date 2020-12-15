@@ -85,7 +85,7 @@ Each tutorial directory contains `Makefile`s to build and run the
 code once that the kernel and algorithm code is completed. There are
 tree targets to the `make` process:
 
-* `make test` calls PSyclone with the prescribed command-line options
+* `make transform` calls PSyclone with the prescribed command-line options
   to generate the processed [Algorithm](
   background/LFRic_structure.md#algorithm-layer) and [PSy](
   background/LFRic_structure.md#psy-layer) layer;
@@ -98,7 +98,7 @@ tree targets to the `make` process:
 ---
 **NOTE**
 
-It is advisable to run `make test` whilst completing the kernel and
+It is advisable to run `make transform` whilst completing the kernel and
 and algorithm code to ensure that the code is correct. PSyclone checks
 that the source is syntactically correct and that it abides by the
 PSyclone [LFRIC (Dynamo 0.3) API](
@@ -122,7 +122,7 @@ algorithm module can be summarised as `<base_name>_alg_mod.x90`. The
 processed algorithm code is saved as `<base_name>_alg_mod.f90` and the
 generated PSy-layer code is saved as `<base_name>_alg_mod_psy.f90`.
 
-This process, set as the `make test` target (see above), is mimicked
+This process, set as the `make transform` target (see above), is mimicked
 in all tutorials. See, for instance, this code from the
 [built-ins example `Makefile`](2_built_ins/Makefile)
 
