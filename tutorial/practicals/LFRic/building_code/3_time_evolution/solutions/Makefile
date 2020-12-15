@@ -42,8 +42,7 @@ SRC_PATH = ..
 VPATH = $(SRC_PATH)/
 
 # Source rules
-DRIVER_SRC = $(SRC_PATH)/write_diagnostics_mod.f90 \
-	$(SRC_PATH)/time_evolution_driver.f90
+DRIVER_SRC = $(SRC_PATH)/time_evolution_driver.f90
 ALGORITHMS = $(wildcard *_alg_mod.x90)
 ALGORITHM_SRC = $(notdir $(ALGORITHMS:.x90=.f90))
 PSY_SRC = $(notdir $(ALGORITHM_SRC:.f90=_psy.f90))
@@ -89,25 +88,23 @@ $(EXEC): $(LFRIC_LIB) $(GHLIB_LIB) $(EXAMPLE_OBJ)
 	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) \
 	-l$(LFRIC_NAME) $$(nf-config --flibs) -L$(GHLIB_PATH) -l$(GHLIB_NAME)
 
-$(GHLIB_LIB):
+$(GHLIB_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(GHLIB_PATH)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH) netcdf 
 
 # Dependencies
-$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ) $(LFRIC_LIB)
-$(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ) $(LFRIC_LIB)
-$(PSY_OBJ): $(KERNEL_OBJ) $(LFRIC_LIB)
-$(KERNEL_OBJ): $(LFRIC_LIB)
+$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ) $(LFRIC_LIB) $(GHLIB_LIB)
+$(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ) $(LFRIC_LIB) $(GHLIB_LIB)
+$(PSY_OBJ): $(KERNEL_OBJ) $(LFRIC_LIB) $(GHLIB_LIB)
+$(KERNEL_OBJ): $(LFRIC_LIB) $(GHLIB_LIB)
 time_evolution_alg_mod.o: init_perturbation_kernel_mod.o \
 	prop_perturbation_kernel_mod.o time_evolution_alg_mod_psy.o \
 	$(GHLIB_LIB) $(LFRIC_LIB)
 time_evolution_alg_mod_psy.o: init_perturbation_kernel_mod.o \
 	prop_perturbation_kernel_mod.o $(GHLIB_LIB) $(LFRIC_LIB)
 prop_perturbation_kernel_mod.o: $(GHLIB_LIB)
-
-time_evolution_driver.o: ../write_diagnostics_mod.o
 
 %.o %.mod: %.F90
 	$(F90) $(F90FLAGS) -c $<

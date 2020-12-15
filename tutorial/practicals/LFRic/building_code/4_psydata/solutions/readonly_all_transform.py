@@ -65,7 +65,8 @@ def trans(psy):
 
 
         # Apply the transformation
-        readonly.apply(schedule, {"region_name": ("time_evolution", invoke_name)})
+        readonly.apply(schedule, {"region_name": ("time_evolution",
+                                                  str(invoke_name))})
 
         # Just as feedback: show the modified schedule, which should have
         # a new node at the top:

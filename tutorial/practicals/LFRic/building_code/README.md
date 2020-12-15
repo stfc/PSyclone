@@ -41,6 +41,20 @@ be used throughout the model, including the kernels. The information in this
 tutorial is read from an input namelist file and accessed by kernels and
 algorithms that need to be completed to propagate the field.
 
+### [Tutorial 4: Using PSyData transformation](4_psydata)
+
+This tutorial uses the previous [Time Evolution](#tutorial-3-time-evolution)
+example to show the usage of various
+PSyData transformations. [Kernel Extraction](
+https://psyclone.readthedocs.io/en/latest/psyke.html)
+is the first transformation
+introduced, followed by [NAN verification](
+https://psyclone.readthedocs.io/en/latest/psy_data.html#psydata-nan-test)
+and [read-only-variable verification](
+https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification).
+All these examples are executable, and incorrect code can be uncommented to
+trigger the error checks enabled by some PSyData transformations.
+
 ## Hands-on tutorial structure
 
 In order to illustrate the [*separation of concerns*](
@@ -95,9 +109,6 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html) rules.
 The completed solutions are provided in the `solutions`
 subdirectories of each tutorial, together with `Makefile`s to build
 and run the code.
-
-Each of these tutorials also has a `solutions` subdirectory with the
-completed code that can be built and run as a reference.
 
 ### Use of PSyclone to process the algorithm code
 

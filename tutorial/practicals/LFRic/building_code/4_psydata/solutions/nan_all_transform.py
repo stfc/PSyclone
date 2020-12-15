@@ -56,7 +56,6 @@ def trans(psy):
     nan_check = NanTestTrans()
 
     for invoke_name in psy.invokes.names:
-        print(invoke_name)
 
         invoke = psy.invokes.get(invoke_name)
 
@@ -64,7 +63,8 @@ def trans(psy):
         schedule = invoke.schedule
 
         # Apply the transformation
-        nan_check.apply(schedule, {"region_name": ("time_evolution", invoke_name)})
+        nan_check.apply(schedule, {"region_name": ("time_evolution",
+                                                   str(invoke_name))})
 
         # Just as feedback: show the modified schedule, which should have
         # a new node at the top:
