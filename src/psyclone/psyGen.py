@@ -439,9 +439,20 @@ class Invokes(object):
         # Initialise the OpenCL environment
         ifthen.add(CommentGen(ifthen,
                               " Initialise the OpenCL environment/device"))
+        sub.add(DeclGen(sub, datatype="integer",
+                        entity_decls=["ocl_device_num"],
+                        initial_values=["1"]))
+
+        distributed_memory = Config.get().distributed_memory
         devices_per_node = Config.get().ocl_devices_per_node
+
+        if devices_per_node > 1 and distributed_memory:
+            ifthen.add(AssignGen(ifthen, lhs="ocl_device_num",
+                                 rhs="mod({0}, {1})"
+                                 "".format('TODO', devices_per_node)))
+
         ifthen.add(CallGen(ifthen, "ocl_env_init",
-                           [num_queues, devices_per_node,
+                           [num_queues, 'ocl_device_num',
                             bool_to_fortran(enable_profiling),
                             bool_to_fortran(out_of_order)]))
 
@@ -460,7 +471,7 @@ class Invokes(object):
         ifthen.add(CommentGen(ifthen,
                               " Create the OpenCL kernel objects. Expects "
                               "to find all of the compiled"))
-        ifthen.add(CommentGen(ifthen, " kernels in PSYCLONE_KERNELS_FILE."))
+        ifthen.add(CommentGen(ifthen, " kernels in FORTCL_KERNELS_FILE."))
         ifthen.add(CallGen(ifthen, "add_kernels", [nkernstr, "kernel_names"]))
 
 
@@ -3038,7 +3049,7 @@ class CodedKern(Kern):
         # We can't rename OpenCL kernels as the Invoke set_args functions
         # have already been generated. The link to an specific kernel
         # implementation is delayed to run-time in OpenCL. (e.g. FortCL has
-        # the  PSYCLONE_KERNELS_FILE environment variable)
+        # the  FORTCL_KERNELS_FILE environment variable)
         if not self.root.opencl:
             if self._kern_schedule:
                 # A PSyIR kernel schedule has been created. This means

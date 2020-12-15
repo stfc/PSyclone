@@ -285,7 +285,7 @@ def test_field_arguments(kernel_outputdir):
     assert expected in generated_code
 
 
-def test_psy_init(kernel_outputdir):
+def test_psy_init(kernel_outputdir, monkeypatch):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
@@ -297,21 +297,21 @@ def test_psy_init(kernel_outputdir):
         "    SUBROUTINE psy_init()\n"
         "      USE fortcl, ONLY: ocl_env_init, add_kernels\n"
         "      CHARACTER(LEN=30) kernel_names(1)\n"
+        "      INTEGER :: ocl_device_num=1\n"
         "      LOGICAL, save :: initialised=.False.\n"
         "      ! Check to make sure we only execute this routine once\n"
         "      IF (.not. initialised) THEN\n"
         "        initialised = .True.\n"
         "        ! Initialise the OpenCL environment/device\n"
-        "        CALL ocl_env_init(1, 1, .False., .False.)\n"
+        "        CALL ocl_env_init(1, ocl_device_num, .False., .False.)\n"
         "        ! The kernels this PSy layer module requires\n"
         "        kernel_names(1) = \"compute_cu_code\"\n"
         "        ! Create the OpenCL kernel objects. Expects to find all of "
         "the compiled\n"
-        "        ! kernels in PSYCLONE_KERNELS_FILE.\n"
+        "        ! kernels in FORTCL_KERNELS_FILE.\n"
         "        CALL add_kernels(1, kernel_names)\n"
         "      END IF\n"
         "    END SUBROUTINE psy_init\n")
-
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -322,20 +322,47 @@ def test_psy_init(kernel_outputdir):
         "    SUBROUTINE psy_init()\n"
         "      USE fortcl, ONLY: ocl_env_init, add_kernels\n"
         "      CHARACTER(LEN=30) kernel_names(1)\n"
+        "      INTEGER :: ocl_device_num=1\n"
         "      LOGICAL, save :: initialised=.False.\n"
         "      ! Check to make sure we only execute this routine once\n"
         "      IF (.not. initialised) THEN\n"
         "        initialised = .True.\n"
         "        ! Initialise the OpenCL environment/device\n"
-        "        CALL ocl_env_init(5, 1, .False., .False.)\n"
+        "        CALL ocl_env_init(5, ocl_device_num, .False., .False.)\n"
         "        ! The kernels this PSy layer module requires\n"
         "        kernel_names(1) = \"compute_cu_code\"\n"
         "        ! Create the OpenCL kernel objects. Expects to find all of "
         "the compiled\n"
-        "        ! kernels in PSYCLONE_KERNELS_FILE.\n"
+        "        ! kernels in FORTCL_KERNELS_FILE.\n"
         "        CALL add_kernels(1, kernel_names)\n"
         "      END IF\n"
         "    END SUBROUTINE psy_init\n")
+    assert expected in generated_code
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+
+    # Test with a different configuration value for OCL_DEVICES_PER_NODE
+    monkeypatch.setattr(Config.get(), "_ocl_devices_per_node", 2)
+    generated_code = str(psy.gen)
+    expected = (
+        "    SUBROUTINE psy_init()\n"
+        "      USE fortcl, ONLY: ocl_env_init, add_kernels\n"
+        "      CHARACTER(LEN=30) kernel_names(1)\n"
+        "      INTEGER :: ocl_device_num=1\n"
+        "      LOGICAL, save :: initialised=.False.\n"
+        "      ! Check to make sure we only execute this routine once\n"
+        "      IF (.not. initialised) THEN\n"
+        "        initialised = .True.\n"
+        "        ! Initialise the OpenCL environment/device\n"
+        "        CALL ocl_env_init(5, ocl_device_num, .False., .False.)\n"
+        "        ! The kernels this PSy layer module requires\n"
+        "        kernel_names(1) = \"compute_cu_code\"\n"
+        "        ! Create the OpenCL kernel objects. Expects to find all of "
+        "the compiled\n"
+        "        ! kernels in FORTCL_KERNELS_FILE.\n"
+        "        CALL add_kernels(1, kernel_names)\n"
+        "      END IF\n"
+        "    END SUBROUTINE psy_init\n")
+    print(generated_code)
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -351,7 +378,8 @@ def test_psy_init_with_options():
                                  "enable_profiling": True,
                                  "out_of_order": True})
     generated_code = str(psy.gen)
-    assert "CALL ocl_env_init(1, 1, .True., .True.)\n" in generated_code
+    assert "CALL ocl_env_init(1, ocl_device_num, .True., .True.)\n" \
+        in generated_code
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
