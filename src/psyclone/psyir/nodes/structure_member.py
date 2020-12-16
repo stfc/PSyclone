@@ -34,22 +34,21 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the implementation of the MemberReference node.'''
+''' This module contains the implementation of the StructureMember node.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes.member_reference import MemberReference
+from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.symbols import TypeSymbol
 from psyclone.psyir.symbols.datatypes import StructureType, DeferredType, \
     ArrayType
 
 
-class StructureMemberReference(MemberReference):
+class StructureMember(Member):
     '''
-    Node representing a reference to a member of a structure (derived type)
-    that is itself a derived type.
+    Node representing a membership expression of the parent's Reference that
+    resolves into another structure.
 
-    :param struct_type: the datatype of the structure containing the member \
-                        that is being referenced.
+    :param struct_type: the datatype of the parent structure.
     :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` or \
                        :py:class:`psyclone.psyir.symbols.TypeSymbol`
     :param str member: the member of the 'struct_type' structure that is \
@@ -70,8 +69,8 @@ class StructureMemberReference(MemberReference):
 
     def __init__(self, struct_type, member, parent=None):
 
-        super(StructureMemberReference, self).__init__(struct_type, member,
-                                                       parent=parent)
+        super(StructureMember, self).__init__(struct_type, member,
+                                              parent=parent)
         if isinstance(self.component.datatype, ArrayType):
             target_type = self.component.datatype.intrinsic
         else:
@@ -84,7 +83,7 @@ class StructureMemberReference(MemberReference):
                 "StructureMemberReference.".format(member))
 
     def __str__(self):
-        result = super(StructureMemberReference, self).__str__() + "\n"
+        result = super(StructureMember, self).__str__() + "\n"
         if self._children[0]:
             result += str(self._children[0]) + "\n"
         return result
@@ -102,12 +101,12 @@ class StructureMemberReference(MemberReference):
         '''
         # pylint: disable=unused-argument
         if position == 0:
-            # The first child must either be a MemberReference or None.
+            # The first child must either be a Member or None.
             if child:
-                return isinstance(child, MemberReference)
+                return isinstance(child, Member)
             return True
         # Only one child is permitted
         return False
 
 
-__all__ = ['StructureMemberReference']
+__all__ = ['StructureMember']

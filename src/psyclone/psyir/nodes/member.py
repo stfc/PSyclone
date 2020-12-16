@@ -1,15 +1,51 @@
-''' This module contains the implementation of the MemberReference node.'''
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2020, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+
+''' This module contains the implementation of the Member node.'''
 
 from __future__ import absolute_import
 import six
-from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import TypeSymbol
 from psyclone.psyir.symbols.datatypes import StructureType
 
 
-class MemberReference(DataNode):
+class Member(Node):
     '''
-    Node representing a reference to a member of a structure (derived type).
+    Node representing a membership expression of a structure.
     As such it is a leaf in the PSyIR tree.
 
     :param struct_type: the datatype of the structure containing the member \
@@ -20,7 +56,7 @@ class MemberReference(DataNode):
                        being referenced.
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.StructureReference` or \
-                  :py:class:`psyclone.psyir.nodes.MemberReference`
+                  :py:class:`psyclone.psyir.nodes.Member`
 
     :raises TypeError: if the supplied struct_type, member or parent are of \
                        the wrong type.
@@ -32,34 +68,32 @@ class MemberReference(DataNode):
     '''
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
-    _text_name = "MemberReference"
+    _text_name = "Member"
     _colour_key = "Reference"
 
     def __init__(self, struct_type, member, parent=None):
         # Avoid circular dependency
         from psyclone.psyir.nodes.structure_reference import StructureReference
-        from psyclone.psyir.nodes.structure_member_reference import \
-            StructureMemberReference
+        from psyclone.psyir.nodes.structure_member import StructureMember
 
         if not isinstance(struct_type, (StructureType, TypeSymbol)):
             raise TypeError(
-                "In MemberReference initialisation: expecting the "
+                "In Member initialisation: expecting the "
                 "type of the structure to be specified with either a "
                 "StructureType or a TypeSymbol but found '{0}'.".format(
                     type(struct_type).__name__))
-        # Since this node represents a reference to a member of a structure,
+        # Since this node represents a membership expression of a structure,
         # its parent (if supplied) *must* subclass StructureReference or
-        # StructureMemberReference.
+        # StructureMember.
         if (parent and
-                not isinstance(parent, (StructureReference,
-                                        StructureMemberReference))):
+                not isinstance(parent, (StructureReference, StructureMember))):
             raise TypeError(
                 "The parent of a {0} must be either a "
-                "(Array)StructureReference or (Array)StructureMemberReference "
+                "(Array)StructureReference or (Array)StructureMember "
                 "but found '{1}'.".format(type(self).__name__,
                                           type(parent).__name__))
 
-        super(MemberReference, self).__init__(parent=parent)
+        super(Member, self).__init__(parent=parent)
 
         try:
             if isinstance(struct_type, StructureType):
@@ -104,4 +138,5 @@ class MemberReference(DataNode):
         return self.node_str(False)
 
 
-__all__ = ['MemberReference']
+# For Sphinx AutoAPI documentation generation
+__all__ = ['Member']
