@@ -62,29 +62,38 @@ psy.f90: tra_adv_mod.F90
 $(KERNELS): $(INF_LIB)
 
 # Creating psy.o and runner.o requires that the profiling lib be compiled
-runner.o psy.o: ${PROFILE_LIB}
+psy.o: ${PROFILE_LIB}
+runner.o: psy.o ${PROFILE_LIB}
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -I $(PROFILE_DIR) -c $<
+	$(F90) $(F90FLAGS) -I $(PROFILE_DIR) -c $< -o $@
 
 ${PROFILE_LIB}:
 	${MAKE} -C ${PROFILE_DIR}
 
 clean:
-	rm -f psy.f90 *.o *.mod $(NAME) output.dat
+	rm -f psy.f90 psy_*.f90 *.o *.mod $(NAME) output.dat solutions/*.o
 
 allclean: clean
 	${MAKE} -C ${PROFILE_DIR} allclean
 
 transform:
+	# Use different output filenames so this doesn't interfere
+	# with building the binary (which uses psy.f90)
 	$(PSYCLONE) --profile invokes -api nemo \
-                     -opsy psy.f90 -l output tra_adv_mod.F90
+                     -opsy psy_1.f90 -l output tra_adv_mod.F90
 	$(PSYCLONE) -s ./profile_trans.py -api nemo \
-                     -opsy psy.f90 -l output tra_adv_mod.F90
+                     -opsy psy_2.f90 -l output tra_adv_mod.F90
 	$(PSYCLONE) -s ./solutions/named_profile_trans.py -api nemo \
-                     -opsy psy.f90 -l output tra_adv_mod.F90
+                     -opsy psy_3.f90 -l output tra_adv_mod.F90
 
-compile: transform $(NAME)
+compile: transform $(KERNELS) psy.o solutions/runner.o
+	$(F90) $^ -o $(NAME) -L$(PROFILE_DIR) $(PROFILE_LINK)
+
+# Only used for the compile CI target to compile the solution file
+solutions/%.o: solutions/%.f90
+	$(F90) $(F90FLAGS) -I $(PROFILE_DIR) -c $< -o $@
+
 
 run: compile
 	JPK=30 JPJ=100 JPI=100 IT=10 $(NAME)
