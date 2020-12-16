@@ -43,6 +43,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.one.statements import Comment, Case
 from fparser.one.block_statements import SelectCase, SelectType, EndSelect
+from fparser.one.parsefortran import FortranParser
 # This alis is useful to refer to parts of fparser.one later but
 # cannot be used for imports (as that involves looking for the
 # specified name in sys.modules).
@@ -535,6 +536,35 @@ class ProgUnitGen(BaseGen):
             else:
                 index = index + 1
         return end_index
+
+
+class PSyIRGen(BaseGen):
+    ''' Create a Fortran block of code that comes from a given PSyIR tree.
+
+    :param parent: node in AST to which we are adding the PSyIR block.
+    :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+    :param content: the PSyIR tree we are adding.
+    :type content: :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
+
+    def __init__(self, parent, content):
+        # Import FortranWriter here to avoid circular-dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.fortran import FortranWriter
+
+        # Use the PSyIR Fortran backend to generate Fortran code of the
+        # supplied PSyIR tree and pass the resulting code to the fparser1
+        # Fortran parser.
+        fortran_writer = FortranWriter()
+        reader = FortranStringReader(fortran_writer(content),
+                                     ignore_comments=False)
+        fparser1_parser = FortranParser(reader, ignore_comments=False)
+        fparser1_parser.parse()
+
+        # Update the f2pygen AST with the newly parsed fparser1 AST content
+        BaseGen.__init__(self, parent, fparser1_parser.block.content[0])
+        self.root.parent = parent.root
 
 
 class ModuleGen(ProgUnitGen):
