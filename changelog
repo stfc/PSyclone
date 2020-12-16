@@ -265,6 +265,9 @@
 	84) PR #944 towards #925. Added metadata support and constraints
 	tests for operates_on=domain kernels.
 
+        85) PR #901 towards #873. Adds PSyIR support for recognised quantities
+        in LFRic kernels. Currently only used for argument validation.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
