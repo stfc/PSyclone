@@ -35,12 +35,10 @@
 # Modified J. Henrichs, Bureau of Meteorology
 
 include ../../../common.mk
+
 transform:
 	$(PSYCLONE) -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
 	psyclone -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
-
-clean:
-	@echo "Nothing to clean"
 
 compile: transform
 	@echo "No compilation supported for tutorial/lfric/distributed_memory/2_annexed_dofs"
@@ -48,3 +46,7 @@ compile: transform
 run: compile
 	@echo "No run targets for tutorial/lfric/distributed_memory/2_annexed_dofs"
 
+clean:
+	@echo "Nothing to clean"
+
+allclean: clean

@@ -32,14 +32,23 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 
-.PHONY: test
+include ../../../common.mk
 
-test:
-	psyclone -s ./loop_fuse.py example_alg.x90 -oalg /dev/null -opsy /dev/null
-	psyclone -s ./kernel_constants.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
-	psyclone -s ./matvec_opt.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+transform:
+	$(PSYCLONE) -s ./loop_fuse.py example_alg.x90 -oalg /dev/null -opsy /dev/null
+	$(PSYCLONE) -s ./kernel_constants.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+	$(PSYCLONE) -s ./matvec_opt.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+
+compile: transform
+	@echo "No compilation supported for tutorial/lfric/single_node/3_sequential"
+
+run: compile
+	@echo "No run targets for tutorial/lfric/single_node/3_sequential"
 
 clean:
 	rm -f apply_variable_hx_kernel_*_mod.f90 enforce_bc_kernel_*_mod.f90 \
               scaled_matrix_vector_kernel_*_mod.f90 psy.f90
+
+allclean: clean

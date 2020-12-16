@@ -36,8 +36,6 @@
 
 include ../../../common.mk
 
-.PHONY: transform
-
 transform:
 	$(PSYCLONE) -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
 
@@ -49,3 +47,5 @@ run: compile
 
 clean:
 	@echo "Nothing to clean"
+
+allclean: clean
