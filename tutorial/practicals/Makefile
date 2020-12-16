@@ -33,10 +33,11 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-.DEFAULT_GOAL := transform
+.DEFAULT_GOAL := compile
+
 ALL_TARGETS = transform compile run clean allclean
 .PHONY: $(ALL_TARGETS)
 
 $(ALL_TARGETS):
-W	$(MAKE) -c LFRic $@
+	$(MAKE) -C LFRic $@
 	$(MAKE) -C nemo $@
