@@ -95,8 +95,11 @@ def test_accroutine_err(monkeypatch):
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         _ = rtrans.apply(kern)
-    assert ("Failed to find subroutine source for kernel testkern_code"
-            in str(err.value))
+    assert(
+        "Failed to create PSyIR version of kernel code for kernel "
+        "'testkern_code'. Error reported is Generation Error: Unexpected "
+        "kernel AST. Could not find subroutine: testkern_code."
+        in str(err.value))
 
 
 def test_accroutine_module_use():
