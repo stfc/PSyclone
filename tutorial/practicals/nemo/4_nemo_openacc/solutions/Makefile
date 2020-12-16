@@ -38,15 +38,10 @@
 
 .PHONY: clean transform
 
-TARGET = psy.f90
-
 transform:
-	${MAKE} clean
-	${MAKE} -C ../ ${TARGET}
-	${MAKE} clean
-	${MAKE} TRANS_SCRIPT=solutions/kernels_trans.py -C ../ ${TARGET}
-	${MAKE} clean
-	${MAKE} TRANS_SCRIPT=solutions/collapse_trans.py -C ../ ${TARGET}
+	${MAKE} -C ../ psy_1.f90
+	${MAKE} TRANS_SCRIPT=solutions/kernels_trans.py -C ../ psy_2.f90
+	${MAKE} TRANS_SCRIPT=solutions/collapse_trans.py -C ../ psy_3.f90
 
 clean:
 	${MAKE} -C ../ clean

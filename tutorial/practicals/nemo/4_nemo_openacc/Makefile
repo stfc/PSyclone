@@ -52,42 +52,34 @@ F90FLAGS ?= -fopenacc -O2
 # F90FLAGS = -acc -ta=tesla -O2 -Minfo=all
 # F90 = nvfortran
 
-# We use the PSyData simple_timing implementation since it has no
-# dependencies.
-PROFILE_DIR ?= ../../../../lib/profiling/simple_timing
-PROFILE_LINK = -lsimple_timing
-PROFILE_LIB = ${PROFILE_DIR}/libsimple_timing.a
-
 # ------------------------------------------------------------------------------
 NAME = ./tra_adv.exe
 
 .PHONY: clean allclean transform
 
-$(NAME): $(KERNELS) psy.o runner.o
-	$(F90) $(F90FLAGS) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
+$(NAME): $(KERNELS) psy_openacc.o runner.o
+	$(F90) $(F90FLAGS) $^ -o $@
 
 # Target that uses PSyclone to generate 'psy.f90'
-psy.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
+psy%.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
 	$(PSYCLONE) -s ${TRANS_SCRIPT} -api nemo \
-                     -opsy psy.f90 -l output tra_adv_mod.F90
+                     -opsy $@ -l output tra_adv_mod.F90
+
+.precious: psy_openacc.f90
 
 # Make sure the infrastructure library is compiled, so the mods are found
 $(KERNELS): $(INF_LIB)
 
 # Creating psy.o and runner.o requires that the profiling lib be compiled
-runner.o psy.o: ${PROFILE_LIB}
+runner.o: psy_openacc.o
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -I $(PROFILE_DIR) -c $<
-
-${PROFILE_LIB}:
-	${MAKE} -C ${PROFILE_DIR}
+	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f psy.f90 *.o *.mod $(NAME) output.dat
+	rm -f psy.f90 psy_*.f90 *.o *.mod $(NAME) output.dat
 
 allclean: clean
-	${MAKE} -C ${PROFILE_DIR}  clean
 
 transform:
 	${MAKE} -C solutions transform

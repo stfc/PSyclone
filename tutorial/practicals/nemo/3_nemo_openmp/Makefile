@@ -82,7 +82,7 @@ ${PROFILE_LIB}:
 	${MAKE} -C ${PROFILE_DIR}
 
 clean:
-	rm -f psy.f90 *.o *.mod $(NAME) output.dat
+	rm -f psy.f90 psy_*.f90 *.o *.mod $(NAME) output.dat
 
 allclean: clean
 	${MAKE} -C ${PROFILE_DIR}  clean
