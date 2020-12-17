@@ -48,13 +48,14 @@ from psyclone.psyir import symbols
 
 class ArrayOfStructuresReference(StructureReference, ArrayNode):
     '''
-    Node representing a reference to one or more elements of an array of
-    structures (derived types). This reference may be to a member of the
-    structure, in which case its first child will be a subclass of Member.
+    Node representing a reference to a member of one or more elements of an
+    array of structures. Since this reference is to a member of the
+    structure, its first child will be a subclass of Member. All subsequent
+    children give the array-index expressions.
 
     '''
     # Textual description of the node.
-    _children_valid_format = "MemberReference | None, [DataNode | Range]*"
+    _children_valid_format = "MemberReference, [DataNode | Range]+"
     _text_name = "ArrayOfStructuresReference"
 
     @staticmethod
@@ -78,11 +79,11 @@ class ArrayOfStructuresReference(StructureReference, ArrayNode):
     @staticmethod
     def create(symbol, members=None, children=None, parent=None):
         '''
-        Create a reference to one or more elements of an array of structures,
-        possibly including a member of that structure.
+        Create a reference to a member of one or more elements of an array of
+        structures.
         The symbol to be referred to must be of ArrayType with the 'intrinsic'
-        type of the array specified with a TypeSymbol. If the reference is
-        to a member of the structure then this is specified using the 'members'
+        type of the array specified with a TypeSymbol. The member of the
+        structure that is accessed is specified using the 'members'
         argument. e.g. for a reference to "field(idx)%bundle(2)%flag" this
         argument would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
         The 'children' argument specifies the DataNodes describing the indexing
@@ -92,13 +93,13 @@ class ArrayOfStructuresReference(StructureReference, ArrayNode):
 
         :param symbol: the symbol that this reference is to.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param members: the component(s) of the structure that make up \
-            the full reference or None. Any components that are array \
+        :param members: one or more component(s) of the structure(s) that \
+            make up the full access. Any components that are array \
             references must provide the name of the array and a list of \
             DataNodes describing which part of it is accessed.
         :type members: list of str or 2-tuples containing (str, \
             list of nodes describing array access)
-        :param children: a list of Nodes describing the array indices or None.
+        :param children: a list of Nodes describing the array indices.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param parent: the parent of this node in the PSyIR or None.
         :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
@@ -120,6 +121,12 @@ class ArrayOfStructuresReference(StructureReference, ArrayNode):
                 "An ArrayOfStructuresReference must refer to a symbol of "
                 "ArrayType but symbol '{0}' has type '{1}".format(
                     symbol.name, symbol.datatype))
+        if not isinstance(children, list) or not children:
+            raise TypeError(
+                "The 'children' argument to  ArrayOfStructuresReference."
+                "create() must be a list containing at least one array-index "
+                "expression but this is missing for symbol '{0}'".format(
+                    symbol.name))
 
         # First use the StructureReference _create class method to create a
         # reference to the base structure of the array.
@@ -129,10 +136,9 @@ class ArrayOfStructuresReference(StructureReference, ArrayNode):
 
         # Then add the array-index expressions. We don't validate the children
         # as that is handled in _validate_child.
-        if children:
-            for child in children:
-                ref.addchild(child)
-                child.parent = ref
+        for child in children:
+            ref.addchild(child)
+            child.parent = ref
         return ref
 
 

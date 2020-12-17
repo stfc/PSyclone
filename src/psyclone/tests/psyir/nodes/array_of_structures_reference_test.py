@@ -43,8 +43,7 @@ from psyclone.tests.utilities import check_links
 from psyclone.psyir import symbols, nodes
 
 
-def test_asr_create():
-    ''' Check the create method. '''
+def make_component_symbol():
     region_type = symbols.StructureType.create([
         ("startx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
     region_type_symbol = symbols.TypeSymbol("region_type", region_type)
@@ -54,6 +53,12 @@ def test_asr_create():
     grid_type_symbol = symbols.TypeSymbol("grid_type", grid_type)
     grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
     ssym = symbols.DataSymbol("grid", grid_array_type)
+    return ssym
+
+
+def test_asr_create():
+    ''' Check the create method. '''
+    ssym = make_component_symbol()
     int_one = nodes.Literal("1", symbols.INTEGER_TYPE)
     # Reference to scalar member of structure in array of structures
     asref = nodes.ArrayOfStructuresReference.create(
@@ -94,6 +99,17 @@ def test_asr_create_errors():
     with pytest.raises(TypeError) as err:
         _ = nodes.ArrayOfStructuresReference.create(scalar_symbol)
     assert "ArrayType but symbol 'scalar' has type 'Scalar" in str(err.value)
+    # Missing children (for array-index expressions)
+    ssym = make_component_symbol()
+    with pytest.raises(TypeError) as err:
+        _ = nodes.ArrayOfStructuresReference.create(ssym)
+    assert ("must be a list containing at least one array-index expression "
+            "but this is missing for symbol 'grid'" in str(err.value))
+    # Missing member(s)
+    with pytest.raises(TypeError) as err:
+        _ = nodes.ArrayOfStructuresReference.create(
+            ssym, children=[nodes.Literal("1", symbols.INTEGER_TYPE)])
+    assert ("must be a list but found 'NoneType'" in str(err.value))
 
 
 def test_ast_str():
