@@ -1192,7 +1192,7 @@ def test_fw_range(fort_writer):
     array = ArrayReference.create(symbol, [Range.create(one, dim1_bound_stop),
                                            Range.create(dim2_bound_start, plus,
                                                         step=three)])
-    result = fort_writer.arraynode_node(array)
+    result = fort_writer.arrayreference_node(array)
     assert result == "a(1:,:b + c:3)"
 
     array_type = ArrayType(REAL_TYPE, [10, 10, 10])
@@ -1202,7 +1202,7 @@ def test_fw_range(fort_writer):
         [Range.create(dim1_bound_start, dim1_bound_stop),
          Range.create(one, two, step=three),
          Range.create(dim3_bound_start, dim3_bound_stop, step=three)])
-    result = fort_writer.arraynode_node(array)
+    result = fort_writer.arrayreference_node(array)
     assert result == "a(:,1:2:3,::3)"
 
     # Make a) lbound and ubound come from a different array and b)
@@ -1223,7 +1223,7 @@ def test_fw_range(fort_writer):
         [Range.create(b_dim1_bound_start, b_dim1_bound_stop),
          Range.create(one, two, step=three),
          Range.create(dim3_bound_stop, dim3_bound_start, step=three)])
-    result = fort_writer.arraynode_node(array)
+    result = fort_writer.arrayreference_node(array)
     assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),1:2:3,"
                       "UBOUND(a, 3):LBOUND(a, 3):3)")
 

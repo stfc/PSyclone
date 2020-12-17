@@ -38,15 +38,15 @@
 node. '''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes.array_node import ArrayNode
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir import symbols
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 
 
-class ArrayOfStructuresReference(StructureReference, ArrayNode):
+class ArrayOfStructuresReference(StructureReference, ArrayMixin):
     '''
     Node representing a reference to a member of one or more elements of an
     array of structures. Since this reference is to a member of the

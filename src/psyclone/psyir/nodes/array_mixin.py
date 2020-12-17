@@ -41,7 +41,6 @@
 from __future__ import absolute_import
 import abc
 import six
-from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.literal import Literal
@@ -49,15 +48,16 @@ from psyclone.psyir.symbols.datatypes import ScalarType
 
 
 @six.add_metaclass(abc.ABCMeta)
-class ArrayNode(DataNode):
+class ArrayMixin(object):
     '''
     Abstract class representing an Array. Its children represent the subscript
     list.
 
     '''
-    # Textual description of the node.
-    _children_valid_format = "[DataNode | Range]*"
-    _text_name = "ArrayNode"
+    @property
+    def children(self):
+        ''' '''
+        raise NotImplementedError("")
 
     @staticmethod
     def _validate_child(position, child):
@@ -70,8 +70,7 @@ class ArrayNode(DataNode):
         :rtype: bool
 
         '''
-        # pylint: disable=unused-argument
-        return isinstance(child, (DataNode, Range))
+        raise NotImplementedError("")
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All variables used as indices
@@ -82,14 +81,11 @@ class ArrayNode(DataNode):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-        # This will set the array-name as READ
-        super(ArrayNode, self).reference_accesses(var_accesses)
-
         # Now add all children: Note that the class Reference
         # does not recurse to the children (which store the indices), so at
         # this stage no index information has been stored:
         list_indices = []
-        for child in self._children:
+        for child in self.children:
             child.reference_accesses(var_accesses)
             list_indices.append(child)
 
@@ -227,4 +223,4 @@ class ArrayNode(DataNode):
 
 
 # For AutoAPI documentation generation
-__all__ = ['ArrayNode']
+__all__ = ['ArrayMixin']

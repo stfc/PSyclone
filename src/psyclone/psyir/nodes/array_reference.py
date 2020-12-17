@@ -39,21 +39,37 @@
 ''' This module contains the implementation of the ArrayReference node. '''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes.array_node import ArrayNode
+from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.ranges import Range
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.errors import GenerationError
 
 
-class ArrayReference(ArrayNode, Reference):
+class ArrayReference(Reference, ArrayMixin):
     '''
     Node representing a reference to an element or elements of an Array.
     The array-index expressions are stored as the children of this node.
 
     '''
     # Textual description of the node.
-    _children_valid_format = "[DataNode | Range]*"
+    _children_valid_format = "[DataNode | Range]+"
     _text_name = "ArrayReference"
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unused-argument
+        return isinstance(child, (DataNode, Range))
 
     @staticmethod
     def create(symbol, children):
@@ -97,6 +113,20 @@ class ArrayReference(ArrayNode, Reference):
         for child in children:
             child.parent = array
         return array
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information. All variables used as indices
+        in the access of the array will be added as READ.
+
+        :param var_accesses: variable access information.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        # This will set the array-name as READ
+        super(ArrayReference, self).reference_accesses(var_accesses)
+        # Now do the array-index expressions
+        ArrayMixin.reference_accesses(self, var_accesses)
 
     def __str__(self):
         result = super(ArrayReference, self).__str__() + "\n"

@@ -39,10 +39,10 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.structure_member import StructureMember
-from psyclone.psyir.nodes.array_node import ArrayNode
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 
 
-class ArrayOfStructuresMember(StructureMember, ArrayNode):
+class ArrayOfStructuresMember(StructureMember, ArrayMixin):
     '''
     Node representing a membership expression of a parent structure where the
     expression resolves to one or more elements of an array of structures.

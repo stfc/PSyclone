@@ -825,7 +825,7 @@ class FortranWriter(PSyIRVisitor):
 
     def structurereference_node(self, node):
         '''
-        Creates the Fortran for a reference to a derived type.
+        Creates the Fortran for an access to a member of a structure type.
 
         :param node: a StructureReference PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.StructureReference`
@@ -833,10 +833,15 @@ class FortranWriter(PSyIRVisitor):
         :returns: the Fortran code.
         :rtype: str
 
+        :raises VisitorError: if this node does not have an instance of Member\
+                              as its only child.
+
         '''
-        result = node.symbol.name
-        if node.children and node.children[0]:
-            result += "%" + self._visit(node.children[0])
+        if not len(node.children) == 1:
+            raise VisitorError("Christmas")
+        if not isinstance(node.children[0], Member):
+            raise VisitorError("NewYear")
+        result = node.symbol.name + "%" + self._visit(node.children[0])
         return result
 
     def arrayofstructuresreference_node(self, node):
@@ -850,21 +855,24 @@ class FortranWriter(PSyIRVisitor):
         :returns: the Fortran code.
         :rtype: str
 
+        :raises VisitorError: if the supplied node does not have the correct \
+                              number and type of children.
         '''
-        result = node.symbol.name
+        if len(node.children) < 2:
+            raise VisitorError("hohohoho")
 
         # Generate the array reference. We can't use the arraynode handler
         # here because we need to skip over the first child (as that refers
         # to the member of the derived type being referenced).
         args = []
-        for child in node.children:
-            if not isinstance(child, Member):
-                args.append(str(self._visit(child)))
-        result += "({0})".format(",".join(args))
+        for child in node.children[1:]:
+            args.append(str(self._visit(child)))
+        result = node.symbol.name + "({0})".format(",".join(args))
 
-        # Append the reference to a member of the structure (if any)
-        if isinstance(node.children[0], Member):
-            result += "%" + self._visit(node.children[0])
+        # Append the reference to the member of the structure
+        if not isinstance(node.children[0], Member):
+            raise VisitorError("nohohoho")
+        result += "%" + self._visit(node.children[0])
         return result
 
     def member_node(self, node):
@@ -897,20 +905,30 @@ class FortranWriter(PSyIRVisitor):
         :returns: the Fortran code.
         :rtype: str
 
+        :raises VisitorError: if the supplied node does not have at least two \
+            children with the first one being a sub-class of Member.
+
         '''
         # Deal with the array reference first.
+        if len(node.children) < 1:
+            raise VisitorError(
+                "An ArrayOfStructuresMember node must have at least two "
+                "children but found {0}".format(len(node.children)))
         args = []
-        for child in node.children:
-            if not isinstance(child, Member):
-                args.append(str(self._visit(child)))
+        for child in node.children[1:]:
+            args.append(str(self._visit(child)))
         result = "{0}({1})".format(node.component.name, ",".join(args))
         # Now add the reference to the component of the array element
-        if isinstance(node.children[0], Member):
-            result += "%" + self._visit(node.children[0])
+        if not isinstance(node.children[0], Member):
+            raise VisitorError(
+                "The first child of an ArrayOfStructuresMember node must be a "
+                "sub-class of Member but found '{0}'".format(
+                    type(node.children[0]).__name__))
+        result += "%" + self._visit(node.children[0])
         return result
 
-    def arraynode_node(self, node):
-        '''This method is called when an ArrayNode instance is found
+    def arrayreference_node(self, node):
+        '''This method is called when an ArrayReference instance is found
         in the PSyIR tree.
 
         :param node: an ArrayNode PSyIR node.
@@ -920,6 +938,8 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
+        if not node.children:
+            raise VisitorError("Hohoho")
         args = []
         for child in node.children:
             args.append(str(self._visit(child)))

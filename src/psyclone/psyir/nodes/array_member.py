@@ -38,40 +38,20 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.member import Member
-from psyclone.psyir.nodes.array_node import ArrayNode
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.ranges import Range
 
 
-class ArrayMember(Member, ArrayNode):
+class ArrayMember(Member, ArrayMixin):
     '''
-    Node representing an access the element(s) of an array that is a
+    Node representing an access to the element(s) of an array that is a
     member of a structure.
-
-    :param struct_type: the datatype of the structure containing the member \
-                        that is being accessed.
-    :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` or \
-                       :py:class:`psyclone.psyir.symbols.TypeSymbol`
-    :param str member: the member of the 'struct_type' structure that is \
-                       being accessed.
-    :param parent: the parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyir.nodes.StructureReference` or \
-                  :py:class:`psyclone.psyir.nodes.Member`
-    :param children: PSyIR nodes representing any array-index expressions.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node` or NoneType
 
     '''
     # Textual description of the node.
-    _children_valid_format = "[DataNode | Range]*"
+    _children_valid_format = "[DataNode | Range]+"
     _text_name = "ArrayMember"
-
-    def __init__(self, struct_type, member_name, parent=None, indices=None):
-        Member.__init__(self, struct_type, member_name, parent=parent)
-        # The MemberReference node is a leaf so now call the ArrayNode
-        # constructor to set up the children (representing any array-index
-        # expressions).
-        if indices:
-            ArrayNode.__init__(self, parent=parent, children=indices)
 
     @staticmethod
     def create(struct_type, member_name, parent=None, indices=None):

@@ -43,7 +43,6 @@ from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.return_stmt import Return
 from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.array_member import ArrayMember
-from psyclone.psyir.nodes.array_node import ArrayNode
 from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
@@ -78,7 +77,6 @@ __all__ = [
         'colored',
         'SCHEDULE_COLOUR_MAP',
         'ArrayMember',
-        'ArrayNode',
         'ArrayReference',
         'ArrayOfStructuresMember',
         'ArrayOfStructuresReference',
