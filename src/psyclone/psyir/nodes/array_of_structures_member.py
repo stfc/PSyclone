@@ -34,61 +34,58 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the implementation of the MemberReference node.'''
+''' This module contains the implementation of the ArrayOfStructuresMember
+    node.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes.structure_member_reference import \
-    StructureMemberReference
+from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.array_node import ArrayNode
 
 
-class ArrayStructureMemberReference(StructureMemberReference, ArrayNode):
+class ArrayOfStructuresMember(StructureMember, ArrayNode):
     '''
-    Node representing a reference to an element of an array of structures
-    within a structure. As it is an array of structures,
-    its first child is a reference to a member of that structure (or None)
+    Node representing a membership expression of a parent structure where the
+    expression resolves to one or more elements of an array of structures.
+    As such, its first child may be a a member of that structure
     and any subsequent children give the array-index expressions.
 
-    :param struct_type:  the datatype of the structure containing the member \
-                        that is being referenced.
+    :param struct_type: the datatype of the parent structure or this member \
+                        expression.
     :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` or \
                        :py:class:`psyclone.psyir.symbols.TypeSymbol`
     :param str member_name: the name of the member of the structure that is \
-        being referenced.
+                            being accessed.
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Textual description of the node.
-    _children_valid_format = "None | MemberReference, [DataNode | Range]*"
-    _text_name = "ArrayStructureMemberReference"
+    _children_valid_format = "[Member], [DataNode | Range]*"
+    _text_name = "ArrayOfStructuresMember"
 
     @staticmethod
     def create(struct_type, member_name, parent=None, indices=None):
         '''
-        Create a reference to one or more elements of an array of
+        Create an access to one or more elements of an array of
         structures that is itself a member of a structure.
 
-        :param struct_type:  the datatype of the structure containing the \
-            member that is being referenced.
+        :param struct_type: the datatype of the parent structure containing \
+                            the member that is being accessed.
         :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` \
             or :py:class:`psyclone.psyir.symbols.TypeSymbol`
         :param str member_name: the name of the member of the structure that \
-            is being referenced.
+            is being accessed.
         :param parent: the parent of this node in the PSyIR tree.
         :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
         :param indices: the array-index expressions.
         :type indices: list of :py:class:`psyclone.psyir.nodes.DataNode`
 
-        :returns: a new ArrayStructureMemberReference object.
-        :rtype: :py:class:`psyclone.psyir.nodes.ArrayStructureMemberReference`
+        :returns: a new ArrayOfStructuresMember object.
+        :rtype: :py:class:`psyclone.psyir.nodes.ArrayOfStructuresMember`
 
         '''
-        asmr = ArrayStructureMemberReference(struct_type, member_name,
-                                             parent=parent)
-        # The first child will be a reference to a member of this structure
-        asmr.addchild(None)
-        # Subsequent children represent the array-index expressions
+        asmr = ArrayOfStructuresMember(struct_type, member_name, parent=parent)
+        # Children represent the array-index expressions
         for child in indices:
             asmr.addchild(child)
             child.parent = asmr
@@ -115,4 +112,4 @@ class ArrayStructureMemberReference(StructureMemberReference, ArrayNode):
 
 
 # For AutoAPI automatic documentation generation
-__all__ = ['ArrayStructureMemberReference']
+__all__ = ['ArrayOfStructuresMember']

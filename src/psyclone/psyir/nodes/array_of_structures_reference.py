@@ -34,27 +34,28 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the implementation of the ArrayStructureReference
+''' This module contains the implementation of the ArrayOfStructuresReference
 node. '''
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.array_node import ArrayNode
-from psyclone.psyir.nodes.member_reference import MemberReference
+from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir import symbols
 
 
-class ArrayStructureReference(StructureReference, ArrayNode):
+class ArrayOfStructuresReference(StructureReference, ArrayNode):
     '''
     Node representing a reference to one or more elements of an array of
-    structures (derived types).
+    structures (derived types). This reference may be to a member of the
+    structure, in which case its first child will be a subclass of Member.
 
     '''
     # Textual description of the node.
     _children_valid_format = "MemberReference | None, [DataNode | Range]*"
-    _text_name = "ArrayStructureReference"
+    _text_name = "ArrayOfStructuresReference"
 
     @staticmethod
     def _validate_child(position, child):
@@ -70,14 +71,15 @@ class ArrayStructureReference(StructureReference, ArrayNode):
         if position == 0:
             if child is None:
                 return True
-            return isinstance(child, MemberReference)
+            return isinstance(child, Member)
         else:
             return isinstance(child, (DataNode, Range))
 
     @staticmethod
     def create(symbol, members=None, children=None, parent=None):
         '''
-        Create a reference to one or more elements of an array of structures.
+        Create a reference to one or more elements of an array of structures,
+        possibly including a member of that structure.
         The symbol to be referred to must be of ArrayType with the 'intrinsic'
         type of the array specified with a TypeSymbol. If the reference is
         to a member of the structure then this is specified using the 'members'
@@ -101,8 +103,8 @@ class ArrayStructureReference(StructureReference, ArrayNode):
         :param parent: the parent of this node in the PSyIR or None.
         :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: an ArrayReference instance.
-        :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
+        :returns: an ArrayOfStructuresReference instance.
+        :rtype: :py:class:`psyclone.psyir.nodes.ArrayOfStructuresReference`
 
         :raises TypeError: if the arguments to the create method \
             are not of the expected type.
@@ -110,19 +112,19 @@ class ArrayStructureReference(StructureReference, ArrayNode):
         '''
         if not isinstance(symbol, symbols.DataSymbol):
             raise TypeError(
-                "The 'symbol' argument to ArrayStructureReference.create() "
+                "The 'symbol' argument to ArrayOfStructuresReference.create() "
                 "should be a DataSymbol but found '{0}'.".format(
                     type(symbol).__name__))
         if not isinstance(symbol.datatype, symbols.ArrayType):
             raise TypeError(
-                "An ArrayStructureReference must refer to a symbol of "
+                "An ArrayOfStructuresReference must refer to a symbol of "
                 "ArrayType but symbol '{0}' has type '{1}".format(
                     symbol.name, symbol.datatype))
 
         # First use the StructureReference _create class method to create a
         # reference to the base structure of the array.
         # pylint: disable=protected_access
-        ref = ArrayStructureReference._create(
+        ref = ArrayOfStructuresReference._create(
             symbol, symbol.datatype.intrinsic, members, parent)
 
         # Then add the array-index expressions. We don't validate the children
@@ -135,4 +137,4 @@ class ArrayStructureReference(StructureReference, ArrayNode):
 
 
 # For AutoAPI documentation generation
-__all__ = ['StructureReference']
+__all__ = ['ArrayOfStructuresReference']
