@@ -104,14 +104,19 @@ def test_struc_ref_create_errors():
             "'fake' has type 'Scalar" in str(err.value))
     with pytest.raises(NotImplementedError) as err:
         _ = nodes.StructureReference.create(
-            symbols.DataSymbol("fake", symbols.DeferredType()), [])
+            symbols.DataSymbol("fake", symbols.DeferredType()), ["missing"])
     assert ("referenced must have a TypeSymbol as its type but 'fake' has "
             "type 'DeferredType'" in str(err.value))
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
             symbols.DataSymbol("grid", symbols.DeferredType()), 1)
-    assert ("'members' argument to StructureReference._create() should be a "
+    assert ("'members' argument to StructureReference._create() must be a "
             "list but found 'int'" in str(err.value))
+    with pytest.raises(ValueError) as err:
+        _ = nodes.StructureReference.create(
+            symbols.DataSymbol("grid", symbols.DeferredType()), [])
+    assert ("one or more structure 'members' that are being accessed but "
+            "got an empty list for symbol 'grid'" in str(err.value))
     tsymbol_unknown = symbols.TypeSymbol("grid_type", symbols.DeferredType())
     with pytest.raises(NotImplementedError) as err:
         _ = nodes.StructureReference.create(

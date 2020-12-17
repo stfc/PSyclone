@@ -46,10 +46,10 @@ class ArrayOfStructuresMember(StructureMember, ArrayNode):
     '''
     Node representing a membership expression of a parent structure where the
     expression resolves to one or more elements of an array of structures.
-    As such, its first child may be a a member of that structure
+    As such, its first child may be a a member of that structure. Otherwise, it
     and any subsequent children give the array-index expressions.
 
-    :param struct_type: the datatype of the parent structure or this member \
+    :param struct_type: the datatype of the parent structure of this member \
                         expression.
     :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` or \
                        :py:class:`psyclone.psyir.symbols.TypeSymbol`
@@ -59,7 +59,9 @@ class ArrayOfStructuresMember(StructureMember, ArrayNode):
     :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    # Textual description of the node.
+    # Textual description of the node. If the first child is a Member then
+    # it describes an access to a member of this structure. Otherwise, it
+    # and any subsequent children give the array-index expressions.
     _children_valid_format = "[Member] [, DataNode | Range]*"
     _text_name = "ArrayOfStructuresMember"
 
@@ -85,7 +87,8 @@ class ArrayOfStructuresMember(StructureMember, ArrayNode):
 
         '''
         asmr = ArrayOfStructuresMember(struct_type, member_name, parent=parent)
-        # Children represent the array-index expressions
+        # Children represent the array-index expressions. (Any access to a
+        # member of the structure must subsequently be inserted at index 0.)
         for child in indices:
             asmr.addchild(child)
             child.parent = asmr

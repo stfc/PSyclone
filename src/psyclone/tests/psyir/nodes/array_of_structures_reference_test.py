@@ -70,10 +70,10 @@ def test_asr_create():
     # Reference to range of structures
     lbound = nodes.BinaryOperation.create(
         nodes.BinaryOperation.Operator.LBOUND,
-        nodes.ArrayOfStructuresReference.create(ssym), int_one)
+        nodes.Reference(ssym), int_one)
     ubound = nodes.BinaryOperation.create(
         nodes.BinaryOperation.Operator.UBOUND,
-        nodes.ArrayOfStructuresReference.create(ssym), int_one)
+        nodes.Reference(ssym), int_one)
     my_range = nodes.Range.create(lbound, ubound)
     asref = nodes.ArrayOfStructuresReference.create(ssym, ["nx"], [my_range])
     assert isinstance(asref.children[0], nodes.Member)

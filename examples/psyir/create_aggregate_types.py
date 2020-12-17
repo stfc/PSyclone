@@ -47,8 +47,8 @@ this is a work in progress.
 '''
 from __future__ import print_function
 from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
-    StructureReference, ArrayStructureReference, Assignment, BinaryOperation, \
-    Range
+    StructureReference, ArrayOfStructuresReference, Assignment, \
+    BinaryOperation, Range
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, TypeSymbol, \
     GlobalInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
@@ -141,9 +141,9 @@ DX_REF2 = StructureReference.create(FIELD_SYMBOL, [("sub_meshes", [INT_ONE]),
                                                    "dx"])
 
 # Reference to "chi(1)%sub_meshes(1)%dx"
-DX_REF3 = ArrayStructureReference.create(FIELD_BUNDLE_SYMBOL,
-                                         [("sub_meshes", [INT_ONE]), "dx"],
-                                         children=[INT_ONE])
+DX_REF3 = ArrayOfStructuresReference.create(FIELD_BUNDLE_SYMBOL,
+                                            [("sub_meshes", [INT_ONE]), "dx"],
+                                            children=[INT_ONE])
 
 ASSIGNMENTS = [
     Assignment.create(DX_REF, TWO),

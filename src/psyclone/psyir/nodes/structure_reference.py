@@ -50,13 +50,12 @@ from psyclone.errors import GenerationError
 
 class StructureReference(Reference):
     '''
-    Node representing a reference to a structure (derived type). As such
-    it may only have a maximum of one child (representing a reference to a
-    component of the structure).
+    Node representing a reference to a component of a structure. As such
+    it must have a single child representing the component being accessed.
 
     '''
     # Textual description of the node.
-    _children_valid_format = "MemberReference | None"
+    _children_valid_format = "Member"
     _text_name = "StructureReference"
 
     @staticmethod
@@ -123,8 +122,8 @@ class StructureReference(Reference):
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param symbol_type: the type of the symbol being referenced.
         :type symbol_type: :py:class:`psyclone.psyir.symbols.TypeSymbol`
-        :param members: the component(s) of the structure that make up \
-            the full reference. Any components that are array references must \
+        :param members: the component(s) of the structure that are being \
+            accessed. Any components that are array references must \
             provide the name of the array and a list of DataNodes describing \
             which part of it is accessed.
         :type members: list of str or 2-tuples containing (str, \
@@ -137,6 +136,8 @@ class StructureReference(Reference):
 
         :raises TypeError: if the arguments to the create method are not of \
             the expected type.
+        :raises ValueError: if no members are provided (since this would then \
+            be a Reference as opposed to a StructureReference).
         :raises NotImplementedError: if any of the structures being referenced\
             do not have full type information available.
 
@@ -148,11 +149,16 @@ class StructureReference(Reference):
                 "A StructureReference must refer to a symbol that is (or "
                 "could be) a structure, however symbol '{0}' has type "
                 "'{1}'.".format(symbol.name, symbol_type))
-        if members and not isinstance(members, list):
+        if not isinstance(members, list):
             raise TypeError(
                 "The 'members' argument to StructureReference._create() "
-                "should be a list but found '{0}'."
+                "must be a list but found '{0}'."
                 "".format(type(members).__name__))
+        if not members:
+            raise ValueError(
+                "A StructureReference must include one or more structure "
+                "'members' that are being accessed but got an empty list for "
+                "symbol '{0}'".format(symbol.name))
 
         # Create the base reference to the symbol that is a structure
         ref = cls(symbol, parent=parent)
@@ -175,12 +181,6 @@ class StructureReference(Reference):
                 "The TypeSymbol '{0}' for symbol '{1}' must have a defined "
                 "StructureType but found '{2}'".format(
                     symbol_type.name, symbol.name, dtype))
-
-        if not members:
-            # This reference does not include a member of the type so the
-            # first child is None.
-            ref.addchild(None)
-            return ref
 
         # We now make our way along the list of components that makes up
         # the full reference. For each entry in this list we go down another
