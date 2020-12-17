@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
+# Modified R. W. Ford, STFC Daresbury Lab
 
 '''Module for the LFRic domain.
 '''
@@ -47,6 +48,7 @@ from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.kern_call_acc_arg_list import KernCallAccArgList
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
+from psyclone.domain.lfric.kernel_interface import KernelInterface
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
@@ -57,5 +59,6 @@ __all__ = [
     'FunctionSpace',
     'KernCallAccArgList',
     'KernCallArgList',
+    'KernelInterface',
     'KernStubArgList',
     'LFRicArgDescriptor']
