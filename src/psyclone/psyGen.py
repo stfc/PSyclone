@@ -455,9 +455,11 @@ class Invoke(object):
         if alg_invocation is None and idx is None:
             return
 
+
         # create a name for the call if one does not already exist
         if alg_invocation.name is not None:
-            self._name = alg_invocation.name
+            # In Python2 unicode strings must be converted to str()
+            self._name = str(alg_invocation.name)
         elif len(alg_invocation.kcalls) == 1 and \
                 alg_invocation.kcalls[0].type == "kernelCall":
             # use the name of the kernel call with the position appended.
@@ -467,7 +469,7 @@ class Invoke(object):
                 alg_invocation.kcalls[0].ktype.name
         else:
             # use the position of the invoke
-            self._name = "invoke_"+str(idx)
+            self._name = "invoke_" + str(idx)
 
         if not reserved_names:
             reserved_names = []
