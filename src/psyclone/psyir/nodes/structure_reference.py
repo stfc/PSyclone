@@ -69,7 +69,6 @@ class StructureReference(Reference):
         :rtype: bool
 
         '''
-        # pylint: disable=unused-argument
         if position == 0:
             return isinstance(child, Member)
         return False
