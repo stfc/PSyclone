@@ -60,7 +60,7 @@ class ArrayOfStructuresMember(StructureMember, ArrayNode):
 
     '''
     # Textual description of the node.
-    _children_valid_format = "[Member], [DataNode | Range]*"
+    _children_valid_format = "[Member] [, DataNode | Range]*"
     _text_name = "ArrayOfStructuresMember"
 
     @staticmethod

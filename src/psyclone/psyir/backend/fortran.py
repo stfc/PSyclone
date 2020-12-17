@@ -50,7 +50,7 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol, \
     TypeSymbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
-    Reference, Literal, KernelSchedule, DataNode, CodeBlock
+    Reference, Literal, KernelSchedule, DataNode, CodeBlock, Member
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.errors import InternalError
 
@@ -839,13 +839,13 @@ class FortranWriter(PSyIRVisitor):
             result += "%" + self._visit(node.children[0])
         return result
 
-    def arraystructurereference_node(self, node):
+    def arrayofstructuresreference_node(self, node):
         '''
         Creates the Fortran for a reference to one or more elements of an
         array of derived types.
 
-        :param node: a ArrayStructureReference PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayStructureReference`
+        :param node: an ArrayOfStructuresReference PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayOfStructuresReference`
 
         :returns: the Fortran code.
         :rtype: str
@@ -857,21 +857,22 @@ class FortranWriter(PSyIRVisitor):
         # here because we need to skip over the first child (as that refers
         # to the member of the derived type being referenced).
         args = []
-        for child in node.children[1:]:
-            args.append(str(self._visit(child)))
+        for child in node.children:
+            if not isinstance(child, Member):
+                args.append(str(self._visit(child)))
         result += "({0})".format(",".join(args))
 
         # Append the reference to a member of the structure (if any)
-        if node.children[0]:
+        if isinstance(node.children[0], Member):
             result += "%" + self._visit(node.children[0])
         return result
 
-    def memberreference_node(self, node):
+    def member_node(self, node):
         '''
-        Creates the Fortran for a reference to a member of a derived type.
+        Creates the Fortran for an access to a member of a derived type.
 
-        :param node: a MemberReference PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.MemberReference`
+        :param node: a Member PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Member`
 
         :returns: the Fortran code.
         :rtype: str
@@ -879,32 +880,32 @@ class FortranWriter(PSyIRVisitor):
         '''
         # This reference is to a component, not a symbol
         result = node.name
-        if node.children and node.children[0]:
+        if node.children:
             result += "%" + self._visit(node.children[0])
         return result
 
-    def arraystructurememberreference_node(self, node):
+    def arrayofstructuresmember_node(self, node):
         '''
-        This method is called when an ArrayStructureMemberReference is found
+        This method is called when an ArrayOfStructuresMember is found
         in the PSyIR tree, i.e. a member of a derived type that is itself
         an array of derived types.
 
-        :param node: an ArrayStructureMemberReference PSyIR node.
+        :param node: an ArrayOfStructuresMember PSyIR node.
         :type node: \
-            :py:class:`psyclone.psyir.nodes.ArrayStructureMemberReference`
+            :py:class:`psyclone.psyir.nodes.ArrayOfStructuresMember`
 
         :returns: the Fortran code.
         :rtype: str
 
         '''
-        # Deal with the array reference first. Array indices are stored
-        # as children 1, 2, ....
+        # Deal with the array reference first.
         args = []
-        for child in node.children[1:]:
-            args.append(str(self._visit(child)))
+        for child in node.children:
+            if not isinstance(child, Member):
+                args.append(str(self._visit(child)))
         result = "{0}({1})".format(node.component.name, ",".join(args))
         # Now add the reference to the component of the array element
-        if node.children[0]:
+        if isinstance(node.children[0], Member):
             result += "%" + self._visit(node.children[0])
         return result
 

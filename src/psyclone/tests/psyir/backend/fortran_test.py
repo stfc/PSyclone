@@ -48,7 +48,7 @@ from psyclone.psyir.backend.fortran import gen_intent, FortranWriter, \
     is_fortran_intrinsic, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
-    KernelSchedule, ArrayReference, ArrayStructureReference, Range, \
+    KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
     StructureReference
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
@@ -1249,16 +1249,17 @@ def test_fw_structureref(fort_writer):
     assert fort_writer(level_ref) == "grid%levels(1,2)%ny"
 
 
-def test_fw_arraystructureref(fort_writer):
-    ''' Test the FortranWriter support for ArrayStructureReference. '''
+def test_fw_arrayofstructuresref(fort_writer):
+    ''' Test the FortranWriter support for ArrayOfStructuresReference. '''
     grid_type = StructureType.create([
         ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
     grid_type_sym = TypeSymbol("grid_type", grid_type)
     grid_array_type = ArrayType(grid_type_sym, [10])
     grid_var = DataSymbol("grid", grid_array_type)
-    grid_ref = ArrayStructureReference.create(grid_var, ["dx"],
-                                              [Literal("3", INTEGER_TYPE)])
-    assert fort_writer.arraystructurereference_node(grid_ref) == "grid(3)%dx"
+    grid_ref = ArrayOfStructuresReference.create(grid_var, ["dx"],
+                                                 [Literal("3", INTEGER_TYPE)])
+    assert (fort_writer.arrayofstructuresreference_node(grid_ref) ==
+            "grid(3)%dx")
 
 
 # literal is already checked within previous tests
