@@ -33,9 +33,13 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module providing a transformation from a PSyIR ArrayReference Range
-to a PSyIR NemoLoop. This is useful for capturing the contents of
-array ranges as kernel regions so they can be optimised.
+'''Module providing a transformation from an Assignment node
+containing an Array Reference node in its left-hand-side which in turn
+has at least one PSyIR Range node specifying an access to an array
+index (equivalent to an array assignment statement in Fortran) to the
+equivalent loop representation using a NemoLoop node. The outermost
+Range is chosen to be replaced as replacing any other Range node would
+result in a reordering of the array accesses.
 
 '''
 
@@ -80,12 +84,27 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
     '''
     def apply(self, node, options=None):
         '''Apply the NemoOuterArrayRange2Loop transformation to the specified
-        node. The node must be an assignment. The rightmost range node
-        in each array within the assignment is replaced with a loop
-        index with the expected name for the particular loop dimension
-        within a NemoLoop iterating over that index. The bounds of the
-        loop are also determined by the expected bounds for the loop
-        dimension.
+        node if the node is an Assignment and the left-hand-side of
+        the assignment is an Array Reference containing at least one
+        Range node specifying an access to an array index. If this is
+        the case then the outermost Range nodes within array
+        references within the assignment are replaced with references
+        to a loop index. A NemoLoop loop (with the same loop index) is
+        also placed around the modified assignment statement. If the
+        array reference on the left-hand-side of the assignment only
+        had one range node as an index (so now has none) then the
+        assigment is also placed within a NemoKern.
+
+        The name of the loop index is taken from the PSyclone
+        configuration file if a name exists for the particular array
+        index, otherwise a new name is generated. The bounds of the
+        loop are taken from the Range node if they are provided. If
+        not, the loop bounds are taken from the PSyclone configuration
+        file if bounds values are supplied. If not, the LBOUND or
+        UBOUND intrinsics are used as appropriate. The type of the
+        NemoLoop is also taken from the configuration file if it is
+        supplied for that index, otherwise it is specified as being
+        "unknown".
 
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
@@ -93,7 +112,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or None
 
         '''
         self.validate(node)
@@ -111,7 +130,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
     @property
     def name(self):
         '''
-        :returns: the name of the transformation as a string.
+        :returns: the name of the transformation.
         :rtype: str
 
         '''
@@ -127,7 +146,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or None
 
         :raises TransformationError: if the supplied node is an \
             Assignment node, if the Assignment node does not have an \
@@ -162,5 +181,6 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
                 "none.")
 
 
+# For automatic document generation
 __all__ = [
     'NemoOuterArrayRange2LoopTrans']

@@ -127,7 +127,7 @@ def test_apply_fixed_bounds():
     result = writer(schedule)
     assert (
         "do jk = 1, jpk, 1\n"
-        "  do jj = 2, 2, 1\n"
+        "  do jj = 2, 4, 1\n"
         "    do ji = 1, jpi, 1\n"
         "      umask(ji,jj,jk)=0.0e0\n"
         "    enddo\n"

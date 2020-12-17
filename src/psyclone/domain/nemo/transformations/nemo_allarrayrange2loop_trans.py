@@ -33,11 +33,15 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module providing a transformation from a PSyIR Array Range to a
-PSyIR NemoLoop. This is useful for capturing the contents of array
-ranges as kernel regions so they can be optimised.
+'''Module providing a transformation from an Assignment node
+containing an Array Reference node in its left-hand-side which in turn
+has at least one PSyIR Range node specifying an access to an array
+index (equivalent to an array assignment statement in Fortran) to the
+equivalent loop representation using the required number of NemoLoop
+nodes.
 
 '''
+
 
 from __future__ import absolute_import
 
@@ -63,7 +67,6 @@ class NemoAllArrayRange2LoopTrans(Transformation):
     >>> from psyclone.psyir.nodes import Assignment
     >>> from psyclone.domain.nemo.transformations import \
     >>>     NemoAllArrayRange2LoopTrans
-    >>> from psyclone.errors import TransformationError
     >>>
     >>> schedule.view()
     >>> trans = NemoAllArrayRange2LoopTrans()
@@ -74,12 +77,25 @@ class NemoAllArrayRange2LoopTrans(Transformation):
     '''
     def apply(self, node, options=None):
         '''Apply the NemoAllArrayRange2Loop transformation to the specified
-        node. The node must be an assignment. All range nodes
-        in each array within the assignment are replaced with a loop
-        index with the expected name for the particular loop dimension
-        within a NemoLoop iterating over that index. The bounds of the
-        loop are also determined by the expected bounds for the loop
-        dimension.
+        node if the node is an Assignment and the left-hand-side of
+        the assignment is an Array Reference containing at least one
+        Range node specifying an access to an array index. If this is
+        the case then all Range nodes within array references within
+        the assignment are replaced with references to the appropriate
+        loop indices. The appropriate number of NemoLoop loops are
+        also placed around the modified assignment statement and the
+        assignment statement is placed within a NemoKern.
+
+        The name of each loop index is taken from the PSyclone
+        configuration file if a name exists for the particular array
+        index, otherwise a new name is generated. The bounds of each
+        loop are taken from the Range node if they are provided. If
+        not, the loop bounds are taken from the PSyclone configuration
+        file if a bounds value is supplied. If not, the LBOUND or
+        UBOUND intrinsics are used as appropriate. The type of the
+        NemoLoop is also taken from the configuration file if it is
+        supplied for that index, otherwise it is specified as being
+        "unknown".
 
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
@@ -87,7 +103,7 @@ class NemoAllArrayRange2LoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or None
 
         '''
         self.validate(node)
@@ -106,7 +122,7 @@ class NemoAllArrayRange2LoopTrans(Transformation):
     @property
     def name(self):
         '''
-        :returns: the name of the transformation as a string.
+        :returns: the name of the transformation.
         :rtype: str
 
         '''
@@ -122,7 +138,7 @@ class NemoAllArrayRange2LoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or None
 
         :raises TransformationError: if the supplied node is not an \
             Assignment.
@@ -136,5 +152,6 @@ class NemoAllArrayRange2LoopTrans(Transformation):
                 "found '{0}'.".format(type(node).__name__))
 
 
+# For automatic document generation
 __all__ = [
     'NemoAllArrayRange2LoopTrans']

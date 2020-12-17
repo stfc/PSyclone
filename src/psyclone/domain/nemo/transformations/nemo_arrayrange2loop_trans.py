@@ -33,14 +33,19 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module providing a transformation from a PSyIR ArrayReference Range
-to a PSyIR NemoLoop. This is useful for capturing the contents of
-array ranges as kernel regions so they can be optimised.
+'''Module providing a transformation from an Assignment node
+containing an Array Reference node in its left-hand-side which in turn
+has at least one PSyIR Range node specifying an access to an array
+index (equivalent to an array assignment statement in Fortran) to the
+equivalent loop representation using a NemoLoop node. A Range node is
+provided to the apply method of the tranformation to indicate which
+array index should be transformed.
 
 '''
 
 from __future__ import absolute_import
 import six
+
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -65,12 +70,28 @@ class NemoArrayRange2LoopTrans(Transformation):
 
     '''
     def apply(self, node, options=None):
-        '''Apply the NemoArrayRange2Loop transformation to the specified
-        node. The node must be a Range node within an array reference
-        on the lhs of an assignment. If the bounds of the Range are
-        specified then these are used. If they are not specified then
-        the lbound and ubound intrinsics are used unless the config
-        file has specified bounds, in which case these are used.
+        '''Apply the NemoOuterArrayRange2Loop transformation
+        if the supplied node is the outermost Range node specifying an access to an
+        array index within an Array Reference that is on the
+        left-hand-side of an Assignment node. If this is the case then
+        the outermost Range nodes within array references within the
+        Assignment node are replaced with references to a loop index. A
+        NemoLoop loop (with the same loop index) is also placed around
+        the modified assignment statement. If the array reference on
+        the left-hand-side of the assignment only had one range node
+        as an index (so now has none) then the assigment is also
+        placed within a NemoKern.
+
+        The name of the loop index is taken from the PSyclone
+        configuration file if a name exists for the particular array
+        index, otherwise a new name is generated. The bounds of the
+        loop are taken from the Range node if they are provided. If
+        not, the loop bounds are taken from the PSyclone configuration
+        file if bounds values are supplied. If not, the LBOUND or
+        UBOUND intrinsics are used as appropriate. The type of the
+        NemoLoop is also taken from the configuration file if it is
+        supplied for that index, otherwise it is specified as being
+        "unknown".
 
         :param node: a Range node.
         :type node: :py:class:`psyclone.psyir.nodes.Range`
@@ -78,19 +99,22 @@ class NemoArrayRange2LoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or None
 
         '''
         self.validate(node)
 
         array_reference = node.parent
-        array_index = array_reference.children.index(node)
+        array_index = node.position
         assignment = array_reference.parent
         parent = assignment.parent
         symbol_table = node.scope.symbol_table
 
         # See if there is any configuration information for this array index
         loop_type_order = Config.get().api_conf("nemo").get_index_order()
+        # TODO: Add tests in get_loop_type_data() to make sure values
+        # are strings that represent an integer or a valid variable
+        # name, e.g. 1a should not be allowed. See issue #1035
         loop_type_data = Config.get().api_conf("nemo").get_loop_type_data()
         try:
             loop_type = loop_type_order[array_index]
@@ -122,7 +146,7 @@ class NemoArrayRange2LoopTrans(Transformation):
         # Upper bound
         if not array_reference.is_upper_bound(array_index):
             # The range specifies an upper bound so use it
-            upper_bound = node.start
+            upper_bound = node.stop
         elif upper_bound_info:
             # The config metadata specifies an upper bound so use it
             try:
@@ -200,7 +224,7 @@ class NemoArrayRange2LoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or None
 
         :raises TransformationError: if the node argument is not a \
             Range, if the Range node is not part of an ArrayReference, \
@@ -239,16 +263,13 @@ class NemoArrayRange2LoopTrans(Transformation):
                 "node that is within the left-hand-side of an Assignment "
                 "node, but it is on the right-hand-side.")
         # Is the Range node the outermost Range (as if not, the
-        # transformation would be invalid).
-        my_index = node.parent.children.index(node)
-        num_siblings = len(node.parent.children)
-        for idx in range(my_index+1, num_siblings):
-            following_node = node.parent.children[idx]
-            if isinstance(following_node, Range):
-                raise TransformationError(
-                    "Error in NemoArrayRange2LoopTrans transformation. This "
-                    "transformation can only be applied to the outermost "
-                    "Range.")
+        # transformation would be invalid)?
+        if any(isinstance(node, Range) for node in
+               node.parent.children[node.position+1:]):
+            raise TransformationError(
+                "Error in NemoArrayRange2LoopTrans transformation. This "
+                "transformation can only be applied to the outermost "
+                "Range.")
 
 
 def _get_outer_index(array):
@@ -263,13 +284,12 @@ def _get_outer_index(array):
     :raises IndexError: if the array does not contain a Range node.
 
     '''
-    idx = len(array.children)-1
-    while idx >= 0 and not isinstance(array.children[idx], Range):
-        idx -= 1
-    if idx < 0:
-        raise IndexError
-    return idx
+    for child in reversed(array.children):
+        if isinstance(child, Range):
+            return child.position
+    raise IndexError
 
 
+# For automatic document generation
 __all__ = [
     'NemoArrayRange2LoopTrans']
