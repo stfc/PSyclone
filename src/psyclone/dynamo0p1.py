@@ -173,8 +173,6 @@ class DynamoPSy(PSy):
         psy_module.add(lfric_use)
         # add all invoke specific information
         self.invokes.gen_code(psy_module)
-        # inline kernel subroutines if requested
-        self.inline(psy_module)
         return psy_module.root
 
 

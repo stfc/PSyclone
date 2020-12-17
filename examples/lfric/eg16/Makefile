@@ -1,8 +1,7 @@
-#!/bin/bash
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,29 +30,15 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# ------------------------------------------------------------------------------
+# Author: R. W. Ford, STFC Daresbury Laboratory
 
-# Simple bash script to allow test environment to be configured within
-# Travis. This enables the test suite to be run both with and without
-# any optional dependencies.
+include ../../common.mk
 
-# Which packages are installed is controlled by environment variables that
-# can be set using the Travis 'env' section in .travis.yml. This script also
-# takes one, optional command-line flag: "fparser_submodule". If present then
-# the version of fparser pointed to by the git submodule is installed rather
-# than relying upon pip to install a released version (from pypi).
+transform:
+	${PYTHON} create.py
 
-if [ "$WITH_TERMCOLOR" = "1" ]; then
-    echo "Installing termcolor package..."
-    pip install termcolor
-fi
+compile:
+	@echo "No compilation supported for lfric/eg16"
 
-if [ "$1" = "fparser_submodule" ]; then
-    echo "Installing fparser from git submodule..."
-    git submodule init
-    git submodule update
-    cd external/fparser
-    pip install .
-    cd -
-fi
+all: transform compile

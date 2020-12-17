@@ -256,8 +256,9 @@ basis/differential-basis functions required by the kernel are to be evaluated.
 Stencils
 ++++++++
 
-Kernel metadata may specify that a Kernel performs a stencil operation
-on a field. Any such metadata must provide a stencil type. See the
+The metadata for a Kernel which operates on a cell-column may specify
+that a Kernel performs a stencil operation on a field. Any such
+metadata must provide a stencil type. See the
 :ref:`dynamo0.3-api-meta-args` section for more details. The supported
 stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS`` or ``CROSS2D``.
 
@@ -415,17 +416,19 @@ Kernel
 -------
 
 The general requirements for the structure of a Kernel are explained
-in the :ref:`kernel-layer` section. In the Dynamo0.3 API there are four
-different Kernel types; general purpose, CMA, inter-grid and
+in the :ref:`kernel-layer` section. In the LFRic API there are five
+different Kernel types; general purpose, CMA, inter-grid, domain and
 :ref:`dynamo0.3-built-ins`. In the case of built-ins, PSyclone generates
 the source of the kernels.  This section explains the rules for the
-other three, user-supplied kernel types and then goes on to describe
-their metadata and subroutine arguments.
+other four, user-supplied kernel types and then goes on to describe
+their metadata and subroutine arguments. Domain kernels are distinct
+from the other three user-supplied kernel types in that they must be
+passed data for the whole domain rather than a single cell-column.
 
 .. _dynamo0.3-user-kernel-rules:
 
-Rules for all User-Supplied Kernels
-+++++++++++++++++++++++++++++++++++
+Rules for all User-Supplied Kernels that Operate on Cell-Columns
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 In the following, 'operator' refers to both LMA and CMA operator
 types.
@@ -470,12 +473,14 @@ types.
    does not require values beyond the level-1 halo. If it does then
    PSyclone will abort.
 
+.. _lfric-no-cma-mdata-rules:
+   
 Rules specific to General-Purpose Kernels without CMA Operators
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-1) General-purpose kernels accept arguments of any of the following
-   types: field, field vector, LMA operator, scalar integer, scalar
-   real.
+1) General-purpose kernels with ``operates_on = CELL_COLUMN`` accept
+   arguments of any of the following types: field, field vector, LMA
+   operator, scalar integer, scalar real.
 
 2) A Kernel is permitted to write to more than one
    quantity (field or operator) and these quantities may be on the
@@ -506,6 +511,8 @@ All three CMA-related kernel types must obey the following rules:
 
 2) No vector quantities (e.g. "GH_FIELD*3" - see below) are
    permitted as arguments.
+
+3) The kernel must operate on cell-columns.
 
 There are then additional rules specific to each of the three
 CMA kernel types. These are described below.
@@ -573,8 +580,23 @@ Rules for Inter-Grid Kernels
 
 7) All fields on a given mesh must be on the same function space.
 
+8) An inter-grid kernel must operate on cell-columns.
+
 A consequence of Rules 5-7 is that an inter-grid kernel will
 only involve two function spaces.
+
+Rules for User-Supplied Kernels that Operate on the Domain
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+The rules for kernels that have ``operates_on = DOMAIN`` are a subset
+of :ref:`those <lfric-no-cma-mdata-rules>` for kernels that operate
+on a ``CELL_COLUMN`` without CMA Operators. Specifically:
+
+1) Only scalar, field and field vector arguments are permitted.
+
+2) All fields must be on discontinuous function spaces.
+
+3) Stencil accesses are not permitted.
 
 .. _dynamo0.3-api-kernel-metadata:
 
@@ -1371,17 +1393,16 @@ operates_on
 The fourth type of metadata provided is ``OPERATES_ON``. This
 specifies that the Kernel has been written with the assumption that it
 is supplied with the specified data for each field/operator argument.
-For user-supplied kernels this currently only has one valid value
-which is ``CELL_COLUMN``, i.e. the kernel expects to be passed the
-data for a single column of cells for each field or operator argument.
-The possible values for ``OPERATES_ON`` and their interpretation are
-summarised in the following table:
+For user-supplied kernels this is currently only permitted to be
+``CELL_COLUMN`` or ``DOMAIN``. The possible values for ``OPERATES_ON``
+and their interpretation are summarised in the following table:
 
 ===========  =========================================================
 operates_on  Data passed for each field/operator argument
 ===========  =========================================================
 cell_column  Single column of cells
 dof          Single DoF (currently :ref:`built-ins` only)
+domain       All columns of cells
 ===========  =========================================================
 
 procedure
@@ -1406,11 +1427,12 @@ Rules for General-Purpose Kernels
 #################################
 
 The arguments to general-purpose kernels (those that do not involve
-either CMA operators or prolongation/restriction operations) follow a
-set of rules which have been specified for the Dynamo0.3 API. These
-rules are encoded in the ``generate()`` method within the
-``ArgOrdering`` abstract class in the ``dynamo0p3.py`` file. The
-rules, along with PSyclone's naming conventions, are:
+either CMA operators or prolongation/restriction operations) that
+operate on cell-columns follow a set of rules
+which have been specified for the LFRic API. These rules are encoded
+in the ``generate()`` method within the ``ArgOrdering`` abstract class
+in the ``dynamo0p3.py`` file. The rules, along with PSyclone's naming
+conventions, are:
 
 1) If an LMA operator is passed then include the ``cells`` argument.
    ``cells`` is an integer and has intent ``in``.
@@ -1699,6 +1721,7 @@ and the array of face normals in the specified direction (here horizontal)::
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
        nfaces_re_h, normals_face_h)
 
+
 Rules for CMA Kernels
 #####################
 
@@ -1928,6 +1951,15 @@ arguments to inter-grid kernels are as follows:
    2) Include ``dofmap_coarse``, the dofmap for the current cell (column)
       in the coarse mesh. This is an integer array of rank one, type
       ``i_def``and has intent ``in``.
+
+Rules for Domain Kernels
+########################
+
+The rules for kernels that have ``operates_on = DOMAIN`` are identical
+to those for general-purpose kernels (described :ref:`above
+<dynamo0.3-stub-generation-rules>`), allowing for the fact that they
+are not permitted any type of operator argument or any argument with a
+stencil access.
 
 .. _dynamo0.3-kernel-arg-intents:
 
@@ -2602,17 +2634,18 @@ processors will have continuous fields which contain DoFs that the
 processor does not own. These unowned DoFs are called `annexed` in the
 Dynamo0.3 API and are a separate, but related, concept to field halos.
 
-When a kernel that operates on a cell-column needs to read a continuous
-field then the annexed DoFs must be up-to-date on all processors. If
-they are not then a halo exchange must be added. Currently PSyclone
-defaults, for kernels which iterate over DoFs, to iterating over only
-owned DoFs. This behaviour can be changed by setting
-`COMPUTE_ANNEXED_DOFS` to ``true`` in the `dynamo0.3` section of the
-configuration file (see the :ref:`configuration` section). PSyclone
-will then generate code to iterate over both owned and annexed DoFs,
-thereby reducing the number of halo exchanges required (at the expense
-of redundantly computing annexed DoFs). For more details please refer
-to the :ref:`dynamo0.3-developers` developers section.
+When a kernel that operates on a cell-column needs to read a
+continuous field then the annexed DoFs must be up-to-date on all
+processors. If they are not then a halo exchange must be
+added. Currently PSyclone defaults, for kernels which iterate over
+DoFs, to iterating over only owned DoFs. This behaviour can be changed
+by setting `COMPUTE_ANNEXED_DOFS` to ``true`` in the `dynamo0.3`
+section of the configuration file (see the :ref:`configuration`
+section). PSyclone will then generate code to iterate over both owned
+and annexed DoFs, thereby reducing the number of halo exchanges
+required (at the expense of redundantly computing annexed DoFs). For
+more details please refer to the :ref:`dynamo0.3-developers`
+developers section.
 
 .. _lfric-run-time-checks:
 
