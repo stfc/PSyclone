@@ -34,7 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains pytest tests for the ArrayStructureReference
+''' This module contains pytest tests for the ArrayOfStructuresReference
     class. '''
 
 from __future__ import absolute_import
@@ -56,27 +56,27 @@ def test_asr_create():
     ssym = symbols.DataSymbol("grid", grid_array_type)
     int_one = nodes.Literal("1", symbols.INTEGER_TYPE)
     # Reference to scalar member of structure in array of structures
-    asref = nodes.ArrayStructureReference.create(
+    asref = nodes.ArrayOfStructuresReference.create(
         ssym, ["nx"], [int_one])
-    assert isinstance(asref.children[0], nodes.MemberReference)
+    assert isinstance(asref.children[0], nodes.Member)
     assert isinstance(asref.children[1], nodes.Literal)
     check_links(asref, asref.children)
     # Reference to member of structure member of structure in array of
     # structures
-    asref = nodes.ArrayStructureReference.create(
+    asref = nodes.ArrayOfStructuresReference.create(
         ssym, ["region", "startx"], [int_one])
-    assert isinstance(asref.children[0], nodes.StructureMemberReference)
-    assert isinstance(asref.children[0].children[0], nodes.MemberReference)
+    assert isinstance(asref.children[0], nodes.StructureMember)
+    assert isinstance(asref.children[0].children[0], nodes.Member)
     # Reference to range of structures
     lbound = nodes.BinaryOperation.create(
         nodes.BinaryOperation.Operator.LBOUND,
-        nodes.ArrayStructureReference.create(ssym), int_one)
+        nodes.ArrayOfStructuresReference.create(ssym), int_one)
     ubound = nodes.BinaryOperation.create(
         nodes.BinaryOperation.Operator.UBOUND,
-        nodes.ArrayStructureReference.create(ssym), int_one)
+        nodes.ArrayOfStructuresReference.create(ssym), int_one)
     my_range = nodes.Range.create(lbound, ubound)
-    asref = nodes.ArrayStructureReference.create(ssym, ["nx"], [my_range])
-    assert isinstance(asref.children[0], nodes.MemberReference)
+    asref = nodes.ArrayOfStructuresReference.create(ssym, ["nx"], [my_range])
+    assert isinstance(asref.children[0], nodes.Member)
     assert isinstance(asref.children[1], nodes.Range)
     check_links(asref, asref.children)
     check_links(asref.children[1], asref.children[1].children)
@@ -87,25 +87,25 @@ def test_asr_create_errors():
     is done within the StructureReference class so there's not much to check
     here. '''
     with pytest.raises(TypeError) as err:
-        _ = nodes.ArrayStructureReference.create(1)
-    assert ("'symbol' argument to ArrayStructureReference.create() should "
+        _ = nodes.ArrayOfStructuresReference.create(1)
+    assert ("'symbol' argument to ArrayOfStructuresReference.create() should "
             "be a DataSymbol but found 'int'" in str(err.value))
     scalar_symbol = symbols.DataSymbol("scalar", symbols.INTEGER_TYPE)
     with pytest.raises(TypeError) as err:
-        _ = nodes.ArrayStructureReference.create(scalar_symbol)
+        _ = nodes.ArrayOfStructuresReference.create(scalar_symbol)
     assert "ArrayType but symbol 'scalar' has type 'Scalar" in str(err.value)
 
 
 def test_ast_str():
     ''' Test that the __str__ method of the StructureReference class works OK
-    when we have an ArrayStructureReference. '''
+    when we have an ArrayOfStructuresReference. '''
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
     grid_type_symbol = symbols.TypeSymbol("grid_type", grid_type)
     grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
     ssym = symbols.DataSymbol("grid", grid_array_type)
-    asref = nodes.ArrayStructureReference.create(
+    asref = nodes.ArrayOfStructuresReference.create(
         ssym, ["nx"], [nodes.Literal("2", symbols.INTEGER_TYPE)])
-    assert (str(asref) == "ArrayStructureReference[name:'grid']\n"
-            "MemberReference[name:'nx']\n"
+    assert (str(asref) == "ArrayOfStructuresReference[name:'grid']\n"
+            "Member[name:'nx']\n"
             "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n")

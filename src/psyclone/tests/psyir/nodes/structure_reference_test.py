@@ -73,7 +73,7 @@ def test_struc_ref_create():
         ssym,
         [("data", [nodes.Literal("1", symbols.INTEGER_TYPE),
                    nodes.Literal("5", symbols.INTEGER_TYPE)])])
-    assert isinstance(aref.children[0], nodes.ArrayMemberReference)
+    assert isinstance(aref.children[0], nodes.ArrayMember)
     assert aref.children[0].name == "data"
     assert isinstance(aref.children[0].children[1], nodes.Literal)
     assert aref.children[0].children[1].value == "5"
@@ -84,8 +84,8 @@ def test_struc_ref_create():
     dref = nodes.StructureReference.create(
         ssym,
         [("sub_grids", [nodes.Literal("2", symbols.INTEGER_TYPE)]), "startx"])
-    assert isinstance(dref.children[0], nodes.ArrayStructureMemberReference)
-    assert isinstance(dref.children[0].children[0], nodes.MemberReference)
+    assert isinstance(dref.children[0], nodes.ArrayOfStructuresMember)
+    assert isinstance(dref.children[0].children[0], nodes.Member)
     assert isinstance(dref.children[0].children[1], nodes.Literal)
     check_links(dref, dref.children)
     check_links(dref.children[0], dref.children[0].children)
@@ -172,7 +172,7 @@ def test_struc_ref_str():
     # Reference to scalar member of structure
     sref = nodes.StructureReference.create(ssym, ["nx"])
     assert (str(sref) == "StructureReference[name:'grid']\n"
-            "MemberReference[name:'nx']\n")
+            "Member[name:'nx']\n")
 
 
 def test_reference_accesses():

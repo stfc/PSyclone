@@ -89,9 +89,9 @@ class Member(Node):
                 not isinstance(parent, (StructureReference, StructureMember))):
             raise TypeError(
                 "The parent of a {0} must be either a "
-                "(Array)StructureReference or (Array)StructureMember "
-                "but found '{1}'.".format(type(self).__name__,
-                                          type(parent).__name__))
+                "(ArrayOf)Structure(s)Reference or (ArrayOf)Structure(s)Member"
+                " but found '{1}'.".format(type(self).__name__,
+                                           type(parent).__name__))
 
         super(Member, self).__init__(parent=parent)
 

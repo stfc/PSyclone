@@ -42,29 +42,29 @@ from psyclone.errors import GenerationError
 
 
 def test_amr_constructor():
-    ''' Test that we can construct an ArrayMemberReference. '''
+    ''' Test that we can construct an ArrayMember. '''
     region_type = symbols.StructureType.create([
         ("sub_mesh",
          symbols.ArrayType(symbols.INTEGER_TYPE,
                            [nodes.Literal("10", symbols.INTEGER_TYPE)]),
          symbols.Symbol.Visibility.PUBLIC)])
     idx = nodes.Literal("3", symbols.INTEGER_TYPE)
-    amr = nodes.ArrayMemberReference(region_type, "sub_mesh", indices=[idx])
+    amr = nodes.ArrayMember(region_type, "sub_mesh", indices=[idx])
     assert len(amr.children) == 1
     assert amr.children[0] is idx
 
 
 def test_amr_validate_child():
-    ''' Test the _validate_child method of ArrayMemberReference. '''
+    ''' Test the _validate_child method of ArrayMember. '''
     region_type = symbols.StructureType.create([
         ("sub_mesh",
          symbols.ArrayType(symbols.INTEGER_TYPE,
                            [nodes.Literal("10", symbols.INTEGER_TYPE)]),
          symbols.Symbol.Visibility.PUBLIC)])
     idx = nodes.Literal("3", symbols.INTEGER_TYPE)
-    amr = nodes.ArrayMemberReference(region_type, "sub_mesh")
+    amr = nodes.ArrayMember(region_type, "sub_mesh")
     with pytest.raises(GenerationError) as err:
         amr.addchild("wrong")
-    assert "'str' can't be child 0 of 'ArrayMemberReference'" in str(err.value)
+    assert "'str' can't be child 0 of 'ArrayMember'" in str(err.value)
     amr.addchild(idx)
     assert amr.children[0] is idx

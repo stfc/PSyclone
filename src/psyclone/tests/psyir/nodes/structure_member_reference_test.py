@@ -34,7 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Performs py.test tests on the StructureMemberReference PSyIR node. '''
+''' Performs py.test tests on the StructureMember PSyIR node. '''
 
 from __future__ import absolute_import
 import pytest
@@ -73,8 +73,8 @@ def create_structure_symbol(table):
     return grid_var
 
 
-def test_smr_constructor():
-    ''' Test the StructureMemberReference constructor. '''
+def test_sm_constructor():
+    ''' Test the StructureMember constructor. '''
     region_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
     region_type_sym = symbols.TypeSymbol("region_type", region_type)
@@ -83,28 +83,28 @@ def test_smr_constructor():
         ("area", region_type_sym, symbols.Symbol.Visibility.PUBLIC)])
     grid_type_sym = symbols.TypeSymbol("grid_type", grid_type)
     # With a StructureType
-    smref = nodes.StructureMemberReference(grid_type, "area")
-    assert isinstance(smref, nodes.StructureMemberReference)
+    smref = nodes.StructureMember(grid_type, "area")
+    assert isinstance(smref, nodes.StructureMember)
     assert smref.component.name == "area"
     # With a TypeSymbol
-    smref = nodes.StructureMemberReference(grid_type_sym, "area")
-    assert isinstance(smref, nodes.StructureMemberReference)
+    smref = nodes.StructureMember(grid_type_sym, "area")
+    assert isinstance(smref, nodes.StructureMember)
     assert smref.component.name == "area"
 
 
-def test_smr_constructor_errors():
+def test_sm_constructor_errors():
     ''' Test the validation checks in the constructor. '''
     # Attempt to reference something that cannot be a structure
     region_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
     with pytest.raises(TypeError) as err:
-        nodes.StructureMemberReference(region_type, "nx")
+        nodes.StructureMember(region_type, "nx")
     assert ("member 'nx' is not of DeferredType, StructureType or a "
             "TypeSymbol and therefore cannot" in str(err.value))
 
 
-def test_smr_node_str():
-    ''' Check the node_str method of the StructureMemberReference class.'''
+def test_sm_node_str():
+    ''' Check the node_str method of the StructureMember class.'''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = nodes.KernelSchedule("kname")
     grid_var = create_structure_symbol(kschedule.symbol_table)
@@ -112,15 +112,15 @@ def test_smr_node_str():
     grid_ref = nodes.StructureReference.create(grid_var, ['area', 'nx'],
                                                parent=assignment)
     # The first child of the StructureReference is itself a reference to a
-    # structure and is therefore a StructureMemberReference
-    assert isinstance(grid_ref.children[0], nodes.StructureMemberReference)
-    coloredtext = colored("StructureMemberReference",
-                          SCHEDULE_COLOUR_MAP["Reference"])
+    # structure and is therefore a StructureMember
+    assert isinstance(grid_ref.children[0], nodes.StructureMember)
+    coloredtext = colored("StructureMember",
+                          SCHEDULE_COLOUR_MAP["Member"])
     assert coloredtext+"[name:'area']" in grid_ref.children[0].node_str()
 
 
-def test_smr_can_be_printed():
-    '''Test that a StructureMemberReference instance can always be printed
+def test_sm_can_be_printed():
+    '''Test that a StructureMember instance can always be printed
     (i.e. is initialised fully)'''
     kschedule = nodes.KernelSchedule("kname")
     grid_var = create_structure_symbol(kschedule.symbol_table)
@@ -128,27 +128,23 @@ def test_smr_can_be_printed():
     grid_ref = nodes.StructureReference.create(grid_var, ['area', 'nx'],
                                                parent=assignment)
     structure_member_ref = grid_ref.children[0]
-    assert ("StructureMemberReference[name:'area']\n"
-            "MemberReference[name:'nx']\n" in str(structure_member_ref))
+    assert ("StructureMember[name:'area']\n"
+            "Member[name:'nx']\n" in str(structure_member_ref))
 
 
-def test_smr_child_validate():
-    ''' Check the _validate_child() method of StructureMemberReference. '''
+def test_sm_child_validate():
+    ''' Check the _validate_child() method of StructureMember. '''
     region_type = symbols.StructureType.create([
         ("area", symbols.TypeSymbol("area_type", symbols.DeferredType()),
          symbols.Symbol.Visibility.PUBLIC),
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
-    smr = nodes.StructureMemberReference(region_type, "area")
+    smr = nodes.StructureMember(region_type, "area")
     with pytest.raises(GenerationError) as err:
         smr.addchild("hello")
-    assert ("'str' can't be child 0 of 'StructureMemberReference'" in
-            str(err.value))
-    # StructureMemberReference is only permitted to have a single child
-    # which may be None...
-    smr.addchild(None)
-    assert smr.children[0] is None
-    # ...or a MemberReference()
-    smr.children[0] = nodes.MemberReference(region_type, "nx")
+    assert "'str' can't be child 0 of 'StructureMember'" in str(err.value)
+    # StructureMember is only permitted to have a single child which must
+    # be a Member
+    smr.addchild(nodes.Member(region_type, "nx"))
     assert smr.children[0].name == "nx"
     # Attempting to add a second child should fail
     with pytest.raises(GenerationError) as err:

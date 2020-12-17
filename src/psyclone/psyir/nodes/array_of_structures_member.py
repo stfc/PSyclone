@@ -102,12 +102,11 @@ class ArrayOfStructuresMember(StructureMember, ArrayNode):
         :rtype: bool
 
         '''
-        from psyclone.psyir.nodes import MemberReference, DataNode, Range
+        from psyclone.psyir.nodes import Member, DataNode, Range
         if position == 0:
-            # The first child must either be a MemberReference or None.
-            if child is None:
-                return True
-            return isinstance(child, MemberReference)
+            # The first child must either be a Member or array-index expression
+            return isinstance(child, (Member, DataNode, Range))
+        # All subsequent child must be array-index expressions
         return isinstance(child, (DataNode, Range))
 
 

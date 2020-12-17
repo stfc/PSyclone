@@ -38,12 +38,11 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.nodes.member_reference import MemberReference
-from psyclone.psyir.nodes.array_member_reference import ArrayMemberReference
-from psyclone.psyir.nodes.array_structure_member_reference import \
-    ArrayStructureMemberReference
-from psyclone.psyir.nodes.structure_member_reference import \
-    StructureMemberReference
+from psyclone.psyir.nodes.member import Member
+from psyclone.psyir.nodes.array_member import ArrayMember
+from psyclone.psyir.nodes.array_of_structures_member import \
+    ArrayOfStructuresMember
+from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import DataSymbol, TypeSymbol, StructureType, \
     ScalarType, ArrayType, DeferredType
 from psyclone.errors import GenerationError
@@ -73,7 +72,7 @@ class StructureReference(Reference):
         '''
         # pylint: disable=unused-argument
         if position == 0:
-            return isinstance(child, (MemberReference))
+            return isinstance(child, Member)
         return False
 
     @staticmethod
@@ -86,7 +85,7 @@ class StructureReference(Reference):
         :param symbol: the symbol that this reference is to.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param members: the component(s) of the structure that make up \
-            the full reference. Any components that are array references must \
+            the full access. Any components that are array accesses must \
             provide the name of the array and a list of DataNodes describing \
             which part of it is accessed.
         :type members: list of str or 2-tuples containing (str, \
@@ -208,21 +207,21 @@ class StructureReference(Reference):
             target_dtype = dtype.components[member_name].datatype
             if isinstance(target_dtype, TypeSymbol):
                 # This member is also a structure
-                subref = StructureMemberReference(dtype,
-                                                  member_name,
-                                                  parent=current)
+                subref = StructureMember(dtype,
+                                         member_name,
+                                         parent=current)
             elif isinstance(target_dtype, ArrayType):
                 if isinstance(target_dtype.intrinsic, TypeSymbol):
                     # Array of structures
-                    subref = ArrayStructureMemberReference.create(
+                    subref = ArrayOfStructuresMember.create(
                         dtype, member_name, parent=current, indices=children)
                 else:
                     # Array of intrinsic quantities
-                    subref = ArrayMemberReference.create(
+                    subref = ArrayMember.create(
                         dtype, member_name, parent=current, indices=children)
             elif isinstance(target_dtype, ScalarType):
                 # A scalar member
-                subref = MemberReference(dtype, member_name, parent=current)
+                subref = Member(dtype, member_name, parent=current)
             else:
                 raise NotImplementedError(
                     "Structure members must have a type given by a TypeSymbol "
@@ -231,10 +230,7 @@ class StructureReference(Reference):
                         member_name, current.name, target_dtype))
 
             # The reference to a sub-component is stored as the first child.
-            if current.children:
-                current.children[0] = subref
-            else:
-                current.addchild(subref)
+            current.addchild(subref, index=0)
 
             # Move down to the newly-added child
             current = subref

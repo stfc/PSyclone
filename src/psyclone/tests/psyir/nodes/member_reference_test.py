@@ -34,37 +34,36 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains pytest tests for the MemberReference class. '''
+''' This module contains pytest tests for the Member class. '''
 
 import pytest
 from psyclone.psyir import symbols, nodes
 
 
-def test_mr_constructor_errors():
+def test_member_constructor_errors():
     ''' Test the validation checks in the constructor. '''
     with pytest.raises(TypeError) as err:
-        nodes.MemberReference(None, "hello")
+        nodes.Member(None, "hello")
     assert ("expecting the type of the structure to be specified with either "
             "a StructureType or a TypeSymbol but found 'NoneType'" in
             str(err.value))
 
     with pytest.raises(TypeError) as err:
-        nodes.MemberReference(symbols.StructureType(), "hello",
-                              parent="wrong")
-    assert ("parent of a MemberReference must be either a "
-            "(Array)StructureReference or (Array)StructureMemberReference but "
-            "found 'str'" in str(err.value))
+        nodes.Member(symbols.StructureType(), "hello", parent="wrong")
+    assert ("parent of a Member must be either a "
+            "(ArrayOf)Structure(s)Reference or (ArrayOf)Structure(s)Member "
+            "but found 'str'" in str(err.value))
     # Attempt to reference something that is not a component of the supplied
     # type.
     region_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
     with pytest.raises(TypeError) as err:
-        nodes.MemberReference(region_type, "missing")
+        nodes.Member(region_type, "missing")
     assert ("supplied StructureType has no component named 'missing'" in
             str(err.value))
 
 
-def test_mr_constructor_missing_typedef():
+def test_member_constructor_missing_typedef():
     ''' Check that we raise a NotImplementedError if the component being
     referenced is of DeferredType. '''
     # Create a TypeSymbol with deferred type (i.e. no type definition is
@@ -72,6 +71,6 @@ def test_mr_constructor_missing_typedef():
     region_type_sym = symbols.TypeSymbol("region_type",
                                          symbols.DeferredType())
     with pytest.raises(NotImplementedError) as err:
-        nodes.StructureMemberReference(region_type_sym, "area")
+        nodes.StructureMember(region_type_sym, "area")
     assert ("structure if its type is available but member 'area' has type "
             "'DeferredType'" in str(err.value))

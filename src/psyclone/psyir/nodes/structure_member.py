@@ -55,7 +55,7 @@ class StructureMember(Member):
                        being referenced.
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.StructureReference` or \
-                  :py:class:`psyclone.psyir.nodes.MemberReference`
+                  :py:class:`psyclone.psyir.nodes.Member`
 
     :raises TypeError: if the type of the specified member is not \
                        consistent with it being a structure type.
@@ -64,8 +64,8 @@ class StructureMember(Member):
     # Textual description of the node. Since it represents a reference to a
     # structure it may have a single child which is a reference to one of its
     # members.
-    _children_valid_format = "MemberReference | None"
-    _text_name = "StructureMemberReference"
+    _children_valid_format = "[Member]"
+    _text_name = "StructureMember"
 
     def __init__(self, struct_type, member, parent=None):
 
@@ -80,7 +80,7 @@ class StructureMember(Member):
             raise TypeError(
                 "The member '{0}' is not of DeferredType, StructureType or a "
                 "TypeSymbol and therefore cannot be the target of a "
-                "StructureMemberReference.".format(member))
+                "StructureMember.".format(member))
 
     def __str__(self):
         result = super(StructureMember, self).__str__() + "\n"

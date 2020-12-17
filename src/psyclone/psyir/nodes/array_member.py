@@ -34,40 +34,39 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the implementation of the ArrayMemberReference
-    node.'''
+''' This module contains the implementation of the ArrayMember node.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes.member_reference import MemberReference
+from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_node import ArrayNode
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.ranges import Range
 
 
-class ArrayMemberReference(MemberReference, ArrayNode):
+class ArrayMember(Member, ArrayNode):
     '''
-    Node representing a reference to the element(s) of an array that is a
+    Node representing an access the element(s) of an array that is a
     member of a structure.
 
     :param struct_type: the datatype of the structure containing the member \
-                        that is being referenced.
+                        that is being accessed.
     :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` or \
                        :py:class:`psyclone.psyir.symbols.TypeSymbol`
     :param str member: the member of the 'struct_type' structure that is \
-                       being referenced.
+                       being accessed.
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.StructureReference` or \
-                  :py:class:`psyclone.psyir.nodes.MemberReference`
+                  :py:class:`psyclone.psyir.nodes.Member`
     :param children: PSyIR nodes representing any array-index expressions.
     :type children: list of :py:class:`psyclone.psyir.nodes.Node` or NoneType
 
     '''
     # Textual description of the node.
     _children_valid_format = "[DataNode | Range]*"
-    _text_name = "ArrayMemberReference"
+    _text_name = "ArrayMember"
 
     def __init__(self, struct_type, member_name, parent=None, indices=None):
-        MemberReference.__init__(self, struct_type, member_name, parent=parent)
+        Member.__init__(self, struct_type, member_name, parent=parent)
         # The MemberReference node is a leaf so now call the ArrayNode
         # constructor to set up the children (representing any array-index
         # expressions).
@@ -77,7 +76,7 @@ class ArrayMemberReference(MemberReference, ArrayNode):
     @staticmethod
     def create(struct_type, member_name, parent=None, indices=None):
         ''' '''
-        amref = ArrayMemberReference(struct_type, member_name, parent=parent)
+        amref = ArrayMember(struct_type, member_name, parent=parent)
         # Children represent the array-index expressions
         if indices:
             for child in indices:
@@ -101,4 +100,4 @@ class ArrayMemberReference(MemberReference, ArrayNode):
 
 
 # For AutoAPI documentation generation
-__all__ = ['ArrayMemberReference']
+__all__ = ['ArrayMember']
