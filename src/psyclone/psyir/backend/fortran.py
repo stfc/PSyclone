@@ -50,7 +50,7 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol, \
     TypeSymbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
-    Reference, Literal, KernelSchedule, DataNode, CodeBlock, Member
+    Reference, Literal, KernelSchedule, DataNode, CodeBlock, Member, Range
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.errors import InternalError
 
@@ -320,7 +320,7 @@ class FortranWriter(PSyIRVisitor):
         '''
         dims = []
         for index in shape:
-            if isinstance(index, DataNode):
+            if isinstance(index, (DataNode, Range)):
                 # literal constant, symbol reference, or computed
                 # dimension
                 expression = self._visit(index)
@@ -837,10 +837,17 @@ class FortranWriter(PSyIRVisitor):
                               as its only child.
 
         '''
-        if not len(node.children) == 1:
-            raise VisitorError("Christmas")
+        if len(node.children) != 1:
+            raise VisitorError(
+                "A StructureReference must have a single child but the "
+                "reference to symbol '{0}' has {1}.".format(
+                    node.name, len(node.children)))
         if not isinstance(node.children[0], Member):
-            raise VisitorError("NewYear")
+            raise VisitorError(
+                "A StructureReference must have a single child which is a "
+                "sub-class of Member but the reference to symbol '{0}' has a "
+                "child of type '{1}'".format(node.name,
+                                             type(node.children[0]).__name__))
         result = node.symbol.name + "%" + self._visit(node.children[0])
         return result
 
@@ -861,18 +868,15 @@ class FortranWriter(PSyIRVisitor):
         if len(node.children) < 2:
             raise VisitorError("hohohoho")
 
-        # Generate the array reference. We can't use the arraynode handler
-        # here because we need to skip over the first child (as that refers
-        # to the member of the derived type being referenced).
-        args = []
-        for child in node.children[1:]:
-            args.append(str(self._visit(child)))
-        result = node.symbol.name + "({0})".format(",".join(args))
-
-        # Append the reference to the member of the structure
         if not isinstance(node.children[0], Member):
             raise VisitorError("nohohoho")
-        result += "%" + self._visit(node.children[0])
+
+        # Generate the array reference. We need to skip over the first child
+        # (as that refers to the member of the derived type being accessed).
+        args = self._gen_dims(node.children[1:])
+
+        result = (node.symbol.name + "({0})".format(",".join(args)) +
+                  "%" + self._visit(node.children[0]))
         return result
 
     def member_node(self, node):
@@ -909,22 +913,21 @@ class FortranWriter(PSyIRVisitor):
             children with the first one being a sub-class of Member.
 
         '''
-        # Deal with the array reference first.
         if len(node.children) < 1:
             raise VisitorError(
                 "An ArrayOfStructuresMember node must have at least two "
                 "children but found {0}".format(len(node.children)))
-        args = []
-        for child in node.children[1:]:
-            args.append(str(self._visit(child)))
-        result = "{0}({1})".format(node.component.name, ",".join(args))
-        # Now add the reference to the component of the array element
+
         if not isinstance(node.children[0], Member):
             raise VisitorError(
                 "The first child of an ArrayOfStructuresMember node must be a "
                 "sub-class of Member but found '{0}'".format(
                     type(node.children[0]).__name__))
-        result += "%" + self._visit(node.children[0])
+
+        args = self._gen_dims(node.children[1:])
+
+        result = ("{0}({1})".format(node.component.name, ",".join(args)) +
+                  "%" + self._visit(node.children[0]))
         return result
 
     def arrayreference_node(self, node):
@@ -939,10 +942,10 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         if not node.children:
-            raise VisitorError("Hohoho")
-        args = []
-        for child in node.children:
-            args.append(str(self._visit(child)))
+            raise VisitorError(
+                "Incomplete ArrayReference node (for symbol '{0}') found: "
+                "must have one or more children.".format(node.name))
+        args = self._gen_dims(node.children)
         result = "{0}({1})".format(node.name, ",".join(args))
         return result
 

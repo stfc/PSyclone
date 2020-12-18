@@ -1130,9 +1130,9 @@ def test_fw_reference(fort_writer):
         "end subroutine tmp\n") in result
 
 
-def test_fw_array(fort_writer):
+def test_fw_arrayreference(fort_writer):
     '''Check the FortranWriter class array method correctly prints
-    out the Fortran representation of an array
+    out the Fortran representation of an array reference.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -1150,6 +1150,23 @@ def test_fw_array(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     assert "a(2,n,3)=0.0" in result
+
+
+def test_fw_arrayreference_incomplete(fort_writer):
+    '''
+    Test that the correct error is raised if an incomplete ArrayReference
+    is encountered.
+    '''
+    array_type = ArrayType(REAL_TYPE, [10])
+    symbol = DataSymbol("b", array_type)
+    # create() must be supplied with a shape
+    array = ArrayReference.create(symbol, [Literal("1", INTEGER_TYPE)])
+    # Remove its children
+    array._children = []
+    with pytest.raises(VisitorError) as err:
+        fort_writer.arrayreference_node(array)
+    assert ("Incomplete ArrayReference node (for symbol 'b') found: must "
+            "have one or more children" in str(err.value))
 
 
 def test_fw_range(fort_writer):
@@ -1247,6 +1264,19 @@ def test_fw_structureref(fort_writer):
         grid_var, [('levels', [Literal("1", INTEGER_TYPE),
                                Literal("2", INTEGER_TYPE)]), 'ny'])
     assert fort_writer(level_ref) == "grid%levels(1,2)%ny"
+    # Make the number of children invalid
+    level_ref._children = ["1", "2"]
+    with pytest.raises(VisitorError) as err:
+        fort_writer(level_ref)
+    assert ("StructureReference must have a single child but the reference "
+            "to symbol 'grid' has 2" in str(err.value))
+    # Single child but not of the right type
+    level_ref._children = [Literal("1", INTEGER_TYPE)]
+    with pytest.raises(VisitorError) as err:
+        fort_writer(level_ref)
+    assert ("StructureReference must have a single child which is a sub-"
+            "class of Member but the reference to symbol 'grid' has a child "
+            "of type 'Literal'" in str(err.value))
 
 
 def test_fw_arrayofstructuresref(fort_writer):
