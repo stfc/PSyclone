@@ -39,12 +39,11 @@
 # target here and ask the user to select a different Makefile.
 default:
 	@echo "Please use one of the transformation-specific Makefiles, e.g."
-	@echo "make -f Makefile.extract"
+	@echo "make -f Makefile.extract_one"
 
 # Target for testing the tutorials with compilation (use only one PSyData wrapper)
 compile:
 	make -f solutions/Makefile.nan_all
-
 
 # Target for CI, only do the transformation (use all transformation scripts)
 test:

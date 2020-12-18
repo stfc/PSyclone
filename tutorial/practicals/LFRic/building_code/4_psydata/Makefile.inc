@@ -108,21 +108,22 @@ time_evolution_driver.o: time_evolution_alg_mod.o
 	$(F90) $(F90FLAGS) -c $<
 
 # Test PSyclone target for continuous integration
-test: $(PSY_SRC) $(ALGORITHM_SRC)
+test: $(PSY_SRC) time_evolution_alg_mod.f90
 
 %_psy.f90: %.x90
 	psyclone $(PSYCLONE_CMD) \
 	-opsy $*_psy.f90 -oalg $*.f90 $<
 
 clean:
-	rm -f *.o *.mod *.txt $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
+	rm -f *.o *.mod *.txt $(EXEC)  time_evolution_alg_mod.f90 $(PSY_SRC)
 
 allclean: clean
 	$(MAKE) -C $(GHLIB_PATH)   clean
 	$(MAKE) -C $(LFRIC_PATH)   clean
+
 # If PSYDATA_PATH is not defined (i.e. this is invoked from
 # Makefile, not solution/Makefile.*), we don't know which
-# psydata library to clean ...
+# PSyData library to clean ...
 ifneq ($(PSYDATA_PATH),)
 	$(MAKE) -C $(PSYDATA_PATH) clean
 endif
