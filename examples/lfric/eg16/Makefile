@@ -31,16 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Laboratory
 
-.PHONY: test
+include ../../common.mk
 
-test:
-	# commented out until issue #1015 is addressed
-	# psyclone -s ./loop_fuse.py example_alg.x90 -oalg /dev/null -opsy /dev/null
-	# psyclone -s ./kernel_constants.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
-	# psyclone -s ./matvec_opt.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+transform:
+	${PYTHON} create.py
 
-clean:
-	rm -f apply_variable_hx_kernel_*_mod.f90 enforce_bc_kernel_*_mod.f90 \
-              scaled_matrix_vector_kernel_*_mod.f90 psy.f90
+compile:
+	@echo "No compilation supported for lfric/eg16"
+
+all: transform compile
