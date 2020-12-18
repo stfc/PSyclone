@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
 
 ''' Tests for the algorithm generation (re-writing) as implemented
     in alg_gen.py '''
@@ -42,7 +43,7 @@ import pytest
 from psyclone.alg_gen import NoInvokesError, adduse
 from psyclone.configuration import Config
 from psyclone.generator import generate, GenerationError
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -100,7 +101,7 @@ def test_multi_kernel_named_invoke():
     gen = str(alg)
     assert "USE multikernel_invokes_7_psy, ONLY: invoke_some_name" in gen
     assert (
-        "CALL invoke_some_name(a, b, c, istp, rdt, d, ascalar, f, g, e)"
+        "CALL invoke_some_name(a, b, istp, rdt, d, e, ascalar, f, c, g, qr)"
         in gen)
 
 
@@ -114,16 +115,16 @@ def test_multi_position_named_invoke():
                      "4.10_multi_position_named_invokes.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
+
     assert "USE multikernel_invokes_7_psy, ONLY: invoke_name_first" in gen
     assert "USE multikernel_invokes_7_psy, ONLY: invoke_name_middle" in gen
     assert "USE multikernel_invokes_7_psy, ONLY: invoke_name_last" in gen
-    assert "CALL invoke_name_first(a, b, c, istp, rdt, d, ascalar, " \
-        "f, g, e)" in gen
-    assert "CALL invoke_name_middle(a, b, c, istp, rdt, d, ascalar, " \
-        "f, g, e)" in gen
-    assert "CALL invoke_name_last(a, b, c, istp, rdt, d, ascalar, " \
-        "f, g, e)" in gen
+    assert ("CALL invoke_name_first(a, b, istp, rdt, d, e, ascalar, f, c, "
+            "g, qr)") in gen
+    assert ("CALL invoke_name_middle(a, b, istp, rdt, d, e, ascalar, f, c, "
+            "g, qr)") in gen
+    assert ("CALL invoke_name_last(a, b, istp, rdt, d, e, ascalar, f, c, "
+            "g, qr)") in gen
 
 
 def test_single_function_invoke_qr():
@@ -272,17 +273,18 @@ def test_multi_deref_derived_type_args():
 
 def test_op_and_scalar_and_qr_derived_type_args():
     ''' Test the case where the operator, scalar and qr arguments to a
-    kernel are all supplied by de-referencing derived types '''
+    kernel are all supplied by de-referencing derived types. '''
     alg, _ = generate(
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
                      "test_files", "dynamo0p3",
                      "10.6.1_operator_no_field_scalar_deref.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
+
     assert (
         "CALL invoke_0_testkern_operator_nofield_scalar_type("
-        "opbox % my_mapping, box % b(1), qr % get_instance(qr3, 9, 3))" in gen)
+        "opbox % my_mapping, box % b(1), qr % init_quadrature_symmetrical"
+        "(3_i_def, qrl_gauss))" in gen)
 
 
 def test_vector_field_arg_deref():
@@ -295,8 +297,8 @@ def test_vector_field_arg_deref():
                      "8.1_vector_field_deref.f90"),
         api="dynamo0.3")
     gen = str(alg)
-    print(gen)
-    assert "CALL invoke_0_testkern_chi_type(f1, box % chi, f2)" in gen
+
+    assert "CALL invoke_0_testkern_coord_w0_type(f1, box % chi, f2)" in gen
 
 
 def test_single_stencil():
@@ -473,17 +475,17 @@ def get_parse_tree(code, parser):
 # function adduse tests These should be moved in #240.
 
 
-def test_adduse_location_none():
+@pytest.mark.parametrize("location", [None, "lilliput"])
+def test_adduse_invalid_location(location):
     '''Test that the expected exception is raised when the specified
-    location is None. There is a check for this as the parse tree can
-    contain nodes with the value None.
+    location is invalid.
 
     '''
-    location = None
+    name = "my_use"
     with pytest.raises(GenerationError) as excinfo:
-        _ = adduse(None, location, None)
-    assert "Location argument must not be None." \
-        in str(excinfo.value)
+        adduse(location, name)
+    assert ("Location argument must be a sub-class of fparser.two.utils.Base "
+            "but got: " in str(excinfo.value))
 
 
 def test_adduse_only_names1(parser):
@@ -496,10 +498,9 @@ def test_adduse_only_names1(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    new_parse_tree = adduse(parse_tree, location, name, only=True,
-                            funcnames=["a", "b", "c"])
+    adduse(location, name, only=True, funcnames=["a", "b", "c"])
     assert "PROGRAM test\n  USE my_use, ONLY: a, b, c\n  INTEGER :: i\n" \
-        in str(new_parse_tree)
+        in str(parse_tree)
 
 
 def test_adduse_only_names2(parser):
@@ -516,10 +517,9 @@ def test_adduse_only_names2(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    new_parse_tree = adduse(parse_tree, location, name, only=True,
-                            funcnames=["a", "b", "c"])
+    adduse(location, name, only=True, funcnames=["a", "b", "c"])
     assert ("SUBROUTINE test\n  USE my_use, ONLY: a, b, c\n"
-            "  INTEGER :: i\n") in str(new_parse_tree)
+            "  INTEGER :: i\n") in str(parse_tree)
 
 
 def test_adduse_only_names3(parser):
@@ -536,10 +536,9 @@ def test_adduse_only_names3(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    new_parse_tree = adduse(parse_tree, location, name, only=True,
-                            funcnames=["a", "b", "c"])
+    adduse(location, name, only=True, funcnames=["a", "b", "c"])
     assert ("INTEGER FUNCTION test()\n  USE my_use, ONLY: a, b, c\n"
-            "  INTEGER :: i\n") in str(new_parse_tree)
+            "  INTEGER :: i\n") in str(parse_tree)
 
 
 def test_adduse_only_nonames(parser):
@@ -551,9 +550,9 @@ def test_adduse_only_nonames(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    new_parse_tree = adduse(parse_tree, location, name, only=True)
+    adduse(location, name, only=True)
     assert "PROGRAM test\n  USE my_use, ONLY:\n  INTEGER :: i\n" \
-        in str(new_parse_tree)
+        in str(parse_tree)
 
 
 def test_adduse_noonly_names(parser):
@@ -565,10 +564,9 @@ def test_adduse_noonly_names(parser):
     parse_tree = get_parse_tree(CODE, parser)
     location = parse_tree.content[0].content[0]
     name = "my_use"
-    new_parse_tree = adduse(parse_tree, location, name,
-                            funcnames=["a", "b", "c"])
+    adduse(location, name, funcnames=["a", "b", "c"])
     assert ("PROGRAM test\n  USE my_use, ONLY: a, b, c\n"
-            "  INTEGER :: i\n") in str(new_parse_tree)
+            "  INTEGER :: i\n") in str(parse_tree)
 
 
 def test_adduse_onlyfalse_names(parser):
@@ -581,8 +579,7 @@ def test_adduse_onlyfalse_names(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
     with pytest.raises(GenerationError) as excinfo:
-        _ = adduse(parse_tree, location, name, only=False,
-                   funcnames=["a", "b", "c"])
+        adduse(location, name, only=False, funcnames=["a", "b", "c"])
     assert ("If the 'funcnames' argument is provided and has content, "
             "then the 'only' argument must not be set to "
             "'False'.") in str(excinfo.value)
@@ -598,24 +595,9 @@ def test_adduse_noonly_nonames(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    new_parse_tree = adduse(parse_tree, location, name)
+    adduse(location, name)
     assert "PROGRAM test\n  USE my_use\n  INTEGER :: i\n" \
-        in str(new_parse_tree)
-
-
-def test_adduse_nolocation(parser):
-    '''Test that the expected exception is raised when the specified
-    location is not in the parse_tree
-
-    '''
-    parse_tree = get_parse_tree(CODE, parser)
-    location = "lilliput"
-    name = "my_use"
-
-    with pytest.raises(GenerationError) as excinfo:
-        _ = adduse(parse_tree, location, name)
-    assert "The specified location is not in the parse tree." \
-        in str(excinfo.value)
+        in str(parse_tree)
 
 
 def test_adduse_noprogparent(parser):
@@ -625,12 +607,14 @@ def test_adduse_noprogparent(parser):
 
     '''
     parse_tree = get_parse_tree(CODE, parser)
-    # location is main_program which is not a child of program.
-    location = parse_tree.content[0]
+    # Choose the Program_Stmt node and then patch it so that it has
+    # no parent
+    location = parse_tree.content[0].content[0]
+    location.parent = None
     name = "my_use"
 
     with pytest.raises(GenerationError) as excinfo:
-        _ = adduse(parse_tree, location, name)
+        adduse(location, name)
     assert ("The specified location is invalid as it has no parent in the "
             "parse tree that is a program, module, subroutine or "
             "function.") in str(excinfo.value)
@@ -649,7 +633,7 @@ def test_adduse_unsupportedparent1(parser):
     name = "my_use"
 
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = adduse(parse_tree, location, name)
+        adduse(location, name)
     assert ("Currently support is limited to program, subroutine and "
             "function.") in str(excinfo.value)
 
@@ -669,7 +653,7 @@ def test_adduse_nospec(parser):
     name = "my_use"
 
     with pytest.raises(InternalError) as excinfo:
-        _ = adduse(parse_tree, location, name)
+        adduse(location, name)
     assert ("The second child of the parent code (content[1]) is expected "
             "to be a specification part but found 'End_Program_Stmt"
             "('PROGRAM', Name('test'))'.") in str(excinfo.value)

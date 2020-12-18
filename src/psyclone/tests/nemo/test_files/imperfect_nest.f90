@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2019, Science and Technology Facilities
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities
 ! Council.
 ! All rights reserved.
 !
@@ -37,20 +37,20 @@
 !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
 !!----------------------------------------------------------------------
 ! Modifications: A. R. Porter, STFC Daresbury Lab
+! Modified by R. W. Ford, STFC Daresbury Lab
 
 program imperfect_nest
   USE dom_oce        ! ocean space and time domain
   implicit none
-  integer :: ji, jj, jk
-  integer :: jpi, jpj, jpk, jpkm1
-  real, dimension(jpi,jpj,jpk) :: umask, vmask
-  REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt), INTENT(in   ) ::   ptb  ! tracer (kpass=1) or laplacian of tracer (kpass=2)
-  REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt), INTENT(in   ) ::   ptbb ! tracer (only used in kpass=2)
-  REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt), INTENT(inout) ::   pta  ! tracer trend
-  REAL(wp), DIMENSION(jpi,jpj)     ::   zdkt, zdk1t
+  integer :: ji, jj, jk, jn
+  integer, parameter :: jpi=10, jpj=20, jpk=30, jpim1=9, jpjm1=19, jpkm1=29
+  real, dimension(jpi,jpj,jpk) :: umask, vmask, wmask, pahu, e3u_n, e3t_n, uslp
+  REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt) :: ptb  ! tracer (kpass=1) or laplacian of tracer (kpass=2)
+  REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt) :: ptbb ! tracer (only used in kpass=2)
+  REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt) :: pta  ! tracer trend
+  REAL(wp), DIMENSION(jpi,jpj)     ::   zdkt, zdk1t, e2_e1u, e2u, r1_e1e2t
   REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw 
-  REAL(wp) ::  zmsku, zahu_w, zabe1, zcof1, zcoef3   ! local scalars
-!#  include "vectopt_loop_substitute.h90"
+  REAL(wp) ::  zmsku, zahu_w, zabe1, zcof1, zcoef3, zsign   ! local scalars
 
   ! Test code with imperfectly nested loops
   DO jk = 1, jpkm1
@@ -71,7 +71,7 @@ program imperfect_nest
        end do
     END IF
     DO jj = 1, jpjm1
-      DO ji = 1, fs_jpim1
+      DO ji = 1, jpim1
         zabe1 = pahu(ji, jj, jk) * e2_e1u(ji, jj) * e3u_n(ji, jj, jk)
         zmsku = 1. / MAX(wmask(ji + 1, jj, jk) + wmask(ji, jj, jk + 1) + wmask(ji + 1, jj, jk + 1) + wmask(ji, jj, jk), 1.)
         zcof1 = - pahu(ji, jj, jk) * e2u(ji, jj) * uslp(ji, jj, jk) * zmsku
@@ -79,7 +79,7 @@ program imperfect_nest
       END DO
     END DO
     DO jj = 2, jpjm1
-      DO ji = fs_2, fs_jpim1
+      DO ji = 2, jpim1
         pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (zftu(ji, jj, jk) - zftu(ji - 1, jj, jk) + zftv(ji, jj, jk) - zftv(ji, jj - 1, jk)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
       END DO
     END DO

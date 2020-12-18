@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,8 @@ API = "nemo"
 
 
 SINGLE_LOOP = ("program do_loop\n"
+               "integer :: ji\n"
+               "integer, parameter :: jpj=128\n"
                "real(kind=wp) :: sto_tmp(jpj)\n"
                "do ji = 1,jpj\n"
                "  sto_tmp(ji) = 1.0d0\n"
@@ -66,6 +68,8 @@ def test_parallel_single_loop(parser):
     schedule, _ = acc_trans.apply(schedule.children[0:1])
     code = str(psy.gen)
     assert ("PROGRAM do_loop\n"
+            "  INTEGER :: ji\n"
+            "  INTEGER, PARAMETER :: jpj = 128\n"
             "  REAL(KIND = wp) :: sto_tmp(jpj)\n"
             "  !$ACC PARALLEL\n"
             "  DO ji = 1, jpj\n"
@@ -78,6 +82,8 @@ def test_parallel_single_loop(parser):
 def test_parallel_two_loops(parser):
     ''' Check that we can enclose two loops within a parallel region. '''
     reader = FortranStringReader("program do_loop\n"
+                                 "integer :: ji\n"
+                                 "integer, parameter :: jpi=11\n"
                                  "real :: sto_tmp(jpi), sto_tmp2(jpi)\n"
                                  "do ji = 1,jpi\n"
                                  "  sto_tmp(ji) = 1.0d0\n"
@@ -90,9 +96,11 @@ def test_parallel_two_loops(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:2])
+    schedule, _ = acc_trans.apply(schedule[0:2])
     code = str(psy.gen)
     assert ("PROGRAM do_loop\n"
+            "  INTEGER :: ji\n"
+            "  INTEGER, PARAMETER :: jpi = 11\n"
             "  REAL :: sto_tmp(jpi), sto_tmp2(jpi)\n"
             "  !$ACC PARALLEL\n"
             "  DO ji = 1, jpi\n"
@@ -108,6 +116,9 @@ def test_parallel_two_loops(parser):
 def test_parallel_if_block(parser):
     ''' Check that we can enclose an IF-block within a parallel region. '''
     reader = FortranStringReader("program do_loop\n"
+                                 "integer :: ji\n"
+                                 "integer, parameter :: jpi=64\n"
+                                 "logical :: init\n"
                                  "real :: sto_tmp(jpi), sto_tmp2(jpi)\n"
                                  "if(init)then\n"
                                  "  do ji = 1,jpi\n"
@@ -149,8 +160,8 @@ def test_parallel_repeat_update(parser):
     # Generate the code in order to trigger the update of the fparser2 tree
     _ = str(psy.gen)
     # Store the content of a part of the fparser2 parse tree
-    orig_content = accdir._ast._parent.content[:]
+    orig_content = accdir._ast.parent.content[:]
     # Call update() a second time and then check that nothing has changed
     accdir.update()
     for idx, item in enumerate(orig_content):
-        assert item is accdir._ast._parent.content[idx]
+        assert item is accdir._ast.parent.content[idx]

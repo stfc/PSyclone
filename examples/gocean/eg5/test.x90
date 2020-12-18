@@ -1,0 +1,83 @@
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2020, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author: J. Henrichs, Bureau of Meteorology
+
+!> This code is a simple test case to show and verify the profiling support
+!> in PSyclone. It is a stand-alone, runnable program that links with the
+!> dummy-profiling library which prints begin and end of code regions to
+!> stdout. Expected output:
+!>
+!>  profile_PSyDataInit called
+!>  PreStart called for module 'psy_test' region 'invoke_0:r0'
+!>  PostEnd called for module 'psy_test' region 'invoke_0:r0'
+!>  PreStart called for module 'psy_test' region 'invoke_1_update_field:update_field_code:r0'
+!>  PostEnd called for module 'psy_test' region 'invoke_1_update_field:update_field_code:r0'
+
+Program test
+    USE field_mod
+    USE grid_mod
+    use decomposition_mod, only    : decomposition_type
+    use parallel_mod, only         : parallel_init
+    use profile_psy_data_mod, only : profile_PSyDataInit, profile_PSyDataShutdown
+
+    use init_field_mod,   only     : init_field
+    use update_field_mod, only     : update_field
+
+    TYPE(r2d_field)                :: a_fld, b_fld, c_fld, d_fld
+    TYPE(grid_type), target        :: grid
+    type(decomposition_type)       :: decomp
+
+    call profile_PSyDataInit()
+    call parallel_init()
+    grid = grid_type(GO_ARAKAWA_C,                                 &
+                     (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/), &
+                     GO_OFFSET_SW)
+    call grid%decompose(3, 3, 1, 1, 1, halo_width=1)
+    ! Grid init adds a halo region of 2 automatically
+    call grid_init(grid, 1.0_8, 1.0_8)
+    a_fld = r2d_field(grid, GO_T_POINTS)
+    b_fld = r2d_field(grid, GO_T_POINTS)
+    c_fld = r2d_field(grid, GO_T_POINTS)
+    d_fld = r2d_field(grid, GO_T_POINTS)
+  
+    ! Use two separate invokes so that the profiling instrumentation
+    ! is done on two different code regions instead of only one.
+    call invoke (init_field(a_fld, 1.0), &
+                 init_field(b_fld, 2.0), &
+                 init_field(c_fld, 3.0), &
+                 init_field(d_fld, 4.0)    )
+
+    call invoke (update_field(a_fld, b_fld, c_fld, d_fld) )
+
+    print *,a_fld%data(1:5, 1:5)
+    call profile_PSyDataShutdown()
+end program test

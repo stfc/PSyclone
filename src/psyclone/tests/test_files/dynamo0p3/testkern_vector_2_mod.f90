@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,32 +30,41 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 module testkern_vector_2_mod
+
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
+
+  implicit none
+
   type, extends(kernel_type) :: testkern_vector_2_type
-     type(arg_type), dimension(1) :: meta_args =                       &
-          (/ arg_type(gh_field*3,gh_inc,w0)                            &
+     type(arg_type), dimension(1) :: meta_args = &
+          (/ arg_type(gh_field*3, gh_inc, w0)    &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_vector_2_code
   end type testkern_vector_2_type
+
 contains
 
-  subroutine testkern_vector_2_code(nlayers, field_1_w0_v1, field_1_w0_v2, &
-                                    field_1_w0_v3, ndf_w0, undf_w0, map_w0)
-      USE constants_mod, ONLY: r_def
-      IMPLICIT NONE
-      INTEGER, intent(in) :: nlayers
-      INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in) :: undf_w0
-      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: field_1_w0_v1
-      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: field_1_w0_v2
-      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: field_1_w0_v3
-      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
+  subroutine testkern_vector_2_code(nlayers, field1_v1, field1_v2, &
+                                    field1_v3, ndf_w0, undf_w0, map_w0)
+
+      implicit none
+
+      integer(kind=i_def), intent(in) :: nlayers
+      integer(kind=i_def), intent(in) :: ndf_w0
+      integer(kind=i_def), intent(in) :: undf_w0
+      integer(kind=i_def), intent(in), dimension(ndf_w0) :: map_w0
+      real(kind=r_def), intent(inout), dimension(undf_w0) :: field1_v1
+      real(kind=r_def), intent(inout), dimension(undf_w0) :: field1_v2
+      real(kind=r_def), intent(inout), dimension(undf_w0) :: field1_v3
+
   end subroutine testkern_vector_2_code
 
 end module testkern_vector_2_mod

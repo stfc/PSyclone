@@ -45,8 +45,7 @@ SRC_PATH = os.path.join(BASE_PATH, "src")
 PACKAGES = find_packages(where=SRC_PATH,
                          exclude=["psyclone.tests",
                                   "psyclone.tests.test_files",
-                                  "psyclone.tests.psyir",
-                                  "psyclone.tests.psyir.backend"])
+                                  "psyclone.tests.*"])
 
 NAME = 'PSyclone'
 AUTHOR = ("Rupert Ford <rupert.ford@stfc.ac.uk>, "
@@ -85,10 +84,59 @@ CLASSIFIERS = [
 # that PSyclone already be installed), we read it and then exec() it:
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as vfile:
-    exec(vfile.read())
+    exec(vfile.read()) # pylint:disable=exec-used
 VERSION = __VERSION__  # pylint:disable=undefined-variable
 
 if __name__ == '__main__':
+
+    def get_files(directory, install_path, valid_suffixes):
+        '''Utility routine that creates a list of 2-tuples, each consisting of
+        the target installation directory and a list of files
+        (specified relative to the project root directory).
+
+        :param str directory: the directory containing the required files.
+        :param str install_path: the location where the files will be placed.
+        :param valid_suffixes: the suffixes of the required files.
+        :type valid_suffixes: [str]
+
+        :returns: a list of 2-tuples, each consisting of the target \
+            installation directory and a list of files (specified relative \
+            to the project root directory).
+        :rtype: [(str, [str])]
+
+        '''
+        examples = []
+        for dirpath, _, filenames in os.walk(directory):
+            if ("__" not in dirpath) and filenames:
+                rel_path = os.path.relpath(dirpath, directory)
+                files = []
+                for filename in filenames:
+                    if any([filename.endswith(suffix) for
+                            suffix in valid_suffixes]):
+                        files.append(
+                            os.path.join(os.path.basename(install_path),
+                                         rel_path, filename))
+                if files:
+                    examples.append((os.path.join(install_path, rel_path),
+                                     files))
+        return examples
+
+    # We have all of the example and tutorial files listed in
+    # MANIFEST.in but unless we specify them in the data_files
+    # argument of setup() they don't seem to get installed.
+    # Since the data_files argument doesn't accept wildcards we have to
+    # explicitly list every file we want.
+    # INSTALL_PATH controls where the files will be installed.
+    # VALID_SUFFIXES controls the type of files to include.
+    EGS_DIR = os.path.join(BASE_PATH, "examples")
+    INSTALL_PATH = os.path.join("share", "psyclone", "examples")
+    VALID_SUFFIXES = ["90", "py", "md", ".c", ".cl", "Makefile", ".mk"]
+    EXAMPLES = get_files(EGS_DIR, INSTALL_PATH, VALID_SUFFIXES)
+
+    TUTORIAL_DIR = os.path.join(BASE_PATH, "tutorial")
+    INSTALL_PATH = os.path.join("share", "psyclone", "tutorial")
+    VALID_SUFFIXES = [".ipynb"]
+    TUTORIAL = get_files(TUTORIAL_DIR, INSTALL_PATH, VALID_SUFFIXES)
 
     setup(
         name=NAME,
@@ -102,16 +150,16 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser==0.0.8', 'configparser',
+        install_requires=['pyparsing', 'fparser==0.0.11', 'configparser',
                           'six', 'enum34 ; python_version < "3.0"'],
         extras_require={
+            'dag': ["graphviz"],
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_rtd_theme"],
-            'test': ["pytest<5.0",  # TODO: Issue 438. Fix > 5.0 broken tests.
-                     "pep8", "pylint==1.6.5", "pytest-cov",
-                     "pytest-pep8", "pytest-pylint", "pytest-flakes",
-                     "pytest-pep257"],
+            'psydata': ["Jinja2"],
+            'test': ["pep8", "pylint", "pytest-cov", "pytest-pep8",
+                     "pytest-pylint", "pytest-flakes", "pytest-pep257"],
         },
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/genkernelstub'],
-        data_files=[('share/psyclone', ['config/psyclone.cfg'])]
-    )
+        data_files=[
+            ('share/psyclone', ['config/psyclone.cfg'])]+EXAMPLES+TUTORIAL,)

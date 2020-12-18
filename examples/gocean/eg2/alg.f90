@@ -34,7 +34,6 @@
 program alg
   use kind_params_mod, only: go_wp
   use parallel_mod
-  use subdomain_mod
   use grid_mod
   use field_mod, only: r2d_field, GO_T_POINTS
   use gocean_mod, only: gocean_initialise
@@ -64,12 +63,12 @@ program alg
                     GO_OFFSET_SW)
 
   !> Generate a domain decomposition
-  decomp = decompose(jpiglo, jpjglo)
+  call grid1%decompose(jpiglo, jpjglo)
   my_rank = get_rank()
 
   ! Set-up the T mask for the local domain. This defines the model domain.
-  allocate(tmask(decomp%subdomains(my_rank)%global%nx, &
-                 decomp%subdomains(my_rank)%global%ny), stat=ierr)
+  allocate(tmask(grid1%subdomain%global%nx, &
+                 grid1%subdomain%global%ny), stat=ierr)
   if(ierr /= 0)then
      stop 'Failed to allocate T mask'
   end if
@@ -77,7 +76,7 @@ program alg
   tmask(:,:) = 0
 
   ! Having specified the T points mask, we can set up mesh parameters
-  call grid_init(grid1, decomp, 1000.0_go_wp, 1000.0_go_wp, tmask)
+  call grid_init(grid1, 1000.0_go_wp, 1000.0_go_wp, tmask)
   
   ! Create fields on this grid
   fld1 = r2d_field(grid1, GO_T_POINTS)

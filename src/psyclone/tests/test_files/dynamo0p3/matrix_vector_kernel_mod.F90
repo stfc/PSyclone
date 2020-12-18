@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 module matrix_vector_kernel_mod
 
@@ -41,9 +41,12 @@ use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,               &
                                     GH_FIELD, GH_OPERATOR,             &
                                     GH_READ, GH_INC,                   &
-                                    ANY_SPACE_1, CELLS
-
+                                    ANY_SPACE_1, CELL_COLUMN
 use constants_mod,           only : r_def, i_def
+
+implicit none
+
+private
 
 type, public, extends(kernel_type) :: matrix_vector_kernel_type
   private
@@ -52,31 +55,32 @@ type, public, extends(kernel_type) :: matrix_vector_kernel_type
        arg_type(GH_FIELD,    GH_READ, ANY_SPACE_1),                    &
        arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1)        &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
-  procedure, nopass ::matrix_vector_code
+  procedure, nopass :: matrix_vector_code
 end type
 
+public matrix_vector_code
+
 contains
 
-  SUBROUTINE matrix_vector_code(cell, nlayers, &
-                               field1, field2, &
-                               ncell_3d, op_3, &
-                               ndf1, undf1, map1)
+  subroutine matrix_vector_code(cell, nlayers,  &
+                                field1, field2, &
+                                ncell_3d, op_3, &
+                                ndf1, undf1, map1)
 
-    IMPLICIT NONE
+    implicit none
 
-    INTEGER, intent(in) :: cell
-    INTEGER, intent(in) :: nlayers
-    INTEGER, intent(in) :: ndf1
-    INTEGER, intent(in) :: undf1
-    REAL(KIND=r_def), intent(inout), dimension(undf1) :: field1
-    REAL(KIND=r_def), intent(in), dimension(undf1) :: field2
-    INTEGER, intent(in) :: ncell_3d
-    REAL(KIND=r_def), intent(in), dimension(ndf1,ndf1,ncell_3d) :: op_3
-    INTEGER, intent(in), dimension(ndf1) :: map1
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf1
+    integer(kind=i_def), intent(in) :: undf1
+    integer(kind=i_def), intent(in) :: ncell_3d
+    integer(kind=i_def), intent(in), dimension(ndf1) :: map1
+    real(kind=r_def), intent(inout), dimension(undf1) :: field1
+    real(kind=r_def), intent(in), dimension(undf1)    :: field2
+    real(kind=r_def), intent(in), dimension(ndf1,ndf1,ncell_3d) :: op_3
 
-  END SUBROUTINE matrix_vector_code
+  end subroutine matrix_vector_code
 
 end module matrix_vector_kernel_mod
-

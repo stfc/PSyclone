@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -95,14 +95,28 @@ class GOcean1p0Build(Compile):
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../../../external/dl_esm_inf/finite_difference/src")
 
+        fortcl_path = \
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "../../../external/FortCL/src")
+
         arg_list = ["make", "F90={0}".format(self._f90),
                     "F90FLAGS={0}".format(self._f90flags),
                     "-f", "{0}/Makefile".format(dl_esm_inf_path)]
+
+        arg_list_fortcl = ["make", "F90={0}".format(self._f90),
+                           "F90FLAGS={0}".format(self._f90flags),
+                           "-f", "{0}/Makefile".format(fortcl_path)]
         try:
             build = subprocess.Popen(arg_list,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.STDOUT)
             (output, error) = build.communicate()
+            if Compile.TEST_COMPILE_OPENCL:
+                build = subprocess.Popen(arg_list_fortcl,
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.STDOUT)
+                (output, error) = build.communicate()
+
             GOcean1p0Build._infrastructure_built = True
 
         except OSError as err:
@@ -132,23 +146,31 @@ class GOcean1p0OpenCLBuild(GOcean1p0Build):
     only compile OpenCL code.
     '''
 
-    def code_compiles(self, psy_ast):
+    def code_compiles(self, psy_ast, dependencies=None):
         '''Attempts to build the OpenCL Fortran code supplied as an AST of
         f2pygen objects. Returns True for success, False otherwise.
         If no Fortran compiler is available then returns True. All files
         produced are deleted.
 
-        :param psy_ast: the AST of the generated PSy layer
+        :param psy_ast: the AST of the generated PSy layer.
         :type psy_ast: instance of :py:class:`psyclone.psyGen.PSy`
 
-        :return: True if generated code compiles, False otherwise
-        :rtype: bool
-        '''
+        :param dependencies: optional module- or file-names on which \
+                    one or more of the kernels/PSy-layer depend (and \
+                    that are not part of the GOcean infrastructure, \
+                    dl_esm_inf).  These dependencies will be built in \
+                    the order they occur in this list.
+        :type dependencies: list of str or NoneType
 
+        :return: True if generated code compiles, False otherwise.
+        :rtype: bool
+
+        '''
         if not Compile.TEST_COMPILE_OPENCL:
             return True
 
         # Don't call the base class code_compile() function, since it
         # will only work if --compile was specified. Call the internal
         # function instead that does the actual compilation.
-        return super(GOcean1p0OpenCLBuild, self)._code_compiles(psy_ast)
+        return super(GOcean1p0OpenCLBuild, self)._code_compiles(psy_ast,
+                                                                dependencies)

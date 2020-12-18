@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2019, Science and Technology Facilities Council
+.. Copyright (c) 2017-2020, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -41,9 +41,9 @@ Transformations
 
 As discussed in the previous section, transformations can be applied
 to a schedule to modify it. Typically transformations will be used to
-optimise the PSy layer for a particular architecture, however
-transformations could be added for other reasons, such as to aid
-debugging or for performance monitoring.
+optimise the PSy and/or Kernel layer(s) for a particular architecture,
+however transformations could be added for other reasons, such as to
+aid debugging or for performance monitoring.
 
 Finding
 -------
@@ -52,10 +52,69 @@ Transformations can be imported directly, but the user needs to know
 what transformations are available. A helper class **TransInfo** is
 provided to show the available transformations
 
+.. note:: The directory layout of PSyclone is currently being restructured.
+          As a result of this some transformations are already in the new
+          locations, while others have not been moved yet. Transformations
+          in the new locations can at the moment not be found using the
+          **TransInfo** approach, and need to be imported directly from
+          the path indicated in the documentation.
+
 .. autoclass:: psyclone.psyGen.TransInfo
     :members:
 
 .. _sec_transformations_available:
+
+Standard Functionality
+----------------------
+Each transformation must provide at least two functions for the
+user: one for validation, i.e. to verify that a certain transformation
+can be applied, and one to actually apply the transformation. They are
+described in detail in the
+:ref:`overview of all transformations<available_trans>`,
+but the following general guidelines apply.
+
+Validation
++++++++++++
+Each transformation provides a function ``validate``. This function
+can be called by the user, and it will raise an exception if the
+transformation can not be applied (and otherwise will return nothing).
+Validation will always be called when a transformation is applied.
+The parameters for ``validate`` can change from transformation to
+transformation, but each ``validate`` function accepts a parameter
+``options``. This parameter is either ``None``, or a dictionary of
+string keys, that will provide additional parameters to the validation
+process. For example, some validation functions allow part of the
+validation process to be disabled in order to allow the HPC expert
+to apply a transformation that they know to be safe, even if the
+more general validation process might reject it. Those parameters
+are documented for each transformation, and will show up as
+a parameter, e.g.: ``options["node-type-check"]``. As a simple
+example::
+
+    # The validation might reject the application, but in this
+    # specific case it is safe to apply the transformation,
+    # so disable the node type check:
+    my_transform.validate(node, {"node-type-check": False})
+
+
+.. _transformations_application:
+
+Application
++++++++++++
+Each transformation provides a function ``apply`` which will
+apply the transformation. It will first validate the transform
+by calling the ``validate`` function. Each ``apply`` function
+takes the same ``options`` parameter as the ``validate`` function
+described above. Besides potentially modifying the validation
+process, optional parameters for the transformation are also
+provided this way. A simple example::
+
+    kctrans = Dynamo0p3KernelConstTrans()
+    kctrans.apply(kernel, {"element_order": 0, "quadrature": True})
+
+The same ``options`` dictionary will be used when calling ``validate``.
+
+.. _available_trans:
 
 Available transformations
 -------------------------
@@ -71,11 +130,26 @@ The generic transformations currently available are listed in
 alphabetical order below (a number of these have specialisations which
 can be found in the API-specific sections).
 
-.. note:: PSyclone currently only supports OpenCL transformations for
-	  the GOcean 1.0 API, the OpenACC Data transformation is
-	  limited to the NEMO and GOcean 1.0 APIs and the OpenACC
-	  Kernels transformation is limited to the NEMO and Dynamo0.3
-	  APIs.
+.. note:: PSyclone currently only supports OpenCL and
+          KernelGlobalsToArguments transformations for the GOcean 1.0
+          API, the OpenACC Data transformation is limited to
+          the NEMO and GOcean 1.0 APIs and the OpenACC Kernels
+          transformation is limited to the NEMO and Dynamo0.3 APIs.
+
+.. note:: The directory layout of PSyclone is currently being restructured.
+          As a result of this some transformations are already in the new
+          locations, while others have not been moved yet.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Abs2CodeTrans
+      :members: apply
+      :noindex:
+
+.. warning:: This transformation assumes that the ABS Operator acts on
+             PSyIR Real scalar data and does not check that this is
+             not the case. Once issue #658 is on master then this
+             limitation can be fixed.
 
 ####
 
@@ -108,16 +182,38 @@ can be found in the API-specific sections).
     :noindex:
 
 ####
-	       
+
+.. autoclass:: psyclone.psyir.transformations.ArrayRange2LoopTrans
+    :members: apply
+    :noindex:
+
+.. note:: The ArrayRange2LoopTrans will have no effect when using the
+          NEMO API until it is updated to use the PSyIR back-ends to
+          generate code (see #435).
+  
+####
+
 .. autoclass:: psyclone.transformations.ColourTrans
     :members: apply
     :noindex:
 
 ####
 
-.. autoclass:: psyclone.transformations.ExtractRegionTrans
+.. autoclass:: psyclone.psyir.transformations.extract_trans.ExtractTrans
     :members: apply
     :noindex:
+
+####
+
+.. autoclass:: psyclone.transformations.KernelGlobalsToArguments
+    :members: apply
+    :noindex:
+
+.. note:: This transformation modifies the PSyIR of both: the Invoke
+          Schedule where the transformed CodedKernel is located and its
+          associated Kernel Schedule.
+
+.. note:: This transformation is only supported by the GOcean 1.0 API.
 
 ####
 
@@ -125,14 +221,31 @@ can be found in the API-specific sections).
     :members: apply
     :noindex:
 
-.. note:: PSyclone does not currently permit module-inlining of
-	  transformed kernels (issue #229).
-
 ####
 
 .. autoclass:: psyclone.transformations.LoopFuseTrans
     :members: apply
     :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Matmul2CodeTrans
+    :members: apply
+    :noindex:
+
+.. note:: This transformation is currently limited to translating the
+          matrix vector form of MATMUL to equivalent PSyIR code.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Min2CodeTrans
+      :members: apply
+      :noindex:
+
+.. warning:: This transformation assumes that the MIN Operator acts on
+             PSyIR Real scalar data and does not check that this is
+             not the case. Once issue #658 is on master then this
+             limitation can be fixed.
 
 ####
 
@@ -173,15 +286,32 @@ can be found in the API-specific sections).
           halo swaps or global sums will produce an error. In such
           cases it may be possible to re-order the nodes in the
           Schedule such that the halo swaps or global sums are
-          performed outside the parallel region. The 
+          performed outside the parallel region. The
 	  :ref:`MoveTrans <sec_move_trans>` transformation may be used
           for this.
 
 ####
 
-.. autoclass:: psyclone.transformations.ProfileRegionTrans
+.. autoclass:: psyclone.psyir.transformations.ProfileTrans
     :members: apply
     :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.ReadOnlyVerifyTrans
+    :members: apply
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Sign2CodeTrans
+      :members: apply
+      :noindex:
+
+.. warning:: This transformation assumes that the SIGN Operator acts
+             on PSyIR Real scalar data and does not check whether or not
+	     this is the case. Once issue #658 is on master then this
+	     limitation can be fixed.
 
 Kernels
 -------
@@ -198,7 +328,7 @@ naming of the resulting kernels. PSyclone supports two use cases:
 
 The second case is really an optimisation of the first for the case
 where the same set of transformations is applied to every instance of
-a given kernel. 
+a given kernel.
 
 Since PSyclone is run separately for each Algorithm in a given
 application, ensuring that there are no name clashes for kernels in
@@ -247,7 +377,7 @@ as follows:
 
    1) Kernel subroutines are forbidden from accessing data using COMMON
       blocks;
-   2) Kernel subroutines are forbidden from calling proceduces declared via
+   2) Kernel subroutines are forbidden from calling procedures declared via
       the EXTERN statement;
    3) Kernel subroutines must not access data or procedures made available
       via their parent (containing) module.
@@ -259,7 +389,7 @@ as follows:
 
 For instance, consider the following Fortran module containing the
 ``bc_ssh_code`` kernel:
-  
+
 .. code-block:: fortran
 
   module boundary_conditions_mod
@@ -295,14 +425,13 @@ variable that is available to it from the enclosing module scope.
 Available Kernel Transformations
 ++++++++++++++++++++++++++++++++
 
-PSyclone currently provides just one kernel transformation:
+PSyclone currently provides just one kernel-specific transformation
+(although there are a number that can be applied to either or both the
+PSy-layer and Kernel-layer PSyIR):
 
 .. autoclass:: psyclone.transformations.ACCRoutineTrans
    :noindex:
    :members:
-
-.. note:: PSyclone does not currently permit transformed kernels to be
-	  module-inlined. (Issue #229.)
 
 Applying
 --------
@@ -368,15 +497,15 @@ with the new one. For example ...
     new_schedule.view()
 
     # Replace the original loop schedule of the selected invoke
-    # with the new, transformed schedule 
+    # with the new, transformed schedule
     invoke.schedule=new_schedule
 
     # Generate the Fortran code for the new PSy layer
     print psy.gen
 
 More examples of use of the interactive application of transformations
-can be found in the runme*.py files within the examples/dynamo/eg1 and
-examples/dynamo/eg2 directories. Some simple examples of the use of
+can be found in the runme*.py files within the examples/lfric/eg1 and
+examples/lfric/eg2 directories. Some simple examples of the use of
 transformations are also given in the previous section.
 
 .. _sec_transformations_script:
@@ -441,20 +570,22 @@ below does the same thing as the example in the
 
 Of course the script may apply as many transformations as is required
 for a particular schedule and may apply transformations to all the
-schedules (i.e. invokes) contained within the PSy layer.
+schedules (i.e. invokes and/or kernels) contained within the PSy
+layer.
 
-Examples of the use of transformation scripts can be found in the
-examples/dynamo/eg3 and examples/dynamo/scripts directories. Please
-read the examples/dynamo/README file first as it explains how to run
-the examples (and see also the examples/check_examples script).
+Examples of the use of transformation scripts can be found in many of
+the examples, such as examples/lfric/eg3 and
+examples/lfric/scripts. Please read the examples/lfric/README file
+first as it explains how to run the examples (and see also the
+examples/check_examples script).
 
 OpenMP
 ------
 
 OpenMP is added to a code by using transformations. The three
-transformations currently supported allow the addition of an **OpenMP
-Parallel** directive, an **OpenMP Do** directive and an **OpenMP
-Parallel Do** directive, respectively, to a code.
+transformations currently supported allow the addition of an
+**OpenMP Parallel** directive, an **OpenMP Do** directive and an
+**OpenMP Parallel Do** directive, respectively, to a code.
 
 The generic versions of these three transformations (i.e. ones that
 theoretically work for all APIs) were given in the
@@ -558,10 +689,11 @@ The current available options are:
 +--------------+---------------------------------------------+---------+
 | Option       |  Description                                | Default |
 +==============+=============================================+=========+
-| local_size   | Number of work-items to compute             | 1       |
-|              | in a single kernel.                         |         |
+| local_size   | Number of work-items to group together      | 64      |
+|              | in a work-group execution (kernel instances |         |
+|              | executed at the same time).                 |         |
 +--------------+---------------------------------------------+---------+
-| queue_number | The identifier of the OpenCL Command Queue  | 1       | 
+| queue_number | The identifier of the OpenCL Command Queue  | 1       |
 |              | to which the kernel should be submitted.    |         |
 +--------------+---------------------------------------------+---------+
 
@@ -633,7 +765,7 @@ gives free-reign to the compiler to automatically parallelise any
 suitable loops within the specified region. An example of the use of
 ``ACCDataTrans`` and ``ACCKernelsTrans`` may be found in
 PSyclone/examples/nemo/eg3 and an example of ``ACCKernelsTrans`` may
-be found in PSyclone/examples/dynamo/eg14.
+be found in PSyclone/examples/lfric/eg14.
 
 However, as with any "automatic" approach, a more performant solution
 can almost always be obtained by providing the compiler with more
@@ -641,7 +773,7 @@ explicit direction on how to parallelise the code.  The
 ``ACCParallelTrans`` and ``ACCLoopTrans`` transformations allow the
 user to define thread-parallel regions and, within those, define which
 loops should be parallelised. For an example of their use please see
-PSyclone/examples/gocean/eg2 or PSyclone/examples/dynamo/eg14.
+PSyclone/examples/gocean/eg2 or PSyclone/examples/lfric/eg14.
 
 In order for a given section of code to be executed on a GPU, any
 routines called from within that section must also have been compiled
@@ -661,9 +793,6 @@ SIR
 ---
 
 It is currently not possible for PSyclone to output SIR code without
-using a script. Examples of such scripts are given in example 4 for
-the NEMO API. Whilst there are no transformations relating to the
-generation of the SIR, a script is associated with transformations and
-it is possible that transformations could be useful in the future
-e.g. to mark which bits of code should be optimised using the dawn
-tool.
+using a script. Two examples of such scripts are given in example 4
+for the NEMO API, one of which includes transformations to remove
+PSyIR intrinsics (as the SIR does not support them).

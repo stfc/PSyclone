@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,22 +30,38 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 module testkern_operator_2_mod
+
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
+
+  implicit none
+
   type, extends(kernel_type) :: testkern_operator_2_type
-     type(arg_type), dimension(1) :: meta_args =   &
-          (/ arg_type(gh_operator,gh_write,w2,w3) /)
-     integer :: iterates_over = cells
+     type(arg_type), dimension(1) :: meta_args = &
+          (/ arg_type(gh_operator, gh_write, w2, w3) /)
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_operator_2_code
   end type testkern_operator_2_type
+
 contains
-  subroutine testkern_operator_2_code(cell, nlayers, ncell_3d, local_stencil, &
-       ndf_w2, ndf_w3)
-    integer :: cell, nlayers, ncell_3d, ndf_w2, ndf_w3
-    real(kind=r_def), dimension(:,:,:) :: local_stencil
+
+  subroutine testkern_operator_2_code(cell, nlayers, ncell_3d, &
+                                      local_stencil, ndf_w2, ndf_w3)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w2, ndf_w3
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: ncell_3d
+    real(kind=r_def), intent(out), dimension(ndf_w2,ndf_w3,ncell_3d) :: local_stencil
+
   end subroutine testkern_operator_2_code
+
 end module testkern_operator_2_mod

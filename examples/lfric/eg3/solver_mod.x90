@@ -1,0 +1,792 @@
+!-------------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-------------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Modified by I. Kavcic, Met Office
+!
+!-------------------------------------------------------------------------------
+
+!> @brief Contains methods and algorithms for solving a system A.x = b for known
+!! input field b and matrix A and returns field x.
+!!
+!! @details Contains a selction of solvers for inverting the matrix vector
+!! system A.x = b to return x = A^{-1}.b Depending upom the type of system to
+!! solve a number of iterative solver algorithms are possible or for
+!! discontinuous systems an exact solver can be used.
+
+module solver_mod
+
+  use constants_mod,           only : r_def, i_def, str_def, MAX_ITER,    &
+                                      SOLVER_TOL, CG_SOLVER, BICG_SOLVER, &
+                                      JACOBI_SOLVER, GMRES_SOLVER,        &
+                                      GCR_SOLVER, NO_PRE_COND
+  use log_mod,                 only : log_event,         &
+                                      log_scratch_space, &
+                                      LOG_LEVEL_ERROR,   &
+                                      LOG_LEVEL_INFO,    &
+                                      LOG_LEVEL_DEBUG,   &
+                                      LOG_LEVEL_TRACE
+  use field_mod,               only : field_type
+  use function_space_mod,      only : function_space_type, W0, W1, W2, W3, &
+                                      Wtheta, W2V, W2H
+  use w3_solver_kernel_mod, only: w3_solver_kernel_type
+  use matrix_vector_mm_mod, only: matrix_vector_kernel_mm_type
+
+  use quadrature_mod,  only : quadrature_type
+  use operator_mod,    only : operator_type
+  use mesh_mod,        only : mesh_type
+
+  implicit none
+
+  private
+
+  public :: solver_algorithm
+
+contains
+
+  !> @brief Wrapper for specific solver routines for solving system A.x = b
+  !! @details solves A.x = b for using a choice of solver where A is a mass
+  !! matrix for a given space and x and b are fields belonging to that space.
+  !! For a discontinous space the element mass matrix is exactly inverted, for
+  !! continuous spaces an iterative solver is used.
+  !! The current choices of iteratives solver are:
+  !! cg: Conjugate gradient method without preconditioning
+  !! bicgstab: bi-conjugate gradient, stabilised without preconditioning
+  !! jacobi: a fixed number of jacobi iterations
+  !> @param[in,out] lhs The field to be solved for (x)
+  !> @param[in]     rhs The right hand side field (b)
+  !> @param[in]     mesh The mesh object the model for fields
+  !> @param[in]     chi The coordinate array fields
+  !> @param[in]     solver_type (optional) The type of iterative solver to use for
+  !>                continuous systems
+  !> @param[in]     qr Quadrature type, optional. The quadrature rule.
+  !> @param[in]     mm Operator type, optional. This is the mass matrix
+  !! Either qr or mm are required, but not both.
+  subroutine solver_algorithm(lhs, rhs, mesh, chi, solver_type, qr, mm)
+
+    implicit none
+
+    type(field_type), intent(inout)    :: lhs
+    type(field_type), intent(in)       :: rhs
+    type(mesh_type),  intent(in)       :: mesh
+    type(field_type), intent(in)       :: chi(3)
+
+    integer(i_def),                  intent(in) :: solver_type
+    type(quadrature_type), optional, intent(in) :: qr
+    type(operator_type),   optional, intent(in) :: mm
+
+    integer(i_def), parameter :: NUM_JACOBI_ITERS = 5
+    integer(i_def) :: fs_l, fs_r
+    real(r_def) :: ascalar = 3.0
+
+    fs_l = lhs%which_function_space()
+    fs_r = rhs%which_function_space()
+    ! Check the arguments qr .or. mm not both or neither
+    if( present(qr) .and. .not.present(mm) ) then
+       ! Quadrature present, only for W3
+       if( (fs_l == W3) .and. (fs_r == W3) ) then
+          ! We are on the right space
+          call invoke( w3_solver_kernel_type(lhs, rhs, chi, ascalar, qr) )
+       else
+          write( log_scratch_space, '(A,I3,",",I3)' )  &
+               "Quadrature required for w3 solver, stopping",fs_l,fs_r
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+       end if
+    else if( .not.present(qr) .and. present(mm) ) then
+       ! Mass matrix
+       if(fs_l == W3) then
+          write( log_scratch_space,'(A)' )                              &
+               "Solver_algorithm: mass-matrix not implemented for W3,", &
+               " stopping"
+          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+       else
+       select case ( solver_type )
+          case ( CG_SOLVER )
+            call cg_solver_algorithm(lhs, rhs, mm, mesh)
+          case ( BICG_SOLVER )
+            call bicg_solver_algorithm(lhs, rhs, mm, mesh)
+          case ( JACOBI_SOLVER )
+            call jacobi_solver_algorithm(lhs, rhs, mm, mesh, NUM_JACOBI_ITERS)
+          case ( GMRES_SOLVER )
+            call gmres_solver_algorithm(lhs, rhs, mm, mesh)
+          case ( GCR_SOLVER )
+            call gcr_solver_algorithm(lhs, rhs, mm, mesh)
+          case default
+            write( log_scratch_space, '(A)' ) &
+                 "Invalid linear solver choice, stopping"
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end select
+       end if
+    else if( present(qr) .and. present(mm) ) then
+       ! Both - bork
+       write( log_scratch_space, '(A)' )                               &
+            "Quadrature OR mass matrix required for solver not both.", &
+            " Whats a guy to do?, stopping"
+       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    else
+       ! Neither - bork
+       write( log_scratch_space, '(A)' )                      &
+            "Quadrature OR mass matrix required for solver.", &
+            " Gimme something to work with, stopping"
+    end if
+
+  end subroutine solver_algorithm
+
+!--------------------------------------------------
+
+  !> @brief BiCGStab solver with no preconditioning.
+  !! @details solves A.x = b where the operation A.x is encoded in a kernel using
+  !! the stabilised bi-conjugate gradient method. The choice of matrix is
+  !! encoded in the matrix vector kernel that is called
+  !! @param[in,out] lhs The answer, x
+  !! @param[in] rhs The input b
+  !! @param[in] mm The mass matrix
+  !! @param[in] mesh The mesh object the model for fields
+  subroutine bicg_solver_algorithm(lhs, rhs, mm, mesh)
+
+    implicit none
+
+    type(field_type),    intent(inout) :: lhs
+    type(field_type),    intent(in)    :: rhs
+    type(operator_type), intent(in)    :: mm
+    type(mesh_type),     intent(in)    :: mesh
+
+    ! The temporary fields
+    type(field_type)                   :: res, cr, p, v, s, t, cs
+
+    ! The scalars
+    ! The greeks - standard BiCGStab
+    real(kind=r_def)                   :: rho, alpha, omega, beta, norm
+    real(kind=r_def)                   :: ts, tt
+    ! Others
+    real(kind=r_def)                   :: err, sc_err, init_err
+    integer(kind=i_def)                :: iter
+    real(kind=r_def)                   :: const
+    integer(kind=i_def)                :: rhs_fs
+    type(function_space_type)          :: fs
+
+    ! Compute the residual this is a global sum to the PSy ---
+    call invoke( X_innerproduct_X(sc_err, rhs) )
+    sc_err = max(sqrt(sc_err), 0.1_r_def)
+    write( log_scratch_space, '(A,E15.8)' ) &
+         "Solver_algorithm: BICGstab starting ... ||b|| = ", sc_err
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    call invoke( setval_c(lhs, 0.0_r_def) )
+
+    rhs_fs = rhs%which_function_space()
+    v = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+    call invoke( name = "BICG_group1",   &
+                 setval_c(v, 0.0_r_def), &
+                 matrix_vector_kernel_mm_type(v, lhs, mm) )
+
+    res = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+
+    call invoke( name = "BICG_group2",   &
+                 X_minus_Y(res, rhs, v), &
+                 X_innerproduct_X(err, res) )
+
+    err = sqrt(err)/sc_err
+    init_err=err
+    if (err < SOLVER_TOL) then
+      write( log_scratch_space, '(A, I2,A,E12.4,A,E15.8)') &
+           "BICG solver_algorithm: converged in ", 0,      &
+           " iters, init=", init_err,                      &
+           " final=", err
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      return
+   end if
+
+    alpha  = 1.0_r_def
+    omega  = 1.0_r_def
+    norm   = 1.0_r_def
+
+    cr = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+
+    call invoke( setval_X(cr, res) )
+
+    p = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+    call invoke( setval_c(p, 0.0_r_def) )
+
+    t = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+
+    s = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+
+    cs = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+
+    call invoke( setval_c(v, 0.0_r_def) )
+
+    do iter = 1, MAX_ITER
+
+      call invoke( X_innerproduct_Y(rho, cr, res) )
+      beta = (rho/norm) * (alpha/omega)
+      const = beta*omega
+      call invoke( X_minus_bY(t, res, const, v) )
+
+      call preconditioner( s, t, NO_PRE_COND )
+
+      call invoke( name = "BICG_iterloop_group1",          &
+                   inc_aX_plus_Y(beta, p, s),              &
+                   setval_c(v, 0.0_r_def),                 &
+                   matrix_vector_kernel_mm_type(v, p, mm), &
+                   X_innerproduct_Y(norm, cr, v) )
+
+      alpha = rho/norm
+      call invoke( X_minus_bY(s, res, alpha, v) )
+
+      call preconditioner( cs, s, NO_PRE_COND )
+
+      call invoke( name = "BICG_iterloop_group2",           &
+                   setval_c(t, 0.0_r_def),                  &
+                   matrix_vector_kernel_mm_type(t, cs, mm), &
+                   X_innerproduct_X(tt, t),                 &
+                   X_innerproduct_Y(ts, t, s) )
+
+      omega = ts/tt
+      ! lhs = lhs + omega * s + alpha * p
+      call invoke(  name = "BICG_iterloop_group3", &
+                    inc_X_plus_bY(lhs, omega, s),  &
+                    inc_X_plus_bY(lhs, alpha, p),  &
+                    X_minus_bY(res, s, omega, t) )
+      norm = rho
+
+      ! Check for convergence
+      call invoke( X_innerproduct_X(err, res) )
+      err = sqrt(err)/sc_err
+
+      write( log_scratch_space, '(A,I2,A, E15.8)' ) "solver_algorithm[", iter, &
+                                                    "]: res = ", err
+      call log_event(log_scratch_space, LOG_LEVEL_TRACE)
+
+      if (err < SOLVER_TOL) then
+        write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
+             "BICG solver_algorithm: converged in ", iter,        &
+             " iters, init=", init_err,                           &
+             " final=", err
+        call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+        exit
+      end if
+    end do
+
+    if(iter >= MAX_ITER) then
+      write( log_scratch_space, '(A, I3, A, E15.8)') &
+           "BICG solver_algorithm: NOT converged in", iter, " iters, Res=", err
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine bicg_solver_algorithm
+
+!--------------------------------------------------
+
+  !> @brief CG solver for the system A.x = b with no preconditioning.
+  !! @details solves A.x = b where the operation A.x is encoded in a kernel using
+  !! the conjugate gradient method. The choice of matrix is
+  !! encoded in the matrix vector kernel that is called.
+  !! @param[in,out] lhs The answer, x
+  !! @param[in] rhs The input b
+  !! @param[in] mm The mass matrix
+  !! @param[in] mesh The mesh object the model for fields
+  subroutine cg_solver_algorithm(lhs, rhs, mm, mesh)
+
+    implicit none
+
+    type(field_type),    intent(inout) :: lhs
+    type(field_type),    intent(in)    :: rhs
+    type(operator_type), intent(in)    :: mm
+    type(mesh_type),     intent(in)    :: mesh
+
+    ! The temporary fields
+    type(field_type)                   :: res, p, Ap
+
+    ! The scalars
+    real(kind=r_def)                   :: alpha, beta
+    real(kind=r_def)                   :: rs_new, rs_old
+    ! Others
+    real(kind=r_def)                   :: err, sc_err, init_err
+    real(kind=r_def)                   :: const
+    integer(kind=i_def)                :: iter
+    integer(kind=i_def)                :: rhs_fs
+    type(function_space_type)          :: fs
+
+    call invoke( X_innerproduct_X(rs_old, rhs) )
+
+    ! Compute the residual this is a global sum to the PSy ---
+
+    rhs_fs = rhs%which_function_space()
+
+    res = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+    p   = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+    Ap   = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+
+    ! First guess: lhs = 0
+    call invoke( name = "CG_first_guess",                   &
+                 setval_c(lhs, 0.0_r_def),                  &
+                 matrix_vector_kernel_mm_type(Ap, lhs, mm), &
+                 X_minus_Y(res, rhs, Ap),                   &
+                 setval_X(p, res),                          &
+                 X_innerproduct_X(rs_old, res) )
+
+    err = sqrt(rs_old)
+    sc_err = max(err, 0.1_r_def)
+    init_err=sc_err
+    write( log_scratch_space, '(A,E15.8)' ) &
+         "CG solver_algorithm: starting ... ||b|| = ", sc_err
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    if (err < SOLVER_TOL) then
+      write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
+           "CG solver_algorithm: converged in ", 0,             &
+           " iters, init=", init_err,                           &
+           " final=", err
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      return
+    end if
+
+    do iter = 1, MAX_ITER
+      call invoke( name = "CG_iterloop_group1",             &
+                   setval_c(Ap, 0.0_r_def),                 &
+                   matrix_vector_kernel_mm_type(Ap, p, mm), &
+                   X_innerproduct_Y(rs_new, p, Ap) )
+
+      alpha = rs_old/rs_new
+
+      call invoke( name = "CG_iterloop_group2",    &
+                   inc_X_plus_bY(lhs, alpha, p),   &
+                   inc_X_minus_bY(res, alpha, Ap), &
+      ! Check for convergence
+                   X_innerproduct_X(err, res) )
+      err = sqrt(rs_new)/sc_err
+
+      write( log_scratch_space, '(A, I2, A, E15.8)' ) &
+           "CG solver_algorithm[", iter, "]: res = ", err
+      call log_event( log_scratch_space, LOG_LEVEL_TRACE )
+      if (err < SOLVER_TOL) then
+        write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
+             "CG solver_algorithm: converged in ", iter,          &
+             " iters, init=", init_err,                           &
+             " final=", err
+        call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+        exit
+      end if
+
+      beta = rs_new/rs_old
+      rs_old = rs_new
+      call invoke( inc_aX_plus_Y(beta, p, res) )
+
+    end do
+
+    if(iter >= MAX_ITER) then
+      write( log_scratch_space, '(A, I3, A, E15.8)' ) &
+           "CG solver_algorithm: NOT converged in", iter, " iters, Res=", err
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine cg_solver_algorithm
+
+!--------------------------------------------------
+
+  !> @brief Jacobi solver for the system A.x = b.
+  !! @details solves A.x = b where the operation A.x is encoded in a kernel using
+  !! a fixed (n_iter) number of iterations. The choice of matrix is
+  !! encoded in the matrix vector kernel that is called. No measure of convergence
+  !! is used instead the algorithm is assumed to have converged sufficiently
+  !! after (n_iter) iterations
+  !! @param[in,out] lhs The answer, x
+  !! @param[in] rhs The input b
+  !! @param[in] mm The mass matrix
+  !! @param[in] mesh The mesh object the model for fields
+  !! @param[in] n_iter The number of Jacobi iterations to perform
+  subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
+
+    implicit none
+
+    integer(kind=i_def), intent(in)    :: n_iter
+    type(field_type),    intent(inout) :: lhs
+    type(field_type),    intent(in)    :: rhs
+    type(operator_type), intent(in)    :: mm
+    type(mesh_type),     intent(in)    :: mesh
+    type(field_type)                   :: Ax, lumped_weight, res
+
+    real(kind=r_def), parameter :: MU = 0.9_r_def
+
+    integer(kind=i_def) :: iter
+    integer(kind=i_def) :: rhs_fs
+    type( function_space_type ) :: fs
+
+    rhs_fs = rhs%which_function_space()
+
+    Ax = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+
+    lumped_weight = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+    res = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+
+    ! Compute mass lump
+    call invoke( name = "Jacobi_mass_lump",                           &
+                 setval_c(Ax, 1.0_r_def),                             &
+                 matrix_vector_kernel_mm_type(lumped_weight, Ax, mm), &
+                 X_divideby_Y(lhs, rhs, lumped_weight) )
+
+    ! Initial guess
+    call invoke( setval_c(lhs, 0.0_r_def) )
+
+    do iter = 1,n_iter
+
+      call invoke( name = "Jacobi_iterloop",                  &
+                   setval_c(Ax, 0.0_r_def),                   &
+                   matrix_vector_kernel_mm_type(Ax, lhs, mm), &
+                   X_minus_Y(res, rhs, Ax),                   &
+                   inc_X_divideby_Y(res, lumped_weight),      &
+                   inc_X_plus_bY(lhs, MU, res) )
+    ! Ready for next iteration
+    end do
+
+  end subroutine jacobi_solver_algorithm
+
+!--------------------------------------------------
+
+  !> @brief GMRes solver for the system A.x = b.
+  !! @details solves A.x = b where the operation A.x is encoded in a kernel using
+  !! GMRes algorithm. The choice of matrix is
+  !! encoded in the matrix vector kernel that is called. No measure of convergence
+  !! is used instead the algorithm is assumed to have converged sufficiently
+  !! after (n_iter) iterations
+  !! @param[in,out] lhs The answer, x
+  !! @param[in] rhs The input b
+  !! @param[in] mm The mass matrix
+  !! @param[in] mesh The mesh object the model for fields
+  subroutine gmres_solver_algorithm(lhs, rhs, mm, mesh)
+
+    use constants_mod, only: GCRK
+
+    implicit none
+
+    type(field_type),    intent(inout) :: lhs
+    type(field_type),    intent(in)    :: rhs
+    type(operator_type), intent(in)    :: mm
+    type(mesh_type),     intent(in)    :: mesh
+    ! The temporary fields
+    type(field_type)                   :: Ax, r, s, w, v(GCRK)
+
+    ! The scalars
+    real(kind=r_def)                   :: h(GCRK+1, GCRK), u(GCRK), g(GCRK+1)
+    real(kind=r_def)                   :: beta, si, ci, nrm, h1, h2, p, q
+    ! Others
+    real(kind=r_def)                   :: err, sc_err, init_err
+    real(kind=r_def)                   :: const
+    integer(kind=i_def)                :: iter, i, j, k, m
+    integer(kind=i_def)                :: rhs_fs
+    type(function_space_type)          :: fs
+
+    rhs_fs = rhs%which_function_space()
+    Ax = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+
+    r  = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+    s  = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+    w   = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+
+    do iter = 1,GCRK
+      v(iter) = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+    end do
+
+    call invoke( X_innerproduct_X(err, rhs) )
+    sc_err = max( sqrt(err), 0.01_r_def )
+    init_err = sc_err
+
+    if (err < SOLVER_TOL) then
+      write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
+           "GMRES solver_algorithm: converged in ", 0,          &
+           " iters, init=", init_err,                           &
+           " final=", err
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      return
+    end if
+
+    call invoke( name = "GMRES_group1",                     &
+                 setval_c(Ax, 0.0_r_def),                   &
+                 matrix_vector_kernel_mm_type(Ax, lhs, mm), &
+                 X_minus_Y(r, rhs, Ax),                     &
+                 setval_X(s, r),                            &
+                 X_innerproduct_X(err, s) )
+
+    beta = sqrt(err)
+
+    const = 1.0_r_def/beta
+    call invoke( a_times_X(v(1), const, s) )
+
+
+    h(:,:) = 0.0_r_def
+    g(:)   = 0.0_r_def
+    g(1)   = beta
+
+    do iter = 1, MAX_ITER
+
+      do j = 1, GCRk
+
+        ! This is the correct settings => call Precon(w,v(:,:,j),pstit,pstcnd)
+        call preconditioner( w, v(j), NO_PRE_COND )
+        call invoke( name = "GMRES_iterloop_group1", &
+                     setval_c(s, 0.0_r_def),         &
+                     matrix_vector_kernel_mm_type(s, w, mm) )
+
+        ! This is the correct settings => call Precon(w,s,preit,precnd)
+        call preconditioner( w, s, NO_PRE_COND )
+
+        do k = 1, j
+          call invoke( X_innerproduct_Y(h(k,j), v(k), w), &
+                       inc_X_minus_bY(w, h(k,j), v(k)) )
+        end do
+        call invoke( X_innerproduct_X(err, w) )
+        h(j+1,j) = sqrt( err )
+        if( j < GCRk ) then
+          const = 1.0_r_def/h(j+1,j)
+          call invoke( a_times_X(v(j+1), const, w) )
+        end if
+      end do
+
+      ! Solve (7.23) of Wesseling (see Saad's book)
+      do m = 1, GCRK
+        nrm    = sqrt( h(m,m)*h(m,m) + h(m+1,m)*h(m+1,m) )
+        si     = h(m+1,m)/nrm
+        ci     = h(m,m)/nrm
+        p      = ci*g(m) + si*g(m+1)
+        q      = -si*g(m) + ci*g(m+1)
+        g(m)   = p
+        g(m+1) = q
+        do j = m, GCRK
+          h1       = ci*h(m,j)   + si*h(m+1,j)
+          h2       =-si*h(m,j)   + ci*h(m+1,j)
+          h(m,j)   = h1
+          h(m+1,j) = h2
+        end do
+      end do
+
+      u(GCRK) = g(GCRK)/h(GCRK,GCRK)
+      do i = GCRK-1, 1, -1
+        u(i) = g(i)
+        do j = i+1, GCRK
+          u(i) = u(i) - h(i,j)*u(j)
+        end do
+        u(i) = u(i)/h(i,i)
+      end do
+
+      do i = 1, GCRK
+        ! This is the correct settings => call Precon(s,v(:,:,i),pstit,pstcnd)
+        call preconditioner( s, v(i), NO_PRE_COND )
+        call invoke( inc_X_plus_bY(lhs, u(i), s) )
+      end do
+
+      ! Check for convergence
+      call invoke( name = "GMRES_iterloop_group2",            &
+                   setval_c(Ax, 0.0_r_def),                   &
+                   matrix_vector_kernel_mm_type(Ax, lhs, mm), &
+                   X_minus_Y(r, rhs, Ax),                     &
+                   X_innerproduct_X(err, r) )
+
+      beta = sqrt(err)
+
+      err = beta/sc_err
+      if( err <  SOLVER_TOL ) then
+        write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
+             "GMRES solver_algorithm: converged in ", iter,       &
+             " iters, init=", init_err,                           &
+             " final=", err
+        call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+        exit
+      end if
+
+      ! This is the correct settings => call Precon(s,r,preit,precnd)
+      call preconditioner( s, r, NO_PRE_COND )
+      const = 1.0_r_def/beta
+      call invoke( a_times_X(v(1), const, s) )
+
+      g(:) = 0.0_r_def
+      g(1) = beta
+
+    end do
+
+    if( iter >= MAX_ITER .and. err >  SOLVER_TOL ) then
+      write( log_scratch_space, '(A, I3, A, E15.8)') &
+           "GMRES solver_algorithm: NOT converged in", iter, " iters, Res=", err
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine gmres_solver_algorithm
+
+!--------------------------------------------------
+
+  !> @brief GCR solver for the system A.x = b.
+  !! @details solves A.x = b where the operation A.x is encoded in a kernel using
+  !! the Preconditioned GCR(k) algorithm from Wesseling. The choice of matrix is
+  !! encoded in the matrix vector kernel that is called. No measure of convergence
+  !! is used instead the algorithm is assumed to have converged sufficiently
+  !! after (n_iter) iterations
+  !! @param[in,out] lhs The answer, x
+  !! @param[in] rhs The input b
+  !! @param[in] mm The mass matrix
+  !! @param[in] mesh The mesh object the model for fields
+  subroutine gcr_solver_algorithm(lhs, rhs, mm, mesh)
+
+    use constants_mod, only: GCRK
+
+    implicit none
+
+    type(field_type),    intent(inout) :: lhs
+    type(field_type),    intent(in)    :: rhs
+    type(operator_type), intent(in)    :: mm
+    type(mesh_type),     intent(in)    :: mesh
+
+    ! The temporary fields
+    type(field_type)                   :: Ax, r, s(GCRK), v(GCRK)
+
+    ! The scalars
+    real(kind=r_def)                   :: alpha
+    ! Others
+    real(kind=r_def)                   :: err, sc_err, init_err
+    real(kind=r_def)                   :: const
+    integer(kind=i_def)                :: iter, m, n
+    integer(kind=i_def)                :: rhs_fs
+    type(function_space_type)          :: fs
+
+    rhs_fs = rhs%which_function_space()
+
+    Ax = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+
+    r  = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+
+    do iter = 1,GCRK
+      s(iter)  = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+
+      v(iter)  = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+    end do
+    call invoke( X_innerproduct_X(err, rhs) )
+    sc_err = max( sqrt(err), 0.01_r_def )
+    init_err = sc_err
+
+    if (err < SOLVER_TOL) then
+      write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
+           "GCR solver_algorithm: converged in ", 0,            &
+           " iters, init=", init_err,                           &
+           " final=", err
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      return
+    end if
+
+    call invoke( name = "GCR_group1",                       &
+                 setval_c(Ax, 0.0_r_def),                   &
+                 matrix_vector_kernel_mm_type(Ax, lhs, mm), &
+                 X_minus_Y(r, rhs, Ax) )
+
+    do iter = 1, MAX_ITER
+      do m = 1, GCRk
+        ! This is the correct settings -> call Precon(s(:,:,m),r,prit,prec)
+        call preconditioner( s(m), r, NO_PRE_COND )
+
+        call invoke( name = "GCR_iterloop_group1", &
+                     setval_c(v(m), 0.0_r_def),    &
+                     matrix_vector_kernel_mm_type(v(m), s(m), mm) )
+
+        do n = 1, m-1
+          call invoke( name = "GCR_iterloop_group2",        &
+                       X_innerproduct_Y(alpha, v(m), v(n)), &
+                       inc_X_minus_bY(v(m), alpha, v(n)),   &
+                       inc_X_minus_bY(s(m), alpha, s(n)) )
+        end do
+        call invoke( X_innerproduct_X(err, v(m)) )
+
+        alpha = sqrt(err)
+        const = 1.0_r_def/alpha
+        call invoke( name = "GCR_iterloop_group3",     &
+                     inc_a_times_X(const, v(m)),       &
+                     inc_a_times_X(const, s(m)),       &
+                     X_innerproduct_Y(alpha, r, v(m)), &
+                     inc_X_plus_bY(lhs, alpha, s(m)), &
+                     inc_X_minus_bY(r, alpha, v(m)) )
+      end do
+
+      call invoke( X_innerproduct_X(err, r) )
+      err = sqrt( err )/sc_err
+      if( err <  SOLVER_TOL ) then
+        write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
+             "GCR solver_algorithm: converged in ", iter,         &
+             " iters, init=", init_err,                           &
+             " final=", err
+        call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+        exit
+      end if
+    end do
+
+    if( iter >= MAX_ITER .and. err >  SOLVER_TOL ) then
+      write( log_scratch_space, '(A, I3, A, E15.8)' ) &
+           "GCR solver_algorithm: NOT converged in", iter, " iters, Res=", err
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine gcr_solver_algorithm
+
+!--------------------------------------------------
+
+  !> @brief Applies a selected prconditioner to a vector x
+  !! @details Applies one of s number of preconditioners to a field x
+  !! and returns the preconditioned field y. Currently no preconditioner
+  !! is applied and y = x.
+  !! @param[in,out] y The output field
+  !! @param[in] x The input field
+  !! @param[in] pre_cond_type The type of preconditioner to be used
+  !!
+  subroutine preconditioner(y, x, pre_cond_type)
+
+    use constants_mod, only: DIAGONAL_PRE_COND
+
+    implicit none
+
+    type(field_type),    intent(inout) :: y
+    type(field_type),    intent(in)    :: x
+    integer(kind=i_def), intent(in)    :: pre_cond_type
+
+    select case ( pre_cond_type )
+      case ( DIAGONAL_PRE_COND )
+        ! Diagonal preconditioner
+        write( log_scratch_space, '(A)' ) &
+             "Diagonal preconditioner not implemented yet"
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      case default
+        ! Default - do nothing
+        call invoke( setval_X(y, x) )
+    end select
+
+    return
+  end subroutine preconditioner
+
+end module solver_mod

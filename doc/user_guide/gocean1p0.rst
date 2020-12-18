@@ -74,9 +74,7 @@ Grid
 ++++
 
 The GOLib contains a ``grid_mod`` module which defines a ``grid_type``
-and associated constructor:
-
-::
+and associated constructor::
 
   use grid_mod
   ...
@@ -143,9 +141,7 @@ The ``grid_init`` Routine
 
 Once an application has determined the details of the model
 configuration, it must use this information to populate the grid
-object. This is done via a call to the ``grid_init`` subroutine:
-
-::
+object. This is done via a call to the ``grid_init`` subroutine::
 
   subroutine grid_init(grid, m, n, dxarg, dyarg, tmask)
     !> The grid object to configure
@@ -172,9 +168,7 @@ Fields
 Once a model has a grid defined it will require one or more
 fields. The GOLib contains a ``field_mod`` module which defines an
 ``r2d_field`` type (real, 2-dimensional field) and associated
-constructor:
-
-::
+constructor::
 
   use field_mod
   ...
@@ -207,10 +201,8 @@ follows we will walk through a slightly cut-down example for a
 different program.
 
 The following code illustrates the use of the GOLib in constructing an
-application:
+application::
 
-::
-   
    program gocean2d
      use grid_mod  ! From dl_esm_inf
      use field_mod ! From dl_esm_inf
@@ -264,9 +256,7 @@ application:
 
 The ``model_init`` routine is application specific since it must
 determine details of the model configuration being run, *e.g.* by
-reading a namelist file. An example might look something like:
-
-::
+reading a namelist file. An example might look something like::
 
    subroutine model_init(grid)
      type(grid_type), intent(inout) :: grid
@@ -321,9 +311,7 @@ version 1.0 of the GOcean library (see :ref:`gocean1.0-library`).
 Invokes
 +++++++
 
-The Kernels to call are specified through the use of Invokes, e.g.:
-
-::
+The Kernels to call are specified through the use of Invokes, e.g.::
 
   call invoke( kernel1(field1, field2),                      &
                kernel2(field1, field3)                       &
@@ -346,10 +334,7 @@ The kernel arguments are typically field objects, as described in the
 quantities (real or integer).
 
 In the example ``gocean2d`` program shown earlier, there is only one
-Invoke call and it is contained within the ``step`` subroutine:
-
-
-::
+Invoke call and it is contained within the ``step`` subroutine::
 
    subroutine step(istp,                   &
                    ua, va, un, vn,         &
@@ -407,9 +392,7 @@ The metadata for a GOcean 1.0 API kernel has four components:
  3) 'index_offset' and
  4) 'procedure':
 
-These are illustrated in the code below:
-
-::
+These are illustrated in the code below::
 
   type, extends(kernel_type) :: my_kernel_type
      type(go_arg), dimension(...) :: meta_args = (/ ... /)
@@ -437,9 +420,7 @@ and **grid properties** passed into the Kernel.
 
 For example, if there are a total of two **field** entities being passed
 to the Kernel then the meta_args array will be of size 2 and there
-will be two entries of type ``GO_arg``:
-
-::
+will be two entries of type ``GO_arg``::
 
   type(GO_arg) :: meta_args(2) = (/                                  &
        go_arg( ... ),                                                &
@@ -453,10 +434,7 @@ property**.
 The first argument-metadata entry describes how the kernel will access
 the corresponding argument. As an example, the following ``meta_args``
 metadata describes four entries, the first one is written to by the
-kernel while the remaining three are only read.
-
-
-::
+kernel while the remaining three are only read::
 
   type(go_arg) :: meta_args(4) = (/                               &
        go_arg(GO_WRITE, ... ),                                    &
@@ -483,9 +461,7 @@ Finally, grid-property entries are used to specify any properties of
 the grid required by the kernel (*e.g.* the area of cells at U points or
 whether T points are wet or dry).
 
-For example:
-
-::
+For example::
 
   type(go_arg) :: meta_args(4) = (/                                  &
        go_arg(GO_WRITE, GO_CT, ... ),                                &
@@ -502,31 +478,36 @@ The full list of supported grid properties in the GOcean 1.0 API is:
 
 .. _gocean1.0-grid-props:
 
-=================== =============================  ====================
-Name                Description                    Type
-=================== =============================  ====================
-go_grid_area_t      Cell area at T point           Real array, rank=2
-go_grid_area_u      Cell area at U point           Real array, rank=2
-go_grid_area_v      Cell area at V point           Real array, rank=2
-go_grid_mask_t      T-point mask (1=wet, 0=dry)    Integer array, rank=2
-go_grid_dx_t        Grid spacing in x at T points  Real array, rank=2
-go_grid_dx_u        Grid spacing in x at U points  Real array, rank=2
-go_grid_dx_v        Grid spacing in x at V points  Real array, rank=2
-go_grid_dy_t        Grid spacing in y at T points  Real array, rank=2
-go_grid_dy_u        Grid spacing in y at U points  Real array, rank=2
-go_grid_dy_v        Grid spacing in y at V points  Real array, rank=2
-go_grid_lat_u       Latitude of U points (gphiu)   Real array, rank=2
-go_grid_lat_v       Latitude of V points (gphiv)   Real array, rank=2
-go_grid_dx_const    Grid spacing in x if constant  Real, scalar
-go_grid_dy_const    Grid spacing in y if constant  Real, scalar
-go_grid_x_min_index Minimum X index                Integer, scalar
-go_grid_x_max_index Maximum X index                Integer, scalar
-go_grid_y_min_index Minimum Y index                Integer, scalar
-go_grid_y_max_index Maximum Y index                Integer, scalar
-=================== =============================  ====================
+.. table:: Grid Properties Table
 
-These are stored in a dictionary named ``GRID_PROPERTY_DICT`` at the
-top of the ``gocean1p0.py`` file. All of the rank-two arrays have the
+    =================== =============================  ====================
+    Name                Description                    Type
+    =================== =============================  ====================
+    go_grid_area_t      Cell area at T point           Real array, rank=2
+    go_grid_area_u      Cell area at U point           Real array, rank=2
+    go_grid_area_v      Cell area at V point           Real array, rank=2
+    go_grid_mask_t      T-point mask (1=wet, 0=dry)    Integer array, rank=2
+    go_grid_dx_t        Grid spacing in x at T points  Real array, rank=2
+    go_grid_dx_u        Grid spacing in x at U points  Real array, rank=2
+    go_grid_dx_v        Grid spacing in x at V points  Real array, rank=2
+    go_grid_dy_t        Grid spacing in y at T points  Real array, rank=2
+    go_grid_dy_u        Grid spacing in y at U points  Real array, rank=2
+    go_grid_dy_v        Grid spacing in y at V points  Real array, rank=2
+    go_grid_lat_u       Latitude of U points (gphiu)   Real array, rank=2
+    go_grid_lat_v       Latitude of V points (gphiv)   Real array, rank=2
+    go_grid_dx_const    Grid spacing in x if constant  Real, scalar
+    go_grid_dy_const    Grid spacing in y if constant  Real, scalar
+    go_grid_x_min_index Minimum X index                Integer, scalar
+    go_grid_x_max_index Maximum X index                Integer, scalar
+    go_grid_y_min_index Minimum Y index                Integer, scalar
+    go_grid_y_max_index Maximum Y index                Integer, scalar
+    =================== =============================  ====================
+
+These are defined in the psyclone config file (see
+:ref:`gocean1.0-configuration`), and the user or infrastructure
+library developer can provide additional entries if required.
+PSyclone will query PSyclone's Configuration class to get the
+properties required. All of the rank-two arrays have the
 first rank as longitude (*x*) and the second as latitude (*y*).
 
 Scalars and fields contain a third argument-metadata entry which
@@ -535,9 +516,7 @@ a stencil. The value ``GO_POINTWISE`` indicates that there is no stencil
 access. Metadata for a scalar field is limited to this value.
 Grid-property arguments have no third metadata argument. If there
 are no stencil accesses then the full argument metadata for our
-previous example will be:
-
-::
+previous example will be::
 
   type(go_arg) :: meta_args(4) = (/                            &
        go_arg(GO_WRITE, GO_CT,       GO_POINTWISE),            &
@@ -552,9 +531,7 @@ access is only allowed for a field that is ``READ`` by a kernel.
 
 In the GOcean API, fields are implemented as two-dimensional
 arrays. In Fortran, a standard 5-point stencil would look something
-like the following:
-
-::
+like the following::
    
    a(i,j) + a(i+1,j) + a(i-1,j) + a(i,j+1) + a(i,j-1)
 
@@ -564,9 +541,7 @@ access we get ``(0,0), (1,0), (-1,0), (0,1), (0,-1)``. If we then view
 these accesses in graphical form with ``i`` being in the horizontal
 direction and ``j`` in the vertical and with a ``1`` indicating a
 (depth-1) access and a ``0`` indicating there is no access we get the
-following:
-
-::
+following::
    
    010
    111
@@ -582,15 +557,11 @@ i.e.
 
 So far we have only considered depth-1 stencils. In our notation
 the depth of access is captured by the integer value (``0`` for no
-access, ``1`` for depth 1, ``2`` for depth 2 etc). For example:
-
-::
+access, ``1`` for depth 1, ``2`` for depth 2 etc). For example::
 
    a(i,j) + a(i,j+1) + a(i,j+2)
 
-would be captured as:
-
-::
+would be captured as::
 
    go_stencil(020,010,000)
 
@@ -634,9 +605,7 @@ model configuration:
 ``GO_INTERNAL_PTS`` are then those points that are within the Model
 domain (fuscia box), ``GO_EXTERNAL_PTS`` are those outside the domain and
 ``GO_ALL_PTS`` encompasses all grid points in the model. The chosen value
-is specified in the kernel-meta data like so:
-
-::
+is specified in the kernel-meta data like so::
 
   integer :: iterates_over = GO_INTERNAL_PTS
 
@@ -655,9 +624,7 @@ Section for a description).
 
 The GOcean 1.0 API supports two different offset schemes;
 ``GO_OFFSET_NE``, ``GO_OFFSET_SW``. The scheme used by a kernel is specified
-in the metadata as, e.g.:
-
-::
+in the metadata as, e.g.::
 
   integer :: index_offset = GO_OFFSET_NE
 
@@ -672,9 +639,7 @@ The fourth and final type of metadata is ``procedure`` metadata. This
 specifies the name of the Kernel Fortran subroutine that this metadata
 describes.
 
-For example:
-
-::
+For example::
 
   procedure :: my_kernel_code
 
@@ -704,9 +669,7 @@ rules, along with PSyclone's naming conventions, are:
    the kernel.
 
 As an example, consider the ``bc_solid_u`` kernel that is used in the
-``gocean2d`` program shown earlier. The metadata for this kernel is:
-
-::
+``gocean2d`` program shown earlier. The metadata for this kernel is::
 
    type, extends(kernel_type) :: bc_solid_u
      type(go_arg), dimension(2) :: meta_args =  &
@@ -726,9 +689,7 @@ As an example, consider the ``bc_solid_u`` kernel that is used in the
   end type bc_solid_u
 
 The interface to the subroutine containing the implementation of this
-kernel is:
-
-::
+kernel is::
    
   subroutine bc_solid_u_code(ji, jj, ua, tmask)
     integer,                  intent(in)    :: ji, jj
@@ -742,8 +703,7 @@ is the T-point mask. The latter is a property of the grid and is
 provided to the kernel call from the PSy Layer.
 
 Comparing this interface definition with the use of the kernel in the
-Invoke call:
-::
+Invoke call::
 
    call invoke ( ...,            &
                  bc_solid_u(ua), &
@@ -781,9 +741,7 @@ The configuration file (see :ref:`configuration`) used by PSyclone
 can contain GOcean 1.0 specific options. For example, after the
 default section the GOcean 1.0 specific section looks like this:
 
-.. highlight:: none
-
-::
+.. code-block:: none
 
     [gocean1.0]
     iteration-spaces=offset_sw:ct:test_only:1:2:3:4
@@ -791,7 +749,7 @@ default section the GOcean 1.0 specific section looks like this:
 
 The supported keys are listed in the next section.
 
-.. highlight:: fortran
+.. _gocean1.0-configuration-iteration-spaces:
 
 Iteration-spaces
 +++++++++++++++++
@@ -838,6 +796,80 @@ For example, given the iteration-spaces declaration above, a kernel declared wit
     compilation will fail. It is the responsibility of the user to make sure that
     valid loop boundaries are specified in a new iteration space definition.
 
+.. _gocean1.0-configuration-grid-properties:
+
+Grid Properties
++++++++++++++++
+Various grid properties can be specified as parameters to a kernel.
+The actual names and meaning of these properties depend on the
+infrastructure library used. By default PSyclone provides settings
+for the dl_esm_inf infrastructure library. But the user or a library
+developer can change or add definitions to the configuration file as
+required.
+
+The grid properties are specified as values for the key
+``grid-properties``. They consist of three entries, separated by ":".
+
+- The first entry is the name of the property as used in kernel metadata.
+
+- The next entry is the way of dereferencing the corresponding value in
+  Fortran. The expression ``{0}`` is replaced with the field name that
+  is used. Note that any ``%`` must be replaced with ``%%`` (due to the
+  way Python reads in configuration files).
+
+- The last entry specifies whether the value is an ``array`` or a ``scalar``. 
+
+Below an excerpt from the configuration file that is distributed
+with PSyclone:
+
+.. code-block:: none
+
+    grid-properties = go_grid_xstop: {0}%%grid%%subdomain%%internal%%xstop: scalar,
+                      go_grid_ystop: {0}%%grid%%subdomain%%internal%%ystop: scalar,
+                      go_grid_data: {0}%%data: array,
+                      go_grid_internal_inner_stop: {0}%%internal%%xstop: scalar,
+                      go_grid_internal_outer_stop: {0}%%internal%%ystop: scalar,
+                      go_grid_whole_inner_stop: {0}%%whole%%xstop: scalar,
+                      go_grid_whole_outer_stop: {0}%%whole%%ystop: scalar,
+    ...
+
+Most of the property names can be set arbitrarily by the user (to match whatever
+infrastructure library is being used), but PSyclone relies on a
+small number of properties that must be defined with the right name:
+
++-------------------------------+--------------------------------------------------+
+| Key                           | Description                                      |
++-------------------------------+--------------------------------------------------+
+| go_grid_data                  | This property gives access to the raw 2d-field.  |
++-------------------------------+--------------------------------------------------+
+| go_grid_xstop,                | These values specify the upper loop boundary     |
+| go_grid_ystop                 | when computing the constant loop boundaries.     |
++-------------------------------+--------------------------------------------------+
+| | go_grid_{internal,whole}    | These eight values are required to               |
+| | _{inner,outer}_{start,stop} | specify the loop boundaries depending on the     |
+|                               | field space.                                     |
++-------------------------------+--------------------------------------------------+
+| go_grid_nx,                   | These properties are only required when OpenCL   |
+| go_grid_ny                    | is enabled. They specify the overall array       |
+|                               | size (including any padding that the             |
+|                               | infrastructure library might implement).         |
++-------------------------------+--------------------------------------------------+
+
+Debug Mode
+++++++++++
+
+The GOcean configuration also includes a boolean parameter to enable or disable
+the generation of additional code which may impact performance but is useful
+for debugging the application. By default it is set to False, but it can be
+changed by updating the following line in the configuration file:
+
+.. code-block:: none
+
+    [gocean1.0]
+    DEBUG_MODE = true
+
+Currently, only the OpenCL Invokes generate additional debugging code.
+
 Transformations
 ---------------
 
@@ -847,7 +879,7 @@ In this section we describe the transformations that are specific to
 the GOcean 1.0 API. For an overview of transformations in general see
 :ref:`transformations`.
 
-.. autoclass:: psyclone.transformations.GOceanExtractRegionTrans
+.. autoclass:: psyclone.domain.gocean.transformations.GOceanExtractTrans
     :members:
     :noindex:
 

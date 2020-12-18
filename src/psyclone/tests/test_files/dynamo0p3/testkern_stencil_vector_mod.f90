@@ -1,6 +1,6 @@
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,52 +31,53 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 module testkern_stencil_vector_mod
 
   use argument_mod
+  use fs_continuity_mod
   use kernel_mod
   use constants_mod
 
   implicit none
 
   type, extends(kernel_type) :: testkern_stencil_vector_type
-     type(arg_type), dimension(2) :: meta_args =                     &
-          (/ arg_type(gh_field*3,gh_inc,w0),                         &
-             arg_type(gh_field*4,gh_read, w3, stencil(cross))        &
+     type(arg_type), dimension(2) :: meta_args =               &
+          (/ arg_type(gh_field*3, gh_inc,  w0),                &
+             arg_type(gh_field*4, gh_read, w3, stencil(cross)) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: code => testkern_stencil_vector_code
   end type testkern_stencil_vector_type
 
 contains
 
-  subroutine testkern_stencil_vector_code(nlayers, field_1_w0_v1, &
-       field_1_w0_v2, field_1_w0_v3, field_2_w3_v1, field_2_w3_v2,&
-       field_2_w3_v3, field_2_w3_v4, field_2_stencil_size,        &
-       field_2_stencil_dofmap, ndf_w0, undf_w0, map_w0, ndf_w3,   &
-       undf_w3, map_w3)
+  subroutine testkern_stencil_vector_code(                &
+                      nlayers, fld1_v1, fld1_v2, fld1_v3, &
+                      fld2_v1, fld2_v2, fld2_v3, fld2_v4, &
+                      fld2_st_size, fld2_st_dofmap,       &
+                      ndf_w0, undf_w0, map_w0,            &
+                      ndf_w3, undf_w3, map_w3)
 
-      USE constants_mod, ONLY: r_def
+    implicit none
 
-      IMPLICIT NONE
-
-      INTEGER, intent(in) :: nlayers
-      INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
-      INTEGER, intent(in) :: ndf_w3
-      INTEGER, intent(in), dimension(ndf_w3) :: map_w3
-      INTEGER, intent(in) :: undf_w0, undf_w3
-      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: field_1_w0_v1
-      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: field_1_w0_v2
-      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: field_1_w0_v3
-      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3_v1
-      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3_v2
-      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3_v3
-      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3_v4
-      INTEGER, intent(in) :: field_2_stencil_size
-      INTEGER, intent(in), dimension(ndf_w3,field_2_stencil_size) :: field_2_stencil_dofmap
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w0
+    integer(kind=i_def), intent(in) :: ndf_w3
+    integer(kind=i_def), intent(in) :: undf_w0, undf_w3
+    integer(kind=i_def), intent(in) :: fld2_st_size
+    integer(kind=i_def), intent(in), dimension(ndf_w0) :: map_w0
+    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
+    integer(kind=i_def), intent(in), dimension(ndf_w3,fld2_st_size) :: fld2_st_dofmap
+    real(kind=r_def), intent(inout), dimension(undf_w0) :: fld1_v1
+    real(kind=r_def), intent(inout), dimension(undf_w0) :: fld1_v2
+    real(kind=r_def), intent(inout), dimension(undf_w0) :: fld1_v3
+    real(kind=r_def), intent(in), dimension(undf_w3)    :: fld2_v1
+    real(kind=r_def), intent(in), dimension(undf_w3)    :: fld2_v2
+    real(kind=r_def), intent(in), dimension(undf_w3)    :: fld2_v3
+    real(kind=r_def), intent(in), dimension(undf_w3)    :: fld2_v4
 
   end subroutine testkern_stencil_vector_code
 

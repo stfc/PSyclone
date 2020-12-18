@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,16 +42,43 @@ from __future__ import print_function, absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
-from psyclone.transformations import TransformationError
+from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.nodes import Loop
+from psyclone.errors import GenerationError
 
 
 # The PSyclone API under test
 API = "nemo"
 
 
+def test_missing_enclosing_region(parser):
+    ''' Check that applying the loop transformation to code without
+    any enclosing parallel or kernels region results in a
+    code-generation error. '''
+    reader = FortranStringReader("program do_loop\n"
+                                 "integer :: ji\n"
+                                 "integer, parameter :: jpj=64\n"
+                                 "real :: sto_tmp(jpj)\n"
+                                 "do ji = 1,jpj\n"
+                                 "  sto_tmp(ji) = 1.0d0\n"
+                                 "end do\n"
+                                 "end program do_loop\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
+    schedule, _ = acc_trans.apply(schedule[0])
+    with pytest.raises(GenerationError) as err:
+        str(psy.gen)
+    assert ("ACCLoopDirective must have an ACCParallelDirective or "
+            "ACCKernelsDirective as an ancestor" in str(err.value))
+
+
 def test_explicit_loop(parser):
     ''' Check that we can apply the transformation to an explicit loop. '''
     reader = FortranStringReader("program do_loop\n"
+                                 "integer :: ji\n"
+                                 "integer, parameter :: jpj=13\n"
                                  "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
                                  "do ji = 1,jpj\n"
                                  "  sto_tmp(ji) = 1.0d0\n"
@@ -64,11 +91,17 @@ def test_explicit_loop(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0])
-    schedule, _ = acc_trans.apply(schedule.children[1], independent=False)
+    para_trans = TransInfo().get_trans_name('ACCParallelTrans')
+    para_trans.apply(schedule.children)
+    schedule, _ = acc_trans.apply(schedule[0].dir_body[0])
+    schedule, _ = acc_trans.apply(schedule[0].dir_body[1],
+                                  {"independent": False})
     code = str(psy.gen)
     assert ("PROGRAM do_loop\n"
+            "  INTEGER :: ji\n"
+            "  INTEGER, PARAMETER :: jpj = 13\n"
             "  REAL :: sto_tmp(jpj), sto_tmp2(jpj)\n"
+            "  !$ACC PARALLEL\n"
             "  !$ACC LOOP INDEPENDENT\n"
             "  DO ji = 1, jpj\n"
             "    sto_tmp(ji) = 1.0D0\n"
@@ -77,10 +110,13 @@ def test_explicit_loop(parser):
             "  DO ji = 1, jpj\n"
             "    sto_tmp2(ji) = 1.0D0\n"
             "  END DO\n"
+            "  !$ACC END PARALLEL\n"
             "END PROGRAM do_loop" in code)
 
 
 SINGLE_LOOP = ("program do_loop\n"
+               "integer :: ji\n"
+               "integer, parameter :: jpj=12\n"
                "real(kind=wp) :: sto_tmp(jpj)\n"
                "do ji = 1,jpj\n"
                "  sto_tmp(ji) = 1.0d0\n"
@@ -88,6 +124,8 @@ SINGLE_LOOP = ("program do_loop\n"
                "end program do_loop\n")
 
 DOUBLE_LOOP = ("program do_loop\n"
+               "integer :: ji, jj\n"
+               "integer, parameter :: jpi=16, jpj=16\n"
                "real(kind=wp) :: sto_tmp(jpi, jpj)\n"
                "do jj = 1,jpj\n"
                "  do ji = 1,jpi\n"
@@ -105,9 +143,14 @@ def test_seq_loop(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0], sequential=True)
+    # An ACC Loop must be within a KERNELS or PARALLEL region
+    kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    kernels_trans.apply(schedule.children)
+    loops = schedule[0].walk(Loop)
+    _ = acc_trans.apply(loops[0], {"sequential": True})
     code = str(psy.gen)
     assert ("  REAL(KIND = wp) :: sto_tmp(jpj)\n"
+            "  !$ACC KERNELS\n"
             "  !$ACC LOOP SEQ\n"
             "  DO ji = 1, jpj\n" in code)
 
@@ -120,9 +163,14 @@ def test_collapse(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0], collapse=2)
+    # An ACC Loop must be within a KERNELS or PARALLEL region
+    kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    kernels_trans.apply(schedule.children)
+    loops = schedule[0].walk(Loop)
+    schedule, _ = acc_trans.apply(loops[0], {"collapse": 2})
     code = str(psy.gen)
     assert ("  REAL(KIND = wp) :: sto_tmp(jpi, jpj)\n"
+            "  !$ACC KERNELS\n"
             "  !$ACC LOOP INDEPENDENT COLLAPSE(2)\n"
             "  DO jj = 1, jpj\n"
             "    DO ji = 1, jpi\n" in code)
@@ -138,6 +186,6 @@ def test_collapse_err(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
     with pytest.raises(TransformationError) as err:
-        _, _ = acc_trans.apply(schedule.children[0], collapse=3)
+        _, _ = acc_trans.apply(schedule.children[0], {"collapse": 3})
     assert ("Cannot apply COLLAPSE(3) clause to a loop nest containing "
-            "only 2 loops" in str(err))
+            "only 2 loops" in str(err.value))

@@ -49,8 +49,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u"PSyclone Developers' Guide"
-copyright = u'2017-2019, STFC Daresbury Laboratory'
+project = u"PSyclone Developer Guide"
+copyright = u'2017-2020, STFC Daresbury Laboratory'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -210,8 +210,9 @@ latex_elements = {
 # (source start file, target name, title, author,
 #  documentclass [howto/manual]).
 latex_documents = [
-    ('index', 'psyclone-dev.tex', u"PSyclone Developers' Guide",
-     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter\\\\ and Sergi Siso', 'manual'),
+    ('index', 'psyclone-dev.tex', u"PSyclone Developer Guide",
+     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter\\\\ and Sergi '
+     'Siso', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -240,8 +241,9 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'psyclone-dev', u"PSyclone Developers' Guide",
-     [u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso'], 1)
+    ('index', 'psyclone-dev', u"PSyclone Developer Guide",
+     [u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi '
+      'Siso'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -254,7 +256,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    ('index', 'psyclone-dev', u"PSyclone Developers' Guide",
+    ('index', 'psyclone-dev', u"PSyclone Developer Guide",
      u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso',
      'psyclone',
      'A domain-specific compiler for Finite-Element/Volume/Difference models.',
@@ -274,10 +276,12 @@ texinfo_documents = [
 # -- Options for Epub output -------------------------------------------------
 
 # Bibliographic Dublin Core info.
-epub_title = u"PSyclone Developers' Guide"
-epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso'
-epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso'
-epub_copyright = u'2017-2019, STFC'
+epub_title = u"PSyclone Developer Guide"
+epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and ' \
+    'Sergi Siso'
+epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter ' \
+    'and Sergi Siso'
+epub_copyright = u'2017-2020, STFC'
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.

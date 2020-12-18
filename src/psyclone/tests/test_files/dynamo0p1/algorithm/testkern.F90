@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 module testkern
+  use argument_mod
   type, extends(kernel_type) :: testkern_type
      type(arg_type), dimension(3) :: meta_args =    &
           (/ arg_type(gh_rw,v1,fe,.false.,.false.,.false.,.false.), &

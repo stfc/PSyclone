@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,11 @@
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, \
-    CodedKern, Arguments, Argument, GenerationError, Literal, Reference, \
+from psyclone.psyir.nodes import Loop, Literal, Reference, ArrayReference, \
     Schedule
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
+    CodedKern, Arguments, Argument, GenerationError
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 
@@ -152,7 +154,7 @@ class DynamoPSy(PSy):
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
-        self._invokes = DynamoInvokes(invoke_info.calls)
+        self._invokes = DynamoInvokes(invoke_info.calls, self)
 
     @property
     def gen(self):
@@ -171,18 +173,15 @@ class DynamoPSy(PSy):
         psy_module.add(lfric_use)
         # add all invoke specific information
         self.invokes.gen_code(psy_module)
-        # inline kernel subroutines if requested
-        self.inline(psy_module)
         return psy_module.root
 
 
 class DynamoInvokes(Invokes):
     ''' The Dynamo specific invokes class. This passes the Dynamo specific
         invoke class to the base class so it creates the one we require. '''
-    def __init__(self, alg_calls):
-        if False:
-            self._0_to_n = DynInvoke(None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, DynInvoke)
+    def __init__(self, alg_calls, psy):
+        self._0_to_n = DynInvoke(None, None, None)  # for pyreverse
+        Invokes.__init__(self, alg_calls, DynInvoke, psy)
 
 
 class DynInvoke(Invoke):
@@ -190,10 +189,9 @@ class DynInvoke(Invoke):
         schedule class to the base class so it creates the one we require.
         Also overrides the gen_code method so that we generate dynamo
         specific invocation code. '''
-    def __init__(self, alg_invocation, idx):
-        if False:
-            self._schedule = DynInvokeSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule)
+    def __init__(self, alg_invocation, idx, invokes):
+        self._schedule = DynInvokeSchedule(None)  # for pyreverse
+        Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule, invokes)
 
     def gen_code(self, parent):
         ''' Generates Dynamo specific invocation code (the subroutine called
@@ -217,9 +215,9 @@ class DynInvokeSchedule(InvokeSchedule):
     ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo
         specific loop and infrastructure classes to the base class so it
         creates the ones we require. '''
-    def __init__(self, arg):
+    def __init__(self, arg, reserved_names=None):
         InvokeSchedule.__init__(self, DynKernCallFactory,
-                                DynBuiltInCallFactory, arg)
+                                DynBuiltInCallFactory, arg, reserved_names)
 
 
 class DynLoop(Loop):
@@ -234,16 +232,30 @@ class DynLoop(Loop):
 
         # Work out the variable name from  the loop type
         if self._loop_type == "colours":
-            self._variable_name = "colour"
+            tag = "colours_loop_idx"
+            suggested_name = "colour"
         elif self._loop_type == "colour":
-            self._variable_name = "cell"
+            tag = "colour_loop_idx"
+            suggested_name = "cell"
         else:
-            self._variable_name = "cell"
+            tag = "cell_loop_idx"
+            suggested_name = "cell"
+
+        symtab = self.scope.symbol_table
+        try:
+            data_symbol = symtab.lookup_with_tag(tag)
+        except KeyError:
+            name = symtab.new_symbol_name(suggested_name)
+            data_symbol = DataSymbol(name, INTEGER_TYPE)
+            symtab.add(data_symbol, tag=tag)
+        self.variable = data_symbol
 
         # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", parent=self))  # stop
-        self.addchild(Literal("1", parent=self))  # step
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
+                              parent=self))  # start
+        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
+                              parent=self))  # stop
+        self.addchild(Literal("1", INTEGER_TYPE, parent=self))  # step
         self.addchild(Schedule(parent=self))  # loop body
 
     def load(self, kern):
@@ -257,15 +269,23 @@ class DynLoop(Loop):
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and then call the base
             class to generate the code '''
-        self.start_expr = Literal("1", parent=self)
+        self.start_expr = Literal("1", INTEGER_TYPE, parent=self)
         if self._loop_type == "colours":
-            self.stop_expr = Reference("ncolour", parent=self)
-        elif self._loop_type == "colour":
-            self.stop_expr = ArrayReference("ncp_ncolour", parent=self)
-            self.stop_expr.addchild(Reference("colour"), parent=self.stop_expr)
-        else:
-            self.stop_expr = Reference(self.field_name+"%get_ncell()",
+            self.stop_expr = Reference(DataSymbol("ncolour", INTEGER_TYPE),
                                        parent=self)
+        elif self._loop_type == "colour":
+            self.stop_expr = ArrayReference(DataSymbol("ncp_ncolour",
+                                                       INTEGER_TYPE),
+                                            parent=self)
+            self.stop_expr.addchild(
+                Reference(DataSymbol("colour", INTEGER_TYPE)),
+                parent=self.stop_expr)
+        else:
+            # This is a hack as the name is not a valid DataSymbol, it
+            # is a call to a type-bound function.
+            self.stop_expr = Reference(
+                DataSymbol(self.field_name+"%get_ncell()", INTEGER_TYPE),
+                parent=self)
         Loop.gen_code(self, parent)
 
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,16 +32,22 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by A. R. Porter and R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.c module'''
 
+from __future__ import absolute_import
+
 import pytest
-from psyclone.psyir.backend.base import VisitorError
+
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
-from psyclone.psyGen import Symbol, Node, CodeBlock, Assignment, Reference, \
-    Return, Array, Literal, UnaryOperation, BinaryOperation, Schedule
+from psyclone.psyir.nodes import Node, CodeBlock, Assignment, \
+    Reference, Return, ArrayReference, Literal, UnaryOperation, \
+    BinaryOperation, Schedule
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
+    ArrayType, REAL_TYPE, INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE
 
 
 def test_cw_gen_declaration():
@@ -52,27 +58,31 @@ def test_cw_gen_declaration():
     cwriter = CWriter()
 
     # Basic entries
-    symbol = Symbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", INTEGER_TYPE)
     result = cwriter.gen_declaration(symbol)
     assert result == "int dummy1"
 
-    symbol = Symbol("dummy1", "character")
+    symbol = DataSymbol("dummy1", CHARACTER_TYPE)
     result = cwriter.gen_declaration(symbol)
     assert result == "char dummy1"
 
-    symbol = Symbol("dummy1", "boolean")
+    symbol = DataSymbol("dummy1", BOOLEAN_TYPE)
     result = cwriter.gen_declaration(symbol)
     assert result == "bool dummy1"
 
     # Array argument
-    symbol = Symbol("dummy2", "real", shape=[2, None, 2],
-                    interface=Symbol.Argument(access=Symbol.Access.READ))
+    array_type = ArrayType(REAL_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
+    symbol = DataSymbol("dummy2", array_type,
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READ))
     result = cwriter.gen_declaration(symbol)
     assert result == "double * restrict dummy2"
 
-    # Array with unknown intent
-    symbol = Symbol("dummy2", "integer", shape=[2, None, 2],
-                    interface=Symbol.Argument(access=Symbol.Access.UNKNOWN))
+    # Array with unknown access
+    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
+    symbol = DataSymbol("dummy2", array_type,
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
     result = cwriter.gen_declaration(symbol)
     assert result == "int * restrict dummy2"
 
@@ -81,7 +91,7 @@ def test_cw_gen_declaration():
     with pytest.raises(NotImplementedError) as error:
         _ = cwriter.gen_declaration(symbol)
     assert "Could not generate the C definition for the variable 'dummy2', " \
-        "type 'invalid' is currently not supported." in str(error)
+        "type 'invalid' is currently not supported." in str(error.value)
 
 
 def test_cw_gen_local_variable(monkeypatch):
@@ -95,7 +105,7 @@ def test_cw_gen_local_variable(monkeypatch):
                         lambda x: "<declaration>")
 
     # Local variables are declared as single statements
-    symbol = Symbol("dummy1", "integer")
+    symbol = DataSymbol("dummy1", INTEGER_TYPE)
     result = cwriter.gen_local_variable(symbol)
     # Result should include the mocked gen_declaration and ';\n'
     assert result == "<declaration>;\n"
@@ -117,7 +127,7 @@ def test_cw_exception():
     cwriter = CWriter()
     with pytest.raises(VisitorError) as excinfo:
         _ = cwriter(unsupported)
-    assert "Unsupported node 'Unsupported' found" in str(excinfo)
+    assert "Unsupported node 'Unsupported' found" in str(excinfo.value)
 
 
 def test_cw_literal():
@@ -128,44 +138,25 @@ def test_cw_literal():
 
     cwriter = CWriter()
 
-    lit = Literal('1')
+    lit = Literal('1', INTEGER_TYPE)
     assert cwriter(lit) == '1'
 
-    # Test that D scientific notation is replaced by 'e'
-    lit = Literal("3e5", None)
+    # Test that scientific notation is output correctly
+    lit = Literal("3e5", REAL_TYPE, None)
     assert cwriter(lit) == '3e5'
-    lit = Literal("3d5", None)
-    assert cwriter(lit) == '3e5'
-    lit = Literal("3D5", None)
-    assert cwriter(lit) == '3e5'
-    lit = Literal("3D+5", None)
-    assert cwriter(lit) == '3e+5'
 
 
-def test_cw_assignment_and_reference():
-    '''Check the CWriter class assignment and reference methods generate
-    the appropriate output. Also check that a reference visit raises an
-    exception if it has children as this is not expected.
+def test_cw_assignment():
+    '''Check the CWriter class assignment method generate the appropriate
+    output.
 
     '''
-
-    assignment = Assignment()
-    assignment.addchild(Reference('a', parent=assignment))
-    assignment.addchild(Reference('b', parent=assignment))
-
+    assignment = Assignment.create(Reference(DataSymbol('a', REAL_TYPE)),
+                                   Reference(DataSymbol('b', REAL_TYPE)))
     # Generate C from the PSyIR schedule
     cwriter = CWriter()
     result = cwriter(assignment)
     assert result == "a = b;\n"
-
-    # Now add a child to the reference node
-    assignment.lhs.addchild(Node(parent=assignment))
-
-    # Generate C from the PSyIR schedule
-    with pytest.raises(VisitorError) as excinfo:
-        result = cwriter(assignment)
-    assert "Expecting a Reference with no children but found: " \
-        in str(excinfo)
 
 
 def test_cw_array():
@@ -175,23 +166,23 @@ def test_cw_array():
     '''
     cwriter = CWriter()
 
-    assignment = Assignment()
-    arr = Array('a', parent=assignment)
-    lit = Literal('0.0', parent=assignment)
-    assignment.addchild(arr)
-    assignment.addchild(lit)
+    symbol = DataSymbol('a', REAL_TYPE)
+    arr = ArrayReference(symbol)
+    lit = Literal('0.0', REAL_TYPE)
+    assignment = Assignment.create(arr, lit)
 
     # An array without any children (dimensions) should produce an error.
     with pytest.raises(VisitorError) as excinfo:
         result = cwriter(assignment)
     assert "Arrays must have at least 1 dimension but found node: '" \
-        in str(excinfo)
+        in str(excinfo.value)
 
     # Dimensions can be references, literals or operations
-    arr.addchild(Reference('b', parent=arr))
-    arr.addchild(Literal('1', parent=arr))
-    uop = UnaryOperation(UnaryOperation.Operator.MINUS, parent=arr)
-    uop.addchild(Literal('2', parent=uop))
+    arr.addchild(Reference(DataSymbol('b', INTEGER_TYPE), parent=arr))
+    arr.addchild(Literal('1', INTEGER_TYPE, parent=arr))
+    uop = UnaryOperation.create(UnaryOperation.Operator.MINUS,
+                                Literal('2', INTEGER_TYPE))
+    uop.parent = arr
     arr.addchild(uop)
 
     result = cwriter(assignment)
@@ -205,9 +196,9 @@ def test_cw_ifblock():
     C representation.
 
     '''
-    from psyclone.psyGen import IfBlock
+    from psyclone.psyir.nodes import IfBlock
 
-    # Try with just a IfBlock node
+    # Try with just an IfBlock node
     ifblock = IfBlock()
     cwriter = CWriter()
     with pytest.raises(VisitorError) as err:
@@ -216,7 +207,7 @@ def test_cw_ifblock():
            "at least 2 children, but found 0." in str(err.value))
 
     # Add the if condition
-    ifblock.addchild(Reference('a', parent=ifblock))
+    ifblock.addchild(Reference(DataSymbol('a', REAL_TYPE), parent=ifblock))
     with pytest.raises(VisitorError) as err:
         _ = cwriter(ifblock)
     assert("IfBlock malformed or incomplete. It should have "
@@ -227,13 +218,11 @@ def test_cw_ifblock():
     ifblock.addchild(Schedule(parent=ifblock))
     ifblock.if_body.addchild(Return(parent=ifblock.if_body))
 
-    ifblock2 = IfBlock(parent=ifblock.else_body)
-    ifblock2.addchild(Reference('b', parent=ifblock2))
-    ifblock2.addchild(Schedule(parent=ifblock2))
-    ifblock2.if_body.addchild(Return(parent=ifblock2.if_body))
-    ifblock2.addchild(Schedule(parent=ifblock2))
-    ifblock2.else_body.addchild(Return(parent=ifblock2.else_body))
-
+    condition = Reference(DataSymbol('b', REAL_TYPE))
+    then_content = [Return()]
+    else_content = [Return()]
+    ifblock2 = IfBlock.create(condition, then_content, else_content)
+    ifblock2.parent = ifblock.if_body
     ifblock.else_body.addchild(ifblock2)
 
     result = cwriter(ifblock)
@@ -269,7 +258,7 @@ def test_cw_codeblock():
 
     with pytest.raises(VisitorError) as error:
         _ = cwriter(cblock)
-    assert "CodeBlocks can not be translated to C." in str(error)
+    assert "CodeBlocks can not be translated to C." in str(error.value)
 
 
 def test_cw_unaryoperator():
@@ -287,7 +276,7 @@ def test_cw_unaryoperator():
            "exactly 1 child, but found 0." in str(err.value))
 
     # Add child
-    ref1 = Literal("a", unary_operation)
+    ref1 = Literal("a", CHARACTER_TYPE, unary_operation)
     unary_operation.addchild(ref1)
     assert cwriter(unary_operation) == '(-a)'
 
@@ -310,15 +299,14 @@ def test_cw_unaryoperator():
         assert cwriter(unary_operation) in expected
 
     # Test that an unsupported operator raises an error
-    # pylint: disable=abstract-method, too-few-public-methods
-    class Unsupported():
-        '''Dummy class'''
-    # pylint: enable=abstract-method, too-few-public-methods
+    class Unsupported(object):
+        # pylint: disable=missing-docstring
+        pass
     unary_operation._operator = Unsupported
     with pytest.raises(NotImplementedError) as err:
         _ = cwriter(unary_operation)
-    assert "The C backend does not support the '" in str(err)
-    assert "' operator." in str(err)
+    assert "The C backend does not support the '" in str(err.value)
+    assert "' operator." in str(err.value)
 
 
 def test_cw_binaryoperator():
@@ -335,11 +323,11 @@ def test_cw_binaryoperator():
     assert("BinaryOperation malformed or incomplete. It should have "
            "exactly 2 children, but found 0." in str(err.value))
 
-    # Add children
-    ref1 = Reference("a", binary_operation)
-    ref2 = Reference("b", binary_operation)
-    binary_operation.addchild(ref1)
-    binary_operation.addchild(ref2)
+    # Test with children
+    ref1 = Reference(DataSymbol("a", REAL_TYPE))
+    ref2 = Reference(DataSymbol("b", REAL_TYPE))
+    binary_operation = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                              ref1, ref2)
     assert cwriter(binary_operation) == '(a + b)'
 
     # Test all supported Operators
@@ -364,31 +352,58 @@ def test_cw_binaryoperator():
         assert cwriter(binary_operation) == expected
 
     # Test that an unsupported operator raises a error
-    # pylint: disable=abstract-method, too-few-public-methods
-    class Unsupported():
+    class Unsupported(object):
         '''Dummy class'''
-    # pylint: enable=abstract-method, too-few-public-methods
+        def __init__(self):
+            pass
     binary_operation._operator = Unsupported
     with pytest.raises(VisitorError) as err:
         _ = cwriter(binary_operation)
-    assert "The C backend does not support the '" in str(err)
-    assert "' operator." in str(err)
+    assert "The C backend does not support the '" in str(err.value)
+    assert "' operator." in str(err.value)
+
+
+def test_cw_loop():
+    '''Tests writing out a Loop node in C. It parses Fortran code
+    and outputs it as C. Note that this is atm a literal translation,
+    the loops are not functionally identical to Fortran, see TODO #523.
+
+    '''
+    from psyclone.tests.utilities import create_schedule
+
+    # Generate PSyIR from Fortran code.
+    code = '''
+        module test
+        contains
+        subroutine tmp()
+          integer :: i, a
+          integer, dimension(:) :: b
+          do i = 1, 20, 2
+            a = 2 * i
+          enddo
+        end subroutine tmp
+        end module test'''
+    schedule = create_schedule(code, "tmp")
+
+    cvisitor = CWriter()
+    result = cvisitor(schedule[0])
+    correct = '''for(i=1; i<=20; i+=2)
+{
+  a = (2 * i);
+}'''
+    result = cvisitor(schedule[0])
+    assert correct in result
 
 
 def test_cw_size():
     ''' Check the CWriter class SIZE method raises the expected error since
     there is no C equivalent. '''
     cwriter = CWriter()
-
-    assignment = Assignment()
-    lhs = Reference('length', parent=assignment)
-    size = BinaryOperation(BinaryOperation.Operator.SIZE, parent=assignment)
-    assignment.addchild(lhs)
-    assignment.addchild(size)
-    arr = Array('a', parent=size)
-    lit = Literal('1', parent=size)
-    size.addchild(arr)
-    size.addchild(lit)
+    arr = ArrayReference(DataSymbol('a', INTEGER_TYPE))
+    lit = Literal('1', INTEGER_TYPE)
+    size = BinaryOperation.create(BinaryOperation.Operator.SIZE, arr, lit)
+    lhs = Reference(DataSymbol('length', INTEGER_TYPE))
+    assignment = Assignment.create(lhs, size)
 
     with pytest.raises(VisitorError) as excinfo:
         cwriter(assignment)

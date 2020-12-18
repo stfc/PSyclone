@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council.
+! Copyright (c) 2017-2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,19 +38,21 @@ program single_invoke
 
   ! Description: multiple point-wise set operations specified in an invoke call
   ! with the scalar values passed by both value and reference.
-  use testkern_mod, only: testkern_type
-  use inf,          only: field_type
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
+
   implicit none
+
   type(field_type) :: f1, f2
-  real(r_def) :: fred, ginger
+  real(r_def)      :: fred, ginger
 
   fred = 20.1_r_def
   ginger = 40.5_r_def
   
-  call invoke(              &
-       setval_c(f1, fred),  &
-       setval_c(f2, 3.0),   &
-       setval_c(f3, ginger) &
+  call invoke(                  &
+       setval_c(f1, fred),      &
+       setval_c(f2, 3.0_r_def), &
+       setval_c(f3, ginger)     &
           )
 
 end program single_invoke

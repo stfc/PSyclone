@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,20 +33,23 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-'''This module tests the Dynamo 0.3 API-specific halo exchange
-implementation for gh_inc dependencies using pytest. '''
+'''This module tests the LFRic API-specific halo exchange
+   implementation. '''
 
 from __future__ import absolute_import
 import os
 import pytest
 
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.dynamo0p3 import DynLoop, DynHaloExchange
-from psyclone.transformations import Dynamo0p3RedundantComputationTrans
+from psyclone.transformations import Dynamo0p3RedundantComputationTrans, \
+    Dynamo0p3AsyncHaloExchangeTrans
 from psyclone.configuration import Config
+from psyclone.errors import InternalError
+from psyclone.core.access_info import AccessType
 
-from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
 API = "dynamo0.3"
@@ -104,11 +107,11 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
 
     # just check compilation here (not later in this test) as
     # compilation of redundant computation is checked separately
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # make 1st loop iterate over dofs to the level 1 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    rc_trans.apply(schedule.children[0], depth=1)
+    rc_trans.apply(schedule.children[0], {"depth": 1})
     assert schedule.children[0].upper_bound_name == "dof_halo"
     assert schedule.children[0].upper_bound_halo_depth == 1
     check_schedule(schedule)
@@ -158,12 +161,12 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
 
     # just check compilation here (not later in this test) as
     # compilation of redundant computation is checked separately
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # make 1st loop iterate over dofs to the level 1 halo and check
     # output. There should be no halo exchange for field "f1"
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    rc_trans.apply(schedule.children[0], depth=1)
+    rc_trans.apply(schedule.children[0], {"depth": 1})
     loop1 = schedule.children[0]
     haloex = schedule.children[1]
     loop2 = schedule.children[2]
@@ -230,11 +233,11 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
 
     # just check compilation here (not later in this test) as
     # compilation of redundant computation is checked separately
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # make 1st loop iterate over cells to the level 2 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    rc_trans.apply(schedule.children[1], depth=2)
+    rc_trans.apply(schedule.children[1], {"depth": 2})
 
     def check(schedule, f1depth, f2depth):
         '''check that the schedule is modified in the expected way. In
@@ -337,11 +340,11 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
 
     # just check compilation here (not later in this test) as
     # compilation of redundant computation is checked separately
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # make 1st loop iterate over cells to the level 2 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    rc_trans.apply(schedule.children[2], depth=2)
+    rc_trans.apply(schedule.children[2], {"depth": 2})
     # we should now have a speculative halo exchange at the start of
     # the schedule for "f1" to depth 1 and "f2" to depth 2
     check(schedule, f1depth="1", f2depth="2")
@@ -401,11 +404,11 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     # f1 halo exchange should be depth 1 : max(1,0)
     haloex = schedule.children[haloidx]
     check(haloex, "1")
-    rc_trans.apply(schedule.children[loop2idx], depth=2)
+    rc_trans.apply(schedule.children[loop2idx], {"depth": 2})
     # f1 halo exchange should still be depth 1 : max(1,1)
     haloex = schedule.children[haloidx]
     check(haloex, "1")
-    rc_trans.apply(schedule.children[loop2idx], depth=3)
+    rc_trans.apply(schedule.children[loop2idx], {"depth": 3})
     # f1 halo exchange should be depth 2 (max(1,2)
     haloex = schedule.children[haloidx]
     check(haloex, "2")
@@ -416,8 +419,141 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     # just check compilation here as it is the most
     # complicated. (Note, compilation of redundant computation is
     # checked separately)
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
     rc_trans.apply(schedule.children[loop1idx])
     # f1 halo exchange should be depth max
     haloex = schedule.children[haloidx]
     check(haloex, "mesh%get_halo_depth()")
+
+
+def test_setval_x_then_user(tmpdir, monkeypatch):
+    ''' Check that the correct halo exchanges are added if redundant
+    computation is enabled for a built-in kernel called before a
+    user-supplied kernel. '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", True)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "15.7.3_setval_X_before_user_kern.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
+
+    first_invoke = psy.invokes.invoke_list[0]
+    # Since (redundant) computation over annexed dofs is enabled, there
+    # should be no halo exchange before the first (builtin) kernel call
+    assert isinstance(first_invoke.schedule[0], DynLoop)
+    # There should be a halo exchange for field f1 before the second
+    # kernel call
+    assert isinstance(first_invoke.schedule[1], DynHaloExchange)
+    assert first_invoke.schedule[1].field.name == "f1"
+    # Now transform the first loop to perform redundant computation out to
+    # the level-1 halo
+    rtrans = Dynamo0p3RedundantComputationTrans()
+    _, _ = rtrans.apply(first_invoke.schedule[0], options={"depth": 1})
+    # There should now be a halo exchange for f1 before the first
+    # (builtin) kernel call
+    assert isinstance(first_invoke.schedule[0], DynHaloExchange)
+    assert first_invoke.schedule[0].field.name == "f1"
+    assert isinstance(first_invoke.schedule[1], DynLoop)
+    # There should only be one halo exchange for field f1
+    assert len([node for node in first_invoke.schedule.walk(DynHaloExchange)
+                if node.field.name == "f1"]) == 1
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+# Tests for DynHaloExchange
+# Tests for _compute_halo_read_info() within DynHaloExchange
+def test_compute_halo_read_info_read_dep(monkeypatch):
+    '''Check that _compute_halo_read_info() in DynHaloExchange raises the
+    expected exception when there is more than one read dependence
+    associated with a halo exchange in the read dependence list. This
+    should never happen as the field access for a halo exchange is
+    readwrite, therefore the first access will stop any further
+    accesses (due to the write). Also check that the expected
+    exception is raised when there is a read dependence associated
+    with a halo exchange which is not the last entry in the
+    list. Again this should never happen as the field access for a
+    halo exchange is readwrite.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", True)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "15.7.3_setval_X_before_user_kern.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    hex_f1 = schedule[1]
+    # Modify the adjacent halo exchange to reference field f1 and
+    # make the access read-only. This stops the dependence from being
+    # the last on the list.
+    schedule[2].field._name = "f1"
+    schedule[2].field.access = AccessType.READ
+    with pytest.raises(InternalError) as info:
+        hex_f1._compute_halo_read_info(ignore_hex_dep=True)
+    assert ("If there is a read dependency associated with a halo exchange "
+            "in the list of read dependencies then it should be the last "
+            "one in the list." in str(info.value))
+
+    # Now modify a 3rd halo exchange to reference field f1 making more
+    # than one dependency associated with a halo exchange.
+    schedule[3].field._name = "f1"
+    with pytest.raises(InternalError) as info:
+        hex_f1._compute_halo_read_info(ignore_hex_dep=True)
+    assert ("There should only ever be at most one read dependency associated "
+            "with a halo exchange in the read dependency list, but found 2 "
+            "for field f1." in str(info.value))
+
+
+def test_compute_halo_read_info_async(monkeypatch):
+    '''Check that _compute_halo_read_info() in DynHaloExchange raises the
+    expected exception when there is a read dependence associated with
+    an asynchronous halo exchange in the read dependence list.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", True)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "15.7.3_setval_X_before_user_kern.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    hex_f1 = schedule[1]
+
+    schedule[2].field._name = "f1"
+    async_hex = Dynamo0p3AsyncHaloExchangeTrans()
+    async_hex.apply(schedule[2])
+    with pytest.raises(GenerationError) as info:
+        hex_f1._compute_halo_read_info(ignore_hex_dep=True)
+    assert ("Please perform redundant computation transformations "
+            "before asynchronous halo exchange transformations."
+            in str(info.value))
+
+
+# Tests for DynLoop
+# Tests for _add_field_component_halo_exchange() within DynLoop
+def test_add_halo_exchange_code_nreader(monkeypatch):
+    '''Check that _add_field_component_halo_exchange() in DynLoop raises
+    the expected exception when there is more than one read dependence
+    associated with a halo exchange in the read dependence list.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", True)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "15.7.3_setval_X_before_user_kern.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
+
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule[0]
+    rtrans = Dynamo0p3RedundantComputationTrans()
+    schedule, _ = rtrans.apply(loop, options={"depth": 1})
+    f1_field = schedule[0].field
+    del schedule.children[0]
+    schedule[1].field._name = "f1"
+    schedule[2].field._name = "f1"
+    with pytest.raises(InternalError) as info:
+        loop._add_field_component_halo_exchange(f1_field)
+    assert ("When replacing a halo exchange with another one for field f1, "
+            "a subsequent dependent halo exchange was found. This should "
+            "never happen." in str(info.value))

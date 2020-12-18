@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council.
+! Copyright (c) 2017-2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,11 +30,13 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
+! Modified by R. W. Ford, STFC Daresbury Lab
 
 program explicit_do
   implicit none
   integer :: ji, jj, jk
-  integer :: jpi, jpj, jpk
+  integer, parameter :: jpi=2, jpj=4, jpk=6
+  real :: r
   real, dimension(jpi,jpj,jpk) :: umask
 
   ! Test code with explicit NEMO-style do loop

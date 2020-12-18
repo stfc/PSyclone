@@ -23,8 +23,8 @@ import os
 # -- General configuration ----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-# We need version >= 1.3 for the "numref" feature.
-needs_sphinx = '1.3'
+# We need version >= 1.5 for the "numref" feature.
+needs_sphinx = '1.5'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
@@ -50,7 +50,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'PSyclone'
-copyright = u'2017-2019, STFC Daresbury Laboratory'
+copyright = u'2017-2020, STFC Daresbury Laboratory'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -141,6 +141,12 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+html_context = {
+    'css_files': [
+        '_static/theme_overrides.css',  # override wide tables in RTD theme
+        ],
+     }
+
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
 # html_last_updated_fmt = '%b %d, %Y'
@@ -204,8 +210,23 @@ latex_elements = {
 #  documentclass [howto/manual]).
 latex_documents = [
     ('index', 'psyclone.tex', u'PSyclone Documentation',
-     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter\\\\ and Sergi Siso', 'manual'),
+     u'Andrew Coughtrie, Rupert Ford, Joerg Henrichs, Iva Kavcic,\\\\ '
+     'Andrew Porter and Sergi Siso', 'manual'),
 ]
+
+# Set maximum depth for the nested lists to prevent LaTeX
+# "too deeply nested" build failures when using whitespaces instead
+# of tabs in documentation (there must be an indentation of at least
+# three spaces when nesting a list within another). This is a known
+# Docutils failure, see e.g. here:
+# https://docutils.sourceforge.io/docs/dev/todo.html
+# LaTeX can have up to 6 lists (of any sort) nested, 4 "enumerate"
+# environments among the set of nested lists and 4 "itemize"
+# environments among the set of nested lists, see e.g. here
+# https://texfaq.org/FAQ-toodeep
+latex_elements = {
+    'maxlistdepth': '6',
+}
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
@@ -234,7 +255,8 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'psyclone', u'PSyclone Documentation',
-     [u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso'], 1)
+     [u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi '
+      'Siso'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -248,7 +270,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     ('index', 'psyclone', u'psyclone Documentation',
-     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso', 'psyclone',
+     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso',
+     'psyclone',
      'A domain-specific compiler for Finite-Element/Volume/Difference models.',
      'Miscellaneous'),
 ]
@@ -267,9 +290,11 @@ texinfo_documents = [
 
 # Bibliographic Dublin Core info.
 epub_title = u'PSyclone'
-epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso'
-epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso'
-epub_copyright = u'2017-2019, STFC'
+epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and ' \
+    'Sergi Siso'
+epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter ' \
+    'and Sergi Siso'
+epub_copyright = u'2017-2020, STFC'
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.

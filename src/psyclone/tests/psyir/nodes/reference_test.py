@@ -1,0 +1,147 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#         I. Kavcic, Met Office
+#         J. Henrichs, Bureau of Meteorology
+# -----------------------------------------------------------------------------
+
+''' Performs py.test tests on the Reference PSyIR node. '''
+
+from __future__ import absolute_import
+import pytest
+from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
+    Literal, BinaryOperation, Range, KernelSchedule
+from psyclone.psyir.symbols import DataSymbol, ArrayType, \
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE
+from psyclone.psyGen import GenerationError
+from psyclone.core.access_info import VariablesAccessInfo
+
+
+def test_reference_bad_init():
+    '''Check that the __init__ method of the Reference class raises the
+    expected exception if the symbol argument is not of the right
+    type.
+
+    '''
+    with pytest.raises(TypeError) as excinfo:
+        _ = Reference("hello")
+    assert ("In Reference initialisation expecting a symbol but found 'str'."
+            in str(excinfo.value))
+
+
+def test_reference_node_str():
+    ''' Check the node_str method of the Reference class.'''
+    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    kschedule = KernelSchedule("kname")
+    symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
+    kschedule.symbol_table.add(symbol)
+    assignment = Assignment(parent=kschedule)
+    ref = Reference(symbol, assignment)
+    coloredtext = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
+    assert coloredtext+"[name:'rname']" in ref.node_str()
+
+
+def test_reference_can_be_printed():
+    '''Test that a Reference instance can always be printed (i.e. is
+    initialised fully)'''
+    kschedule = KernelSchedule("kname")
+    symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
+    kschedule.symbol_table.add(symbol)
+    assignment = Assignment(parent=kschedule)
+    ref = Reference(symbol, assignment)
+    assert "Reference[name:'rname']" in str(ref)
+
+
+def test_reference_optional_parent():
+    '''Test that the parent attribute is None if the optional parent
+    argument is not supplied.
+
+    '''
+    ref = Reference(DataSymbol("rname", REAL_SINGLE_TYPE))
+    assert ref.parent is None
+
+
+def test_reference_children_validation():
+    '''Test that children added to Reference are validated. A Reference node
+    does not accept any children.
+
+    '''
+    ref = Reference(DataSymbol("rname", REAL_SINGLE_TYPE))
+    with pytest.raises(GenerationError) as excinfo:
+        ref.addchild(Literal("2", INTEGER_SINGLE_TYPE))
+    assert ("Item 'Literal' can't be child 0 of 'Reference'. Reference is a"
+            " LeafNode and doesn't accept children.") in str(excinfo.value)
+
+
+def test_reference_accesses():
+    '''Test that the reference_accesses method behaves as expected in the
+    usual case (see the next test for the unusual case).
+
+    '''
+    reference = Reference(DataSymbol("test", REAL_TYPE))
+    var_access_info = VariablesAccessInfo()
+    reference.reference_accesses(var_access_info)
+    assert (str(var_access_info)) == "test: READ"
+
+
+@pytest.mark.parametrize("operator_type", [BinaryOperation.Operator.LBOUND,
+                                           BinaryOperation.Operator.UBOUND])
+def test_reference_accesses_bounds(operator_type):
+    '''Test that the reference_accesses method behaves as expected when
+    the reference is the first argument to either the lbound or ubound
+    intrinsic as that is simply looking up the array bounds (therefore
+    var_access_info should be empty) and when the reference is the
+    second argument of either the lbound or ubound intrinsic (in which
+    case the access should be a read).
+
+    '''
+    # Note, one would usually expect UBOUND to provide the upper bound
+    # of a range but to simplify the test both LBOUND and UBOUND are
+    # used for the lower bound. This does not affect the test.
+    one = Literal("1", INTEGER_TYPE)
+    array_symbol = DataSymbol("test", ArrayType(REAL_TYPE, [10]))
+    array_ref1 = Reference(array_symbol)
+    array_ref2 = Reference(array_symbol)
+    array_access = ArrayReference.create(array_symbol, [one])
+
+    # test when first or second argument to LBOUND or UBOUND is an
+    # array reference
+    operator = BinaryOperation.create(operator_type, array_ref1, array_ref2)
+    array_access.children[0] = Range.create(operator, one, one)
+    var_access_info = VariablesAccessInfo()
+    array_ref1.reference_accesses(var_access_info)
+    assert str(var_access_info) == ""
+    var_access_info = VariablesAccessInfo()
+    array_ref2.reference_accesses(var_access_info)
+    assert str(var_access_info) == "test: READ"

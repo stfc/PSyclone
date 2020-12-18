@@ -1,3 +1,38 @@
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2017-2020, Science and Technology Facilities Council.
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+
 .. _getting-going:
 
 Getting Going
@@ -9,7 +44,8 @@ Download
 The following instructions are intended for a PSyclone user who wants
 to work with a released version of the code. If you are a developer or
 wish to test a specific branch of PSyclone from the GitHub repository
-please see :ref:`dev-installation` in the :ref:`developers-guide`.
+please see :ref:`dev-installation` in the
+`Developer Guide <https://psyclone-dev.readthedocs.io/>`_.
 
 PSyclone is available on the Python Package Index (pypi.org) and is
 hosted on GitHub:
@@ -92,7 +128,7 @@ fparser
 The fparser package (https://github.com/stfc/fparser) is a Fortran
 parser originally developed as a part of the f2py project.
 
-The minimum version of fparser required by PSyclone is currently 0.0.8
+The minimum version of fparser required by PSyclone is currently 0.0.9
 but we strongly recommend you install the latest version to reduce the
 chance of encountering problems when parsing existing algorithm or
 kernel code. (Note that for older versions of PSyclone up to and
@@ -227,10 +263,11 @@ a user-local install instead then supply the ``--user`` flag::
    > pip install --user .
 
 This installs the PSyclone modules in
-~/.local/lib/pythonX.Y/site-packages (where X.Y is the version of
+``~/.local/lib/pythonX.Y/site-packages`` (where X.Y is the version of
 Python that you are using) and the 'psyclone' script in
-~/.local/bin. Depending on your linux distribution, you may need to
-add the latter location to your $PATH.
+``~/.local/bin``. Depending on your linux distribution, you may need to
+add the latter location to your $PATH. The examples are installed in
+``~/.local/share/psyclone/examples``.
 
 If for some reason you'd rather not use pip then you can run the setup
 manually::
@@ -290,7 +327,8 @@ Test
 PSyclone contains an extensive test suite, but this test suite is not
 part of a standard installation. If you want to run the full test 
 suite, you need to install PSyclone from source, see 
-:ref:`dev-installation` in the :ref:`developers-guide`.
+:ref:`dev-installation` in the
+`Developer Guide <https://psyclone-dev.readthedocs.io/>`_.
 
 .. _getting-going-run:
 
@@ -304,10 +342,9 @@ on your PATH:
 
    > psyclone
    usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
-                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l] [-dm] [-nodm]
-                   [--kernel-renaming {multiple,single}]
-		   [--profile {invokes,kernels}]
-                   [--force-profile {invokes,kernels}] [-v]
+                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
+		   [-dm] [-nodm] [--kernel-renaming {multiple,single}]
+		   [--profile {invokes,kernels}] [--config CONFIG] [-v]
                    filename
    psyclone: error: too few arguments
 
@@ -320,24 +357,35 @@ use that layer. These files are named according to the user-supplied
 arguments (options -oalg and -opsy). If those arguments are not
 supplied then the script writes the generated/re-written Fortran to
 the terminal. For details of the other command-line arguments please
-see the :ref:`psyclone_script` Section.
+see the :ref:`psyclone_command` Section.
 
-Examples are provided in the examples directory. There are 3
-subdirectories (dynamo, gocean and nemo) corresponding to different
-APIs that are supported by PSyclone. In this case we are going to use
-one of the dynamo examples::
+Examples are provided in the ``examples`` directory of the PSyclone git
+repository - if you have cloned the repository then ``EGS_HOME`` in
+what follows is the root ``PSyclone`` directory. Alternatively, if you
+have installed PSyclone using pip then they may be found in the
+``share/psyclone`` directory under your Python installation. In this
+case you should copy the whole ``examples`` directory to some convenient
+location (hereafter called ``EGS_HOME``) before attempting to carry out
+the following instructions. Depending on your precise setup, you may
+also need to set ``PSYCLONE_CONFIG`` to the full-path to the PSyclone
+configuration file (see :ref:`getting-going-configuration`).
 
-   > cd <PSYCLONEHOME>/examples/dynamo/eg1
+There are 3 subdirectories (``lfric``, ``gocean`` and ``nemo``)
+corresponding to different APIs that are supported by PSyclone. Note,
+the lfric directory corresponds to the dynamo0.1 and dynamo0.3
+APIs. In this case we are going to use one of the LFRic examples::
+
+   > cd <EGS_HOME>/examples/lfric/eg1
    > psyclone -api dynamo0.1 \
    > -oalg dynamo_alg.f90 -opsy dynamo_psy.f90 dynamo.F90
 
 You should see two new files created called dynamo_alg.f90 (containing
 the re-written algorithm layer) and dynamo_psy.f90 (containing the
-generated PSy- or middle-layer). Since this is a dynamo example the
-Fortran source code has dependencies on the dynamo system and
+generated PSy- or middle-layer). Since this is an LFRic example the
+Fortran source code has dependencies on the LFRic system and
 therefore cannot be compiled stand-alone.
 
-You can also use the runme.py example to see the interactive
+You can also use the ``runme.py`` example to see the interactive
 API in action. This script contains::
 
    from psyclone.parse.algorithm import parse
@@ -368,20 +416,21 @@ API in action. This script contains::
 
 It can be run non-interactively as follows::
 
-   > cd <PSYCLONEHOME>/example/dynamo/eg1
+   > cd <EGS_HOME>/example/lfric/eg1
    > python runme.py
 
 However, to understand this example in more depth it is instructive to
-cut-and-paste from the runme.py file into your own, interactive python
+cut-and-paste from the ``runme.py`` file into your own, interactive python
 session::
 
-   > cd <PSYCLONEHOME>/example/dynamo/eg1
+   > cd <EGS_HOME>/example/lfric/eg1
    > python
 
-In addition to the runme.py script, there is also runme_openmp.py which
-illustrates how one applies an OpenMP transform to a loop schedule
-within the PSy layer. The initial part of this script is the same as that 
-of runme.py (above) and is therefore omitted here::
+In addition to the ``runme.py`` script, there is also
+``runme_openmp.py`` which illustrates how one applies an OpenMP
+transform to a loop schedule within the PSy layer. The initial part of
+this script is the same as that of runme.py (above) and is therefore
+omitted here::
 
    # List the various invokes that the PSy layer contains
    print(psy.invokes.names)

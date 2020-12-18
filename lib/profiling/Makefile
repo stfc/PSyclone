@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Australian Bureau of Meteorology
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,9 @@ F90=gfortran
 FFLAGS=-g
 LDFLAGS=
 
-ALL_LIBS=template simple_timing dl_timer drhook nvidia
+# We don't build dl_timer, drhook and nvidia since they require
+# external libraries to be available.
+ALL_LIBS=template simple_timing
 
 .PHONY: default all $(ALL_LIBS) clean
 

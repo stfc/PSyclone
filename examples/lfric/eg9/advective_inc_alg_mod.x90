@@ -1,0 +1,133 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Modifications copyright (c) 2018-2020, Science and Technology Facilities
+! Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Modified by: I. Kavcic, Met Office
+!              A. R. Porter, STFC Daresbury Laboratory
+
+!>@brief Computes the advective increment of the prognostic equations
+module advective_inc_alg_mod
+
+  ! Constants
+  use constants_mod,                  only: r_def, i_def
+
+  ! Configuration and restart/checkpoint options
+  use finite_element_config_mod,      only: element_order, wtheta_on
+  use runtime_constants_mod,          only: get_coordinates,                &
+                                            get_inverse_lumped_mass_matrix, &
+                                            theta_space_id
+  use transport_config_mod,           only: operators,              &
+                                            transport_operators_fv, &
+                                            transport_operators_fem
+
+  ! Derived Types
+  use field_mod,                      only: field_type
+  use function_space_mod,             only: function_space_type
+  use operator_mod,                   only: operator_type
+  use quadrature_xyoz_mod,            only: quadrature_xyoz_type
+  use quadrature_rule_gaussian_mod,   only: quadrature_rule_gaussian_type
+
+  ! PsyKAl PSYClone kernels
+  use rtheta_bd_kernel_mod,           only: rtheta_bd_kernel_type
+  use rtheta_kernel_mod,              only: rtheta_kernel_type
+  use rtheta_wtheta_kernel_mod,       only: rtheta_wtheta_kernel_type
+  use sample_poly_adv_kernel_mod,     only: sample_poly_adv_kernel_type
+
+  implicit none
+
+  private
+
+contains
+
+  !>@brief Compute advective update u.grad(theta) using desired spatial
+  !>       reconstruction
+  !>@param[in] rtheta  (in, out) Advective increment
+  !>@param[in] theta   (in)      Field to advect
+  !>@param[in] wind    (in)      Advecting wind field
+  subroutine advective_inc_alg(rtheta, theta, wind)
+
+    implicit none
+
+    type(field_type), intent(in)        :: theta, wind
+    type(field_type), intent(in)        :: rtheta
+    type(quadrature_xyoz_type)          :: qr
+    type(quadrature_face_type)          :: qrf
+    type(quadrature_rule_gaussian_type) :: quadrature_rule
+    type(field_type), pointer           :: chi(:) => null()
+    type(field_type), pointer           :: mt_lumped_inv => null()
+    integer(kind=i_def)                 :: advective_stencil_extent
+    ! Stencil depth for the boundary integral kernel
+    integer(kind=i_def), parameter      :: bd_stencil_depth = 1
+
+    mt_lumped_inv => get_inverse_lumped_mass_matrix(theta_space_id)
+
+    select case(operators)
+      case(transport_operators_fv)
+        ! Use pointwise fv operators compute u.grad(theta) with high-order
+        ! polynomial interpolation of theta
+        chi => get_coordinates()
+
+        ! Psyclone does not perform loop colouring over a discontinuous
+        ! function space such as Wtheta
+        chi_stencil_extent = advective_stencil_extent
+        call invoke( sample_poly_adv_kernel_type(rtheta,                          &
+                                                 theta, advective_stencil_extent, &
+                                                 wind,                            &
+                                                 chi(1), chi_stencil_extent,      &
+                                                 chi(2),chi(3)) )
+
+      case(transport_operators_fem)
+        ! Use project u.grad(theta) into the theta function space
+        qr = quadrature_xyoz_type(element_order+3, quadrature_rule)
+        ! Quadrature rule on lateral faces only
+        qrf = quadrature_face_type(nqp_exact, .true., .false., &
+                                   reference_element, quadrature_rule)
+
+        call invoke( setval_c(rtheta, 0.0_r_def) )
+        if ( wtheta_on ) then
+          call invoke( rtheta_wtheta_kernel_type (rtheta, theta, wind, qr),   &
+                       rtheta_bd_kernel_type(rtheta, theta, bd_stencil_depth, &
+                                             wind, bd_stencil_depth, qrf) )
+        else
+          call invoke( rtheta_kernel_type(rtheta, theta, wind, qr) )
+        end if
+     end select
+
+  end subroutine advective_inc_alg
+
+end module advective_inc_alg_mod

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,25 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 program single_invoke_fs
 
   ! Description: single function specified in an invoke call using
   ! all function spaces with one continuous writer (w1) and one
-  ! discontinuous writer (w2v)
-  use testkern_write_w2v_w1_mod, only: testkern_write_w2v_w1_type
-  use inf,                       only: field_type
+  ! discontinuous writer (w2broken)
+  use field_mod,                      only: field_type
+  use testkern_write_w2broken_w1_mod, only: testkern_write_w2broken_w1_type
 
   implicit none
 
-  type(field_type) :: f1, f2, f3, f4, m1, m2, m3
+  type(field_type) :: f1, f2, f3, f4, f5, f6, &
+                      m1, m2, m3, m4, m5, m6
 
-  call invoke(                                                &
-       testkern_write_w2v_w1_type(f1, f2, m1, m2, f3, f4, m3) &
-          )
+  call invoke(                                                 &
+       testkern_write_w2broken_w1_type(f1, f2, m1, m2, f3, f4, &
+                                       m3, m4, f5, f6, m5, m6) &
+             )
 
 end program single_invoke_fs

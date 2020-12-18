@@ -1,6 +1,7 @@
+# -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,8 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Author R. W. Ford STFC Daresbury Lab
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by I. Kavcic, Met Office
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 
 '''
@@ -44,12 +48,17 @@ from __future__ import absolute_import
 import os
 import re
 import pytest
-from psyclone.generator import generate, GenerationError, main
+from psyclone.generator import generate, main
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
+NEMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "nemo", "test_files")
+DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "test_files", "dynamo0p3")
 
 
 def delete_module(modname):
@@ -304,31 +313,30 @@ def test_script_null_trans_relative():
 
 
 def test_script_trans():
-    ''' checks that generator.py works correctly when a
+    ''' Checks that generator.py works correctly when a
         transformation is provided as a script, i.e. it applies the
         transformations correctly. We use loop fusion as an
-        example.'''
-    # pylint: disable=too-many-locals
+        example.
+
+    '''
     from psyclone.parse.algorithm import parse
     from psyclone.psyGen import PSyFactory
     from psyclone.transformations import LoopFuseTrans
     root_path = os.path.dirname(os.path.abspath(__file__))
     base_path = os.path.join(root_path, "test_files", "dynamo0p3")
-    # first loop fuse explicitly (without using generator.py)
+    # First loop fuse explicitly (without using generator.py)
     parse_file = os.path.join(base_path, "4_multikernel_invokes.f90")
     _, invoke_info = parse(parse_file, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
-    loop1 = schedule.children[3]
-    loop2 = schedule.children[4]
+    loop1 = schedule.children[4]
+    loop2 = schedule.children[5]
     trans = LoopFuseTrans()
-    schedule.view()
     schedule, _ = trans.apply(loop1, loop2)
     invoke.schedule = schedule
     generated_code_1 = psy.gen
-    schedule.view()
-    # second loop fuse using generator.py and a script
+    # Second loop fuse using generator.py and a script
     _, generated_code_2 = generate(parse_file, api="dynamo0.3",
                                    script_name=os.path.join(
                                        base_path, "loop_fuse_trans.py"))
@@ -336,10 +344,6 @@ def test_script_trans():
     delete_module("loop_fuse_trans")
     # third - check that the results are the same ...
     assert str(generated_code_1) == str(generated_code_2)
-
-
-DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "test_files", "dynamo0p3")
 
 
 def test_alg_lines_too_long_tested():
@@ -452,82 +456,6 @@ def test_main_profile(capsys):
 
     assert re.search(correct_re, outerr) is not None
 
-    # Check for warning in case of script with profiling"
-    with pytest.raises(SystemExit):
-        main(options+["--profile", "kernels", "-s", "somescript", filename])
-    _, out = capsys.readouterr()
-    out = out.replace("\n", " ")
-
-    warning = ("Error: use of automatic profiling in combination with an "
-               "optimisation script is not recommended since it may not work "
-               "as expected.")
-
-    assert warning in out
-
-    # Reset profile flags to avoid further failures in other tests
-    Profiler.set_options(None)
-
-
-def test_main_force_profile(capsys):
-    '''Tests that the profiling command line flags are working as expected.
-    '''
-    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            "test_files", "gocean1p0",
-                            "test27_loop_swap.f90")
-
-    from psyclone.profiler import Profiler
-    options = ["-api", "gocean1.0"]
-
-    # Check for invokes only parameter:
-    main(options+["--force-profile", "invokes", filename])
-    assert not Profiler.profile_kernels()
-    assert Profiler.profile_invokes()
-
-    # Check for kernels only parameter:
-    main(options+["--force-profile", "kernels", filename])
-    assert Profiler.profile_kernels()
-    assert not Profiler.profile_invokes()
-
-    # Check for invokes + kernels
-    main(options+["--force-profile", "kernels",
-                  '--force-profile', 'invokes', filename])
-    assert Profiler.profile_kernels()
-    assert Profiler.profile_invokes()
-
-    # Check for missing parameter (argparse then
-    # takes the filename as parameter for profiler):
-    with pytest.raises(SystemExit):
-        main(options+["--force-profile", filename])
-    _, outerr = capsys.readouterr()
-
-    correct_re = "invalid choice.*choose from 'invokes', 'kernels'"
-    assert re.search(correct_re, outerr) is not None
-
-    # Check for invalid parameter
-    with pytest.raises(SystemExit):
-        main(options+["--force-profile", "invalid", filename])
-    _, outerr = capsys.readouterr()
-
-    assert re.search(correct_re, outerr) is not None
-
-    # Check that there is indeed no warning when using --force-profile
-    # with a script. Note that this will raise an error because the
-    # script does not exist, but the point of this test is to make sure
-    # the error about mixing --profile and -s does not happen
-    with pytest.raises(SystemExit):
-        main(options+["--force-profile", "kernels", "-s", "invalid", filename])
-    _, outerr = capsys.readouterr()
-    error = "expected the script file 'invalid' to have the '.py' extension"
-    assert error in outerr
-
-    # Test that --profile and --force-profile can not be used together
-    with pytest.raises(SystemExit):
-        main(options+["--force-profile", "kernels", "--profile", "invokes",
-                      filename])
-    _, outerr = capsys.readouterr()
-    error = "Specify only one of --profile and --force-profile."
-    assert error in outerr
-
     # Reset profile flags to avoid further failures in other tests
     Profiler.set_options(None)
 
@@ -615,12 +543,12 @@ def test_main_expected_fatal_error(capsys):
 
 
 def test_main_unexpected_fatal_error(capsys, monkeypatch):
-    '''Tests that we get the expected output and the code exits with an
+    ''' Tests that we get the expected output and the code exits with an
     error when an unexpected fatal error is returned from the generate
-    function.'''
+    function. '''
     # sabotage the code so one of our constant lists is now an int
-    from psyclone import dynamo0p3
-    monkeypatch.setattr(dynamo0p3, "CONTINUOUS_FUNCTION_SPACES",
+    from psyclone.domain.lfric import LFRicArgDescriptor
+    monkeypatch.setattr(LFRicArgDescriptor, "VALID_ARG_TYPE_NAMES",
                         value=1)
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
@@ -640,14 +568,44 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     assert expected_output in output
 
 
-def test_main_fort_line_length(capsys):
-    '''Tests that the fortran line length object works correctly. Without
+@pytest.mark.parametrize("limit", ['all', 'output'])
+def test_main_fort_line_length(capsys, limit):
+    '''Tests that the Fortran line length object works correctly. Without
     the -l option one of the generated psy-layer lines would be longer
-    than 132 characters'''
+    than 132 characters. Since it is in the output code, both the 'all' and
+   'output' options should cause the limit to be applied. '''
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
                              "10.3_operator_different_spaces.f90"))
-    main([filename, '-api', 'dynamo0.3', '-l'])
+    main([filename, '-api', 'dynamo0.3', '-l', limit])
+    output, _ = capsys.readouterr()
+    assert all(len(line) <= 132 for line in output.split('\n'))
+
+
+@pytest.mark.parametrize("limit", [[], ['-l', 'off']])
+def test_main_fort_line_length_off(capsys, limit):
+    '''Tests that the Fortran line-length limiting is off by default and is
+    also disabled by `-l off`. One of the generated psy-layer lines should be
+    longer than 132 characters. '''
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p3",
+                             "10.3_operator_different_spaces.f90"))
+    main([filename, '-api', 'dynamo0.3'] + limit)
+    output, _ = capsys.readouterr()
+    assert not all(len(line) <= 132 for line in output.split('\n'))
+
+
+def test_main_fort_line_length_output_only(capsys):
+    ''' Check that the '-l output' option disables the line-length check on
+    input files but still limits the line lengths in the output. '''
+    alg_filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    # If line-length checking is enabled then we should abort
+    with pytest.raises(SystemExit):
+        main([alg_filename, '-api', 'nemo', '-l', 'all'])
+    _, error = capsys.readouterr()
+    assert "does not conform to the specified 132 line length limit" in error
+    # If we only mandate that the output be limited then we should be fine
+    main([alg_filename, '-api', 'nemo', '-l', 'output'])
     output, _ = capsys.readouterr()
     for line in output.split('\n'):
         assert len(line) <= 132
@@ -777,6 +735,11 @@ def test_main_kern_output_dir(tmpdir):
     # the configuration object
     assert Config.get().kernel_output_dir == str(tmpdir)
 
+    # If no kernel_output_dir is set, it should default to the
+    # current directory
+    Config.get().kernel_output_dir = None
+    assert Config.get().kernel_output_dir == str(os.getcwd())
+
 
 def test_invalid_kern_naming():
     ''' Check that we raise the expected error if an invalid kernel-renaming
@@ -790,25 +753,8 @@ def test_invalid_kern_naming():
     with pytest.raises(GenerationError) as err:
         _, _ = generate(alg_filename, api="dynamo0.3",
                         kern_naming="not-a-scheme")
-    assert "Invalid kernel-renaming scheme supplied" in str(err)
-    assert "but got 'not-a-scheme'" in str(err)
-
-
-def test_main_include_nemo_only(capsys):
-    ''' Check that the main function rejects attempts to specify INCLUDE
-    paths for all except the nemo API. (Since that is the only one which
-    uses fparser2 at the moment.) '''
-    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1_single_invoke.f90"))
-    for api in Config.get().supported_apis:
-        if api != "nemo":
-            with pytest.raises(SystemExit) as err:
-                main([alg_filename, '-api', api, '-I', './'])
-            assert str(err.value) == "1"
-            captured = capsys.readouterr()
-            assert captured.err.count("is only supported for the 'nemo' API")\
-                == 1
+    assert "Invalid kernel-renaming scheme supplied" in str(err.value)
+    assert "but got 'not-a-scheme'" in str(err.value)
 
 
 def test_main_include_invalid(capsys, tmpdir):
@@ -847,3 +793,59 @@ def test_main_include_path(capsys):
           '-I', str(inc_path2)])
     stdout, _ = capsys.readouterr()
     assert "some_fake_mpi_handle" in stdout
+    # Check that the Config object contains the provided include paths
+    assert str(inc_path1) in Config.get().include_paths
+    assert str(inc_path2) in Config.get().include_paths
+
+
+def test_write_utf_file(tmpdir, monkeypatch):
+    ''' Unit tests for the write_unicode_file utility routine. '''
+    import six
+    import io
+    from psyclone.generator import write_unicode_file
+
+    # First for plain ASCII
+    out_file1 = os.path.join(str(tmpdir), "out1.txt")
+    write_unicode_file("This contains only ASCII", out_file1)
+
+    # Second with a character that has no ASCII representation
+    with open(out_file1, "r") as infile:
+        content = infile.read()
+        assert "This contains only ASCII" in content
+    out_file2 = os.path.join(str(tmpdir), "out2.txt")
+    if six.PY2:
+        # pylint: disable=undefined-variable
+        test_str = u"This contains UTF: "+unichr(1200)
+        # pylint: enable=undefined-variable
+        encoding = {'encoding': 'utf-8'}
+    else:
+        test_str = "This contains UTF: "+chr(1200)
+        encoding = {}
+    write_unicode_file(test_str, out_file2)
+
+    with io.open(out_file2, mode="r", **encoding) as infile:
+        content = infile.read()
+    assert test_str in content
+
+    # monkeypatch the six module so that the check on which Python
+    # version is being used fails.
+    monkeypatch.setattr(six, "PY2", value=None)
+    monkeypatch.setattr(six, "PY3", value=None)
+    with pytest.raises(InternalError) as err:
+        write_unicode_file("Some stuff", out_file2)
+    assert "Unrecognised Python version" in str(err.value)
+
+
+def test_utf_char(tmpdir):
+    ''' Test that the generate method works OK when both the Algorithm and
+    Kernel code contain utf-encoded chars. '''
+    algfile = os.path.join(str(tmpdir), "alg.f90")
+    main([os.path.join(BASE_PATH, "gocean1p0", "test29_utf_chars.f90"),
+          "-api", "gocean1.0", "-oalg", algfile])
+    # We only check the algorithm layer since we generate the PSy
+    # layer from scratch in this API (and thus it contains no
+    # non-ASCII characters).
+    with open(algfile, "r") as afile:
+        alg = afile.read().lower()
+        assert "max reachable coeff" in alg
+        assert "call invoke_0_kernel_utf" in alg

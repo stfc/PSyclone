@@ -8,6 +8,26 @@ Please see [psyclone.pdf](psyclone.pdf) in this directory (or on
 more information. If you would prefer to build the documentation,
 please see the [README](doc/README.md) file in the "doc" directory.
 
+# Try it on Binder #
+
+Some of the examples are available as Jupyter notebooks. These may
+be launched using Binder from the links below. (Note that the first time
+this is done, Binder has to construct a Container and install the necessary
+software. This can  take serval minutes. You can track its progress
+by clicking the 'show' link next to the 'Build logs' heading.)
+
+ * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=examples%2Fnemo%2Feg4%2Fcopy_stencil.ipynb) Uses PSyclone's NEMO API to process some simple Fortran code, display the resulting PSyIR and then re-generate Fortran.
+
+ * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=examples%2Fgocean%2Feg1%2Fopenmp.ipynb) Uses PSyclone's GOcean API to process example code that conforms to the PSyKAl separation of concerns. Transformations are applied in order to fuse various loops before parallelising the result with OpenMP.
+ 
+ * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=examples%2Fgocean%2Feg1%2Fdag.ipynb) demonstrates the generation of a DAG for the PSy layer of the previous example.
+
+# Tutorial #
+
+The PSyclone tutorial may be found in the tutorial directory. Since part of
+this takes the form of a series of Jupyter notebooks, it too may be launched on
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=tutorial%2Fnotebooks%2Fintroduction.ipynb).
+
 # Installation #
 
 If you are reading this then you have presumably not already installed
@@ -48,11 +68,12 @@ README.gource  	    | Information on how to generate a gource video from the rep
 README.uml     	    | Information on how to create UML class diagrams from the source using pyreverse
 src/psyclone   	    | The python source code
 src/psyclone/tests/ | Unit and functional tests using pytest
+tutorial/notebooks  | Tutorial using Jupyter notebooks
+tutorial/practicals | Hands-on exercises using a local installation of PSyclone
 
 # Status #
 
-[![Build Status](https://travis-ci.org/stfc/PSyclone.svg?branch=master)](https://travis-ci.org/stfc/PSyclone)
+![Build Status](https://github.com/stfc/PSyclone/workflows/PSyclone%20tests%20and%20examples/badge.svg)
 
-[![Coverage Status](https://coveralls.io/repos/github/stfc/PSyclone/badge.svg?branch=master)](https://coveralls.io/github/stfc/PSyclone?branch=master)
-
+[![codecov](https://codecov.io/gh/stfc/PSyclone/branch/master/graph/badge.svg)](https://codecov.io/gh/stfc/PSyclone)
 

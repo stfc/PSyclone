@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified A. J. Voysey, Met Office
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 
 '''
@@ -52,7 +53,8 @@ import os
 import traceback
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory
+from psyclone.errors import GenerationError, InternalError
 from psyclone.alg_gen import NoInvokesError
 from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
@@ -225,6 +227,12 @@ def generate(filename, api="", kernel_path="", script_name=None,
         if script_name is not None:
             handle_script(script_name, psy)
 
+        # Add profiling nodes to schedule if automatic profiling has
+        # been requested.
+        from psyclone.psyir.nodes import Loop
+        for invoke in psy.invokes.invoke_list:
+            Profiler.add_profile_nodes(invoke.schedule, Loop)
+
         if api not in API_WITHOUT_ALGORITHM:
             alg_gen = Alg(ast, psy).gen
         else:
@@ -273,10 +281,14 @@ def main(args):
     # user has supplied a value(s) later
     parser.add_argument(
         '-I', '--include', default=[], action="append",
-        help='path to Fortran INCLUDE files (nemo API only)')
+        help='path to Fortran INCLUDE or module files')
     parser.add_argument(
-        '-l', '--limit', dest='limit', action='store_true', default=False,
-        help='limit the fortran line length to 132 characters')
+        '-l', '--limit', dest='limit', default='off',
+        choices=['off', 'all', 'output'],
+        help='limit the Fortran line length to 132 characters (default '
+        '\'%(default)s\'). Use \'all\' to apply limit to both input and '
+        'output Fortran. Use \'output\' to apply line-length limit to output '
+        'Fortran only.')
     parser.add_argument(
         '-dm', '--dist_mem', dest='dist_mem', action='store_true',
         help='generate distributed memory code')
@@ -290,11 +302,6 @@ def main(args):
     parser.add_argument(
         '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="Add profiling hooks for either 'kernels' or 'invokes'")
-    parser.add_argument(
-        '--force-profile', action="append",
-        choices=Profiler.SUPPORTED_OPTIONS,
-        help="Add profiling hooks for either 'kernels' or 'invokes' even if a "
-             "transformation script is used. Use at your own risk.")
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
 
     parser.add_argument("--config", help="Config file with "
@@ -308,24 +315,8 @@ def main(args):
     if args.version:
         print("PSyclone version: {0}".format(__VERSION__))
 
-    if args.script is not None and args.profile is not None:
-        print("Error: use of automatic profiling in combination with an\n"
-              "optimisation script is not recommended since it may not work\n"
-              "as expected.\n"
-              "You can use --force-profile instead of --profile if you \n"
-              "really want to use both options at the same time.",
-              file=sys.stderr)
-        exit(1)
-
-    if args.profile is not None and args.force_profile is not None:
-        print("Specify only one of --profile and --force-profile.",
-              file=sys.stderr)
-        exit(1)
-
     if args.profile:
         Profiler.set_options(args.profile)
-    elif args.force_profile:
-        Profiler.set_options(args.force_profile)
 
     # If an output directory has been specified for transformed kernels
     # then check that it is valid
@@ -333,11 +324,11 @@ def main(args):
         if not os.path.exists(args.okern):
             print("Specified kernel output directory ({0}) does not exist.".
                   format(args.okern), file=sys.stderr)
-            exit(1)
+            sys.exit(1)
         if not os.access(args.okern, os.W_OK):
             print("Cannot write to specified kernel output directory ({0}).".
                   format(args.okern), file=sys.stderr)
-            exit(1)
+            sys.exit(1)
         kern_out_path = args.okern
     else:
         # We write any transformed kernels to the current working directory
@@ -357,21 +348,12 @@ def main(args):
         print("Unsupported API '{0}' specified. Supported API's are "
               "{1}.".format(args.api, Config.get().supported_apis),
               file=sys.stderr)
-        exit(1)
+        sys.exit(1)
     else:
         # There is a valid API specified on the command line. Set it
         # as API in the config object as well.
         api = args.api
         Config.get().api = api
-
-    # Store the search path(s) for include files
-    if args.include and api != 'nemo':
-        # We only support passing include paths to fparser2 and it's
-        # only the NEMO API that uses fparser2 currently.
-        print("Setting the search path for Fortran include files "
-              "(-I/--include) is only supported for the 'nemo' API.",
-              file=sys.stderr)
-        exit(1)
 
     # The Configuration manager checks that the supplied path(s) is/are
     # valid so protect with a try
@@ -384,13 +366,13 @@ def main(args):
             Config.get().include_paths = ["./"]
     except ConfigurationError as err:
         print(str(err), file=sys.stderr)
-        exit(1)
+        sys.exit(1)
 
     try:
         alg, psy = generate(args.filename, api=api,
                             kernel_path=args.directory,
                             script_name=args.script,
-                            line_length=args.limit,
+                            line_length=(args.limit == 'all'),
                             distributed_memory=args.dist_mem,
                             kern_out_path=kern_out_path,
                             kern_naming=args.kernel_renaming)
@@ -408,7 +390,7 @@ def main(args):
             RuntimeError):
         _, exc_value, _ = sys.exc_info()
         print(exc_value, file=sys.stderr)
-        exit(1)
+        sys.exit(1)
     except Exception:  # pylint: disable=broad-except
         print("Error, unexpected exception, please report to the authors:",
               file=sys.stderr)
@@ -419,8 +401,10 @@ def main(args):
         print(exc_type, file=sys.stderr)
         print("Stacktrace ...", file=sys.stderr)
         traceback.print_tb(exc_tb, limit=20, file=sys.stderr)
-        exit(1)
-    if args.limit:
+        sys.exit(1)
+    if args.limit != 'off':
+        # Limit the line length of the output Fortran to ensure it conforms
+        # to the 132 characters mandated by the standard.
         fll = FortLineLength()
         psy_str = fll.process(str(psy))
         alg_str = fll.process(str(alg))
@@ -428,9 +412,7 @@ def main(args):
         psy_str = str(psy)
         alg_str = str(alg)
     if args.oalg is not None:
-        my_file = open(args.oalg, "w")
-        my_file.write(alg_str)
-        my_file.close()
+        write_unicode_file(alg_str, args.oalg)
     else:
         print("Transformed algorithm code:\n%s" % alg_str)
 
@@ -438,11 +420,38 @@ def main(args):
         # empty file so do not output anything
         pass
     elif args.opsy is not None:
-        my_file = open(args.opsy, "w")
-        my_file.write(psy_str)
-        my_file.close()
+        write_unicode_file(psy_str, args.opsy)
     else:
         print("Generated psy layer code:\n", psy_str)
+
+
+def write_unicode_file(contents, filename):
+    '''Wrapper routine that ensures that a string is encoded as unicode before
+    writing to file in both Python 2 and 3.
+
+    :param str contents: string to write to file.
+    :param str filename: the name of the file to create.
+
+    :raises InternalError: if an unrecognised Python version is found.
+
+    '''
+    import six
+    import io
+
+    if six.PY2:
+        # In Python 2 a plain string must be encoded as unicode for the call
+        # to write() below. unicode() does not exist in Python 3 since all
+        # strings are unicode.
+        # pylint: disable=undefined-variable
+        if not isinstance(contents, unicode):
+            contents = unicode(contents, 'utf-8')
+        # pylint: enable=undefined-variable
+    elif not six.PY3:
+        raise InternalError("Unrecognised Python version!")
+
+    encoding = {'encoding': 'utf-8'}
+    with io.open(filename, mode='w', **encoding) as file_object:
+        file_object.write(contents)
 
 
 if __name__ == "__main__":

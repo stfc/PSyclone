@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,21 +40,21 @@ PSyclone-conformant Algorithm code.
 
 from __future__ import absolute_import
 
+from collections import OrderedDict
 from fparser.two import pattern_tools
-from fparser.two.utils import walk_ast
+from fparser.two.utils import walk
 # pylint: disable=no-name-in-module
 from fparser.two.Fortran2003 import Main_Program, Module, \
-    Subroutine_Subprogram, Function_Subprogram, Use_Stmt, \
-    Call_Stmt, Actual_Arg_Spec_List, Actual_Arg_Spec, Data_Ref, Part_Ref, \
-    Only_List, Char_Literal_Constant, Section_Subscript_List, \
-    Name, Real_Literal_Constant, Data_Ref, Int_Literal_Constant, \
+    Subroutine_Subprogram, Function_Subprogram, Use_Stmt, Call_Stmt, \
+    Actual_Arg_Spec, Data_Ref, Part_Ref, Char_Literal_Constant, \
+    Section_Subscript_List, Name, Real_Literal_Constant, Int_Literal_Constant,\
     Function_Reference, Level_2_Unary_Expr, Add_Operand, Parenthesis
 # pylint: enable=no-name-in-module
 
 from psyclone.configuration import Config
 from psyclone.parse.utils import check_api, check_line_length, ParseError, \
     parse_fp2
-from psyclone.psyGen import InternalError
+from psyclone.errors import InternalError
 
 # Section 1: parse the algorithm file
 
@@ -203,10 +203,10 @@ class Parser(object):
                 "'{0}'".format(alg_filename))
 
         self._unique_invoke_labels = []
-        self._arg_name_to_module_name = {}
+        self._arg_name_to_module_name = OrderedDict()
         invoke_calls = []
 
-        for statement in walk_ast(alg_parse_tree.content):
+        for statement in walk(alg_parse_tree.content):
 
             if isinstance(statement, Use_Stmt):
                 # found a Fortran use statement
@@ -238,14 +238,8 @@ class Parser(object):
         argument is found.
 
         '''
-        # Extract argument list. This if construct can be removed
-        # when fparser#170 is implemented.
-        argument_list = []
-        if isinstance(statement.items[1], Actual_Arg_Spec_List):
-            argument_list = statement.items[1].items
-        else:
-            # Expecting a single entry rather than a list
-            argument_list = [statement.items[1]]
+        # Extract argument list.
+        argument_list = statement.items[1].items
 
         invoke_label = None
         kernel_calls = []
@@ -396,12 +390,11 @@ class Parser(object):
 
         use_name = str(statement.items[2])
 
-        # Extract only list. This can be removed when
-        # fparser#170 is implemented
-        if isinstance(statement.items[4], Only_List):
+        # Extract 'only' list.
+        if statement.items[4]:
             only_list = statement.items[4].items
         else:
-            only_list = [statement.items[4]]
+            only_list = []
 
         for item in only_list:
             self._arg_name_to_module_name[str(item).lower()] = use_name
@@ -561,8 +554,7 @@ def get_kernel(parse_tree, alg_filename):
 
     kernel_name = str(parse_tree.items[0])
 
-    # Extract argument list. This can be removed when
-    # fparser#170 is implemented
+    # Extract argument list. This can be removed when fparser#211 is fixed.
     argument_list = []
     if isinstance(parse_tree.items[1], Section_Subscript_List):
         argument_list = parse_tree.items[1].items
@@ -605,7 +597,7 @@ def get_kernel(parse_tree, alg_filename):
             # An expression e.g. -1, 1*n, ((1*n)/m). Note, for some
             # reason Add_Operation represents binary expressions in
             # fparser2.  Walk the tree to look for an argument.
-            if not walk_ast([argument], [Name]):
+            if not walk(argument, Name):
                 # This is a literal so store the full expression as a
                 # string
                 arguments.append(Arg('literal', argument.tostr().lower()))
@@ -745,13 +737,13 @@ class ParsedCall(object):
     kernel.
 
     :param ktype: information about a kernel or builtin. Provides \
-    access to the PSyclone description metadata and the code if it \
-    exists.
-    :type ktype: APi-specific specialisation of \
-    :py:class:`psyclone.dynamo0p3.KernelType`
+        access to the PSyclone description metadata and the code if it \
+        exists.
+    :type ktype: API-specific specialisation of \
+        :py:class:`psyclone.parse.kernel.KernelType`
     :param args: a list of Arg instances which capture the relevant \
-    information about the arguments associated with the call to the \
-    kernel or builtin
+        information about the arguments associated with the call to the \
+        kernel or builtin.
     :type args: list of :py:class:`psyclone.parse.algorithm.Arg`
 
     '''
@@ -775,10 +767,10 @@ class ParsedCall(object):
     def ktype(self):
         '''
         :returns: information about a kernel or builtin. Provides \
-        access to the PSyclone description metadata and the code if it \
-        exists.
-        :rtype: APi-specific specialisation of \
-        :py:class:`psyclone.dynamo0p3.KernelType`
+            access to the PSyclone description metadata and the code if it \
+            exists.
+        :rtype: API-specific specialisation of \
+            :py:class:`psyclone.parse.kernel.KernelType`
 
         '''
         return self._ktype

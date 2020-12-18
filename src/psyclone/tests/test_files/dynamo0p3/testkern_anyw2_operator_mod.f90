@@ -1,4 +1,8 @@
-! Copyright (c) 2017, Science and Technology Facilities Council
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -26,26 +30,62 @@
 ! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
-
-! Author R. Ford STFC Daresbury Lab
+! -----------------------------------------------------------------------------
+! Author: R. W. Ford, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 module testkern_anyw2_operator_mod
-  type, extends(kernel_type) :: testkern_anyw2_operator_type
-     type(arg_type), dimension(4) :: meta_args =           &
-          (/ arg_type(gh_operator,gh_write,any_w2,any_w2), &
-             arg_type(gh_field,gh_read,any_w2),            &
-             arg_type(gh_field,gh_read,any_w2),            &
-             arg_type(gh_field,gh_read,any_w2)             &
-          /)
-     type(func_type) :: meta_funcs(1) =  &
-          (/ func_type(any_w2, gh_basis) &
-          /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_quadrature_XYoZ
-   contains
-     procedure() :: code => testkern_anyw2_operator_code
+
+  use argument_mod
+  use kernel_mod
+  use constants_mod
+
+  implicit none
+
+  type, public, extends(kernel_type) :: testkern_anyw2_operator_type
+    private
+    type(arg_type), dimension(4) :: meta_args = (/        &
+         arg_type(gh_operator, gh_write, any_w2, any_w2), &
+         arg_type(gh_field,    gh_read,  any_w2),         &
+         arg_type(gh_field,    gh_read,  any_w2),         &
+         arg_type(gh_field,    gh_read,  any_w2)          &
+         /)
+    type(func_type) :: meta_funcs(1) =  (/ &
+         func_type(any_w2, gh_basis)       &
+         /)
+    integer :: operates_on = CELL_COLUMN
+    integer :: gh_shape = gh_quadrature_XYoZ
+  contains
+    procedure, nopass :: code => testkern_anyw2_operator_code
   end type testkern_anyw2_operator_type
+
 contains
-  subroutine testkern_anyw2_operator_code()
+
+  subroutine testkern_anyw2_operator_code(cell, nlayers, ncell_3d,      &
+                                          op_1, field2, field3, field4, &
+                                          ndf_any_w2, undf_any_w2,      &
+                                          map_any_w2,                   &
+                                          basis_any_w2_qr_xyoz,         &
+                                          np_xy_qr_xyoz, np_z_qr_xyoz,  &
+                                          weights_xy_qr_xyoz, weights_z_qr_xyoz)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_any_w2
+    integer(kind=i_def), intent(in) :: undf_any_w2
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: ncell_3d
+    integer(kind=i_def), intent(in) :: np_xy_qr_xyoz, np_z_qr_xyoz
+    integer(kind=i_def), intent(in), dimension(ndf_any_w2) :: map_any_w2
+    real(kind=r_def), intent(in), dimension(undf_any_w2) :: field2
+    real(kind=r_def), intent(in), dimension(undf_any_w2) :: field3
+    real(kind=r_def), intent(in), dimension(undf_any_w2) :: field4
+    real(kind=r_def), intent(out), dimension(ndf_any_w2,ndf_any_w2,ncell_3d) :: op_1
+    real(kind=r_def), intent(in), dimension(3,ndf_any_w2,np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_any_w2_qr_xyoz
+    real(kind=r_def), intent(in), dimension(np_xy_qr_xyoz) :: weights_xy_qr_xyoz
+    real(kind=r_def), intent(in), dimension(np_z_qr_xyoz) :: weights_z_qr_xyoz
+
   end subroutine testkern_anyw2_operator_code
+
 end module testkern_anyw2_operator_mod

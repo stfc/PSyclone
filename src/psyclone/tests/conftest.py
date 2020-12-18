@@ -96,7 +96,7 @@ def setup_psyclone_config():
     import os
     config_file = Config.get_repository_config_file()
 
-    # In case that PSyclone is installed and tested (e.g. travis),
+    # In case that PSyclone is installed and tested (e.g. GitHub Actions),
     # the 'repository' config file does not exist (since it is
     # installed in a different directory). In that case the standard
     # search path of the Configuration object will find the right
@@ -117,7 +117,7 @@ def infra_compile(tmpdir_factory, request):
     from psyclone.tests.utilities import Compile
     Compile.store_compilation_flags(request.config)
 
-    from psyclone.tests.dynamo0p3_build import Dynamo0p3Build
+    from psyclone.tests.lfric_build import LFRicBuild
     # Create a temporary directory to store the compiled files.
     # Note that this directory is unique even if compiled in
     # parallel, i.e. each process has its own copy of the
@@ -126,7 +126,7 @@ def infra_compile(tmpdir_factory, request):
     tmpdir = tmpdir_factory.mktemp('dynamo_wrapper')
     # This is the first instance created. This will trigger
     # compilation of the infrastructure files.
-    Dynamo0p3Build(tmpdir)
+    LFRicBuild(tmpdir)
 
     from psyclone.tests.gocean1p0_build import GOcean1p0Build
     tmpdir = tmpdir_factory.mktemp('dl_esm_inf')
@@ -141,6 +141,13 @@ def parser():
     '''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create()
+
+
+@pytest.fixture(scope="session", name="f2008_parser")
+def fixture_f2008_parser():
+    ''' Initialise fparser2 with Fortran2008 standard. '''
+    from fparser.two.parser import ParserFactory
+    return ParserFactory().create(std="f2008")
 
 
 @pytest.fixture(scope="function")

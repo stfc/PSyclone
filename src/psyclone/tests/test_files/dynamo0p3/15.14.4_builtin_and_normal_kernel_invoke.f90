@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council.
+! Copyright (c) 2017-2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,15 +37,18 @@
 program single_invoke
 
   ! Description: single point-wise operation specified in an invoke call.
-  use testkern_mod, only: testkern_type
-  use inf,          only: field_type
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
+  use testkern_mod,  only: testkern_type
+
   implicit none
+
   type(field_type) :: f1, f2, m1, m2
-  real(r_def) :: ginger
+  real(r_def)      :: ginger
   
   call invoke(                                &
        testkern_type(ginger, f1, f2, m1, m2), &
-       setval_c(f1, 0.0)                      &
+       setval_c(f1, 0.0_r_def)                &
           )
 
 end program single_invoke

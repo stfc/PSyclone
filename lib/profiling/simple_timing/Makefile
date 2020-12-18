@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Australian Bureau of Meteorology
+# Copyright (c) 2019-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,19 +35,29 @@
 
 
 F90?=gfortran
-FFLAGS?=-g
+F90FLAGS?=
 
 name=simple_timing
 libname:=lib$(name).a
+OBJS = $(name).o psy_data_base.o
+PROCESS_ARGS = -prefix=profile_ -types= -dims=
+PROCESS=$$(../../get_python.sh) ../../process.py
 
 .PHONY: default
 
 default: $(libname)
 
-$(libname): $(name).f90
-	$(F90) -c $(FFLAGS) $<
-	ar rs $@ $(name).o
+$(libname): $(OBJS)
+	ar rs $@ $(OBJS)
+
+$(name).o:	psy_data_base.o
+
+psy_data_base.f90: ../../psy_data_base.jinja
+	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f $(libname) $(name).o profile_mod.mod
+	rm -f $(libname) $(OBJS) profile_psy_data_mod.mod psy_data_base.f90 psy_data_base_mod.mod
 

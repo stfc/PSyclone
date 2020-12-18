@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
 
 ''' Tests for the kernel-stub generator. '''
 
@@ -78,7 +79,7 @@ def test_failures(monkeypatch, capsys):
 
     from psyclone.gen_kernel_stub import generate, run
     from psyclone.parse.algorithm import ParseError
-    from psyclone.psyGen import GenerationError
+    from psyclone.errors import GenerationError
 
     # Test error handling of command line options
     with pytest.raises(SystemExit) as err:
@@ -87,20 +88,23 @@ def test_failures(monkeypatch, capsys):
                                           str("/does_not_exist")])
         run()
     result, _ = capsys.readouterr()
-    assert "Error: file '/does_not_exist' not found" in str(result)
+    assert ("Error: Kernel stub generator: File '/does_not_exist' "
+            "not found" in str(result))
 
     # Test empty API (and file not found)
     with pytest.raises(IOError) as err:
         generate("/does_not_exist", api="")
-    assert "file '/does_not_exist' not found" in str(err)
+    assert "File '/does_not_exist' not found" in str(err.value)
 
     # CHeck invalid API
     with pytest.raises(GenerationError) as err:
         generate("filename", api="invalid")
-    assert "Unsupported API 'invalid' specified." in str(err)
+    assert ("Error: Kernel stub generator: Unsupported API 'invalid' "
+            "specified." in str(err.value))
 
     # Trapping Fortran errors:
     with pytest.raises(ParseError) as err:
         # Use this python file to trigger invalid Fortran
         generate(__file__, api="dynamo0.3")
-    assert "Code appears to be invalid" in str(err)
+    assert ("Kernel stub generator: Code appears to be invalid "
+            "Fortran" in str(err.value))

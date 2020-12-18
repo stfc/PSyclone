@@ -1,8 +1,3 @@
-.. psyclone documentation master file, created by
-   sphinx-quickstart on Mon Jan 27 12:50:29 2014.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
@@ -38,31 +33,91 @@
    -----------------------------------------------------------------------------
    Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-.. toctree::
-   :maxdepth: 3
+.. only:: html
 
-   introduction
-   getting_going
-   examples
-   psyclone_script
-   kernel_layer
-   algorithm_layer
-   psy_layer
-   transformations
-   distributed_memory
-   built_ins
-   dynamo0p3
-   gocean1p0
-   nemo
-   stub_gen
-   line_length
-   fortran_naming_conventions
-   api
-   profiling
-   psyke
-   system_specific_setup
-   configuration
-   zz_bibliography
+    .. image:: ../logo/psyclone_v1.0.png
+        :width: 75%
+        :align: center
+        :alt: PSyclone
+
+PSyclone User Guide
+=====================
+
+
+.. only:: html
+
+    PSyclone is a code generation system developed to support domain-specific
+    languages (DSLs) for finite element, finite volume and finite difference
+    codes. Notably, it is used in the
+    `LFRic Project <https://www.metoffice.gov.uk/research/modelling-systems/
+    lfric/>`_, and it also supports the `GOcean <https://puma.nerc.ac.uk/trac
+    /GOcean>`_ (2D, finite difference) DSL. In addition it is being extended
+    to support the processing of existing finite difference codes such as the 
+    `NEMO <https://www.nemo-ocean.eu/>`_ ocean model. 
+    Find more information in the
+    `Developer's Guide <https://psyclone-dev.readthedocs.io/>`_
+    and the
+    `Reference Guide <https://psyclone-ref.readthedocs.io/>`_.
+
+.. toctree::
+    :hidden:
+    :caption: Table of Contents
+
+.. toctree::
+    :maxdepth: 2
+    :caption: Introduction
+
+    introduction
+    getting_going
+    psyclone_command
+    tutorial
+    examples
+    system_specific_setup
+
+.. toctree::
+    :maxdepth: 2
+    :caption: PSyKAl
+
+    kernel_layer
+    algorithm_layer
+    psy_layer
+    built_ins
+
+.. toctree::
+    :maxdepth: 2
+    :caption: Domain APIs
+
+    dynamo0p3
+    gocean1p0
+    nemo
+
+.. toctree::
+    :maxdepth: 2
+    :caption: PSyclone Transformations
+
+    psyir
+    transformations
+    distributed_memory
+
+
+.. toctree::
+    :maxdepth: 2
+    :caption: Utilities and Conventions
+
+    stub_gen
+    line_length
+    fortran_naming_conventions
+    api
+    psy_data
+    profiling
+    psyke
+    configuration
+
+.. toctree::
+    :maxdepth: 2
+    :caption: Bibliography
+
+    zz_bibliography
 
 ..   tutorial
 ..   FAQS

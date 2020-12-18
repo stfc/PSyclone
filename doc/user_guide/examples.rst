@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2019, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2020, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,19 +32,49 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified I. Kavcic, Met Office
+.. Modified by I. Kavcic, Met Office
 
 .. _examples:
 
 Examples
 ========
 
-Various examples of the use of PSyclone are provided under the ``examples``
-directory. All of these examples require that PSyclone be installed on the
-host system, see :ref:`getting-going`. This document is intended to provide
-an overview of the various examples so that a user can find one that is
-appropriate to them. For details of how to run each example please see the
-README files in the associated directories.
+Various examples of the use of PSyclone are provided under the
+``examples`` directory in the git repository. If you have installed
+PSyclone using pip then the examples may be found in
+``share/psyclone/examples`` under your Python installation
+(e.g. ``~/.local`` for a user-local installation).
+
+Running any of these examples requires that PSyclone be installed on
+the host system, see :ref:`getting-going`. This section is intended
+to provide an overview of the various examples so that a user can find
+one that is appropriate to them. For details of how to run each
+example please see the ``README.md`` files in the associated directories.
+
+Alternatively, some of the examples have associated Jupyter notebooks
+that may be launched with Binder on `MyBinder <https://mybinder.org/>`_.
+This is most easily done by following the links from the top-level
+`README <https://github.com/stfc/PSyclone#try-it-on-binder>`_.
+
+For the purposes of correctness checking, the whole suite of examples
+may be executed using Gnu ``make`` (this functionality is used by GitHub
+Actions alongside the test suite). The default target is ``transform`` which
+just performs the PSyclone code transformation steps for each
+example. For those examples that support it, the ``compile`` target
+also requests that the generated code be compiled. The ``notebook``
+target checks the various Jupyter notebooks using ``nbconvert``.
+
+.. note:: if you have copied the examples directory to some other
+	  location but still wish to use ``make`` then you will also
+	  have to set the ``PSYCLONE_CONFIG`` environment variable to
+	  the full path to the PSyclone configuration file, e.g.
+	  ``$ PSYCLONE_CONFIG=/some/path/psyclone.cfg make``
+
+Each of the Makefiles also provides the ``clean`` and ``allclean``
+targets.  The former simply removes all generated files while the
+latter also cleans each of the infrastructure libraries used when
+compiling the examples (``dl_timer``, ``dl_esm_inf`` and the various
+PSyData wrapper libraries).
 
 GOcean
 ------
@@ -53,7 +83,7 @@ Example 1: Loop transformations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Examples of applying various transformations (loop fusion, OpenMP,
-OpenACC) to the semi-PSyKAl'd version of the Shallow
+OpenACC, OpenCL) to the semi-PSyKAl'd version of the Shallow
 benchmark. ("semi" because not all kernels are called from within
 invoke()'s.) Also includes an example of generating a DAG from an
 InvokeSchedule.
@@ -81,17 +111,112 @@ Example 3: OpenCL
 ^^^^^^^^^^^^^^^^^
 
 Example of the use of PSyclone to generate an OpenCL driver version of
-the PSy layer and OpenCL kernels.
+the PSy layer and OpenCL kernels. The Makefile in this example provides
+a target (`make compile-ocl`) to compile the generated OpenCL code. This
+requires an OpenCL implementation installed in the system. Read the README
+provided in the example folder for more details about how to compile and
+execute the generated OpenCL code.
 
 Example 4: Kernels containing use statements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Transforming kernels for use with either OpenACC or OpenCL requires
 that we handle those that access data and/or routines via module
-`use` statements. This example shows the various forms for which
-support is planned (Issues #323 and #342).
+``use`` statements. This example shows the various forms for which
+support is being implemented. Although there is support for converting
+global-data accesses into kernel arguments, PSyclone does not yet support
+nested ``use`` of modules (i.e. data accessed via a module that in turn
+imports that symbol from another module) and kernels that call other
+kernels (Issue #342).
 
-Dynamo
+
+Example 5: Profiling
+^^^^^^^^^^^^^^^^^^^^
+
+This example shows how to use the profiling support in PSyclone.
+It instruments two invoke statements and can link in with any
+of the following profiling wrapper libraries: template,
+simple_timer, apeg-dl_timer, and DrHook (see
+:ref:`profiling_third_party_tools`). The ``README.md``
+file contains detailed instructions on how to build the
+different executables. By default (i.e. just using ``make``
+without additional parameters) it links in with the
+template profiling library included in PSyclone. This library just
+prints out the name of the module and region before and after each
+invoke is executed. This example can actually be executed to
+test the behaviour of the various profiling wrappers, and is
+also useful if you want to develop your own wrapper libraries.
+
+
+Example 6: Kernel data extraction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example shows the use of kernel data extraction in PSyclone.
+It instruments each of the two invokes in the example program
+with the PSyData-based kernel extraction code.
+It uses the dl_esm_inf-specific extraction library 'netcdf'
+(``lib/extract/netcdf/dl_esm_inf``), and needs NetCDF to be
+available (including ``nf-config`` to detect installation-specific
+paths). You need to compile the NetCDF extraction library
+(see :ref:`psyke_netcdf`).
+The makefile in this example will link with the compiled NetCDF
+extraction library and NetCDF. You can execute the created
+binary and it will create two output netcdf files, one for
+each of the two invokes.
+
+It will also create two stand-alone driver programs (one for
+each invoke), that will read the corresponding NetCDF file,
+and then executes the original code.
+
+.. note::
+    At this stage the driver program will not compile
+    (see issue #644).
+
+.. _gocean_example_7:
+
+Example 7: Read-only-verification
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example shows the use of read-only-verification with PSyclone.
+It instruments each of the two invokes in the example program
+with the PSyData-based read-only-verification code.
+It uses the dl_esm_inf-specific read-only-verification library
+(``lib/read_only/dl_esm_inf/``).
+
+.. note::
+
+    The ``update_field_mod`` subroutine contains some very
+    buggy and non-standard code to change the value of some
+    read-only variables and fields, even though the variables
+    are all declared with
+    ``intent(in)``. It uses the addresses of variables and
+    then out-of-bound writes to a writeable array to
+    actually overwrite the read-only variables. Using
+    array bounds checking at runtime will be triggered by these
+    out-of-bound writes.
+
+The makefile in this example will link with the compiled 
+read-only-verification library. You can execute the created
+binary and it will print two warnings about modified
+read-only variables:
+
+.. code-block:: none
+
+    --------------------------------------
+    Double precision field b_fld has been modified in main : update
+    Original checksum:   4611686018427387904
+    New checksum:        4638355772470722560
+    --------------------------------------
+    --------------------------------------
+    Double precision variable z has been modified in main : update
+    Original value:    1.0000000000000000     
+    New value:         123.00000000000000     
+    --------------------------------------
+
+
+.. _examples_lfric:
+
+LFRic
 ------
 
 Examples 1 and 2 are for the (deprecated) Dynamo 0.1 API. The remaining
@@ -115,7 +240,8 @@ Example 3
 
 Shows the use of colouring and OpenMP for the Dynamo 0.3 API. Includes
 multi-kernel, named invokes with both user-supplied and built-in
-kernels.
+kernels. Also shows the use of ``Wchi`` function space metadata for
+coordinate fields in LFRic.
 
 Example 4
 ^^^^^^^^^
@@ -161,7 +287,8 @@ Example 10
 ^^^^^^^^^^
 
 Demonstrates the use of "inter-grid" kernels that prolong or restrict
-fields (map between grids of different resolutions).
+fields (map between grids of different resolutions), as well as the
+use of ``ANY_DISCONTINUOUS_SPACE`` function space metadata.
 
 Example 11
 ^^^^^^^^^^
@@ -218,18 +345,18 @@ work in progress so the generated code may not work as
 expected. However it is never-the-less useful as a starting
 point. Three scripts are provided.
 
-The first script (`acc_kernels.py`) shows how to add OpenACC Kernels
+The first script (``acc_kernels.py``) shows how to add OpenACC Kernels
 directives to the PSy-layer. This example only works with distributed
 memory switched off as the OpenACC Kernels transformation does not yet
 support halo exchanges within an OpenACC Kernels region.
 
-The second script (`acc_parallel.py`)shows how to add OpenACC Loop,
+The second script (``acc_parallel.py``)shows how to add OpenACC Loop,
 Parallel and Enter Data directives to the PSy-layer. Again this
 example only works with distributed memory switched off as the OpenACC
 Parallel transformation does not support halo exchanges within an
 OpenACC Parallel region.
 
-The third script (`acc_parallel_dm.py`) is the same as the second
+The third script (``acc_parallel_dm.py``) is the same as the second
 except that it does support distributed memory being switched on by
 placing an OpenACC Parallel directive around each OpenACC Loop
 directive, rather than having one for the whole invoke. This approach
@@ -243,11 +370,47 @@ within an OpenACC Parallel directive and 4) there are no checks on
 whether loops are parallel or not, it is just assumed they are -
 i.e. support for colouring or locking is not yet implemented.
 
+Example 15: CPU Optimisation of Matvec
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Example of optimising the LFRic matvec kernel for CPUs. This is work
+in progress with the idea being that PSyclone transformations will be
+able to reproduce hand-optimised code.
+
+There is one script which, when run:
+
+.. code-block:: bash
+
+   > psyclone ./matvec_opt.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+
+will print out the modified matvec kernel code. At the moment no
+transformations are included (as they are work-in-progress) so the
+code that is output is the same as the original (but looks different
+as it has been translated to PSyIR and then output by the PSyIR
+fortran back-end).
+
+Example 16: Kernel Extraction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The subdirectory ``full_example_extract`` contains a runnable example
+of LFRic code that creates a NetCDF file with the input and output
+parameters of a simple kernel. This example requires the installation
+of a Fortran compiler and NetCDF development environment. After compilation
+of the code, you can run the example. which will produce a NetCDF file:
+
+.. code-block:: bash
+
+    cd full_example_extraction
+    make
+    ./extract
+    ncdump ./main-update.nc | less
+
+
 
 NEMO
 ----
 
-These examples may all be found in the ``PSyclone/examples/nemo`` directory.
+These examples may all be found in the ``examples/nemo`` directory.
 
 Example 1: OpenMP parallelisation of tra_adv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -279,3 +442,21 @@ NEMO API can be transformed to the Stencil Intermediate Representation
 optimised cuda, or gridtools code. Thus these simple Fortran examples
 can be transformed to optimised cuda and/or gridtools code by using
 PSyclone and then DAWN.
+
+PSyIR
+-----
+
+Examples may all be found in the ``example/psyir`` directory. Read the
+``README.md`` file in this directory for full details.
+
+Example 1: Constructing PSyIR and Generating Code
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``create.py`` is a Python script that demonstrates the use of the various
+``create`` methods to build a PSyIR tree from scratch.
+
+Example 2: Creating PSyIR for Aggregate Types
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``create_aggregate_types.py`` demonstrates the representation of
+aggregate types (i.e. Fortran derived types or C structs) in the PSyIR.

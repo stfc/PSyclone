@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab.
+# Modified by: A. R. Porter, STFC Daresbury Lab.
 
 '''SIR PSyIR backend. Generates SIR code from PSyIR nodes. Currently
 limited to PSyIR Kernel schedules as PSy-layer PSyIR already has a
@@ -39,10 +40,22 @@ gen() method to generate Fortran.
 
 '''
 
-from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
-from psyclone.psyGen import Reference, BinaryOperation, Literal, \
-    Array, UnaryOperation
+from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
+from psyclone.psyir.nodes import Reference, BinaryOperation, Literal, \
+    ArrayReference, UnaryOperation
 from psyclone.nemo import NemoLoop, NemoKern
+from psyclone.psyir.symbols import ScalarType
+
+# Mapping from PSyIR data types to SIR types.
+# SIR does not seem to support the Character datatype. Boolean does
+# seem to be supported but there are no examples with the data value
+# so we don't include it here.
+# We do not yet deal with precision e.g. the SIR supports a DOUBLE
+# type which would probably be equivalent to PSyIR's
+# Precision.DOUBLE. This is the subject of issue #741.
+
+TYPE_MAP_TO_SIR = {ScalarType.Intrinsic.REAL: "BuiltinType.Float",
+                   ScalarType.Intrinsic.INTEGER: "BuiltinType.Integer"}
 
 
 def gen_stencil(node):
@@ -52,7 +65,7 @@ def gen_stencil(node):
     stencil access.
 
     :param node: an array access.
-    :type node: :py:class:`psyclone.psyGen.Array`
+    :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
     :returns: the SIR stencil access format for the array access.
     :rtype: str
@@ -61,9 +74,9 @@ def gen_stencil(node):
     array access is not in a recognised stencil form.
 
     '''
-    if not isinstance(node, Array):
+    if not isinstance(node, ArrayReference):
         raise VisitorError(
-            "gen_stencil expected an Array as input but found '{0}'."
+            "gen_stencil expected an ArrayReference as input but found '{0}'."
             "".format(type(node)))
     dims = []
     for child in node.children:
@@ -117,6 +130,13 @@ class SIRWriter(PSyIRVisitor):
         # found in the PSyIR. This is required as the SIR declares
         # field names after the computation.
         self._field_names = set()
+        # The _scalar_names variable stores the unique scalar names
+        # found in the PSyIR. The current assumption is that scalars
+        # are temporaries. This is not necessarily correct and this
+        # problem is captured in issue #521. Scalar temporaries can be
+        # declared as field temporaries as the Dawn backend works out
+        # what is required.
+        self._scalar_names = set()
 
     def node_node(self, node):
         '''Catch any unsupported nodes, output their class names and continue
@@ -127,7 +147,7 @@ class SIRWriter(PSyIRVisitor):
         unsupported node is found.
 
         :param node: an unsupported PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyGen.Node`
+        :type node: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -226,7 +246,7 @@ class SIRWriter(PSyIRVisitor):
         in the PSyIR tree.
 
         :param node: a KernelSchedule PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.KernelSchedule`
+        :type node: :py:class:`psyclone.psyir.nodes.KernelSchedule`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -251,6 +271,13 @@ class SIRWriter(PSyIRVisitor):
         functions = []
         for name in self._field_names:
             functions.append("make_field(\"{0}\")".format(name))
+        # The current assumption is that scalars are temporaries. This
+        # is not necessarily correct and this problem is captured in
+        # issue #521. Scalar temporaries can be declared as field
+        # temporaries as the Dawn backend works out what is required.
+        for name in self._scalar_names:
+            functions.append(
+                "make_field(\"{0}\", is_temporary=True)".format(name))
         result += ", ".join(functions)
         result += "]\n"
         result += (
@@ -286,7 +313,7 @@ class SIRWriter(PSyIRVisitor):
         the PSyIR tree.
 
         :param node: a BinaryOperation PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.BinaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -333,7 +360,7 @@ class SIRWriter(PSyIRVisitor):
         PSyIR tree.
 
         :param node: a Reference PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Reference`
+        :type node: :py:class:`psyclone.psyir.nodes.Reference`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -345,15 +372,23 @@ class SIRWriter(PSyIRVisitor):
             raise VisitorError(
                 "Method reference_node in class SIRWriter: SIR Reference "
                 "node is not expected to have any children.")
-        return "{0}make_var_access_expr(\"{1}\")".format(self._nindent,
-                                                         node.name)
+        # _scalar_names is a set so duplicates will be ignored. It
+        # captures all unique scalar names as scalars are currently
+        # treated as temporaries (#521 captures this). The simplest
+        # way to declare a scalar temporary in Dawn is to treat it as
+        # a field temporary (as the Dawn backend works out if a scalar
+        # is required).
+        self._scalar_names.add(node.name)
 
-    def array_node(self, node):
-        '''This method is called when an Array instance is found in the PSyIR
-        tree.
+        return "{0}make_field_access_expr(\"{1}\")".format(self._nindent,
+                                                           node.name)
 
-        :param node: an Array PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Array`
+    def arrayreference_node(self, node):
+        '''This method is called when an ArrayReference instance is found in
+        the PSyIR tree.
+
+        :param node: an ArrayReference PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -373,24 +408,29 @@ class SIRWriter(PSyIRVisitor):
         tree.
 
         :param node: a Literal PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Literal`
+        :type node: :py:class:`psyclone.psyir.nodes.Literal`
 
         :returns: the SIR Python code.
         :rtype: str
 
         '''
         result = node.value
-        # There is an assumption here that the literal is a float (see
-        # #468).
-        return ("{0}make_literal_access_expr(\"{1}\", BuiltinType.Float)"
-                "".format(self._nindent, result))
+        try:
+            datatype = TYPE_MAP_TO_SIR[node.datatype.intrinsic]
+        except KeyError:
+            raise VisitorError(
+                "PSyIR type '{0}' has no representation in the SIR backend."
+                "".format(str(node.datatype)))
+
+        return ("{0}make_literal_access_expr(\"{1}\", {2})"
+                "".format(self._nindent, result, datatype))
 
     def unaryoperation_node(self, node):
         '''This method is called when a UnaryOperation instance is found in
         the PSyIR tree.
 
         :param node: a UnaryOperation PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.UnaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.UnaryOperation`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -414,17 +454,25 @@ class SIRWriter(PSyIRVisitor):
                 isinstance(node.children[0], Literal)):
             raise VisitorError(
                 "Currently, unary operators can only be applied to literals.")
-        result = node.children[0].value
-        # There is an assumption here that the literal is a float (see #468)
-        return ("{0}make_literal_access_expr(\"{1}{2}\", BuiltinType.Float)"
-                "".format(self._nindent, oper, result))
+        literal = node.children[0]
+        if literal.datatype.intrinsic not in [ScalarType.Intrinsic.REAL,
+                                              ScalarType.Intrinsic.INTEGER]:
+            # The '-' operator can only be applied to REAL and INTEGER
+            # datatypes.
+            raise VisitorError(
+                "PSyIR type '{0}' does not work with the '-' operator."
+                "".format(str(literal.datatype)))
+        result = literal.value
+        datatype = TYPE_MAP_TO_SIR[literal.datatype.intrinsic]
+        return ("{0}make_literal_access_expr(\"{1}{2}\", {3})"
+                "".format(self._nindent, oper, result, datatype))
 
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in
         the PSyIR tree.
 
         :param node: an IfBlock PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.IfBlock`
+        :type node: :py:class:`psyclone.psyir.nodes.IfBlock`
 
         :returns: SIR Python code.
         :rtype: str
@@ -444,7 +492,7 @@ class SIRWriter(PSyIRVisitor):
         else:
             else_part = "None"
 
-        return ("{0}make_if_stmt({1}, {2}, {3})\n"
+        return ("{0}make_if_stmt({1}, {2}, {3}),\n"
                 "".format(self._nindent, cond_part, then_part, else_part))
 
     def schedule_node(self, node):
@@ -457,7 +505,7 @@ class SIRWriter(PSyIRVisitor):
         agregated result.
 
         :param node: a Schedule PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Schedule`
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
 
         :returns: the SIR Python code.
         :rtype: str

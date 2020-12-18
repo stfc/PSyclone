@@ -1,8 +1,7 @@
-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +33,8 @@
 # ----------------------------------------------------------------------------
 # Authors A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified work Copyright (c) 2018-2019 by J. Henrichs, Bureau of Meteorology
+# Modified R. W. Ford, STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
 
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
@@ -43,14 +44,25 @@ import os
 import re
 import pytest
 from psyclone.configuration import Config
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, InternalError
-from psyclone.generator import GenerationError, ParseError
-from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
+from psyclone.parse.algorithm import parse, Arg
+from psyclone.parse.kernel import Descriptor
+from psyclone.parse.utils import ParseError
+from psyclone.errors import InternalError, GenerationError
+from psyclone.psyGen import PSyFactory
+from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule, \
+    GOKernelArgument, GOKernelArguments, GOKernelGridArgument, \
+    GOBuiltInCallFactory, GOSymbolTable
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.psyir.symbols import SymbolTable, DeferredType, \
+    ContainerSymbol, DataSymbol, GlobalInterface, REAL_TYPE, INTEGER_TYPE, \
+    ArgumentInterface
+from psyclone.psyir.nodes import Schedule, Node
+from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
 API = "gocean1.0"
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "gocean1p0")
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -59,7 +71,7 @@ def setup():
     Config.get().api = "gocean1.0"
 
 
-def test_field(tmpdir):
+def test_field(tmpdir, dist_mem):
     ''' Tests that a kernel call with only fields produces correct code '''
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
@@ -67,10 +79,10 @@ def test_field(tmpdir):
                                         "test_files", "gocean1p0",
                                         "single_invoke.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = (
+    before_kernel = (
         "  MODULE psy_single_invoke_test\n"
         "    USE field_mod\n"
         "    USE kind_params_mod\n"
@@ -80,28 +92,32 @@ def test_field(tmpdir):
         "      USE compute_cu_mod, ONLY: compute_cu_code\n"
         "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld\n"
         "      INTEGER j\n"
-        "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
-        "      ! Look-up loop bounds\n"
-        "      istop = cu_fld%grid%subdomain%internal%xstop\n"
-        "      jstop = cu_fld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=2,jstop\n"
-        "        DO i=2,istop+1\n"
+        "      INTEGER i\n")
+    remaining_code = (
+        "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
+        "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
         "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
         "u_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_cu\n"
         "  END MODULE psy_single_invoke_test")
 
-    assert generated_code.find(expected_output) != -1
+    if dist_mem:
+        # Fields that read and have a stencil access insert a halo exchange,
+        # in this case p_fld is a stencil but u_fld is pointwise.
+        halo_exchange_code = (
+            "      CALL p_fld%halo_exchange(depth=1)\n"
+            "      !\n")
+        expected_output = before_kernel + halo_exchange_code + remaining_code
+    else:
+        expected_output = before_kernel + remaining_code
 
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_two_kernels(tmpdir):
+def test_two_kernels(tmpdir, dist_mem):
     ''' Tests that an invoke containing two kernel calls with only
     fields as arguments produces correct code '''
     _, invoke_info = parse(os.path.join(os.path.
@@ -110,48 +126,111 @@ def test_two_kernels(tmpdir):
                                         "test_files", "gocean1p0",
                                         "single_invoke_two_kernels.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     generated_code = psy.gen
 
-    expected_output = (
+    before_kernels = (
         "  MODULE psy_single_invoke_two_kernels\n"
         "    USE field_mod\n"
         "    USE kind_params_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, unew_fld, uold_fld)\n"
+        "    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, unew_fld, "
+        "uold_fld)\n"
         "      USE time_smooth_mod, ONLY: time_smooth_code\n"
         "      USE compute_cu_mod, ONLY: compute_cu_code\n"
         "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, "
         "unew_fld, uold_fld\n"
         "      INTEGER j\n"
-        "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
-        "      ! Look-up loop bounds\n"
-        "      istop = cu_fld%grid%subdomain%internal%xstop\n"
-        "      jstop = cu_fld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=2,jstop\n"
-        "        DO i=2,istop+1\n"
+        "      INTEGER i\n")
+    first_kernel = (
+        "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
+        "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
         "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
         "u_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
-        "      DO j=1,jstop+1\n"
-        "        DO i=1,istop+1\n"
+        "        END DO\n"
+        "      END DO\n")
+    second_kernel = (
+        "      DO j=1,SIZE(uold_fld%data, 2)\n"
+        "        DO i=1,SIZE(uold_fld%data, 1)\n"
         "          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, "
         "uold_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0\n"
         "  END MODULE psy_single_invoke_two_kernels")
+    if dist_mem:
+        # In this case the second kernel just has pointwise accesses, so it
+        # doesn't add any halo exchange.
+        halos_first_kernel = (
+            "      CALL p_fld%halo_exchange(depth=1)\n"
+            "      !\n")
+        expected_output = before_kernels + halos_first_kernel + first_kernel \
+            + second_kernel
+    else:
+        expected_output = before_kernels + first_kernel + second_kernel
 
-    assert str(generated_code).find(expected_output) != -1
+    assert str(generated_code) == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_grid_property(tmpdir):
+def test_two_kernels_with_dependencies(tmpdir, dist_mem):
+    ''' Tests that an invoke containing two kernel calls with dependencies
+    between them produces correct code '''
+    _, invoke_info = parse(os.path.join(os.path.dirname(
+        os.path.abspath(__file__)), "test_files", "gocean1p0",
+        "single_invoke_two_identical_kernels.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    generated_code = psy.gen
+
+    before_kernels = (
+        "  MODULE psy_single_invoke_two_kernels\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld)\n"
+        "      USE compute_cu_mod, ONLY: compute_cu_code\n"
+        "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n")
+    first_kernel = (
+        "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
+        "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
+        "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
+        "u_fld%data)\n"
+        "        END DO\n"
+        "      END DO\n")
+    second_kernel = (
+        "      DO j=p_fld%internal%ystart,p_fld%internal%ystop\n"
+        "        DO i=p_fld%internal%xstart,p_fld%internal%xstop\n"
+        "          CALL compute_cu_code(i, j, p_fld%data, cu_fld%data,"
+        " u_fld%data)\n"
+        "        END DO\n"
+        "      END DO\n"
+        "    END SUBROUTINE invoke_0\n"
+        "  END MODULE psy_single_invoke_two_kernels")
+
+    if dist_mem:
+        # In this case the second kernel just has a RaW dependency on the
+        # cu_fld of the first kernel, so a halo exchange should be inserted
+        # bewteen the kernels in addition to the initial p_fld halo exchange.
+        halos_first_kernel = (
+            "      CALL p_fld%halo_exchange(depth=1)\n"
+            "      !\n")
+        halos_second_kernel = (
+            "      CALL cu_fld%halo_exchange(depth=1)\n"
+            "      !\n")
+        expected_output = before_kernels + halos_first_kernel + first_kernel \
+            + halos_second_kernel + second_kernel
+    else:
+        expected_output = before_kernels + first_kernel + second_kernel
+
+    assert str(generated_code) == expected_output
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+
+
+def test_grid_property(tmpdir, dist_mem):
     ''' Tests that an invoke containing a kernel call requiring
     a property of the grid produces correct code '''
     _, invoke_info = parse(os.path.join(os.path.
@@ -160,10 +239,10 @@ def test_grid_property(tmpdir):
                                         "test_files", "gocean1p0",
                                         "single_invoke_grid_props.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = (
+    before_kernels = (
         "  MODULE psy_single_invoke_with_grid_props_test\n"
         "    USE field_mod\n"
         "    USE kind_params_mod\n"
@@ -174,33 +253,42 @@ def test_grid_property(tmpdir):
         "      TYPE(r2d_field), intent(inout) :: cu_fld, u_fld, du_fld, "
         "d_fld\n"
         "      INTEGER j\n"
-        "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
-        "      ! Look-up loop bounds\n"
-        "      istop = cu_fld%grid%subdomain%internal%xstop\n"
-        "      jstop = cu_fld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=2,jstop\n"
-        "        DO i=2,istop-1\n"
+        "      INTEGER i\n")
+    first_kernel = (
+        "      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
+        "        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
         "          CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, "
         "u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)\n"
-        "        END DO \n"
-        "      END DO \n"
-        "      DO j=2,jstop\n"
-        "        DO i=2,istop-1\n"
+        "        END DO\n"
+        "      END DO\n")
+    second_kernel = (
+        "      DO j=du_fld%internal%ystart,du_fld%internal%ystop\n"
+        "        DO i=du_fld%internal%xstart,du_fld%internal%xstop\n"
         "          CALL next_sshu_code(i, j, du_fld%data, d_fld%data, "
         "d_fld%grid%tmask, d_fld%grid%area_t, d_fld%grid%area_u)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0\n"
         "  END MODULE psy_single_invoke_with_grid_props_test")
+    if dist_mem:
+        # Grid properties do not insert halo exchanges, in this case
+        # only the u_fld and d_fld have read stencil accesses.
+        halos_first_kernel = (
+            "      CALL u_fld%halo_exchange(depth=1)\n"
+            "      !\n")
+        halos_second_kernel = (
+            "      CALL d_fld%halo_exchange(depth=1)\n"
+            "      !\n")
+        expected_output = before_kernels + halos_first_kernel + first_kernel \
+            + halos_second_kernel + second_kernel
+    else:
+        expected_output = before_kernels + first_kernel + second_kernel
 
-    assert generated_code.find(expected_output) != -1
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_scalar_int_arg(tmpdir):
+def test_scalar_int_arg(tmpdir, dist_mem):
     ''' Tests that an invoke containing a kernel call requiring
     an integer, scalar argument produces correct code '''
     _, invoke_info = parse(os.path.join(os.path.
@@ -209,10 +297,10 @@ def test_scalar_int_arg(tmpdir):
                                         "test_files", "gocean1p0",
                                         "single_invoke_scalar_int_arg.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = (
+    before_kernels = (
         "  MODULE psy_single_invoke_scalar_int_test\n"
         "    USE field_mod\n"
         "    USE kind_params_mod\n"
@@ -223,27 +311,27 @@ def test_scalar_int_arg(tmpdir):
         "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
         "      INTEGER, intent(inout) :: ncycle\n"
         "      INTEGER j\n"
-        "      INTEGER i\n"
-        "      INTEGER istop, jstop\n"
-        "      !\n"
-        "      ! Look-up loop bounds\n"
-        "      istop = ssh_fld%grid%subdomain%internal%xstop\n"
-        "      jstop = ssh_fld%grid%subdomain%internal%ystop\n"
-        "      !\n"
-        "      DO j=1,jstop+1\n"
-        "        DO i=1,istop+1\n"
+        "      INTEGER i\n")
+    first_kernel = (
+        "      DO j=ssh_fld%whole%ystart,ssh_fld%whole%ystop\n"
+        "        DO i=ssh_fld%whole%xstart,ssh_fld%whole%xstop\n"
         "          CALL bc_ssh_code(i, j, ncycle, ssh_fld%data, "
         "ssh_fld%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_ssh\n"
         "  END MODULE psy_single_invoke_scalar_int_test")
 
-    assert generated_code.find(expected_output) != -1
+    # Scalar arguments do not insert halo exchanges in the distributed memory,
+    # in this case, since the only field has pointwise access, there are no
+    # halo exchanges.
+    expected_output = before_kernels + first_kernel
+
+    assert generated_code == expected_output
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_scalar_float_arg(tmpdir):
+def test_scalar_float_arg(tmpdir, dist_mem):
     ''' Tests that an invoke containing a kernel call requiring
     a real, scalar argument produces correct code '''
     _, invoke_info = parse(os.path.join(os.path.
@@ -252,10 +340,10 @@ def test_scalar_float_arg(tmpdir):
                                         "test_files", "gocean1p0",
                                         "single_invoke_scalar_float_arg.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = (
+    before_kernel = (
         "  MODULE psy_single_invoke_scalar_float_test\n"
         "    USE field_mod\n"
         "    USE kind_params_mod\n"
@@ -265,6 +353,59 @@ def test_scalar_float_arg(tmpdir):
         "      USE kernel_scalar_float, ONLY: bc_ssh_code\n"
         "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
         "      REAL(KIND=go_wp), intent(inout) :: a_scalar\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n")
+    first_kernel = (
+        "      DO j=ssh_fld%whole%ystart,ssh_fld%whole%ystop\n"
+        "        DO i=ssh_fld%whole%xstart,ssh_fld%whole%xstop\n"
+        "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
+        "ssh_fld%grid%subdomain%internal%xstop, ssh_fld%grid%tmask)\n"
+        "        END DO\n"
+        "      END DO\n"
+        "    END SUBROUTINE invoke_0_bc_ssh\n"
+        "  END MODULE psy_single_invoke_scalar_float_test")
+
+    # Scalar arguments do not insert halo exchanges in the distributed memory,
+    # in this case, since the only field has pointwise access, there are no
+    # halo exchanges.
+    expected_output = before_kernel + first_kernel
+
+    assert generated_code == expected_output
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+
+
+def test_scalar_float_arg_from_module():
+    ''' Tests that an invoke containing a kernel call requiring a real, scalar
+    argument imported from a module produces correct code '''
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
+
+    # Substitute 'a_scalar' with a global
+    schedule = psy.invokes.invoke_list[0].schedule
+    my_mod = ContainerSymbol("my_mod")
+    schedule.symbol_table._symbols['a_scalar'] = DataSymbol(
+        'a_scalar', REAL_TYPE, interface=GlobalInterface(my_mod))
+
+    # Generate the code. 'a_scalar' should now come from a module instead of a
+    # declaration.
+    generated_code = str(psy.gen)
+    expected_output = (
+        "  MODULE psy_single_invoke_scalar_float_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_bc_ssh(a_scalar, ssh_fld)\n"
+        "      USE kernel_scalar_float, ONLY: bc_ssh_code\n"
+        "      USE my_mod, ONLY: a_scalar\n"
+        "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
         "      INTEGER istop, jstop\n"
@@ -277,12 +418,13 @@ def test_scalar_float_arg(tmpdir):
         "        DO i=1,istop+1\n"
         "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
         "ssh_fld%grid%subdomain%internal%xstop, ssh_fld%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_ssh\n"
         "  END MODULE psy_single_invoke_scalar_float_test")
     assert generated_code.find(expected_output) != -1
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    # We don't compile this generated code as the module is made up and
+    # the compiler would correctly fail.
 
 
 def test_ne_offset_cf_points(tmpdir):
@@ -295,7 +437,9 @@ def test_ne_offset_cf_points(tmpdir):
                                 "test_files", "gocean1p0",
                                 "test14_ne_offset_cf_updated_one_invoke.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -320,8 +464,8 @@ def test_ne_offset_cf_points(tmpdir):
         "        DO i=1,istop-1\n"
         "          CALL compute_vort_code(i, j, vort_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_vort\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -339,7 +483,9 @@ def test_ne_offset_ct_points(tmpdir):
                                 "test_files", "gocean1p0",
                                 "test15_ne_offset_ct_updated_one_invoke.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -363,8 +509,8 @@ def test_ne_offset_ct_points(tmpdir):
         "        DO i=2,istop\n"
         "          CALL compute_vort_code(i, j, p_fld%data, u_fld%data, "
         "v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_vort\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -382,7 +528,9 @@ def test_ne_offset_all_cu_points(tmpdir):
                                 "test_files", "gocean1p0",
                                 "test16_ne_offset_cu_updated_one_invoke.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -405,8 +553,8 @@ def test_ne_offset_all_cu_points(tmpdir):
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop\n"
         "          CALL bc_solid_u_code(i, j, u_fld%data, u_fld%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_solid_u\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -424,7 +572,9 @@ def test_ne_offset_all_cv_points(tmpdir):
                                 "test_files", "gocean1p0",
                                 "test17_ne_offset_cv_updated_one_invoke.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -447,8 +597,8 @@ def test_ne_offset_all_cv_points(tmpdir):
         "      DO j=1,jstop\n"
         "        DO i=1,istop+1\n"
         "          CALL bc_solid_v_code(i, j, v_fld%data, v_fld%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_solid_v\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -466,7 +616,9 @@ def test_ne_offset_all_cf_points(tmpdir):
                                 "test_files", "gocean1p0",
                                 "test18_ne_offset_cf_updated_one_invoke.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -489,8 +641,8 @@ def test_ne_offset_all_cf_points(tmpdir):
         "      DO j=1,jstop\n"
         "        DO i=1,istop\n"
         "          CALL bc_solid_f_code(i, j, f_fld%data, f_fld%grid%tmask)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_bc_solid_f\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -506,7 +658,9 @@ def test_sw_offset_cf_points(tmpdir):
                      "test_files", "gocean1p0",
                      "test19.1_sw_offset_cf_updated_one_invoke.f90"),
         api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -530,8 +684,8 @@ def test_sw_offset_cf_points(tmpdir):
         "        DO i=2,istop+1\n"
         "          CALL compute_z_code(i, j, z_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data, p_fld%grid%dx, p_fld%grid%dy)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_z\n"
         "  END MODULE psy_single_invoke_test")
     assert generated_code.find(expected_output) != -1
@@ -549,7 +703,9 @@ def test_sw_offset_all_cf_points(tmpdir):
                                 "test19.2_sw_offset_all_cf_updated" +
                                 "_one_invoke.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -573,8 +729,8 @@ def test_sw_offset_all_cf_points(tmpdir):
         "        DO i=1,istop+1\n"
         "          CALL apply_bcs_f_code(i, j, z_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_apply_bcs_f\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -592,7 +748,9 @@ def test_sw_offset_ct_points(tmpdir):
                                 "test_files", "gocean1p0",
                                 "test20_sw_offset_ct_updated_one_invoke.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -616,8 +774,8 @@ def test_sw_offset_ct_points(tmpdir):
         "        DO i=2,istop\n"
         "          CALL compute_h_code(i, j, h_fld%data, p_fld%data, "
         "u_fld%data, v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_h\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -636,7 +794,9 @@ def test_sw_offset_all_ct_points(tmpdir):
                                 "test21_sw_offset_all_ct_updated" +
                                 "_one_invoke.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -660,8 +820,8 @@ def test_sw_offset_all_ct_points(tmpdir):
         "        DO i=1,istop+1\n"
         "          CALL apply_bcs_h_code(i, j, hfld%data, pfld%data, "
         "ufld%data, vfld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_apply_bcs_h\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -680,7 +840,9 @@ def test_sw_offset_all_cu_points(tmpdir):
                                 "test22_sw_offset_all_cu_updated" +
                                 "_one_invoke.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -703,8 +865,8 @@ def test_sw_offset_all_cu_points(tmpdir):
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
         "          CALL apply_bcs_u_code(i, j, ufld%data, vfld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_apply_bcs_u\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -723,7 +885,9 @@ def test_sw_offset_all_cv_points(tmpdir):
                                 "test23_sw_offset_all_cv_updated" +
                                 "_one_invoke.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -746,8 +910,8 @@ def test_sw_offset_all_cv_points(tmpdir):
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
         "          CALL apply_bcs_v_code(i, j, vfld%data, ufld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_apply_bcs_v\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -766,7 +930,9 @@ def test_offset_any_all_cu_points(tmpdir):
                                 "test25_any_offset_all_cu_update" +
                                 "_one_invoke.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -790,8 +956,8 @@ def test_offset_any_all_cu_points(tmpdir):
         "        DO i=1,istop\n"
         "          CALL compute_u_code(i, j, ufld%data, vfld%data, "
         "hfld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_compute_u\n"
         "  END MODULE psy_single_invoke_test")
 
@@ -810,7 +976,9 @@ def test_offset_any_all_points(tmpdir):
                                 "test24_any_offset_all_update" +
                                 "_one_invoke.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # This test expects constant loop bounds
+    psy.invokes.invoke_list[0].schedule._const_loop_bounds = True
     generated_code = str(psy.gen)
 
     expected_output = (
@@ -833,30 +1001,24 @@ def test_offset_any_all_points(tmpdir):
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
         "          CALL field_copy_code(i, j, voldfld%data, vfld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
+        "        END DO\n"
+        "      END DO\n"
         "    END SUBROUTINE invoke_0_copy\n"
         "  END MODULE psy_single_invoke_test")
     assert generated_code.find(expected_output) != -1
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_goschedule_view(capsys):
+def test_goschedule_view(capsys, dist_mem):
     ''' Test that the GOInvokeSchedule::view() method works as expected '''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
                                                 abspath(__file__)),
                                         "test_files", "gocean1p0",
                                         "single_invoke_two_kernels.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    invoke.schedule.view()
-
-    # The view method writes to stdout and this is captured by py.test
-    # by default. We have to query this captured output.
-    out, _ = capsys.readouterr()
 
     # Ensure we check for the correct (colour) control codes in the output
     isched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
@@ -864,41 +1026,120 @@ def test_goschedule_view(capsys):
     call = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
     sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+    bop = colored("BinaryOperation", SCHEDULE_COLOUR_MAP["Operation"])
+    haloex = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
 
-    expected_output = (
-        isched + "[invoke='invoke_0', Constant loop bounds=True]\n"
-        "    " + loop + "[type='outer', field_space='go_cu', "
-        "it_space='go_internal_pts']\n"
-        "        " + lit + "[value:'2']\n"
-        "        " + lit + "[value:'jstop']\n"
-        "        " + lit + "[value:'1']\n"
-        "        " + sched + "[]\n"
-        "            " + loop + "[type='inner', field_space='go_cu', "
-        "it_space='go_internal_pts']\n"
-        "                " + lit + "[value:'2']\n"
-        "                " + lit + "[value:'istop+1']\n"
-        "                " + lit + "[value:'1']\n"
-        "                " + sched + "[]\n"
-        "                    " + call + " compute_cu_code(cu_fld,p_fld,u_fld) "
-        "[module_inline=False]\n"
-        "    " + loop + "[type='outer', field_space='go_every', "
-        "it_space='go_internal_pts']\n"
-        "        " + lit + "[value:'1']\n"
-        "        " + lit + "[value:'jstop+1']\n"
-        "        " + lit + "[value:'1']\n"
-        "        " + sched + "[]\n"
-        "            " + loop + "[type='inner', field_space='go_every', "
-        "it_space='go_internal_pts']\n"
-        "                " + lit + "[value:'1']\n"
-        "                " + lit + "[value:'istop+1']\n"
-        "                " + lit + "[value:'1']\n"
-        "                " + sched + "[]\n"
-        "                    " + call + " time_smooth_code(u_fld,unew_fld,"
-        "uold_fld) [module_inline=False]")
-    assert expected_output in out
+    if dist_mem:
+        # View without constant loop bounds and with distributed memory
+        # where the p field has a stencil access.
+        invoke.schedule.view()
+
+        # The view method writes to stdout and this is captured by py.test
+        # by default. We have to query this captured output.
+        out, _ = capsys.readouterr()
+
+        expected_output = (
+            isched + "[invoke='invoke_0', Constant loop bounds=False]\n"
+            "    0: " + haloex + "[field='p_fld', type='None', depth=None, "
+            "check_dirty=False]\n"
+            "    1: " + loop + "[type='outer', field_space='go_cu', "
+            "it_space='go_internal_pts']\n"
+            "        " + lit + "[value:'cu_fld%internal%ystart', "
+            "Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + lit + "[value:'cu_fld%internal%ystop', "
+            "Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + sched + "[]\n"
+            "            0: " + loop + "[type='inner', field_space='go_cu', "
+            "it_space='go_internal_pts']\n"
+            "                " + lit + "[value:'cu_fld%internal%xstart', "
+            "Scalar<INTEGER, UNDEFINED>]\n"
+            "                " + lit + "[value:'cu_fld%internal%xstop', "
+            "Scalar<INTEGER, UNDEFINED>]\n"
+            "                " + lit + "[value:'1', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "                " + sched + "[]\n"
+            "                    0: " + call +
+            " compute_cu_code(cu_fld,p_fld,u_fld) "
+            "[module_inline=False]\n"
+            "    2: " + loop + "[type='outer', field_space='go_every', "
+            "it_space='go_internal_pts']\n"
+            "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + bop + "[operator:'SIZE']\n"
+            "            " + lit + "[value:'uold_fld%data', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "            " + lit + "[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + sched + "[]\n"
+            "            0: " + loop + "[type='inner', field_space='go_every',"
+            " it_space='go_internal_pts']\n"
+            "                " + lit + "[value:'1', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "                " + bop + "[operator:'SIZE']\n"
+            "                    " + lit + "[value:'uold_fld%data', "
+            "Scalar<INTEGER, UNDEFINED>]\n"
+            "                    " + lit + "[value:'1', "
+            "Scalar<INTEGER, UNDEFINED>]\n"
+            "                " + lit + "[value:'1', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "                " + sched + "[]\n"
+            "                    0: " + call +
+            " time_smooth_code(u_fld,unew_fld,"
+            "uold_fld) [module_inline=False]\n")
+    else:
+        # View with constant loop bounds and without distributed memory
+        invoke.schedule._const_loop_bounds = True
+        invoke.schedule.view()
+
+        # The view method writes to stdout and this is captured by py.test
+        # by default. We have to query this captured output.
+        out, _ = capsys.readouterr()
+
+        expected_output = (
+            isched + "[invoke='invoke_0', Constant loop bounds=True]\n"
+            "    0: " + loop + "[type='outer', field_space='go_cu', "
+            "it_space='go_internal_pts']\n"
+            "        " + lit + "[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + lit + "[value:'jstop', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + sched + "[]\n"
+            "            0: " + loop + "[type='inner', field_space='go_cu', "
+            "it_space='go_internal_pts']\n"
+            "                " + lit + "[value:'2', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "                " + lit + "[value:'istop+1', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "                " + lit + "[value:'1', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "                " + sched + "[]\n"
+            "                    0: " + call +
+            " compute_cu_code(cu_fld,p_fld,u_fld) "
+            "[module_inline=False]\n"
+            "    1: " + loop + "[type='outer', field_space='go_every', "
+            "it_space='go_internal_pts']\n"
+            "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + lit + "[value:'jstop+1', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + sched + "[]\n"
+            "            0: " + loop +
+            "[type='inner', field_space='go_every', "
+            "it_space='go_internal_pts']\n"
+            "                " + lit + "[value:'1', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "                " + lit + "[value:'istop+1', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "                " + lit + "[value:'1', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "                " + sched + "[]\n"
+            "                    0: " + call +
+            " time_smooth_code(u_fld,unew_fld,"
+            "uold_fld) [module_inline=False]\n")
+    assert expected_output == out
 
 
-def test_goschedule_str():
+def test_goschedule_str(dist_mem):
     ''' Test that the GOInvokeSchedule::__str__ method works as expected '''
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
@@ -910,84 +1151,92 @@ def test_goschedule_str():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
-    expected_sched = (
-        "GOInvokeSchedule(Constant loop bounds=True):\n"
-        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'2']\n"
-        "Literal[value:'jstop']\n"
-        "Literal[value:'1']\n"
-        "Schedule:\n"
-        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'2']\n"
-        "Literal[value:'istop+1']\n"
-        "Literal[value:'1']\n"
-        "Schedule:\n"
-        "kern call: compute_cu_code\n"
-        "End Schedule\n"
-        "End GOLoop\n"
-        "End Schedule\n"
-        "End GOLoop\n"
-        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'1']\n"
-        "Literal[value:'jstop+1']\n"
-        "Literal[value:'1']\n"
-        "Schedule:\n"
-        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'1']\n"
-        "Literal[value:'istop+1']\n"
-        "Literal[value:'1']\n"
-        "Schedule:\n"
-        "kern call: time_smooth_code\n"
-        "End Schedule\n"
-        "End GOLoop\n"
-        "End Schedule\n"
-        "End GOLoop\n"
-        "End Schedule\n")
-    sched_str = str(schedule)
-    assert sched_str in expected_sched
-
-    # Switch-off constant loop bounds
-    schedule.const_loop_bounds = False
-    sched_str = str(schedule)
-
-    expected_sched = (
-        "GOInvokeSchedule(Constant loop bounds=False):\n"
-        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'cu_fld%internal%ystart']\n"
-        "Literal[value:'cu_fld%internal%ystop']\n"
-        "Literal[value:'1']\n"
-        "Schedule:\n"
-        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'cu_fld%internal%xstart']\n"
-        "Literal[value:'cu_fld%internal%xstop']\n"
-        "Literal[value:'1']\n"
-        "Schedule:\n"
-        "kern call: compute_cu_code\n"
-        "End Schedule\n"
-        "End GOLoop\n"
-        "End Schedule\n"
-        "End GOLoop\n"
-        "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'1']\n"
-        "BinaryOperation[operator:'SIZE']\n"
-        "Literal[value:'uold_fld%data']\n"
-        "Literal[value:'2']\n"
-        "Literal[value:'1']\n"
-        "Schedule:\n"
-        "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'1']\n"
-        "BinaryOperation[operator:'SIZE']\n"
-        "Literal[value:'uold_fld%data']\n"
-        "Literal[value:'1']\n"
-        "Literal[value:'1']\n"
-        "Schedule:\n"
-        "kern call: time_smooth_code\n"
-        "End Schedule\n"
-        "End GOLoop\n"
-        "End Schedule\n"
-        "End GOLoop\n"
-        "End Schedule\n")
-    assert sched_str in expected_sched
+    if dist_mem:
+        # str without constant loop bounds and with distributed memory
+        # where the p field has a stencil access
+        sched_str = str(schedule)
+        expected_sched = (
+            "GOInvokeSchedule[invoke='invoke_0', Constant loop "
+            "bounds=False]:\n"
+            "HaloExchange[field='p_fld', type='None', depth=None, "
+            "check_dirty=False]\n"
+            "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+            "Literal[value:'cu_fld%internal%ystart', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "Literal[value:'cu_fld%internal%ystop', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Schedule:\n"
+            "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+            "Literal[value:'cu_fld%internal%xstart', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "Literal[value:'cu_fld%internal%xstop', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Schedule:\n"
+            "kern call: compute_cu_code\n"
+            "End Schedule\n"
+            "End GOLoop\n"
+            "End Schedule\n"
+            "End GOLoop\n"
+            "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "BinaryOperation[operator:'SIZE']\n"
+            "Literal[value:'uold_fld%data', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Schedule:\n"
+            "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "BinaryOperation[operator:'SIZE']\n"
+            "Literal[value:'uold_fld%data', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Schedule:\n"
+            "kern call: time_smooth_code\n"
+            "End Schedule\n"
+            "End GOLoop\n"
+            "End Schedule\n"
+            "End GOLoop\n"
+            "End Schedule")
+    else:
+        # str with constant loop bounds and without distributed memory
+        schedule._const_loop_bounds = True
+        sched_str = str(schedule)
+        expected_sched = (
+            "GOInvokeSchedule[invoke='invoke_0', Constant loop bounds=True]:\n"
+            "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+            "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'jstop', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Schedule:\n"
+            "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+            "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'istop+1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Schedule:\n"
+            "kern call: compute_cu_code\n"
+            "End Schedule\n"
+            "End GOLoop\n"
+            "End Schedule\n"
+            "End GOLoop\n"
+            "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'jstop+1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Schedule:\n"
+            "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'istop+1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+            "Schedule:\n"
+            "kern call: time_smooth_code\n"
+            "End Schedule\n"
+            "End GOLoop\n"
+            "End Schedule\n"
+            "End GOLoop\n"
+            "End Schedule")
+    assert sched_str == expected_sched
 
 
 def test_gosched_ijstop():
@@ -1015,7 +1264,14 @@ def test_gosched_ijstop():
 def test_goloop_no_parent():
     ''' Attempt to generate code for a loop that has no GOInvokeSchedule
     as a parent '''
-    goloop = GOLoop(loop_type="inner")
+    # First create with a schedule as one is required to declare the
+    # loop variable
+    schedule = Schedule()
+    goloop = GOLoop(loop_type="inner", parent=schedule)
+    schedule.children = [goloop]
+    # Now remove parent and children
+    goloop.parent = None
+    goloop.children = None
     # Try and generate the code for this loop even though it
     # has no parent schedule and no children
     with pytest.raises(GenerationError):
@@ -1040,6 +1296,8 @@ def test_goloop_unsupp_offset():
     ''' Attempt to generate code for a loop with constant bounds with
     an unsupported index offset '''
     gosched = GOInvokeSchedule([])
+    # This test expects constant loop bounds
+    gosched._const_loop_bounds = True
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
@@ -1116,13 +1374,13 @@ def test_writetoread_dag(tmpdir, have_graphviz):
         # write -> read means that the second loop can only begin once the
         # first loop is complete. Check that we have the correct forwards
         # dependence (green) and backwards dependence (red).
-        assert ('"loop_[outer]_1_end" -> "loop_[outer]_4_start" [color=red]'
+        assert ('"loop_[outer]_1_end" -> "loop_[outer]_12_start" [color=red]'
                 in dot or
-                '"loop_[outer]_1_end" -> "loop_[outer]_4_start" '
+                '"loop_[outer]_1_end" -> "loop_[outer]_12_start" '
                 '[color=#ff0000]' in dot)
-        assert ('"loop_[outer]_1_end" -> "loop_[outer]_4_start" [color=green]'
+        assert ('"loop_[outer]_1_end" -> "loop_[outer]_12_start" [color=green]'
                 in dot or
-                '"loop_[outer]_1_end" -> "loop_[outer]_4_start" '
+                '"loop_[outer]_1_end" -> "loop_[outer]_12_start" '
                 '[color=#00ff00]' in dot)
     old_cwd.chdir()
 
@@ -1156,10 +1414,9 @@ def test_find_grid_access(monkeypatch):
     ''' Tests for the GOKernelArguments.find_grid_access method. This
     identifies the best kernel argument from which to access grid
     properties. '''
-    from psyclone.gocean1p0 import GOKernelArgument
     _, invoke = get_invoke("single_invoke.f90", API, idx=0)
     schedule = invoke.schedule
-    kern = schedule.children[0].loop_body[0].loop_body[0]
+    kern = schedule.coded_kernels()[0]
     assert isinstance(kern, GOKern)
     arg = kern.arguments.find_grid_access()
     assert isinstance(arg, GOKernelArgument)
@@ -1168,7 +1425,7 @@ def test_find_grid_access(monkeypatch):
     # Now monkeypatch the type of each of the kernel arguments so that
     # none of them is a field
     for karg in kern.arguments._args:
-        monkeypatch.setattr(karg._arg, "_type", "broken")
+        monkeypatch.setattr(karg._arg, "_argument_type", "broken")
     # find_grid_access should now return None
     arg = kern.arguments.find_grid_access()
     assert arg is None
@@ -1181,7 +1438,7 @@ def test_raw_arg_list_error(monkeypatch):
     _, invoke = get_invoke("test19.1_sw_offset_cf_updated_one_invoke.f90",
                            API, idx=0)
     schedule = invoke.schedule
-    kern = schedule.children[0].loop_body[0].loop_body[0]
+    kern = schedule.coded_kernels()[0]
     assert isinstance(kern, GOKern)
     raw_list = kern.arguments.raw_arg_list()
     assert raw_list == ['i', 'j', 'z_fld%data', 'p_fld%data', 'u_fld%data',
@@ -1192,14 +1449,15 @@ def test_raw_arg_list_error(monkeypatch):
     with pytest.raises(GenerationError) as err:
         _ = kern.arguments.raw_arg_list()
     assert ("kernel compute_z_code requires grid property dx but does not "
-            "have any arguments that are fields" in str(err))
+            "have any arguments that are fields" in str(err.value))
     # Now monkeypatch one of the kernel arguments so that it has an
     # unrecognised type
-    monkeypatch.setattr(kern.arguments._args[0]._arg, "_type", "broken")
+    monkeypatch.setattr(kern.arguments._args[0]._arg, "_argument_type",
+                        "broken")
     with pytest.raises(InternalError) as err:
         _ = kern.arguments.raw_arg_list()
     assert ("Kernel compute_z_code, argument z_fld has unrecognised type: "
-            "'broken'" in str(err))
+            "'broken'" in str(err.value))
 
 
 def test_invalid_access_type():
@@ -1209,7 +1467,7 @@ def test_invalid_access_type():
     _, invoke = get_invoke("test19.1_sw_offset_cf_updated_one_invoke.f90",
                            API, idx=0)
     schedule = invoke.schedule
-    kern = schedule.children[0].loop_body[0].loop_body[0]
+    kern = schedule.coded_kernels()[0]
     # Test that assigning a non-AccessType value to a kernel argument
     # raises an exception.
     with pytest.raises(InternalError) as err:
@@ -1217,7 +1475,17 @@ def test_invalid_access_type():
     # Note that the error message looks slightly different between
     # python 2 (type str) and 3 (class str):
     assert re.search("Invalid access type 'invalid-type' of type.*str",
-                     str(err))
+                     str(err.value)) is not None
+
+
+def test_compile_with_dependency(tmpdir):
+    ''' Check that we can do test compilation for an invoke of a kernel
+    that has a dependency on a non-infrastructure module. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "single_invoke_kern_with_use.f90"),
+        api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy, ["model_mod"])
 
 
 # -----------------------------------
@@ -1361,20 +1629,23 @@ def test05p1_kernel_add_iteration_spaces():
                            "test_files", "gocean1p0",
                            "test05.1_invoke_kernel_invalid_iterates_over.f90"),
               api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
+    # This test expects constant loop bounds
+    schedule._const_loop_bounds = True
     expected_sched = (
-        "GOInvokeSchedule(Constant loop bounds=True):\n"
+        "GOInvokeSchedule[invoke='invoke_0_compute_cu', "
+        "Constant loop bounds=True]:\n"
         "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-        "Literal[value:'1']\n"
-        "Literal[value:'2']\n"
-        "Literal[value:'1']\n"
+        "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
+        "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
+        "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Schedule:\n"
         "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-        "Literal[value:'3']\n"
-        "Literal[value:'istop']\n"
-        "Literal[value:'1']\n"
+        "Literal[value:'3', Scalar<INTEGER, UNDEFINED>]\n"
+        "Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]\n"
+        "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Schedule:\n"
         "kern call: compute_cu_code\n"
         "End Schedule\n"
@@ -1416,12 +1687,28 @@ def test07_kernel_wrong_gridpt_type():
 def test08_kernel_invalid_grid_property():
     ''' Check that the parser raises an error if a kernel's meta-data
     specifies an unrecognised grid property '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as err:
         parse(os.path.
               join(os.path.dirname(os.path.abspath(__file__)),
                    "test_files", "gocean1p0",
                    "test08_invoke_kernel_invalid_grid_property.f90"),
               api="gocean1.0")
+    assert "Meta-data error in kernel compute_cu: un-recognised grid " \
+           "property 'grid_area_wrong' requested." in str(err.value)
+
+    # GOKernelGridArgument contains also a test for the validity of
+    # a grid property. It's easier to create a dummy class to test this:
+    class DummyDescriptor(object):
+        '''Dummy class to test error handling.'''
+        def __init__(self):
+            self.access = "read"
+            self.grid_prop = "does not exist"
+    descriptor = DummyDescriptor()
+    with pytest.raises(GenerationError) as err:
+        GOKernelGridArgument(descriptor)
+    assert re.search("Unrecognised grid property specified. Expected one "
+                     "of.* but found 'does not exist'", str(err.value)) \
+        is not None
 
 
 def test08p1_kernel_without_fld_args():
@@ -1471,7 +1758,87 @@ def test13_kernel_invalid_fortran():
 def test14_no_builtins():
     ''' Check that we raise an error if we attempt to create a
     built-in '''
-    from psyclone.gocean1p0 import GOBuiltInCallFactory
     with pytest.raises(GenerationError) as excinfo:
         GOBuiltInCallFactory.create()
     assert "Built-ins are not supported for the GOcean" in str(excinfo.value)
+
+
+def test_gokernelarguments_append():
+    ''' Check the GOcean specialisation of KernelArguments append method'''
+
+    # Parse a file to get an initialised GOKernelsArguments object
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+    assert isinstance(argument_list, GOKernelArguments)
+
+    # Try append a non-string value
+    with pytest.raises(TypeError) as err:
+        argument_list.append(3, "space")
+    assert "The name parameter given to GOKernelArguments.append method " \
+           "should be a string, but found 'int' instead." in str(err.value)
+
+    # Append well-constructed arguments
+    argument_list.append("var1", "go_r_scalar")
+    argument_list.append("var2", "go_i_scalar")
+
+    assert isinstance(kernelcall.args[-1], GOKernelArgument)
+    assert isinstance(kernelcall.args[-2], GOKernelArgument)
+    assert kernelcall.args[-1].name == "var2"
+    assert kernelcall.args[-2].name == "var1"
+
+    # And the generated code looks as expected
+    generated_code = str(psy.gen)
+    assert "CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data," \
+           " var1, var2)" in generated_code
+
+
+def test_gokernelargument_type(monkeypatch):
+    ''' Check the type property of the GOKernelArgument'''
+
+    # Create a dummy node with the symbol_table property
+    dummy_node = Node()
+    dummy_node.symbol_table = SymbolTable()
+
+    # Create a dummy GOKernelArgument
+    descriptor = Descriptor(None, "")
+    arg = Arg("variable", "arg", "arg")
+    argument = GOKernelArgument(descriptor, arg, dummy_node)
+
+    # If the descriptor does not have a type it defaults to 'scalar'
+    assert argument.argument_type == "scalar"
+
+    # Otherwise it returns the descriptor type
+    # Mock the descriptor type method
+    monkeypatch.setattr(argument._arg, "_argument_type", "descriptor_type")
+    assert argument.argument_type == "descriptor_type"
+
+
+def test_gosymboltable_conformity_check():
+    '''Test that the expected exception is raised in method
+    _check_gocean_conformity within GOSymbolTable when one or both of
+    the first two kernel arguments are nor scalar integers.
+
+    '''
+    symbol_table = GOSymbolTable()
+    i_var = DataSymbol("i", INTEGER_TYPE,
+                       interface=ArgumentInterface(
+                           ArgumentInterface.Access.READ))
+    j_var = DataSymbol("j", INTEGER_TYPE,
+                       interface=ArgumentInterface(
+                           ArgumentInterface.Access.READ))
+    symbol_table.specify_argument_list([i_var, j_var])
+    # Set the datatype of the first datasymbol to have an invalid type
+    # in order to raise the required exception.
+    symbol_table._argument_list[0].datatype = DeferredType()
+    with pytest.raises(GenerationError) as excinfo:
+        symbol_table._check_gocean_conformity()
+    assert ("GOcean 1.0 API kernels first argument should be a scalar integer "
+            "but got 'DeferredType'." in str(excinfo.value))
