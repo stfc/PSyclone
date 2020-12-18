@@ -40,6 +40,8 @@ all invokes.
 
 from __future__ import print_function
 
+from psyclone.psyir.transformations import ExtractTrans
+
 
 def trans(psy):
     '''
@@ -52,9 +54,7 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    from psyclone.psyir.transformations import ExtractTrans
     extract = ExtractTrans()
-
 
     for invoke_name in psy.invokes.names:
 
@@ -62,7 +62,6 @@ def trans(psy):
 
         # Now get the schedule, to which we want to apply the transformation
         schedule = invoke.schedule
-
 
         # Apply the transformation
         extract.apply(schedule, {"region_name": ("time_evolution",
