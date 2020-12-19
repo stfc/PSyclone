@@ -44,7 +44,6 @@ array index should be transformed.
 '''
 
 from __future__ import absolute_import
-import six
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.transformation_error \
@@ -52,7 +51,7 @@ from psyclone.psyir.transformations.transformation_error \
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
-    Assignment, Literal
+    Assignment, Literal, Operation, BinaryOperation
 from psyclone.nemo import NemoLoop, NemoKern
 from psyclone.configuration import Config
 
@@ -70,17 +69,17 @@ class NemoArrayRange2LoopTrans(Transformation):
 
     '''
     def apply(self, node, options=None):
-        '''Apply the NemoOuterArrayRange2Loop transformation
-        if the supplied node is the outermost Range node specifying an access to an
+        '''Apply the NemoOuterArrayRange2Loop transformation if the supplied
+        node is the outermost Range node specifying an access to an
         array index within an Array Reference that is on the
         left-hand-side of an Assignment node. If this is the case then
         the outermost Range nodes within array references within the
-        Assignment node are replaced with references to a loop index. A
-        NemoLoop loop (with the same loop index) is also placed around
-        the modified assignment statement. If the array reference on
-        the left-hand-side of the assignment only had one range node
-        as an index (so now has none) then the assigment is also
-        placed within a NemoKern.
+        Assignment node are replaced with references to a loop
+        index. A NemoLoop loop (with the same loop index) is also
+        placed around the modified assignment statement. If the array
+        reference on the left-hand-side of the assignment only had one
+        range node as an index (so now has none) then the assigment is
+        also placed within a NemoKern.
 
         The name of the loop index is taken from the PSyclone
         configuration file if a name exists for the particular array
@@ -172,14 +171,40 @@ class NemoArrayRange2LoopTrans(Transformation):
             symbol_table.add(loop_variable_symbol)
 
         # Replace the loop_idx array dimension with the loop variable.
+        n_ranges = None
         for array in assignment.walk(ArrayReference):
-            try:
-                idx = _get_outer_index(array)
-            except IndexError as info:
-                six.raise_from(InternalError(
+
+            # Ignore the array reference if none of its index accesses
+            # are Ranges
+            if not any(child for child in array.children if
+                       isinstance(child, Range)):
+                continue
+            # Ignore the array reference if any of its parents up to
+            # the Assignment node are not Operations that return
+            # scalars.
+            ignore = False
+            current = array.parent
+            while not isinstance(current, Assignment):
+                # Ignore if not a scalar valued operation (vector
+                # valued operations are excluded in the validate
+                # method).
+                if not isinstance(current, Operation):
+                    ignore = True
+                    break
+                current = current.parent
+            if ignore:
+                continue
+
+            current_n_ranges = len([child for child in array.children
+                                    if isinstance(child, Range)])
+            if n_ranges is None:
+                n_ranges = current_n_ranges
+            elif n_ranges != current_n_ranges:
+                raise InternalError(
                     "The number of ranges in the arrays within this "
                     "assignment are not equal. This is invalid PSyIR and "
-                    "should never happen."), info)
+                    "should never happen.")
+            idx = _get_outer_index(array)
             array.children[idx] = Reference(loop_variable_symbol, parent=array)
         position = assignment.position
         loop = NemoLoop.create(loop_variable_symbol, lower_bound,
@@ -262,6 +287,17 @@ class NemoArrayRange2LoopTrans(Transformation):
                 "supplied node argument should be within an ArrayReference "
                 "node that is within the left-hand-side of an Assignment "
                 "node, but it is on the right-hand-side.")
+        # Does the rhs of the assignment have any operations that
+        # return arrays as this is not currently supported?
+        for operation in assignment.rhs.walk(Operation):
+            # At the moment the only array valued operator is matmul
+            if operation.operator == BinaryOperation.Operator.MATMUL:
+                raise TransformationError(
+                    "Error in NemoArrayRange2LoopTrans transformation. This "
+                    "transformation does not support array valued operations "
+                    "on the rhs of the associated Assignment node, but found "
+                    "'{0}'.".format(operation.operator.name))
+
         # Is the Range node the outermost Range (as if not, the
         # transformation would be invalid)?
         if any(isinstance(node, Range) for node in

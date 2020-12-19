@@ -261,12 +261,32 @@ def test_apply_different_num_dims():
     assignment = schedule[0]
     array_ref = assignment.lhs
     trans = NemoArrayRange2LoopTrans()
-    trans.apply(array_ref.children[1])
     with pytest.raises(InternalError) as info:
-        trans.apply(array_ref.children[0])
+        trans.apply(array_ref.children[1])
     assert ("The number of ranges in the arrays within this "
             "assignment are not equal. This is invalid PSyIR and "
             "should never happen." in str(info.value))
+
+
+def test_apply_array_valued_function():
+    '''Check that the apply method does not modify range nodes when they are
+    used to specify the part of an array to pass into an array valued
+    function.
+
+    '''
+    _, invoke_info = get_invoke("array_valued_function.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
+    assignment = schedule[1]
+    array_ref = assignment.lhs
+    trans = NemoArrayRange2LoopTrans()
+    trans.apply(array_ref.children[2])
+    writer = FortranWriter()
+    result = writer(schedule)
+    assert (
+        "jn=2\n"
+        "do jk = 1, jpk, 1\n"
+        "  z3d(1,:,jk)=ptr_sjk(pvtr(:,:,:),btmsk(:,:,jn) * btm30(:,:))\n"
+        "enddo" in result)
 
 
 def test_apply_calls_validate():
@@ -371,6 +391,25 @@ def test_within_lhs_assignment():
            "supplied node argument should be within an ArrayReference "
            "node that is within the left-hand-side of an Assignment "
            "node, but it is on the right-hand-side." in str(info.value))
+
+
+def test_array_valued_operator():
+    '''Check that the vaidate() method raises the expected exception if an
+    array valued operation is found on the rhs of the assignment node.
+
+    '''
+    _, invoke_info = get_invoke("array_valued_operation.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
+    assignment = schedule[0]
+    array_ref = assignment.lhs
+    trans = NemoArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.apply(array_ref.children[0])
+    assert (
+        "Error in NemoArrayRange2LoopTrans transformation. This "
+        "transformation does not support array valued operations on the rhs "
+        "of the associated Assignment node, but found 'MATMUL'."
+        in str(info.value))
 
 
 def test_not_outermost_range():
