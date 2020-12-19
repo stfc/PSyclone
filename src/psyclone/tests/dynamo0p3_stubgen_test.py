@@ -71,10 +71,16 @@ def test_kernel_stub_invalid_iteration_space():
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert ("Expected the kernel to operate on one of "
+    assert ("supports kernels that operate on one of "
             "['cells', 'cell_column'] but found 'dof' in kernel "
+            "'testkern_dofs_code'." in str(excinfo.value))
+    kernel._iterates_over = "domain"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = kernel.gen_stub
+    assert ("supports kernels that operate on one of "
+            "['cells', 'cell_column'] but found 'domain' in kernel "
             "'testkern_dofs_code'." in str(excinfo.value))
 
 
