@@ -72,6 +72,11 @@ CONSTANT_TYPE_MAP = {
     Fortran2003.Char_Literal_Constant: ScalarType.Intrinsic.CHARACTER,
     Fortran2003.Int_Literal_Constant: ScalarType.Intrinsic.INTEGER}
 
+# Mapping from Fortran intent to PSyIR access type
+INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
+                  "out": ArgumentInterface.Access.WRITE,
+                  "inout": ArgumentInterface.Access.READWRITE}
+
 
 def _check_args(array, dim):
     '''Utility routine used by the _check_bound_is_full_extent and
@@ -1386,20 +1391,15 @@ class Fparser2Reader(object):
                     (_, intent) = attr.items
                     normalized_string = \
                         intent.string.lower().replace(' ', '')
-                    if normalized_string == "in":
+                    try:
                         interface = ArgumentInterface(
-                            ArgumentInterface.Access.READ)
-                    elif normalized_string == "out":
-                        interface = ArgumentInterface(
-                            ArgumentInterface.Access.WRITE)
-                    elif normalized_string == "inout":
-                        interface = ArgumentInterface(
-                            ArgumentInterface.Access.READWRITE)
-                    else:
-                        raise InternalError(
+                            INTENT_MAPPING[normalized_string])
+                    except KeyError as info:
+                        message = (
                             "Could not process {0}. Unexpected intent "
                             "attribute '{1}'.".format(decl.items,
                                                       str(attr)))
+                        six.raise_from(InternalError(message), info)
                 elif isinstance(attr,
                                 (Fortran2003.Dimension_Attr_Spec,
                                  Fortran2003.Dimension_Component_Attr_Spec)):
