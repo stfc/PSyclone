@@ -41,8 +41,6 @@ equivalent loop representation using the required number of NemoLoop
 nodes.
 
 '''
-
-
 from __future__ import absolute_import
 
 from psyclone.psyir.nodes import Assignment
@@ -59,7 +57,7 @@ class NemoAllArrayRange2LoopTrans(Transformation):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "nemo"
-    >>> filename = "tra_adv_compute.F90"
+    >>> filename = "tra_adv.F90" # examples/nemo/code
     >>> ast, invoke_info = parse(filename, api=api)
     >>> psy = PSyFactory(api).create(invoke_info)
     >>> schedule = psy.invokes.invoke_list[0].schedule

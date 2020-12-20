@@ -60,12 +60,27 @@ class NemoArrayRange2LoopTrans(Transformation):
     '''Provides a transformation from a PSyIR ArrayReference Range to a
     PSyIR NemoLoop. For example:
 
-    >>> schedule = ...
-    >>> range_node = ...
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "nemo"
+    >>> filename = "tra_adv.F90" # examples/nemo/code
+    >>> ast, invoke_info = parse(filename, api=api)
+    >>> psy = PSyFactory(api).create(invoke_info)
+    >>> schedule = psy.invokes.invoke_list[0].schedule
+    >>> schedule.view()
+    >>>
+    >>> from psyclone.psyir.nodes import Range
     >>> from psyclone.domain.nemo.transformations import \
     >>>     NemoArrayRange2LoopTrans
+    >>> from psyclone.transformations import TransformationError
+    >>>
     >>> trans = NemoArrayRange2LoopTrans()
-    >>> trans.apply(range_node)
+    >>> for my_range in reversed(schedule.walk(Range)):
+    >>>     try:
+    >>>         trans.apply(my_range)
+    >>>     except TransformationError:
+    >>>         pass
+    >>> schedule.view()
 
     '''
     def apply(self, node, options=None):

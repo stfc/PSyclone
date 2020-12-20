@@ -61,7 +61,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "nemo"
-    >>> filename = "tra_adv_compute.F90"
+    >>> filename = "tra_adv.F90" # examples/nemo/code
     >>> ast, invoke_info = parse(filename, api=api)
     >>> psy = PSyFactory(api).create(invoke_info)
     >>> schedule = psy.invokes.invoke_list[0].schedule
@@ -69,7 +69,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
     >>> from psyclone.psyir.nodes import Assignment
     >>> from psyclone.domain.nemo.transformations import \
     >>>     NemoOuterArrayRange2LoopTrans
-    >>> from psyclone.errors import TransformationError
+    >>> from psyclone.transformations import TransformationError
     >>>
     >>> schedule.view()
     >>> trans = NemoOuterArrayRange2LoopTrans()
