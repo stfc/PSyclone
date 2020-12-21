@@ -1616,27 +1616,6 @@ def test_no_vector_scalar():
                 str(excinfo.value))
 
 
-def test_scalar_kernel_load_meta_err():
-    ''' Check that the DynKern.load_meta() method raises the expected
-    internal error if it encounters an unrecognised data type for
-    a scalar descriptor.
-
-    '''
-    ast = fpapi.parse(CODE, ignore_comments=False)
-    name = "testkern_qr_type"
-    metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
-    # Get a scalar argument descriptor and set an invalid data type
-    scalar_arg = metadata.arg_descriptors[5]
-    scalar_arg._data_type = "gh_triple"
-    with pytest.raises(InternalError) as err:
-        kernel.load_meta(metadata)
-    assert ("DynKern.load_meta(): expected one of {0} data types for "
-            "a scalar argument but found 'gh_triple'.".
-            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES) in
-            str(err.value))
-
-
 def test_dynscalars_call_err():
     ''' Check that the DynScalarArgs constructor raises the expected
     internal error if it encounters an unrecognised intrinsic type of
@@ -2543,19 +2522,21 @@ def test_mkern_invoke_multiple_any_spaces(tmpdir):
             in gen)
 
 
-@pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
-def test_loopfuse():
+def test_loopfuse(dist_mem, tmpdir):
     ''' Tests whether loop fuse actually fuses and whether
     multiple maps are produced or not. Multiple maps are not an
     error but it would be nicer if there were only one '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4_multikernel_invokes.f90"),
                            api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
-    loop1 = schedule.children[0]
-    loop2 = schedule.children[1]
+    index = 0
+    if dist_mem:
+        index = 4
+    loop1 = schedule.children[index]
+    loop2 = schedule.children[index+1]
     trans = LoopFuseTrans()
     schedule, _ = trans.apply(loop1, loop2)
     invoke.schedule = schedule
@@ -2581,41 +2562,7 @@ def test_loopfuse():
     for kern_id in kern_idxs:
         assert enddo_idx > kern_id > do_idx
 
-
-def test_kern_colourmap(monkeypatch):
-    ''' Tests for error conditions in the colourmap getter of DynKern. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    kern = psy.invokes.invoke_list[0].schedule.children[4].loop_body[0]
-    with pytest.raises(InternalError) as err:
-        _ = kern.colourmap
-    assert ("Kernel 'testkern_code' is not inside a coloured loop"
-            in str(err.value))
-    monkeypatch.setattr(kern, "is_coloured", lambda: True)
-    monkeypatch.setattr(kern, "_is_intergrid", True)
-    with pytest.raises(InternalError) as err:
-        _ = kern.colourmap
-    assert ("Colourmap information for kernel 'testkern_code' has not yet "
-            "been initialised" in str(err.value))
-
-
-def test_kern_ncolours(monkeypatch):
-    ''' Tests for error conditions in the ncolours getter of DynKern. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    kern = psy.invokes.invoke_list[0].schedule.children[4].loop_body[0]
-    with pytest.raises(InternalError) as err:
-        _ = kern.ncolours_var
-    assert ("Kernel 'testkern_code' is not inside a coloured loop"
-            in str(err.value))
-    monkeypatch.setattr(kern, "is_coloured", lambda: True)
-    monkeypatch.setattr(kern, "_is_intergrid", True)
-    with pytest.raises(InternalError) as err:
-        _ = kern.ncolours_var
-    assert ("Colourmap information for kernel 'testkern_code' has not yet "
-            "been initialised" in str(err.value))
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_named_psy_routine(dist_mem, tmpdir):

@@ -40,6 +40,8 @@ the invokes.
 
 from __future__ import print_function
 
+from psyclone.psyir.transformations import NanTestTrans
+
 
 def trans(psy):
     '''
@@ -52,7 +54,6 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    from psyclone.psyir.transformations import NanTestTrans
     nan_check = NanTestTrans()
 
     for invoke_name in psy.invokes.names:

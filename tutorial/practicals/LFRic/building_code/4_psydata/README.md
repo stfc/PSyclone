@@ -5,7 +5,7 @@ transformations to instrument the previous LFRic example.
 Initially we will be using kernel extraction as an example
 but a list of other PSyData applications is provided at the end.
 The ``solutions`` directory contains working versions of the
-transformation scripts and a Makefile. If you are having problems,
+transformation scripts and a ``Makefile``. If you are having problems,
 you can look at the scripts and various makefiles in that directory.
 You can also directly invoke them using for example:
 
@@ -75,7 +75,7 @@ using the environment variables F90 and F90FLAGS:
 
     F90=ifort F90flags="-O2 -traceback" make -f Makefile.extract_one
 
-By default gfortran will be used. The Makefile will automatically
+By default gfortran will be used. The makefile will automatically
 compile the required PSyData library as well.
 
 If you should get an error message that your script is not found,
@@ -147,8 +147,8 @@ have to do a
 
     make clean
 
-since the Makefile does not have a dependency on your script (though it would be
-recommended to add this to the Makefile so that a change in your script automatically
+since the makefile does not have a dependency on your script (though it would be
+recommended to add this to the makefile so that a change in your script automatically
 triggers running PSyclone again).
 
 You should now see that the psy-layer contains:
@@ -199,7 +199,7 @@ two NetCDF files at run time - one for each invoke in the file.
 
 ## Step 8: Try other PSyData libraries
 The following set of PSyData libraries is available and can be tested.
-Corresponding Makefiles are provided.
+Corresponding makefiles are provided.
 
 ### Readonly Verification
 This library makes sure that kernel arguments that are declared as read-only
