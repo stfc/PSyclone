@@ -89,7 +89,7 @@ read_only_base.o: psy_data_base.o
 # and the read-only base library. So add the rules to process
 # these files to get the plain Fortran files:
 psy_data_base.f90: ../../psy_data_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) -no-generic-provide $< > psy_data_base.f90
 
 read_only_base.f90: ../read_only_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) $< > read_only_base.f90

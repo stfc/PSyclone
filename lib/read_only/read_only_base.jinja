@@ -111,24 +111,17 @@ module read_only_base_mod
 
         {# Collect the various procedures for the same generic interface -#}
         {# ------------------------------------------------------------- -#}
-        {% set all_declares=[] -%}
         {% set all_provides=[] -%}
-        {% for name, type, bits in ALL_TYPES %}
+        {%- for name, type, bits in ALL_TYPES %}
         procedure :: ProvideScalar{{name}}
-          {{- all_declares.append("DeclareScalar"~name) or "" -}}
           {{- all_provides.append("ProvideScalar"~name) or "" }}
           {% for dim in ALL_DIMS %}
         procedure :: ProvideArray{{dim}}d{{name}}
-            {{- all_declares.append("DeclareArray"~dim~"d"~name) or "" -}}
-            {{ all_provides.append("ProvideArray"~dim~"d"~name) or "" }}
+            {{- all_provides.append("ProvideArray"~dim~"d"~name) or "" }}
           {% endfor %}
         {% endfor %}
 
         {% set indent="            " %}
-        ! Declare generic interface for PreDeclareVariable:
-        generic, public :: PreDeclareVariable => &
-            {{all_declares|join(", &\n"+indent) }}
-
         !> The generic interface for providing the value of variables,
         !! which in case of the read-only verification either computes
         !! the checksum (before a kernel), or compares a checksum (after
