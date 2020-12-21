@@ -80,12 +80,6 @@ read_only.o: 	  $(LFRIC_LIB) read_only.f90 read_only_base.o
 
 read_only_base.o: psy_data_base.o
 
-
-# Rules for file creation:
-# ------------------------
-read_only.f90:	read_only.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) read_only.jinja > read_only.f90
-
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
@@ -93,14 +87,14 @@ read_only.f90:	read_only.jinja Makefile
 # and the read-only base library. So add the rules to process
 # these files to get the plain Fortran files:
 psy_data_base.f90: ../../psy_data_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
 read_only_base.f90: ../read_only_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) $< > read_only_base.f90
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > read_only_base.f90
 
 # Create LFRic infrastructure library if required
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_DIR)
 
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.* read_only.f90
+	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.*

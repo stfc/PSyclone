@@ -92,7 +92,7 @@ psy_data_base.f90: ../../psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
 read_only_base.f90: ../read_only_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) $< > read_only_base.f90
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > read_only_base.f90
 
 # The dl_esm_inf library
 $(INF_LIB):

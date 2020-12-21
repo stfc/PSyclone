@@ -122,13 +122,15 @@ module read_only_base_mod
         {% endfor %}
 
         {% set indent="            " %}
+
+        {% if GENERIC_PROVIDE %}
         !> The generic interface for providing the value of variables,
         !! which in case of the read-only verification either computes
         !! the checksum (before a kernel), or compares a checksum (after
         !! a kernel call).
         generic, public :: ProvideVariable => &
             {{all_provides|join(", &\n"+indent) }}
-
+        {% endif %}
     end type ReadOnlyBaseType
 
     {# Create a generic interface for all ComputeChecksum functions #}
