@@ -3,6 +3,10 @@
 This directory contains a base class as a Jinja template that can be used to simplify
 the creation of PSyData-based wrapper libraries.
 
+## Known bugs
+Intel compiler 16 and 17, and Gnu compiler 6 do not compile some of the files.
+See #999.
+
 ## PSyData base class
 
 The file ``psy_data_base.jinja`` contains a Jinja template that can be used
@@ -31,3 +35,4 @@ libraries.
 
 Contains PSyData wrapper libraries for verifying at run time that parameters declared
 as read-only in the PSyclone metadata are indeed not changed in a subroutine.
+

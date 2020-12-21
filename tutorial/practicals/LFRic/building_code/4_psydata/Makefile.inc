@@ -57,7 +57,7 @@ EXEC = time_evolution
 
 # Settings of the PSyData-specific variables are done by the
 # Makefiles that include this file.
-PSYDATA_LIB=$(PSYDATA_PATH)/lib_$(PSYDATA_LIB_NAME).a
+PSYDATA_LIB=$(PSYDATA_PATH)/lib$(PSYDATA_LIB_NAME).a
 F90FLAGS += -I $(PSYDATA_PATH)
 
 # LFRic infrastructure library
@@ -107,7 +107,7 @@ time_evolution_alg_mod_psy.o: init_perturbation_kernel_mod.o \
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
-%_psy.f90: %.x90
+%.f90 %_psy.f90: %.x90
 	psyclone $(PSYCLONE_CMD) \
 	-opsy $*_psy.f90 -oalg $*.f90 $<
 
