@@ -355,7 +355,7 @@ def test_psy_init(kernel_outputdir, monkeypatch):
         "      IF (.not. initialised) THEN\n"
         "        initialised = .True.\n"
         "        ! Initialise the OpenCL environment/device\n"
-        "        ocl_device_num = mod(get_rank(), 2)\n"
+        "        ocl_device_num = mod(get_rank() - 1, 2) + 1\n"
         "        CALL ocl_env_init(5, ocl_device_num, .False., .False.)\n"
         "        ! The kernels this PSy layer module requires\n"
         "        kernel_names(1) = \"compute_cu_code\"\n"

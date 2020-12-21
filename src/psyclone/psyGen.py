@@ -447,8 +447,9 @@ class Invokes(object):
 
         if devices_per_node > 1 and distributed_memory:
             my_rank = self.gen_rank_expression(sub)
+            # Add + 1 as FortCL devices are 1-indexed
             ifthen.add(AssignGen(ifthen, lhs="ocl_device_num",
-                                 rhs="mod({0}, {1})"
+                                 rhs="mod({0} - 1, {1}) + 1"
                                  "".format(my_rank, devices_per_node)))
 
         ifthen.add(CallGen(ifthen, "ocl_env_init",
