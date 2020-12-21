@@ -63,11 +63,7 @@ module read_only_verify_psy_data_mod
         !! type will actually create additional methods like DeclareArray2dInt
         !! but since they are not used in GOcean they do not need to be
         !! declared here
-        generic, public :: PreDeclareVariable => DeclareScalarInt,    &
-                                                 DeclareScalarReal,   &
-                                                 DeclareScalarDouble, &
-                                                 DeclareArray2dDouble,&
-                                                 DeclareFieldDouble
+        generic, public :: PreDeclareVariable => DeclareFieldDouble
 
         !> The generic interface for providing the value of variables,
         !! which in this case is the checksum computation (before
@@ -76,11 +72,7 @@ module read_only_verify_psy_data_mod
         !! to change the state from checksum computation to verification.
         !! And again the base class provides additional, unused methods
         !! like ProvideArray2dInt, which are not needed
-        generic, public :: ProvideVariable => ProvideScalarInt,    &
-                                              ProvideScalarReal,   &
-                                              ProvideScalarDouble, &
-                                              ProvideArray2dDouble,&
-                                              ProvideFieldDouble
+        generic, public :: ProvideVariable => ProvideFieldDouble
 
     end type read_only_verify_PSyDataType
 
