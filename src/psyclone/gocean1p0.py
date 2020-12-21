@@ -176,6 +176,18 @@ class GOInvokes(Invokes):
                     # those seen so far
                     index_offsets.append(kern_call.index_offset)
 
+    def gen_rank_expression(self, scope):
+        ''' Generate the expression to retrieve the process rank.
+
+        :param scope: where the expression is going to be located.
+        :type scope: :py:class:`psyclone.f2pygen.BaseGen`
+        :return: generate the expression to retrieve the process rank.
+        :rtype: str
+        '''
+        scope.add(UseGen(scope, name="parallel_mod", only=True,
+                         funcnames=["get_rank"]))
+        return "get_rank()"
+
 
 class GOInvoke(Invoke):
     '''

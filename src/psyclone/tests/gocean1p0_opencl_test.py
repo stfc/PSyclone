@@ -341,10 +341,12 @@ def test_psy_init(kernel_outputdir, monkeypatch):
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
     # Test with a different configuration value for OCL_DEVICES_PER_NODE
+    # that needs a mod() and a get_rank() expression.
     monkeypatch.setattr(Config.get(), "_ocl_devices_per_node", 2)
     generated_code = str(psy.gen)
     expected = (
         "    SUBROUTINE psy_init()\n"
+        "      USE parallel_mod, ONLY: get_rank\n"
         "      USE fortcl, ONLY: ocl_env_init, add_kernels\n"
         "      CHARACTER(LEN=30) kernel_names(1)\n"
         "      INTEGER :: ocl_device_num=1\n"
@@ -353,6 +355,7 @@ def test_psy_init(kernel_outputdir, monkeypatch):
         "      IF (.not. initialised) THEN\n"
         "        initialised = .True.\n"
         "        ! Initialise the OpenCL environment/device\n"
+        "        ocl_device_num = mod(get_rank(), 2)\n"
         "        CALL ocl_env_init(5, ocl_device_num, .False., .False.)\n"
         "        ! The kernels this PSy layer module requires\n"
         "        kernel_names(1) = \"compute_cu_code\"\n"

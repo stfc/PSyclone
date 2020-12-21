@@ -392,8 +392,7 @@ class Invokes(object):
             self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues,
                               ocl_enable_profiling, ocl_out_of_order)
 
-    @staticmethod
-    def gen_ocl_init(parent, kernels, num_queues, enable_profiling,
+    def gen_ocl_init(self, parent, kernels, num_queues, enable_profiling,
                      out_of_order):
         '''
         Generates a subroutine to initialise the OpenCL environment and
@@ -447,9 +446,10 @@ class Invokes(object):
         devices_per_node = Config.get().ocl_devices_per_node
 
         if devices_per_node > 1 and distributed_memory:
+            my_rank = self.gen_rank_expression(sub)
             ifthen.add(AssignGen(ifthen, lhs="ocl_device_num",
                                  rhs="mod({0}, {1})"
-                                 "".format('TODO', devices_per_node)))
+                                 "".format(my_rank, devices_per_node)))
 
         ifthen.add(CallGen(ifthen, "ocl_env_init",
                            [num_queues, 'ocl_device_num',
@@ -474,6 +474,18 @@ class Invokes(object):
         ifthen.add(CommentGen(ifthen, " kernels in FORTCL_KERNELS_FILE."))
         ifthen.add(CallGen(ifthen, "add_kernels", [nkernstr, "kernel_names"]))
 
+
+    def gen_rank_expression(self, scope):
+        ''' Generate the expression to retrieve the process rank.
+
+        :param scope: where the expression is going to be located.
+        :type scope: :py:class:`psyclone.f2pygen.BaseGen`
+        :return: generate the expression to retrieve the process rank.
+        :rtype: str
+        :raises NotImplementedError: this is an abstract method.
+
+        '''
+        raise NotImplementedError("Abstract method")
 
 class Invoke(object):
     '''Manage an individual invoke call.
