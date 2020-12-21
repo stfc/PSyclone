@@ -41,14 +41,15 @@ PSyIR Back-ends
 PSyIR back-ends translate PSyIR into another form (such as Fortran, C
 or OpenCL). Until recently this back-end support has been implemented
 within the PSyIR `Node` classes themselves via various `gen*`
-methods. However, this approach is getting a little unwieldy.
+methods. However, this approach is getting a little unwieldy
 
-Therefore a `Visitor` pattern has been used in the latest back-end
-implementation (translating PSyIR kernel code to Fortran). This
-approach separates the code to traverse a tree from the tree being
-visited. It is expected that the existing back-ends will migrate to
-this new approach over time. The back-end visitor code is stored in
-`psyclone/psyir/backend`.
+Therefore PSyclone is transitioning into a `Visitor` pattern approach.
+Visitor backends are already being used in the back-end implementations
+that translate PSyIR kernel code. This approach separates the code to
+traverse a tree from the tree being visited. It is expected that the
+existing back-ends (used in the PSy-layer) will migrate to this new
+approach over time. The back-end visitor code is stored in
+`psyclone/psyir/backend`. (:ref:`_psy_layer_backends`)
 
 Visitor Base code
 =================
@@ -321,4 +322,33 @@ as fields). A limitation of the current translation from PSyIR to SIR
 is that all PSyIR scalars are assumed to be local and all PSyIR arrays
 are assumed to be global, which may not be the case. This limitation
 is captured in issue #521.
+
+
+.. _psy_layer_backends:
+
+Back-ends for the PSy-layer
+===========================
+
+The additional complexity of the PSy-layer comes from the fact that it
+contains multiple domain-specific concepts and parallel concepts that are not
+part of the target languages. The purpose of the Visitors are to encapsulate
+in a single place the translation logic from the generic PSyIR constructs into
+the target language. So it seems appropriate that these additional
+domain-specific generation knowledge (which is also common between backends)
+shouldn't belong to the Visitor, but in the API-specific nodes themself.
+
+The current proposed solution is create a 2-phase generation workflow where
+a domain-specific PSyIR is first lowered to a language-level version of the
+PSyIR and then processed by the Visitor to generate the target language.
+The language-level PSyIR it is still the same IR but restricted to the subset
+of Nodes that have a direct translation into target language concepts.
+
+.. image:: 2level_psyir.png
+
+Using the language backends to generate the PSy-layer code is still under
+development and not used by PSyclone by default.
+However, it can be triggered manually by some PSyclone examples to inform
+its development, these are:
+
+- gocean/eg8
 
