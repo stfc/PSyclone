@@ -68,11 +68,11 @@ parser.add_argument("-dims", help="Comma-separated list of dimensions, "
 parser.add_argument("-prefix", help="Prefix to add to the generated PSyData "
                                     "function names",
                     default="")
-parser.add_argument("-no-generic-declare", action="store_true",
-                    help="Do not declare generic interfaces for "
+parser.add_argument("-generic-declare", action="store_true",
+                    help="Declare generic interfaces for "
                     "PreDeclareVariable functions.", default=False)
-parser.add_argument("-no-generic-provide", action="store_true",
-                    help="Do not declare generic interfaces for "
+parser.add_argument("-generic-provide", action="store_true",
+                    help="Declare generic interfaces for "
                     "ProvideVariable functions.", default=False)
 
 args = parser.parse_args()
@@ -132,5 +132,5 @@ template = env.from_string(template_string)
 
 print(template.render(ALL_TYPES=all_types, ALL_DIMS=dims,
                       PREFIX=args.prefix,
-                      GENERIC_DECLARE=not args.no_generic_declare,
-                      GENERIC_PROVIDE=not args.no_generic_provide))
+                      GENERIC_DECLARE=args.generic_declare,
+                      GENERIC_PROVIDE=args.generic_provide))
