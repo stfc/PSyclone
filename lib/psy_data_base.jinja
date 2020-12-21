@@ -216,7 +216,8 @@ contains
         class(PSyDataBaseType), intent(inout), target :: this
         character(*) :: message
 
-        stop message
+        write(stderr, *) "PSyData Error:", message
+        stop "PSyData: Aborting"
     end subroutine Abort
 
     ! -------------------------------------------------------------------------
