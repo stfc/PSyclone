@@ -153,13 +153,11 @@ module extract_netcdf_base_mod
             {{all_provides|join(", &\n"+indent) }}
         {% endif %}
 
-        {% if GENERIC_PROVIDE %}
         !> The generic interface for reading the value of variables.
         !! This is not part of the official PSyData API, but used in
         !! the drivers created by PSyclone.
         generic, public :: ReadVariable => &
             {{all_reads|join(", &\n"+indent) }}
-        {% endif %}
 
     end type ExtractNetcdfBaseType
 
