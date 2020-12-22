@@ -54,13 +54,13 @@ module nan_test_psy_data_mod
 
         ! Declare generic interface for PreDeclareVariable:
         generic, public :: PreDeclareVariable => &
-            DeclareField, &
+            DeclareField,                        &
             DeclareFieldVector
 
         !> The generic interface for providing the value of variables
         !! (which checks for non normal IEEE numbers)
         generic, public :: ProvideVariable => &
-            ProvideField,       &
+            ProvideField,                     &
             ProvideFieldVector
                                               
     end type nan_test_PSyDataType
