@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,25 +30,46 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# -----------------------------------------------------------------------------
+# Author: S. Siso, STFC Daresbury Lab
 
-include ../../common.mk
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option. '''
 
-.PHONY: serial dm
+from __future__ import print_function
+from psyclone.psyir.backend.fortran import FortranWriter
 
-transform: serial dm backends
 
-serial:
-	${PSYCLONE} -nodm solver_mod.x90
+def trans(psy):
+    ''' Use the PSyIR back-end to generate PSy-layer target code'''
 
-dm:
-	${PSYCLONE} solver_mod.x90
+    # Loop over all of the Invokes in the PSy object
+    for invoke in psy.invokes.invoke_list:
 
-backends:
-	${PSYCLONE} -s ./backends_transform.py -nodm solver_mod.x90
+        print("Transforming invoke '"+invoke.name+"'...")
+        schedule = invoke.schedule
 
-compile:
-	@echo "No compilation supported for lfric/eg4"
+        print("DSL level view:")
+        schedule.view()
 
-all: transform compile
+    print("f2pygen code:")
+    print(str(psy.gen))
+
+    for invoke in psy.invokes.invoke_list:
+        # In-place lowering to Language-level PSyIR
+        schedule.symbol_table.view()
+        schedule.lower_to_core_psyir()
+
+        print("")
+        print("Language level view:")
+        schedule.view()
+
+    fvisitor = FortranWriter()
+    print("")
+    print("FortranWriter code:")
+    # The following line needs backend structures support.
+    # print(fvisitor(psy.psy_container))
+
+
+    # This script should terminate here
+    exit(0)

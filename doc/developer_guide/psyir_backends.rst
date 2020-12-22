@@ -351,4 +351,5 @@ However, it can be triggered manually by some PSyclone examples to inform
 its development, these are:
 
 - gocean/eg8
+- lfric/eg4 (backends target)
 
