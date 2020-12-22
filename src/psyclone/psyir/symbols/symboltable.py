@@ -43,7 +43,7 @@ from collections import OrderedDict
 import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
-    ContainerSymbol
+    ContainerSymbol, TypeSymbol
 from psyclone.psyir.symbols.symbol import SymbolError
 from psyclone.errors import InternalError
 
@@ -749,7 +749,7 @@ class SymbolTable(object):
         precision_symbols = set()
         from psyclone.psyir.symbols import DeferredType
         for sym in self.datasymbols:
-            if (not isinstance(sym.datatype, DeferredType) and
+            if (not isinstance(sym.datatype, (DeferredType, TypeSymbol)) and
                     isinstance(sym.datatype.precision, DataSymbol)):
                 precision_symbols.add(sym.datatype.precision)
         return list(precision_symbols)
