@@ -93,18 +93,29 @@ module nan_test_base_mod
     contains
         ! The various procedures used
 
-        {# Declare the jinja created procedures #}
-        {# ------------------------------------ #}
+        {# Collect and declare the various procedures for the same generic interface -#}
+        {# ------------------------------------------------------------------------- -#}
+        {% set all_declares=[] -%}
+        {% set all_provides=[] -%}
         {% for name, type, bits in ALL_TYPES %}
         procedure :: ProvideScalar{{name}}
+          {{- all_provides.append("ProvideScalar"~name) or "" }}
           {% for dim in ALL_DIMS %}
         procedure :: ProvideArray{{dim}}d{{name}}
+            {{ all_provides.append("ProvideArray"~dim~"d"~name) or "" }}
           {% endfor %}
         {% endfor %}
 
+        {% set indent="            " %}
+        {% if GENERIC_PROVIDE %}
+        !> The generic interface for providing the value of variables:
+        generic, public :: ProvideVariable => &
+            {{all_provides|join(", &\n"+indent) }}
+        {% endif %}
+
     end type NANTestBaseType
 
-    {% set indent="        " %}
+
 
 Contains
 
