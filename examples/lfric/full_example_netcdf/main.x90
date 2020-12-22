@@ -47,7 +47,7 @@ program main
     implicit none
 
     type(global_mesh_type), target             :: global_mesh
-    type(global_mesh_type), pointer            :: global_mesh_ptr
+    class(global_mesh_type), pointer           :: global_mesh_ptr
     type(partition_type)                       :: partition
     type(mesh_type), target                    :: mesh
     type(uniform_extrusion_type), target       :: extrusion
