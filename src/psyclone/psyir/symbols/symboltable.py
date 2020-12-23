@@ -43,7 +43,7 @@ from collections import OrderedDict
 import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
-    ContainerSymbol, TypeSymbol
+    ContainerSymbol, TypeSymbol, RoutineSymbol
 from psyclone.psyir.symbols.symbol import SymbolError
 from psyclone.errors import InternalError
 
@@ -543,11 +543,16 @@ class SymbolTable(object):
 
     def remove(self, symbol):
         '''
-        Remove the supplied Symbol or ContainerSymbol from the Symbol Table.
-        Support for removing other types of Symbol will be added as required.
+        Remove the supplied symbol from the Symbol Table. This has a high
+        potential to leave broken links, so this method checks for some
+        references to the removed symbol depending on teh symbol type.
+
+        Currently, generic Symbols, ContainerSymbols and RoutineSymbols are
+        supported. Support for removing other types of Symbol will be added
+        as required.
 
         TODO #898. This method should check for any references/uses of
-        the target symbol, even if it's not a ContainerSymbol.
+        the target symbol.
 
         :param symbol: the container symbol to remove.
         :type symbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
@@ -560,7 +565,8 @@ class SymbolTable(object):
                                entry with that name in this SymbolTable.
         '''
         # pylint: disable=unidiomatic-typecheck
-        if not (isinstance(symbol, ContainerSymbol) or type(symbol) == Symbol):
+        if not (isinstance(symbol, (ContainerSymbol, RoutineSymbol)) or
+                type(symbol) == Symbol):
             raise TypeError("remove() expects a ContainerSymbol or Symbol "
                             "object but got: '{0}'".format(
                                 type(symbol).__name__))
@@ -575,6 +581,7 @@ class SymbolTable(object):
                 "The Symbol with name '{0}' in this symbol table is not the "
                 "same Symbol object as the one that has been supplied to the "
                 "remove() method.".format(symbol.name))
+
         # We can only remove a ContainerSymbol if no DataSymbols are
         # being imported from it
         if (isinstance(symbol, ContainerSymbol) and
@@ -584,6 +591,16 @@ class SymbolTable(object):
                 "{1} are imported from it - remove them first.".format(
                     symbol.name,
                     [sym.name for sym in self.imported_symbols(symbol)]))
+
+        # We can only remove a RoutineSymbol if there are no Calls to it
+        if isinstance(symbol, RoutineSymbol):
+            pass
+
+        # If the symbol had any tags, they should be disassociated
+        for tag, tagged_symbol in list(self._tags.items()):
+            if symbol is tagged_symbol:
+                del self._tags[tag]
+
         self._symbols.pop(symbol.name)
 
     @property

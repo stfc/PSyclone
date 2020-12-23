@@ -65,14 +65,10 @@ class Routine(Schedule):
 
     def __init__(self, name, is_program=False, return_type=None, parent=None):
         super(Routine, self).__init__(parent=parent)
+
+        # Name is set-up by the name setter property
+        self._name = None
         self.name = name
-        if parent and name in parent.scope.symbol_table:
-            if not isinstance(parent.scope.symbol_table.lookup(name),
-                              RoutineSymbol):
-                raise NotImplementedError('')
-        else:
-            self.symbol_table.add(RoutineSymbol(name),
-                                  tag='own_routine_symbol')
 
         if not isinstance(is_program, bool):
             raise TypeError("Routine argument 'is_program' must be a bool but "
@@ -177,11 +173,22 @@ class Routine(Schedule):
         Sets a new name for the Routine.
 
         :param str new_name: new name for the Routine.
+
+        :raises TypeError: invalid value type given.
         '''
         if not isinstance(new_name, str):
             raise TypeError("Routine name must be a str but got "
                             "'{0}'".format(type(new_name).__name__))
-        self._name = new_name
+        if not self._name:
+            self._name = new_name
+            self.symbol_table.add(RoutineSymbol(new_name),
+                                      tag='own_routine_symbol')
+        elif self._name != new_name:
+            old_symbol = self.symbol_table.lookup(self._name)
+            self.symbol_table.remove(old_symbol)
+            self._name = new_name
+            self.symbol_table.add(RoutineSymbol(new_name),
+                                      tag='own_routine_symbol')
 
     def __str__(self):
         result = self.node_str(False) + ":\n"

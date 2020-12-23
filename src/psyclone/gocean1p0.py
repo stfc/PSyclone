@@ -2483,9 +2483,8 @@ class GOKernelSchedule(KernelSchedule):
 
     :param str name: Kernel subroutine name
     '''
-    def __init__(self, name):
-        super(GOKernelSchedule, self).__init__(name)
-        self._symbol_table = GOSymbolTable(self)
+    # Polymorphic parameter to initialize the Symbol Table of the Schedule
+    _symbol_table_class = GOSymbolTable
 
 
 class GOHaloExchange(HaloExchange):

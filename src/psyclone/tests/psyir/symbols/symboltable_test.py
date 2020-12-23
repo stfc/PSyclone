@@ -378,8 +378,44 @@ def test_imported_symbols():
     assert ("The 'my_mod' entry in this SymbolTable is not the supplied "
             "ContainerSymbol" in str(err.value))
 
+def test_remove_genericsymbols():
+    ''' Test that the remove method removed generic symbols from the symbol
+    table. Also check that it disassociate and existing tags to the symbol'''
 
-def test_remove():
+    sym_table = SymbolTable()
+    symbol_a = Symbol("a")
+    symbol_b = Symbol("b")
+    symbol_c = Symbol("c")
+
+    sym_table.add(symbol_a, tag="tag1")
+    sym_table.add(symbol_b, tag="tag2")
+
+    assert "a" in sym_table
+    assert "tag1" in sym_table.tags_dict
+
+    sym_table.remove(symbol_a)
+
+    assert "a" not in sym_table
+    assert "tag1" not in sym_table.tags_dict
+
+    # Tag1 can now be reused
+    sym_table.add(symbol_c, tag="tag1")
+
+
+def test_remove_routineymbols():
+    ''' Test that the remove method removed RoutineSymbols from the symbol
+    table.'''
+    sym_table = SymbolTable()
+    symbol_a = RoutineSymbol("a")
+    symbol_b = RoutineSymbol("b")
+    sym_table.add(symbol_a)
+    sym_table.add(symbol_b)
+    assert "a" in sym_table
+    sym_table.remove(symbol_a)
+    assert "a" not in sym_table
+
+
+def test_remove_containersymbols():
     '''Test that the remove method removes ContainerSymbols from the symbol
     table. Also checks that appropriate errors are raised when the method is
     provided with wrong parameters or if there are DataSymbols that reference
