@@ -1023,8 +1023,6 @@ def test_process_not_supported_declarations():
         in str(err.value)
 
 
-@pytest.mark.xfail(
-    reason="Should modvar1 be RoutineSymbol or a real datasymbol")
 def test_module_function_symbol(parser):
     ''' Check that the frontend correctly creates a new, local symbol for
     a Function's return value. '''
