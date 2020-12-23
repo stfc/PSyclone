@@ -49,7 +49,7 @@ from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
-    Symbol, INTEGER_TYPE, BOOLEAN_TYPE
+    Symbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
     Routine, PSyDataNode
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
@@ -2798,6 +2798,7 @@ class CodedKern(Kern):
         if not self.module_inline:
             csymbol = ContainerSymbol(self._module_name)
             symtab.add(csymbol)
+            rsymbol.interface = GlobalInterface(csymbol)
 
     def gen_code(self, parent):
         '''

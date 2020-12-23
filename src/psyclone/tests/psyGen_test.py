@@ -51,8 +51,9 @@ import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
-    Literal, Node, Schedule, KernelSchedule
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE
+    Literal, Node, Schedule, KernelSchedule, Call, Reference
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
+    GlobalInterface, ContainerSymbol
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     OMPParallelDoDirective, InlinedKern, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
@@ -505,6 +506,43 @@ def test_codedkern_module_inline_gen_code_modified_kernels(tmpdir):
     assert "SUBROUTINE ru_0_code(" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_codedkern_lower_to_language_level_psyir():
+    ''' Check that a generic CodedKern can be lowered to a subroutine call
+    with the appropriate arguments'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.children[0].loop_body[0]
+    # TODO 1010: LFRic still needs psy.gen to create symbols. But these must
+    # eventually be created before the gen() call, with the PSyIR tree.
+    psy.gen
+
+    # In DSL-level it is a CodedKern with no children
+    assert isinstance(kern, CodedKern)
+    assert len(kern.children) == 0
+    number_of_arguments = len(kern.arguments.raw_arg_list())
+
+    kern.lower_to_language_level_psyir()
+
+    # In language-level it is a Call with arguments as children
+    call = schedule.children[0].loop_body[0]
+    assert not isinstance(call, CodedKern)
+    assert isinstance(call, Call)
+    assert call.routine.name == 'testkern_code'
+    assert len(call.children) == number_of_arguments
+    assert isinstance(call.children[0], Reference)
+
+    # A RoutineSymbol and the ContainerSymbol from where it is imported are
+    # in the symbol table
+    rsymbol = call.scope.symbol_table.lookup('testkern_code')
+    assert isinstance(rsymbol, RoutineSymbol)
+    assert isinstance(rsymbol.interface, GlobalInterface)
+    csymbol = rsymbol.interface.container_symbol
+    assert isinstance(csymbol, ContainerSymbol)
+    assert csymbol.name == "testkern_mod"
 
 
 def test_kern_coloured_text():
