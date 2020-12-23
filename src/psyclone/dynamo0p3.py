@@ -65,9 +65,7 @@ from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              Arguments, KernelArgument, HaloExchange,
                              GlobalSum, FORTRAN_INTENT_NAMES, DataAccess,
                              CodedKern, ACCEnterDataDirective)
-from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, SymbolTable,
-                                    ContainerSymbol, TypeSymbol, ArrayType,
-                                    GlobalInterface, DeferredType)
+from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, SymbolTable
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DirectiveGen, DoGen,
                               IfThenGen, ModuleGen, SubroutineGen, TypeDeclGen,
@@ -155,19 +153,6 @@ psyGen.VALID_SCALAR_NAMES = LFRicArgDescriptor.VALID_SCALAR_NAMES
 
 # psyGen argument types translate to LFRic argument types.
 psyGen.VALID_ARG_TYPE_NAMES = LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
-
-# ---------- Common Data Types ---------------------------------------------- #
-I_ARRAY_1D = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE])
-I_ARRAY_2D = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                      ArrayType.Extent.ATTRIBUTE])
-I_ARRAY_3D = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                      ArrayType.Extent.ATTRIBUTE,
-                                      ArrayType.Extent.ATTRIBUTE])
-I_ARRAY_4D = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                      ArrayType.Extent.ATTRIBUTE,
-                                      ArrayType.Extent.ATTRIBUTE,
-                                      ArrayType.Extent.ATTRIBUTE])
-
 
 # ---------- Functions ------------------------------------------------------ #
 
@@ -1151,8 +1136,6 @@ class DynCollection(object):
             self._invoke = node
             self._kernel = None
             self._symbol_table = self._invoke.schedule.symbol_table
-            self._psy_symbol_table = \
-                self._invoke.invokes.psy.psy_container.symbol_table
             # The list of kernel calls we are responsible for
             self._calls = node.schedule.kernels()
         elif isinstance(node, DynKern):
@@ -1175,33 +1158,6 @@ class DynCollection(object):
             self._dofs_only = self._invoke.operates_on_dofs_only
         else:
             self._dofs_only = False
-
-    def _declare_from_lib_type(self, library_name, dtype, entities):
-        ''' Helper method to declare PSyIR symbols from a datatype imported
-        from a library.
-
-        :param str library_name: name of the library that the type is \
-                                 imported from.
-        :param str dtype: name of the imported type.
-        :param entities: list of variables to declare.
-        :type entities: list of str
-        '''
-        # If library is not declared, add it to the PSy symbol table
-        try:
-            library_symbol = self._psy_symbol_table.lookup(library_name)
-        except KeyError:
-            library_symbol = ContainerSymbol(library_name)
-            self._psy_symbol_table.add(library_symbol)
-        # If type is not declared, add it to the PSy symbol table
-        try:
-            type_symbol = self._psy_symbol_table.lookup(dtype)
-        except KeyError:
-            type_symbol = TypeSymbol(dtype, DeferredType(),
-                interface = GlobalInterface(library_symbol))
-        # Declare entities in the Invoke subroutine symbol table
-        for entity in entities:
-            if entity not in self._symbol_table:
-                self._symbol_table.add(DataSymbol(entity, type_symbol))
 
     def declarations(self, parent):
         '''
@@ -1505,10 +1461,6 @@ class DynStencils(DynCollection):
                                kind=api_config.default_kind["integer"],
                                entity_decls=self._unique_extent_vars,
                                intent="in"))
-            for var in self._unique_extent_vars:
-                if var not in self._symbol_table:
-                    symbol = DataSymbol(var, INTEGER_TYPE)
-                    self._symbol_table.add(symbol)
 
     @property
     def _unique_direction_vars(self):
@@ -1543,10 +1495,6 @@ class DynStencils(DynCollection):
                                kind=api_config.default_kind["integer"],
                                entity_decls=self._unique_direction_vars,
                                intent="in"))
-            for var in self._unique_direction_vars:
-                if var not in self._symbol_table:
-                    symbol = DataSymbol(var, INTEGER_TYPE)
-                    self._symbol_table.add(symbol)
 
     @property
     def unique_alg_vars(self):
@@ -1699,36 +1647,22 @@ class DynStencils(DynCollection):
                                        datatype="stencil_2D_dofmap_type",
                                        entity_decls=[map_name +
                                                      " => null()"]))
-                self._declare_from_lib_type("stencil_2D_dofmap_mod",
-                                            "stencil_2D_dofmap_type",
-                                            [map_name])
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    pointer=True,
                                    entity_decls=[self.dofmap_name(symtab,
                                                                   arg) +
                                                  "(:,:,:,:) => null()"]))
-                # symbol = DataSymbol(self.dofmap_name(symtab,arg), I_ARRAY_4D)
-                # self._symbol_table.add(symbol)
-
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    pointer=True,
                                    entity_decls=[self.dofmap_size_name(symtab,
                                                                        arg) +
                                                  "(:,:) => null()"]))
-                # symbol = DataSymbol(self.dofmap_size_name(symtab,arg),
-                #                    I_ARRAY_2D)
-                # self._symbol_table.add(symbol)
-
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    entity_decls=[self.max_branch_length_name(
                                        symtab, arg)]))
-                # symbol = DataSymbol(self.max_branch_length_name(symtab,arg),
-                #                     INTEGER_TYPE)
-                # self._symbol_table.add(symbol)
-
             else:
                 parent.add(UseGen(parent, name="stencil_dofmap_mod",
                                   only=True,
@@ -1762,18 +1696,12 @@ class DynStencils(DynCollection):
                                    entity_decls=[self.dofmap_name(symtab,
                                                                   arg) +
                                                  "(:,:,:) => null()"]))
-                # symbol = DataSymbol(self.dofmap_name(symtab,arg),
-                #                    I_ARRAY_3D)
-                # self._symbol_table.add(symbol)
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    pointer=True,
                                    entity_decls=[self.dofmap_size_name(symtab,
                                                                        arg) +
                                                  "(:) => null()"]))
-                # symbol = DataSymbol(self.dofmap_size_name(symtab,arg),
-                #                    I_ARRAY_1D)
-                # self._symbol_table.add(symbol)
 
     def _declare_maps_stub(self, parent):
         '''
@@ -1920,8 +1848,6 @@ class LFRicMeshProperties(DynCollection):
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    pointer=True, entity_decls=[adj_face]))
-                symbol = DataSymbol(adj_face, I_ARRAY_2D)
-                self._symbol_table.add(symbol)
             else:
                 raise InternalError(
                     "Found unsupported mesh property '{0}' when "
@@ -2185,10 +2111,6 @@ class DynReferenceElement(DynCollection):
         parent.add(DeclGen(parent, datatype="integer",
                            kind=api_config.default_kind["integer"],
                            entity_decls=nface_vars))
-        for var in nface_vars:
-            if var not in self._symbol_table:
-                symbol = DataSymbol(var, INTEGER_TYPE)
-                self._symbol_table.add(symbol)
 
         if not self._properties:
             # We only need the number of horizontal faces so we're done
@@ -2476,10 +2398,6 @@ class DynDofmaps(DynCollection):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                pointer=True, entity_decls=decl_map_names))
-        for var in self._unique_fs_maps:
-            if var not in self._symbol_table:
-                symbol = DataSymbol(var, I_ARRAY_2D)
-                self._symbol_table.add(symbol)
 
         # Column-banded dofmaps
         decl_bmap_names = \
@@ -2488,11 +2406,6 @@ class DynDofmaps(DynCollection):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                pointer=True, entity_decls=decl_bmap_names))
-        for var in self._unique_cbanded_maps:
-            if var not in self._symbol_table:
-                symbol = DataSymbol(var, I_ARRAY_2D)
-                self._symbol_table.add(symbol)
-
 
         # CMA operator indirection dofmaps
         decl_ind_map_names = \
@@ -2501,11 +2414,6 @@ class DynDofmaps(DynCollection):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                pointer=True, entity_decls=decl_ind_map_names))
-        for var in self._unique_indirection_maps:
-            if var not in self._symbol_table:
-                symbol = DataSymbol(var, I_ARRAY_1D)
-                self._symbol_table.add(symbol)
-
 
     def _stub_declarations(self, parent):
         '''
@@ -2634,9 +2542,6 @@ class DynOrientations(DynCollection):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                pointer=True, entity_decls=declns))
-        for var in declns:
-            symbol = DataSymbol(var, I_ARRAY_1D)
-            self._symbol_table.add(symbol)
 
 
 class DynFunctionSpaces(DynCollection):
@@ -2711,10 +2616,6 @@ class DynFunctionSpaces(DynCollection):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=self._var_list))
-        for var in self._var_list:
-            if var not in self._symbol_table:
-                symbol = DataSymbol(var, INTEGER_TYPE)
-                self._symbol_table.add(symbol)
 
     def initialise(self, parent):
         '''
@@ -3039,7 +2940,6 @@ class DynProxies(DynCollection):
                                    entity_decls=field_proxy_decs))
             (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
              add(dtype))
-            self._declare_from_lib_type("field_mod", dtype, field_proxy_decs)
 
         op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_operator"])
@@ -3050,7 +2950,6 @@ class DynProxies(DynCollection):
                                    entity_decls=op_proxy_decs))
             (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
              add(dtype))
-            self._declare_from_lib_type("operator_mod", dtype, op_proxy_decs)
 
         cma_op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_columnwise_operator"])
@@ -3061,8 +2960,6 @@ class DynProxies(DynCollection):
                                    entity_decls=cma_op_proxy_decs))
             (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
              add(dtype))
-            self._declare_from_lib_type("operator_mod", dtype,
-                                        cma_op_proxy_decs)
 
     def initialise(self, parent):
         '''
@@ -4839,9 +4736,6 @@ class DynBoundaryConditions(DynCollection):
                                kind=api_config.default_kind["integer"],
                                pointer=True,
                                entity_decls=[name+"(:,:) => null()"]))
-            if name not in self._symbol_table:
-                symbol = DataSymbol(name, I_ARRAY_2D)
-                self._symbol_table.add(symbol, tag=name)
 
     def _stub_declarations(self, parent):
         '''
@@ -4901,7 +4795,7 @@ class DynInvoke(Invoke):
         if not alg_invocation and not idx:
             # This if test is added to support pyreverse.
             return
-        self._schedule = DynInvokeSchedule('None', None)  # for pyreverse
+        self._schedule = DynInvokeSchedule('name', None)  # for pyreverse
         reserved_names_list = []
         reserved_names_list.extend(LFRicArgDescriptor.STENCIL_MAPPING.values())
         reserved_names_list.extend(LFRicArgDescriptor.VALID_STENCIL_DIRECTIONS)

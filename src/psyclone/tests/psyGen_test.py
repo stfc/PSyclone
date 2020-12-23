@@ -53,7 +53,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
     Literal, Node, Schedule, KernelSchedule, Call, Reference
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
-    GlobalInterface, ContainerSymbol
+    GlobalInterface, ContainerSymbol, Symbol
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     OMPParallelDoDirective, InlinedKern, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
@@ -516,9 +516,23 @@ def test_codedkern_lower_to_language_level_psyir():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
+
     # TODO 1010: LFRic still needs psy.gen to create symbols. But these must
-    # eventually be created before the gen() call, with the PSyIR tree.
-    psy.gen
+    # eventually be created automatically before the gen() call, for new we
+    # manuannly create the symbols that appear in the PSyIR tree.
+    schedule.symbol_table.add(Symbol("f1_proxy"))
+    schedule.symbol_table.add(Symbol("f2_proxy"))
+    schedule.symbol_table.add(Symbol("m1_proxy"))
+    schedule.symbol_table.add(Symbol("m2_proxy"))
+    schedule.symbol_table.add(Symbol("ndf_w1"))
+    schedule.symbol_table.add(Symbol("undf_w1"))
+    schedule.symbol_table.add(Symbol("map_w1"))
+    schedule.symbol_table.add(Symbol("ndf_w2"))
+    schedule.symbol_table.add(Symbol("undf_w2"))
+    schedule.symbol_table.add(Symbol("map_w2"))
+    schedule.symbol_table.add(Symbol("ndf_w3"))
+    schedule.symbol_table.add(Symbol("undf_w3"))
+    schedule.symbol_table.add(Symbol("map_w3"))
 
     # In DSL-level it is a CodedKern with no children
     assert isinstance(kern, CodedKern)

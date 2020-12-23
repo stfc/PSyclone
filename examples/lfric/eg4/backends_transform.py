@@ -55,6 +55,10 @@ def trans(psy):
     print("f2pygen code:")
     print(str(psy.gen))
 
+    # TODO #1010: This script should terminate here until LFRic declares
+    # all its symbols to the symbol table.
+    exit(0)
+
     for invoke in psy.invokes.invoke_list:
         # In-place lowering to Language-level PSyIR
         schedule.symbol_table.view()
@@ -64,12 +68,9 @@ def trans(psy):
         print("Language level view:")
         schedule.view()
 
-    fvisitor = FortranWriter()
     print("")
     print("FortranWriter code:")
-    # The following line needs backend structures support.
+    # TODO #1010 and #363: The following lines need backend support for
+    # structures.
+    # fvisitor = FortranWriter()
     # print(fvisitor(psy.psy_container))
-
-
-    # This script should terminate here
-    exit(0)
