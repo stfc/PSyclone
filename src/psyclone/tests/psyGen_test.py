@@ -508,7 +508,7 @@ def test_codedkern_module_inline_gen_code_modified_kernels(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_codedkern_lower_to_language_level_psyir():
+def test_codedkern_lower_to_language_level():
     ''' Check that a generic CodedKern can be lowered to a subroutine call
     with the appropriate arguments'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -539,7 +539,7 @@ def test_codedkern_lower_to_language_level_psyir():
     assert len(kern.children) == 0
     number_of_arguments = len(kern.arguments.raw_arg_list())
 
-    kern.lower_to_language_level_psyir()
+    kern.lower_to_language_level()
 
     # In language-level it is a Call with arguments as children
     call = schedule.children[0].loop_body[0]

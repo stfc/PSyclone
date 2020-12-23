@@ -2767,7 +2767,7 @@ class CodedKern(Kern):
                 self.arguments.names + ") " + "[module_inline=" +
                 str(self._module_inline) + "]")
 
-    def lower_to_language_level_psyir(self):
+    def lower_to_language_level(self):
         from psyclone.psyir.nodes import Call, Reference
         from psyclone.psyir.symbols import RoutineSymbol, ContainerSymbol
 

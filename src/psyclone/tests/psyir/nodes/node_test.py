@@ -898,8 +898,8 @@ def test_children_setter():
            " a list or None." in str(error.value)
 
 
-def test_lower_to_language_level_psyir():
-    ''' Test that Node has a lower_to_language_level_psyir method that \
+def test_lower_to_language_level():
+    ''' Test that Node has a lower_to_language_level() method that \
     recurses to the same method of its children. '''
     # Manual monckeypatch needed in this test confuses pylint
     # pylint:disable=assignment-from-no-return, no-member
@@ -913,11 +913,11 @@ def test_lower_to_language_level_psyir():
     def visited(self):
         self._visited_flag = True
 
-    node1.lower_to_language_level_psyir = visited.__get__(node1, type(node1))
-    node2.lower_to_language_level_psyir = visited.__get__(node2, type(node2))
+    node1.lower_to_language_level = visited.__get__(node1, type(node1))
+    node2.lower_to_language_level = visited.__get__(node2, type(node2))
 
     # Execute method
-    testnode.lower_to_language_level_psyir()
+    testnode.lower_to_language_level()
 
     # Check all children have been visited
     for child in testnode.children:

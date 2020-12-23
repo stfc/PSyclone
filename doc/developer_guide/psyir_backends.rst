@@ -48,8 +48,9 @@ Visitor backends are already being used in the back-end implementations
 that translate PSyIR kernel code. This approach separates the code to
 traverse a tree from the tree being visited. It is expected that the
 existing back-ends (used in the PSy-layer) will migrate to this new
-approach over time. The back-end visitor code is stored in
-`psyclone/psyir/backend`. (:ref:`_psy_layer_backends`)
+approach over time (more information about the PSy-layer migration
+can be found in :ref:`psy_layer_backends`). The back-end visitor code
+is stored in `psyclone/psyir/backend`.
 
 Visitor Base code
 =================

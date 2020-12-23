@@ -53,7 +53,7 @@ def trans(psy):
     print(str(psy.gen))
 
     # In-place lowering to Language-level PSyIR
-    schedule.lower_to_language_level_psyir()
+    schedule.lower_to_language_level()
 
     print("")
     print("Language level view:")
