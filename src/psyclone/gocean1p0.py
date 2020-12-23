@@ -207,7 +207,7 @@ class GOInvoke(Invoke):
 
     '''
     def __init__(self, alg_invocation, idx, invokes):
-        self._schedule = GOInvokeSchedule('a', None)  # for pyreverse
+        self._schedule = GOInvokeSchedule('name', None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
 
         if Config.get().distributed_memory:

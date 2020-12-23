@@ -455,7 +455,6 @@ class Invoke(object):
         if alg_invocation is None and idx is None:
             return
 
-
         # create a name for the call if one does not already exist
         if alg_invocation.name is not None:
             # In Python2 unicode strings must be converted to str()

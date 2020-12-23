@@ -41,7 +41,7 @@ PSyIR Back-ends
 PSyIR back-ends translate PSyIR into another form (such as Fortran, C
 or OpenCL). Until recently this back-end support has been implemented
 within the PSyIR `Node` classes themselves via various `gen*`
-methods. However, this approach is getting a little unwieldy
+methods. However, this approach is getting a little unwieldy.
 
 Therefore PSyclone is transitioning into a `Visitor` pattern approach.
 Visitor backends are already being used in the back-end implementations
