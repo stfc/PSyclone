@@ -37,6 +37,7 @@
 function via the -s option. '''
 
 from __future__ import print_function
+import sys
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
@@ -64,5 +65,5 @@ def trans(psy):
     print("FortranWriter code:")
     print(fvisitor(psy.psy_container))
 
-    # This script should terminate here
-    exit(0)
+    # This PSyclone call should terminate gracefully here
+    sys.exit(0)

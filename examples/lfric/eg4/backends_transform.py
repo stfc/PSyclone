@@ -37,6 +37,7 @@
 function via the -s option. '''
 
 from __future__ import print_function
+import sys
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
@@ -57,7 +58,7 @@ def trans(psy):
 
     # TODO #1010: This script should terminate here until LFRic declares
     # all its symbols to the symbol table.
-    exit(0)
+    sys.exit(0)
 
     for invoke in psy.invokes.invoke_list:
         # In-place lowering to Language-level PSyIR
@@ -72,5 +73,6 @@ def trans(psy):
     print("FortranWriter code:")
     # TODO #1010 and #363: The following lines need backend support for
     # structures.
-    # fvisitor = FortranWriter()
-    # print(fvisitor(psy.psy_container))
+    sys.exit(0)
+    fvisitor = FortranWriter()
+    print(fvisitor(psy.psy_container))
