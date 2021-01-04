@@ -101,8 +101,9 @@ dl_timer: $(NAME).dl_timer
 # The LFRic library can be used for gocean as well - the library wrapper
 # contains a stripped down version of the timer (and two other required
 # modules) that will be utilised.
+lfric: LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 lfric: PROFILE_DIR=../../../lib/profiling/lfric
-lfric: PROFILE_LINK=$(PROFILE_DIR)/*.o
+lfric: PROFILE_LINK=-lprofile_psy_data_mod -L $(LFRIC_DIR) -llfric
 lfric: $(NAME).lfric
 
 # Generic rule. It temporarily compiles a profile-wrapper-specific version

@@ -34,11 +34,12 @@
 # Author J. Henrichs, Bureau of Meteorology
 
 
+# This defaults to the infrastructure library included in PSyclone
+LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 F90?=gfortran
 F90FLAGS?=-g
-F90FLAGS+=-DSTANDALONE_COMPILATION
+F90FLAGS += -I$(LFRIC_DIR)
 
-LFRIC_OBJS = constants_mod.o timer_mod.o log_mod.o io_utility_mod.o
 OBJS = profile_psy_data_mod.o
 
 name=profile_psy_data_mod
@@ -46,11 +47,12 @@ libname=lib$(name).a
 
 default: $(libname)
 
-$(libname): $(OBJS)
+LFRIC_LIB:
+	$(MAKE) -C ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure/
+
+$(libname): LFRIC_LIB $(OBJS)
 	ar rs $(libname) $(name).o
 
-log_mod.o: constants_mod.o
-timer_mod.o: constants_mod.o log_mod.o
 $(OBJS): timer_mod.o
 
 %.o: %.F90
