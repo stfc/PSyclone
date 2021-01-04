@@ -545,7 +545,7 @@ class SymbolTable(object):
         '''
         Remove the supplied symbol from the Symbol Table. This has a high
         potential to leave broken links, so this method checks for some
-        references to the removed symbol depending on teh symbol type.
+        references to the removed symbol depending on the symbol type.
 
         Currently, generic Symbols, ContainerSymbols and RoutineSymbols are
         supported. Support for removing other types of Symbol will be added
@@ -591,10 +591,6 @@ class SymbolTable(object):
                 "{1} are imported from it - remove them first.".format(
                     symbol.name,
                     [sym.name for sym in self.imported_symbols(symbol)]))
-
-        # We can only remove a RoutineSymbol if there are no Calls to it
-        if isinstance(symbol, RoutineSymbol):
-            pass
 
         # If the symbol had any tags, they should be disassociated
         for tag, tagged_symbol in list(self._tags.items()):

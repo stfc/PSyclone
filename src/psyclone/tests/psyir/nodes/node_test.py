@@ -901,7 +901,7 @@ def test_children_setter():
 def test_lower_to_language_level():
     ''' Test that Node has a lower_to_language_level() method that \
     recurses to the same method of its children. '''
-    # Manual monckeypatch needed in this test confuses pylint
+    # The manual monckeypatch needed in this test confuses pylint
     # pylint:disable=assignment-from-no-return, no-member
 
     testnode = Schedule()

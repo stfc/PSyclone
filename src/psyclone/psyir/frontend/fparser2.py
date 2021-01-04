@@ -1503,13 +1503,13 @@ class Fparser2Reader(object):
             # Make sure the declared symbol exists in the SymbolTable
             try:
                 sym = symbol_table.lookup(sym_name, check_ancestors=False)
-                symbol_table.view()
                 if sym is symbol_table.lookup_with_tag("own_routine_symbol"):
-                    # Functions have a DataSymbol with the same name, so remove
-                    # the local RoutineSymbol and lookup again to trigger the
-                    # exception
+                    # In case it is its own function routine symbol, Fortran
+                    # will declare it inside the function as a DataSymbol.
+                    # Remove the RoutineSymbol in order to free the exact name
+                    # for the DataSymbol.
                     symbol_table.remove(sym)
-                    symbol_table.view()
+                    # Lookup again to trigger the exception
                     sym = symbol_table.lookup(sym_name, check_ancestors=False)
                 if not sym.is_unresolved:
                     raise SymbolError(

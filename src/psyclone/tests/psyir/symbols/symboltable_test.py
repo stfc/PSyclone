@@ -379,8 +379,8 @@ def test_imported_symbols():
             "ContainerSymbol" in str(err.value))
 
 def test_remove_genericsymbols():
-    ''' Test that the remove method removed generic symbols from the symbol
-    table. Also check that it disassociate and existing tags to the symbol'''
+    ''' Test that the remove method removes generic symbols from the symbol
+    table. Also check that it disassociates any existing tags to the symbol'''
 
     sym_table = SymbolTable()
     symbol_a = Symbol("a")
@@ -403,7 +403,7 @@ def test_remove_genericsymbols():
 
 
 def test_remove_routineymbols():
-    ''' Test that the remove method removed RoutineSymbols from the symbol
+    ''' Test that the remove method removes RoutineSymbols from the symbol
     table.'''
     sym_table = SymbolTable()
     symbol_a = RoutineSymbol("a")

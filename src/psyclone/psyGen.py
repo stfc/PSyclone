@@ -49,9 +49,9 @@ from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
-    Symbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE
+    Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
-    Routine, PSyDataNode
+    Routine, PSyDataNode, Call, Reference
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 
@@ -762,6 +762,7 @@ class InvokeSchedule(Routine):
     >>> schedule = invoke.schedule
     >>> schedule.view()
 
+    :param str name: name of the Invoke.
     :param type KernFactory: class instance of the factory to use when \
      creating Kernels. e.g. :py:class:`psyclone.dynamo0p3.DynKernCallFactory`.
     :param type BuiltInFactory: class instance of the factory to use when \
@@ -2768,12 +2769,12 @@ class CodedKern(Kern):
                 str(self._module_inline) + "]")
 
     def lower_to_language_level(self):
-        from psyclone.psyir.nodes import Call, Reference
-        from psyclone.psyir.symbols import RoutineSymbol, ContainerSymbol
+        '''
+        In-place replacement of CodedKern concept into language level
+        PSyIR constructs. The CodedKern is implemented as a Call to a
+        routine with the appropriate arguments.
 
-        # If the kernel has been transformed then we rename it. If it
-        # is *not* being module inlined then we also write it to file.
-        # self.rename_and_write()
+        '''
 
         symtab = self.scope.symbol_table
         rsymbol = RoutineSymbol(self._name)
@@ -2787,14 +2788,15 @@ class CodedKern(Kern):
 
         # Add arguments as children
         for argument in self.arguments.raw_arg_list():
-            # TODO: Some arrays and structures are given by the name, not
-            # the PSyIR DataType, we just use the base name for now.
+            # TODO #1010: Some arrays and structures are given by the name,
+            # not the PSyIR DataType, we just use the base name for now.
             argument = argument.split('%')[0]
             argument = argument.split('(')[0]
             argument_symbol = symtab.lookup(argument)
             call_node.addchild(Reference(argument_symbol))
 
         if not self.module_inline:
+            # Import subroutine symbol
             csymbol = ContainerSymbol(self._module_name)
             symtab.add(csymbol)
             rsymbol.interface = GlobalInterface(csymbol)

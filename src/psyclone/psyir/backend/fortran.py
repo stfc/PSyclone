@@ -665,8 +665,14 @@ class FortranWriter(PSyIRVisitor):
         self._depth += 1
         # Declare the kernel data.
         declarations = self.gen_decls(node.symbol_table)
-        #for schedule in node.walk(Schedule):
-        #    declarations += self.gen_decls(schedule.symbol_table)
+        # Fortran declares all variables found in the inner nested scopes
+        # at the Routine level. There can be name clashes as PSyIR supports
+        # nested scopes.
+        # TODO #1010: Nested scopes name clashes can be resolved here as a
+        # Fortran-specific feature, or in the lower_to_language_level for
+        # a more generic solution.
+        # for schedule in node.walk(Schedule):
+        #     declarations += self.gen_decls(schedule.symbol_table)
         # Get the executable statements.
         exec_statements = ""
         for child in node.children:

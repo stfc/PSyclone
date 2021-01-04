@@ -84,7 +84,9 @@ def test_routine_properties():
 
 
 def test_routine_name_setter():
-    ''' Check the name setter property of the Routine class. '''
+    ''' Check the name setter property of the Routine class updates its
+    name and its associated Routine symbol. '''
+
     node = Routine("hello")  # The constructor has an implicit name setter
     # Check the associated RoutineSymbol has been created
     assert "hello" in node.symbol_table
