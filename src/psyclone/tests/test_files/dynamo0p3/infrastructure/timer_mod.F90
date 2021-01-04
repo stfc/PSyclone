@@ -116,10 +116,8 @@ contains
 !=============================================================================!
 !> @brief Calculate statistics required for output
    subroutine calculate_timer_stats()
-#ifndef STANDALONE_COMPILATION
      use mpi_mod, only:    get_comm_size
      use scalar_mod, only: scalar_type
-#endif
      use log_mod,    only: log_event,         &
                            LOG_LEVEL_INFO,    &
                            log_scratch_space
@@ -128,15 +126,11 @@ contains
 
      integer :: k
      ! use a scalar_type to access collective operations
-#ifndef STANDALONE_COMPILATION
      type(scalar_type) :: time_scalar
-#endif
      real(r_double)    :: time_real_tmp
      integer(i_def)    :: total_ranks
 
-#ifndef STANDALONE_COMPILATION
      total_ranks = get_comm_size()
-#endif
 
      ! check all timers are closed
      do k = 1, num_tim_in_use
@@ -150,16 +144,10 @@ contains
 
      do k = 1, num_tim_in_use
        time_real_tmp = real(isystem_clock_time(k)/clock_rate, r_double)
-#ifndef STANDALONE_COMPILATION
        time_scalar = scalar_type(time_real_tmp)
        mean_system_time(k) = time_scalar%get_sum()/total_ranks
        min_system_time(k) = time_scalar%get_min()
        max_system_time(k) = time_scalar%get_max()
-#else
-       mean_system_time(k) = time_real_tmp
-       min_system_time(k) = time_real_tmp
-       max_system_time(k) = time_real_tmp
-#endif
      end do
 
    end subroutine calculate_timer_stats
@@ -167,14 +155,10 @@ contains
 !=============================================================================!
    !> @brief write out timer information to file
    subroutine output_timer()
-#ifndef STANDALONE_COMPILATION
      use mpi_mod,    only: get_comm_rank
-#endif
      use log_mod,    only: log_event,         &
                            LOG_LEVEL_ERROR
-#ifndef STANDALONE_COMPILATION
      use io_utility_mod, only: claim_io_unit, close_file
-#endif
 
      implicit none
 
@@ -185,16 +169,12 @@ contains
 
      call calculate_timer_stats()
 
-#ifndef STANDALONE_COMPILATION
      if ( get_comm_rank() == 0 ) then
        timer_file_unit = claim_io_unit()
        open( timer_file_unit, file='timer.txt', status="replace", iostat=stat)
        if (stat /= 0) then
          call log_event( "Unable to open timer file", LOG_LEVEL_ERROR )
        end if
-#else
-       timer_file_unit = 6
-#endif
 
        ! Write out timer information in wiki formatted table
        write(timer_file_unit,'(A2,A32,7(A2,A21),A2)')                          &
@@ -219,10 +199,8 @@ contains
               '||', mean_system_time(k)/REAL(num_calls(k),r_double),           &
               '||'
        end do
-#ifndef STANDALONE_COMPILATION
        call close_file(timer_file_unit)
      end if
-#endif
    end subroutine output_timer
 
 !=============================================================================!
