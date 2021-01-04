@@ -66,15 +66,17 @@ default: standalone
 
 # Standalone target, no netcdf dependency:
 # ----------------------------------------
-standalone: $(OBJ)
-	$(AR) $(ARFLAGS) liblfric.a $(OBJ)
-standalone: $(LIB)
+standalone: liblfric.a
+liblfric.a: $(OBJ)
+	$(AR) $(ARFLAGS) $@ $(OBJ)
+
 
 # Netcdf target, like standalone but with support for netcdf files:
 # -----------------------------------------------------------------
 netcdf: F90FLAGS += $$(nf-config --fflags)
-netcdf: $(OBJ_NETCDF) $(OBJ)
-	$(AR) $(ARFLAGS) liblfric_netcdf.a $(OBJ) $(OBJ_NETCDF)
+netcdf: liblfric_netcdf.a
+liblfric_netcdf.a: $(OBJ) $(OBJ_NETCDF)
+	$(AR) $(ARFLAGS) $@ $(OBJ) $(OBJ_NETCDF)
 
 
 # Dependencies
