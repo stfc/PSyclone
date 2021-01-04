@@ -36,6 +36,8 @@
 
 # This defaults to the infrastructure library included in PSyclone
 LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_LIB=$(LFRIC_DIR)/liblfric.a
+
 F90?=gfortran
 F90FLAGS?=-g
 F90FLAGS += -I$(LFRIC_DIR)
@@ -45,15 +47,18 @@ OBJS = profile_psy_data_mod.o
 name=profile_psy_data_mod
 libname=lib$(name).a
 
+.phony: default clean
+
 default: $(libname)
 
-LFRIC_LIB:
-	$(MAKE) -C ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure/
-
-$(libname): LFRIC_LIB $(OBJS)
+$(libname): $(LFRIC_LIB) $(OBJS)
 	ar rs $(libname) $(name).o
 
-$(OBJS): timer_mod.o
+# Trigger recompilation is the infrastructure lib is changed
+$(OBJS): $(LFRIC_LIB)
+
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_DIR)
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
