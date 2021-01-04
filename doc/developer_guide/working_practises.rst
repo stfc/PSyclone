@@ -302,45 +302,45 @@ These files must be located in the same directory as the kernels.
 Continuous Integration
 ======================
 
-The PSyclone project uses Travis (https://travis-ci.org/stfc/PSyclone)
-for continuous integration. GitHub triggers Travis to execute the test
+The PSyclone project uses GitHub Actions
+(https://psyclone.readthedocs.io/en/stable/examples.html#examples)
+for continuous integration. GitHub triggers an action to execute the test
 suite whenever there is a push to the repository. The work performed
-by Travis is configured by the ``.travis.yml`` file in the root
-directory of the repository. Currently Travis is configured to run the
-test suite for both Python 2.7 and 3.6 but does not do the extra
+by the action is configured by the
+``PSyclone/.github/workflows/python-package.yml`` file. Currently the
+action is configured to run the
+test suite for Python 2.7, 3.5 and 3.8 but does not do the extra
 compilation checks (since that would considerably increase the execution
 time of the test suite).
 
-Travis also runs all of the examples using the ``Makefile`` in the
-``examples`` directory. Again, no compilation is performed; only the
-``transform`` (performs the PSyclone transformations) and ``notebook``
-(runs the various Jupyter notebooks) targets are used.
+The GitHub action also runs all of the examples using the ``Makefile``
+in the ``examples`` directory. Again, no compilation is performed;
+only the ``transform`` (performs the PSyclone transformations) and
+``notebook`` (runs the various Jupyter notebooks) targets are used.
 
-By default, the Travis configuration uses ``pip`` to install the
-dependencies required by PSyclone before running the test suite. This
-works well when PSyclone only depends upon released versions of other
-packages. However, PSyclone relies heavily upon fparser which is also
-under development. Occasionally it may be that a given branch of
-PSyclone requires a version of fparser that is not yet released. As
-described in :ref:`dev-installation`, PSyclone has fparser as a git
-submodule. In order to configure Travis to use that version of fparser
-instead of a release, the ``.travis.yml`` file must be edited and the
-line executing the "install_optional.sh" script (in the
-``before_install`` section) must be edited to pass in the
-"fparser_submodule" argument::
-
-    - ./bin/install_optional.sh fparser_submodule
+By default, the GitHub Actions configuration uses ``pip`` to install
+the dependencies required by PSyclone before running the test
+suite. This works well when PSyclone only depends upon released
+versions of other packages. However, PSyclone relies heavily upon
+fparser which is also under development. Occasionally it may be that a
+given branch of PSyclone requires a version of fparser that is not yet
+released. As described in :ref:`dev-installation`, PSyclone has
+fparser as a git submodule. In order to configure GitHub Actions to
+use that version of fparser instead of a release, the
+``python-package.yml`` file must be edited and the line executing
+``pip install external/fparser`` must be uncommented.
 
 Note that this functionality is only for development purposes. Any
 release of PSyclone must work with a released version of fparser
-and therefore the "fparser_submodule" argument must be removed
+and therefore the line described above must be commented out again
 before making a release.
 
-Given that a run of the test-suite on Travis uses approximately 45
-minutes of CPU time, it is good practise to avoid triggering it
-unnecessarily (e.g. if you know that a certain commit won't
-pass). This can be achieved by appending "[skip ci]" (without the
-quotes) to the end of the associated git commit message.
+A single run of the test suite on GitHub Actions uses
+approximately 15 minutes of CPU time and we run the test suite on three
+different versions of Python. Therefore, ideally we would avoid
+triggering the tests unnecessarily (e.g. when we know that a certain commit
+won't pass). Unfortunately we have yet to find a working solution
+for this - see Issue #973.
 
 .. _code-review:
 

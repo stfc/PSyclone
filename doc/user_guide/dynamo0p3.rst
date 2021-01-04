@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified by I. Kavcic, Met Office
+.. Modified by I. Kavcic and A. Coughtrie, Met Office
 
 .. highlight:: fortran
 
@@ -256,10 +256,11 @@ basis/differential-basis functions required by the kernel are to be evaluated.
 Stencils
 ++++++++
 
-Kernel metadata may specify that a Kernel performs a stencil operation
-on a field. Any such metadata must provide a stencil type. See the
+The metadata for a Kernel which operates on a cell-column may specify
+that a Kernel performs a stencil operation on a field. Any such
+metadata must provide a stencil type. See the
 :ref:`dynamo0.3-api-meta-args` section for more details. The supported
-stencil types are ``X1D``, ``Y1D``, ``XORY1D`` or ``CROSS``.
+stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS`` or ``CROSS2D``.
 
 If a stencil operation is specified by the Kernel metadata the
 algorithm layer must provide the ``extent`` of the stencil (the
@@ -312,6 +313,17 @@ For example::
   integer(kind=i_def) :: extent = 2
   ! ...
   call invoke(kernel(field1, field2, extent, x_direction))
+
+If the stencil is of type ``CROSS2D`` then the arrays passed to the kernel are
+of different dimensions to those of other stencils. The ``CROSS2D`` stencil is
+designed for use when it is necessary for a kernel to know where the stencil
+cells are, relative to the current cell. For this reason, the ``stencil_size``
+passed to the kernel is an array of length 4 containing sizes for each branch
+of the stencil. The ``stencil_size`` array is always ordered: West, South,
+East, North. This branch dimension is also part of the ``stencil_dofmap`` array
+making it possible to loop over each branch of the stencil individually. The
+invoke call for the ``CROSS2D`` stencil remains of the same form as for other
+stencils.
 
 If certain fields use the same value of extent and/or direction then
 the same variable, or literal value can be provided.
@@ -404,17 +416,19 @@ Kernel
 -------
 
 The general requirements for the structure of a Kernel are explained
-in the :ref:`kernel-layer` section. In the Dynamo0.3 API there are four
-different Kernel types; general purpose, CMA, inter-grid and
+in the :ref:`kernel-layer` section. In the LFRic API there are five
+different Kernel types; general purpose, CMA, inter-grid, domain and
 :ref:`dynamo0.3-built-ins`. In the case of built-ins, PSyclone generates
 the source of the kernels.  This section explains the rules for the
-other three, user-supplied kernel types and then goes on to describe
-their metadata and subroutine arguments.
+other four, user-supplied kernel types and then goes on to describe
+their metadata and subroutine arguments. Domain kernels are distinct
+from the other three user-supplied kernel types in that they must be
+passed data for the whole domain rather than a single cell-column.
 
 .. _dynamo0.3-user-kernel-rules:
 
-Rules for all User-Supplied Kernels
-+++++++++++++++++++++++++++++++++++
+Rules for all User-Supplied Kernels that Operate on Cell-Columns
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 In the following, 'operator' refers to both LMA and CMA operator
 types.
@@ -459,12 +473,14 @@ types.
    does not require values beyond the level-1 halo. If it does then
    PSyclone will abort.
 
+.. _lfric-no-cma-mdata-rules:
+   
 Rules specific to General-Purpose Kernels without CMA Operators
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-1) General-purpose kernels accept arguments of any of the following
-   types: field, field vector, LMA operator, scalar integer, scalar
-   real.
+1) General-purpose kernels with ``operates_on = CELL_COLUMN`` accept
+   arguments of any of the following types: field, field vector, LMA
+   operator, scalar integer, scalar real.
 
 2) A Kernel is permitted to write to more than one
    quantity (field or operator) and these quantities may be on the
@@ -495,6 +511,8 @@ All three CMA-related kernel types must obey the following rules:
 
 2) No vector quantities (e.g. "GH_FIELD*3" - see below) are
    permitted as arguments.
+
+3) The kernel must operate on cell-columns.
 
 There are then additional rules specific to each of the three
 CMA kernel types. These are described below.
@@ -562,8 +580,23 @@ Rules for Inter-Grid Kernels
 
 7) All fields on a given mesh must be on the same function space.
 
+8) An inter-grid kernel must operate on cell-columns.
+
 A consequence of Rules 5-7 is that an inter-grid kernel will
 only involve two function spaces.
+
+Rules for User-Supplied Kernels that Operate on the Domain
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+The rules for kernels that have ``operates_on = DOMAIN`` are a subset
+of :ref:`those <lfric-no-cma-mdata-rules>` for kernels that operate
+on a ``CELL_COLUMN`` without CMA Operators. Specifically:
+
+1) Only scalar, field and field vector arguments are permitted.
+
+2) All fields must be on discontinuous function spaces.
+
+3) Stencil accesses are not permitted.
 
 .. _dynamo0.3-api-kernel-metadata:
 
@@ -1068,8 +1101,8 @@ Stencil metadata is written in the following format::
 
   STENCIL(type)
 
-where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D`` or
-``CROSS``.  As the stencil ``extent`` (the maximum distance from the
+where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D``,
+``CROSS`` or ``CROSS2D``.  As the stencil ``extent`` (the maximum distance from the
 central cell that the stencil extends) is not provided in the metadata,
 it is expected to be provided by the algorithm writer as part of the
 ``invoke`` call (see Section :ref:`dynamo0.3-alg-stencil`). As there
@@ -1088,7 +1121,7 @@ For example, the following stencil (with ``extent=2``):
 
 .. code-block:: none
 
-  | 4 | 2 | 1 | 3 | 5 |
+  | 3 | 2 | 1 | 4 | 5 |
 
 would be declared as::
 
@@ -1099,10 +1132,10 @@ and the following stencil (with ``extent=2``):
 .. code-block:: none
 
   |   |   | 9 |   |   |
-  |   |   | 5 |   |   |
-  | 6 | 2 | 1 | 3 | 7 |
-  |   |   | 4 |   |   |
   |   |   | 8 |   |   |
+  | 3 | 2 | 1 | 6 | 7 |
+  |   |   | 4 |   |   |
+  |   |   | 5 |   |   |
 
 would be declared as::
 
@@ -1360,17 +1393,16 @@ operates_on
 The fourth type of metadata provided is ``OPERATES_ON``. This
 specifies that the Kernel has been written with the assumption that it
 is supplied with the specified data for each field/operator argument.
-For user-supplied kernels this currently only has one valid value
-which is ``CELL_COLUMN``, i.e. the kernel expects to be passed the
-data for a single column of cells for each field or operator argument.
-The possible values for ``OPERATES_ON`` and their interpretation are
-summarised in the following table:
+For user-supplied kernels this is currently only permitted to be
+``CELL_COLUMN`` or ``DOMAIN``. The possible values for ``OPERATES_ON``
+and their interpretation are summarised in the following table:
 
 ===========  =========================================================
 operates_on  Data passed for each field/operator argument
 ===========  =========================================================
 cell_column  Single column of cells
 dof          Single DoF (currently :ref:`built-ins` only)
+domain       All columns of cells
 ===========  =========================================================
 
 procedure
@@ -1395,11 +1427,12 @@ Rules for General-Purpose Kernels
 #################################
 
 The arguments to general-purpose kernels (those that do not involve
-either CMA operators or prolongation/restriction operations) follow a
-set of rules which have been specified for the Dynamo0.3 API. These
-rules are encoded in the ``generate()`` method within the
-``ArgOrdering`` abstract class in the ``dynamo0p3.py`` file. The
-rules, along with PSyclone's naming conventions, are:
+either CMA operators or prolongation/restriction operations) that
+operate on cell-columns follow a set of rules
+which have been specified for the LFRic API. These rules are encoded
+in the ``generate()`` method within the ``ArgOrdering`` abstract class
+in the ``dynamo0p3.py`` file. The rules, along with PSyclone's naming
+conventions, are:
 
 1) If an LMA operator is passed then include the ``cells`` argument.
    ``cells`` is an integer and has intent ``in``.
@@ -1419,11 +1452,23 @@ rules, along with PSyclone's naming conventions, are:
       This value is passed in separately. Again, the intent is determined
       from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
-      1) If the field entry has a stencil access then add an integer
+      1) If the field entry has a stencil access then add an integer (or if
+         the stencil is of type ``CROSS2D``, an integer array of dimension(4))
          stencil-size argument with intent ``in``. This will supply
-         the number of cells in the stencil.
-      2) If the field entry stencil access is of type ``XORY1D`` then
-         add an integer direction argument with intent ``in``.
+         the number of cells in the stencil or, in the case of the ``CROSS2D``
+         stencil, the number of cells in each branch of the stencil.
+      2) If the stencil is of type ``CROSS2D`` then an integer of intent ``in``
+         for the max branch length is needed. This is used in defining the
+         dimensions of the stencil dofmap array and is required due to the
+         varying length of the branches of the stencil when used on planar
+         meshes.
+      3) Also needed is a stencil dofmap array of type integer and intent
+         ``in`` in either 2 or 3 dimensions. For a ``CROSS2D`` stencil the
+         array needs dimensions of (number-of-dofs-in-cell, max-branch-length,
+         4). All other stencils need dimensions of (number-of-dofs-in-cell,
+         stencil-size).
+      4) If the field entry stencil access is of type ``XORY1D`` then
+         add an additional integer direction argument with intent ``in``.
 
    3) If the current entry is a field vector then for each dimension
       of the vector, include a field array. The field array name is
@@ -1676,6 +1721,7 @@ and the array of face normals in the specified direction (here horizontal)::
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
        nfaces_re_h, normals_face_h)
 
+
 Rules for CMA Kernels
 #####################
 
@@ -1905,6 +1951,15 @@ arguments to inter-grid kernels are as follows:
    2) Include ``dofmap_coarse``, the dofmap for the current cell (column)
       in the coarse mesh. This is an integer array of rank one, type
       ``i_def``and has intent ``in``.
+
+Rules for Domain Kernels
+########################
+
+The rules for kernels that have ``operates_on = DOMAIN`` are identical
+to those for general-purpose kernels (described :ref:`above
+<dynamo0.3-stub-generation-rules>`), allowing for the fact that they
+are not permitted any type of operator argument or any argument with a
+stencil access.
 
 .. _dynamo0.3-kernel-arg-intents:
 
@@ -2579,17 +2634,18 @@ processors will have continuous fields which contain DoFs that the
 processor does not own. These unowned DoFs are called `annexed` in the
 Dynamo0.3 API and are a separate, but related, concept to field halos.
 
-When a kernel that operates on a cell-column needs to read a continuous
-field then the annexed DoFs must be up-to-date on all processors. If
-they are not then a halo exchange must be added. Currently PSyclone
-defaults, for kernels which iterate over DoFs, to iterating over only
-owned DoFs. This behaviour can be changed by setting
-`COMPUTE_ANNEXED_DOFS` to ``true`` in the `dynamo0.3` section of the
-configuration file (see the :ref:`configuration` section). PSyclone
-will then generate code to iterate over both owned and annexed DoFs,
-thereby reducing the number of halo exchanges required (at the expense
-of redundantly computing annexed DoFs). For more details please refer
-to the :ref:`dynamo0.3-developers` developers section.
+When a kernel that operates on a cell-column needs to read a
+continuous field then the annexed DoFs must be up-to-date on all
+processors. If they are not then a halo exchange must be
+added. Currently PSyclone defaults, for kernels which iterate over
+DoFs, to iterating over only owned DoFs. This behaviour can be changed
+by setting `COMPUTE_ANNEXED_DOFS` to ``true`` in the `dynamo0.3`
+section of the configuration file (see the :ref:`configuration`
+section). PSyclone will then generate code to iterate over both owned
+and annexed DoFs, thereby reducing the number of halo exchanges
+required (at the expense of redundantly computing annexed DoFs). For
+more details please refer to the :ref:`dynamo0.3-developers`
+developers section.
 
 .. _lfric-run-time-checks:
 

@@ -202,6 +202,12 @@ created by PSyclone with start and end profiling calls.
           profiled kernel section, for example setDirty() calls
           (expensive calls like HaloExchange are excluded).
 
+.. note:: If the ``kernels`` option is used in combination with an
+	  optimisation script that introduces OpenACC then profiling
+	  calls are automatically excluded from within OpenACC
+	  regions (since the PSyData wrappers are not compiled for
+	  GPU execution).
+
 .. note:: It is still the responsibility of the user to manually
     add the calls to ``profile_PSyDataInit`` and 
     ``profile_PSyDataShutdown`` to the

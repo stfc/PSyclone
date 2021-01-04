@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic and A. Coughtrie, Met Office
 
 '''
 This module contains the LFRicArgDescriptor class and related constants
@@ -98,7 +98,8 @@ class LFRicArgDescriptor(Descriptor):
     VALID_SCALAR_DATA_TYPES = VALID_ARG_DATA_TYPES
 
     # Supported LFRic API stencil types and directions
-    VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
+    VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region",
+                           "cross2d"]
     # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
     # file as it causes failures with py.test 2.8.7. Therefore some parts
     # of the code do not use the VALID_STENCIL_DIRECTIONS variable.
@@ -109,7 +110,7 @@ class LFRicArgDescriptor(Descriptor):
     # an option in stencil_dofmap_mod.F90 so it is not included in
     # STENCIL_MAPPING (TODO #194: Add support for region stencils).
     STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
-                       "cross": "STENCIL_CROSS"}
+                       "cross": "STENCIL_CROSS", "cross2d": "STENCIL_2D_CROSS"}
 
     # Supported LFRic API mesh types that may be specified for a field
     # using the mesh_arg=... meta-data element (for inter-grid kernels that
@@ -350,9 +351,13 @@ class LFRicArgDescriptor(Descriptor):
         :raises ParseError: if a field on a continuous function space \
                             passed to a kernel that operates on cell-columns \
                             does not have a valid access (one of [READ, INC]).
+        :raises ParseError: if the kernel operates on the domain and is \
+                            passed a field on a continuous space.
         :raises InternalError: if an invalid value for operates_on is \
                                passed in.
         :raises ParseError: if a field with a stencil access is not read-only.
+        :raises ParseError: if a field with a stencil access is passed to a \
+                            kernel that operates on the domain.
 
         '''
         # Check whether something other than a field is passed in
@@ -442,8 +447,9 @@ class LFRicArgDescriptor(Descriptor):
                     format(fld_disc_acc_msg,
                            rev_access_mapping[self._access_type],
                            self._function_space1.lower(), arg_type))
-        # Check accesses for kernels that operate on cell-columns
-        elif operates_on == "cell_column":
+        # Check accesses for kernels that operate on cell-columns or the
+        # domain
+        elif operates_on in ["cell_column", "domain"]:
             # Fields on discontinuous function spaces
             if (self._function_space1.lower() in
                     FunctionSpace.VALID_DISCONTINUOUS_NAMES and
@@ -451,22 +457,29 @@ class LFRicArgDescriptor(Descriptor):
                 raise ParseError(
                     "In the LFRic API, allowed accesses for fields on "
                     "discontinuous function spaces that are arguments to "
-                    "kernels that operate on cell-columns are {0}, but found "
-                    "'{1}' for '{2}' in '{3}'.".
+                    "kernels that operate on either cell-columns or the domain"
+                    " are {0}, but found '{1}' for '{2}' in '{3}'.".
                     format(fld_disc_acc_msg,
                            rev_access_mapping[self._access_type],
                            self._function_space1.lower(), arg_type))
             # Fields on continuous function spaces
-            if (self._function_space1.lower() in fld_cont_spaces and
-                    self._access_type not in field_cont_accesses):
-                raise ParseError(
-                    "In the LFRic API, allowed accesses for fields on "
-                    "continuous function spaces that are arguments to "
-                    "kernels that operate on cell-columns are {0}, but found "
-                    "'{1}' for '{2}' in '{3}'.".
-                    format(fld_cont_acc_msg,
-                           rev_access_mapping[self._access_type],
-                           self._function_space1.lower(), arg_type))
+            if self._function_space1.lower() in fld_cont_spaces:
+                if operates_on == "domain":
+                    raise ParseError(
+                        "In the LFRic API, kernels that operate on the domain "
+                        "only accept field arguments on discontinuous function"
+                        " spaces but found '{0}' in '{1}'".format(
+                            self._function_space1.lower(), arg_type))
+
+                if self._access_type not in field_cont_accesses:
+                    raise ParseError(
+                        "In the LFRic API, allowed accesses for fields on "
+                        "continuous function spaces that are arguments to "
+                        "kernels that operate on cell-columns are {0}, but "
+                        "found '{1}' for '{2}' in '{3}'.".format(
+                            fld_cont_acc_msg,
+                            rev_access_mapping[self._access_type],
+                            self._function_space1.lower(), arg_type))
         # Raise an InternalError for an invalid value of operates-on
         else:
             from psyclone.dynamo0p3 import VALID_ITERATION_SPACES
@@ -475,12 +488,18 @@ class LFRicArgDescriptor(Descriptor):
                 "one of {1}).".format(operates_on, VALID_ITERATION_SPACES))
 
         # Test allowed accesses for fields that have stencil specification
-        if self._stencil and self._access_type != AccessType.READ:
-            raise ParseError(
-                "In the LFRic API a field with a stencil access must be "
-                "read-only ('{0}'), but found '{1}' in '{2}'.".
-                format(rev_access_mapping[AccessType.READ],
-                       rev_access_mapping[self._access_type], arg_type))
+        if self._stencil:
+            if self._access_type != AccessType.READ:
+                raise ParseError(
+                    "In the LFRic API a field with a stencil access must be "
+                    "read-only ('{0}'), but found '{1}' in '{2}'.".
+                    format(rev_access_mapping[AccessType.READ],
+                           rev_access_mapping[self._access_type], arg_type))
+            if operates_on == "domain":
+                raise ParseError(
+                    "In the LFRic API, kernels that operate on the domain "
+                    "are not permitted to have arguments with a stencil "
+                    "access but found: '{0}'".format(arg_type))
 
     def _init_operator(self, arg_type):
         '''
