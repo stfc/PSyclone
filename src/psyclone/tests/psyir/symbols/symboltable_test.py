@@ -1272,3 +1272,70 @@ def test_symbols_tags_dict():
     schedule_symbol_table.add(symbol1, tag=symbol1_tag)
     assert schedule_symbol_table.symbols_dict is schedule_symbol_table._symbols
     assert schedule_symbol_table.tags_dict is schedule_symbol_table._tags
+
+def test_new_symbol():
+    '''Test that the new_symbol method creates and returns symbols as
+    expected. '''
+    # pylint: disable=unidiomatic-typecheck
+
+    symtab = SymbolTable()
+
+    # By default it creates a generic Symbols and no tags
+    sym = symtab.new_symbol("generic")
+    assert sym.name == "generic"
+    assert symtab.lookup("generic") is sym
+    assert type(sym) == Symbol
+    assert not symtab.tags_dict
+
+    # Doing it again it will find a new name
+    sym = symtab.new_symbol("generic")
+    assert sym.name == "generic_1"
+    assert symtab.lookup("generic_1") is sym
+
+    # It can also have tags
+    sym = symtab.new_symbol("generic", tag="my_tag")
+    assert sym.name == "generic_2"
+    assert symtab.lookup_with_tag("my_tag") is sym
+
+    # But tags can not be repeated
+    with pytest.raises(KeyError):
+        sym = symtab.new_symbol("generic", tag="my_tag")
+    # Error message already checked
+
+    # New symbols can be given a Symbol sub-type
+    sym1 = symtab.new_symbol("routine", symbol_type=RoutineSymbol)
+    sym2 = symtab.new_symbol("data", symbol_type=DataSymbol,
+                             datatype=INTEGER_TYPE)
+    assert sym1.name == "routine"
+    assert sym2.name == "data"
+    assert type(sym1) == RoutineSymbol
+    assert type(sym2) == DataSymbol
+    assert symtab.lookup("routine") is sym1
+    assert symtab.lookup("data") is sym2
+    # which by will be initialised with default values
+    assert sym1.visibility is Symbol.Visibility.PUBLIC
+    assert sym2.visibility is Symbol.Visibility.PUBLIC
+    assert isinstance(sym1.interface, LocalInterface)
+    assert isinstance(sym2.interface, LocalInterface)
+    assert sym2.datatype is INTEGER_TYPE
+    assert sym2.constant_value is None
+
+    # The initialization parameters of new symbols can be given as
+    # keyword parameters
+    sym1 = symtab.new_symbol("routine",
+                             symbol_type=RoutineSymbol,
+                             visibility=Symbol.Visibility.PRIVATE)
+    sym2 = symtab.new_symbol("data", symbol_type=DataSymbol,
+                             datatype=INTEGER_TYPE,
+                             visibility=Symbol.Visibility.PRIVATE,
+                             constant_value=3)
+    assert sym1.name == "routine_1"
+    assert sym2.name == "data_1"
+    assert type(sym1) == RoutineSymbol
+    assert type(sym2) == DataSymbol
+    assert symtab.lookup("routine_1") is sym1
+    assert symtab.lookup("data_1") is sym2
+    assert sym1.visibility is Symbol.Visibility.PRIVATE
+    assert sym2.visibility is Symbol.Visibility.PRIVATE
+    assert sym2.datatype is INTEGER_TYPE
+    assert sym2.constant_value is not None

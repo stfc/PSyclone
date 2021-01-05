@@ -179,6 +179,25 @@ class SymbolTable(object):
         new_key = key.lower()
         return new_key
 
+    def new_symbol(self, name=None, tag=None, check_ancestors=True,
+                   symbol_type=None, **symbol_init_args):
+        ''' Create a new symbol '''
+
+
+        if symbol_type:
+            if not isinstance(symbol_type, type):
+                raise TypeError(
+                    "The symbol_type parameter should be of type Symbol or "
+                    "one of its sub-classes but found '{0}' instead."
+                    .format(type(symbol_type)))
+        else:
+            symbol_type = Symbol
+
+        available_name = self.new_symbol_name(name, check_ancestors)
+        symbol = symbol_type(available_name, **symbol_init_args)
+        self.add(symbol, tag, check_ancestors)
+        return symbol
+
     def new_symbol_name(self, root_name=None, check_ancestors=True):
         '''Create a symbol name that is not in this symbol table (if the
         `check_ancestors` argument is False) or in this or any
