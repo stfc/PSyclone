@@ -84,11 +84,6 @@ def test_struc_ref_create():
         ssym, [("sub_grids", [nodes.Literal("1", symbols.INTEGER_TYPE)])])
     assert isinstance(structarray_ref.children[0],
                       nodes.ArrayOfStructuresMember)
-    # Any reference to an array must have one or more index expressions
-    with pytest.raises(ValueError) as err:
-        _ = nodes.StructureReference.create(ssym, ["sub_grids"])
-    assert ("ArrayOfStructuresMember must have one or more array-index "
-            "expressions but 'sub_grids' has non" in str(err.value))
     # Reference to a scalar member of an element of an array of structures
     # contained in a structure
     dref = nodes.StructureReference.create(

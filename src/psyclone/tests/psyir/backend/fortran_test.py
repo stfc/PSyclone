@@ -1332,12 +1332,9 @@ def test_fw_arrayofstructuresmember(fort_writer):
                                           "nx"])
     assert (fort_writer.structurereference_node(grid_ref) ==
             "grid%levels(1,1)%nx")
-    # Break the number of children
-    grid_ref.children[0]._children = []
-    with pytest.raises(VisitorError) as err:
-        _ = fort_writer.structurereference_node(grid_ref)
-    assert ("ArrayOfStructuresMember node must have at least one child but "
-            "found 0" in str(err.value))
+    # Reference to an *array* of structures
+    grid_ref = StructureReference.create(grid_var, ["levels"])
+    assert fort_writer.structurereference_node(grid_ref) == "grid%levels"
 
 
 # literal is already checked within previous tests

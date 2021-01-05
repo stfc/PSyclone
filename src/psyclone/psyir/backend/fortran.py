@@ -913,14 +913,9 @@ class FortranWriter(PSyIRVisitor):
         :returns: the Fortran code.
         :rtype: str
 
-        :raises VisitorError: if the supplied node does not have at least one \
-            child.
-
         '''
-        if len(node.children) < 1:
-            raise VisitorError(
-                "An ArrayOfStructuresMember node must have at least one "
-                "child but found {0}".format(len(node.children)))
+        if not node.children:
+            return node.component.name
 
         if isinstance(node.children[0], Member):
             args = self._gen_dims(node.children[1:])
