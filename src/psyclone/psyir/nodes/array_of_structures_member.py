@@ -66,7 +66,7 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
     _text_name = "ArrayOfStructuresMember"
 
     @staticmethod
-    def create(struct_type, member_name, parent=None, indices=None):
+    def create(struct_type, member_name, indices, parent=None):
         '''
         Create an access to one or more elements of an array of
         structures that is itself a member of a structure.
@@ -77,22 +77,17 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
             or :py:class:`psyclone.psyir.symbols.TypeSymbol`
         :param str member_name: the name of the member of the structure that \
             is being accessed.
-        :param parent: the parent of this node in the PSyIR tree.
-        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
         :param indices: the array-index expressions.
         :type indices: list of :py:class:`psyclone.psyir.nodes.DataNode`
+        :param parent: the parent of this node in the PSyIR tree.
+        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: a new ArrayOfStructuresMember object.
         :rtype: :py:class:`psyclone.psyir.nodes.ArrayOfStructuresMember`
 
         '''
-        asmr = ArrayOfStructuresMember(struct_type, member_name, parent=parent)
-        # Children represent the array-index expressions. (Any access to a
-        # member of the structure must subsequently be inserted at index 0.)
-        for child in indices:
-            asmr.addchild(child)
-            child.parent = asmr
-        return asmr
+        return ArrayOfStructuresMember._create_array_of_structs(
+            struct_type, member_name, indices, parent=parent)
 
     @staticmethod
     def _validate_child(position, child):

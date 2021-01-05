@@ -866,10 +866,15 @@ class FortranWriter(PSyIRVisitor):
                               number and type of children.
         '''
         if len(node.children) < 2:
-            raise VisitorError("hohohoho")
+            raise VisitorError(
+                "An ArrayOfStructuresReference must have at least two children"
+                " but found {0}".format(len(node.children)))
 
         if not isinstance(node.children[0], Member):
-            raise VisitorError("nohohoho")
+            raise VisitorError(
+                "An ArrayOfStructuresReference must have a Member as its "
+                "first child but found '{0}'".format(
+                    type(node.children[0]).__name__))
 
         # Generate the array reference. We need to skip over the first child
         # (as that refers to the member of the derived type being accessed).
@@ -903,31 +908,27 @@ class FortranWriter(PSyIRVisitor):
         an array of derived types.
 
         :param node: an ArrayOfStructuresMember PSyIR node.
-        :type node: \
-            :py:class:`psyclone.psyir.nodes.ArrayOfStructuresMember`
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayOfStructuresMember`
 
         :returns: the Fortran code.
         :rtype: str
 
-        :raises VisitorError: if the supplied node does not have at least two \
-            children with the first one being a sub-class of Member.
+        :raises VisitorError: if the supplied node does not have at least one \
+            child.
 
         '''
         if len(node.children) < 1:
             raise VisitorError(
-                "An ArrayOfStructuresMember node must have at least two "
-                "children but found {0}".format(len(node.children)))
+                "An ArrayOfStructuresMember node must have at least one "
+                "child but found {0}".format(len(node.children)))
 
-        if not isinstance(node.children[0], Member):
-            raise VisitorError(
-                "The first child of an ArrayOfStructuresMember node must be a "
-                "sub-class of Member but found '{0}'".format(
-                    type(node.children[0]).__name__))
-
-        args = self._gen_dims(node.children[1:])
-
-        result = ("{0}({1})".format(node.component.name, ",".join(args)) +
-                  "%" + self._visit(node.children[0]))
+        if isinstance(node.children[0], Member):
+            args = self._gen_dims(node.children[1:])
+            result = ("{0}({1})".format(node.component.name, ",".join(args)) +
+                      "%" + self._visit(node.children[0]))
+        else:
+            args = self._gen_dims(node.children)
+            result = "{0}({1})".format(node.component.name, ",".join(args))
         return result
 
     def arrayreference_node(self, node):

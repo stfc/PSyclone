@@ -72,6 +72,43 @@ class ArrayMixin(object):
         '''
         raise NotImplementedError("")
 
+    @classmethod
+    def _create_array_of_structs(cls, struct_type, member_name, indices,
+                                 parent=None):
+        '''
+        Create an access to one or more elements of an array of
+        structures.
+
+        :param struct_type: the datatype of the parent structure containing \
+                            the member that is being accessed.
+        :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` \
+            or :py:class:`psyclone.psyir.symbols.TypeSymbol`
+        :param str member_name: the name of the member of the structure that \
+            is being accessed.
+        :param indices: the array-index expressions.
+        :type indices: list of :py:class:`psyclone.psyir.nodes.DataNode`
+        :param parent: the parent of this node in the PSyIR tree.
+        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: a new instance of type `cls`.
+        :rtype: `cls`
+
+        :raises ValueError: if no array-index expressions are supplied.
+
+        '''
+        if not indices or len(indices) == 0:
+            raise ValueError(
+                "An {0} must have one or more array-index "
+                "expressions but '{1}' has none.".format(
+                    cls._text_name, str(member_name)))
+
+        obj = cls(struct_type, member_name, parent=parent)
+        # Add the array-index expressions as children
+        for child in indices:
+            obj.addchild(child)
+            child.parent = obj
+        return obj
+
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All variables used as indices
         in the access of the array will be added as READ.

@@ -213,11 +213,11 @@ class StructureReference(Reference):
                 if isinstance(target_dtype.intrinsic, TypeSymbol):
                     # Array of structures
                     subref = ArrayOfStructuresMember.create(
-                        dtype, member_name, parent=current, indices=children)
+                        dtype, member_name, children, parent=current)
                 else:
                     # Array of intrinsic quantities
                     subref = ArrayMember.create(
-                        dtype, member_name, parent=current, indices=children)
+                        dtype, member_name, children, parent=current)
             elif isinstance(target_dtype, ScalarType):
                 # A scalar member
                 subref = Member(dtype, member_name, parent=current)

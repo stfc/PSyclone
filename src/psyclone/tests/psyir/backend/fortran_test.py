@@ -1290,6 +1290,54 @@ def test_fw_arrayofstructuresref(fort_writer):
                                                  [Literal("3", INTEGER_TYPE)])
     assert (fort_writer.arrayofstructuresreference_node(grid_ref) ==
             "grid(3)%dx")
+    # Break the node to trigger checks
+    # Make the first node something other than a member
+    grid_ref._children = [grid_ref._children[1], grid_ref._children[1]]
+    with pytest.raises(VisitorError) as err:
+        fort_writer.arrayofstructuresreference_node(grid_ref)
+    assert ("An ArrayOfStructuresReference must have a Member as its first "
+            "child but found 'Literal'" in str(err.value))
+    # Remove a child
+    grid_ref._children = [grid_ref._children[0]]
+    with pytest.raises(VisitorError) as err:
+        fort_writer.arrayofstructuresreference_node(grid_ref)
+    assert ("An ArrayOfStructuresReference must have at least two children "
+            "but found 1" in str(err.value))
+
+
+def test_fw_arrayofstructuresmember(fort_writer):
+    ''' Test the FortranWriter support for ArrayOfStructuresMember. '''
+    region_type = StructureType.create([
+        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+    region_type_sym = TypeSymbol("grid_type", region_type)
+    region_array_type = ArrayType(region_type_sym, [2, 2])
+    # The grid type contains an array of region-type structures
+    grid_type = StructureType.create([
+        ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
+    grid_type_sym = TypeSymbol("grid_type", grid_type)
+    grid_var = DataSymbol("grid", grid_type_sym)
+    # Reference to an element of an array that is a structure
+    level_ref = StructureReference.create(grid_var,
+                                          [("levels",
+                                            [Literal("1", INTEGER_TYPE),
+                                             Literal("1", INTEGER_TYPE)])])
+    assert (fort_writer.structurereference_node(level_ref) ==
+            "grid%levels(1,1)")
+    # Reference to a member of a structure that is an element of an array
+    grid_ref = StructureReference.create(grid_var,
+                                         [("levels",
+                                           [Literal("1", INTEGER_TYPE),
+                                            Literal("1", INTEGER_TYPE)]),
+                                          "nx"])
+    assert (fort_writer.structurereference_node(grid_ref) ==
+            "grid%levels(1,1)%nx")
+    # Break the number of children
+    grid_ref.children[0]._children = []
+    with pytest.raises(VisitorError) as err:
+        _ = fort_writer.structurereference_node(grid_ref)
+    assert ("ArrayOfStructuresMember node must have at least one child but "
+            "found 0" in str(err.value))
 
 
 # literal is already checked within previous tests
