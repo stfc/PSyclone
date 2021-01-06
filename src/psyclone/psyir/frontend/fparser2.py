@@ -2557,11 +2557,10 @@ class Fparser2Reader(object):
         new_parent = parent
         for idx in range(rank, 0, -1):
 
-            loop_vars[idx-1] = symbol_table.new_symbol_name(
-                "widx{0}".format(idx))
-
-            data_symbol = DataSymbol(loop_vars[idx-1], integer_type)
-            symbol_table.add(data_symbol)
+            data_symbol = symbol_table.new_symbol(
+                "widx{0}".format(idx), symbol_type=DataSymbol,
+                datatype=integer_type)
+            loop_vars[idx-1] = data_symbol.name
 
             loop = Loop(parent=new_parent, variable=data_symbol,
                         annotations=annotations)

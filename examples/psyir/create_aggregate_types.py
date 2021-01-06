@@ -61,9 +61,8 @@ from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
 
 # Symbol table for container (container itself created after kernel)
 CONTAINER_SYMBOL_TABLE = SymbolTable()
-REAL_KIND_NAME = CONTAINER_SYMBOL_TABLE.new_symbol_name(root_name="RKIND")
-REAL_KIND = DataSymbol(REAL_KIND_NAME, INTEGER_TYPE, constant_value=8)
-CONTAINER_SYMBOL_TABLE.add(REAL_KIND)
+REAL_KIND = CONTAINER_SYMBOL_TABLE.new_symbol(root_name="RKIND",
+        symbol_type=DataSymbol, datatype=INTEGER_TYPE, constant_value=8)
 
 # Shorthand for a scalar type with REAL_KIND precision
 SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
@@ -101,9 +100,8 @@ print(str(SYMBOL_TABLE))
 print("Container Symbol Table:")
 print(str(CONTAINER_SYMBOL_TABLE))
 
-INDEX_NAME = SYMBOL_TABLE.new_symbol_name(root_name="i")
-INDEX_SYMBOL = DataSymbol(INDEX_NAME, INTEGER4_TYPE)
-SYMBOL_TABLE.add(INDEX_SYMBOL)
+INDEX_SYMBOL = SYMBOL_TABLE.new_symbol(root_name="i", symbol_type=DataSymbol,
+        datatype=INTEGER4_TYPE)
 
 # Symbol representing a component of FIELD_SYMBOL. The name "data" must exist
 # in the type definition associated with FIELD_SYMBOL.

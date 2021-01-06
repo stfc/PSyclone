@@ -179,7 +179,7 @@ class SymbolTable(object):
         new_key = key.lower()
         return new_key
 
-    def new_symbol(self, name=None, tag=None, check_ancestors=True,
+    def new_symbol(self, root_name=None, tag=None, check_ancestors=True,
                    symbol_type=None, **symbol_init_args):
         ''' Create a new symbol '''
 
@@ -193,7 +193,7 @@ class SymbolTable(object):
         else:
             symbol_type = Symbol
 
-        available_name = self.new_symbol_name(name, check_ancestors)
+        available_name = self.new_symbol_name(root_name, check_ancestors)
         symbol = symbol_type(available_name, **symbol_init_args)
         self.add(symbol, tag, check_ancestors)
         return symbol

@@ -900,28 +900,25 @@ class InvokeSchedule(Schedule):
                                          "get_kernel_by_name"]))
 
             # Declare variables needed on a OpenCL PSy-layer invoke
-            nqueues = self.symbol_table.new_symbol_name("num_cmd_queues")
-            self.symbol_table.add(DataSymbol(nqueues, INTEGER_TYPE),
-                                  tag="opencl_num_cmd_queues")
-            qlist = self.symbol_table.new_symbol_name("cmd_queues")
-            self.symbol_table.add(
-                DataSymbol(qlist,
-                           ArrayType(INTEGER_TYPE,
-                                     [ArrayType.Extent.ATTRIBUTE])),
-                tag="opencl_cmd_queues")
-            first = self.symbol_table.new_symbol_name("first_time")
-            self.symbol_table.add(
-                DataSymbol(first, BOOLEAN_TYPE), tag="first_time")
-            flag = self.symbol_table.new_symbol_name("ierr")
-            self.symbol_table.add(
-                DataSymbol(flag, INTEGER_TYPE), tag="opencl_error")
-            nbytes = self.root.symbol_table.new_symbol_name(
-                "size_in_bytes")
-            self.symbol_table.add(
-                DataSymbol(nbytes, INTEGER_TYPE), tag="opencl_bytes")
-            wevent = self.root.symbol_table.new_symbol_name("write_event")
-            self.symbol_table.add(
-                DataSymbol(wevent, INTEGER_TYPE), tag="opencl_wevent")
+            nqueues = self.symbol_table.new_symbol("num_cmd_queues",
+                symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                tag="opencl_num_cmd_queues").name
+            qlist = self.symbol_table.new_symbol("cmd_queues",
+                symbol_type=DataSymbol,
+                datatype=ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE]),
+                tag="opencl_cmd_queues").name
+            first = self.symbol_table.new_symbol("first_time",
+                symbol_type=DataSymbol, datatype=BOOLEAN_TYPE,
+                tag="first_time").name
+            flag = self.symbol_table.new_symbol("ierr",
+                symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                tag="opencl_error").name
+            self.root.symbol_table.new_symbol("size_in_bytes",
+                symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                tag="opencl_bytes")
+            self.root.symbol_table.new_symbol("write_event",
+                symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                tag="opencl_wevent")
 
             parent.add(DeclGen(parent, datatype="integer", save=True,
                                entity_decls=[nqueues]))
@@ -948,8 +945,7 @@ class InvokeSchedule(Schedule):
             kernels = self.walk(Kern)
             for kern in kernels:
                 base = "kernel_" + kern.name
-                kernel = self.root.symbol_table.new_symbol_name(base)
-                self.symbol_table.add(Symbol(kernel), tag=kernel)
+                kernel = self.root.symbol_table.new_symbol(base, tag=base).name
                 parent.add(
                     DeclGen(parent, datatype="integer", kind="c_intptr_t",
                             save=True, target=True, entity_decls=[kernel]))

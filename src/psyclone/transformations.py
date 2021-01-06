@@ -972,15 +972,13 @@ class OMPLoopTrans(ParallelLoopTrans):
             try:
                 symtab.lookup_with_tag("omp_thread_index")
             except KeyError:
-                thread_idx = symtab.new_symbol_name("th_idx")
-                symtab.add(DataSymbol(thread_idx, INTEGER_TYPE),
-                           tag="omp_thread_index")
+                symtab.new_symbol("th_idx", tag="omp_thread_index",
+                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
             try:
                 symtab.lookup_with_tag("omp_num_threads")
             except KeyError:
-                nthread = symtab.new_symbol_name("nthreads")
-                symtab.add(DataSymbol(nthread, INTEGER_TYPE),
-                           tag="omp_num_threads")
+                symtab.new_symbol("nthreads", tag="omp_num_threads",
+                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
         return super(OMPLoopTrans, self).apply(node, options)
 
