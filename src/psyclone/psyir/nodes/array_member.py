@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,8 @@ from psyclone.psyir.nodes.ranges import Range
 class ArrayMember(Member, ArrayMixin):
     '''
     Node representing an access to the element(s) of an array that is a
-    member of a structure.
+    member of a structure. Must have one or more children which give the
+    array-index expressions for the array access.
 
     '''
     # Textual description of the node.
@@ -56,14 +57,24 @@ class ArrayMember(Member, ArrayMixin):
     @staticmethod
     def create(member_name, indices, struct_type=None, parent=None):
         '''
-        Construct an ArrayMember instance.
+        Construct an ArrayMember instance describing an array access to a
+        member of a structure.
+
+        e.g. for the Fortran `grid%subdomains(1,2)`, `subdomains` must be an
+        array and we are accessing element (1,2) of it. We would therefore
+        create the ArrayMember for this access by calling:
+
+        >>> amem = ArrayMember.create("subdomains",
+                                      [Literal("1", INTEGER_TYPE),
+                                       Literal("2", INTEGER_TYPE))
 
         :param str member_name: the name of the member of the structure that \
             is being accessed.
         :param indices: the array-index expressions.
-        :type indices: list of :py:class:`psyclone.psyir.nodes.DataNode`
+        :type indices: list of :py:class:`psyclone.psyir.nodes.DataNode` or
+            :py:class:`psyclone.psyir.nodes.Range`
         :param struct_type: the datatype of the parent structure containing \
-                            the member that is being accessed.
+            the member that is being accessed.
         :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` \
             or :py:class:`psyclone.psyir.symbols.TypeSymbol`
         :param parent: the parent of this node in the PSyIR tree.

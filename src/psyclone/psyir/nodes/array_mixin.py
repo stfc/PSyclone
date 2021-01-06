@@ -50,27 +50,27 @@ from psyclone.psyir.symbols.datatypes import ScalarType
 @six.add_metaclass(abc.ABCMeta)
 class ArrayMixin(object):
     '''
-    Abstract class representing an Array. Its children represent the subscript
-    list.
+    Abstract class used to add functionality common to Nodes that represent
+    Array accesses.
 
     '''
-    @property
+    @abc.abstractproperty
+    def name(self):
+        ''' Returns the name of the node. Abstract here so must be overridden
+            in subclass. '''
+
+    @abc.abstractproperty
     def children(self):
-        ''' '''
-        raise NotImplementedError("")
+        ''' Returns the list of children of this node. Abstract here so must
+            be overridden in subclass. '''
 
     @staticmethod
+    @abc.abstractmethod
     def _validate_child(position, child):
         '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
+        Checks that the supplied child node is valid at the supplied position.
+        Abstract here so must be overridden in subclass.
         '''
-        raise NotImplementedError("")
 
     @classmethod
     def _create_array_of_structs(cls, member_name, child_member=None,

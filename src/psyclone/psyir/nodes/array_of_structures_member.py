@@ -73,6 +73,13 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
         Create an access to a member of one or more elements of an array of
         structures that is itself a member of a structure.
 
+        e.g. if we had the Fortran `grid%subdomains(1)%xstart` then
+        `subdomains` must be an array of structure (derived) type. We would
+        construct an ArrayOfStructuresMember for this access by calling:
+
+        >>> aosmem = ArrayOfStructuresMember.create(
+                "subdomains", Member("xstart"), [Literal("1", INTEGER_TYPE)])
+
         :param struct_type: the datatype of the parent structure containing \
                             the member that is being accessed.
         :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` \
