@@ -470,7 +470,7 @@ The PSyIR has support for representing references to symbols of
 structure type and to members of such structures. Since the former
 case is still a reference to a symbol held in a symbol table, it is
 already captured by the ``Reference`` node. A reference that includes
-an access of a member of a structure is described by a
+an access to a member of a structure is described by a
 ``StructureReference`` which is a subclass of ``Reference``.  As such,
 it has a ``symbol`` property which gives the ``Symbol`` that the
 reference is to. The *member* of the structure being accessed is

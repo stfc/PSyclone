@@ -48,11 +48,11 @@ class StructureMember(Member):
     Node representing a membership expression of the parent's Reference that
     resolves into another structure.
 
+    :param str member: the name of the structure member that is \
+                       being accessed.
     :param struct_type: the datatype of the parent structure.
     :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` or \
                        :py:class:`psyclone.psyir.symbols.TypeSymbol`
-    :param str member: the member of the 'struct_type' structure that is \
-                       being referenced.
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.StructureReference` or \
                   :py:class:`psyclone.psyir.nodes.Member`
@@ -80,14 +80,31 @@ class StructureMember(Member):
                 if not isinstance(target_type,
                                   (DeferredType, StructureType, TypeSymbol)):
                     raise TypeError(
-                        "The member '{0}' is not of DeferredType, StructureType or a "
-                        "TypeSymbol and therefore cannot be the target of a "
-                        "StructureMember.".format(member))
+                        "The member '{0}' is not of DeferredType, "
+                        "StructureType or a TypeSymbol and therefore cannot "
+                        "be the target of a StructureMember.".format(member))
 
-    def create(member, child):
+    @staticmethod
+    def create(member_name, child):
         '''
+        Given the name of a structure member of a structure and a Member
+        node describing the access to a component of it, construct a
+        StructureMember.
+
+        e.g. if we had the following Fortran access: grid%subdomain%xstart
+        then 'subdomain' must itself be of structure type and we are accessing
+        the 'xstart' component of it. We would therefore create the
+        `StructureMember` for this by calling:
+
+        >>> smem = StructureMember.create("subdomain", Member("xstart"))
+
+        :param str member_name: name of the structure member.
+        :param child: the Member describing the access to a component of the \
+                      named structure member.
+        :type child: sub-class of :py:class:`psyclone.psyir.nodes.Member`
+
         '''
-        smem = StructureMember(member)
+        smem = StructureMember(member_name)
         smem.addchild(child)
         child.parent = smem
         return smem
