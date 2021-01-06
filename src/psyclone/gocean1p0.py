@@ -1276,12 +1276,14 @@ class GOKern(CodedKern):
                [arg.name for arg in self._arguments.args]
 
         # Declare the subroutine in the Invoke SymbolTable and the argsetter
-        # subroutine SymbolTable.
-        sub_name = self.root.symbol_table.new_symbol_name(
-            self.name + "_set_args")
-        sub_symbol = Symbol(sub_name)
-        self.root.symbol_table.add(sub_symbol, tag=sub_name)
-        argsetter_st.add(sub_symbol)
+        # subroutine SymbolTable. Subroutine names should be an exact match.
+        sub_name = self.name + "_set_args"
+        try:
+            self.root.symbol_table.lookup(sub_name)
+        except KeyError:
+            self.root.symbol_table.add(RoutineSymbol(sub_name), tag=sub_name)
+        argsetter_st.add(RoutineSymbol(sub_name), tag=sub_name)
+
         sub = SubroutineGen(parent, name=sub_name, args=args)
         parent.add(sub)
         sub.add(UseGen(sub, name="ocl_utils_mod", only=True,

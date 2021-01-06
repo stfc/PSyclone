@@ -84,14 +84,13 @@ the same functionality.
 Symbols
 =======
 
-At the moment, root nodes (e.g. `InvokeSchedules`, `KernelSchedules`
-and `Containers`) have a symbol table which contains the symbols used by their
-descendant nodes.
+At the moment, nodes that represent a scope (all `Schedules` and `Containers`)
+have a symbol table which contains the symbols used by their descendant nodes.
 
-The `new_symbol_name` method is provided to avoid name clashes when defining
-a new symbol in the symbol table.
+The `new_symbol` method is provided to create new symbols while avoiding name
+clashes:
 
-.. automethod:: psyclone.psyir.symbols.SymbolTable.new_symbol_name
+.. automethod:: psyclone.psyir.symbols.SymbolTable.new_symbol
 
 However, if this symbol needs to be retrieved later on, one must keep track
 of the symbol or the returned name. As this is not always feasible when
@@ -102,9 +101,11 @@ tag, the following lines can be used:
 
 .. code-block:: python
 
-    variable = node.symbol_table.new_symbol_name("variable_name")
-    node.symbol_table.add(DataSymbol(variable, DataType.INTEGER),
-                          tag="variable_with_the_result_x")
+    variable = node.symbol_table.new_symbol("variable_name",
+                                            tag="variable_with_the_result_x"
+                                            symbol_type=DataSymbol,
+                                            datatype=DataType.INTEGER,
+                                            tag="variable_with_the_result_x")
 
 There are two ways to retrieve the symbol from a symbol table. Using the
 `name` or using the `tag` as lookup keys. This is done with the two following

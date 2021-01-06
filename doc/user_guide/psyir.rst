@@ -328,22 +328,19 @@ PSyIR symbol names can be specified by a user. For example::
 
 However, the ``SymbolTable`` ``add()`` method will raise an exception if a
 user tries to add a symbol with the same name as a symbol already existing
-in the symbol table. Therefore it is the responsibility of the user to
-determine unique names when manually specifying them.
+in the symbol table.
 
-The ``SymbolTable`` class also provides the ``new_symbol_name()`` method (see
-Section :ref:`symbol-label` for more details) to avoid this
-problem. The method provides a name that is guaranteed to be distinct
-from any existing names in the symbol table. The name returned is the
+Alternatively, the ``SymbolTable`` also provides the ``new_symbol()`` method
+(see Section :ref:`symbol-label` for more details) that uses a new distinct
+name from any existing names in the symbol table. By default the
 value of the ``PSYIR_ROOT_NAME`` variable specified in the ``DEFAULT``
 section of the PSyclone config file, followed by an optional "_" and
 an integer. For example, the following code::
 
-  > from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL4_TYPE
+  > from psyclone.psyir.symbols import SymbolTable
   > symbol_table = SymbolTable()
   > for i in range(0, 3):
-  >     var_name = symbol_table.new_symbol_name()
-  >     symbol_table.add(DataSymbol(var_name, REAL4_TYPE))
+  >     var_name = symbol_table.new_symbol().name
   >     print (var_name)
 
 gives the following output::
@@ -362,15 +359,14 @@ PSyclone's config file it can be set to whatever the user wants.
 A user might want to create a name that has some meaning in the
 context in which it is used e.g. ``idx`` for an index, ``i`` for an
 iterator, or ``temp`` for a temperature field. To support more
-readable names, the ``new_symbol_name()`` method allows the user to specify a
+readable names, the ``new_symbol()`` method allows the user to specify a
 root name as an argument to the method which then takes the place of
 the default root name. For example, the following code::
   
-  > from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL_SINGLE_TYPE
+  > from psyclone.psyir.symbols import SymbolTable
   > symbol_table = SymbolTable()
   > for i in range(0, 3):
-  >     var_name = symbol_table.new_symbol_name(root_name="something")
-  >     symbol_table.add(DataSymbol(var_name, REAL_SINGLE_TYPE))
+  >     var_name = symbol_table.new_symbol(root_name="something")
   >     print (var_name)
 
 gives the following output::
@@ -379,7 +375,20 @@ gives the following output::
   something_0
   something_1
 
-An example of using the ``new_symbol_name()`` method can be found in the
+By default, ``new_symbol()`` created generic symbols, but often the user
+will want to specify a Symbol sub-class with some given parameters. The
+``new_symbol()`` method accepts a symbol_type parameter to specify the
+subclass and any available argument in the subclass constructor as keyword
+arguments. For example, the following code::
+
+  > from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE
+  > symbol_table = SymbolTable()
+  > symbol_table.new_symbol(root_name="something", symbol_type=DataSymbol,
+                            datatype=REAL_TYPE, constant_value=3)
+
+declares a data constant parameter called "something" of type REAL_TYPE.
+
+An example of using the ``new_symbol()`` method can be found in the
 PSyclone ``examples/psyir`` directory.
 
 Nodes
