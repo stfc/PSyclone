@@ -181,11 +181,49 @@ class StructureReference(Reference):
                 "StructureType but found '{2}'".format(
                     symbol_type.name, symbol.name, dtype))
 
+        # Bottom-up creation of full reference
+        if isinstance(members[-1], tuple):
+            # An access to one or more array elements
+            subref = ArrayMember.create(members[-1][0], members[-1][1])
+        elif isinstance(members[-1], str):
+            # A member access
+            subref = Member(members[-1])
+        else:
+            raise TypeError("")
+
+        child_member = subref
+
+        for component in reversed(members[:-1]):
+            if isinstance(component, tuple):
+                # This is an array access
+                children = [subref] + component[1]
+                # ArrayOfStructuresMember
+                subref = ArrayOfStructuresMember.create(
+                    component[0], children)
+            elif isinstance(component, str):
+                children = [subref]
+                subref = StructureMember.create(component[0],
+                                                children)
+            else:
+                raise TypeError(
+                    "The list of 'members' passed to StructureType._create() "
+                    "must consist of either 'str' or 2-tuple entries but "
+                    "found '{0}' while attempting to create reference to "
+                    "symbol '{1}'".format(type(component).__name__,
+                                          symbol.name))
+            child_member.parent = subref
+            child_member = subref
+        # Finally, add this chain to the top-level reference
+        ref.addchild(child_member)
+        child_member.parent = ref
+        return ref
+
         # We now make our way along the list of components that makes up
         # the full reference. For each entry in this list we go down another
         # level in the PSyIR tree.
         for component in members:
             if isinstance(component, tuple):
+                # This is an array access
                 member_name = component[0]
                 children = component[1]
             elif isinstance(component, str):
@@ -203,30 +241,28 @@ class StructureReference(Reference):
                     "The type definition for symbol '{0}' does not contain a "
                     "member named '{1}'".format(symbol.name, member_name))
 
-            target_dtype = dtype.components[member_name].datatype
-            if isinstance(target_dtype, TypeSymbol):
-                # This member is also a structure
-                subref = StructureMember(dtype,
-                                         member_name,
-                                         parent=current)
-            elif isinstance(target_dtype, ArrayType):
-                if isinstance(target_dtype.intrinsic, TypeSymbol):
-                    # Array of structures
+            if component is not members[-1]:
+                # There are more components below this one so this is a
+                # structure access.
+                if children:
+                    # ArrayOfStructuresMember
                     subref = ArrayOfStructuresMember.create(
                         dtype, member_name, children, parent=current)
                 else:
-                    # Array of intrinsic quantities
+                    # StructureMember
+                    subref = StructureMember(dtype,
+                                             member_name,
+                                             parent=current)
+            else:
+                # This is the last component in the list so it is not a
+                # structure access.
+                if children:
+                    # ArrayMember
                     subref = ArrayMember.create(
                         dtype, member_name, children, parent=current)
-            elif isinstance(target_dtype, ScalarType):
-                # A scalar member
-                subref = Member(dtype, member_name, parent=current)
-            else:
-                raise NotImplementedError(
-                    "Structure members must have a type given by a TypeSymbol "
-                    "or be of type ArrayType or ScalarType. However, member "
-                    "'{0}' of '{1}' is of type '{2}'".format(
-                        member_name, current.name, target_dtype))
+                else:
+                    # Member
+                    subref = Member(dtype, member_name, parent=current)
 
             # The reference to a sub-component is stored as the first child.
             current.addchild(subref, index=0)

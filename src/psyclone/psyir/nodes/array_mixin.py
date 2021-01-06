@@ -73,8 +73,8 @@ class ArrayMixin(object):
         raise NotImplementedError("")
 
     @classmethod
-    def _create_array_of_structs(cls, struct_type, member_name, indices=None,
-                                 parent=None):
+    def _create_array_of_structs(cls, member_name,
+                                 indices=None, struct_type=None, parent=None):
         '''
         Create an access to (one or more elements of) an array of
         structures.
@@ -94,7 +94,7 @@ class ArrayMixin(object):
         :rtype: `cls`
 
         '''
-        obj = cls(struct_type, member_name, parent=parent)
+        obj = cls(member_name, struct_type=struct_type, parent=parent)
         # Add the array-index expressions as children
         if indices:
             for child in indices:

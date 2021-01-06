@@ -895,35 +895,19 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         '''
-        # This reference is to a component, not a symbol
         result = node.name
-        if node.children:
-            result += "%" + self._visit(node.children[0])
-        return result
-
-    def arrayofstructuresmember_node(self, node):
-        '''
-        This method is called when an ArrayOfStructuresMember is found
-        in the PSyIR tree, i.e. a member of a derived type that is itself
-        an array of derived types.
-
-        :param node: an ArrayOfStructuresMember PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayOfStructuresMember`
-
-        :returns: the Fortran code.
-        :rtype: str
-
-        '''
         if not node.children:
-            return node.component.name
+            return result
 
         if isinstance(node.children[0], Member):
-            args = self._gen_dims(node.children[1:])
-            result = ("{0}({1})".format(node.component.name, ",".join(args)) +
-                      "%" + self._visit(node.children[0]))
+            if len(node.children) > 1:
+                args = self._gen_dims(node.children[1:])
+                result += "({0})".format(",".join(args))
+            result += "%" + self._visit(node.children[0])
         else:
             args = self._gen_dims(node.children)
-            result = "{0}({1})".format(node.component.name, ",".join(args))
+            result += "({0})".format(",".join(args))
+
         return result
 
     def arrayreference_node(self, node):
@@ -935,6 +919,8 @@ class FortranWriter(PSyIRVisitor):
 
         :returns: the Fortran code as a string.
         :rtype: str
+
+        :raises VisitorError: if the node does not have any children.
 
         '''
         if not node.children:

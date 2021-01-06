@@ -45,9 +45,10 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 class ArrayOfStructuresMember(StructureMember, ArrayMixin):
     '''
     Node representing a membership expression of a parent structure where the
-    expression resolves to one or more elements of an array of structures.
-    As such, its first child may be a a member of that structure. Otherwise, it
-    and any subsequent children give the array-index expressions.
+    expression resolves to the component of one or more elements of an array
+    of structures.
+    As such, its first child must be a member of that structure. Subsequent
+    children give the array-index expressions.
 
     :param struct_type: the datatype of the parent structure of this member \
                         expression.
@@ -59,14 +60,14 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
     :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    # Textual description of the node. If the first child is a Member then
-    # it describes an access to a member of this structure. Otherwise, it
-    # and any subsequent children give the array-index expressions.
-    _children_valid_format = "[Member] [, DataNode | Range]*"
+    # Textual description of the node. The first child must be a Member
+    # describing an access to a member of this structure. Subsequent children
+    # give the array-index expressions.
+    _children_valid_format = "Member, [DataNode | Range]+"
     _text_name = "ArrayOfStructuresMember"
 
     @staticmethod
-    def create(struct_type, member_name, indices, parent=None):
+    def create(member_name, indices, struct_type=None, parent=None):
         '''
         Create an access to one or more elements of an array of
         structures that is itself a member of a structure.
@@ -87,7 +88,7 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
 
         '''
         return ArrayOfStructuresMember._create_array_of_structs(
-            struct_type, member_name, indices, parent=parent)
+            member_name, indices, struct_type=struct_type, parent=parent)
 
     @staticmethod
     def _validate_child(position, child):
@@ -102,8 +103,8 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
         '''
         from psyclone.psyir.nodes import Member, DataNode, Range
         if position == 0:
-            # The first child must either be a Member or array-index expression
-            return isinstance(child, (Member, DataNode, Range))
+            # The first child must be a Member
+            return isinstance(child, Member)
         # All subsequent child must be array-index expressions
         return isinstance(child, (DataNode, Range))
 

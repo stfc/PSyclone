@@ -54,7 +54,7 @@ class ArrayMember(Member, ArrayMixin):
     _text_name = "ArrayMember"
 
     @staticmethod
-    def create(struct_type, member_name, indices, parent=None):
+    def create(member_name, indices, struct_type=None, parent=None):
         '''
         Construct an ArrayMember instance.
 
@@ -71,7 +71,8 @@ class ArrayMember(Member, ArrayMixin):
 
         '''
         return ArrayMember._create_array_of_structs(
-            struct_type, member_name, indices, parent=parent)
+            member_name, indices=indices, struct_type=struct_type,
+            parent=parent)
 
     @staticmethod
     def _validate_child(position, child):

@@ -71,12 +71,13 @@ class Member(Node):
     _text_name = "Member"
     _colour_key = "Reference"
 
-    def __init__(self, struct_type, member, parent=None):
+    def __init__(self, member, struct_type=None, parent=None):
         # Avoid circular dependency
         from psyclone.psyir.nodes.structure_reference import StructureReference
         from psyclone.psyir.nodes.structure_member import StructureMember
 
-        if not isinstance(struct_type, (StructureType, TypeSymbol)):
+        if struct_type and not isinstance(struct_type, (StructureType,
+                                                        TypeSymbol)):
             raise TypeError(
                 "In Member initialisation: expecting the "
                 "type of the structure to be specified with either a "
@@ -94,6 +95,12 @@ class Member(Node):
                                            type(parent).__name__))
 
         super(Member, self).__init__(parent=parent)
+
+        self._component = None
+        self._component_name = member
+
+        if struct_type is None:
+            return
 
         try:
             if isinstance(struct_type, StructureType):
@@ -121,7 +128,7 @@ class Member(Node):
 
     @property
     def name(self):
-        return self._component.name
+        return self._component_name
 
     def node_str(self, colour=True):
         ''' Create a text description of this node in the schedule, optionally

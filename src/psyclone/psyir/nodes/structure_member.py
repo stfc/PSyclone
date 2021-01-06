@@ -67,21 +67,32 @@ class StructureMember(Member):
     _children_valid_format = "[Member]"
     _text_name = "StructureMember"
 
-    def __init__(self, struct_type, member, parent=None):
+    def __init__(self, member, struct_type=None, parent=None):
 
-        super(StructureMember, self).__init__(struct_type, member,
+        super(StructureMember, self).__init__(member,
+                                              struct_type=struct_type,
                                               parent=parent)
-        if isinstance(self.component.datatype, ArrayType):
-            target_type = self.component.datatype.intrinsic
-        else:
-            target_type = self.component.datatype
-        if not isinstance(target_type,
-                          (DeferredType, StructureType, TypeSymbol)):
-            raise TypeError(
-                "The member '{0}' is not of DeferredType, StructureType or a "
-                "TypeSymbol and therefore cannot be the target of a "
-                "StructureMember.".format(member))
+        if self.component:
+            if isinstance(self.component.datatype, ArrayType):
+                target_type = self.component.datatype.intrinsic
+            else:
+                target_type = self.component.datatype
+                if not isinstance(target_type,
+                                  (DeferredType, StructureType, TypeSymbol)):
+                    raise TypeError(
+                        "The member '{0}' is not of DeferredType, StructureType or a "
+                        "TypeSymbol and therefore cannot be the target of a "
+                        "StructureMember.".format(member))
 
+    def create(member, children):
+        '''
+        '''
+        smem = StructureMember(member)
+        for child in children:
+            smem.addchild(child)
+            child.parent = smem
+        return smem
+        
     def __str__(self):
         result = super(StructureMember, self).__str__() + "\n"
         if self._children[0]:
