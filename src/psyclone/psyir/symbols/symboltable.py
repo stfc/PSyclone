@@ -198,6 +198,19 @@ class SymbolTable(object):
         self.add(symbol, tag, check_ancestors)
         return symbol
 
+    def symbol_from_tag(self, tag, root_name=None, check_ancestors=True,
+                        **new_symbol_args):
+        ''' Lookup tag. If it doesn't exist create a new symbol with the
+        given tag. '''
+
+        try:
+            return self.lookup_with_tag(tag, check_ancestors)
+        except KeyError:
+            if not root_name:
+                root_name = tag
+            return self.new_symbol(root_name, tag, check_ancestors,
+                                   **new_symbol_args)
+
     def new_symbol_name(self, root_name=None, check_ancestors=True):
         '''Create a symbol name that is not in this symbol table (if the
         `check_ancestors` argument is False) or in this or any

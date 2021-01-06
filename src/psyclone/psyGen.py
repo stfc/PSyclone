@@ -2431,8 +2431,7 @@ class Kern(Statement):
         reduction argument name. This is used for thread-local
         reductions with reproducible reductions '''
         tag = self._reduction_arg.name
-        # TODO #720: Deprecate name_from_tag method
-        name = self.root.symbol_table.name_from_tag(tag, "l_" + tag)
+        name = self.root.symbol_table.symbol_from_tag(tag, "l_" + tag).name
         return name
 
     def zero_reduction_variable(self, parent, position=None):
@@ -2526,9 +2525,8 @@ class Kern(Statement):
         if self.reprod_reduction:
             idx_name = \
                 self.root.symbol_table.lookup_with_tag("omp_thread_index").name
-            # TODO #720: Deprecate name_from_tag method
             local_name = \
-                self.root.symbol_table.name_from_tag(name, "l_" + name)
+                self.root.symbol_table.symbol_from_tag(name, "l_" + name).name
             return local_name + "(1," + idx_name + ")"
         return name
 
@@ -3561,9 +3559,8 @@ class Argument(object):
             # associated call.
             if self._call:
                 tag = "AlgArgs_" + self._text
-                # TODO #720: Deprecate name_from_tag method
-                self._name = self._call.root.symbol_table.name_from_tag(
-                    tag, self._orig_name)
+                self._name = self._call.root.symbol_table.symbol_from_tag(
+                    tag, self._orig_name).name
 
     def __str__(self):
         return self._name

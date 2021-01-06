@@ -1339,3 +1339,52 @@ def test_new_symbol():
     assert sym2.visibility is Symbol.Visibility.PRIVATE
     assert sym2.datatype is INTEGER_TYPE
     assert sym2.constant_value is not None
+
+
+def test_symbol_from_tag():
+    ''' Tests the SymbolTable symbol_from_tag method '''
+    # pylint: disable=unidiomatic-typecheck
+    symtab = SymbolTable()
+    existing_symbol = Symbol("existing")
+    symtab.add(existing_symbol, tag="tag1")
+
+    # If the given tag exists, return the symbol name
+    assert symtab.symbol_from_tag("tag1") is existing_symbol
+
+    # If the tag does not exist, create a new symbol with the tag
+    tag2 = symtab.symbol_from_tag("tag2")
+    assert isinstance(tag2, Symbol)
+    assert symtab.lookup_with_tag("tag2") is tag2
+    # By default is is a generic symbol with the same name as the tag
+    assert type(tag2) == Symbol
+    assert tag2.name == "tag2"
+
+    # If the operation is repeated it returns the already created symbol
+    tag2b = symtab.symbol_from_tag("tag2")
+    assert tag2b is tag2
+
+    # It can be given additional new_symbol parameters
+    tag3 = symtab.symbol_from_tag("tag3",
+                                  symbol_type=DataSymbol,
+                                  datatype=INTEGER_TYPE,
+                                  visibility=Symbol.Visibility.PRIVATE,
+                                  constant_value=3)
+    assert symtab.lookup_with_tag("tag3") is tag3
+    assert type(tag3) == DataSymbol
+    assert tag3.visibility is Symbol.Visibility.PRIVATE
+    assert tag3.datatype is INTEGER_TYPE
+    assert tag3.constant_value is not None
+
+    # It can be given a different root_name
+    tag4 = symtab.symbol_from_tag("tag4", root_name="var")
+    assert symtab.lookup_with_tag("tag4") is tag4
+    assert symtab.lookup_with_tag("tag4").name == "var"
+
+    # If the given suggested name of an already created tag is different it
+    # doesn't matter.
+    tag4b = symtab.symbol_from_tag("tag4", root_name="anothername")
+    assert tag4 is tag4b
+    assert tag4b.name == "var"
+
+    # TODO: What happens if the symbol type or arguments are different?
+    # Probably fail
