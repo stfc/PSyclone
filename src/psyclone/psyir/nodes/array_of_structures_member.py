@@ -67,9 +67,10 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
     _text_name = "ArrayOfStructuresMember"
 
     @staticmethod
-    def create(member_name, indices, struct_type=None, parent=None):
+    def create(member_name, child_member, indices, struct_type=None,
+               parent=None):
         '''
-        Create an access to one or more elements of an array of
+        Create an access to a member of one or more elements of an array of
         structures that is itself a member of a structure.
 
         :param struct_type: the datatype of the parent structure containing \
@@ -88,7 +89,8 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
 
         '''
         return ArrayOfStructuresMember._create_array_of_structs(
-            member_name, indices, struct_type=struct_type, parent=parent)
+            member_name, child_member, indices, struct_type=struct_type,
+            parent=parent)
 
     @staticmethod
     def _validate_child(position, child):

@@ -57,7 +57,7 @@ def test_asmr_constructor():
          symbols.ArrayType(rtype_symbol,
                            [nodes.Literal("3", symbols.INTEGER_TYPE)]),
          symbols.Symbol.Visibility.PUBLIC)])
-    asmr = nodes.ArrayOfStructuresMember(grid_type, "regions")
+    asmr = nodes.ArrayOfStructuresMember("regions", struct_type=grid_type)
     assert isinstance(asmr, nodes.ArrayOfStructuresMember)
     assert len(asmr.children) == 0
     check_links(asmr, asmr.children)
@@ -77,10 +77,12 @@ def test_asmr_create():
                            [nodes.Literal("3", symbols.INTEGER_TYPE)]),
          symbols.Symbol.Visibility.PUBLIC)])
     asmr = nodes.ArrayOfStructuresMember.create(
-        grid_type, "regions",
-        indices=[nodes.Literal("3", symbols.INTEGER_TYPE)])
-    assert len(asmr.children) == 1
-    assert asmr.children[0].value == "3"
+        "regions", nodes.Member("sub_mesh"),
+        [nodes.Literal("3", symbols.INTEGER_TYPE)],
+        struct_type=grid_type)
+    assert len(asmr.children) == 2
+    assert isinstance(asmr.children[0], nodes.Member)
+    assert asmr.children[1].value == "3"
 
 
 def test_asmr_validate_child():
@@ -96,12 +98,12 @@ def test_asmr_validate_child():
          symbols.ArrayType(rtype_symbol,
                            [nodes.Literal("3", symbols.INTEGER_TYPE)]),
          symbols.Symbol.Visibility.PUBLIC)])
-    asmr = nodes.ArrayOfStructuresMember(grid_type, "regions")
+    asmr = nodes.ArrayOfStructuresMember("regions", struct_type=grid_type)
     with pytest.raises(GenerationError) as err:
         asmr.addchild("wrong")
     assert ("'str' can't be child 0 of 'ArrayOfStructuresMember'" in
             str(err.value))
-    asmr.addchild(nodes.Member(region_type, "sub_mesh"))
+    asmr.addchild(nodes.Member("sub_mesh", struct_type=region_type))
     assert isinstance(asmr.children[0], nodes.Member)
     with pytest.raises(GenerationError) as err:
         asmr.addchild("2")

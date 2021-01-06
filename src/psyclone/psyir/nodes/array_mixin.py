@@ -73,7 +73,7 @@ class ArrayMixin(object):
         raise NotImplementedError("")
 
     @classmethod
-    def _create_array_of_structs(cls, member_name,
+    def _create_array_of_structs(cls, member_name, child_member=None,
                                  indices=None, struct_type=None, parent=None):
         '''
         Create an access to (one or more elements of) an array of
@@ -95,7 +95,11 @@ class ArrayMixin(object):
 
         '''
         obj = cls(member_name, struct_type=struct_type, parent=parent)
-        # Add the array-index expressions as children
+        # Add any child Member as the first child
+        if child_member:
+            obj.addchild(child_member)
+            child_member.parent = obj
+        # Add any array-index expressions as children
         if indices:
             for child in indices:
                 obj.addchild(child)

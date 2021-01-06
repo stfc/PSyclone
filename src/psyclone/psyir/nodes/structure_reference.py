@@ -113,7 +113,7 @@ class StructureReference(Reference):
         list of components. e.g. for "field%bundle(2)%flag" this list
         would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
 
-        This 'internal' method is used by both ArrayStructureReference
+        This 'internal' method is used by both ArrayOfStructuresReference
         *and* this class which is why it is a class method with the symbol
         type as a separate argument.
 
@@ -161,27 +161,9 @@ class StructureReference(Reference):
 
         # Create the base reference to the symbol that is a structure
         ref = cls(symbol, parent=parent)
-        current = ref
 
-        if isinstance(symbol_type, TypeSymbol):
-            dtype = symbol_type.datatype
-        else:
-            # Currently we only support references to symbols with fully-
-            # specified type information.
-            # TODO #363 support deferred/incomplete types
-            raise NotImplementedError(
-                "The symbol being referenced must have a TypeSymbol as its "
-                "type but '{0}' has type '{1}'".format(symbol.name,
-                                                       symbol.datatype))
-
-        if not isinstance(dtype, StructureType):
-            # TODO #363 support deferred/incomplete types
-            raise NotImplementedError(
-                "The TypeSymbol '{0}' for symbol '{1}' must have a defined "
-                "StructureType but found '{2}'".format(
-                    symbol_type.name, symbol.name, dtype))
-
-        # Bottom-up creation of full reference
+        # Bottom-up creation of full reference. The last element in the members
+        # list must be either an ArrayMember or a Member.
         if isinstance(members[-1], tuple):
             # An access to one or more array elements
             subref = ArrayMember.create(members[-1][0], members[-1][1])
@@ -189,21 +171,26 @@ class StructureReference(Reference):
             # A member access
             subref = Member(members[-1])
         else:
-            raise TypeError("")
+            raise TypeError(
+                "The list of 'members' passed to StructureType._create() "
+                "must consist of either 'str' or 2-tuple entries but "
+                "found '{0}' in the last entry while attempting to create "
+                "reference to symbol '{1}'".format(type(members[-1]).__name__,
+                                                   symbol.name))
 
+        # Now do the remaining entries in the members list. Since we know that
+        # each of these forms part of a structure they must be either a
+        # StructureMember or an ArrayOfStructuresMember.
         child_member = subref
 
         for component in reversed(members[:-1]):
             if isinstance(component, tuple):
-                # This is an array access
-                children = [subref] + component[1]
-                # ArrayOfStructuresMember
+                # This is an array access so we have an ArrayOfStructuresMember
                 subref = ArrayOfStructuresMember.create(
-                    component[0], children)
+                    component[0], subref, component[1])
             elif isinstance(component, str):
-                children = [subref]
-                subref = StructureMember.create(component[0],
-                                                children)
+                # No array access so just a StructureMember
+                subref = StructureMember.create(component, subref)
             else:
                 raise TypeError(
                     "The list of 'members' passed to StructureType._create() "
@@ -216,67 +203,6 @@ class StructureReference(Reference):
         # Finally, add this chain to the top-level reference
         ref.addchild(child_member)
         child_member.parent = ref
-        return ref
-
-        # We now make our way along the list of components that makes up
-        # the full reference. For each entry in this list we go down another
-        # level in the PSyIR tree.
-        for component in members:
-            if isinstance(component, tuple):
-                # This is an array access
-                member_name = component[0]
-                children = component[1]
-            elif isinstance(component, str):
-                member_name = component
-                children = None
-            else:
-                raise TypeError(
-                    "The list of 'members' passed to StructureType._create() "
-                    "must consist of either 'str' or 2-tuple entries but "
-                    "found '{0}' while attempting to create reference to "
-                    "symbol '{1}'".format(type(component).__name__,
-                                          symbol.name))
-            if member_name not in dtype.components:
-                raise GenerationError(
-                    "The type definition for symbol '{0}' does not contain a "
-                    "member named '{1}'".format(symbol.name, member_name))
-
-            if component is not members[-1]:
-                # There are more components below this one so this is a
-                # structure access.
-                if children:
-                    # ArrayOfStructuresMember
-                    subref = ArrayOfStructuresMember.create(
-                        dtype, member_name, children, parent=current)
-                else:
-                    # StructureMember
-                    subref = StructureMember(dtype,
-                                             member_name,
-                                             parent=current)
-            else:
-                # This is the last component in the list so it is not a
-                # structure access.
-                if children:
-                    # ArrayMember
-                    subref = ArrayMember.create(
-                        dtype, member_name, children, parent=current)
-                else:
-                    # Member
-                    subref = Member(dtype, member_name, parent=current)
-
-            # The reference to a sub-component is stored as the first child.
-            current.addchild(subref, index=0)
-
-            # Move down to the newly-added child
-            current = subref
-            dtype = subref.component.datatype
-            if isinstance(dtype, TypeSymbol):
-                # This reference is to a derived type
-                dtype = dtype.datatype
-            elif (isinstance(dtype, ArrayType) and
-                  isinstance(dtype.intrinsic, TypeSymbol)):
-                # This reference is to an array of derived types
-                dtype = dtype.intrinsic.datatype
         return ref
 
     def __str__(self):

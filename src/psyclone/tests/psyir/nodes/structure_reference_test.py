@@ -82,8 +82,7 @@ def test_struc_ref_create():
     # Reference to an array of structures within a structure
     structarray_ref = nodes.StructureReference.create(
         ssym, [("sub_grids", [nodes.Literal("1", symbols.INTEGER_TYPE)])])
-    assert isinstance(structarray_ref.children[0],
-                      nodes.ArrayOfStructuresMember)
+    assert isinstance(structarray_ref.children[0], nodes.ArrayMember)
     # Reference to a scalar member of an element of an array of structures
     # contained in a structure
     dref = nodes.StructureReference.create(
@@ -107,11 +106,6 @@ def test_struc_ref_create_errors():
             symbols.DataSymbol("fake", symbols.INTEGER_TYPE), [])
     assert ("symbol that is (or could be) a structure, however symbol "
             "'fake' has type 'Scalar" in str(err.value))
-    with pytest.raises(NotImplementedError) as err:
-        _ = nodes.StructureReference.create(
-            symbols.DataSymbol("fake", symbols.DeferredType()), ["missing"])
-    assert ("referenced must have a TypeSymbol as its type but 'fake' has "
-            "type 'DeferredType'" in str(err.value))
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
             symbols.DataSymbol("grid", symbols.DeferredType()), 1)
@@ -122,12 +116,6 @@ def test_struc_ref_create_errors():
             symbols.DataSymbol("grid", symbols.DeferredType()), [])
     assert ("one or more structure 'members' that are being accessed but "
             "got an empty list for symbol 'grid'" in str(err.value))
-    tsymbol_unknown = symbols.TypeSymbol("grid_type", symbols.DeferredType())
-    with pytest.raises(NotImplementedError) as err:
-        _ = nodes.StructureReference.create(
-            symbols.DataSymbol("grid", tsymbol_unknown), ["missing"])
-    assert ("TypeSymbol 'grid_type' for symbol 'grid' must have a defined "
-            "StructureType" in str(err.value))
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
     tsymbol_known = symbols.TypeSymbol("grid_type", grid_type)
@@ -135,22 +123,16 @@ def test_struc_ref_create_errors():
         _ = nodes.StructureReference.create(
             symbols.DataSymbol("grid", tsymbol_known), [1])
     assert ("'members' passed to StructureType._create() must consist of "
+            "either 'str' or 2-tuple entries but found 'int' in the last "
+            "entry while attempting to create reference to symbol 'grid'" in
+            str(err.value))
+    with pytest.raises(TypeError) as err:
+        _ = nodes.StructureReference.create(
+            symbols.DataSymbol("grid", tsymbol_known), [1, "hello"])
+    assert ("'members' passed to StructureType._create() must consist of "
             "either 'str' or 2-tuple entries but found 'int' while "
             "attempting to create reference to symbol 'grid'" in
             str(err.value))
-    with pytest.raises(GenerationError) as err:
-        _ = nodes.StructureReference.create(
-            symbols.DataSymbol("grid", tsymbol_known), ["missing"])
-    assert ("The type definition for symbol 'grid' does not contain a "
-            "member named 'missing'" in str(err.value))
-    # Reference to a member of a struct that does not have a supported type
-    grid_type = symbols.StructureType.create([
-        ("nx", symbols.DeferredType(), symbols.Symbol.Visibility.PUBLIC)])
-    tsymbol_known = symbols.TypeSymbol("grid_type", grid_type)
-    with pytest.raises(NotImplementedError) as err:
-        _ = nodes.StructureReference.create(
-            symbols.DataSymbol("grid", tsymbol_known), ["nx"])
-    assert "member 'nx' of 'grid' is of type 'DeferredType'" in str(err.value)
 
 
 def test_struc_ref_validate_child():

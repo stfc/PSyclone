@@ -58,21 +58,21 @@ class ArrayMember(Member, ArrayMixin):
         '''
         Construct an ArrayMember instance.
 
-        :param struct_type: the datatype of the parent structure containing \
-                            the member that is being accessed.
-        :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` \
-            or :py:class:`psyclone.psyir.symbols.TypeSymbol`
         :param str member_name: the name of the member of the structure that \
             is being accessed.
         :param indices: the array-index expressions.
         :type indices: list of :py:class:`psyclone.psyir.nodes.DataNode`
+        :param struct_type: the datatype of the parent structure containing \
+                            the member that is being accessed.
+        :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` \
+            or :py:class:`psyclone.psyir.symbols.TypeSymbol`
         :param parent: the parent of this node in the PSyIR tree.
         :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         return ArrayMember._create_array_of_structs(
-            member_name, indices=indices, struct_type=struct_type,
-            parent=parent)
+            member_name, indices=indices,
+            struct_type=struct_type, parent=parent)
 
     @staticmethod
     def _validate_child(position, child):

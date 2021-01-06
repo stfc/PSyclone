@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,25 +43,22 @@ from psyclone.errors import GenerationError
 
 def test_amr_constructor():
     ''' Test that we can construct an ArrayMember. '''
+    amr = nodes.ArrayMember("sub_mesh")
+    assert len(amr.children) == 0
+    assert amr.name == "sub_mesh"
     region_type = symbols.StructureType.create([
         ("sub_mesh",
          symbols.ArrayType(symbols.INTEGER_TYPE,
                            [nodes.Literal("10", symbols.INTEGER_TYPE)]),
          symbols.Symbol.Visibility.PUBLIC)])
-    amr = nodes.ArrayMember(region_type, "sub_mesh")
-    assert len(amr.children) == 0
-    assert amr.name == "sub_mesh"
+    amr = nodes.ArrayMember("sub_mesh", struct_type=region_type)
+    assert isinstance(amr.component, symbols.StructureType.ComponentType)
 
 
 def test_amr_validate_child():
     ''' Test the _validate_child method of ArrayMember. '''
-    region_type = symbols.StructureType.create([
-        ("sub_mesh",
-         symbols.ArrayType(symbols.INTEGER_TYPE,
-                           [nodes.Literal("10", symbols.INTEGER_TYPE)]),
-         symbols.Symbol.Visibility.PUBLIC)])
     idx = nodes.Literal("3", symbols.INTEGER_TYPE)
-    amr = nodes.ArrayMember(region_type, "sub_mesh")
+    amr = nodes.ArrayMember("sub_mesh")
     with pytest.raises(GenerationError) as err:
         amr.addchild("wrong")
     assert "'str' can't be child 0 of 'ArrayMember'" in str(err.value)

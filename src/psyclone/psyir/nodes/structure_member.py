@@ -84,15 +84,14 @@ class StructureMember(Member):
                         "TypeSymbol and therefore cannot be the target of a "
                         "StructureMember.".format(member))
 
-    def create(member, children):
+    def create(member, child):
         '''
         '''
         smem = StructureMember(member)
-        for child in children:
-            smem.addchild(child)
-            child.parent = smem
+        smem.addchild(child)
+        child.parent = smem
         return smem
-        
+
     def __str__(self):
         result = super(StructureMember, self).__str__() + "\n"
         if self._children[0]:
