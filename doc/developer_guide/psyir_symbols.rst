@@ -118,18 +118,13 @@ Sometimes, particularly in the dynamo0p3 API, we have no way of knowing if
 a symbol has already been defined. In this case we can use a try/catch around
 the `lookup_with_tag` method and if a KeyError is raised (the tag was not
 found), then proceed to declare the symbol. As this situation occurs frequently
-the Symbol Table provides the `name_from_tag` helper method that encapsulates the
-described behaviour and declares generic symbols, which have no datatype
-properties, when needed.
+the Symbol Table provides the `symbol_from_tag` helper method that encapsulates the
+described behaviour and declares symbols when needed.
 
-.. automethod:: psyclone.psyir.symbols.SymbolTable.name_from_tag
+.. automethod:: psyclone.psyir.symbols.SymbolTable.symbol_from_tag
 
-.. warning:: The `name_from_tag` method should not be used for new
-    code as the method will be deprecated in favour of a finer control
-    of when variables are defined and used.
-
-By default the `new_symbol_name`, `add`, `lookup`, `lookup_with_tag`,
-and `name_from_tag` methods in a symbol table will also take into
+By default the `new_symbol`, `add`, `lookup`, `lookup_with_tag`,
+and `symbol_from_tag` methods in a symbol table will also take into
 account the symbols in any ancestor symbol tables. Ancestor symbol
 tables are symbol tables attached to nodes that are ancestors of the
 node that the current symbol table is attached to. This functionality

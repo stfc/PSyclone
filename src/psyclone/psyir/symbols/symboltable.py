@@ -200,8 +200,28 @@ class SymbolTable(object):
 
     def symbol_from_tag(self, tag, root_name=None, check_ancestors=True,
                         **new_symbol_args):
-        ''' Lookup tag. If it doesn't exist create a new symbol with the
-        given tag. '''
+        ''' Lookup tag, but if it doesn't exist create a new symbol with the
+        given tag. By default it creates a generic Symbol with the tag as the
+        root of the symbol name, but any of the arguments available in the
+        new_symbol() method can optionally be given to refine the name and the
+        type of the created Symbol.
+
+        #TODO: What happens if the symbol is found and some unmatching
+        arguments were given?
+
+        :param str tag: tag identifier.
+        :param str root_name: optional name of the new symbols if this needs \
+            to be created. Otherwise it is ignored.
+        :param bool check_ancestors: optional logical flag indicating \
+            whether the tag should be from just this symbol table \
+            (False) or this and all ancestor symbol tables \
+            (True). Defaults to True.
+        :param new_symbol_args: arguments to create a new symbol.
+        :type new_symbol_args: unwrapped Dict[str, object]
+
+        :returns: symbol associated with the given tag.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
 
         try:
             return self.lookup_with_tag(tag, check_ancestors)
@@ -458,51 +478,6 @@ class SymbolTable(object):
         except KeyError:
             raise KeyError("Could not find the tag '{0}' in the Symbol Table."
                            "".format(tag))
-
-    def name_from_tag(self, tag, root=None, check_ancestors=True):
-        '''If the supplied tag exists in this symbol table (if the
-        `check_ancestors` argument is False) or in this or any
-        ancestor symbol table (if the `check_ancestors` argument is
-        True), then return the symbol name associated with it,
-        otherwise create a new symbol associated with this tag (using
-        the tag as name or optionally the provided root) and return
-        the name of the new symbol.
-
-        Note that this method creates generic Symbols without properties like
-        datatypes and just returns the name string (not the Symbol object).
-        This is commonly needed on the current psy-layer implementation but not
-        recommended on new style PSyIR. This method may be deprecated in the
-        future. (TODO #720)
-
-        There is no need to check the argument types as this method
-        calls methods which check the argument types.
-
-        :param str tag: tag identifier.
-        :param str root: optional name of the new symbols if this needs to \
-            be created.
-        :param bool check_ancestors: optional logical flag indicating \
-            whether the tag should be from just this symbol table \
-            (False) or this and all ancestor symbol tables \
-            (True). Defaults to True.
-
-        :returns: name associated with the given tag.
-        :rtype: str
-
-        '''
-        try:
-            return self.lookup_with_tag(
-                tag, check_ancestors=check_ancestors).name
-        except KeyError:
-            if root:
-                name = self.new_symbol_name(
-                    root, check_ancestors=check_ancestors)
-            else:
-                name = self.new_symbol_name(
-                    tag, check_ancestors=check_ancestors)
-            # No need to check ancestors as this has already been done
-            # when creating the name.
-            self.add(Symbol(name), tag=tag, check_ancestors=False)
-            return name
 
     def __contains__(self, key):
         '''Check if the given key is part of the Symbol Table.

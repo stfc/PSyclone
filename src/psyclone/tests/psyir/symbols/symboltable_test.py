@@ -1143,48 +1143,6 @@ def test_shallow_copy():
     assert "st1" not in symtab2
 
 
-def test_name_from_tag_1():
-    ''' Tests the SymbolTable name_from_tag method '''
-    symtab = SymbolTable()
-    symtab.add(Symbol("symbol1"), tag="tag1")
-
-    # If the given tag exists, return the symbol name
-    assert symtab.name_from_tag("tag1") == "symbol1"
-
-    # If the tag does not exist, create a symbol with the tag as name
-    assert symtab.name_from_tag("tag2") == "tag2"
-    assert symtab.lookup("tag2").name == "tag2"
-    assert symtab.lookup_with_tag("tag2").name == "tag2"
-
-    # If the tag does not exist and a root name is given, create a new
-    # symbol with the given name as root
-    assert symtab.name_from_tag("tag3", root="newsymbol") == "newsymbol"
-    assert symtab.lookup("newsymbol").name == "newsymbol"
-    assert symtab.lookup_with_tag("tag3").name == "newsymbol"
-    assert symtab.name_from_tag("tag4", root="newsymbol") == "newsymbol_1"
-
-
-def test_name_from_tag_2():
-    '''Check that name_from_tag() in the SymbolTable class behaves as
-    expected with the check_ancestors flag being a) explicitly set to
-    False, b) explicitly set to True and c) using the default value
-    (True).
-
-    '''
-    schedule_symbol_table, container_symbol_table = create_hierarchy()
-    symbol2 = container_symbol_table.lookup("symbol2")
-
-    # The tag is in an ancestor symbol table. This will not be
-    # found if check_ancestors=False
-    for arg in {}, {"check_ancestors": True}:
-        symbol_name = schedule_symbol_table.name_from_tag("symbol2_tag", **arg)
-        assert symbol_name is symbol2.name
-    symbol_name = schedule_symbol_table.name_from_tag(
-        "symbol2_tag", check_ancestors=False)
-    assert (schedule_symbol_table.lookup_with_tag(
-        "symbol2_tag", check_ancestors=False).name is symbol_name)
-
-
 def test_all_symbols():
     '''Check that the all_symbols property in the SymbolTable class
     behaves as expected.
@@ -1388,3 +1346,5 @@ def test_symbol_from_tag():
 
     # TODO: What happens if the symbol type or arguments are different?
     # Probably fail
+
+    # TODO: Check that the check_ancestors is passed down
