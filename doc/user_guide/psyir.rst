@@ -224,7 +224,7 @@ and ``INTEGER_DOUBLE_TYPE``;
 ``INTEGER8_TYPE``.
 
 Array DataType
----------------
+--------------
 
 An Array datatype has a scalar or structure datatype (or a TypeSybol)
 specifying the type of its elements and a shape. The shape can have an
