@@ -34,8 +34,8 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 # Setting for the PSyData extraction library
-PSYDATA_PATH?=$(PSYCLONE_RELPATH)/lib/extract/netcdf/lfric
-PSYDATA_LIB_NAME?=_kernel_data_netcdf
+PSYDATA_PATH?=$(PSYCLONE_RELPATH)/lib/visualisation/pyplot/lfric
+PSYDATA_LIB_NAME?=visualisation
 
 include Makefile.inc
 
