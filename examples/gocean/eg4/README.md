@@ -1,6 +1,6 @@
 # PSyclone GOcean Example 4
 
-**Authors:** A. R. Porter, STFC Daresbury Lab
+**Authors:** A. R. Porter and S. Siso, STFC Daresbury Lab
 
 The directory containing this file contains an example of the use of
 PSyclone to transform kernels that access variables and routines
@@ -54,27 +54,22 @@ argument:
       double gravity
       ){
 
-Attempting to generate an OpenACC version of that same example by
+Similarly, we can generate an OpenACC version of the same example by
 doing:
 
 ```sh
 psyclone -api "gocean1.0" -s ./acc_transform.py alg_kern_use_var.f90
 ```
 
-should (see Issue #663) cause PSyclone to raise a
-`TransformationError`. This is because the ACCRoutineTrans is written
-to work with the fparser2 parse tree and not the PSyIR for the kernel
-(Issue #490). It therefore cannot be used in combination with the
-KernelGlobalsToArguments transformation (which is required because
-`kern_use_var` accesses `data_mod::gravity`). Note there is currently
-a bug (#663) that means that no error is raised and there is a mismatch
-between the generated kernel and the PSy-layer code which calls it.
+which write the OpenACC PSy- and Algorithm-layer code to stdout with
+the used kernel inlined in the PSy-layer.
 
-
-In addition, although the kernels named in the Invoke would be
-transformed, the other kernels that they then call would not and this
-means that they would not be compiled for execution on the OpenACC
-device. Support for recursive kernel transformation is the subject of
+However, attempting to perform the same transformation for the
+`alg_kern_call_kern` example will not work - although the kernels
+named in the Invoke would be transformed, the other kernels that they
+then call would not and this means that they would not be compiled for
+execution on the OpenACC device.
+Support for recursive kernel transformation is the subject of
 [Issue #342](https://github.com/stfc/PSyclone/issues/342) and will
 be demonstrated by:
 
@@ -92,6 +87,22 @@ psyclone -api "gocean1.0" -s ./acc_transform.py alg_nested_use.f90
 ```
 
 also currently raises a TransformationError for the same reason.
+
+
+Additionally, this example's Makefile has the necessary rules to compile
+the OpenAcc version of `alg_kern_use_var.f90`. This is done with the
+`compile-acc` target. Note that this requires an OpenACC compatible compiler
+(currently the Makefile only supports pgf90 - the build system flags will need
+to be updated to support other OpenACC compilers) and the infrastructure libraries
+must be built with the same compiler. To make sure the infrastructure and the
+generated files are compiled as described, we can do:
+
+```sh
+export F90=pgf90
+make allclean
+make compile-acc
+```
+
 
 ## Licence
 
