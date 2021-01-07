@@ -129,10 +129,11 @@ class KernelTrans(Transformation):
         # SymbolTable then this raises an exception.
         try:
             kernel_schedule = kern.get_kernel_schedule()
-        except GenerationError:
-            raise TransformationError(
-                "Failed to find subroutine source for kernel {0}".
-                format(kern.name))
+        except GenerationError as error:
+            message = ("Failed to create PSyIR version of kernel code for "
+                       "kernel '{0}'. Error reported is {1}."
+                       "".format(kern.name, str(error.value)))
+            six.raise_from(TransformationError(message), error)
         except SymbolError as err:
             raise TransformationError(
                 "Kernel '{0}' contains accesses to data that are not captured "
