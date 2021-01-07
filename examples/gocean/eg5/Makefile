@@ -98,12 +98,11 @@ dl_timer: PROFILE_LINK=-ldl_timer_psy -L$(DL_TIMER_ROOT) -ldl_timer_omp -fopenmp
 dl_timer: F90FLAGS += -fopenmp   # apeg-dl_timer must be compiled with openmp!
 dl_timer: $(NAME).dl_timer
 
-# The LFRic library can be used for gocean as well - the library wrapper
-# contains a stripped down version of the timer (and two other required
-# modules) that will be utilised.
-lfric: LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+# The LFRic timer can be used for gocean as well - the wrapper provides
+# a standalone library that contains all dependencies and can therefore be
+# used with any program.
 lfric: PROFILE_DIR=../../../lib/profiling/lfric
-lfric: PROFILE_LINK=-lprofile_psy_data_mod -L $(LFRIC_DIR) -llfric
+lfric: PROFILE_LINK=-lpsy_lfric_timer_standalone
 lfric: $(NAME).lfric
 
 # Generic rule. It temporarily compiles a profile-wrapper-specific version

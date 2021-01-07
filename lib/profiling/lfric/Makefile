@@ -33,6 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 
+# This makefile compiles a PSyData profiling wrapper library using the LFRic
+# timer code. It can be used with any code, not only with LFRic.
 
 # This defaults to the infrastructure library included in PSyclone
 LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
@@ -42,14 +44,25 @@ F90?=gfortran
 F90FLAGS?=-g
 F90FLAGS += -I$(LFRIC_DIR)
 
-OBJS = profile_psy_data_mod.o
-
-name=profile_psy_data_mod
-libname=lib$(name).a
+PSY_OBJS = profile_psy_data_mod.o
+LFRIC_OBJS = timer_mod.o log_mod.o scalar_mod.o mpi_mod.o io_utility_mod.o
+LFRIC_OBJS_FULL_PATH = $(patsubst %,$(LFRIC_DIR)/%,$(LFRIC_OBJS))
 
 .phony: default clean
 
-default: $(libname)
+default: libpsy_lfric_timer.a libpsy_lfric_timer_standalone.a
+
+# First target: this needs to be linked with the LFRic
+# infrastructure library.
+libpsy_lfric_timer.a: $(PSY_OBJS)
+	ar rs $@ $<
+
+# Second target: this library contains the required files
+# from the infrastructure library, and can be used by any
+# application, not only LFRic.
+libpsy_lfric_timer_standalone.a: $(LFRIC_LIB) $(PSY_OBJS)
+	ar rs $@ $(LFRIC_OBJS_FULL_PATH) $(PSY_OBJS)
+
 
 $(libname): $(LFRIC_LIB) $(OBJS)
 	ar rs $(libname) $(name).o
@@ -64,5 +77,5 @@ $(LFRIC_LIB):
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f $(libname) *.mod *.o
+	rm -f libpsy_lfric_timer.a libpsy_lfric_timer_standalone.a *.mod *.o
 

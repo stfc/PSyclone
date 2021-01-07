@@ -1,21 +1,27 @@
 # PSyclone Wrapper Library for LFRic
 
 This is a wrapper library that maps PSyclone's PSyData profiling API
-to the timer functionality provided in LFRic. Note that the module
-is following the LFRic naming convention, meaning the library
-is called libprofile_psy_data_mod.a.
+to the timer functionality provided in LFRic.
 
 ## Dependencies
 
-This directory contains some slightly modified files from the LFRic
-infrastructure library to allow compilation without any dependencies.
-If there should be changes to LFRic, you have to modify the Makefile
-to use the files from your LFRic sources.
+While this wrapper library uses LFRic infrastructure code for the timer,
+the library itself can be used independent of LFRic for any code. The
+``Makefile`` will create two different versions of the library:
+- ``libpsy_lfric_timer.a``
 
-The file ``timer_mod.F90`` uses the pre-processor macro
-``STANDALONE_COMPILATION`` to remove dependencies to LFRic
-modules (except ``constants_mod`` and ``log_mod``, which are stand-alone
-and are included here as well). 
+  This version needs to be linked with the
+  LFRic infrastructure library, which provides the actual timer
+  code (and dependencies for the timer). This version is meant to be
+  used for LFRic, since the corresponding objects files are already
+  included in the LFRic build.
+
+- ``libpsy_lfric_timer_standalone.a``
+
+  This version of the library contains all dependencies to use the
+  LFRic timer and can be used with any application. It uses the files
+  of the simplified LFRic infrastructure library contained in LFRic.
+
 
 ## Compilation
 

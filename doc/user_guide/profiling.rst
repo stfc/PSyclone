@@ -119,13 +119,22 @@ libraries that come with PSyclone:
     available from ``https://developer.nvidia.com/cuda-toolkit``.
 
 ``lib/profiling/lfric``
-    This wrapper uses the timer functionality provided by LFRic.
-    This directory contains a slightly modified set of three
-    LFRic modules that allow to compile this library stand-alone
-    (i.e. no need to have an LFRic installation). By including all
-    compiled object files, this library can be used in other codes
-    than LFRic - a runnable example using an gocean code is
-    included in ``examples/gocean/eg5``.
+    This profile wrapper uses the timer functionality provided by
+    LFRic, and it comes in two different versions:
+
+    - ``libpsy_lfric_timer.a``
+      This library just contains the PSyData wrapper, but not the
+      actual timer code. It must therefore be linked with the LFRic
+      infrastructure library. It is meant to be used by LFRic only.
+    - ``libpsy_lfric_timer_standalone.a``
+      This library contains the LFRic timer object and its dependencies.
+      It can be used standalone (i.e. without LFRic) with any program.
+      A runnable example using a gocean code is included in
+      ``examples/gocean/eg5``.
+
+    The LFRic timer writes it output to a file called ``timer.txt``
+    in the current directory, and will overwrite this file if it
+    should already exist.
 
 
 Any user can create similar wrapper libraries for

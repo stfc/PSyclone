@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018, Australian Bureau of Meteorology
+! Copyright (c) 2020, Australian Bureau of Meteorology
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 
 
 !> An implemention of the PSyData API for profiling, which wraps the use
-!> of the dl_timer library (https://bitbucket.org/apeg/dl_timer).
+!> of the LFRic timer code.
 
 module profile_psy_data_mod
   type :: profile_PSyDataType
@@ -105,7 +105,8 @@ contains
 
   ! ---------------------------------------------------------------------------
   !> Called at the end of the execution of a program, usually to generate
-  !! all output for the profiling library. Calls timer_report in dl_timer.
+  !! all output for the profiling library. Calls ``output_timer`` in the
+  !! LFRic timer code.
   subroutine profile_PSyDataShutdown()
     use timer_mod, only : output_timer
     implicit none
