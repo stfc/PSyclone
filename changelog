@@ -203,8 +203,8 @@
 
 	65) PR #983 for #982 - Improve 'kernels' auto-profiling for NEMO API.
 
-        66) PR #977 for #976. Fix dimension parameter for Jinja templates
-        in the PSyData libraries.
+	66) PR #977 for #976. Fix dimension parameter for Jinja templates
+	in the PSyData libraries.
 
 	67) PR #981 for #980. Move jupyter notebooks into a notebooks
 	subfolder of the tutorial directory ready for the addition of
@@ -214,28 +214,59 @@
 	generation time if there are any orphan OpenACC or OpenMP
 	directives e.g. OpenMP loop should be within OpenMP parallel.
 
-        69) PR #970 for #955. Use Jinja to generate the netcdf extraction
-        library for the GOcean API.
+	69) PR #970 for #955. Use Jinja to generate the netcdf extraction
+	library for the GOcean API.
 
-        70) PR #986 for #819. Adds support for NetCDF data extraction
-        for the LFRic API.
+	70) PR #986 for #819. Adds support for NetCDF data extraction
+	for the LFRic API.
 
 	71) PR #964 for #933. Adds nemo practical 'hands-on' tutorial
 	documentation and examples.
 
-        72) PR #905 for #989. Adds PSyData wrapper libraries for dl_esm_inf
-        and LFRic that provide NAN/infinity checking for real inputs/outputs
-        to a kernel. Also adds the NanTestNode and a NanTestTrans (which
-        inserts an instance of the former).
+	72) PR #905 for #989. Adds PSyData wrapper libraries for dl_esm_inf
+	and LFRic that provide NAN/infinity checking for real inputs/outputs
+	to a kernel. Also adds the NanTestNode and a NanTestTrans (which
+	inserts an instance of the former).
 
-        73) PR #961 for #936. Add hands-on tutorial for distributed memory
-        with the LFRic API.
+	73) PR #961 for #936. Add hands-on tutorial for distributed memory
+	with the LFRic API.
 
-        74) PR #985 for #979. Hands-on tutorial for single-node optimisations
-        with the LFRic API.
+	74) PR #985 for #979. Hands-on tutorial for single-node optimisations
+	with the LFRic API.
 
-        75) PR #962 for #952. Hands-on tutorial for building an LFRic
-        application.
+	75) PR #962 for #952. Hands-on tutorial for building an LFRic
+	application.
+
+	76) PR #995 for #971. Hands-on tutorial for using PSyData
+	functionality with the LFRic API.
+
+	77) PR #1000 for #988. Add missing dependencies in gungho_lib/Makefile
+	in LFRic building_code tutorials 3 and 4.
+
+	78) PR #1012 for #1001. Adds a wrapper script to find a python
+	executable when building any of the PSyData wrapper libraries. (Required
+	because some distributions now only ship with 'python3').
+
+	79) PR #947 for #946. Array shape elements are DataNodes (References,
+	Literals or expressions). If an int is provided, it is transformed to
+	a Literal.
+
+	80) PR #1020 towards #363. Rename the PSyIR node Array to ArrayReference.
+
+	81) PR #1011 for #1008. Auto kernel profiling can fail after OpenMP
+	transformations.
+
+        82) PR #951 for #950. Adds f2pygen support for generating code from
+        PSyIR nodes.
+
+	83) PR #1026 for #1025. Removes code associated with, and
+	reference to, travis as we have migrated to github actions.
+
+	84) PR #944 towards #925. Added metadata support and constraints
+	tests for operates_on=domain kernels.
+
+        85) PR #901 towards #873. Adds PSyIR support for recognised quantities
+        in LFRic kernels. Currently only used for argument validation.
 
 release 1.9.0 20th May 2020
 

@@ -36,9 +36,10 @@
 .PHONY: test
 
 test:
-	psyclone -s ./loop_fuse.py example_alg.x90 -oalg /dev/null -opsy /dev/null
-	psyclone -s ./kernel_constants.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
-	psyclone -s ./matvec_opt.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+	# commented out until issue #1015 is addressed
+	# psyclone -s ./loop_fuse.py example_alg.x90 -oalg /dev/null -opsy /dev/null
+	# psyclone -s ./kernel_constants.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+	# psyclone -s ./matvec_opt.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
 
 clean:
 	rm -f apply_variable_hx_kernel_*_mod.f90 enforce_bc_kernel_*_mod.f90 \

@@ -30,11 +30,12 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
+! Modified by R. W. Ford, STFC Daresbury Lab
 
 program explicit_do
   implicit none
   integer :: ji, jj, jk
-  integer :: jpi, jpj, jpk
+  integer, parameter :: jpi=3, jpj=6, jpk=9
   real, parameter :: r = 1.0
   real, dimension(jpi,jpj,jpk) :: umask
 

@@ -44,10 +44,17 @@ F90FLAGS ?=
 default: psy_data_base.o
 process: psy_data_base.f90
 
-.PHONY: default process clean
+.PHONY: default process clean all
+
+PROCESS=$$(./get_python.sh) ./process.py
+
+all:
+	$(MAKE) -C extract all
+	$(MAKE) -C profiling all
+	$(MAKE) -C read_only all
 
 %.f90:	%.jinja process.py
-	./process.py $< > $*.f90
+	$$(./get_python.sh) ./process.py $< > $*.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<

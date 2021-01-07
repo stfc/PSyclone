@@ -41,27 +41,33 @@ F90 ?= gfortran
 F90FLAGS ?=
 
 DL_DIR = ../../../../external/dl_esm_inf/finite_difference/src
+INF_LIB = $(DL_DIR)/src/lib_fd.a
 
 F90FLAGS += $$(nf-config --fflags) -I$(DL_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=2
+PROCESS=$$(../../../get_python.sh) ../../../process.py
 
 default: $(LIB_NAME)
 
 $(LIB_NAME): psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
-kernel_data_netcdf.o:	extract_netcdf_base.o
+kernel_data_netcdf.o:	extract_netcdf_base.o $(INF_LIB)
 extract_netcdf_base.o:	psy_data_base.o
 
 psy_data_base.f90: ../../../psy_data_base.jinja Makefile
-	../../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 
 extract_netcdf_base.f90: ../extract_netcdf_base.jinja Makefile
-	../../../process.py $(PROCESS_ARGS) $< > extract_netcdf_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > extract_netcdf_base.f90
+
+# The dl_esm_inf library
+$(INF_LIB):
+	$(MAKE) -C $(DL_DIR) F90=$(F90)
 
 
 %.o: %.f90

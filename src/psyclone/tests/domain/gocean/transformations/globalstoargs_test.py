@@ -274,6 +274,8 @@ def test_globalstoarguments_multiple_kernels(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     trans = KernelGlobalsToArguments()
 
+    # The kernels are checked before the psy.gen, so they don't include the
+    # modified suffix.
     expected = [
         ["subroutine kernel_with_use_code(ji,jj,istep,ssha,tmask,rdt)",
          "real, intent(inout) :: rdt"],
@@ -304,18 +306,21 @@ def test_globalstoarguments_multiple_kernels(monkeypatch):
     generated_code = str(psy.gen)
 
     # The following assert checks that globals from the same module are
-    # imported in a single use statement and that duplicated globals are
-    # just imported once
+    # imported, since the kernels are marked as modified, new suffixes are
+    # given in order to differentiate each of them.
     assert "SUBROUTINE invoke_0(oldu_fld, cu_fld)\n" \
-           "      USE kernel_with_use2_mod, ONLY: kernel_with_use2_code\n" \
-           "      USE kernel_with_use_mod, ONLY: kernel_with_use_code\n" \
-           "      USE model_mod, ONLY: rdt, cbfr\n" \
-           "      TYPE(r2d_field), intent(inout) :: cu_fld\n" in generated_code
+           "      USE kernel_with_use_1_mod, ONLY: kernel_with_use_1_code\n" \
+           "      USE kernel_with_use2_0_mod, ONLY:" \
+           " kernel_with_use2_0_code\n" \
+           "      USE kernel_with_use_0_mod, ONLY:" \
+           " kernel_with_use_0_code\n" in generated_code
 
     # Check the kernel calls have the global passed as last argument
-    assert "CALL kernel_with_use_code(i, j, oldu_fld, cu_fld%data, " \
+    assert "CALL kernel_with_use_0_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, rdt)" in generated_code
-    assert "CALL kernel_with_use2_code(i, j, oldu_fld, cu_fld%data, " \
+    assert "CALL kernel_with_use_1_code(i, j, oldu_fld, cu_fld%data, " \
+           "cu_fld%grid%tmask, rdt)" in generated_code
+    assert "CALL kernel_with_use2_0_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, cbfr, rdt)" in generated_code
 
 

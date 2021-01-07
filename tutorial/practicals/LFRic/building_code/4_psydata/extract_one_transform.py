@@ -30,25 +30,53 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+# Author: J. Henrichs, Bureau of Meteorology
 
-# Makefile to test the example transfromation scripts contained in
-# this directory.
+'''Python script intended to be passed to PSyclone using the -s option.
+This is a template that doesn't do anything, but it contains the
+framework to find a certain invoke.
+'''
 
-.PHONY: clean test
+from __future__ import print_function
 
-TARGET = psy.f90
 
-test:
-	${MAKE} clean
-	${MAKE} TRANS_SCRIPT=solutions/omp_trans.py -C ../ ${TARGET}
-	${MAKE} clean
-	${MAKE} TRANS_SCRIPT=solutions/all_levels_loops_omp_trans.py -C ../ ${TARGET}
-	${MAKE} clean
-	${MAKE} TRANS_SCRIPT=solutions/parallel_region_omp_trans.py -C ../ ${TARGET}
-	${MAKE} clean
-	${MAKE} TRANS_SCRIPT=solutions/general_parallel_region_omp_trans.py -C ../ ${TARGET}
+def trans(psy):
+    '''
+    Take the supplied psy object, and add kernel extraction code.
 
-clean:
-	${MAKE} -C ../ clean
+    :param psy: the PSy layer to transform.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
+
+    '''
+
+    # ------------------------------------------------------
+    # TOOD: import the transformation and create an instance
+    # ------------------------------------------------------
+    # from ... import ...
+    # extract = ...()
+
+
+    # ------------------------------------------------------
+    # TODO: use the name that is specified for the perturbation
+    # propagation invoke here. Note that it will get a "invoke_"
+    # as prefix!
+    # ------------------------------------------------------
+    invoke = psy.invokes.get("")
+
+    # Now get the schedule, to which we want to apply the transformation
+    schedule = invoke.schedule
+
+    # ------------------------------------------------------
+    # TODO: Apply the transformation
+    # ------------------------------------------------------
+    ... .apply(schedule)
+
+    # Just as feedback: show the modified schedule, which should have
+    # a new node at the top:
+    schedule.view()
+
+    return psy
