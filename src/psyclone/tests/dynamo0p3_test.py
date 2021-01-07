@@ -1588,27 +1588,6 @@ def test_no_vector_scalar():
                 str(excinfo.value))
 
 
-def test_scalar_kernel_load_meta_err():
-    ''' Check that the DynKern.load_meta() method raises the expected
-    internal error if it encounters an unrecognised data type for
-    a scalar descriptor.
-
-    '''
-    ast = fpapi.parse(CODE, ignore_comments=False)
-    name = "testkern_qr_type"
-    metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
-    # Get a scalar argument descriptor and set an invalid data type
-    scalar_arg = metadata.arg_descriptors[5]
-    scalar_arg._data_type = "gh_triple"
-    with pytest.raises(InternalError) as err:
-        kernel.load_meta(metadata)
-    assert ("Expected one of {0} data types for a scalar "
-            "argument but found 'gh_triple'.".
-            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES) in
-            str(err.value))
-
-
 def test_dynscalars_call_err():
     ''' Check that the DynScalarArgs constructor raises the expected
     internal error if it encounters an unrecognised intrinsic type of
