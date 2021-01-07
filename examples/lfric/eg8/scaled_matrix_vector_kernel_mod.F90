@@ -9,7 +9,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications Copyright (c) 2017-2021, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
