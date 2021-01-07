@@ -29,7 +29,7 @@ Examine the ``runme*.py`` scripts themselves for further details.
 The third example can be used to demonstrate PSyclone:
 
 1. generating distributed memory parallel code
-```
+```sh
 cd eg3/
 psyclone solver_mod.x90
 # look for %set_dirty and %halo_exchange in the generated code
@@ -168,7 +168,7 @@ function space metadata.
 
 This example shows how asynchronous halo exchange calls can be created
 and manipulated:
-```
+```sh
 cd eg11/
 psyclone -s ./async_script.py helmholtz_solver_alg_mod.x90
 ```
@@ -299,7 +299,7 @@ This example demonstrates the code generation for integer fields in
 PSyclone LFRic (Dynamo 0.3) API:
 
 1. with distributed memory
-```
+```sh
 cd eg17/
 psyclone integer_field_app_alg_mod.x90
 # look for %set_dirty and %halo_exchange in the generated code
