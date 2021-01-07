@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
-# Modified by R. W. Ford, STFC Darsebury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by A. J. Voysey, Met Office
 
 # This workflow will install Python dependencies, run tests and lint with a
 # variety of Python versions.
@@ -56,16 +57,11 @@ jobs:
       with:
         submodules: recursive
         fetch-depth: '0'
-    - uses: mstachniuk/ci-skip@v1
+    - name: Check for [skip ci] in commit message
+      uses: mstachniuk/ci-skip@v1
       with:
         fail-fast: true
         commit-filter: 'skip ci'
-    - name : GITHUB CONTEXT
-      env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-      run: |
-        echo "$GITHUB_CONTEXT"
-        echo ${{ github.event.after }}
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
@@ -79,7 +75,7 @@ jobs:
         # If you wish to install the version of fparser pointed to by the
         # submodule instead of the released version (from pypi) then
         # uncomment the following line:
-        # pip install external/fparser
+        pip install external/fparser
         pip install .
     - name: Lint with flake8
       run: |
@@ -100,7 +96,16 @@ jobs:
     - name: Test with pytest
 #      if: "!contains( env.commitmsg, 'skip ci' )"
       run: |
+        locale
         pytest --cov=psyclone --cov-report=xml src/psyclone/tests
+    - name: Test with pytest and C Locale
+      if: ${{ matrix.python-version == 3.8 }}
+      run: |
+        locale
+        pytest --cov=psyclone --cov-report=xml src/psyclone/tests
+      env:
+        LC_ALL: C
+        LANG: C
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
       with:
