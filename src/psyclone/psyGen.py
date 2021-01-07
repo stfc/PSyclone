@@ -945,7 +945,10 @@ class InvokeSchedule(Schedule):
             kernels = self.walk(Kern)
             for kern in kernels:
                 kernel = "kernel_" + kern.name
-                self.symbol_table.add(RoutineSymbol(kernel), tag=kernel)
+                try:
+                    self.symbol_table.lookup_with_tag(kernel)
+                except KeyError:
+                    self.symbol_table.add(RoutineSymbol(kernel), tag=kernel)
                 parent.add(
                     DeclGen(parent, datatype="integer", kind="c_intptr_t",
                             save=True, target=True, entity_decls=[kernel]))
