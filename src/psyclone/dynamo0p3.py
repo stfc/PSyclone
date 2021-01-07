@@ -48,6 +48,7 @@ import abc
 import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
+import six
 import fparser
 from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
@@ -57,8 +58,8 @@ from psyclone.core.access_type import AccessType
 from psyclone.dynamo0p3_builtins import BUILTIN_ITERATION_SPACES
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
-                                   LFRicArgDescriptor)
-from psyclone.psyir.nodes import Loop, Literal, Schedule
+                                   LFRicArgDescriptor, KernelInterface)
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              Arguments, KernelArgument, HaloExchange,
@@ -69,7 +70,6 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DirectiveGen, DoGen,
                               IfThenGen, ModuleGen, SubroutineGen, TypeDeclGen,
                               UseGen)
-
 
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #
@@ -7561,137 +7561,155 @@ class DynKern(CodedKern):
 
         super(DynKern, self).gen_code(parent)
 
-# class DinoWriters(ArgOrdering):
-#    def __init__(self, kern, parent=None, position=None):
-#        ArgOrdering.__init__(self, kern)
-#        self._parent = parent
-#        self._position = position
-#        self._scalar_position = None
-#        self._array_position = None
-#
-#    def cell_position(self):
-#        ''' get dino to output cell position information '''
-#        # dino outputs a full field so we do not need cell index information
-#        pass
-#
-#    def mesh_height(self):
-#        ''' get dino to output the height of the mesh (nlayers)'''
-#        nlayers_name = self._name_space_manager.create_name(
-#            root_name="nlayers", context="PSyVars", label="nlayers")
-#        self._add_dino_scalar(nlayers_name)
-#
-#    def field_vector(self, argvect):
-#        '''get dino to output field vector data associated with the argument
-#        'argvect' '''
-#        # TBD
-#        pass
-#
-#    def field(self, arg):
-#        '''get dino to output field datat associated with the argument
-#        'arg' '''
-#        if arg.intent in ["in", "inout"]:
-#            text = arg.proxy_name + "%data"
-#            self._add_dino_array(text)
-#
-#    def stencil_unknown_extent(self, arg):
-#        '''get dino to output stencil information associated with the argument
-#        'arg' if the extent is unknown '''
-#        # TBD
-#        pass
-#
-#    def stencil_unknown_direction(self, arg):
-#        '''get dino to output stencil information associated with the argument
-#        'arg' if the direction is unknown '''
-#        # TBD
-#        pass
-#
-#    def stencil(self, arg):
-#        '''get dino to output general stencil information associated with the
-#        argument 'arg' '''
-#        # TBD
-#        pass
-#
-#    def operator(self, arg):
-#        ''' get dino to output the operator arguments '''
-#        # TBD
-#        pass
-#
-#    def scalar(self, scalar_arg):
-#        '''get dino to output the value of the scalar argument'''
-#        if scalar_arg in ["in", "inout"]:
-#            self._add_dino_scalar(scalar_arg.name)
-#
-#    def fs_common(self, function_space):
-#        '''get dino to output any arguments common to LMA operators and
-#        fields on a space. '''
-#        # There is currently one: "ndf".
-#        ndf_name = function_space.ndf_name
-#        self._add_dino_scalar(ndf_name)
-#
-#    def fs_compulsory_field(self, function_space):
-#        '''get dino to output compulsory arguments if there is a field on this
-#        function space'''
-#        undf_name = function_space.undf_name
-#        self._add_dino_scalar(undf_name)
-#
-#    def basis(self, function_space):
-#        '''get dino to output basis function information for the function
-#        space'''
-#        # TBD
-#        pass
-#
-#    def diff_basis(self, function_space):
-#        '''get dino to output differential basis function information for the
-#        function space'''
-#        # TBD
-#         pass
-#
-#    def orientation(self, function_space):
-#        '''get dino to output orientation information for the function
-#        space'''
-#        # TBD
-#        pass
-#
-#    def field_bcs_kernel(self, function_space):
-#        '''get dino to output any boundary_dofs information for bc_kernel'''
-#        # TBD
-#        pass
-#
-#    def quad_rule(self):
-#        '''get dino to output qr information '''
-#        # TBD
-#        pass
-#
-#    def generate(self):
-#        '''perform any additional actions before and after kernel
-#        argument-list based generation'''
-#        self._parent.add(CommentGen(self._parent, " dino output start"),
-#                         position=["before", self._position])
-#        scalar_comment = CommentGen(self._parent, " dino scalars")
-#        self._parent.add(scalar_comment,
-#                         position=["before", self._position])
-#        array_comment = CommentGen(self._parent, " dino arrays")
-#        self._parent.add(array_comment,
-#                         position=["before", self._position])
-#        self._scalar_position = scalar_comment.root
-#        self._array_position = array_comment.root
-#        self._parent.add(CommentGen(self._parent, " dino output end"),
-#                         position=["before", self._position])
-#        self._parent.add(CommentGen(self._parent, ""),
-#                         position=["before", self._position])
-#        ArgOrdering.generate(self)
-#
-#    def _add_dino_scalar(self, name):
-#        ''' add a dino output call for a scalar variable '''
-#        self._parent.add(CallGen(self._parent, name="dino%output_scalar",
-#                                 args=[name]),
-#                         position=["after", self._scalar_position])
-#
-#    def _add_dino_array(self, name):
-#        ''' add a dino output call for an array variable '''
-#        self._parent.add(CallGen(self._parent, name="dino%output_array",
-#                                 args=[name]),
-#                         position=["after", self._array_position])
+    def get_kernel_schedule(self):
+        '''Returns a PSyIR Schedule representing the kernel code. The base
+        class creates the PSyIR schedule on first invocation which is
+        then checked for consistency with the kernel metadata
+        here. The Schedule is just generated on first invocation, this
+        allows us to retain transformations that may subsequently be
+        applied to the Schedule (but will not adapt to transformations
+        applied to the fparser2 AST).
+
+        Once issue #935 is implemented, this routine will return the
+        PSyIR Schedule using LFRic-specific PSyIR where possible.
+
+        :returns: Schedule representing the kernel code.
+        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+
+        '''
+        if self._kern_schedule is None:
+            # Get the PSyIR Kernel Schedule
+            psyir_schedule = super(DynKern, self).get_kernel_schedule()
+
+            # Before transforming, check the validity of the kernel
+            # arguments
+            self.validate_kernel_code_args()
+
+            # TODO replace the PSyIR argument data symbols with LFRic
+            # data symbols, see issue #935. For the moment we simply
+            # return the unmodified PSyIR schedule
+            self._kern_schedule = psyir_schedule
+
+        return self._kern_schedule
+
+    def validate_kernel_code_args(self):
+        '''Check that the arguments in the kernel code match the expected
+        arguments as defined by the kernel metadata and the LFRic
+        API.
+
+        '''
+        # Get the kernel code arguments
+        psyir_schedule = super(DynKern, self).get_kernel_schedule()
+        symbol_table = psyir_schedule.symbol_table
+        kern_code_args = symbol_table.argument_list
+
+        # Get the kernel code interface according to the kernel
+        # metadata and LFRic API
+        interface_info = KernelInterface(self)
+        interface_info.generate()
+        interface_args = interface_info.arglist
+
+        # 1: Check the the number of arguments match
+        actual_n_args = len(kern_code_args)
+        expected_n_args = len(interface_args)
+        if actual_n_args != expected_n_args:
+            raise GenerationError(
+                "In kernel '{0}' the number of arguments indicated by the "
+                "kernel metadata is {1} but the actual number of kernel "
+                "arguments found is {2}.".format(
+                    self.name, expected_n_args, actual_n_args))
+
+        # 2: Check that the properties of each argument matches
+        for idx, kern_code_arg in enumerate(kern_code_args):
+            interface_arg = interface_args[idx]
+            self._validate_kernel_code_arg(kern_code_arg, interface_arg)
+
+    def _validate_kernel_code_arg(self, kern_code_arg, interface_arg):
+        '''Internal method to check that the supplied argument descriptions
+        match and raise appropriate exceptions if not.
+
+        :param kern_code_arg: kernel code argument.
+        :type kern_code_arg: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param interface_arg: expected argument.
+        :type interface_arg: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises GenerationError: if the contents of the arguments do \
+            not match.
+        :raises InternalError: if an unexpected datatype is found.
+
+        '''
+        # 1: intrinsic datatype
+        actual_datatype = kern_code_arg.datatype.intrinsic
+        expected_datatype = interface_arg.datatype.intrinsic
+        if actual_datatype != expected_datatype:
+            raise GenerationError(
+                "Kernel argument '{0}' has datatype '{1}' "
+                "in kernel '{2}' but the LFRic API expects '{3}'."
+                "".format(kern_code_arg.name, actual_datatype,
+                          self.name, expected_datatype))
+        # 2: precision
+        actual_precision = kern_code_arg.datatype.precision
+        expected_precision = interface_arg.datatype.precision
+        if actual_precision.name != expected_precision.name:
+            raise GenerationError(
+                "Kernel argument '{0}' has precision '{1}' "
+                "in kernel '{2}' but the LFRic API expects '{3}'."
+                "".format(kern_code_arg.name, actual_precision.name,
+                          self.name, expected_precision.name))
+        # 3: intent
+        actual_intent = kern_code_arg.interface.access
+        expected_intent = interface_arg.interface.access
+        if actual_intent.name != expected_intent.name:
+            raise GenerationError(
+                "Kernel argument '{0}' has intent '{1}' "
+                "in kernel '{2}' but the LFRic API expects intent '{3}'."
+                "".format(kern_code_arg.name, actual_intent.name,
+                          self.name, expected_intent.name))
+        # 4: scalar or array
+        if interface_arg.is_scalar:
+            if not kern_code_arg.is_scalar:
+                raise GenerationError(
+                    "Argument '{0}' to kernel '{1}' should be a scalar "
+                    "according to the LFRic API, but it is not."
+                    "".format(kern_code_arg.name, self.name))
+        elif interface_arg.is_array:
+            if not kern_code_arg.is_array:
+                raise GenerationError(
+                    "Argument '{0}' to kernel '{1}' should be an array "
+                    "according to the LFRic API, but it is not."
+                    "".format(kern_code_arg.name, self.name))
+            # 4.1: array dimensions
+            if len(interface_arg.shape) != len(kern_code_arg.shape):
+                raise GenerationError(
+                    "Argument '{0}' to kernel '{1}' should be an array "
+                    "with {2} dimension(s) according to the LFRic API, but "
+                    "found {3}.".format(kern_code_arg.name, self.name,
+                                        len(interface_arg.shape),
+                                        len(kern_code_arg.shape)))
+            for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
+                interface_arg_dim = interface_arg.shape[dim_idx]
+                if (isinstance(kern_code_arg_dim, Reference) and
+                        isinstance(interface_arg_dim, Reference) and
+                        isinstance(kern_code_arg_dim.symbol, DataSymbol) and
+                        isinstance(interface_arg_dim.symbol, DataSymbol)):
+                    # Only check when there is a symbol. Unspecified
+                    # dimensions, dimensions with scalar values,
+                    # offsets, or dimensions that include arithmetic
+                    # are skipped.
+                    try:
+                        self._validate_kernel_code_arg(
+                            kern_code_arg_dim.symbol, interface_arg_dim.symbol)
+                    except GenerationError as info:
+                        six.raise_from(GenerationError(
+                            "For dimension {0} in array argument '{1}' to "
+                            "kernel '{2}' the following error was found: "
+                            "{3}".format(dim_idx+1, kern_code_arg.name,
+                                         self.name, str(info.args[0]))), info)
+        else:
+            raise InternalError(
+                "unexpected argument type found for '{0}' in kernel '{1}'. "
+                "Expecting a scalar or an array.".format(
+                    kern_code_arg.name, self.name))
 
 
 class FSDescriptor(object):

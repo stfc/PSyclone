@@ -265,7 +265,10 @@
 	84) PR #944 towards #925. Added metadata support and constraints
 	tests for operates_on=domain kernels.
 
-        85) PR #1034 for #1037. Final fixes for problems found when
+        85) PR #901 towards #873. Adds PSyIR support for recognised quantities
+        in LFRic kernels. Currently only used for argument validation.
+
+        86) PR #1034 for #1037. Final fixes for problems found when
         running with LOCALE=C.
 
 release 1.9.0 20th May 2020
