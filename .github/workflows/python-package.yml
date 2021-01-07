@@ -58,6 +58,7 @@ jobs:
     - uses: mstachniuk/ci-skip@v1
       with:
         fail-fast: true
+        commit-filter: 'skip ci'
     - name : GITHUB CONTEXT
       env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
