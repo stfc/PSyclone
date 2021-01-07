@@ -88,6 +88,10 @@ jobs:
     - name: Test with pytest
       run: |
         pytest --cov=psyclone --cov-report=xml src/psyclone/tests
+    - name: Test with pytest and LOCALE=C
+      if: ${{ matrix.python-version == 3.8 }}
+      run: |
+        LOCALE=C pytest --cov=psyclone --cov-report=xml src/psyclone/tests
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
       with:
