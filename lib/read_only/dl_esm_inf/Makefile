@@ -60,6 +60,7 @@ OBJS = read_only.o psy_data_base.o read_only_base.o
 # 2-dimensional arrays, and int, real- and double basic Fortran types
 PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
 		       -dims=2
+PROCESS=$$(../../get_python.sh) ../../process.py
 
 default: $(LIB_NAME)
 
@@ -88,10 +89,10 @@ read_only_base.o: psy_data_base.o
 # and the read-only base library. So add the rules to process
 # these files to get the plain Fortran files:
 psy_data_base.f90: ../../psy_data_base.jinja Makefile
-	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 read_only_base.f90: ../read_only_base.jinja Makefile
-	../../process.py $(PROCESS_ARGS) $< > read_only_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > read_only_base.f90
 
 # The dl_esm_inf library
 $(INF_LIB):

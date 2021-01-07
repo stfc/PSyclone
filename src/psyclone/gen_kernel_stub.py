@@ -33,7 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 # Modified work Copyright (c) 2017 by J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, Met Office
+# Modified: I. Kavcic, Met Office
+#           A. R. Porter, STFC Daresbury Lab
 
 '''A python script and python function to generate an empty kernel
     subroutine with the required arguments and datatypes (which we
@@ -46,8 +47,7 @@ import sys
 import traceback
 
 import fparser
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata, \
-    USER_KERNEL_ITERATION_SPACES
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config
@@ -75,8 +75,6 @@ def generate(filename, api=""):
     :raises GenerationError: if an invalid stub API is specified.
     :raises IOError: if filename does not specify a file.
     :raises ParseError: if the given file could not be parsed.
-    :raises GenerationError: if a kernel stub does not have a supported \
-                             iteration space (currently only "cells").
 
     '''
     if api == "":
@@ -104,15 +102,6 @@ def generate(filename, api=""):
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-
-    # Check kernel iteration space before generating code
-    if (api == "dynamo0.3" and kernel.iterates_over not in
-            USER_KERNEL_ITERATION_SPACES):
-        raise GenerationError(
-            "The LFRic API kernel stub generator supports kernels that operate"
-            " on one of {0}, but found '{1}' in kernel '{2}'.".
-            format(USER_KERNEL_ITERATION_SPACES, kernel.iterates_over,
-                   kernel.name))
 
     return kernel.gen_stub
 

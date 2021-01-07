@@ -68,7 +68,7 @@ import psyclone.expression as expr
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import BinaryOperation, Reference, Return, IfBlock
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
-    IfThenGen, UseGen, ModuleGen, SubroutineGen,  TypeDeclGen
+    IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen
 
 
 # The different grid-point types that a field can live on
@@ -129,8 +129,6 @@ class GOPSy(PSy):
         # include the field_mod module
         psy_module.add(UseGen(psy_module, name="field_mod"))
         self.invokes.gen_code(psy_module)
-        # inline kernels where requested
-        self.inline(psy_module)
         return psy_module.root
 
 
@@ -1085,25 +1083,15 @@ class GOKern(CodedKern):
         :param parent: parent node in the f2pygen AST being created.
         :type parent: :py:class:`psyclone.f2pygen.LoopGen`
 
-        :raises GenerationError: if the kernel requires a grid property but \
-                                 does not have any field arguments.
-        :raises GenerationError: if it encounters a kernel argument of \
-                                 unrecognised type.
         '''
-        # If the kernel has been transformed then we rename it. If it
-        # is *not* being module inlined then we also write it to file.
-        self.rename_and_write()
 
         if self.root.opencl:
-            # OpenCL is completely different so has its own gen method.
+            # OpenCL is completely different so has its own gen method and
+            # has to call the rename_and_write to generate to OpenCL files.
+            self.rename_and_write()
             self.gen_ocl(parent)
-            return
-
-        arguments = self._arguments.raw_arg_list()
-        parent.add(CallGen(parent, self._name, arguments))
-        if not self.module_inline:
-            parent.add(UseGen(parent, name=self._module_name, only=True,
-                              funcnames=[self._name]))
+        else:
+            super(GOKern, self).gen_code(parent)
 
     def gen_ocl(self, parent):
         # pylint: disable=too-many-locals, too-many-statements

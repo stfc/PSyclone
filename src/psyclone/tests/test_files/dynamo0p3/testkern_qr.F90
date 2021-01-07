@@ -71,15 +71,16 @@ contains
 
     implicit none
 
-    integer(kind=i_def) :: nlayers, iscalar
-    integer(kind=i_def) :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
-    integer(kind=i_def) :: nqp_h, nqp_v
-    integer(kind=i_def), dimension(:) :: map_w1, map_w2, map_w3
-    real(kind=r_def) :: ascalar
-    real(kind=r_def), dimension(:) :: f1, f2, f3, f4
-    real(kind=r_def), dimension(:) :: wh, wv
-    real(kind=r_def), dimension(:,:,:,:) :: basis_w1, diff_basis_w2
-    real(kind=r_def), dimension(:,:,:,:) :: basis_w3, diff_basis_w3
+    integer(kind=i_def), intent(in) :: nlayers, iscalar
+    integer(kind=i_def), intent(in) :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
+    integer(kind=i_def), intent(in) :: nqp_h, nqp_v
+    integer(kind=i_def), intent(in), dimension(:) :: map_w1, map_w2, map_w3
+    real(kind=r_def), intent(in) :: ascalar
+    real(kind=r_def), dimension(:), intent(inout) :: f1
+    real(kind=r_def), dimension(:), intent(in) :: f2, f3, f4
+    real(kind=r_def), dimension(:), intent(in) :: wh, wv
+    real(kind=r_def), dimension(:,:,:,:), intent(in) :: basis_w1, diff_basis_w2
+    real(kind=r_def), dimension(:,:,:,:), intent(in) :: basis_w3, diff_basis_w3
 
   end subroutine testkern_qr_code
 

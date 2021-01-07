@@ -1,8 +1,9 @@
 #!/bin/bash
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,28 +33,28 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author J. Henrichs, Bureau of Meteorology
+# -----------------------------------------------------------------------------
 
-# Simple bash script to allow test environment to be configured within
-# Travis. This enables the test suite to be run both with and without
-# any optional dependencies.
+# This script finds an executable python command. On
+# certain platforms that have only python3 installed,
+# 'python' is not found.
 
-# Which packages are installed is controlled by environment variables that
-# can be set using the Travis 'env' section in .travis.yml. This script also
-# takes one, optional command-line flag: "fparser_submodule". If present then
-# the version of fparser pointed to by the git submodule is installed rather
-# than relying upon pip to install a released version (from pypi).
+# This script first tests the various python commands return
+# by which (if any), then standard locations on linux. Note
+# we redirect to /dev/null in case that 'which' does not exist
+for p in $(which python python3 python2 2>/dev/null) \
+         /usr/bin/python  \
+         /usr/bin/python3 \
+         /usr/bin/python2; do
 
-if [ "$WITH_TERMCOLOR" = "1" ]; then
-    echo "Installing termcolor package..."
-    pip install termcolor
-fi
+    # Necessary in case that 'python' is a directory
+    if [[ -f "$p" && -x $(realpath "$p") ]]; then
+        echo $p;
+        exit
+    fi
+done
 
-if [ "$1" = "fparser_submodule" ]; then
-    echo "Installing fparser from git submodule..."
-    git submodule init
-    git submodule update
-    cd external/fparser
-    pip install .
-    cd -
-fi
+echo "Cannot find working python"
+
+exit -1

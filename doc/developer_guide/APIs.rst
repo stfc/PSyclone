@@ -207,13 +207,16 @@ Cells
 -----
 
 In the LFRic API, kernels which have metadata which specifies
-``operates_on = CELL_COLUMN`` work internally on a column of cells. This
-means that PSyclone need only be concerned with iterating over cell-columns
-in the horizontal. As a result, the LFRic infrastructure presents the
-mesh information to PSyclone as if the mesh were 2-dimensional. From
-now on this 2D view will be assumed i.e. a cell will actually be a
-column of cells. The LFRic infrastracture provides a global 2D cell
-index from 1 to the number of cells.
+``operates_on = CELL_COLUMN`` work internally on a column of
+cells. This means that PSyclone need only be concerned with iterating
+over cell-columns in the horizontal. (Kernels which have ``operates_on
+= DOMAIN`` work internally on all available columns of cells and
+therefore this iteration is not required.) As a result, the LFRic
+infrastructure presents the mesh information to PSyclone as if the
+mesh were 2-dimensional. From now on this 2D view will be assumed
+i.e. a cell will actually be a column of cells. The LFRic
+infrastracture provides a global 2D cell index from 1 to the number of
+cells.
 
 For example, a simple quadrilateral element mesh with 4 cells might be
 indexed in the following way.
@@ -241,7 +244,7 @@ cells have lower indices than halo cells.
 Dofs
 ----
 
-In the LFRic infrastracture the degrees-of-freedom (dofs) are indexed
+In the LFRic infrastructure the degrees-of-freedom (dofs) are indexed
 from 1 to the total number of dofs. The infrastructure also indexes
 dofs so that the values in a column are contiguous and their values
 increase in the vertical. Thus, given the dof indices for the "bottom"

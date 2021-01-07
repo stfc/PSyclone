@@ -39,13 +39,15 @@
 
 from __future__ import absolute_import
 import pytest
+import fparser
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part, \
-    Type_Declaration_Stmt, Execution_Part, Name
+    Type_Declaration_Stmt, Execution_Part, Name, Stmt_Function_Stmt, \
+    Dimension_Attr_Spec, Assignment_Stmt, Return_Stmt, Subroutine_Subprogram
 from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference, \
-    Array, Container, Literal, Range, KernelSchedule
+    ArrayReference, Container, Literal, Range, KernelSchedule
 from psyclone.psyGen import PSyFactory, Directive
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import (
@@ -104,13 +106,13 @@ def test_check_args():
 
     with pytest.raises(TypeError) as excinfo:
         _check_args(None, None)
-    assert ("'array' argument should be an Array type but found 'NoneType'."
-            in str(excinfo.value))
+    assert ("'array' argument should be an ArrayReference type but found "
+            "'NoneType'." in str(excinfo.value))
 
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
     symbol = DataSymbol('a', array_type)
-    array_reference = Array.create(symbol, [one])
+    array_reference = ArrayReference.create(symbol, [one])
 
     with pytest.raises(TypeError) as excinfo:
         _check_args(array_reference, None)
@@ -139,14 +141,14 @@ def test_is_bound_full_extent():
     # Check that _is_bound_full_extent calls the check_args function.
     with pytest.raises(TypeError) as excinfo:
         _is_bound_full_extent(None, None, None)
-    assert ("'array' argument should be an Array type but found 'NoneType'."
-            in str(excinfo.value))
+    assert ("'array' argument should be an ArrayReference type but found "
+            "'NoneType'." in str(excinfo.value))
 
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
     symbol = DataSymbol('a', array_type)
     my_range = Range.create(one, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     with pytest.raises(TypeError) as excinfo:
         _is_bound_full_extent(array_reference, 1, None)
@@ -160,7 +162,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND, one, one)
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting operator to be Operator.LBOUND, but found
     # Operator.UBOUND
@@ -170,7 +172,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND, one, one)
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference but found Literal
     assert not _is_bound_full_extent(array_reference, 1,
@@ -180,7 +182,7 @@ def test_is_bound_full_extent():
         BinaryOperation.Operator.LBOUND,
         Reference(DataSymbol("x", INTEGER_TYPE)), one)
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference symbol x to be the same as array symbol a
     assert not _is_bound_full_extent(array_reference, 1,
@@ -190,7 +192,7 @@ def test_is_bound_full_extent():
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1.0", REAL_TYPE))
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting integer but found real
     assert not _is_bound_full_extent(array_reference, 1,
@@ -200,7 +202,7 @@ def test_is_bound_full_extent():
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("2", INTEGER_TYPE))
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting literal value 2 to be the same as the current array
     # dimension 1
@@ -211,7 +213,7 @@ def test_is_bound_full_extent():
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1", INTEGER_TYPE))
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # valid
     assert _is_bound_full_extent(array_reference, 1,
@@ -224,8 +226,8 @@ def test_is_array_range_literal():
     # Check that _is_array_range_literal calls the _check_args function.
     with pytest.raises(TypeError) as excinfo:
         _is_array_range_literal(None, None, None, None)
-    assert ("'array' argument should be an Array type but found 'NoneType'."
-            in str(excinfo.value))
+    assert ("'array' argument should be an ArrayReference type but found "
+            "'NoneType'." in str(excinfo.value))
 
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
@@ -234,7 +236,7 @@ def test_is_array_range_literal():
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1", INTEGER_TYPE))
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     with pytest.raises(TypeError) as excinfo:
         _is_array_range_literal(array_reference, 1, None, None)
@@ -268,14 +270,14 @@ def test_is_array_range_literal():
     # Range.create checks for valid datatype. Therefore change to
     # invalid after creation.
     my_range.children[1] = Literal("1.0", REAL_TYPE)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # 1st dimension, second argument to range is a real literal,
     # not an integer literal.
     assert not _is_array_range_literal(array_reference, 1, 1, 1)
 
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
     # 1st dimension, second argument to range has an unexpected
     # value.
     assert not _is_array_range_literal(array_reference, 1, 1, 2)
@@ -294,23 +296,23 @@ def test_is_range_full_extent():
         Reference(symbol), Literal("1", INTEGER_TYPE))
 
     my_range = Range.create(lbound_op, ubound_op, one)
-    _ = Array.create(symbol, [my_range])
+    _ = ArrayReference.create(symbol, [my_range])
     # Valid structure
     _is_range_full_extent(my_range)
 
     # Invalid start (as 1st argument should be lower bound)
     my_range = Range.create(ubound_op, ubound_op, one)
-    _ = Array.create(symbol, [my_range])
+    _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
     # Invalid stop (as 2nd argument should be upper bound)
     my_range = Range.create(lbound_op, lbound_op, one)
-    _ = Array.create(symbol, [my_range])
+    _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
     # Invalid step (as 3rd argument should be Literal)
     my_range = Range.create(lbound_op, ubound_op, ubound_op)
-    _ = Array.create(symbol, [my_range])
+    _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
 
@@ -353,7 +355,7 @@ def test_array_notation_rank():
     # An array with no dimensions raises an exception
     array_type = ArrayType(REAL_TYPE, [10])
     symbol = DataSymbol("a", array_type)
-    array = Array(symbol, [])
+    array = ArrayReference(symbol, [])
     with pytest.raises(NotImplementedError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
     assert ("An Array reference in the PSyIR must have at least one child but "
@@ -379,14 +381,14 @@ def test_array_notation_rank():
     range1 = Range.create(lbound_op1, ubound_op1)
     range2 = Range.create(lbound_op3, ubound_op3)
     one = Literal("1", INTEGER_TYPE)
-    array = Array.create(symbol, [range1, one, range2])
+    array = ArrayReference.create(symbol, [range1, one, range2])
     result = Fparser2Reader._array_notation_rank(array)
     # Two array dimensions use array notation.
     assert result == 2
 
     # Make one of the array notation dimensions differ from what is required.
     range2 = Range.create(lbound_op3, one)
-    array = Array.create(symbol, [range1, one, range2])
+    array = ArrayReference.create(symbol, [range1, one, range2])
     with pytest.raises(NotImplementedError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
     assert ("Only array notation of the form my_array(:, :, ...) is "
@@ -886,15 +888,43 @@ def test_process_array_declarations():
     reader = FortranStringReader("integer :: l5(2), l6(3)")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l5").datatype.shape == [2]
-    assert fake_parent.symbol_table.lookup("l6").datatype.shape == [3]
+    l5_datatype = fake_parent.symbol_table.lookup("l5").datatype
+    assert len(l5_datatype.shape) == 1
+    assert isinstance(l5_datatype.shape[0], Literal)
+    assert l5_datatype.shape[0].value == '2'
+    assert (l5_datatype.shape[0].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l5_datatype.shape[0].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
+    l6_datatype = fake_parent.symbol_table.lookup("l6").datatype
+    assert len(l6_datatype.shape) == 1
+    assert isinstance(l6_datatype.shape[0], Literal)
+    assert l6_datatype.shape[0].value == '3'
+    assert (l6_datatype.shape[0].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l6_datatype.shape[0].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
 
     # Test that component-array-spec has priority over dimension attribute
     reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l7").name == 'l7'
-    assert fake_parent.symbol_table.lookup("l7").shape == [3, 2]
+    l7_datasymbol = fake_parent.symbol_table.lookup("l7")
+    assert l7_datasymbol.name == 'l7'
+    assert len(l7_datasymbol.shape) == 2
+    l7_datatype = l7_datasymbol.datatype
+    assert isinstance(l7_datatype.shape[0], Literal)
+    assert l7_datatype.shape[0].value == '3'
+    assert (l7_datatype.shape[0].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l7_datatype.shape[0].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
+    assert isinstance(l7_datatype.shape[1], Literal)
+    assert l7_datatype.shape[1].value == '2'
+    assert (l7_datatype.shape[1].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l7_datatype.shape[1].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
 
     # Allocatable
     reader = FortranStringReader("integer, allocatable :: l8(:)")
@@ -923,7 +953,8 @@ def test_process_array_declarations():
                             ArrayType.Extent.ATTRIBUTE]
 
     # Extent given by variable with UnknownFortranType
-    udim = DataSymbol("udim", UnknownFortranType("integer :: udim"))
+    udim = DataSymbol("udim", UnknownFortranType("integer :: udim"),
+                      interface=UnresolvedInterface())
     fake_parent.symbol_table.add(udim)
     reader = FortranStringReader("integer :: l11(udim)")
     fparser2spec = Specification_Part(reader).content[0]
@@ -932,9 +963,11 @@ def test_process_array_declarations():
     assert symbol.name == "l11"
     assert len(symbol.shape) == 1
     # Extent symbol should be udim
-    assert symbol.shape[0].name == "udim"
-    assert symbol.shape[0] is udim
-    assert isinstance(symbol.shape[0].datatype, UnknownFortranType)
+    reference = symbol.shape[0]
+    assert isinstance(reference, Reference)
+    assert reference.name == "udim"
+    assert reference.symbol is udim
+    assert isinstance(reference.symbol.datatype, UnknownFortranType)
 
     # Extent given by variable with DeferredType
     ddim = DataSymbol("ddim", DeferredType(),
@@ -947,9 +980,10 @@ def test_process_array_declarations():
     assert symbol.name == "l12"
     assert len(symbol.shape) == 1
     # Extent symbol should now be ddim
-    assert symbol.shape[0].name == "ddim"
-    assert symbol.shape[0] is ddim
-    assert isinstance(symbol.shape[0].datatype, DeferredType)
+    reference = symbol.shape[0]
+    assert reference.name == "ddim"
+    assert reference.symbol is ddim
+    assert isinstance(reference.symbol.datatype, DeferredType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1249,7 +1283,6 @@ def test_process_declarations_stmt_functions():
     '''Test that process_declarations method handles statement functions
     appropriately.
     '''
-    from fparser.two.Fortran2003 import Stmt_Function_Stmt
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
@@ -1272,7 +1305,7 @@ def test_process_declarations_stmt_functions():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
-    assert isinstance(array, Array)
+    assert isinstance(array, ArrayReference)
     assert array.name == "a"
 
     # Test that it works with multi-dimensional arrays
@@ -1287,7 +1320,7 @@ def test_process_declarations_stmt_functions():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
-    assert isinstance(array, Array)
+    assert isinstance(array, ArrayReference)
     assert array.name == "b"
 
     # Test that if symbol is not an array, it raises GenerationError
@@ -1305,7 +1338,6 @@ def test_parse_array_dimensions_attributes():
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
-    from fparser.two.Fortran2003 import Dimension_Attr_Spec
 
     sym_table = SymbolTable()
     reader = FortranStringReader("dimension(:)")
@@ -1328,7 +1360,7 @@ def test_parse_array_dimensions_attributes():
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
-    assert shape[0] == sym_table.lookup('var1')
+    assert shape[0].symbol == sym_table.lookup('var1')
 
     # Assumed size arrays not supported
     reader = FortranStringReader("dimension(*)")
@@ -1405,7 +1437,7 @@ def test_unresolved_array_size():
     reader = FortranStringReader("real, dimension(N) :: array4")
     fparser2spec = Specification_Part(reader).content
     processor.process_declarations(fake_parent, fparser2spec, [])
-    assert fake_parent.symbol_table.lookup("array4").shape[0] is dim_sym
+    assert fake_parent.symbol_table.lookup("array4").shape[0].symbol is dim_sym
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1475,8 +1507,6 @@ def test_parse_array_dimensions_unhandled(monkeypatch):
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
-    from fparser.two.Fortran2003 import Dimension_Attr_Spec
-    import fparser
 
     def walk_ast_return(_1, _2, _3=None, _4=None):
         '''Function that returns a unique object that will not be part
@@ -1589,7 +1619,7 @@ def test_handling_part_ref():
     assignment = fake_parent.children[0]
     assert len(assignment.children) == 2
     new_node = assignment.children[0]
-    assert isinstance(new_node, Array)
+    assert isinstance(new_node, ArrayReference)
     assert new_node.name == "x"
     assert len(new_node.children) == 1  # Array dimensions
 
@@ -1607,7 +1637,7 @@ def test_handling_part_ref():
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent[0].lhs
-    assert isinstance(new_node, Array)
+    assert isinstance(new_node, ArrayReference)
     assert new_node.name == "x"
     assert len(new_node.children) == 3  # Array dimensions
 
@@ -1804,11 +1834,11 @@ def test_array_section():
         has the expected number of dimensions.
 
         :param node: the node to check.
-        :type node: :py:class:`psyclone.psyir.nodes.Array`
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
         :param int ndims: the number of expected array dimensions.
 
         '''
-        assert isinstance(node, Array)
+        assert isinstance(node, ArrayReference)
         assert len(node.children) == ndims
 
     def _check_range(array, dim):
@@ -1817,7 +1847,7 @@ def test_array_section():
         argument "array" is an array.
 
         :param array: the node to check.
-        :type array: :py:class:`psyclone.psyir.nodes.Array`
+        :type array: :py:class:`psyclone.psyir.nodes.ArrayReference`
         :param int dim: the array dimension index to check.
 
         '''
@@ -1837,7 +1867,7 @@ def test_array_section():
         range index is valid.
 
         :param array: the node to check.
-        :type array: :py:class:`pysclone.psyir.node.Array`
+        :type array: :py:class:`pysclone.psyir.node.ArrayReference`
         :param int dim: the dimension index to check.
         :param int index: the index of the range to check (0 is the \
             lower bound, 1 is the upper bound).
@@ -2201,7 +2231,6 @@ def test_case_default():
     TODO #754 fix test so that 'disable_declaration_check' fixture is not
     required.
     '''
-    from fparser.two.Fortran2003 import Assignment_Stmt
     case_clauses = ["CASE default\nbranch3 = 1\nbranch3 = branch3 * 2\n",
                     "CASE (label1)\nbranch1 = 1\n",
                     "CASE (label2)\nbranch2 = 1\n"]
@@ -2539,7 +2568,6 @@ def test_handling_return_stmt():
     ''' Test that fparser2 Return_Stmt is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import Return_Stmt
     reader = FortranStringReader("return")
     return_stmt = Execution_Part.match(reader)[0][0]
     assert isinstance(return_stmt, Return_Stmt)
@@ -2557,7 +2585,6 @@ def test_handling_return_stmt():
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_end_subroutine_stmt():
     ''' Test that fparser2 End_Subroutine_Stmt are ignored.'''
-    from fparser.two.Fortran2003 import Subroutine_Subprogram
     reader = FortranStringReader('''
         subroutine dummy_code()
         end subroutine dummy_code
