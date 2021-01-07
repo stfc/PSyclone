@@ -53,11 +53,11 @@ process: nan_test_base.f90
 
 .PHONY: default process clean
 
-%.f90:	%.jinja
-	$(PROCESS) $(PROCESS_ARGS) $< > $*.f90
+%.f90:	%.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > $*.f90
 
-psy_data_base.f90:	../psy_data_base.jinja
-	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
+psy_data_base.f90:	../psy_data_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
 nan_test_base.o: psy_data_base.o
 
