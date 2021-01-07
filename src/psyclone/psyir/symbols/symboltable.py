@@ -224,7 +224,15 @@ class SymbolTable(object):
         '''
 
         try:
-            return self.lookup_with_tag(tag, check_ancestors)
+            symbol = self.lookup_with_tag(tag, check_ancestors)
+            if 'symbol_type' in new_symbol_args:
+                symbol_type = new_symbol_args['symbol_type']
+                if not isinstance(symbol, new_symbol_args['symbol_type']):
+                    raise InternalError(
+                        "Expected symbol with tag '{0}' to be of type '{1}' "
+                        "but found type '{2}'.".format(
+                        tag, symbol_type.__name__, type(symbol).__name__))
+            return symbol
         except KeyError:
             if not root_name:
                 root_name = tag
