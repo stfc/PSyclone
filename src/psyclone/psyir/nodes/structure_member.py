@@ -126,14 +126,12 @@ class StructureMember(Member):
         :rtype: bool
 
         '''
-        # pylint: disable=unused-argument
         if position == 0:
-            # The first child must either be a Member or None.
-            if child:
-                return isinstance(child, Member)
-            return True
+            # The first child must be a Member
+            return isinstance(child, Member)
         # Only one child is permitted
         return False
 
 
+# For Sphinx AutoAPI documentation generation
 __all__ = ['StructureMember']

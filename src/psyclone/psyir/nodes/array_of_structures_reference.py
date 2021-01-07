@@ -48,8 +48,8 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 
 class ArrayOfStructuresReference(StructureReference, ArrayMixin):
     '''
-    Node representing a reference to a member of one or more elements of an
-    array of structures. Since this reference is to a member of the
+    Node representing an access to a member of one or more elements of an
+    array of structures. Since this access is to a member of the
     structure, its first child will be a subclass of Member. All subsequent
     children give the array-index expressions.
 
@@ -70,8 +70,6 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
 
         '''
         if position == 0:
-            if child is None:
-                return True
             return isinstance(child, Member)
         else:
             return isinstance(child, (DataNode, Range))
