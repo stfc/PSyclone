@@ -42,6 +42,8 @@ from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
+from psyclone.psyir.transformations.visualisation_trans import \
+    VisualisationTrans
 from psyclone.psyir.transformations.read_only_verify_trans \
     import ReadOnlyVerifyTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
