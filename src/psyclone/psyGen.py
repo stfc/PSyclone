@@ -347,7 +347,7 @@ class Invokes(object):
             raise NotImplementedError(
                 "The current implementation creates a single OpenCL context "
                 "for all the invokes which needs certain OpenCL options to "
-                "match between invokes. Found '{0}' with unmathcing values "
+                "match between invokes. Found '{0}' with unmatching values "
                 "between invokes.".format(option_name))
         opencl_kernels = []
         opencl_num_queues = 1
@@ -405,6 +405,11 @@ class Invokes(object):
         :type kernels: list of str
         :param int num_queues: total number of queues needed for the OpenCL \
                                implementation.
+        :param bool enable_profiling: value given to the enable_profiling \
+                                      flag in the OpenCL initialisation.
+        :param bool out_of_order: value given to the out_of_order flag in \
+                                  the OpenCL initialisation.
+
         '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
             CallGen, UseGen, CharDeclGen, IfThenGen
@@ -475,7 +480,7 @@ class Invokes(object):
         ifthen.add(CommentGen(ifthen, " kernels in FORTCL_KERNELS_FILE."))
         ifthen.add(CallGen(ifthen, "add_kernels", [nkernstr, "kernel_names"]))
 
-
+    @abc.abstractmethod
     def gen_rank_expression(self, scope):
         ''' Generate the expression to retrieve the process rank.
 
@@ -483,10 +488,8 @@ class Invokes(object):
         :type scope: :py:class:`psyclone.f2pygen.BaseGen`
         :return: generate the expression to retrieve the process rank.
         :rtype: str
-        :raises NotImplementedError: this is an abstract method.
-
         '''
-        raise NotImplementedError("Abstract method")
+
 
 class Invoke(object):
     '''Manage an individual invoke call.
@@ -888,11 +891,11 @@ class InvokeSchedule(Schedule):
                 # All current options should contain boolean values
                 if not isinstance(value, bool):
                     raise TypeError(
-                        "InvokeSchedule opencl_option '{0}' "
+                        "InvokeSchedule OpenCL option '{0}' "
                         "should be a boolean.".format(key))
             else:
                 raise AttributeError(
-                    "InvokeSchedule does not support the opencl_option '{0}'. "
+                    "InvokeSchedule does not support the OpenCL option '{0}'. "
                     "The supported options are: {1}."
                     "".format(key, valid_opencl_options))
 
@@ -2767,16 +2770,16 @@ class CodedKern(Kern):
                 if key == "local_size":
                     if not isinstance(value, int):
                         raise TypeError(
-                            "CodedKern opencl_option 'local_size' should be "
+                            "CodedKern OpenCL option 'local_size' should be "
                             "an integer.")
                 if key == "queue_number":
                     if not isinstance(value, int):
                         raise TypeError(
-                            "CodedKern opencl_option 'queue_number' should be "
+                            "CodedKern OpenCL option 'queue_number' should be "
                             "an integer.")
             else:
                 raise AttributeError(
-                    "CodedKern does not support the opencl_option '{0}'. "
+                    "CodedKern does not support the OpenCL option '{0}'. "
                     "The supported options are: {1}."
                     "".format(key, valid_opencl_kernel_options))
 

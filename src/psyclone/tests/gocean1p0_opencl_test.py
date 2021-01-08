@@ -365,13 +365,11 @@ def test_psy_init(kernel_outputdir, monkeypatch):
         "        CALL add_kernels(1, kernel_names)\n"
         "      END IF\n"
         "    END SUBROUTINE psy_init\n")
-    print(generated_code)
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-@pytest.mark.usefixtures("kernel_outputdir")
-def test_psy_init_with_options():
+def test_psy_init_with_options(kernel_outputdir):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment with the provided non-default options. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
@@ -383,6 +381,7 @@ def test_psy_init_with_options():
     generated_code = str(psy.gen)
     assert "CALL ocl_env_init(1, ocl_device_num, .True., .True.)\n" \
         in generated_code
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -397,43 +396,43 @@ def test_opencl_options_validation():
     # Unsupported options are not accepted
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched, options={'unsupported': 1})
-    assert "InvokeSchedule does not support the opencl_option 'unsupported'." \
+    assert "InvokeSchedule does not support the OpenCL option 'unsupported'." \
         in str(err.value)
 
     # end_barrier option must be a boolean
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched, options={'end_barrier': 1})
-    assert "InvokeSchedule opencl_option 'end_barrier' should be a boolean." \
+    assert "InvokeSchedule OpenCL option 'end_barrier' should be a boolean." \
         in str(err.value)
 
     # enable_profiling option must be a boolean
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched, options={'enable_profiling': 1})
-    assert ("InvokeSchedule opencl_option 'enable_profiling' should be a "
+    assert ("InvokeSchedule OpenCL option 'enable_profiling' should be a "
             "boolean." in str(err.value))
 
     # out_of_order option must be a boolean
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched, options={'out_of_order': 1})
-    assert "InvokeSchedule opencl_option 'out_of_order' should be a boolean." \
+    assert "InvokeSchedule OpenCL option 'out_of_order' should be a boolean." \
         in str(err.value)
 
     # Unsupported kernel options are not accepted
     with pytest.raises(AttributeError) as err:
         sched.coded_kernels()[0].set_opencl_options({'unsupported': 1})
-    assert "CodedKern does not support the opencl_option 'unsupported'." \
+    assert "CodedKern does not support the OpenCL option 'unsupported'." \
         in str(err.value)
 
     # local_size must be an integer
     with pytest.raises(TypeError) as err:
         sched.coded_kernels()[0].set_opencl_options({'local_size': 'a'})
-    assert "CodedKern opencl_option 'local_size' should be an integer." \
+    assert "CodedKern OpenCL option 'local_size' should be an integer." \
         in str(err.value)
 
     # queue_number must be an integer
     with pytest.raises(TypeError) as err:
         sched.coded_kernels()[0].set_opencl_options({'queue_number': 'a'})
-    assert "CodedKern opencl_option 'queue_number' should be an integer." \
+    assert "CodedKern OpenCL option 'queue_number' should be an integer." \
         in str(err.value)
 
 
@@ -441,8 +440,8 @@ def test_opencl_options_validation():
 @pytest.mark.parametrize("option_to_check", ['enable_profiling',
                                              'out_of_order'])
 def test_opencl_multi_invoke_options_validation(option_to_check):
-    ''' Check that the OpenCL options constrains when there are multiple
-    invokes are enforced.
+    ''' Check that the OpenCL options constrains are enforced when there are
+    multiple invokes.
     '''
     psy, _ = get_invoke("test12_two_invokes_two_kernels.f90", API, idx=0)
     invoke1_schedule = psy.invokes.invoke_list[0].schedule
@@ -454,7 +453,7 @@ def test_opencl_multi_invoke_options_validation(option_to_check):
         _ = str(psy.gen)
     assert ("The current implementation creates a single OpenCL context for "
             "all the invokes which needs certain OpenCL options to match "
-            "between invokes. Found '{0}' with unmathcing values between "
+            "between invokes. Found '{0}' with unmatching values between "
             "invokes.".format(option_to_check) in str(err.value))
 
 

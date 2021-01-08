@@ -336,10 +336,9 @@ class Config(object):
             self._ocl_devices_per_node = self._config['DEFAULT'].getint(
                 'OCL_DEVICES_PER_NODE')
         except ValueError as err:
-            raise ConfigurationError(
+            six.raise_from(ConfigurationError(
                 "error while parsing OCL_DEVICES_PER_NODE: "
-                "{0}".format(str(err)),
-                config=self)
+                "{0}".format(str(err)), config=self), err)
 
         # Verify that the prefixes will result in valid Fortran names:
         import re

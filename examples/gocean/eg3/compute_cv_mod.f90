@@ -63,7 +63,7 @@ module compute_cv_mod
      !! point. This kernel assumes that the U,V and F points that
      !! share the same index as a given T point are those immediately
      !! to the South and West of it.
-     integer :: index_offset = GO_OFFSET_SW
+     integer :: index_offset = GO_OFFSET_NE
 
   contains
     procedure, nopass :: code => compute_cv_code

@@ -181,7 +181,7 @@ class GOInvokes(Invokes):
 
         :param scope: where the expression is going to be located.
         :type scope: :py:class:`psyclone.f2pygen.BaseGen`
-        :return: generate the expression to retrieve the process rank.
+        :return: generate the Fortran expression to retrieve the process rank.
         :rtype: str
         '''
         scope.add(UseGen(scope, name="parallel_mod", only=True,

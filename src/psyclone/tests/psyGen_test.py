@@ -222,13 +222,6 @@ def test_valid_return_object_from_name():
     transform = trans.get_trans_name("LoopFuse")
     assert isinstance(transform, Transformation)
 
-# Test Invokes abstract methods
-
-def test_invokes_abstract_methods():
-    ''' Test that Invokes abstract methods raise the appropriate error. '''
-    invs = Invokes([], None, None)
-    with pytest.raises(NotImplementedError):
-        invs.gen_rank_expression(None)
 
 # tests for class Call
 
