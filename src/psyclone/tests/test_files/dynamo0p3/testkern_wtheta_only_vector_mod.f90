@@ -48,7 +48,7 @@ module testkern_wtheta_only_vector_mod
           (/  arg_type(gh_field*3, gh_real, gh_readwrite, wtheta), &
               arg_type(gh_field*3, gh_real, gh_read,      wtheta)  &
            /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_wtheta_only_vector_code
   end type testkern_wtheta_only_vector_type
