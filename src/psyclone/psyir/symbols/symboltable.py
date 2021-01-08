@@ -40,6 +40,7 @@
 
 from __future__ import print_function, absolute_import
 from collections import OrderedDict
+import inspect
 import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
@@ -183,9 +184,9 @@ class SymbolTable(object):
                    symbol_type=None, **symbol_init_args):
         ''' Create a new symbol '''
 
-
         if symbol_type:
-            if not isinstance(symbol_type, type):
+            if not (isinstance(symbol_type, type) and
+                    Symbol in inspect.getmro(symbol_type)):
                 raise TypeError(
                     "The symbol_type parameter should be of type Symbol or "
                     "one of its sub-classes but found '{0}' instead."

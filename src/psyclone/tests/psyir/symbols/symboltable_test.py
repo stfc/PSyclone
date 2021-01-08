@@ -1298,6 +1298,14 @@ def test_new_symbol():
     assert sym2.datatype is INTEGER_TYPE
     assert sym2.constant_value is not None
 
+    # Check that symbol_type only accepts symbols
+    with pytest.raises(TypeError) as err:
+        sym1 = symtab.new_symbol("wrong", symbol_type=str,
+                                 visibility=Symbol.Visibility.PRIVATE)
+    assert ("The symbol_type parameter should be of type Symbol or one of its "
+            "sub-classes but found" in str(err))
+
+
 
 def test_symbol_from_tag():
     ''' Tests the SymbolTable symbol_from_tag method '''
