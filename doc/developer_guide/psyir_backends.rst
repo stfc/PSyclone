@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2017-2020, Science and Technology Facilities Council.
+   Copyright (c) 2017-2021, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -332,25 +332,34 @@ Back-ends for the PSy-layer
 
 The additional complexity of the PSy-layer comes from the fact that it
 contains multiple domain-specific concepts and parallel concepts that are not
-part of the target languages. The purpose of the Visitors are to encapsulate
-in a single place the translation logic from the generic PSyIR constructs into
-the target language. So it seems appropriate that these additional
-domain-specific generation knowledge (which is also common between backends)
-shouldn't belong to the Visitor, but in the API-specific nodes themself.
+part of the target languages. Instead of dealing with this concepts in the
+visitors we require that any domain-specific concept introduced in top
+of the core PSyIR constructs contains the logic to lower this concept
+into language level constructs. The reasons to choose a method instead
+of a visitor for this transformation are:
 
-The current proposed solution is create a 2-phase generation workflow where
+- Each concept introduced by the API-developer will need lowering instructions,
+  and this is better implied by an abstract class in the node that needs to
+  be filled.
+- It fits better with the in-place transformation currently used for the
+  lowering in order to reuse the symbols or connections that are already
+  appropriate.
+
+The current proposed solution is to create a 2-phase generation workflow where
 a domain-specific PSyIR is first lowered to a language-level version of the
-PSyIR and then processed by the Visitor to generate the target language.
+PSyIR using the ``lower_to_language_level`` node method and then processed by
+the Visitor to generate the target language.
 The language-level PSyIR is still the same IR but restricted to the subset
 of Nodes that have a direct translation into target language concepts.
 
 .. image:: 2level_psyir.png
 
-Using the language backends to generate the PSy-layer code is still under
-development and not used by PSyclone by default.
-However, it is triggered manually by some PSyclone examples to inform
-its development, these are:
+.. note::
+ Using the language backends to generate the PSy-layer code is still under
+ development and not used by PSyclone by default.
+ However, it is triggered manually by some PSyclone examples to inform
+ its development, these are:
 
-- gocean/eg8
-- lfric/eg4 (backends target)
+ - gocean/eg8
+ - lfric/eg4 (backends target)
 
