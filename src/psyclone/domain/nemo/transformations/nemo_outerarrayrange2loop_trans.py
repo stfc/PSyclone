@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ from psyclone.psyir.transformations.transformation_error \
 from psyclone.psyir.transformations import ArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans import \
-    _get_outer_index
+    get_outer_index
 
 
 class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
@@ -68,7 +68,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
     >>>
     >>> from psyclone.psyir.nodes import Assignment
     >>> from psyclone.domain.nemo.transformations import \
-    >>>     NemoOuterArrayRange2LoopTrans
+            NemoOuterArrayRange2LoopTrans
     >>> from psyclone.transformations import TransformationError
     >>>
     >>> schedule.view()
@@ -119,7 +119,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
 
         # get lhs array
         lhs_array_ref = node.lhs
-        index = _get_outer_index(lhs_array_ref)
+        index = get_outer_index(lhs_array_ref)
         nemo_arrayrange2loop = NemoArrayRange2LoopTrans()
         nemo_arrayrange2loop.apply(lhs_array_ref.children[index])
 
@@ -138,7 +138,8 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
 
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
-        NemoArrayRange2LoopTrans transformation to the supplied PSyIR Node.
+        NemoOuterArrayRange2LoopTrans transformation to the supplied
+        PSyIR Node.
 
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
@@ -148,7 +149,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
             to None.
         :type options: dict of string:values or None
 
-        :raises TransformationError: if the supplied node is an \
+        :raises TransformationError: if the supplied node is not an \
             Assignment node, if the Assignment node does not have an \
             ArrayReference node on its left hand side or if the \
             ArrayReference node does not contain at least one Range \
@@ -172,7 +173,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         array_reference = node.lhs
         # Has the array reference got a range?
         try:
-            _ = _get_outer_index(array_reference)
+            _ = get_outer_index(array_reference)
         except IndexError:
             raise TransformationError(
                 "Error in NemoOuterArrayRange2LoopTrans transformation. The "

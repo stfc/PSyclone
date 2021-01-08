@@ -47,7 +47,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import TransformationError
 from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
-    import _get_outer_index
+    import get_outer_index
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import get_invoke
 from psyclone.nemo import NemoKern, NemoLoop
@@ -433,7 +433,7 @@ def test_not_outermost_range():
 
 def test_outer_index_idx():
     '''Check that when given an array reference the internal
-    _get_outer_index() function returns the outermost index of the
+    get_outer_index() function returns the outermost index of the
     array that is a range.
 
     '''
@@ -441,12 +441,12 @@ def test_outer_index_idx():
     schedule = invoke_info.schedule
     assignment = schedule[0]
     array_ref = assignment.lhs
-    assert _get_outer_index(array_ref) == 2
+    assert get_outer_index(array_ref) == 2
 
 
 def test_outer_index_error():
     '''Check that when given an array reference the internal
-    _get_outer_index() function returns an IndexError exception if
+    get_outer_index() function returns an IndexError exception if
     there are no ranges in the array indices.
 
     '''
@@ -457,4 +457,4 @@ def test_outer_index_error():
     assignment = assignments[0]
     array_ref = assignment.lhs
     with pytest.raises(IndexError):
-        _ = _get_outer_index(array_ref)
+        _ = get_outer_index(array_ref)

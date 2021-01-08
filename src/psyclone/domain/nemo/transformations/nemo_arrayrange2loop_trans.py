@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,7 @@ class NemoArrayRange2LoopTrans(Transformation):
     >>>
     >>> from psyclone.psyir.nodes import Range
     >>> from psyclone.domain.nemo.transformations import \
-    >>>     NemoArrayRange2LoopTrans
+            NemoArrayRange2LoopTrans
     >>> from psyclone.transformations import TransformationError
     >>>
     >>> trans = NemoArrayRange2LoopTrans()
@@ -82,19 +82,27 @@ class NemoArrayRange2LoopTrans(Transformation):
     >>>         pass
     >>> schedule.view()
 
+    The specified Range node must be the outermost Range (specifying
+    an access to an array index) within an Array Reference and the
+    array reference must be on the left-hand-side of an Assignment
+    node. This is required for correctness and if not satisfied the
+    transformation will raise an exception.
+
     '''
     def apply(self, node, options=None):
-        '''Apply the NemoOuterArrayRange2Loop transformation if the supplied
-        node is the outermost Range node specifying an access to an
-        array index within an Array Reference that is on the
-        left-hand-side of an Assignment node. If this is the case then
-        the outermost Range nodes within array references within the
-        Assignment node are replaced with references to a loop
-        index. A NemoLoop loop (with the same loop index) is also
-        placed around the modified assignment statement. If the array
-        reference on the left-hand-side of the assignment only had one
-        range node as an index (so now has none) then the assigment is
-        also placed within a NemoKern.
+        '''Apply the NemoArrayRange2Loop transformation if the supplied node
+        is the outermost Range node (specifying an access to an array
+        index) within an Array Reference that is on the left-hand-side
+        of an Assignment node. These constraints are required for
+        correctness and an exception will be raised if they are not
+        satisfied. If the constraints are satisfied then the outermost
+        Range nodes within array references within the Assignment node
+        are replaced with references to a loop index. A NemoLoop loop
+        (with the same loop index) is also placed around the modified
+        assignment statement. If the array reference on the
+        left-hand-side of the assignment only had one range node as an
+        index (so now has none) then the assigment is also placed
+        within a NemoKern.
 
         The name of the loop index is taken from the PSyclone
         configuration file if a name exists for the particular array
@@ -219,7 +227,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                     "The number of ranges in the arrays within this "
                     "assignment are not equal. This is invalid PSyIR and "
                     "should never happen.")
-            idx = _get_outer_index(array)
+            idx = get_outer_index(array)
             array.children[idx] = Reference(loop_variable_symbol, parent=array)
         position = assignment.position
         loop = NemoLoop.create(loop_variable_symbol, lower_bound,
@@ -228,7 +236,7 @@ class NemoArrayRange2LoopTrans(Transformation):
         loop.parent = parent
 
         try:
-            _ = _get_outer_index(array_reference)
+            _ = get_outer_index(array_reference)
         except IndexError:
             # All valid array ranges have been replaced with explicit
             # loops. We now need to take the content of the loop and
@@ -323,7 +331,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                 "Range.")
 
 
-def _get_outer_index(array):
+def get_outer_index(array):
     '''Find the outermost index of the array that is a Range node. If one
     does not exist then raise an exception.
 

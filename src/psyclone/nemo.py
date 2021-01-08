@@ -536,10 +536,7 @@ class NemoLoop(Loop):
         # Indicate the type of loop
         loop_type_mapping = Config.get().api_conf("nemo") \
                                         .get_loop_type_mapping()
-        if variable.name in loop_type_mapping:
-            loop.loop_type = loop_type_mapping[variable.name]
-        else:
-            loop.loop_type = "unknown"
+        loop.loop_type = loop_type_mapping.get(variable.name, "unknown")
         return loop
 
     @property
