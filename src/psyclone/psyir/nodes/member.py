@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -73,6 +73,7 @@ class Member(Node):
 
     def __init__(self, member, struct_type=None, parent=None):
         # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.structure_reference import StructureReference
         from psyclone.psyir.nodes.structure_member import StructureMember
 
@@ -124,10 +125,19 @@ class Member(Node):
 
     @property
     def component(self):
+        '''
+        :returns: the component of the structure that this member represents.
+        :rtype: :py:class:`psyclone.psyir.symbols.datatypes.StructureType.\
+                ComponentType` or NoneType
+        '''
         return self._component
 
     @property
     def name(self):
+        '''
+        :returns: the name of this member.
+        :rtype: str
+        '''
         return self._component_name
 
     def node_str(self, colour=True):

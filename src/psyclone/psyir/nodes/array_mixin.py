@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the implementation of the abstract ArrayNode. '''
+''' This module contains the implementation of the abstract ArrayMixin. '''
 
 from __future__ import absolute_import
 import abc

@@ -71,8 +71,7 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
         '''
         if position == 0:
             return isinstance(child, Member)
-        else:
-            return isinstance(child, (DataNode, Range))
+        return isinstance(child, (DataNode, Range))
 
     @staticmethod
     def create(symbol, members=None, children=None, parent=None):

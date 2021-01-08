@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,9 @@
 from __future__ import absolute_import
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.member import Member
+from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.ranges import Range
 
 
 class ArrayOfStructuresMember(StructureMember, ArrayMixin):
@@ -49,15 +52,6 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
     of structures.
     As such, its first child must be a member of that structure. Subsequent
     children give the array-index expressions.
-
-    :param struct_type: the datatype of the parent structure of this member \
-                        expression.
-    :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` or \
-                       :py:class:`psyclone.psyir.symbols.TypeSymbol`
-    :param str member_name: the name of the member of the structure that is \
-                            being accessed.
-    :param parent: the parent of this node in the PSyIR tree.
-    :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Textual description of the node. The first child must be a Member
@@ -104,13 +98,12 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
         '''
         :param int position: the position to be validated.
         :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
+        :type child: sub-class of :py:class:`psyclone.psyir.nodes.Node`
 
         :return: whether the given child and position are valid for this node.
         :rtype: bool
 
         '''
-        from psyclone.psyir.nodes import Member, DataNode, Range
         if position == 0:
             # The first child must be a Member
             return isinstance(child, Member)

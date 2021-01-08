@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,8 +44,7 @@ from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import DataSymbol, TypeSymbol, StructureType, \
-    ScalarType, ArrayType, DeferredType
-from psyclone.errors import GenerationError
+    DeferredType
 
 
 class StructureReference(Reference):

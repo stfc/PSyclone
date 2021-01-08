@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -99,25 +99,28 @@ def gen_datatype(datatype, name):
     '''Given a DataType instance as input, return the Fortran datatype
     of the symbol including any specific precision properties.
 
-    :param datatype: the DataType instance.
-    :type symbol: :py:class:`psyclone.psyir.symbols.DataType`
-    :param str name: the name of the symbol being declared.
+    :param datatype: the DataType or TypeSymbol describing the type of \
+                     the declaration.
+    :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or \
+                    :py:class:`psyclone.psyir.symbols.TypeSymbol`
+    :param str name: the name of the symbol being declared (only used for \
+                     error messages).
 
     :returns: the Fortran representation of the symbol's datatype \
               including any precision properties.
     :rtype: str
 
     :raises NotImplementedError: if the symbol has an unsupported \
-    datatype.
+        datatype.
     :raises VisitorError: if the symbol specifies explicit precision \
-    and this is not supported for the datatype.
+        and this is not supported for the datatype.
     :raises VisitorError: if the size of the explicit precision is not \
-    supported for the datatype.
+        supported for the datatype.
     :raises VisitorError: if the size of the symbol is specified by \
-    another variable and the datatype is not one that supports the \
-    Fortran KIND option.
+        another variable and the datatype is not one that supports the \
+        Fortran KIND option.
     :raises NotImplementedError: if the type of the precision object \
-    is an unsupported type.
+        is an unsupported type.
 
     '''
     if isinstance(datatype, TypeSymbol):
@@ -309,7 +312,7 @@ class FortranWriter(PSyIRVisitor):
         array, return a list of strings representing those array dimensions.
 
         :param shape: list of PSyIR nodes.
-        :type symbol: list of :py:class:`psyclone.psyir.symbols.Node`
+        :type shape: list of :py:class:`psyclone.psyir.symbols.Node`
 
         :returns: the Fortran representation of the dimensions.
         :rtype: list of str

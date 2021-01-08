@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -226,7 +226,7 @@ and ``INTEGER_DOUBLE_TYPE``;
 Array DataType
 --------------
 
-An Array datatype has a scalar or structure datatype (or a TypeSybol)
+An Array datatype itself has another datatype (or TypeSymbol)
 specifying the type of its elements and a shape. The shape can have an
 arbitrary number of dimensions. Each dimension captures what is known
 about its extent. It is necessary to distinguish between four cases:

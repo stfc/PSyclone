@@ -285,7 +285,7 @@ class ArrayType(DataType):
     @property
     def intrinsic(self):
         '''
-        :returns: the intrinsic type of each element in the array
+        :returns: the intrinsic type of each element in the array.
         :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic` or \
                 :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
