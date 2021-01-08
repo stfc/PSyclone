@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,7 @@ class NemoAllArrayRange2LoopTrans(Transformation):
     >>>
     >>> from psyclone.psyir.nodes import Assignment
     >>> from psyclone.domain.nemo.transformations import \
-    >>>     NemoAllArrayRange2LoopTrans
+            NemoAllArrayRange2LoopTrans
     >>>
     >>> schedule.view()
     >>> trans = NemoAllArrayRange2LoopTrans()
