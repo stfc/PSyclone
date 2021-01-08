@@ -63,9 +63,9 @@ make compile-mpi-ocl
 ```
 
 In addition to the details above, the distributed memory target needs an mpi
-compiler in the F90 environment variable and that the libraries have been
-compiled with such compiler. The example can be compiled and executed with
-the following commands:
+compiler specified by the F90 environment variable and that the libraries have
+been compiled with that compiler. The example can be compiled and executed
+across 2 nodes with the following commands:
 
 ```sh
 make allclean
@@ -74,13 +74,29 @@ make compile-mpi-ocl
 FORTCL_KERNELS_FILE=allkernels.cl mpirun -n 2 ./alg_dm_opencl.exe
 ```
 
+The previous example uses a single accelerator device in each node. If more
+than one accelerator is available in each node, these can be used by setting
+the `OCL_DEVICES_PER_NODE` parameter in the PSyclone configuration file and
+the providing the mpirun command with the appropriate parameter to place as
+many MPI ranks per node as accelerator devices the node has. For example,
+with Intel MPI, the following command can be used to run across 2 nodes with
+2 devices per node:
+
+```sh
+# Update psyclone.cfg
+make allclean
+export F90=mpifc
+make compile-mpi-ocl
+FORTCL_KERNELS_FILE=allkernels.cl mpirun -n 4 -ppn 2 ./alg_dm_opencl.exe
+```
+
 ## Licence
 
 -----------------------------------------------------------------------------
 
 BSD 3-Clause License
 
-Copyright (c) 2018-2020, Science and Technology Facilities Council
+Copyright (c) 2018-2021, Science and Technology Facilities Council
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
