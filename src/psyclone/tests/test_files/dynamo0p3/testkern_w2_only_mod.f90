@@ -42,7 +42,7 @@ module testkern_w2_only_mod
 
   implicit none
 
-  ! TODO #874 change this metadata to include data type for fields
+  ! TODO #874 change this metadata to include data type
   type, extends(kernel_type) :: testkern_w2_only_type
      type(arg_type), dimension(2) :: meta_args = &
           (/ arg_type(gh_field, gh_inc,  w2),    &

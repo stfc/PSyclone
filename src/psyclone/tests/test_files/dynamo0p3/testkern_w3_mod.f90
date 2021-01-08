@@ -44,7 +44,7 @@ module testkern_w3_mod
   implicit none
 
   ! Description: discontinuous field (read)writer (w3)
-  ! TODO #874 change this metadata to include data type for fields
+  ! TODO #874 change this metadata to include data type
   type, extends(kernel_type) :: testkern_w3_type
      type(arg_type), dimension(5) :: meta_args = (/       &
           arg_type(gh_scalar, gh_real, gh_read),          &
