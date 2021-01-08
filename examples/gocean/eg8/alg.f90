@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2019, Science and Technology Facilities Council.
+! Copyright (c) 2018-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab
+! Author: A. R. Porter and S. Siso STFC Daresbury Lab
 
 program alg
   use kind_params_mod, only: go_wp
@@ -39,8 +39,6 @@ program alg
   use gocean_mod, only: gocean_initialise
   use inc_field_mod, only: inc_field
   implicit none
-  !> Our domain decomposition
-  type(decomposition_type) :: decomp
   integer :: my_rank
   integer :: istp, ierr, this_step
   integer :: jpiglo, jpjglo
@@ -92,8 +90,7 @@ program alg
      call invoke( inc_field(fld1, nx, ny, this_step) )
   end do
 
-  ! Manually pull the data back from the GPU and do some "IO"
-  !$acc update self(fld1%data)
+  ! Print the nsteps and a field datapoint when the simulation finishes
   write (*,*) "nsteps = ", nsteps, "field(2,2) = ", fld1%data(2,2)
 
 end program alg

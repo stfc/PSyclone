@@ -13,7 +13,8 @@ code using the PSyIR language backends.
 The code generation is performed using the `make` command which will call
 the necessary PSyclone command. The standard PSyclone code generation is
 ignored with the flags `-oalg /dev/null -opsy /dev/null` and for now the
-psyclone script itself is responsible to generate the code to stdout.
+psyclone script itself is responsible for generating the code and writing
+it to stdout.
 
 The code generation is incomplete, so no options to compile nor run the code
 have been added to the Makefile.
