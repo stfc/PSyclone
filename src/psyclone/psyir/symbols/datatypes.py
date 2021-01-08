@@ -89,7 +89,8 @@ class UnknownType(DataType):
                 "UnknownType constructor expects the original variable "
                 "declaration as a string but got an argument of type '{0}'".
                 format(type(declaration_txt).__name__))
-        self._declaration = declaration_txt
+        self._declaration = None
+        self.declaration = declaration_txt
 
     @abc.abstractmethod
     def __str__(self):
@@ -103,6 +104,16 @@ class UnknownType(DataType):
         :rtype: str
         '''
         return self._declaration
+
+    @declaration.setter
+    def declaration(self, value):
+        '''
+        Sets the original declaration that this instance represents.
+
+        :param str value: the original declaration.
+
+        '''
+        self._declaration = value[:]
 
 
 class UnknownFortranType(UnknownType):
