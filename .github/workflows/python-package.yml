@@ -56,12 +56,15 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
+        # This is required to get the commit history for merge commits for
+        # the ci-skip check below.
         fetch-depth: '0'
     - name: Check for [skip ci] in commit message
       uses: mstachniuk/ci-skip@v1
       with:
+        # This setting causes the tests to 'fail' if [skip ci] is specified
         fail-fast: true
-        commit-filter: 'skip ci'
+        commit-filter: '[skip ci]'
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
