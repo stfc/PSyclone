@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ module enforce_bc_kernel_mod
 
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_FIELD, GH_INC,                        &
+                                    GH_FIELD, GH_REAL, GH_INC,               &
                                     ANY_SPACE_1,                             &
                                     CELL_COLUMN
 use constants_mod,           only : r_def, i_def
@@ -65,7 +65,7 @@ private
 type, public, extends(kernel_type) :: enforce_bc_kernel_type
   private
   type(arg_type) :: meta_args(1) = (/                                  &
-       arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1)                      &
+       arg_type(GH_FIELD, GH_REAL, GH_INC, ANY_SPACE_1)                &
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -80,14 +80,13 @@ public enforce_bc_code
 contains
 
 !> @brief The subroutine which is called directly by the Psy layer
-!! @param[in] nlayers Integer the number of layers
-!! @param[in] ndf The number of degrees of freedom per cell
-!! @param[in] undf The number unique of degrees of freedom
-!! @param[in] map Integer array holding the dofmap for the cell at the base of the column
-!! @param[in] boundary_value array of flags (= 0) for dofs that live on the
+!! @param[in] nlayers Number of layers
+!! @param[in,out] field The data
+!! @param[in] boundary_value Array of flags (= 0) for dofs that live on the
 !!            vertical boundaries of the cell (=1 for other dofs)
-!! @param[in,out] field Real array the data
-
+!! @param[in] ndf Number of degrees of freedom per cell
+!! @param[in] undf Number of unique degrees of freedom
+!! @param[in] map Dofmap for the cell at the base of the column
 subroutine enforce_bc_code(nlayers,                        &
                            field,                          &
                            ndf, undf, map, boundary_value  &
