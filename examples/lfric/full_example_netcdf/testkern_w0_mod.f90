@@ -61,11 +61,9 @@ contains
 
   subroutine testkern_w0_code(nlayers, fld1, fld2, ndf_w0, undf_w0, map_w0)
 
-    use constants_mod, only: r_def, i_def
-    
     implicit none
 
-    integer                                             :: nlayers
+    integer(kind=i_def), intent(in)                     :: nlayers
     real(kind=r_def), dimension(undf_w0), intent(inout) :: fld1
     real(kind=r_def), dimension(undf_w0), intent(in)    :: fld2
     integer(kind=i_def)                                 :: ndf_w0, undf_w0
