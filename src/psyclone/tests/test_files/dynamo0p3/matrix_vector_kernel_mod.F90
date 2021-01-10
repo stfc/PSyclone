@@ -38,9 +38,9 @@ module matrix_vector_kernel_mod
 
 
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,               &
-                                    GH_FIELD, GH_OPERATOR,             &
-                                    GH_REAL, GH_READ, GH_INC,          &
+use argument_mod,            only : arg_type, func_type,      &
+                                    GH_FIELD, GH_OPERATOR,    &
+                                    GH_REAL, GH_READ, GH_INC, &
                                     ANY_SPACE_1, CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 

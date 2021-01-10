@@ -92,7 +92,7 @@ contains
 !! @param[in, out] projection Locally assembled projection operator
 !! @param[in] theta Potential temperature array
 !! @param[in] ndf_wtheta Number of degrees of freedom per cell for wtheta
-!! @param[in] undf_wtheta Number of unique degrees of freedom  for wtheta
+!! @param[in] undf_wtheta Number of unique degrees of freedom for wtheta
 !! @param[in] map_wtheta Dofmap for the cell at the base of the column for wtheta
 !! @param[in] wtheta_basis Basis functions evaluated at gaussian quadrature points
 !! @param[in] wtheta_diff_basis Differential basis functions evaluated at gaussian quadrature points

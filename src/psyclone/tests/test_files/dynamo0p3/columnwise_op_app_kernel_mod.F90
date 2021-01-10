@@ -88,7 +88,7 @@ contains
   !> @param [in] cell Horizontal cell index
   !> @param [in] ncell_2d Number of cells in 2d grid
   !> @param [in,out] lhs Resulting field lhs += A.x
-  !> @param [in] x input field
+  !> @param [in] x Input field
   !> @param [in] columnwise_matrix Banded matrix to assemble into
   !> @param [in] nrow Number of rows in the banded matrix
   !> @param [in] ncol Number of columns in the banded matrix
@@ -98,7 +98,7 @@ contains
   !> @param [in] gamma_m Banded matrix parameter \f$\gamma_-\f$
   !> @param [in] gamma_p Banded matrix parameter \f$\gamma_+\f$
   !> @param [in] ndf1 Number of degrees of freedom per cell for the to-space
-  !> @param [in] undf1 Unique number of degrees of freedom  for the to-space
+  !> @param [in] undf1 Unique number of degrees of freedom for the to-space
   !> @param [in] map1 Dofmap for the to-space
   !> @param [in] indirection_dofmap_to Indirection map for to-space
   !> @param [in] ndf2 Number of degrees of freedom per cell for the from-space
