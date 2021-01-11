@@ -62,6 +62,7 @@ integer(i_def), public, parameter :: STENCIL_POINT = 1100
 integer(i_def), public, parameter :: STENCIL_1DX   = 1200
 integer(i_def), public, parameter :: STENCIL_1DY   = 1300
 integer(i_def), public, parameter :: STENCIL_CROSS = 1400
+integer(i_def), public, parameter :: STENCIL_REGION = 1500
 
 contains
 

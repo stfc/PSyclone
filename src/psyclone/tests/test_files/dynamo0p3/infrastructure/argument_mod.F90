@@ -131,8 +131,9 @@ module argument_mod
   integer, public, parameter :: X1D     = 2
   integer, public, parameter :: Y1D     = 3
   integer, public, parameter :: CROSS   = 4
-  integer, public, parameter :: CROSS2D = 5
-  integer, public, parameter :: STENCIL(5) = -1
+  integer, public, parameter :: REGION  = 5
+  integer, public, parameter :: CROSS2D = 6
+  integer, public, parameter :: STENCIL(6) = -1
 
   ! For inter-grid kernels
   integer, public, parameter :: GH_FINE = 701

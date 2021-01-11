@@ -4355,20 +4355,54 @@ def test_single_stencil_literal(dist_mem, tmpdir):
     assert output6 in result
 
 
-def test_stencil_region_unsupported(dist_mem):
-    '''Check that we raise an exception if the value of the stencil type
-    in stencil(<type>[,<extent>]) is region. This is not a parse error
-    as region is a valid value, it is just that the LFRic
-    infrastructure does not yet support it. '''
+def test_stencil_region(dist_mem, tmpdir):
+    '''Test that region stencil access with an extent value passed from the
+    algorith layer is handled correctly.
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.12_single_stencil_region.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = str(psy.gen)
-    assert "Unsupported stencil type 'region' supplied" in \
-        str(excinfo.value)
+    result = str(psy.gen)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    output1 = ("    SUBROUTINE invoke_0_testkern_stencil_region_type(f1, f2, "
+               "f3, f4, f2_extent)")
+    assert output1 in result
+    output2 = ("      USE stencil_dofmap_mod, ONLY: STENCIL_REGION\n"
+               "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
+    assert output2 in result
+    output3 = (
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+        "null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+        "null()\n")
+    assert output3 in result
+    output4 = (
+        "      !\n"
+        "      ! Initialise stencil dofmaps\n"
+        "      !\n"
+        "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_REGION,f2_extent)\n"
+        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
+        "      !\n")
+    assert output4 in result
+    if dist_mem:
+        output5 = (
+            "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
+            "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
+            "      END IF\n")
+        assert output5 in result
+    output6 = (
+        "        CALL testkern_stencil_region_code(nlayers, f1_proxy%data, "
+        "f2_proxy%data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell), "
+        "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+        "map_w3(:,cell))")
+    assert output6 in result
 
 
 def test_single_stencil_cross2d(dist_mem, tmpdir):
