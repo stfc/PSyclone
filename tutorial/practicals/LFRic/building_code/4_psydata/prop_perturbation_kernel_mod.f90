@@ -131,7 +131,8 @@ module prop_perturbation_kernel_mod
         ampl = max(perturbation_height - x(3), 0.0_r_def)/perturbation_scale
         xt = ( x(1) - x_centre - u_vel*t_tot )/half_width_x
         yt = ( x(2) - y_centre - v_vel*t_tot )/half_width_y
-        perturbation( map_w3(df) + k ) = ampl*exp(-xt**2 - yt**2)
+        !perturbation( map_w3(df) + k ) = ampl*exp(-xt**2 - yt**2)
+        perturbation( map_w3(df) + k ) = ampl*exp(-xt**2 - yt**2) + 0.7*perturbation( map_w3(df) + k )
         !-----------------------------------------------------------------------
 
       end do
