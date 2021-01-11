@@ -34,8 +34,8 @@
 # Author: I. Kavcic, Met Office
 
 '''
-Module containing pytest tests for the LFRic fields and the related
-functionality.
+Module containing pytest tests for PSy-layer code generation and the related
+functionality for the LFRic fields.
 '''
 
 # Imports
@@ -44,8 +44,8 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynFields
+from psyclone.domain.lfric import LFRicArgDescriptor, FunctionSpace
+from psyclone.dynamo0p3 import DynKernMetadata, DynFields
 from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -106,7 +106,7 @@ def test_ad_field_invalid_data_type():
             "be a valid data type (one of ['gh_real', 'gh_integer']), but "
             "found 'gh_unreal' in 'arg_type(gh_field, gh_unreal, gh_inc, w1)'."
             in str(excinfo.value))
-    # Check real field
+    # Check integer field
     code = FIELD_CODE.replace(
         "arg_type(gh_field,  gh_integer, gh_read,  w3)",
         "arg_type(gh_field,  gh_double,  gh_read,  w3)", 1)
@@ -154,6 +154,34 @@ def test_ad_field_init_wrong_data_type(monkeypatch):
             str(excinfo.value))
 
 
+def test_arg_descriptor_invalid_fs():
+    ''' Tests that an error is raised when an invalid function space
+    name is provided as the third argument for a field. '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    name = "testkern_field_type"
+    # Check real field
+    code = FIELD_CODE.replace(
+        "arg_type(gh_field,  gh_real,    gh_inc,   w1)",
+        "arg_type(gh_field,  gh_real,    gh_inc,   w4)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("In the LFRic API argument 4 of a 'meta_arg' field entry "
+            "must be a valid function-space name (one of {0}) if its "
+            "first argument is of ['gh_field'] type, but found 'w4'".
+            format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES)
+            in str(excinfo.value))
+    # Check integer field
+    code = FIELD_CODE.replace(
+        "arg_type(gh_field,  gh_integer, gh_read,  w3)",
+        "arg_type(gh_field,  gh_integer, gh_read,  w10)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("if its first argument is of ['gh_field'] type, but found 'w10'"
+            in str(excinfo.value))
+
+
 def test_dynfields_call_err():
     ''' Check that the DynFields constructor raises the expected internal
     error if it encounters an unrecognised intrinsic type of a field
@@ -177,31 +205,6 @@ def test_dynfields_call_err():
     assert ("Found an unsupported intrinsic type 'triple-type' in Invoke "
             "declarations for the field argument 'f1'. Supported types "
             "are ['real', 'integer']." in str(err.value))
-
-
-def test_dynfields_stub_err():
-    ''' Check that the DynFields constructor raises the expected internal
-    error if it encounters an unrecognised intrinsic type of a field
-    argument when generating a kernel stub.
-
-    '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Create an empty PSy layer module and Kernel stub subroutine objects
-    psy_module = ModuleGen("testkern_2qr_int_field_mod")
-    sub_stub = SubroutineGen(psy_module, name="testkern_2qr_int_field_code",
-                             implicitnone=True)
-    # Sabotage the field argument to make it have an invalid intrinsic type
-    fld_arg = kernel.arguments.args[1]
-    fld_arg._intrinsic_type = "invalid-field-type"
-    with pytest.raises(InternalError) as err:
-        DynFields(kernel)._stub_declarations(sub_stub)
-    assert ("Found an unsupported intrinsic type 'invalid-field-type' in "
-            "kernel stub declarations for the field argument 'field_2'. "
-            "Supported types are ['real', 'integer']." in str(err.value))
 
 
 # Tests for invokes calling kernels that contain integer-valued fields
@@ -634,157 +637,6 @@ def test_multiple_stencils_int_field(dist_mem, tmpdir):
     assert output7 in result
 
 
-# Tests for kernel stubs containing integer-valued fields
-
-
-INTEGER_FIELD_CODE = '''
-module testkern_int_field_mod
-  type, extends(kernel_type) :: testkern_int_field_type
-     type(arg_type), meta_args(3) =                             &
-         (/ arg_type(gh_field,   gh_integer, gh_write, wtheta), &
-            arg_type(gh_field*3, gh_integer, gh_read,  w3),     &
-            arg_type(gh_field,   gh_integer, gh_read,  w2trace, &
-                                                stencil(cross)) &
-          /)
-     type(func_type), dimension(2) :: meta_funcs =     &
-         (/ func_type(wtheta, gh_basis),               &
-            func_type(w3,     gh_basis, gh_diff_basis) &
-          /)
-     integer :: operates_on = cell_column
-     integer :: gh_shape = gh_quadrature_XYoZ
-   contains
-     procedure, nopass :: code => testkern_int_field_code
-  end type testkern_int_field_type
-contains
-  subroutine testkern_int_field_code()
-  end subroutine testkern_int_field_code
-end module testkern_int_field_mod
-'''
-
-
-def test_int_field_gen_stub():
-    ''' Test that we generate correct code for kernel stubs that
-    contain integer-valued fields with stencils and basis/differential
-    basis functions.
-
-    '''
-    ast = fpapi.parse(INTEGER_FIELD_CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    generated_code = str(kernel.gen_stub)
-    output = (
-        "  MODULE testkern_int_field_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE testkern_int_field_code(nlayers, field_1_wtheta, "
-        "field_2_w3_v1, field_2_w3_v2, field_2_w3_v3, field_3_w2trace, "
-        "field_3_stencil_size, field_3_stencil_dofmap, ndf_wtheta, "
-        "undf_wtheta, map_wtheta, basis_wtheta_qr_xyoz, ndf_w3, undf_w3, "
-        "map_w3, basis_w3_qr_xyoz, diff_basis_w3_qr_xyoz, ndf_w2trace, "
-        "undf_w2trace, map_w2trace, np_xy_qr_xyoz, np_z_qr_xyoz, "
-        "weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2trace\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2trace) :: "
-        "map_w2trace\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) :: "
-        "map_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_wtheta, undf_w3, "
-        "undf_w2trace\n"
-        "      INTEGER(KIND=i_def), intent(out), dimension(undf_wtheta) :: "
-        "field_1_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(undf_w3) :: "
-        "field_2_w3_v1\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(undf_w3) :: "
-        "field_2_w3_v2\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(undf_w3) :: "
-        "field_2_w3_v3\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(undf_w2trace) :: "
-        "field_3_w2trace\n"
-        "      INTEGER(KIND=i_def), intent(in) :: field_3_stencil_size\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2trace,"
-        "field_3_stencil_size) :: field_3_stencil_dofmap\n"
-        "      INTEGER(KIND=i_def), intent(in) :: "
-        "np_xy_qr_xyoz, np_z_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,"
-        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_wtheta_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,"
-        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w3_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,"
-        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w3_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) :: "
-        "weights_xy_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) :: "
-        "weights_z_qr_xyoz\n"
-        "    END SUBROUTINE testkern_int_field_code\n"
-        "  END MODULE testkern_int_field_mod")
-    assert output in generated_code
-
-
-def test_int_field_all_stencils_gen_stub():
-    ''' Test that we generate correct code for kernel stubs that
-    contain integer-valued fields with all supported stencil accesses. '''
-    ast = fpapi.parse(
-        os.path.join(BASE_PATH, "testkern_stencil_multi_int_field_mod.f90"),
-        ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    generated_code = str(kernel.gen_stub)
-    output = (
-        "  MODULE testkern_stencil_multi_int_field_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE testkern_stencil_multi_int_field_code(nlayers, "
-        "field_1_w2broken, field_2_w1, field_2_stencil_size, "
-        "field_2_stencil_dofmap, field_3_w0, field_3_stencil_size, "
-        "field_3_direction, field_3_stencil_dofmap, field_4_w2v, "
-        "field_4_stencil_size, field_4_stencil_dofmap, ndf_w2broken, "
-        "undf_w2broken, map_w2broken, ndf_w1, undf_w1, map_w1, "
-        "ndf_w0, undf_w0, map_w0, ndf_w2v, undf_w2v, map_w2v)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2broken\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2broken) :: "
-        "map_w2broken\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) :: "
-        "map_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_w2broken, undf_w1, "
-        "undf_w0, undf_w2v\n"
-        "      INTEGER(KIND=i_def), intent(inout), "
-        "dimension(undf_w2broken) :: field_1_w2broken\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(undf_w1) :: "
-        "field_2_w1\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(undf_w0) :: "
-        "field_3_w0\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(undf_w2v) :: "
-        "field_4_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in) :: field_2_stencil_size, "
-        "field_3_stencil_size, field_4_stencil_size\n"
-        "      INTEGER(KIND=i_def), intent(in) :: field_3_direction\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1,"
-        "field_2_stencil_size) :: field_2_stencil_dofmap\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0,"
-        "field_3_stencil_size) :: field_3_stencil_dofmap\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v,"
-        "field_4_stencil_size) :: field_4_stencil_dofmap\n"
-        "    END SUBROUTINE testkern_stencil_multi_int_field_code\n"
-        "  END MODULE testkern_stencil_multi_int_field_mod")
-    assert output in generated_code
-
-
 # Tests for invokes calling kernels that contain real- and
 # integer-valued fields
 
@@ -939,73 +791,3 @@ def test_int_real_field_fs(dist_mem, tmpdir):
             "      CALL f3_proxy%set_clean(1)\n")
         assert halo1_flags in generated_code
         assert halo2_flags in generated_code
-
-
-# Tests for kernel stubs containing real- and integer-valued fields
-
-
-def test_real_int_field_gen_stub():
-    ''' Test that we generate correct code for kernel stubs that
-    contain real- and integer-valued fields with basis and differential
-    basis functions on one real- and one integer-valued field.
-
-    '''
-    code = FIELD_CODE.replace(
-        "func_type(w1, gh_basis),",
-        "func_type(w1, gh_basis, gh_diff_basis),", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    generated_code = str(kernel.gen_stub)
-    output = (
-        "  MODULE testkern_field_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE testkern_field_code(nlayers, rscalar_1, field_2_w1, "
-        "field_3_w2, field_4_wtheta, field_5_w3, iscalar_6, ndf_w1, undf_w1, "
-        "map_w1, basis_w1_qr_xyoz, diff_basis_w1_qr_xyoz, ndf_w2, undf_w2, "
-        "map_w2, ndf_wtheta, undf_wtheta, map_wtheta, ndf_w3, undf_w3, "
-        "map_w3, basis_w3_qr_xyoz, diff_basis_w3_qr_xyoz, np_xy_qr_xyoz, "
-        "np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) :: "
-        "map_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_w1, undf_w2, "
-        "undf_wtheta, undf_w3\n"
-        "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: iscalar_6\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
-        "field_2_w1\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-        "field_3_w2\n"
-        "      INTEGER(KIND=i_def), intent(out), dimension(undf_wtheta) :: "
-        "field_4_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(undf_w3) :: "
-        "field_5_w3\n"
-        "      INTEGER(KIND=i_def), intent(in) :: np_xy_qr_xyoz, "
-        "np_z_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,"
-        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w1_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,"
-        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w1_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,"
-        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w3_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,"
-        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w3_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) :: "
-        "weights_xy_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) :: "
-        "weights_z_qr_xyoz\n"
-        "    END SUBROUTINE testkern_field_code\n"
-        "  END MODULE testkern_field_mod")
-    assert output in generated_code

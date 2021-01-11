@@ -271,7 +271,7 @@ def test_builtin_args_not_same_space():
             format(test_builtin_name.lower()) in str(excinfo.value))
 
 
-def test_builtin_integer_field_arg():
+def test_builtin_integer_field_arg(monkeypatch):
     ''' Check that we raise appropriate error if we encounter a built-in
     that takes a invalid field data type (here integer field). '''
     from psyclone.dynamo0p3_builtins import VALID_BUILTIN_FIELD_DATA_TYPES
@@ -281,13 +281,15 @@ def test_builtin_integer_field_arg():
     # Define the built-in name and test file
     test_builtin_name = "X_minus_bY"
     test_builtin_file = "15.2.4_" + test_builtin_name + "_builtin.f90"
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
+    builtins_file = os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
+    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+                        value=builtins_file)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      test_builtin_file),
         api=API)
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+                        value=old_name)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
