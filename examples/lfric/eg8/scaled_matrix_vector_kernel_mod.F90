@@ -86,8 +86,8 @@ contains
 !>        and y is a field in the same space as lhs
 !> @param[in] cell Horizontal cell index
 !! @param[in] nlayers Number of layers
+!! @param[in,out] lhs Output lhs (A*x)
 !! @param[in] x Input data
-!> @param[in,out] lhs Output lhs (A*x)
 !! @param[in] ncell_3d Total number of cells
 !! @param[in] matrix Local matrix assembly form of the operator A
 !! @param[in] y Field to scale output by

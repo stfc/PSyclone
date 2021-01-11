@@ -82,15 +82,15 @@ public matrix_vector_mm_code
 contains
 
 !> @brief The subroutine which is called directly by the Psy layer, computes mass_matrix*x
-!> @param[in]  cell the horizontal cell index
-!! @param[in] nlayers Integer the number of layers
-!! @param[in] ndf The number of degrees of freedom per cell
-!! @param[in] undf The unique number of degrees of freedom
-!! @param[in] map Integer array holding the dofmap for the cell at the base of the column
-!! @param[in] x Real array the data
-!> @param[in,out] lhs Real array, the output lhs (A*x)
-!! @param[in] ncell_3d total number of cells
-!! @param[in] mass_matrix Real: Array holding mass matrix values
+!> @param[in] cell Horizontal cell index
+!! @param[in] nlayers Number of layers
+!! @param[in,out] lhs The output lhs (A*x)
+!! @param[in] x The data
+!! @param[in] ncell_3d Total number of cells
+!! @param[in] mass_matrix Array holding mass matrix values
+!! @param[in] ndf Number of degrees of freedom per cell
+!! @param[in] undf Unique number of degrees of freedom
+!! @param[in] map Dofmap for the cell at the base of the column
 subroutine matrix_vector_mm_code(cell,        &
                                  nlayers,     &
                                  lhs, x,      &
