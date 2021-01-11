@@ -258,11 +258,16 @@ class PSy(object):
         self._name = invoke_info.name
         self._invokes = None
         # create an empty PSy layer container
-        self._psy_container = Container(self.name)
+        # TODO 1010: Alternatively the PSy object could be a Container itself
+        self._container = Container(self.name)
 
     @property
-    def psy_container(self):
-        return self._psy_container
+    def container(self):
+        '''
+        :returns: the container associated with this PSy object
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
+        '''
+        return self._container
 
     def __str__(self):
         return "PSy"
@@ -477,7 +482,7 @@ class Invoke(object):
         self._schedule = schedule_class(self._name, alg_invocation.kcalls,
                                         reserved_names)
         if self.invokes:
-            self.invokes.psy.psy_container.addchild(self._schedule)
+            self.invokes.psy.container.addchild(self._schedule)
 
         # let the schedule have access to me
         self._schedule.invoke = self
@@ -2775,15 +2780,13 @@ class CodedKern(Kern):
         routine with the appropriate arguments.
 
         '''
-
         symtab = self.scope.symbol_table
         rsymbol = RoutineSymbol(self._name)
         symtab.add(rsymbol)
         call_node = Call(rsymbol)
 
         # Swap itself with the appropriate Call node
-        index = self.parent.children.index(self)
-        self.parent.children[index] = call_node
+        self.parent.children[self.position] = call_node
         call_node.parent = self.parent
 
         # Add arguments as children

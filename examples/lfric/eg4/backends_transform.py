@@ -75,4 +75,4 @@ def trans(psy):
     # structures.
     sys.exit(0)
     fvisitor = FortranWriter()
-    print(fvisitor(psy.psy_container))
+    print(fvisitor(psy.container))

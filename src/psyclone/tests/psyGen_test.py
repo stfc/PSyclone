@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -518,8 +518,8 @@ def test_codedkern_lower_to_language_level():
     kern = schedule.children[0].loop_body[0]
 
     # TODO 1010: LFRic still needs psy.gen to create symbols. But these must
-    # eventually be created automatically before the gen() call, for new we
-    # manuannly create the symbols that appear in the PSyIR tree.
+    # eventually be created automatically before the gen() call, for now we
+    # manually create the symbols that appear in the PSyIR tree.
     schedule.symbol_table.add(Symbol("f1_proxy"))
     schedule.symbol_table.add(Symbol("f2_proxy"))
     schedule.symbol_table.add(Symbol("m1_proxy"))

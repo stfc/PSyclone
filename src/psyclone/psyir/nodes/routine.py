@@ -174,7 +174,8 @@ class Routine(Schedule):
 
         :param str new_name: new name for the Routine.
 
-        :raises TypeError: invalid value type given.
+        :raises TypeError: if new_name is not a string.
+
         '''
         if not isinstance(new_name, str):
             raise TypeError("Routine name must be a str but got "

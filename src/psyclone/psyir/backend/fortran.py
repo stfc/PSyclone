@@ -479,7 +479,7 @@ class FortranWriter(PSyIRVisitor):
         for symbol in symbol_table.symbols:
             if isinstance(symbol, RoutineSymbol):
 
-                # Skip the symbol representing the routine where this
+                # Skip the symbol representing the routine where these
                 # declarations belong
                 if symbol is itself:
                     continue
@@ -637,7 +637,7 @@ class FortranWriter(PSyIRVisitor):
         return result
 
     def routine_node(self, node):
-        '''This method is called when a KernelSchedule instance is found in
+        '''This method is called when a Routine node is found in
         the PSyIR tree.
 
         The constants_mod module is currently hardcoded into the

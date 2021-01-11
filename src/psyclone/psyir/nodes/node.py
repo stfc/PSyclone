@@ -1065,7 +1065,7 @@ class Node(object):
         '''
         In-place replacement of DSL or high-level concepts into generic
         PSyIR constructs. The generic implementation only recurses down
-        to it's children, but this method must be re-implemented by Nodes
+        to its children, but this method must be re-implemented by Nodes
         that represent high-level concepts.
 
         '''

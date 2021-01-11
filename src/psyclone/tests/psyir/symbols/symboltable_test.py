@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -407,9 +407,7 @@ def test_remove_routineymbols():
     table.'''
     sym_table = SymbolTable()
     symbol_a = RoutineSymbol("a")
-    symbol_b = RoutineSymbol("b")
     sym_table.add(symbol_a)
-    sym_table.add(symbol_b)
     assert "a" in sym_table
     sym_table.remove(symbol_a)
     assert "a" not in sym_table

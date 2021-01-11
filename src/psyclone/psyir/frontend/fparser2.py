@@ -1509,8 +1509,8 @@ class Fparser2Reader(object):
                     # Remove the RoutineSymbol in order to free the exact name
                     # for the DataSymbol.
                     symbol_table.remove(sym)
-                    # Lookup again to trigger the exception
-                    sym = symbol_table.lookup(sym_name, check_ancestors=False)
+                    # And trigger the exception path
+                    raise KeyError
                 if not sym.is_unresolved:
                     raise SymbolError(
                         "Symbol '{0}' already present in SymbolTable with "
@@ -1524,6 +1524,8 @@ class Fparser2Reader(object):
                 except ValueError:
                     # Error setting initial value have to be raised as
                     # NotImplementedError in order to create an UnknownType
+                    # Therefore, the Error doesn't need raise_from or message
+                    # pylint: disable=raise-missing-from
                     raise NotImplementedError()
                 # We don't want to check ancestor symbol tables as we're
                 # currently processing a *local* variable declaration.

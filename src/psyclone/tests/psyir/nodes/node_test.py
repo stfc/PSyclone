@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -901,7 +901,7 @@ def test_children_setter():
 def test_lower_to_language_level():
     ''' Test that Node has a lower_to_language_level() method that \
     recurses to the same method of its children. '''
-    # The manual monckeypatch needed in this test confuses pylint
+    # The manual monkeypatch needed in this test confuses pylint
     # pylint:disable=assignment-from-no-return, no-member
 
     testnode = Schedule()
@@ -909,7 +909,7 @@ def test_lower_to_language_level():
     node2 = Statement()
     testnode.children = [node1, node2]
 
-    # Manually monkeypatch method to mark a visited_flag when called
+    # Manual monkeypatch method to mark a visited_flag when called, 
     def visited(self):
         self._visited_flag = True
 

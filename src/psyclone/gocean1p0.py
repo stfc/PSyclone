@@ -116,10 +116,10 @@ class GOPSy(PSy):
         # Add GOcean infrastructure-specific libraries
         kind_params_sym = ContainerSymbol("kind_params_mod")
         kind_params_sym.wildcard_import = True
-        self._psy_container.symbol_table.add(kind_params_sym)
+        self.container.symbol_table.add(kind_params_sym)
         field_sym = ContainerSymbol("field_mod")
         field_sym.wildcard_import = True
-        self._psy_container.symbol_table.add(field_sym)
+        self.container.symbol_table.add(field_sym)
 
         # Create invokes
         self._invokes = GOInvokes(invoke_info.calls, self)
@@ -349,7 +349,15 @@ class GOInvoke(Invoke):
 class GOInvokeSchedule(InvokeSchedule):
     ''' The GOcean specific InvokeSchedule sub-class. We call the base class
     constructor and pass it factories to create GO-specific calls to both
-    user-supplied kernels and built-ins. '''
+    user-supplied kernels and built-ins.
+
+    :param str name: name of the Invoke.
+    :param alg_calls: list of KernelCalls parsed from the algorithm layer.
+    :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param reserved_names: optional list of names that are not allowed in the \
+                           new InvokeSchedule SymbolTable.
+    :type reserved_names: list of str
+    '''
     # Textual description of the node.
     _text_name = "GOInvokeSchedule"
 
