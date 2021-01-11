@@ -41,6 +41,7 @@ F90 ?= gfortran
 F90FLAGS ?= -g
 CC ?= gcc
 CFLAGS ?= -g
+CFLAGS += $$(python3-config --includes)
 
 # This defaults to the infrastructure library included in PSyclone
 LFRIC_DIR ?= ../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
@@ -68,7 +69,7 @@ psy_data_base.f90: ../../../psy_data_base.jinja Makefile
 	$(F90) $(F90FLAGS) -c $<
 
 %.o: %.c
-	$(CC) $(F90FLAGS) -c $<
+	$(CC) $(CFLAGS) -c $<
 
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.f90

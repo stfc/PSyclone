@@ -214,12 +214,16 @@ Then create a transformation script based on ``readonly_all_transform.py``
 script to instrument your application. Modify ``Makefile.readonly_all``
 to use your transformation script (using the ``-s`` flag). Do a
 
+```
     make clean
+```
 
 to make sure PSyclone will get invoked again, and recompile your application
 using
 
+```
     make -f makefile.readonly_all
+```
 
 If you run the created binary, nothing seems to happen.
 To see that the verification is actually working, set
@@ -236,12 +240,15 @@ It contains some commented out code at the bottom that will overwrite
 a read-only field by using out-of-bounds array accesses. Look for the
 comment:
 
+```
     ! FOR READONLY VERIFICATION
+```
 
 in the file, Obviously you need make sure not to enable any array bounds
 checking in the compiler. After recompiling and running (even without
 setting ``PSYDATA_VERBOSE``), you will see:
 
+```
     20201120203040.272+1100:INFO : time_evolution_alg_step: Propagating perturbation field at timestep 1
      ------------- PSyData -------------------------
      Double precision field chi(1) has been modified in time_evolution : invoke_propagate_perturbation
@@ -249,6 +256,7 @@ setting ``PSYDATA_VERBOSE``), you will see:
      New checksum:       -5811961289819291648
      ------------- PSyData -------------------------
     20201120203040.286+1100:INFO : Min/max perturbation =   0.00000000E+00  0.41618197E+04
+```
 
 Note that this error is only printed in the first time step. After the first modification
 the modified value is not changed again in the application, so no change to the read-only
@@ -258,9 +266,10 @@ field is detected.
 This library verifies that all input- and output-parameters of a kernel are
 neither NAN nor an infinite number. If such a value is detected, a message
 like this will be printed:
-
+```
      PSYDATA: Variable perturbation has the invalid value
                        NaN  at index/indices        85241
+```
 
 The transformation ``NanTestTrans`` is imported from ``psyclone.psyir.transformations``.
 You can use the template ``nan_all_transform.py`` for your script, and ``Makefile.nan_all``
@@ -272,10 +281,25 @@ tests are actually happening. Alternatively, the file
 ``prop_perturbation_kernel_mod.f90`` contains code that you can uncomment that will
 introduce a NAN into the result field. Search for the comment
 
+```
     ! FOR NAN VERIFICATION:
+```
 
 in this file and uncomment the indicated lines. Then recompile and run your application.
 When you run this application again, a significant number of NANs will be reported (over 500k).
 While we only overwrite one entry in a field in the kernel, this LFRic kernel is called once
 for each column. And after the first time this is reported as an invalid input parameter,
 and then as an invalid output value.
+
+### In situ visualisation
+``Makefile.vis`` uses the visualisation transformation to implement in situ visualisation
+of the perturbation data. At this stage it needs python3, and the python3 development
+package must be installed. 
+Note that ``python3-config --ldflags`` command does **not** specify the actual Python
+library to be linked, it needs to be added explicitly in Makefile.vis:
+
+```
+    ADD_LINK_FLAGS = $$(python3-config --ldflags) -lpython3.8
+```
+
+This might need to be changed if you have a different Python version installed.

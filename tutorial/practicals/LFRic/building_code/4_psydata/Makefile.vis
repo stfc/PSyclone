@@ -36,6 +36,7 @@
 # Setting for the PSyData extraction library
 PSYDATA_PATH?=$(PSYCLONE_RELPATH)/lib/visualisation/pyplot/lfric
 PSYDATA_LIB_NAME?=visualisation
+ADD_LINK_FLAGS = $$(python3-config --ldflags) -lpython3.8
 
 include Makefile.inc
 

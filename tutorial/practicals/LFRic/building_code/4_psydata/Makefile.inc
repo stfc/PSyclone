@@ -84,7 +84,8 @@ build: test $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(GHLIB_LIB) $(EXAMPLE_OBJ)
 	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) \
-	-l$(LFRIC_NAME) -L$(PSYDATA_PATH) -l$(PSYDATA_LIB_NAME) $$(nf-config --flibs) -L$(GHLIB_PATH) -l$(GHLIB_NAME)
+	-l$(LFRIC_NAME) -L$(PSYDATA_PATH) -l$(PSYDATA_LIB_NAME) $$(nf-config --flibs) -L$(GHLIB_PATH) -l$(GHLIB_NAME) \
+	$(ADD_LINK_FLAGS)
 
 $(GHLIB_LIB):
 	$(MAKE) -C $(GHLIB_PATH)
