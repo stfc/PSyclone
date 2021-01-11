@@ -103,8 +103,9 @@ def test_ad_field_invalid_data_type():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("In the LFRic API the 2nd argument of a 'meta_arg' entry should "
-            "be a valid data type (one of ['gh_real', 'gh_integer']), but "
-            "found 'gh_unreal' in 'arg_type(gh_field, gh_unreal, gh_inc, w1)'."
+            "be a valid data type (one of {0}), but found 'gh_unreal' "
+            "in 'arg_type(gh_field, gh_unreal, gh_inc, w1)'.".
+            format(LFRicArgDescriptor.VALID_FIELD_DATA_TYPES)
             in str(excinfo.value))
     # Check integer field
     code = FIELD_CODE.replace(
@@ -113,10 +114,8 @@ def test_ad_field_invalid_data_type():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API the 2nd argument of a 'meta_arg' entry should "
-            "be a valid data type (one of ['gh_real', 'gh_integer']), but "
-            "found 'gh_double' in 'arg_type(gh_field, gh_double, gh_read, "
-            "w3)'." in str(excinfo.value))
+    assert ("but found 'gh_double' in 'arg_type(gh_field, gh_double, "
+            "gh_read, w3)'." in str(excinfo.value))
 
 
 def test_ad_field_init_wrong_data_type(monkeypatch):

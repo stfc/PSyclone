@@ -796,42 +796,15 @@ class DynKernMetadata(KernelType):
         Identify and return the type of CMA-operator-related operation
         this kernel performs (one of "assemble", "apply" or "matrix-matrix")
 
-        :param cwise_ops: all column-wise arguments in a kernel.
+        :param cwise_ops: all column-wise operator arguments in a kernel.
         :type cwise_ops: list of str
 
         :returns: the type of CMA-operator-related operation that this \
                   kernel performs.
         :rtype: str
 
-        :raises ParseError: if a CMA kernel has a vector argument.
-        :raises ParseError: if a CMA kernel has an argument with a \
-                            stencil access.
-        :raises ParseError: if a CMA kernel has a field argument with an \
-                            invalid data type (other than 'gh_real').
-        :raises ParseError: if a CMA-apply (read-only) kernel has more than \
-                            one CMA operator argument.
-        :raises ParseError: if a CMA-apply (read-only) kernel has fewer than \
-                            3 arguments of which two must be fields.
-        :raises ParseError: if a CMA-apply (read-only) kernel has more than \
-                            one read-only field.
-        :raises ParseError: if a CMA-apply (read-only) kernel writes to more \
-                            than one field.
-        :raises ParseError: if a CMA-apply (read-only) kernel reads from a \
-                            field argument on a function space different \
-                            from the 'from' space of the CMA operator argument.
-        :raises ParseError: if a CMA-apply (read-only) kernel writes to a \
-                            field argument on a function space different from \
-                            the 'to' space of the CMA operator argument.
-        :raises ParseError: if a CMA kernel that updates a CMA operator \
-                            argument also updates other argument types.
-        :raises ParseError: if a CMA-assemble kernel that updates a CMA \
-                            operator argument does not have any read-only \
-                            LMA operator arguments.
-        :raises ParseError: if a CMA-matrix-matrix kernel that updates a CMA \
-                            operator argument does not have only scalar and \
-                            CMA operator arguments.
-        :raises ParseError: if a CMA kernel updates more than one CMA \
-                            operator argument.
+        :raises ParseError: if the kernel metadata does not conform to the \
+                            LFRic rules for a kernel with a CMA operator.
 
         '''
         for arg in self._arg_descriptors:
@@ -2768,7 +2741,7 @@ class DynFields(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         :raises InternalError: for an unsupported intrinsic type of field \
-                               argument data (other than "real" or "integer").
+                               argument data.
         :raises GenerationError: if the same field has different data \
                                  types in different kernel calls within \
                                  the same Invoke.
@@ -2836,8 +2809,8 @@ class DynFields(DynCollection):
                        stub to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
-        :raises InternalError: for an unsupported intrinsic type of field \
-                               argument data (other than "real" or "integer").
+        :raises InternalError: for an unsupported data type of field \
+                               argument data.
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
@@ -2849,14 +2822,16 @@ class DynFields(DynCollection):
             intent = fld.intent
             dtype = fld.intrinsic_type
 
-            # Check for invalid intrinsic type
-            if dtype not in MAPPING_DATA_TYPES.values():
+            # Check for invalid descriptor data type
+            fld_ad_dtype = fld.descriptor.data_type
+            if (fld_ad_dtype not in
+                    LFRicArgDescriptor.VALID_FIELD_DATA_TYPES):
                 raise InternalError(
-                    "Found an unsupported intrinsic type '{0}' in kernel "
+                    "Found an unsupported data type '{0}' in kernel "
                     "stub declarations for the field argument '{1}'. "
                     "Supported types are {2}.".
-                    format(dtype, fld.declaration_name,
-                           list(MAPPING_DATA_TYPES.values())))
+                    format(fld_ad_dtype, fld.declaration_name,
+                           LFRicArgDescriptor.VALID_FIELD_DATA_TYPES))
 
             if fld.vector_size > 1:
                 for idx in range(1, fld.vector_size+1):
@@ -5057,16 +5032,17 @@ class DynInvoke(Invoke):
         '''
         Returns a list of all required proxy declarations for the specified
         argument types. If access is supplied (e.g. "AccessType.WRITE")
-        then only declarations with that access are returned. If data type
-        is supplied then only declarations with that data type are returned.
+        then only declarations with that access are returned. If an intrinsic
+        type is supplied then only declarations with that intrinsic type
+        are returned.
 
         :param argument_types: argument types that proxy declarations are \
                                searched for.
         :type argument_types: list of str
         :param access: optional AccessType for the specified argument type.
         :type access: :py:class:`psyclone.core.access_type.AccessType`
-        :param data_type: optional intrinsic type of argument data.
-        :type data_type: str
+        :param intrinsic_type: optional intrinsic type of argument data.
+        :type intrinsic_type: str
 
         :returns: a list of all required proxy declarations for the \
                   specified argument type.
