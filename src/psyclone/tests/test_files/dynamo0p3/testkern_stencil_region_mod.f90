@@ -33,8 +33,7 @@
 ! Author R. W. Ford, STFC Daresbury Lab
 ! Modified I. Kavcic, A. Coughtrie, Met Office
 
-! An example of region stencil metadata - not yet supported in LFRic. The
-! related PSyclone issue is #194.
+! An example of region stencil metadata
 module testkern_stencil_region_mod
 
   use argument_mod
