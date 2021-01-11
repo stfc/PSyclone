@@ -95,8 +95,11 @@ def test_accroutine_err(monkeypatch):
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         _ = rtrans.apply(kern)
-    assert ("Failed to find subroutine source for kernel testkern_code"
-            in str(err.value))
+    assert(
+        "Failed to create PSyIR version of kernel code for kernel "
+        "'testkern_code'. Error reported is Generation Error: Unexpected "
+        "kernel AST. Could not find subroutine: testkern_code."
+        in str(err.value))
 
 
 def test_accroutine_module_use():
@@ -111,22 +114,6 @@ def test_accroutine_module_use():
         _ = rtrans.apply(kernels[0])
     assert ("global scope: ['rdt']. If these symbols represent data then they"
             " must first" in str(err.value))
-
-
-def test_accroutine_rejects_transformed_kernel():
-    ''' Check that the ACCRoutineTrans rejects an already-transformed
-    kernel (because it still works with the fparser2 parse tree and not
-    the PSyIR - Issue #490). '''
-    rtrans = ACCRoutineTrans()
-    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
-    sched = invoke.schedule
-    kern = sched.coded_kernels()[0]
-    # Pretend that this kernel has previously been transformed
-    kern.modified = True
-    with pytest.raises(TransformationError) as err:
-        rtrans.apply(kern)
-    assert ("Cannot transform kernel 'continuity_code' because it has "
-            "previously been transformed" in str(err.value))
 
 
 def test_accroutine():
@@ -433,56 +420,6 @@ def test_builtin_no_trans():
         _ = rtrans.apply(kernels[0])
     assert ("ACCRoutineTrans to a built-in kernel is not yet supported and "
             "kernel 'x_plus_y' is of type " in str(err.value))
-
-
-def test_no_inline_before_trans(kernel_outputdir, monkeypatch):
-    ''' Check that we reject attempts to transform kernels that have been
-    marked for module in-lining. Issue #229. '''
-
-    from psyclone.transformations import KernelModuleInlineTrans
-    psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
-                             idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    assert len(kernels) == 5
-    inline_trans = KernelModuleInlineTrans()
-    rtrans = ACCRoutineTrans()
-    _, _ = inline_trans.apply(kernels[1])
-    with pytest.raises(TransformationError) as err:
-        _, _ = rtrans.apply(kernels[1])
-    assert "because it will be module-inlined" in str(err.value)
-    # Monkeypatch the validate() routine so we can check that we catch
-    # the error at code-generation time
-    monkeypatch.setattr(rtrans, "validate", lambda kern, options: None)
-    _, _ = rtrans.apply(kernels[1])
-    with pytest.raises(NotImplementedError) as err:
-        _ = str(psy.gen).lower()
-    assert "Cannot module-inline a transformed kernel " in str(err.value)
-
-
-def test_no_inline_after_trans(monkeypatch):
-    ''' Check that we reject attempts to inline a previously transformed
-    kernel. Issue #229. '''
-    from psyclone.transformations import KernelModuleInlineTrans
-    _, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
-                           idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    assert len(kernels) == 5
-    # Transform the kernel first
-    inline_trans = KernelModuleInlineTrans()
-    rtrans = ACCRoutineTrans()
-    _, _ = rtrans.apply(kernels[1])
-    # Then attempt to inline it
-    with pytest.raises(TransformationError) as err:
-        _, _ = inline_trans.apply(kernels[1])
-    assert "because it has previously been transformed" in str(err.value)
-    # Monkeypatch the validate() routine so we can check that we catch
-    # the error at the psyGen level too.
-    monkeypatch.setattr(inline_trans, "validate", lambda node, inline: None)
-    with pytest.raises(NotImplementedError) as err:
-        _, _ = inline_trans.apply(kernels[1])
-    assert "Cannot module-inline a transformed kernel " in str(err.value)
 
 
 def test_no_inline_global_var():

@@ -41,6 +41,8 @@
 
 from __future__ import absolute_import, print_function
 from psyclone.errors import GenerationError
+from psyclone.psyir.transformations import ProfileTrans
+from psyclone.psyGen import Kern, Directive, ACCDirective
 
 
 class Profiler():
@@ -104,19 +106,42 @@ class Profiler():
     def add_profile_nodes(schedule, loop_class):
         '''This function inserts all required Profiling Nodes (for invokes
         and kernels, as specified on the command line) into a schedule.
-        :param schedule: The schedule to instrument.
-        :type schedule: :py:class:`psyclone.psyGen.InvokeSchedule` or \
-                        derived class
-        :param loop_class: The loop class (e.g. GOLoop, DynLoop) to instrument.
-        :type loop_class: :py:class:`psyclone.psyir.nodes.Loop` or \
-                          derived class.
-        '''
 
-        from psyclone.psyir.transformations import ProfileTrans
+        :param schedule: The schedule to instrument.
+        :type schedule: :py:class:`psyclone.psyGen.InvokeSchedule` or subclass
+        :param loop_class: The loop class (e.g. GOLoop, DynLoop) to instrument.
+        :type loop_class: :py:class:`psyclone.psyir.nodes.Loop` or subclass
+
+        '''
         profile_trans = ProfileTrans()
         if Profiler.profile_kernels():
-            for i in schedule.children:
-                if isinstance(i, loop_class):
-                    profile_trans.apply(i)
+            kernels = schedule.walk(Kern)
+            for kernel in kernels:
+                # For each kernel, we walk back up to find the outermost loop
+                # of the specified class
+                target = None
+                parent_loop = kernel.ancestor(loop_class)
+                while parent_loop:
+                    nchildren = len(parent_loop.loop_body.children)
+                    if nchildren != 1:
+                        # We only permit tightly-nested loops
+                        break
+                    target = parent_loop
+                    parent_loop = parent_loop.ancestor(loop_class)
+                # We only add profiling if we're not within some OpenACC
+                # region (as otherwise, the PSyData routines being called
+                # would have to be compiled for the GPU).
+                if target and not target.ancestor(ACCDirective):
+                    # Have to take care that the target loop does not have
+                    # a directive applied to it. We distinguish this case
+                    # from that of a directive defining a region by checking
+                    # the number of children of the directive.
+                    if (isinstance(target.parent.parent, Directive) and
+                            len(target.parent.parent.dir_body.children) == 1):
+                        # Parent is a Directive that has only the current
+                        # loop as a child. Therefore, enclose the Directive
+                        # within the profiling region too.
+                        target = target.parent.parent
+                    profile_trans.apply(target)
         if Profiler.profile_invokes():
             profile_trans.apply(schedule.children)

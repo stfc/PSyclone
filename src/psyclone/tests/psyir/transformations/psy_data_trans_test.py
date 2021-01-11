@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modifications: R. W. Ford, STFC Daresbury Lab
+#                A. R. Porter, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
@@ -44,6 +45,15 @@ from psyclone.psyir.nodes import colored, PSyDataNode, SCHEDULE_COLOUR_MAP
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyGen import Loop
 from psyclone.tests.utilities import get_invoke
+
+
+# -----------------------------------------------------------------------------
+def test_psy_data_trans_empty_list():
+    ''' Check that the transformation rejects an empty list of nodes. '''
+    data_trans = PSyDataTrans()
+    with pytest.raises(TransformationError) as err:
+        data_trans.apply([])
+    assert "Cannot apply transformation to an empty list" in str(err.value)
 
 
 # -----------------------------------------------------------------------------

@@ -69,7 +69,8 @@ F90FLAGS ?= -g -O0
 
 # How we run Jupyter notebooks. We explicitly specify which python kernel
 # to use as otherwise it is taken from the notebook meta-data and this might
-# not agree with what's currently available (particularly on Travis).
+# not agree with what's currently available (particularly in a CI
+# environment).
 JUPYTER = jupyter nbconvert --ExecutePreprocessor.kernel_name=${PYTHON} \
                  --to notebook --execute
 

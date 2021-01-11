@@ -37,8 +37,10 @@ include ../common.mk
 
 transform:
 	${PYTHON} create.py
+	${PYTHON} create_aggregate_types.py
 
 all: transform
 
-compile: all
+compile:
+	@echo "No compilation supported for the PSyIR creation examples"
 
