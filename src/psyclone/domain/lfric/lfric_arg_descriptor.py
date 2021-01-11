@@ -42,6 +42,7 @@ and properties.
 # Imports
 from __future__ import print_function, absolute_import
 import os
+import six
 from psyclone.parse.kernel import Descriptor, get_stencil, get_mesh
 from psyclone.parse.utils import ParseError
 import psyclone.expression as expr
@@ -96,7 +97,7 @@ class LFRicArgDescriptor(Descriptor):
     VALID_ARG_DATA_TYPES = ["gh_real", "gh_integer"]
     VALID_SCALAR_DATA_TYPES = VALID_ARG_DATA_TYPES
     VALID_FIELD_DATA_TYPES = VALID_ARG_DATA_TYPES
-    VALID_OPERATOR_DATA_TYPES = [VALID_ARG_DATA_TYPES[0]]
+    VALID_OPERATOR_DATA_TYPES = ["gh_real"]
 
     # Supported LFRic API stencil types and directions
     VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region",
@@ -209,7 +210,7 @@ class LFRicArgDescriptor(Descriptor):
         if fld_or_op_arg:
             api_config = Config.get().api_conf(API)
             access_mapping = api_config.get_access_mapping()
-            if arg_type.args[2].name in access_mapping.keys():
+            if arg_type.args[2].name in access_mapping:
                 if dtype in LFRicArgDescriptor.VALID_ARG_DATA_TYPES:
                     self._data_type = dtype
                     self._offset = 1
@@ -220,8 +221,6 @@ class LFRicArgDescriptor(Descriptor):
                         "but found '{1}' in '{2}'.".
                         format(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
                                dtype, arg_type))
-            else:
-                pass
 
         # Check number of args (in general and also for scalar arguments).
         # We require at least three (two for old-style metadata).
@@ -236,23 +235,22 @@ class LFRicArgDescriptor(Descriptor):
                 "{0} args, but found {1} in '{2}'.".
                 format(min_nargs, self._nargs, arg_type))
 
-        # The 3rd arg for scalars and 2nd arg for fields and operators is an
-        # access descriptor. Permitted accesses for each argument type are
-        # dealt with in the related _init methods.
+        # The 3rd arg is an access descriptor. Permitted accesses for each
+        # argument type are dealt with in the related _init methods.
         # Convert from GH_* names to the generic access type
         api_config = Config.get().api_conf(API)
         access_mapping = api_config.get_access_mapping()
         prop_ind = 1 + self._offset
         try:
             self._access_type = access_mapping[arg_type.args[prop_ind].name]
-        except KeyError:
+        except KeyError as err:
             valid_names = api_config.get_valid_accesses_api()
-            raise ParseError(
+            six.raise_from(ParseError(
                 "In the LFRic API argument {0} of a 'meta_arg' entry "
                 "must be a valid access descriptor (one of {1}), but found "
                 "'{2}' in '{3}'.".
                 format(prop_ind+1, valid_names, arg_type.args[prop_ind].name,
-                       arg_type))
+                       arg_type)), err)
 
         # Check for the allowed iteration spaces from the parsed kernel
         # metadata
@@ -320,12 +318,12 @@ class LFRicArgDescriptor(Descriptor):
         # an error if it is not an integer number...
         try:
             vectsize = int(arg_type.args[0].toks[2])
-        except TypeError:
-            raise ParseError(
+        except TypeError as err:
+            six.raise_from(ParseError(
                 "In the LFRic API, the field vector notation must be in "
                 "the format 'field*n' where 'n' is an integer, but the "
                 "following '{0}' was found in '{1}'.".
-                format(str(arg_type.args[0].toks[2]), arg_type))
+                format(str(arg_type.args[0].toks[2]), arg_type)), err)
         # ... or it is less than 2 (1 is the default for all fields)...
         if vectsize < 2:
             raise ParseError(
@@ -411,8 +409,7 @@ class LFRicArgDescriptor(Descriptor):
                 format(nargs_field_max, LFRicArgDescriptor.VALID_FIELD_NAMES,
                        self._nargs, arg_type))
 
-        # Check whether an invalid data type for a field argument is passed
-        # in. Valid data types for fields are valid data types in LFRic API.
+        # Check whether an invalid data type for a field argument is passed in.
         # TODO in #874: Remove the support for old-style field metadata that
         #               prescribes the data type.
         if not self._data_type and self._offset == 0:
@@ -424,13 +421,13 @@ class LFRicArgDescriptor(Descriptor):
                 format(LFRicArgDescriptor.VALID_FIELD_DATA_TYPES,
                        self._data_type))
 
-        # The 4th argument must be a valid function space name
+        # The 4th argument must be a valid function-space name
         prop_ind = 2 + self._offset
         if arg_type.args[prop_ind].name not in \
            FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
                 "In the LFRic API argument {0} of a 'meta_arg' field entry "
-                "must be a valid function space name (one of {1}) if its "
+                "must be a valid function-space name (one of {1}) if its "
                 "first argument is of {2} type, but found '{3}' in '{4}'.".
                 format(prop_ind+1, FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
                        LFRicArgDescriptor.VALID_FIELD_NAMES,
@@ -452,12 +449,12 @@ class LFRicArgDescriptor(Descriptor):
                 else:
                     raise ParseError("Unrecognised metadata entry")
             except ParseError as err:
-                raise ParseError(
+                six.raise_from(ParseError(
                     "In the LFRic API argument {0} of a 'meta_arg' field "
                     "entry must be either a valid stencil specification"
                     "or a mesh identifier (for inter-grid kernels). However, "
                     "entry '{1}' raised the following error: {2}.".
-                    format(prop_ind+1, arg_type, str(err)))
+                    format(prop_ind+1, arg_type, str(err))), err)
 
         # Test allowed accesses for fields
         field_disc_accesses = [AccessType.READ, AccessType.WRITE,
@@ -599,7 +596,7 @@ class LFRicArgDescriptor(Descriptor):
            FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
                 "In the LFRic API argument {0} of a 'meta_arg' operator "
-                "entry must be a valid function space to- name (one of "
+                "entry must be a valid function-space name (one of "
                 "{1}), but found '{2}' in '{3}'.".
                 format(prop_ind+1, FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
                        arg_type.args[prop_ind].name, arg_type))
@@ -610,7 +607,7 @@ class LFRicArgDescriptor(Descriptor):
            FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
             raise ParseError(
                 "In the LFRic API argument {0} of a 'meta_arg' operator "
-                "entry must be a valid function space from- name (one of "
+                "entry must be a valid function-space name (one of "
                 "{1}), but found '{2}' in '{3}'.".
                 format(prop_ind+1, FunctionSpace.VALID_FUNCTION_SPACE_NAMES,
                        arg_type.args[prop_ind].name, arg_type))

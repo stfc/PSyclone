@@ -146,37 +146,9 @@ def test_ad_op_type_too_many_args():
     assert "'meta_arg' entry must have 5 arguments" in str(excinfo.value)
 
 
-def test_ad_op_type_invalid_fs_to():
+def test_ad_op_type_4th_arg_not_space():
     ''' Tests that an error is raised when the 4th entry in the operator
-    descriptor metadata is invalid (should be a function space to-). '''
-    code = CODE.replace(
-        "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
-        "arg_type(gh_operator, gh_real,    gh_read, woops, w2)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_qr_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("LFRic API argument 4 of a 'meta_arg' operator entry "
-            "must be a valid function space to- name" in str(excinfo.value))
-
-
-def test_ad_op_type_invalid_fs_from():
-    ''' Tests that an error is raised when the 5th entry in the operator
-    descriptor metadata is invalid (should be a function space from-). '''
-    code = CODE.replace(
-        "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
-        "arg_type(gh_operator, gh_real,    gh_read, w2, woops)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_qr_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("LFRic API argument 5 of a 'meta_arg' operator entry "
-            "must be a valid function space from- name" in str(excinfo.value))
-
-
-def test_ad_op_type_1st_arg_not_space():
-    ''' Tests that an error is raised when the operator descriptor
-    metadata contains something that is not a valid space. '''
+    metadata contains something that is not a valid function space. '''
     code = CODE.replace(
         "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
         "arg_type(gh_operator, gh_real,    gh_read, wbroke, w2)", 1)
@@ -184,8 +156,22 @@ def test_ad_op_type_1st_arg_not_space():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("'meta_arg' operator entry must be a valid function space" in
-            str(excinfo.value))
+    assert ("LFRic API argument 4 of a 'meta_arg' operator entry "
+            "must be a valid function-space name" in str(excinfo.value))
+
+
+def test_ad_op_type_5th_arg_not_space():
+    ''' Tests that an error is raised when the 5th entry in the operator
+    metadata contains something that is not a valid function space. '''
+    code = CODE.replace(
+        "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
+        "arg_type(gh_operator, gh_real,    gh_read, w2, wbroke)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("LFRic API argument 5 of a 'meta_arg' operator entry "
+            "must be a valid function-space name" in str(excinfo.value))
 
 
 def test_no_vector_operator():

@@ -693,7 +693,7 @@ def test_cma_mdata_stencil_invalid():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("In the LFRic API argument 5 of a 'meta_arg' operator entry must "
-            "be a valid function space from- name") in str(excinfo.value)
+            "be a valid function-space name") in str(excinfo.value)
     code = CMA_MATRIX.replace(
         "                 ANY_SPACE_1, ANY_SPACE_2)  &\n",
         "                 ANY_SPACE_1, ANY_SPACE_2, stencil(cross)) &\n", 1)
