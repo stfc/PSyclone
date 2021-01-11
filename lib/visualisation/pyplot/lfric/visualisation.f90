@@ -42,7 +42,7 @@ module visualisation_psy_data_mod
 
     use, intrinsic :: iso_fortran_env, only : real64, &
                                               stderr=>Error_Unit
-    use, intrinsic :: iso_c_binding, only: c_int
+    use, intrinsic :: iso_c_binding, only: c_int, c_double
 
     use psy_data_base_mod, only: PSyDataBaseType
 
@@ -55,7 +55,7 @@ module visualisation_psy_data_mod
     !! file).
     type, extends(PSyDataBaseType), public:: visualisation_PsyDataType
  
-        real, allocatable, dimension(:,:) :: chi
+    logical :: grid_defined = .False.
 
     contains
         ! The various procedures defined here
@@ -76,14 +76,39 @@ module visualisation_psy_data_mod
 
     ! Interface to C-wrapper that calls python
     interface
-      function python_caller(flock_num) bind(C, name="python_caller")
+      function initialise_python() bind(C, name="initialise_python")
         ! Interface blocks don't know about their context,
         ! so we need to use iso_c_binding to get c_int definition
-        !use, intrinsic::iso_c_binding, only : c_int
-        import :: c_int
-        integer(c_int) :: flock_num
-        integer(c_int) :: python_caller
-      end function python_caller
+        import :: c_int, c_double
+        ! Return value
+        integer(c_int) :: initialise_python
+      end function initialise_python
+    end interface
+
+    interface
+      function set_grid(n_chi, chi1, chi2, chi3) bind(C, name="set_grid")
+        ! Interface blocks don't know about their context,
+        ! so we need to use iso_c_binding to get c_int definition
+        import :: c_int, c_double
+        ! Return value
+        integer(c_int) :: set_grid
+        integer(c_int) :: n_chi
+        real(kind=c_double), dimension(*), intent(inout) :: chi1
+        real(kind=c_double), dimension(*), intent(inout) :: chi2
+        real(kind=c_double), dimension(*), intent(inout) :: chi3
+      end function set_grid
+    end interface
+
+    interface
+      function update_plot_data(n_field, field) bind(C, name="update_plot_data")
+        ! Interface blocks don't know about their context,
+        ! so we need to use iso_c_binding to get c_int definition
+        import :: c_int, c_double
+        ! Return value
+        integer(c_int) :: update_plot_data
+        integer(c_int) :: n_field
+        real(kind=c_double), dimension(*), intent(inout) :: field
+      end function update_plot_data
     end interface
 
 Contains
@@ -110,8 +135,6 @@ Contains
 
         value_proxy = value%get_proxy()
         call this%PreDeclareVariable(name, value_proxy%data)
-        result = python_caller(cc)
-        print *,"from c", result
     end subroutine DeclareField
 
     ! -------------------------------------------------------------------------
@@ -131,6 +154,7 @@ Contains
         type(field_type), intent(in)                            :: value
 
         type(field_proxy_type) :: value_proxy
+        integer(c_int) :: result, n_field, n_chi
 
         value_proxy = value%get_proxy()
         call this%ProvideVariable(name, value_proxy%data)
@@ -139,6 +163,10 @@ Contains
                             trim(this%module_name), " ",               &
                             trim(this%region_name), ": ", name
 
+        n_field = size(value_proxy%data)
+        value_proxy%data(1) = 1.234
+        value_proxy%data(size(value_proxy%data)) = 9.876
+        result = update_plot_data(n_field, value_proxy%data)
     end subroutine ProvideField
 
     ! -------------------------------------------------------------------------
@@ -157,8 +185,9 @@ Contains
         type(field_type), dimension(:), intent(in)              :: value
 
         integer                :: i
-        type(field_proxy_type) :: value_proxy
+        type(field_proxy_type) :: value_proxy1, value_proxy2, value_proxy3
         character(9)           :: number
+        integer(c_int)         :: result, n_chi
 
         if (size(value, 1) .ne. 3) then
             write(stderr, *) "PSyData: Vector field '", name,"' should have 3 dimensions,"
@@ -166,15 +195,16 @@ Contains
             call this%Abort("Invalid dimension")
         endif
 
-        if( .not. allocated(this%chi)) then
+        if( .not. this%grid_defined) then
+            result = initialise_python()
+
+            value_proxy1 = value(1)%get_proxy()
+            value_proxy2 = value(2)%get_proxy()
+            value_proxy3 = value(3)%get_proxy()
+            n_chi = size(value_proxy1%data)
             ! First time, store the chi field vector
-            value_proxy = value(1)%get_proxy()
-            print *,"Copying ",size(value_proxy%data)
-            allocate(this%chi(size(value_proxy%data), 3))
-            do i=1, 3
-                value_proxy = value(i)%get_proxy()
-                this%chi(:,i) = value_proxy%data(:)
-            enddo
+            result = set_grid(n_chi, value_proxy1%data, value_proxy2%data, value_proxy3%data)
+            this%grid_defined = .true.
         endif
 
         if(this%verbosity==2) then
