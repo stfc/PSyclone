@@ -1257,6 +1257,11 @@ spaces associated with the arguments listed in ``meta_args``.  In this
 case we require both for the W0 function space but only basis
 functions for W1.
 
+.. note:: Basis and differential basis functions for both ``real``- and
+          ``integer``-valued field arguments have ``real`` values on the
+          points on which these functions are :ref:`required
+          <dynamo0.3-gh-shape>`.
+
 meta_reference_element
 ######################
 
@@ -1343,7 +1348,7 @@ gh_shape and gh_evaluator_targets
 If a kernel requires basis or differential-basis functions then the
 metadata must also specify the set of points on which these functions
 are required. This information is provided by the ``gh_shape``
-component of the metadata.  Currently PSyclone supports four shapes;
+component of the metadata. Currently PSyclone supports four shapes;
 ``gh_quadrature_XYoZ`` for Gaussian quadrature points,
 ``gh_quadrature_face`` for quadrature points on cell faces,
 ``gh_quadrature_edge`` for quadrature points on cell edges and
@@ -2067,13 +2072,13 @@ are listed in the table below.
 |               |            |                | GH_READWRITE       |
 +---------------+------------+----------------+--------------------+
 
-.. note:: *Since the LFRic infrastructure does not currently support
+.. note:: Since the LFRic infrastructure does not currently support
           integer reductions, integer scalar arguments in Built-ins
-          are restricted to having read-only access.*
+          are restricted to having read-only access.
 
-.. note:: *Built-ins are currently implemented only for real-valued
-          fields and will be extended to update integer-valued fields
-          in issue #853.*
+.. note:: Built-ins are currently implemented only for ``real``-valued
+          fields and will be extended to update ``integer``-valued fields
+          in issue #853.
 
 .. _dynamo0.3-built-ins-names:
 

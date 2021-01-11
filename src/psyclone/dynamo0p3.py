@@ -2754,6 +2754,8 @@ class DynFields(DynCollection):
                 kern.arguments.args,
                 arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES))
         # Create lists of field names for real- and integer-valued fields
+        # TODO in #1047: Improve implementation of argument lists creation
+        # and intrinsic type checks.
         real_fld_arg_list = []
         int_fld_arg_list = []
         for fld in fld_args:
@@ -3222,6 +3224,10 @@ class DynScalarArgs(DynCollection):
         super(DynScalarArgs, self).__init__(node)
 
         # Create lists of real and integer scalar arguments
+        # TODO in #1047: Improve implementation of argument lists creation
+        # and intrinsic type checks (also checking that the same
+        # scalar argument is declared as `gh_real` and `gh_integer`
+        # in different kernels within the same Invoke).
         self._real_scalar_names = {}
         self._int_scalar_names = {}
         scalar_args = {}
