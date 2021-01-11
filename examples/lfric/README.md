@@ -49,7 +49,7 @@ psyclone -s ./colouring_and_omp.py -nodm solver_mod.x90
 ```
 
 This example also demonstrates the use of `Wchi` function space metadata
-for coordinate fields in LFRic.
+for coordinate fields and the use of `integer`-valued fields in LFRic.
 
 ## Example 4: Multiple Built-in Calls and Named Invokes
 
@@ -293,28 +293,7 @@ cd eg16/
 python create.py
 ```
 
-## Example 17: Integer Fields
-
-This example demonstrates the code generation for integer fields in
-PSyclone LFRic (Dynamo 0.3) API:
-
-1. with distributed memory
-```sh
-cd eg17/
-psyclone integer_field_app_alg_mod.x90
-# look for %set_dirty and %halo_exchange in the generated code
-```
-
-2. or with both MPI and OpenMP:
-```sh
-cd eg17/
-psyclone -s ./colouring_and_omp.py integer_field_app_alg_mod.x90
-```
-
-This example will also demonstrate the use of built-ins for integer
-fields when the support is added in issue #853.
-
-## Example 18: Code Extraction
+## Example 17: Code Extraction
 
 The subdirectory ``full_example_extract`` contains a runnable example
 of LFRic code that creates a NetCDF file with the input and output
