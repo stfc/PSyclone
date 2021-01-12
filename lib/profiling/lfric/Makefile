@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Australian Bureau of Meteorology
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -63,11 +63,7 @@ libpsy_lfric_timer.a: $(PSY_OBJS)
 libpsy_lfric_timer_standalone.a: $(LFRIC_LIB) $(PSY_OBJS)
 	ar rs $@ $(LFRIC_OBJS_FULL_PATH) $(PSY_OBJS)
 
-
-$(libname): $(LFRIC_LIB) $(OBJS)
-	ar rs $(libname) $(name).o
-
-# Trigger recompilation is the infrastructure lib is changed
+# Trigger recompilation if the infrastructure lib is changed
 $(OBJS): $(LFRIC_LIB)
 
 $(LFRIC_LIB):

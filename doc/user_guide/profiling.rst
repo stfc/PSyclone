@@ -132,7 +132,7 @@ libraries that come with PSyclone:
       A runnable example using a gocean code is included in
       ``examples/gocean/eg5``.
 
-    The LFRic timer writes it output to a file called ``timer.txt``
+    The LFRic timer writes its output to a file called ``timer.txt``
     in the current directory, and will overwrite this file if it
     should already exist.
 

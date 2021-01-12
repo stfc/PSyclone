@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Australian Bureau of Meteorology
+! Copyright (c) 2020-2021, Australian Bureau of Meteorology
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -69,10 +69,12 @@ contains
   !! @param[in] region_name Name of the region (could be name of an invoke, or
   !!            subroutine name).
   !! @param[in] num_pre_vars The number of variables that are declared and
-  !!            written before the instrumented region.
+  !!            written before the instrumented region, which is always 0 for
+  !!            a profiling wrapper, and not  used.
   !! @param[in] num_post_vars The number of variables that are also declared
   !!            before an instrumented region of code, but are written after
-  !!            this region.
+  !!            this region, which is always 0 for a profiling wrapper, and
+  !!            not used.
   subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                       num_post_vars)
     use timer_mod, only: timer

@@ -12,7 +12,7 @@ interfaces:
 
 will compile all profiling-library interfaces included in
 PSyclone. The command `make TARGET` where `TARGET` is one of
-`template`, `simple_timing`, `drhook`, `nvidia` or `dl_timer` will
+`template`, `simple_timing`, `drhook`, `lfric`, `nvidia` or `dl_timer` will
 only compile the corresponding library interface. The following
 makefile variables are used and can be overwritten on the command line
 (e.g. `make F90=mpif90`):

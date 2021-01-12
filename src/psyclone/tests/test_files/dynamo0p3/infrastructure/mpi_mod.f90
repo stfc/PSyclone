@@ -9,7 +9,7 @@
 
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council
+! Copyright (c) 2020-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,7 @@ module mpi_mod
 
   ! JH: Define the values for a single process. This way this
   ! module can be used without special initialisation, which
-  ! means the LFRic ! profiling library can be used in GOcean.
+  ! means the LFRic profiling library can be used in GOcean.
   ! The mpi communicator
   integer(i_def), private :: comm=1, comm_size=1, comm_rank=0
   ! Flag marks whether an MPI communicator has been stored
