@@ -14,7 +14,14 @@ the library itself can be used independent of LFRic for any code. The
   LFRic infrastructure library, which provides the actual timer
   code (and dependencies for the timer). This version is meant to be
   used for LFRic, since the corresponding objects files are already
-  included in the LFRic build.
+  included in the LFRic build. In order to compile this library using
+  already compiled LFRic code, you can use the following command:
+  ```
+  LFRIC_DIR=$SOME_PATH/lfric/trunk/miniapps/gravity_wave/working/utilities/ make libpsy_lfric_timer.a
+
+  ```
+  This will pick up the module file for the LFRic timer from the
+  specified directory.
 
 - ``libpsy_lfric_timer_standalone.a``
 
