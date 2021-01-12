@@ -1175,7 +1175,7 @@ class Fparser2Reader(object):
                 container = ContainerSymbol(mod_name)
                 # It is OK if a parent symbol table also has a
                 # reference to this module so do not check ancestors.
-                parent.symbol_table.add(container, check_ancestors=False)
+                parent.symbol_table.add(container)
             else:
                 new_container = False
                 container = parent.symbol_table.lookup(mod_name)
@@ -1204,8 +1204,7 @@ class Fparser2Reader(object):
                         # Symbol.
                         parent.symbol_table.add(
                             Symbol(sym_name,
-                                   interface=GlobalInterface(container)),
-                            check_ancestors=False)
+                                   interface=GlobalInterface(container)))
                     else:
                         # There's already a symbol with this name
                         existing_symbol = parent.symbol_table.lookup(
@@ -1511,7 +1510,7 @@ class Fparser2Reader(object):
                     raise NotImplementedError()
                 # We don't want to check ancestor symbol tables as we're
                 # currently processing a *local* variable declaration.
-                symbol_table.add(sym, check_ancestors=False)
+                symbol_table.add(sym)
             else:
                 # The symbol table already contains an entry with this name
                 # so update its interface information.

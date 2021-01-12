@@ -154,13 +154,17 @@ def test_new_symbol_name_3():
 
 def test_new_symbol_name_4():
     '''Test that the new_symbol_name method raises the expected exception
-    if the root_name argument has the wrong type.
+    if an argument has the wrong type.
 
     '''
     sym_table = SymbolTable()
     with pytest.raises(TypeError) as excinfo:
         _ = sym_table.new_symbol_name(root_name=7)
     assert ("Argument root_name should be of type str or NoneType but found "
+            "'int'." in str(excinfo.value))
+    with pytest.raises(TypeError) as excinfo:
+        _ = sym_table.new_symbol_name(check_ancestors=7)
+    assert ("Argument check_ancestors should be of type bool but found "
             "'int'." in str(excinfo.value))
 
 
@@ -240,40 +244,6 @@ def test_add_1():
         str(error.value)
 
 
-def test_add_2():
-    '''Check that add() in the SymbolTable class behaves as
-    expected with the check_ancestors flag being a) explicitly set to
-    False, b) explicitly set to True and c) using the default value
-    (True).
-
-    '''
-    schedule_symbol_table, container_symbol_table = create_hierarchy()
-    symbol1 = schedule_symbol_table.lookup("symbol1")
-    symbol2 = container_symbol_table.lookup("symbol2")
-
-    # A clash in this symbol table should raise an exception
-    for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
-        with pytest.raises(KeyError) as info:
-            schedule_symbol_table.add(symbol1, **arg)
-            assert (
-                "Symbol table already contains a symbol with name 'symbol1'"
-                in str(info.value))
-    # A clash in an ancestor symbol table will not be checked if
-    # check_ancestors=False
-    for arg in {}, {"check_ancestors": True}:
-        with pytest.raises(KeyError) as info:
-            schedule_symbol_table.add(symbol2, **arg)
-            assert (
-                "Symbol table already contains a symbol with name 'symbol2'"
-                in str(info.value))
-    schedule_symbol_table.add(symbol2, check_ancestors=False)
-    del schedule_symbol_table._symbols[symbol2.name]
-    # A clash with a symbol in a child symbol table is not checked
-    for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
-        container_symbol_table.add(symbol1, **arg)
-        del container_symbol_table._symbols[symbol1.name]
-
-
 def test_add_with_tags_1():
     '''Test that the add method with a tag inserts new symbols in the symbol
     table and raises appropriate errors.'''
@@ -301,45 +271,35 @@ def test_add_with_tags_1():
             "'var1'.") in str(error.value)
 
 
-def test_add_with_tags_2():
-    '''Check that add(tag=xxx) in the SymbolTable class behaves as
-    expected with the check_ancestors flag being a) explicitly set to
-    False, b) explicitly set to True and c) using the default value
-    (True).
+def test_add_with_tags_hierachical():
+    '''Check that add(tag=xxx) in a symbol_table hierarchy works as
+    expected.
 
     '''
     schedule_symbol_table, container_symbol_table = create_hierarchy()
     symbol1 = schedule_symbol_table.lookup("symbol1")
     symbol3 = DataSymbol("symbol3", INTEGER_TYPE)
 
-    # A clash of tags in this symbol table should raise an exception
-    for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
-        with pytest.raises(KeyError) as info:
-            schedule_symbol_table.add(symbol3, tag="symbol1_tag", **arg)
-            assert (
-                "Symbol table already contains the tag 'symbol1_tag' for "
-                "symbol 'symbol1: <Scalar<INTEGER, UNDEFINED>, Local>', so "
-                "it can not be associated to symbol 'symbol3'."
-                in str(info.value))
-    # A clash of tags in an ancestor symbol table will not be checked
-    # if check_ancestors=False
-    for arg in {}, {"check_ancestors": True}:
-        with pytest.raises(KeyError) as info:
-            schedule_symbol_table.add(symbol3, tag="symbol2_tag", **arg)
-            assert (
-                "Symbol table already contains the tag 'symbol2_tag' for "
-                "symbol 'symbol2: <Scalar<INTEGER, UNDEFINED>, Local>', so "
-                "it can not be associated to symbol 'symbol3'."
-                in str(info.value))
-    schedule_symbol_table.add(
-        symbol3, tag="symbol2_tag", check_ancestors=False)
-    del schedule_symbol_table._symbols[symbol3.name]
-    del schedule_symbol_table._tags["symbol2_tag"]
-    # A clash of tags with a child symbol table is not checked
-    for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
-        container_symbol_table.add(symbol1, tag="symbol1_tag", **arg)
-        del container_symbol_table._symbols[symbol1.name]
-        del container_symbol_table._tags["symbol1_tag"]
+    # A clash of tags in this symbol table should raise an exception.
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.add(symbol3, tag="symbol1_tag")
+        assert (
+            "Symbol table already contains the tag 'symbol1_tag' for "
+            "symbol 'symbol1: <Scalar<INTEGER, UNDEFINED>, Local>', so "
+            "it can not be associated to symbol 'symbol3'."
+            in str(info.value))
+    # A clash of tags in an ancestor symbol table should raise an exception.
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.add(symbol3, tag="symbol2_tag")
+        assert (
+            "Symbol table already contains the tag 'symbol2_tag' for "
+            "symbol 'symbol2: <Scalar<INTEGER, UNDEFINED>, Local>', so "
+            "it can not be associated to symbol 'symbol3'."
+            in str(info.value))
+    # A clash of tags with a child symbol table is not checked for now.
+    container_symbol_table.add(symbol1, tag="symbol1_tag")
+    del container_symbol_table._symbols[symbol1.name]
+    del container_symbol_table._tags["symbol1_tag"]
 
 
 def test_imported_symbols():

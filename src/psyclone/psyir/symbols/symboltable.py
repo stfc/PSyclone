@@ -182,8 +182,30 @@ class SymbolTable(object):
 
     def new_symbol(self, root_name=None, tag=None, check_ancestors=True,
                    symbol_type=None, **symbol_init_args):
-        ''' Create a new symbol '''
+        ''' Create a new symbol. Optional root_name, tag, and check_ancestors
+        arguments can be given to choose the name and location of the new
+        Symbol. By default it creates a generic symbol but a symbol_type
+        argument and any additional initialization keyword arguments of this
+        sybmol_type can be given to refine the created Symbol.
 
+        :param root_name: optional name to use when creating a new \
+            symbol name. This will be appended with an integer if the name \
+            clashes with an existing symbol name.
+        :type root_name: str or NoneType
+        :param str tag: optional tag identifier for the new symbol.
+        :param bool check_ancestors: optional logical flag indicating \
+            whether the name should be unique in just this symbol table \
+            (False) or this and all ancestor symbol tables \
+            (True). Defaults to True.
+        :param symbol_type: class type of the new symbol.
+        :type symbol_type: Class type :py:class:`psyclone.psyir.symbols.Symbol`
+        :param symbol_init_args: arguments to create a new symbol.
+        :type symbol_init_args: unwrapped Dict[str, object]
+
+        '''
+
+        # Only type-check symbol_type, the other arguments are just passed down
+        # and type checked inside each relevant method.
         if symbol_type:
             if not (isinstance(symbol_type, type) and
                     Symbol in inspect.getmro(symbol_type)):
@@ -196,36 +218,30 @@ class SymbolTable(object):
 
         available_name = self.new_symbol_name(root_name, check_ancestors)
         symbol = symbol_type(available_name, **symbol_init_args)
-        self.add(symbol, tag, check_ancestors)
+        self.add(symbol, tag)
         return symbol
 
-    def symbol_from_tag(self, tag, root_name=None, check_ancestors=True,
-                        **new_symbol_args):
+    def symbol_from_tag(self, tag, root_name=None, **new_symbol_args):
         ''' Lookup tag, but if it doesn't exist create a new symbol with the
         given tag. By default it creates a generic Symbol with the tag as the
-        root of the symbol name, but any of the arguments available in the
-        new_symbol() method can optionally be given to refine the name and the
-        type of the created Symbol.
+        root of the symbol name. Optionally, a different root_name or any of
+        the arguments available in the new_symbol() method can be given to
+        refine the name and the type of the created Symbol.
 
         #TODO: What happens if the symbol is found and some unmatching
         arguments were given?
 
         :param str tag: tag identifier.
-        :param str root_name: optional name of the new symbols if this needs \
+        :param str root_name: optional name of the new symbols if it needs \
             to be created. Otherwise it is ignored.
-        :param bool check_ancestors: optional logical flag indicating \
-            whether the tag should be from just this symbol table \
-            (False) or this and all ancestor symbol tables \
-            (True). Defaults to True.
         :param new_symbol_args: arguments to create a new symbol.
         :type new_symbol_args: unwrapped Dict[str, object]
 
         :returns: symbol associated with the given tag.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
         '''
-
         try:
-            symbol = self.lookup_with_tag(tag, check_ancestors)
+            symbol = self.lookup_with_tag(tag)
             if 'symbol_type' in new_symbol_args:
                 symbol_type = new_symbol_args['symbol_type']
                 if not isinstance(symbol, new_symbol_args['symbol_type']):
@@ -237,8 +253,7 @@ class SymbolTable(object):
         except KeyError:
             if not root_name:
                 root_name = tag
-            return self.new_symbol(root_name, tag, check_ancestors,
-                                   **new_symbol_args)
+            return self.new_symbol(root_name, tag, **new_symbol_args)
 
     def new_symbol_name(self, root_name=None, check_ancestors=True):
         '''Create a symbol name that is not in this symbol table (if the
@@ -263,8 +278,13 @@ class SymbolTable(object):
 
         :raises TypeError: if the root_name argument is not a string \
             or None.
+        :raises TypeError: if the check_ancestors argument is not a bool.
 
         '''
+        if not isinstance(check_ancestors, bool):
+            raise TypeError("Argument check_ancestors should be of type bool"
+                " but found '{0}'.".format(type(check_ancestors).__name__))
+
         if check_ancestors:
             symbols = self._all_symbols
         else:
@@ -283,7 +303,7 @@ class SymbolTable(object):
             idx += 1
         return candidate_name
 
-    def add(self, new_symbol, tag=None, check_ancestors=True):
+    def add(self, new_symbol, tag=None):
         '''Add a new symbol to the symbol table if the symbol name is not
         already in use.
 
@@ -303,30 +323,21 @@ class SymbolTable(object):
             use.
 
         '''
-        if check_ancestors:
-            symbols = self._all_symbols
-        else:
-            symbols = self._symbols
-
         if not isinstance(new_symbol, Symbol):
             raise InternalError("Symbol '{0}' is not a symbol, but '{1}'.'"
                                 .format(new_symbol, type(new_symbol).__name__))
 
         key = self._normalize(new_symbol.name)
-        if key in symbols:
+        if key in self._symbols:
             raise KeyError("Symbol table already contains a symbol with"
                            " name '{0}'.".format(new_symbol.name))
 
         if tag:
-            if check_ancestors:
-                tags = self._all_tags
-            else:
-                tags = self._tags
-            if tag in tags:
+            if tag in self._all_tags:
                 raise KeyError(
                     "Symbol table already contains the tag '{0}' for symbol"
                     " '{1}', so it can not be associated to symbol '{2}'.".
-                    format(tag, tags[tag], new_symbol.name))
+                    format(tag, self.lookup_with_tag(tag), new_symbol.name))
             self._tags[tag] = new_symbol
 
         self._symbols[key] = new_symbol
