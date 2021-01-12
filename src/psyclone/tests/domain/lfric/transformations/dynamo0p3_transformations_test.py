@@ -317,7 +317,7 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
     # a string
     gen = str(psy.gen)
 
-    # Check that we index the stencil dofmap appropriately
+    # Check that we index the adjacent face dofmap appropriately
     assert (
         "CALL testkern_mesh_prop_code(nlayers, a, f1_proxy%data, ndf_w1, "
         "undf_w1, map_w1(:,cmap(colour, cell)), nfaces_re_h, "
