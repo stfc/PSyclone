@@ -37,10 +37,7 @@
 ''' This module contains the implementation of the Member node.'''
 
 from __future__ import absolute_import
-import six
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import TypeSymbol
-from psyclone.psyir.symbols.datatypes import StructureType
 
 
 class Member(Node):

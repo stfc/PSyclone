@@ -127,7 +127,6 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
 
         # First use the StructureReference _create class method to create a
         # reference to the base structure of the array.
-        # pylint: disable=protected_access
         ref = ArrayOfStructuresReference._create(
             symbol, symbol.datatype.intrinsic, members, parent)
 

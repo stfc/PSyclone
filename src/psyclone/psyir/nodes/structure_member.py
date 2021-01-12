@@ -38,9 +38,6 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.member import Member
-from psyclone.psyir.symbols import TypeSymbol
-from psyclone.psyir.symbols.datatypes import StructureType, DeferredType, \
-    ArrayType
 
 
 class StructureMember(Member):
