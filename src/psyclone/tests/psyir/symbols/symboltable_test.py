@@ -1352,7 +1352,11 @@ def test_symbol_from_tag():
     assert tag4 is tag4b
     assert tag4b.name == "var"
 
-    # TODO: What happens if the symbol type or arguments are different?
-    # Probably fail
+    # Check that if fails if the Symbol type is different than expected
+    with pytest.raises(SymbolError) as err:
+        symtab.symbol_from_tag("tag3", symbol_type=RoutineSymbol)
+    assert ("Expected symbol with tag 'tag3' to be of type 'RoutineSymbol' "
+            "but found type 'DataSymbol'." in str(err))
 
-    # TODO: Check that the check_ancestors is passed down
+    # TODO: What happens if the Symbol parameters: e.g. interface are
+    # different?
