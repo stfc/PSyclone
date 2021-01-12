@@ -619,8 +619,7 @@ class Invoke(object):
         raise GenerationError("Failed to find any kernel argument with name "
                               "'{0}'".format(arg_name))
 
-    def unique_declns_by_intent(self, argument_types, access=None,
-                                intrinsic_type=None):
+    def unique_declns_by_intent(self, argument_types, intrinsic_type=None):
         '''
         Returns a dictionary listing all required declarations for each
         type of intent ('inout', 'out' and 'in').
@@ -628,8 +627,6 @@ class Invoke(object):
         :param argument_types: the types of the kernel argument for the \
                                particular API for which the intent is required.
         :type argument_types: list of str
-        :param access: optional AccessType that the declaration should have.
-        :type access: :py:class:`psyclone.core.access_type.AccessType`
         :param intrinsic_type: optional intrinsic type of argument data.
         :type intrinsic_type: str
 
@@ -639,23 +636,16 @@ class Invoke(object):
 
         :raises InternalError: if at least one kernel argument type is \
                                not valid for the particular API.
-        :raises InternalError: if an invalid access is specified.
         :raises InternalError: if an invalid intrinsic type is specified.
 
         '''
-        # First check for invalid argument types, access and intrinsic type
+        # First check for invalid argument types and intrinsic type
         if any(argtype not in VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
                 "Invoke.unique_declns_by_intent() called with at least one "
                 "invalid argument type. Expected one of {0} but found {1}.".
                 format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
-
-        if access and not isinstance(access, AccessType):
-            raise InternalError(
-                "Invoke.unique_declns_by_intent() called with an invalid "
-                "access type. Type is '{0}' instead of AccessType.".
-                format(str(access)))
 
         if (intrinsic_type and intrinsic_type not in
                 VALID_INTRINSIC_TYPES):
@@ -671,7 +661,7 @@ class Invoke(object):
         for intent in FORTRAN_INTENT_NAMES:
             declns[intent] = []
 
-        for arg in self.unique_declarations(argument_types, access=access,
+        for arg in self.unique_declarations(argument_types,
                                             intrinsic_type=intrinsic_type):
             first_arg = self.first_access(arg.declaration_name)
             if first_arg.access in [AccessType.WRITE, AccessType.SUM]:

@@ -2035,31 +2035,16 @@ def test_dyninvoke_uniq_declns_intent_inv_argtype():
             str(excinfo.value))
 
 
-def test_dyninvoke_uniq_declns_intent_inv_access():
-    ''' Tests that we raise an error when DynInvoke.unique_declns_by_intent()
-    is called for an invalid access type. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_2scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_declns_by_intent(
-            ["gh_field"], access="invalid_acc")
-    assert ("Invoke.unique_declns_by_intent() called with an invalid access "
-            "type. Type is 'invalid_acc' instead of AccessType."
-            in str(excinfo.value))
-
-
 def test_dyninvoke_uniq_declns_intent_inv_intrinsic():
-    ''' Tests that we raise an error when Invoke.unique_declarations() is
-    called for an invalid intrinsic type. '''
+    ''' Tests that we raise an error when Invoke.unique_declns_by_intent()
+    is called for an invalid intrinsic type. '''
     from psyclone.dynamo0p3 import VALID_INTRINSIC_TYPES
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_declarations(
+        psy.invokes.invoke_list[0].unique_declns_by_intent(
             ["gh_scalar"], intrinsic_type="triple")
     assert ("Invoke.unique_declns_by_intent() called with an invalid "
             "intrinsic argument data type. Expected one of {0} but "
@@ -2089,18 +2074,18 @@ def test_dyninvoke_uniq_declns_intent_scalar():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    args = psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_scalar"])
-    assert args['inout'] == []
-    assert args['out'] == []
-    args_in_names = [arg.declaration_name for arg in args['in']]
-    assert args_in_names == ['a', 'istep']
-    # Assert the correct intrinsic types of scalar arguments
-    assert args['in'][0].name == 'a'
-    assert args['in'][0].descriptor.data_type == 'gh_real'
-    assert args['in'][0].intrinsic_type == 'real'
-    assert args['in'][1].name == 'istep'
-    assert args['in'][1].descriptor.data_type == 'gh_integer'
-    assert args['in'][1].intrinsic_type == 'integer'
+    real_args = psy.invokes.invoke_list[0].unique_declns_by_intent(
+        ["gh_scalar"], intrinsic_type="real")
+    int_args = psy.invokes.invoke_list[0].unique_declns_by_intent(
+        ["gh_scalar"], intrinsic_type="integer")
+    assert real_args['inout'] == []
+    assert real_args['out'] == []
+    assert int_args['inout'] == []
+    assert int_args['out'] == []
+    real_args_in = [arg.declaration_name for arg in real_args['in']]
+    int_args_in = [arg.declaration_name for arg in int_args['in']]
+    assert real_args_in == ['a']
+    assert int_args_in == ['istep']
 
 
 def test_dyninvoke_uniq_declns_intent_ops(tmpdir):
