@@ -73,19 +73,18 @@ class ArrayMixin(object):
         '''
 
     @classmethod
-    def _create_array_of_structs(cls, member_name, child_member=None,
-                                 indices=None, struct_type=None, parent=None):
+    def _create_array_of_structs(cls, member_name, indices=None,
+                                 inner_member=None, parent=None):
         '''
         Create an access to (one or more elements of) an array of
         structures.
 
-        :param struct_type: the datatype of the parent structure containing \
-                            the member that is being accessed.
-        :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` \
-            or :py:class:`psyclone.psyir.symbols.TypeSymbol`
         :param str member_name: the name of the member of the structure that \
             is being accessed.
         :param indices: the array-index expressions or None.
+        :param inner_member: the member of the `member_name` structure that \
+            is being accessed.
+        :type inner_member: :py:class:`psyclone.psyir.nodes.Member`
         :type indices: list of :py:class:`psyclone.psyir.nodes.DataNode`
         :param parent: the parent of this node in the PSyIR tree.
         :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
@@ -94,11 +93,11 @@ class ArrayMixin(object):
         :rtype: `cls`
 
         '''
-        obj = cls(member_name, struct_type=struct_type, parent=parent)
+        obj = cls(member_name, parent=parent)
         # Add any child Member as the first child
-        if child_member:
-            obj.addchild(child_member)
-            child_member.parent = obj
+        if inner_member:
+            obj.addchild(inner_member)
+            inner_member.parent = obj
         # Add any array-index expressions as children
         if indices:
             for child in indices:

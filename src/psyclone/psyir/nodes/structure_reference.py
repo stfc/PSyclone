@@ -186,7 +186,7 @@ class StructureReference(Reference):
             if isinstance(component, tuple):
                 # This is an array access so we have an ArrayOfStructuresMember
                 subref = ArrayOfStructuresMember.create(
-                    component[0], subref, component[1])
+                    component[0], component[1], subref)
             elif isinstance(component, str):
                 # No array access so just a StructureMember
                 subref = StructureMember.create(component, subref)

@@ -46,13 +46,6 @@ def test_amr_constructor():
     amr = nodes.ArrayMember("sub_mesh")
     assert len(amr.children) == 0
     assert amr.name == "sub_mesh"
-    region_type = symbols.StructureType.create([
-        ("sub_mesh",
-         symbols.ArrayType(symbols.INTEGER_TYPE,
-                           [nodes.Literal("10", symbols.INTEGER_TYPE)]),
-         symbols.Symbol.Visibility.PUBLIC)])
-    amr = nodes.ArrayMember("sub_mesh", struct_type=region_type)
-    assert isinstance(amr.component, symbols.StructureType.ComponentType)
 
 
 def test_amr_validate_child():

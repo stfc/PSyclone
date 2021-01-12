@@ -75,32 +75,10 @@ def create_structure_symbol(table):
 
 def test_sm_constructor():
     ''' Test the StructureMember constructor. '''
-    region_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
-    region_type_sym = symbols.TypeSymbol("region_type", region_type)
-    grid_type = symbols.StructureType.create([
-        ("dx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("area", region_type_sym, symbols.Symbol.Visibility.PUBLIC)])
-    grid_type_sym = symbols.TypeSymbol("grid_type", grid_type)
-    # With a StructureType
-    smref = nodes.StructureMember("area", struct_type=grid_type)
+    smref = nodes.StructureMember("area")
     assert isinstance(smref, nodes.StructureMember)
-    assert smref.component.name == "area"
-    # With a TypeSymbol
-    smref = nodes.StructureMember("area", struct_type=grid_type_sym)
-    assert isinstance(smref, nodes.StructureMember)
-    assert smref.component.name == "area"
-
-
-def test_sm_constructor_errors():
-    ''' Test the validation checks in the constructor. '''
-    # Attempt to reference something that cannot be a structure
-    region_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
-    with pytest.raises(TypeError) as err:
-        nodes.StructureMember("nx", struct_type=region_type)
-    assert ("member 'nx' is not of DeferredType, StructureType or a "
-            "TypeSymbol and therefore cannot" in str(err.value))
+    assert smref.name == "area"
+    assert smref.children == []
 
 
 def test_sm_node_str():
@@ -134,17 +112,13 @@ def test_sm_can_be_printed():
 
 def test_sm_child_validate():
     ''' Check the _validate_child() method of StructureMember. '''
-    region_type = symbols.StructureType.create([
-        ("area", symbols.TypeSymbol("area_type", symbols.DeferredType()),
-         symbols.Symbol.Visibility.PUBLIC),
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
-    smr = nodes.StructureMember("area", struct_type=region_type)
+    smr = nodes.StructureMember("area")
     with pytest.raises(GenerationError) as err:
         smr.addchild("hello")
     assert "'str' can't be child 0 of 'StructureMember'" in str(err.value)
     # StructureMember is only permitted to have a single child which must
     # be a Member
-    smr.addchild(nodes.Member("nx", struct_type=region_type))
+    smr.addchild(nodes.Member("nx"))
     assert smr.children[0].name == "nx"
     # Attempting to add a second child should fail
     with pytest.raises(GenerationError) as err:

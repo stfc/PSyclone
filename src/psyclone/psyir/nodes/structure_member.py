@@ -48,18 +48,6 @@ class StructureMember(Member):
     Node representing a membership expression of the parent's Reference that
     resolves into another structure.
 
-    :param str member: the name of the structure member that is \
-                       being accessed.
-    :param struct_type: the datatype of the parent structure.
-    :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` or \
-                       :py:class:`psyclone.psyir.symbols.TypeSymbol`
-    :param parent: the parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyir.nodes.StructureReference` or \
-                  :py:class:`psyclone.psyir.nodes.Member`
-
-    :raises TypeError: if the type of the specified member is not \
-                       consistent with it being a structure type.
-
     '''
     # Textual description of the node. Since it represents a reference to a
     # structure it may have a single child which is a reference to one of its
@@ -67,25 +55,8 @@ class StructureMember(Member):
     _children_valid_format = "[Member]"
     _text_name = "StructureMember"
 
-    def __init__(self, member, struct_type=None, parent=None):
-
-        super(StructureMember, self).__init__(member,
-                                              struct_type=struct_type,
-                                              parent=parent)
-        if self.component:
-            if isinstance(self.component.datatype, ArrayType):
-                target_type = self.component.datatype.intrinsic
-            else:
-                target_type = self.component.datatype
-                if not isinstance(target_type,
-                                  (DeferredType, StructureType, TypeSymbol)):
-                    raise TypeError(
-                        "The member '{0}' is not of DeferredType, "
-                        "StructureType or a TypeSymbol and therefore cannot "
-                        "be the target of a StructureMember.".format(member))
-
     @staticmethod
-    def create(member_name, child):
+    def create(member_name, inner_member):
         '''
         Given the name of a structure member of a structure and a Member
         node describing the access to a component of it, construct a
@@ -99,14 +70,15 @@ class StructureMember(Member):
         >>> smem = StructureMember.create("subdomain", Member("xstart"))
 
         :param str member_name: name of the structure member.
-        :param child: the Member describing the access to a component of the \
-                      named structure member.
-        :type child: sub-class of :py:class:`psyclone.psyir.nodes.Member`
+        :param inner_member: a Member describing the access to a component \
+                             of the named structure member.
+        :type inner_member: sub-class of \
+                            :py:class:`psyclone.psyir.nodes.Member`
 
         '''
         smem = StructureMember(member_name)
-        smem.addchild(child)
-        child.parent = smem
+        smem.addchild(inner_member)
+        inner_member.parent = smem
         return smem
 
     def __str__(self):

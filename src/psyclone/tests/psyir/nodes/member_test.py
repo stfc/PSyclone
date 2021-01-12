@@ -37,40 +37,20 @@
 ''' This module contains pytest tests for the Member class. '''
 
 import pytest
-from psyclone.psyir import symbols, nodes
+from psyclone.psyir import nodes
+
+
+def test_member_constructor():
+    ''' Test that we can construct an instance of Member. '''
+    mem = nodes.Member("fred")
+    assert mem.name == "fred"
+    assert mem.children == []
 
 
 def test_member_constructor_errors():
     ''' Test the validation checks in the constructor. '''
     with pytest.raises(TypeError) as err:
-        nodes.Member("hello", struct_type="wrong")
-    assert ("expecting the type of the structure to be specified with either "
-            "a StructureType or a TypeSymbol but found 'str'" in
-            str(err.value))
-
-    with pytest.raises(TypeError) as err:
         nodes.Member("hello", parent="wrong")
     assert ("parent of a Member must be either a "
             "(ArrayOf)Structure(s)Reference or (ArrayOf)Structure(s)Member "
             "but found 'str'" in str(err.value))
-    # Attempt to reference something that is not a component of the supplied
-    # type.
-    region_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
-    with pytest.raises(TypeError) as err:
-        nodes.Member("missing", struct_type=region_type)
-    assert ("supplied StructureType has no component named 'missing'" in
-            str(err.value))
-
-
-def test_member_constructor_missing_typedef():
-    ''' Check that we raise a NotImplementedError if the component being
-    referenced is of DeferredType. '''
-    # Create a TypeSymbol with deferred type (i.e. no type definition is
-    # currently available).
-    region_type_sym = symbols.TypeSymbol("region_type",
-                                         symbols.DeferredType())
-    with pytest.raises(NotImplementedError) as err:
-        nodes.StructureMember("area", struct_type=region_type_sym)
-    assert ("structure if its type is available but member 'area' has type "
-            "'DeferredType'" in str(err.value))

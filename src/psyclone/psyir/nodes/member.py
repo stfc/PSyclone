@@ -48,22 +48,13 @@ class Member(Node):
     Node representing a membership expression of a structure.
     As such it is a leaf in the PSyIR tree.
 
-    :param struct_type: the datatype of the structure containing the member \
-                        that is being referenced.
-    :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` or \
-                       :py:class:`psyclone.psyir.symbols.TypeSymbol`
-    :param str member: the member of the 'struct_type' structure that is \
-                       being referenced.
+    :param str member_name: the member of the 'struct_type' structure that is \
+                            being referenced.
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.StructureReference` or \
                   :py:class:`psyclone.psyir.nodes.Member`
 
-    :raises TypeError: if the supplied struct_type, member or parent are of \
-                       the wrong type.
-    :raises NotImplementedError: if the supplied struct_type doesn't have an \
-                                 associated type definition.
-    :raises TypeError: if the supplied struct_type does not contain the \
-                       specified member.
+    :raises TypeError: if the supplied parent is of the wrong type.
 
     '''
     # Textual description of the node.
@@ -71,19 +62,12 @@ class Member(Node):
     _text_name = "Member"
     _colour_key = "Reference"
 
-    def __init__(self, member, struct_type=None, parent=None):
+    def __init__(self, member_name, parent=None):
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.structure_reference import StructureReference
         from psyclone.psyir.nodes.structure_member import StructureMember
 
-        if struct_type and not isinstance(struct_type, (StructureType,
-                                                        TypeSymbol)):
-            raise TypeError(
-                "In Member initialisation: expecting the "
-                "type of the structure to be specified with either a "
-                "StructureType or a TypeSymbol but found '{0}'.".format(
-                    type(struct_type).__name__))
         # Since this node represents a membership expression of a structure,
         # its parent (if supplied) *must* subclass StructureReference or
         # StructureMember.
@@ -96,41 +80,8 @@ class Member(Node):
                                            type(parent).__name__))
 
         super(Member, self).__init__(parent=parent)
-
-        self._component = None
-        self._component_name = member
-
-        if struct_type is None:
-            return
-
-        try:
-            if isinstance(struct_type, StructureType):
-                # Store the component that this member points to
-                self._component = struct_type.components[member]
-            elif isinstance(struct_type, TypeSymbol):
-                if isinstance(struct_type.datatype, StructureType):
-                    self._component = struct_type.datatype.components[member]
-                else:
-                    # We only have a symbol for this structure type
-                    raise NotImplementedError(
-                        "Can only create a reference to a structure if its "
-                        "type is available but member '{0}' has type "
-                        "'{1}'".format(member,
-                                       type(struct_type.datatype).__name__))
-        except KeyError as err:
-            six.raise_from(
-                TypeError("The supplied {0} has no component named "
-                          "'{1}'".format(type(struct_type).__name__, member)),
-                err)
-
-    @property
-    def component(self):
-        '''
-        :returns: the component of the structure that this member represents.
-        :rtype: :py:class:`psyclone.psyir.symbols.datatypes.StructureType.\
-                ComponentType` or NoneType
-        '''
-        return self._component
+        # Store the name of the component that this member represents
+        self._component_name = member_name
 
     @property
     def name(self):

@@ -61,8 +61,7 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
     _text_name = "ArrayOfStructuresMember"
 
     @staticmethod
-    def create(member_name, child_member, indices, struct_type=None,
-               parent=None):
+    def create(member_name, indices, inner_member, parent=None):
         '''
         Create an access to a member of one or more elements of an array of
         structures that is itself a member of a structure.
@@ -72,16 +71,15 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
         construct an ArrayOfStructuresMember for this access by calling:
 
         >>> aosmem = ArrayOfStructuresMember.create(
-                "subdomains", Member("xstart"), [Literal("1", INTEGER_TYPE)])
+                "subdomains", [Literal("1", INTEGER_TYPE)], Member("xstart"))
 
-        :param struct_type: the datatype of the parent structure containing \
-                            the member that is being accessed.
-        :type struct_type: :py:class:`psyclone.psyir.symbols.StructureType` \
-            or :py:class:`psyclone.psyir.symbols.TypeSymbol`
-        :param str member_name: the name of the member of the structure that \
-            is being accessed.
+        :param str member_name: the name of the array member of the structure \
+            that is being accessed.
         :param indices: the array-index expressions.
         :type indices: list of :py:class:`psyclone.psyir.nodes.DataNode`
+        :param inner_member: the member of the `member_name` structure that \
+            is being accessed.
+        :type inner_member: :py:class:`psyclone.psyir.nodes.Member`
         :param parent: the parent of this node in the PSyIR tree.
         :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
@@ -90,8 +88,7 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
 
         '''
         return ArrayOfStructuresMember._create_array_of_structs(
-            member_name, child_member, indices, struct_type=struct_type,
-            parent=parent)
+            member_name, indices, inner_member, parent=parent)
 
     @staticmethod
     def _validate_child(position, child):

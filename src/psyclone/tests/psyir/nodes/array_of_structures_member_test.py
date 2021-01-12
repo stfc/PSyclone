@@ -46,18 +46,7 @@ from psyclone.tests.utilities import check_links
 def test_asmr_constructor():
     ''' Test that we can construct an ArrayOfStructuresMember. '''
     # For this we need a structure that contains an array of structures.
-    region_type = symbols.StructureType.create([
-        ("sub_mesh",
-         symbols.ArrayType(symbols.INTEGER_TYPE,
-                           [nodes.Literal("10", symbols.INTEGER_TYPE)]),
-         symbols.Symbol.Visibility.PUBLIC)])
-    rtype_symbol = symbols.TypeSymbol("region_type", region_type)
-    grid_type = symbols.StructureType.create([
-        ("regions",
-         symbols.ArrayType(rtype_symbol,
-                           [nodes.Literal("3", symbols.INTEGER_TYPE)]),
-         symbols.Symbol.Visibility.PUBLIC)])
-    asmr = nodes.ArrayOfStructuresMember("regions", struct_type=grid_type)
+    asmr = nodes.ArrayOfStructuresMember("regions")
     assert isinstance(asmr, nodes.ArrayOfStructuresMember)
     assert len(asmr.children) == 0
     check_links(asmr, asmr.children)
@@ -65,21 +54,9 @@ def test_asmr_constructor():
 
 def test_asmr_create():
     ''' Test the create method of ArrayOfStructuresMember. '''
-    region_type = symbols.StructureType.create([
-        ("sub_mesh",
-         symbols.ArrayType(symbols.INTEGER_TYPE,
-                           [nodes.Literal("10", symbols.INTEGER_TYPE)]),
-         symbols.Symbol.Visibility.PUBLIC)])
-    rtype_symbol = symbols.TypeSymbol("region_type", region_type)
-    grid_type = symbols.StructureType.create([
-        ("regions",
-         symbols.ArrayType(rtype_symbol,
-                           [nodes.Literal("3", symbols.INTEGER_TYPE)]),
-         symbols.Symbol.Visibility.PUBLIC)])
     asmr = nodes.ArrayOfStructuresMember.create(
-        "regions", nodes.Member("sub_mesh"),
-        [nodes.Literal("3", symbols.INTEGER_TYPE)],
-        struct_type=grid_type)
+        "regions", [nodes.Literal("3", symbols.INTEGER_TYPE)],
+        nodes.Member("sub_mesh"))
     assert len(asmr.children) == 2
     assert isinstance(asmr.children[0], nodes.Member)
     assert asmr.children[1].value == "3"
@@ -87,23 +64,12 @@ def test_asmr_create():
 
 def test_asmr_validate_child():
     ''' Test the _validate_child method of ArrayOfStructuresMember. '''
-    region_type = symbols.StructureType.create([
-        ("sub_mesh",
-         symbols.ArrayType(symbols.INTEGER_TYPE,
-                           [nodes.Literal("10", symbols.INTEGER_TYPE)]),
-         symbols.Symbol.Visibility.PUBLIC)])
-    rtype_symbol = symbols.TypeSymbol("region_type", region_type)
-    grid_type = symbols.StructureType.create([
-        ("regions",
-         symbols.ArrayType(rtype_symbol,
-                           [nodes.Literal("3", symbols.INTEGER_TYPE)]),
-         symbols.Symbol.Visibility.PUBLIC)])
-    asmr = nodes.ArrayOfStructuresMember("regions", struct_type=grid_type)
+    asmr = nodes.ArrayOfStructuresMember("regions")
     with pytest.raises(GenerationError) as err:
         asmr.addchild("wrong")
     assert ("'str' can't be child 0 of 'ArrayOfStructuresMember'" in
             str(err.value))
-    asmr.addchild(nodes.Member("sub_mesh", struct_type=region_type))
+    asmr.addchild(nodes.Member("sub_mesh"))
     assert isinstance(asmr.children[0], nodes.Member)
     with pytest.raises(GenerationError) as err:
         asmr.addchild("2")

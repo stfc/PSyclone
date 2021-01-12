@@ -104,8 +104,6 @@ SYMBOL_TABLE.specify_argument_list([FIELD_SYMBOL])
 FIELD_BUNDLE_SYMBOL = DataSymbol("chi", ArrayType(FIELD_TYPE_SYMBOL, [3]))
 SYMBOL_TABLE.add(FIELD_BUNDLE_SYMBOL)
 
-# For now we can't do much more than print out the symbol tables as
-# there's a lot of functionality still to implement.
 print("Kernel Symbol Table:")
 print(str(SYMBOL_TABLE))
 print("Container Symbol Table:")
