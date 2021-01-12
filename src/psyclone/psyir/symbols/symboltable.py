@@ -41,6 +41,7 @@
 from __future__ import print_function, absolute_import
 from collections import OrderedDict
 import inspect
+from copy import copy
 import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
@@ -75,6 +76,7 @@ class SymbolTable(object):
         # Dict of tags. Some symbols can be identified with a tag.
         self._tags = {}
         # Reference to the node to which this symbol table belongs.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Schedule, Container
         if node and not isinstance(node, (Schedule, Container)):
             raise TypeError(
@@ -86,8 +88,7 @@ class SymbolTable(object):
     @property
     def node(self):
         '''
-        :returns: reference to the Schedule or Container to which this \
-            symbol table belongs.
+        :returns: the Schedule or Container to which this symbol table belongs.
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`, \
             :py:class:`psyclone.psyir.nodes.Container` or NoneType
 
@@ -158,7 +159,6 @@ class SymbolTable(object):
 
         '''
         # pylint: disable=protected-access
-        from copy import copy
         new_st = SymbolTable()
         new_st._symbols = copy(self._symbols)
         new_st._argument_list = copy(self._argument_list)
@@ -229,7 +229,7 @@ class SymbolTable(object):
             if 'symbol_type' in new_symbol_args:
                 symbol_type = new_symbol_args['symbol_type']
                 if not isinstance(symbol, new_symbol_args['symbol_type']):
-                    raise InternalError(
+                    raise SymbolError(
                         "Expected symbol with tag '{0}' to be of type '{1}' "
                         "but found type '{2}'.".format(
                         tag, symbol_type.__name__, type(symbol).__name__))
@@ -450,9 +450,9 @@ class SymbolTable(object):
                         "requested visibility: {2}".format(
                             name, symbol.visibility.name, vis_names))
             return symbol
-        except KeyError:
-            raise KeyError("Could not find '{0}' in the Symbol Table."
-                           "".format(name))
+        except KeyError as err:
+            six.raise_from(KeyError("Could not find '{0}' in the Symbol Table."
+                                    "".format(name)), err)
 
     def lookup_with_tag(self, tag, check_ancestors=True):
         '''Look up a symbol using the supplied tag. If check_ancestors is True
@@ -484,9 +484,10 @@ class SymbolTable(object):
 
         try:
             return tags[tag]
-        except KeyError:
-            raise KeyError("Could not find the tag '{0}' in the Symbol Table."
-                           "".format(tag))
+        except KeyError as err:
+            six.raise_from(
+                KeyError("Could not find the tag '{0}' in the Symbol Table."
+                         "".format(tag)), err)
 
     def __contains__(self, key):
         '''Check if the given key is part of the Symbol Table.
@@ -621,7 +622,7 @@ class SymbolTable(object):
         except ValueError as err:
             # If the SymbolTable is inconsistent at this point then
             # we have an InternalError.
-            raise InternalError(str(err.args))
+            six.raise_from(InternalError(str(err.args)), err)
         return self._argument_list
 
     @staticmethod
@@ -761,9 +762,10 @@ class SymbolTable(object):
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols import DeferredType
         # Accumulate into a set so as to remove any duplicates
         precision_symbols = set()
-        from psyclone.psyir.symbols import DeferredType
         for sym in self.datasymbols:
             if (not isinstance(sym.datatype, DeferredType) and
                     isinstance(sym.datatype.precision, DataSymbol)):
