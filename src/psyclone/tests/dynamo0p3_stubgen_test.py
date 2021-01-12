@@ -85,26 +85,28 @@ def test_kernel_stub_invalid_iteration_space():
 
 
 def test_dynscalars_stub_err():
-    ''' Check that the DynScalarArgs constructor raises the expected
-    internal error if it encounters an unrecognised intrinsic type of
-    scalar when generating a kernel stub.
+    ''' Check that DynScalarArgs._stub_declarations() raises the
+    expected internal error if it encounters an unrecognised data
+    type of a scalar argument when generating a kernel stub.
 
     '''
     from psyclone.dynamo0p3 import DynScalarArgs
+    from psyclone.f2pygen import ModuleGen
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    # Sabotage the scalar argument to make it have an invalid intrinsic type
+    # Sabotage the scalar argument to make it have an invalid data type
     arg = kernel.arguments.args[1]
-    arg._intrinsic_type = "invalid-scalar-type"
+    arg.descriptor._data_type = "gh_invalid_scalar"
     with pytest.raises(InternalError) as err:
-        _ = DynScalarArgs(kernel)
-    assert ("DynScalarArgs.__init__(): Found an unsupported intrinsic type "
-            "'invalid-scalar-type' for the scalar argument 'iscalar_2'. "
-            "Supported types are ['real', 'integer']." in str(err.value))
+        DynScalarArgs(kernel)._stub_declarations(ModuleGen(name="my_mod"))
+    assert ("Found an unsupported data type 'gh_invalid_scalar' for the "
+            "scalar argument 'iscalar_2'. Supported types are {0}.".
+            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES)
+            in str(err.value))
 
 
 def test_stub_generate_with_anyw2():

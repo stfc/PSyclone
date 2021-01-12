@@ -3082,91 +3082,149 @@ class DynCellIterators(DynCollection):
 
 class DynScalarArgs(DynCollection):
     '''
-    Handles the declaration of scalar kernel arguments appearing in either
-    an Invoke or Kernel stub.
+    Handles the declarations of scalar kernel arguments appearing in either
+    an Invoke or a Kernel stub.
 
-    :param node: the Kernel stub or Invoke for which to manage the scalar \
+    :param node: the Invoke or Kernel stub for which to manage the scalar \
                  arguments.
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
                 :py:class:`psyclone.dynamo0p3.DynInvoke`
-
-    :raises InternalError: for an unsupported argument intrinsic type.
 
     '''
     def __init__(self, node):
         super(DynScalarArgs, self).__init__(node)
 
-        # Create lists of real and integer scalar arguments
-        self._real_scalar_names = {}
-        self._int_scalar_names = {}
-        scalar_args = {}
-        # Filter scalar arguments by intent
+        # Initialise dictionaries of real and integer scalar
+        # arguments by data type and intent
+        self._scalar_args = {}
+        self._real_scalars = {}
+        self._int_scalars = {}
         for intent in FORTRAN_INTENT_NAMES:
-            self._real_scalar_names[intent] = []
-            self._int_scalar_names[intent] = []
-            scalar_args[intent] = []
-        if self._invoke:
-            scalar_args = self._invoke.unique_declns_by_intent(
-                LFRicArgDescriptor.VALID_SCALAR_NAMES)
-        else:
-            for arg in self._calls[0].arguments.args:
-                if arg.is_scalar:
-                    scalar_args[arg.intent].append(arg)
-        # Separate scalars by their intrinsic types
-        for intent in FORTRAN_INTENT_NAMES:
-            for arg in scalar_args[intent]:
-                declname = arg.declaration_name
-                if arg.intrinsic_type == "real":
-                    self._real_scalar_names[intent].append(declname)
-                elif arg.intrinsic_type == "integer":
-                    self._int_scalar_names[intent].append(declname)
-                else:
-                    raise InternalError(
-                        "DynScalarArgs.__init__(): Found an unsupported "
-                        "intrinsic type '{0}' for the scalar argument "
-                        "'{1}'. Supported types are {2}.".
-                        format(arg.intrinsic_type, declname,
-                               VALID_INTRINSIC_TYPES))
+            self._scalar_args[intent] = []
+            self._real_scalars[intent] = []
+            self._int_scalars[intent] = []
 
     def _invoke_declarations(self, parent):
         '''
-        Insert declarations for all of the scalar arguments.
+        Create and add declarations for all of the scalar arguments in
+        an Invoke.
 
         :param parent: the f2pygen node in which to insert declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises InternalError: for an unsupported argument data type.
+        :raises GenerationError: if the same scalar argument has different \
+                                 data types in different kernel calls \
+                                 within the same Invoke.
+
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
-
+        # Create dict of all scalar arguments for checks
+        self._scalar_args = self._invoke.unique_declns_by_intent(
+            LFRicArgDescriptor.VALID_SCALAR_NAMES)
+        # Filter scalar arguments by intent and intrinsic type
+        self._real_scalars = self._invoke.unique_declns_by_intent(
+            LFRicArgDescriptor.VALID_SCALAR_NAMES,
+            intrinsic_type=MAPPING_DATA_TYPES["gh_real"])
+        self._int_scalars = self._invoke.unique_declns_by_intent(
+            LFRicArgDescriptor.VALID_SCALAR_NAMES,
+            intrinsic_type=MAPPING_DATA_TYPES["gh_integer"])
+        # TODO: Check for invalid intrinsic types
         for intent in FORTRAN_INTENT_NAMES:
-            if self._real_scalar_names[intent]:
-                dtype = "real"
-                parent.add(
-                    DeclGen(parent, datatype=dtype,
-                            kind=api_config.default_kind[dtype],
-                            entity_decls=self._real_scalar_names[intent],
-                            intent=intent))
+            scal = set(self._scalar_args[intent])
+            rscal = set(self._real_scalars[intent])
+            iscal = set(self._int_scalars[intent])
+            # Check that the same scalar name is not found in both real and
+            # integer scalar lists (for instance if passed to one kernel as
+            # a real and to another kernel as an integer scalar)
+            scal_mtype = rscal.intersection(iscal)
+            if scal_mtype:
+                raise GenerationError(
+                    "At least one scalar ({0}) in Invoke '{1}' has different "
+                    "metadata for data type ({2}) in different kernels. "
+                    "This is invalid.".
+                    format(list(scal_mtype), self._invoke.name,
+                           list(MAPPING_DATA_TYPES.keys())))
+            # Check for unsupported data types
+            scal_inv = scal - rscal.union(iscal)
+            if scal_inv:
+                for arg in scal_inv:
+                    raise InternalError(
+                        "Found an unsupported data type '{0}' for the "
+                        "scalar argument '{1}'. Supported types are {2}.".
+                        format(arg.descriptor.data_type, arg.declaration_name,
+                               LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES))
 
-        for intent in FORTRAN_INTENT_NAMES:
-            if self._int_scalar_names[intent]:
-                dtype = "integer"
-                parent.add(
-                    DeclGen(parent, datatype=dtype,
-                            kind=api_config.default_kind[dtype],
-                            entity_decls=self._int_scalar_names[intent],
-                            intent=intent))
+        # Create declarations
+        self._create_declarations(parent)
 
     def _stub_declarations(self, parent):
         '''
-        Declarations for scalars in Kernel stubs are the same as for those
-        in Invokes.
+        Create and add declarations for all of the scalar arguments in
+        a Kernel stubs.
 
         :param parent: node in the f2pygen AST representing the Kernel stub \
                        to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises InternalError: for an unsupported argument data type.
+
         '''
-        self._invoke_declarations(parent)
+        # Extract all scalar arguments
+        for arg in self._calls[0].arguments.args:
+            if arg.is_scalar:
+                self._scalar_args[arg.intent].append(arg)
+
+        # Filter scalar arguments by intent and data type
+        for intent in FORTRAN_INTENT_NAMES:
+            for arg in self._scalar_args[intent]:
+                if arg.descriptor.data_type == "gh_real":
+                    self._real_scalars[intent].append(arg)
+                elif arg.descriptor.data_type == "gh_integer":
+                    self._int_scalars[intent].append(arg)
+                else:
+                    raise InternalError(
+                         "Found an unsupported data type '{0}' for the "
+                         "scalar argument '{1}'. Supported types are {2}.".
+                         format(arg.descriptor.data_type, arg.declaration_name,
+                                LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES))
+
+        # Create declarations
+        self._create_declarations(parent)
+
+    def _create_declarations(self, parent):
+        '''
+        Add declarations for all of the scalar arguments.
+
+        :param parent: the f2pygen node in which to insert declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        # Create and add declarations
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        # Real scalar arguments
+        dtype = MAPPING_DATA_TYPES["gh_real"]
+        for intent in FORTRAN_INTENT_NAMES:
+            if self._real_scalars[intent]:
+                real_scalar_names = [arg.declaration_name for arg
+                                     in self._real_scalars[intent]]
+                parent.add(
+                    DeclGen(parent, datatype=dtype,
+                            kind=api_config.default_kind[dtype],
+                            entity_decls=real_scalar_names,
+                            intent=intent))
+
+        # Integer scalar arguments
+        dtype = MAPPING_DATA_TYPES["gh_integer"]
+        for intent in FORTRAN_INTENT_NAMES:
+            if self._int_scalars[intent]:
+                int_scalar_names = [arg.declaration_name for arg
+                                    in self._int_scalars[intent]]
+                parent.add(
+                    DeclGen(parent, datatype=dtype,
+                            kind=api_config.default_kind[dtype],
+                            entity_decls=int_scalar_names,
+                            intent=intent))
 
 
 class DynLMAOperators(DynCollection):

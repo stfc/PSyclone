@@ -1623,19 +1623,20 @@ def test_dynscalars_call_err():
 
     '''
     from psyclone.dynamo0p3 import DynScalarArgs
+    from psyclone.f2pygen import ModuleGen
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "1.9_single_invoke_2_real_scalars.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    first_kernel = first_invoke.schedule.coded_kernels()[0]
-    # Sabotage the scalar argument to make it have an invalid intrinsic type
-    first_argument = first_kernel.arguments.args[0]
-    first_argument._intrinsic_type = "double-type"
+    invoke = psy.invokes.invoke_list[0]
+    kernel = invoke.schedule.coded_kernels()[0]
+    # Sabotage the scalar argument to make it have an invalid data type
+    scalar_arg = kernel.arguments.args[0]
+    scalar_arg.descriptor._data_type = "gh_double_type"
     with pytest.raises(InternalError) as err:
-        _ = DynScalarArgs(first_kernel)
-    assert ("DynScalarArgs.__init__(): Found an unsupported intrinsic "
+        DynScalarArgs(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
+    assert ("Found an unsupported data "
             "type 'double-type' for the scalar argument 'a'. Supported "
             "types are ['real', 'integer']." in str(err.value))
 
@@ -1972,6 +1973,9 @@ def test_invoke_uniq_declns_valid_access():
     fields_readwritten = [arg.declaration_name for arg in
                           fields_readwritten_args]
     assert fields_readwritten == ["f1"]
+
+
+# TODO def test_invoke_uniq_declns_valid_intrinsic():
 
 
 def test_invoke_uniq_proxy_declns():
