@@ -154,6 +154,9 @@ psyGen.VALID_SCALAR_NAMES = LFRicArgDescriptor.VALID_SCALAR_NAMES
 # psyGen argument types translate to LFRic argument types.
 psyGen.VALID_ARG_TYPE_NAMES = LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
 
+# psyGen intrinsic types for kernel argument data as defined in LFRic.
+psyGen.VALID_INTRINSIC_TYPES = MAPPING_DATA_TYPES.values()
+
 # ---------- Functions ------------------------------------------------------ #
 
 
