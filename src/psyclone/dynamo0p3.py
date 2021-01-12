@@ -100,6 +100,8 @@ SUPPORTED_FORTRAN_DATATYPES = ["real", "integer", "logical"]
 MAPPING_DATA_TYPES = OrderedDict(zip(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
                                      SUPPORTED_FORTRAN_DATATYPES[0:2]))
 
+VALID_INTRINSIC_TYPES = list(MAPPING_DATA_TYPES.values())
+
 # ---------- Loops (bounds, types, names) ----------------------------------- #
 # These are loop bound names which identify positions in a field's
 # halo. It is useful to group these together as we often need to
@@ -155,7 +157,7 @@ psyGen.VALID_SCALAR_NAMES = LFRicArgDescriptor.VALID_SCALAR_NAMES
 psyGen.VALID_ARG_TYPE_NAMES = LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
 
 # psyGen intrinsic types for kernel argument data as defined in LFRic.
-psyGen.VALID_INTRINSIC_TYPES = MAPPING_DATA_TYPES.values()
+psyGen.VALID_INTRINSIC_TYPES = VALID_INTRINSIC_TYPES
 
 # ---------- Functions ------------------------------------------------------ #
 
@@ -3124,7 +3126,7 @@ class DynScalarArgs(DynCollection):
                         "intrinsic type '{0}' for the scalar argument "
                         "'{1}'. Supported types are {2}.".
                         format(arg.intrinsic_type, declname,
-                               list(MAPPING_DATA_TYPES.values())))
+                               VALID_INTRINSIC_TYPES))
 
     def _invoke_declarations(self, parent):
         '''

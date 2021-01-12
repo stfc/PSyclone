@@ -1886,7 +1886,7 @@ def test_op_any_discontinuous_space_2(tmpdir):
             in generated_code)
 
 
-def test_invoke_uniq_declns():
+def test_invoke_uniq_declns_invalid_argtype():
     ''' Tests that we raise an error when Invoke.unique_declarations() is
     called with at least one invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1914,6 +1914,22 @@ def test_invoke_uniq_declns_invalid_access():
     assert ("Invoke.unique_declarations() called with an invalid access "
             "type. Type is 'invalid_acc' instead of AccessType."
             in str(excinfo.value))
+
+
+def test_invoke_uniq_declns_invalid_intrinsic():
+    ''' Tests that we raise an error when Invoke.unique_declarations() is
+    called for an invalid intrinsic type. '''
+    from psyclone.dynamo0p3 import VALID_INTRINSIC_TYPES
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    with pytest.raises(InternalError) as excinfo:
+        psy.invokes.invoke_list[0].unique_declarations(
+            ["gh_scalar"], intrinsic_type="double")
+    assert ("Invoke.unique_declarations() called with an invalid intrinsic "
+            "argument data type. Expected one of {0} but found 'double'.".
+            format(VALID_INTRINSIC_TYPES) in str(excinfo.value))
 
 
 def test_invoke_uniq_declns_valid_access():
@@ -2004,7 +2020,7 @@ def test_dyninvoke_first_access():
         in str(excinfo.value)
 
 
-def test_dyninvoke_uniq_declns_inv_type():
+def test_dyninvoke_uniq_declns_intent_inv_argtype():
     ''' Tests that we raise an error when DynInvoke.unique_declns_by_intent()
     is called with at least one invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2017,6 +2033,38 @@ def test_dyninvoke_uniq_declns_inv_type():
             " argument type. Expected one of {0} but found ['gh_invalid'].".
             format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
             str(excinfo.value))
+
+
+def test_dyninvoke_uniq_declns_intent_inv_access():
+    ''' Tests that we raise an error when DynInvoke.unique_declns_by_intent()
+    is called for an invalid access type. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    with pytest.raises(InternalError) as excinfo:
+        psy.invokes.invoke_list[0].unique_declns_by_intent(
+            ["gh_field"], access="invalid_acc")
+    assert ("Invoke.unique_declns_by_intent() called with an invalid access "
+            "type. Type is 'invalid_acc' instead of AccessType."
+            in str(excinfo.value))
+
+
+def test_dyninvoke_uniq_declns_intent_inv_intrinsic():
+    ''' Tests that we raise an error when Invoke.unique_declarations() is
+    called for an invalid intrinsic type. '''
+    from psyclone.dynamo0p3 import VALID_INTRINSIC_TYPES
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    with pytest.raises(InternalError) as excinfo:
+        psy.invokes.invoke_list[0].unique_declarations(
+            ["gh_scalar"], intrinsic_type="triple")
+    assert ("Invoke.unique_declns_by_intent() called with an invalid "
+            "intrinsic argument data type. Expected one of {0} but "
+            "found 'triple'.".format(VALID_INTRINSIC_TYPES)
+            in str(excinfo.value))
 
 
 def test_dyninvoke_uniq_declns_intent_fields():

@@ -590,7 +590,7 @@ class Invoke(object):
             raise InternalError(
                 "Invoke.unique_declarations() called with an invalid "
                 "intrinsic argument data type. Expected one of {0} but "
-                "found {1}.".
+                "found '{1}'.".
                 format(str(VALID_INTRINSIC_TYPES), intrinsic_type))
 
         # Initialise dictionary of kernel arguments to get the
@@ -662,7 +662,7 @@ class Invoke(object):
             raise InternalError(
                 "Invoke.unique_declns_by_intent() called with an invalid "
                 "intrinsic argument data type. Expected one of {0} but "
-                "found {1}.".
+                "found '{1}'.".
                 format(str(VALID_INTRINSIC_TYPES), intrinsic_type))
 
         # We will return a dictionary containing as many lists
