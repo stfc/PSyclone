@@ -43,7 +43,26 @@ from psyclone.tests.utilities import check_links
 from psyclone.psyir import symbols, nodes
 
 
+@pytest.fixture(name="component_symbol")
 def make_component_symbol():
+    '''
+    Creates a Symbol of type "grid_type" equivalent to the Fortran:
+
+      type :: grid_type
+        integer :: nx
+        type(region_type) :: region
+      end type
+
+    and
+
+      type :: region_type
+        integer :: startx
+      end type
+
+    :returns: symbol named "grid" of type "grid_type".
+    :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    '''
     region_type = symbols.StructureType.create([
         ("startx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
     region_type_symbol = symbols.TypeSymbol("region_type", region_type)
@@ -56,38 +75,38 @@ def make_component_symbol():
     return ssym
 
 
-def test_asr_create():
+def test_asr_create(component_symbol):
     ''' Check the create method. '''
-    ssym = make_component_symbol()
     int_one = nodes.Literal("1", symbols.INTEGER_TYPE)
     # Reference to scalar member of structure in array of structures
     asref = nodes.ArrayOfStructuresReference.create(
-        ssym, [int_one], ["nx"])
+        component_symbol, [int_one], ["nx"])
     assert isinstance(asref.children[0], nodes.Member)
     assert isinstance(asref.children[1], nodes.Literal)
     check_links(asref, asref.children)
     # Reference to member of structure member of structure in array of
     # structures
     asref = nodes.ArrayOfStructuresReference.create(
-        ssym, [int_one], ["region", "startx"])
+        component_symbol, [int_one], ["region", "startx"])
     assert isinstance(asref.children[0], nodes.StructureMember)
     assert isinstance(asref.children[0].children[0], nodes.Member)
     # Reference to range of structures
     lbound = nodes.BinaryOperation.create(
         nodes.BinaryOperation.Operator.LBOUND,
-        nodes.Reference(ssym), int_one)
+        nodes.Reference(component_symbol), int_one)
     ubound = nodes.BinaryOperation.create(
         nodes.BinaryOperation.Operator.UBOUND,
-        nodes.Reference(ssym), int_one)
+        nodes.Reference(component_symbol), int_one)
     my_range = nodes.Range.create(lbound, ubound)
-    asref = nodes.ArrayOfStructuresReference.create(ssym, [my_range], ["nx"])
+    asref = nodes.ArrayOfStructuresReference.create(component_symbol,
+                                                    [my_range], ["nx"])
     assert isinstance(asref.children[0], nodes.Member)
     assert isinstance(asref.children[1], nodes.Range)
     check_links(asref, asref.children)
     check_links(asref.children[1], asref.children[1].children)
 
 
-def test_asr_create_errors():
+def test_asr_create_errors(component_symbol):
     ''' Test the validation checks within the create method. Most validation
     is done within the StructureReference class so there's not much to check
     here. '''
@@ -100,16 +119,16 @@ def test_asr_create_errors():
         _ = nodes.ArrayOfStructuresReference.create(scalar_symbol)
     assert "ArrayType but symbol 'scalar' has type 'Scalar" in str(err.value)
     # Missing children (for array-index expressions)
-    ssym = make_component_symbol()
     with pytest.raises(TypeError) as err:
-        _ = nodes.ArrayOfStructuresReference.create(ssym)
+        _ = nodes.ArrayOfStructuresReference.create(component_symbol)
     assert ("must be a list containing at least one array-index expression "
             "but this is missing for symbol 'grid'" in str(err.value))
     # Missing member(s)
     with pytest.raises(TypeError) as err:
         _ = nodes.ArrayOfStructuresReference.create(
-            ssym, indices=[nodes.Literal("1", symbols.INTEGER_TYPE)])
-    assert ("must be a list but found 'NoneType'" in str(err.value))
+            component_symbol,
+            indices=[nodes.Literal("1", symbols.INTEGER_TYPE)])
+    assert "must be a list but found 'NoneType'" in str(err.value)
 
 
 def test_ast_str():

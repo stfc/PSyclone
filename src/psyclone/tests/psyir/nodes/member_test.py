@@ -36,6 +36,7 @@
 
 ''' This module contains pytest tests for the Member class. '''
 
+from __future__ import absolute_import
 import pytest
 from psyclone.psyir import nodes
 

@@ -36,6 +36,7 @@
 
 ''' Module containing pytest tests for the StructureReference class. '''
 
+from __future__ import absolute_import
 import pytest
 from psyclone.errors import GenerationError
 from psyclone.psyir import symbols, nodes

@@ -1286,8 +1286,9 @@ def test_fw_arrayofstructuresref(fort_writer):
     grid_type_sym = TypeSymbol("grid_type", grid_type)
     grid_array_type = ArrayType(grid_type_sym, [10])
     grid_var = DataSymbol("grid", grid_array_type)
-    grid_ref = ArrayOfStructuresReference.create(grid_var, ["dx"],
-                                                 [Literal("3", INTEGER_TYPE)])
+    grid_ref = ArrayOfStructuresReference.create(grid_var,
+                                                 [Literal("3", INTEGER_TYPE)],
+                                                 ["dx"])
     assert (fort_writer.arrayofstructuresreference_node(grid_ref) ==
             "grid(3)%dx")
     # Break the node to trigger checks

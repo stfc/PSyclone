@@ -41,6 +41,7 @@ import pytest
 from psyclone.psyir import nodes
 from psyclone.psyir import symbols
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
 
 def create_structure_symbol(table):
@@ -83,7 +84,6 @@ def test_sm_constructor():
 
 def test_sm_node_str():
     ''' Check the node_str method of the StructureMember class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = nodes.KernelSchedule("kname")
     grid_var = create_structure_symbol(kschedule.symbol_table)
     assignment = nodes.Assignment(parent=kschedule)
