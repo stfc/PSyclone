@@ -77,7 +77,7 @@ class ArrayMember(Member, ArrayMixin):
         :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        return ArrayMember._create_array_of_structs(
+        return ArrayMember._create_array_member(
             member_name, indices=indices, parent=parent)
 
     @staticmethod

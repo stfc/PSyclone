@@ -48,7 +48,7 @@ class Member(Node):
     Node representing a membership expression of a structure.
     As such it is a leaf in the PSyIR tree.
 
-    :param str member_name: the member of the 'struct_type' structure that is \
+    :param str member_name: the name of the member of the structure that is \
                             being referenced.
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.StructureReference` or \

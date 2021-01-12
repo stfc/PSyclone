@@ -74,7 +74,7 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
         return isinstance(child, (DataNode, Range))
 
     @staticmethod
-    def create(symbol, members=None, children=None, parent=None):
+    def create(symbol, indices=None, members=None, parent=None):
         '''
         Create a reference to a member of one or more elements of an array of
         structures.
@@ -83,21 +83,21 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
         structure that is accessed is specified using the 'members'
         argument. e.g. for a reference to "field(idx)%bundle(2)%flag" this
         argument would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
-        The 'children' argument specifies the DataNodes describing the indexing
+        The 'indices' argument specifies the DataNodes describing the indexing
         into the array of structures. For the example given previously, this
         would be [Reference(idx_symbol)] where `idx_symbol` is the Symbol
         representing the `idx` variable in the Fortran code snippet.
 
         :param symbol: the symbol that this reference is to.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param indices: a list of Nodes describing the array indices.
+        :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
         :param members: one or more component(s) of the structure(s) that \
             make up the full access. Any components that are array \
             references must provide the name of the array and a list of \
             DataNodes describing which part of it is accessed.
         :type members: list of str or 2-tuples containing (str, \
             list of nodes describing array access)
-        :param children: a list of Nodes describing the array indices.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param parent: the parent of this node in the PSyIR or None.
         :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
 
@@ -118,7 +118,7 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
                 "An ArrayOfStructuresReference must refer to a symbol of "
                 "ArrayType but symbol '{0}' has type '{1}".format(
                     symbol.name, symbol.datatype))
-        if not isinstance(children, list) or not children:
+        if not isinstance(indices, list) or not indices:
             raise TypeError(
                 "The 'children' argument to  ArrayOfStructuresReference."
                 "create() must be a list containing at least one array-index "
@@ -133,7 +133,7 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
 
         # Then add the array-index expressions. We don't validate the children
         # as that is handled in _validate_child.
-        for child in children:
+        for child in indices:
             ref.addchild(child)
             child.parent = ref
         return ref

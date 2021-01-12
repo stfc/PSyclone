@@ -139,9 +139,8 @@ DX_REF2 = StructureReference.create(FIELD_SYMBOL, [("sub_meshes", [INT_ONE]),
                                                    "dx"])
 
 # Reference to "chi(1)%sub_meshes(1)%dx"
-DX_REF3 = ArrayOfStructuresReference.create(FIELD_BUNDLE_SYMBOL,
-                                            [("sub_meshes", [INT_ONE]), "dx"],
-                                            children=[INT_ONE])
+DX_REF3 = ArrayOfStructuresReference.create(FIELD_BUNDLE_SYMBOL, [INT_ONE],
+                                            [("sub_meshes", [INT_ONE]), "dx"])
 
 ASSIGNMENTS = [
     Assignment.create(DX_REF, TWO),

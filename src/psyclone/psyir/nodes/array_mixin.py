@@ -73,14 +73,16 @@ class ArrayMixin(object):
         '''
 
     @classmethod
-    def _create_array_of_structs(cls, member_name, indices=None,
-                                 inner_member=None, parent=None):
+    def _create_array_member(cls, member_name, indices=None,
+                             inner_member=None, parent=None):
         '''
-        Create an access to (one or more elements of) an array of
-        structures.
+        Create an access to (one or more elements of) an array within a
+        structure. The array may or may not itself be of structure type. If
+        it is then ``inner_member`` specifies the Member of that structure
+        that is accessed.
 
-        :param str member_name: the name of the member of the structure that \
-            is being accessed.
+        :param str member_name: the name of the array member of the structure \
+            that is being accessed.
         :param indices: the array-index expressions or None.
         :param inner_member: the member of the `member_name` structure that \
             is being accessed.

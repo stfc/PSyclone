@@ -62,14 +62,14 @@ def test_asr_create():
     int_one = nodes.Literal("1", symbols.INTEGER_TYPE)
     # Reference to scalar member of structure in array of structures
     asref = nodes.ArrayOfStructuresReference.create(
-        ssym, ["nx"], [int_one])
+        ssym, [int_one], ["nx"])
     assert isinstance(asref.children[0], nodes.Member)
     assert isinstance(asref.children[1], nodes.Literal)
     check_links(asref, asref.children)
     # Reference to member of structure member of structure in array of
     # structures
     asref = nodes.ArrayOfStructuresReference.create(
-        ssym, ["region", "startx"], [int_one])
+        ssym, [int_one], ["region", "startx"])
     assert isinstance(asref.children[0], nodes.StructureMember)
     assert isinstance(asref.children[0].children[0], nodes.Member)
     # Reference to range of structures
@@ -80,7 +80,7 @@ def test_asr_create():
         nodes.BinaryOperation.Operator.UBOUND,
         nodes.Reference(ssym), int_one)
     my_range = nodes.Range.create(lbound, ubound)
-    asref = nodes.ArrayOfStructuresReference.create(ssym, ["nx"], [my_range])
+    asref = nodes.ArrayOfStructuresReference.create(ssym, [my_range], ["nx"])
     assert isinstance(asref.children[0], nodes.Member)
     assert isinstance(asref.children[1], nodes.Range)
     check_links(asref, asref.children)
@@ -108,7 +108,7 @@ def test_asr_create_errors():
     # Missing member(s)
     with pytest.raises(TypeError) as err:
         _ = nodes.ArrayOfStructuresReference.create(
-            ssym, children=[nodes.Literal("1", symbols.INTEGER_TYPE)])
+            ssym, indices=[nodes.Literal("1", symbols.INTEGER_TYPE)])
     assert ("must be a list but found 'NoneType'" in str(err.value))
 
 
@@ -121,7 +121,7 @@ def test_ast_str():
     grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
     ssym = symbols.DataSymbol("grid", grid_array_type)
     asref = nodes.ArrayOfStructuresReference.create(
-        ssym, ["nx"], [nodes.Literal("2", symbols.INTEGER_TYPE)])
+        ssym, [nodes.Literal("2", symbols.INTEGER_TYPE)], ["nx"])
     assert (str(asref) == "ArrayOfStructuresReference[name:'grid']\n"
             "Member[name:'nx']\n"
             "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n")

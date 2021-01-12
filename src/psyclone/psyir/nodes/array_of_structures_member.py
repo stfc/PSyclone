@@ -87,7 +87,7 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
         :rtype: :py:class:`psyclone.psyir.nodes.ArrayOfStructuresMember`
 
         '''
-        return ArrayOfStructuresMember._create_array_of_structs(
+        return ArrayOfStructuresMember._create_array_member(
             member_name, indices, inner_member, parent=parent)
 
     @staticmethod
