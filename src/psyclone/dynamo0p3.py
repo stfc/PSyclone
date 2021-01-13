@@ -5060,7 +5060,7 @@ class DynInvoke(Invoke):
         :raises InternalError: if an invalid intrinsic type is specified.
 
         '''
-        # First check for invalid argument types, access and data type
+        # First check for invalid argument types, access and intrinsic type
         if any(argtype not in LFRicArgDescriptor.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(

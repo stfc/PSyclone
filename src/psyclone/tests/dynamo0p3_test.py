@@ -56,7 +56,7 @@ from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, \
-    KernCallArgList, DynACCEnterDataDirective
+    KernCallArgList, DynACCEnterDataDirective, MAPPING_DATA_TYPES
 
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
@@ -1964,7 +1964,6 @@ def test_uniq_proxy_declns_invalid_access():
 def test_uniq_proxy_declns_invalid_intrinsic_type():
     ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
     is called for an invalid intrinsic type. '''
-    from psyclone.dynamo0p3 import MAPPING_DATA_TYPES
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
