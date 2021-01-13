@@ -64,7 +64,7 @@ Access Verification:
   is not modified during a kernel call (either because of an incorrect
   declaration, or because memory is overwritten). The implementation
   included in PSyclone uses a simple 64-bit checksum to detect changes
-  to a field (and scalar values). See :ref:`psydata_read_validation`
+  to a field (and scalar values). See :ref:`psydata_read_verification`
   for details.
 
 NAN Test:
@@ -89,7 +89,7 @@ and corresponding runtime libraries for additional functionality.
 Refer to :ref:`dev_guide:psy_data` for full details about the PSyData API.
 
 
-.. _psydata_read_validation:
+.. _psydata_read_verification:
 
 Read-Only Verification
 ----------------------

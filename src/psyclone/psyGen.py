@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,7 @@ from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     Symbol, INTEGER_TYPE, BOOLEAN_TYPE
+from psyclone.psyir.symbols.datatypes import UnknownFortranType
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, PSyDataNode
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
@@ -3071,7 +3072,7 @@ class CodedKern(Kern):
     def _rename_psyir(self, suffix):
         '''Rename the PSyIR module and kernel names by adding the supplied
         suffix to the names. This change affects the KernCall and
-        KernelSchedule nodes.
+        KernelSchedule nodes as well as the kernel metadata declaration.
 
         :param str suffix: the string to insert into the quantity names.
 
@@ -3092,6 +3093,18 @@ class CodedKern(Kern):
         kern_schedule = self.get_kernel_schedule()
         kern_schedule.name = new_kern_name[:]
         kern_schedule.root.name = new_mod_name[:]
+
+        # TODO #1013. This needs re-doing properly - in particular the
+        # RoutineSymbol associated with the kernel needs to be replaced. For
+        # now we only fix the specific case of the name of the kernel routine
+        # in the kernel metadata as otherwise various compilation tests
+        # fail.
+        container_table = kern_schedule.root.symbol_table
+        for sym in container_table.local_typesymbols:
+            if isinstance(sym.datatype, UnknownFortranType):
+                orig_declaration = sym.datatype.declaration
+                sym.datatype.declaration = orig_declaration.replace(
+                    orig_kern_name, new_kern_name)
 
     def _prepare_opencl_kernel_schedule(self):
         ''' Generic method to introduce kernel modifications when generating

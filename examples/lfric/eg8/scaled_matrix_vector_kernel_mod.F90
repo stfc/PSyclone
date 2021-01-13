@@ -9,7 +9,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications Copyright (c) 2017-2021, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -45,7 +45,7 @@ module scaled_matrix_vector_kernel_mod
 
 use argument_mod,            only : arg_type,                 &
                                     GH_FIELD, GH_OPERATOR,    &
-                                    GH_READ, GH_INC,          &
+                                    GH_REAL, GH_READ, GH_INC, &
                                     ANY_SPACE_1, ANY_SPACE_2, &
                                     CELL_COLUMN
 use fs_continuity_mod,       only : W3
@@ -62,13 +62,13 @@ private
 
 type, public, extends(kernel_type) :: scaled_matrix_vector_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                    &
-       ! modified so that the redundant computation example will run
-       !arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),      &
-       arg_type(GH_FIELD,     GH_READ, W3),                            &
-       arg_type(GH_FIELD,     GH_READ, ANY_SPACE_1)                    &
+  type(arg_type) :: meta_args(4) = (/                                      &
+       arg_type(GH_FIELD,    GH_REAL, GH_INC,  ANY_SPACE_1),               &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, ANY_SPACE_2),               &
+       ! Modified so that the redundant computation example will run
+       !arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, W3),                        &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, ANY_SPACE_1)                &
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -86,11 +86,11 @@ contains
 !>        and y is a field in the same space as lhs
 !> @param[in] cell Horizontal cell index
 !! @param[in] nlayers Number of layers
+!! @param[in,out] lhs Output lhs (A*x)
 !! @param[in] x Input data
-!> @param[in,out] lhs Output lhs (A*x)
 !! @param[in] ncell_3d Total number of cells
 !! @param[in] matrix Local matrix assembly form of the operator A
-!! @param[in] y field to scale output by
+!! @param[in] y Field to scale output by
 !! @param[in] ndf1 Number of degrees of freedom per cell for the output field
 !! @param[in] undf1 Unique number of degrees of freedom  for the output field
 !! @param[in] map1 Dofmap for the cell at the base of the column for the output field

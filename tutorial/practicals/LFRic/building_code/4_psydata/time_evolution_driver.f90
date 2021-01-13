@@ -52,7 +52,6 @@ program time_evolution_driver
   use function_space_mod,     only : function_space_type
   use field_mod,              only : field_type
   use log_mod,                only : log_event,          &
-                                     log_scratch_space,  &
                                      LOG_LEVEL_INFO
   ! Configuration
   use configuration_mod,      only : read_configuration, &

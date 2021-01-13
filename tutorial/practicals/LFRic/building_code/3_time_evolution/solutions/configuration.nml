@@ -1,5 +1,5 @@
 &base_mesh
-  filename        = '../mesh_planar100x100-1000x1000.nc'
+  filename        = '../../data/mesh_planar100x100-1000x1000.nc'
   prime_mesh_name = 'dynamics'
   geometry        = 'planar'
   partitioner     = 'planar'
