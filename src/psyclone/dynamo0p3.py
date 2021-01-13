@@ -1862,7 +1862,14 @@ class LFRicMeshProperties(DynCollection):
                                             self._kernel, [1])
                 if not stub:
                     # This is a kernel call from within an invoke
-                    adj_face += "(:,cell)"
+                    cell_name = "cell"
+                    if self._kernel.is_coloured():
+                        colour_name = "colour"
+                        cmap_name = "cmap"
+                        adj_face += "(:,{0}({1}, {2}))".format(
+                            cmap_name, colour_name, cell_name)
+                    else:
+                        adj_face += "(:,{0})".format(cell_name)
                 arg_list.append(adj_face)
             else:
                 raise InternalError(
