@@ -135,23 +135,23 @@ class KernelTrans(Transformation):
                        "".format(kern.name, str(error.value)))
             six.raise_from(TransformationError(message), error)
         except SymbolError as err:
-            raise TransformationError(
+            six.raise_from(TransformationError(
                 "Kernel '{0}' contains accesses to data that are not captured "
                 "in the PSyIR Symbol Table(s) ({1}). Cannot transform such a "
-                "kernel.".format(kern.name, str(err.args[0])))
+                "kernel.".format(kern.name, str(err.args[0]))), err)
         # Check that all kernel symbols are declared in the kernel
         # symbol table(s). At this point they may be declared in a
         # container containing this kernel which is not supported.
         for var in kernel_schedule.walk(nodes.Reference):
             try:
-                _ = var.find_or_create_symbol(
-                    var.name, scope_limit=var.ancestor(nodes.KernelSchedule))
-            except SymbolError:
-                raise TransformationError(
+                var.scope.symbol_table.lookup(var.name,
+                    scope_limit=var.ancestor(nodes.KernelSchedule))
+            except KeyError as err:
+                six.raise_from(TransformationError(
                     "Kernel '{0}' contains accesses to data (variable '{1}') "
                     "that are not captured in the PSyIR Symbol Table(s) "
                     "within KernelSchedule scope. Cannot transform such a "
-                    "kernel.".format(kern.name, var.name))
+                    "kernel.".format(kern.name, var.name)), err)
 
 
 class LoopFuseTrans(Transformation):

@@ -1054,7 +1054,7 @@ def test_module_function_symbol(parser):
     # This should result in a new, *local* symbol named "modvar1"
     sched = processor.generate_schedule("modvar1", ast, container)
     # Check that the resulting Schedule has a local symbol
-    sym = sched.scope.symbol_table.lookup("modvar1", check_ancestors=False)
+    sym = sched.scope.symbol_table.lookup("modvar1", scope_limit=sched)
     assert isinstance(sym, DataSymbol)
     assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
 

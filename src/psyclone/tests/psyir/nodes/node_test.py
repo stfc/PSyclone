@@ -750,7 +750,7 @@ def test_find_or_create_symbol():
     assert sym.name == "very_private"
     assert sym.visibility == Symbol.Visibility.PRIVATE
     assert sym is container.symbol_table.lookup("very_private",
-                                                check_ancestors=False)
+                                                scope_limit=container)
 
 
 def test_find_or_create_new_symbol():

@@ -96,8 +96,7 @@ class SymbolTable(object):
         '''
         return self._node
 
-    @property
-    def parent(self):
+    def parent_symbol_table(self, scope_limit=None):
         '''
         :returns: the 'parent' SymbolTable of the current SymbolTable (i.e.
                   the one that encloses this one in the PSyIR hierarchy).
@@ -105,12 +104,15 @@ class SymbolTable(object):
         '''
         # We use the Node with which this table is associated in order to
         # move up the Node hierarchy
-        if self.node and self.node.parent:
-            return self.node.parent.scope.symbol_table
+        if self.node and self.node:
+            search_next = self.node
+            while search_next is not scope_limit and search_next.parent:
+                search_next = search_next.parent
+                if hasattr(search_next, 'symbol_table'):
+                    return search_next.symbol_table
         return None
 
-    @property
-    def _all_symbols(self):
+    def get_symbols(self, scope_limit=None):
         '''Return symbols from this symbol table and all symbol tables
         associated with ancestors of the node that this symbol table
         is attached to. If there are duplicates we only return one of
@@ -120,18 +122,16 @@ class SymbolTable(object):
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        all_symbols = OrderedDict(self._symbols)
+        all_symbols = OrderedDict()
         current = self
-        while current.parent:
-            current = current.parent
-            for symbol_name in current.symbols_dict:
+        while current:
+            for symbol_name, symbol in current.symbols_dict.items():
                 if symbol_name not in all_symbols:
-                    all_symbols[symbol_name] = current.symbols_dict[
-                        symbol_name]
+                    all_symbols[symbol_name] = symbol
+            current = current.parent_symbol_table(scope_limit)
         return all_symbols
 
-    @property
-    def _all_tags(self):
+    def get_tags(self, scope_limit=None):
         '''Return tags from this symbol table and all symbol tables associated
         with ancestors of the node that this symbol table is attached
         to. If there are duplicates we only return one of them (the
@@ -141,13 +141,13 @@ class SymbolTable(object):
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        all_tags = OrderedDict(self._tags)
+        all_tags = OrderedDict()
         current = self
-        while current.parent:
-            current = current.parent
-            for tag in current.tags_dict:
+        while current:
+            for tag, symbol in current.tags_dict.items():
                 if tag not in all_tags:
-                    all_tags[tag] = current.tags_dict[tag]
+                    all_tags[tag] = symbol
+            current = current.parent_symbol_table(scope_limit)
         return all_tags
 
     def shallow_copy(self):
@@ -291,7 +291,7 @@ class SymbolTable(object):
                 " but found '{0}'.".format(type(check_ancestors).__name__))
 
         if check_ancestors:
-            symbols = self._all_symbols
+            symbols = self.get_symbols()
         else:
             symbols = self._symbols
 
@@ -334,7 +334,7 @@ class SymbolTable(object):
                            " name '{0}'.".format(new_symbol.name))
 
         if tag:
-            if tag in self._all_tags:
+            if tag in self.get_tags():
                 raise KeyError(
                     "Symbol table already contains the tag '{0}' for symbol"
                     " '{1}', so it can not be associated to symbol '{2}'.".
@@ -401,7 +401,7 @@ class SymbolTable(object):
         self._validate_arg_list(argument_symbols)
         self._argument_list = argument_symbols[:]
 
-    def lookup(self, name, visibility=None, check_ancestors=True):
+    def lookup(self, name, visibility=None, scope_limit=None):
         '''Look up a symbol in the symbol table (if the `check_ancestors`
         argument is False) or in this or any ancestor symbol table (if
         the `check_ancestors` argument is True).
@@ -410,10 +410,14 @@ class SymbolTable(object):
         :param visibilty: the visibility or list of visibilities that the \
                           symbol must have.
         :type visibility: [list of] :py:class:`psyclone.symbols.Visibility`
-        :param bool check_ancestors: optional logical flag indicating \
-            whether the symbol name should be unique in this symbol \
-            table (False) or in this and all ancestor symbol tables \
-            (True). Defaults to True.
+        :param scope_limit: optional Node which limits the symbol \
+            search space to the symbol tables of the nodes within the \
+            given scope. If it is None (the default), the whole \
+            scope (all symbol tables in ancestor nodes) is searched \
+            otherwise ancestors of the scope_limit node are not \
+            searched.
+        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
+            `NoneType`
 
         :returns: the symbol with the given name and, if specified, visibility.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -431,13 +435,8 @@ class SymbolTable(object):
                 "a str but found '{0}'."
                 "".format(type(name).__name__))
 
-        if check_ancestors:
-            symbols = self._all_symbols
-        else:
-            symbols = self._symbols
-
         try:
-            symbol = symbols[self._normalize(name)]
+            symbol = self.get_symbols(scope_limit)[self._normalize(name)]
             if visibility:
                 if not isinstance(visibility, list):
                     vis_list = [visibility]
@@ -466,7 +465,7 @@ class SymbolTable(object):
             six.raise_from(KeyError("Could not find '{0}' in the Symbol Table."
                                     "".format(name)), err)
 
-    def lookup_with_tag(self, tag, check_ancestors=True):
+    def lookup_with_tag(self, tag, scope_limit=None):
         '''Look up a symbol using the supplied tag. If check_ancestors is True
         then this and any ancestor symbol tables are searched,
         otherwise only this symbol table is examined.
@@ -489,13 +488,8 @@ class SymbolTable(object):
                 "Expected the tag argument to the lookup_with_tag() method "
                 "to be a str but found '{0}'.".format(type(tag).__name__))
 
-        if check_ancestors:
-            tags = self._all_tags
-        else:
-            tags = self._tags
-
         try:
-            return tags[tag]
+            return self.get_tags(scope_limit)[tag]
         except KeyError as err:
             six.raise_from(
                 KeyError("Could not find the tag '{0}' in the Symbol Table."

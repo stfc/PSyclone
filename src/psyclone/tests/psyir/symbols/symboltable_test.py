@@ -589,42 +589,29 @@ def test_lookup_4():
 
     '''
     schedule_symbol_table, container_symbol_table = create_hierarchy()
+    scope = schedule_symbol_table.node
     symbol1 = schedule_symbol_table.lookup("symbol1")
     symbol2 = container_symbol_table.lookup("symbol2")
 
     # raise an exception if the symbol is not found
-    for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
-        with pytest.raises(KeyError) as info:
-            schedule_symbol_table.lookup("does-not-exist", **arg)
-        assert ("Could not find 'does-not-exist' in the Symbol Table."
-                in str(info.value))
+    with pytest.raises(KeyError) as info:
+        schedule_symbol_table.lookup("does-not-exist")
+    assert ("Could not find 'does-not-exist' in the Symbol Table."
+            in str(info.value))
     # The symbol is in an ancestor symbol table. This will not be
-    # found if check_ancestors=False
-    for arg in {}, {"check_ancestors": True}:
+    # found if scope_limit
+    for arg in {}, {"scope_limit": None}:
         assert schedule_symbol_table.lookup(symbol2.name, **arg) is symbol2
     with pytest.raises(KeyError) as info:
-        schedule_symbol_table.lookup(symbol2.name, check_ancestors=False)
+        schedule_symbol_table.lookup(symbol2.name, scope_limit=scope)
     assert ("Could not find 'symbol2' in the Symbol Table."
             in str(info.value))
     # A symbol in a child symbol table will not be found
-    for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
+    for arg in {}, {"scope_limit": None}, {"scope_limit": scope}:
         with pytest.raises(KeyError) as info:
             container_symbol_table.lookup(symbol1.name, **arg)
         assert ("Could not find 'symbol1' in the Symbol Table."
                 in str(info.value))
-    # The symbol is in an ancestor symbol table, check_ancestors is
-    # True and visibility is set
-    assert (
-        schedule_symbol_table.lookup(
-            symbol2.name, visibility=Symbol.Visibility.PUBLIC,
-            check_ancestors=True) is symbol2)
-    with pytest.raises(SymbolError) as info:
-        schedule_symbol_table.lookup(
-            symbol2.name, visibility=Symbol.Visibility.PRIVATE,
-            check_ancestors=True)
-    assert ("Symbol 'symbol2' exists in the Symbol Table but has visibility "
-            "'PUBLIC' which does not match with the requested visibility: "
-            "['PRIVATE']" in str(info.value))
 
 
 def test_lookup_with_tag_1():
@@ -669,26 +656,27 @@ def test_lookup_with_tag_3():
 
     '''
     schedule_symbol_table, container_symbol_table = create_hierarchy()
+    scope = schedule_symbol_table.node
     symbol2 = container_symbol_table.lookup("symbol2")
 
     # raise an exception if the tag is not found
-    for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
+    for arg in {}, {"scope_limit": None}, {"scope_limit": scope}:
         with pytest.raises(KeyError) as info:
             schedule_symbol_table.lookup_with_tag("does-not-exist", **arg)
             assert ("Could not find the tag 'does-not-exist' in the Symbol "
                     "Table." in str(info.value))
     # The tag is in an ancestor symbol table. This will not be
     # found if check_ancestors=False
-    for arg in {}, {"check_ancestors": True}:
+    for arg in {}, {"scope_limit": None}:
         assert (schedule_symbol_table.lookup_with_tag(
             "symbol2_tag", **arg) is symbol2)
     with pytest.raises(KeyError) as info:
         schedule_symbol_table.lookup_with_tag(
-            "symbol2_tag", check_ancestors=False)
+            "symbol2_tag", scope_limit=scope)
     assert ("Could not find the tag 'symbol2_tag' in the Symbol Table."
             in str(info.value))
     # The tag is in a child symbol table so will not be found
-    for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
+    for arg in {}, {"scope_limit": None}, {"scope_limit": scope}:
         with pytest.raises(KeyError) as info:
             container_symbol_table.lookup_with_tag("symbol1_tag", **arg)
             assert ("Could not find the tag 'symbol1_tag' in the Symbol Table."
@@ -1103,8 +1091,8 @@ def test_shallow_copy():
     assert "st1" not in symtab2
 
 
-def test_all_symbols():
-    '''Check that the all_symbols property in the SymbolTable class
+def test_get_symbols():
+    '''Check that the get_symbols method in the SymbolTable class
     behaves as expected.
 
     '''
@@ -1114,7 +1102,7 @@ def test_all_symbols():
 
     # all_symbols() works when the symbol table is not attached to a
     # node.
-    all_symbols = schedule_symbol_table._all_symbols
+    all_symbols = schedule_symbol_table.get_symbols()
     assert len(all_symbols) == 1
     assert all_symbols[symbol1.name] is symbol1
 
@@ -1127,20 +1115,20 @@ def test_all_symbols():
 
     # all_symbols() works when the symbol table is attached to a
     # node which has no parent.
-    all_symbols = container_symbol_table._all_symbols
+    all_symbols = container_symbol_table.get_symbols()
     assert len(all_symbols) == 1
     assert all_symbols[symbol2.name] is symbol2
 
     # all_symbols() works when the symbol table has ancestor symbol
     # tables.
-    all_symbols = schedule_symbol_table._all_symbols
+    all_symbols = schedule_symbol_table.get_symbols()
     assert len(all_symbols) == 2
     assert all_symbols[symbol1.name] is symbol1
     assert all_symbols[symbol2.name] is symbol2
 
 
-def test_all_tags():
-    '''Check that the all_tags property in the SymbolTable class
+def test_get_tags():
+    '''Check that the get_tags method in the SymbolTable class
     behaves as expected.
 
     '''
@@ -1150,7 +1138,7 @@ def test_all_tags():
     schedule_symbol_table.add(symbol1, tag=symbol1_tag)
 
     # all_tags() works when the symbol table is not attached to a node.
-    all_tags = schedule_symbol_table._all_tags
+    all_tags = schedule_symbol_table.get_tags()
     assert len(all_tags) == 1
     assert all_tags["symbol1_tag"] is symbol1
 
@@ -1164,13 +1152,13 @@ def test_all_tags():
 
     # all_tags() works when the symbol table is attached to a
     # node which has no parent.
-    all_tags = container_symbol_table._all_tags
+    all_tags = container_symbol_table.get_tags()
     assert len(all_tags) == 1
     assert all_tags[symbol2_tag] is symbol2
 
     # all_tags() works when the symbol table has ancestor symbol
     # tables.
-    all_tags = schedule_symbol_table._all_tags
+    all_tags = schedule_symbol_table.get_tags()
     assert len(all_tags) == 2
     assert all_tags[symbol1_tag] is symbol1
     assert all_tags[symbol2_tag] is symbol2
