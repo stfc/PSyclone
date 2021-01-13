@@ -41,7 +41,7 @@
 ! Modified by A. Porter, STFC.
 ! Modified by I. Kavcic, Met Office.
 
-!> @brief Kernel which applies boundary conditions to a field
+!> @brief Applies boundary conditions to a field
 !> @details Wrapper code for applying boundary conditions to a field
 !>          When the Psyclone api is updated to correctly deal with
 !>          boundary dofs this can be removed
@@ -64,7 +64,7 @@ private
 type, public, extends(kernel_type) :: enforce_bc_kernel_type
   private
   type(arg_type) :: meta_args(1) = (/                                  &
-       arg_type(GH_FIELD, GH_REAL, GH_INC, ANY_SPACE_1)                &
+       arg_type(GH_FIELD,  GH_REAL,  GH_INC,  ANY_SPACE_1)             &
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -78,13 +78,13 @@ public enforce_bc_code
 
 contains
 
-!> @brief The subroutine which is called directly by the Psy layer
+!> @brief Applies boundary conditions to a field
 !! @param[in] nlayers Number of layers
-!! @param[in,out] field The data
+!! @param[in,out] field Input/Output data
 !! @param[in] ndf Number of degrees of freedom per cell
 !! @param[in] undf Number unique of degrees of freedom
 !! @param[in] map Dofmap for the cell at the base of the column
-!! @param[in] boundary_value Array of flags (= 0) for dofs that live on the
+!! @param[in] boundary_value Flags (= 0) for dofs that live on the
 !!            vertical boundaries of the cell (=1 for other dofs)
 subroutine enforce_bc_code(nlayers,                        &
                            field,                          &
