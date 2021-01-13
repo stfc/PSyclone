@@ -276,6 +276,8 @@
 	88) PR #1021 towards #363. Add PSyIR nodes for structure references and
 	its accessors, also the associated Fortran back-end visitors.
 
+	89) PR #1036 for #1033. Fix bug in coluring adjacent_face array with
+	OpenMP in LFRic API.
 
 release 1.9.0 20th May 2020
 
