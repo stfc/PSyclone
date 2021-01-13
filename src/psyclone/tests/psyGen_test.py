@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@ from psyclone.psyir.nodes import Assignment, BinaryOperation, \
     Literal, Node, Schedule, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
-    OMPParallelDoDirective, InlinedKern, Invokes, \
+    OMPParallelDoDirective, InlinedKern, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
     ACCEnterDataDirective, ACCKernelsDirective, HaloExchange, Invoke, \
     DataAccess, Kern, Arguments, CodedKern

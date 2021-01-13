@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2021, Science and Technology Facilities Council.
+! Copyright (c) 2018, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: A. R. Porter and S. Siso, STFC Daresbury Lab.
+! Author: A. R. Porter, STFC Daresbury Lab.
 
 ! A simple, single Invoke example to demonstrate the generation of an
 ! OpenCL driver PSy layer.
@@ -65,8 +65,8 @@ program simple
 
   ! Create our grid
   model_grid = grid_type(GO_ARAKAWA_C,                                 &
-                         (/GO_BC_EXTERNAL,GO_BC_EXTERNAL,GO_BC_NONE/), &
-                         GO_OFFSET_NE)
+                         (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/), &
+                         GO_OFFSET_SW)
   !> Generate a domain decomposition
   call model_grid%decompose(jpiglo, jpjglo)
 

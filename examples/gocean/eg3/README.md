@@ -77,8 +77,8 @@ FORTCL_KERNELS_FILE=allkernels.cl mpirun -n 2 ./alg_dm_opencl.exe
 The previous example uses a single accelerator device in each node. If more
 than one accelerator is available in each node, these can be used by setting
 the `OCL_DEVICES_PER_NODE` parameter in the PSyclone configuration file and
-the providing the mpirun command with the appropriate parameter to place as
-many MPI ranks per node as accelerator devices the node has. For example,
+then providing the mpirun command with the appropriate parameter to place as
+many MPI ranks per node as as there are accelerators devices. For example,
 with Intel MPI, the following command can be used to run across 2 nodes with
 2 devices per node:
 

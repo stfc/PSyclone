@@ -736,10 +736,10 @@ by FortCL and DL_ESM_INF to inform how things should execute. Specifically:
     the number of MPI-ranks-per-node set by the `mpirun` command has to match
     this value accordingly.
 
-    For instance if there are 2 accelerator per nodes, `psyclone.cfg` should
+    For instance if there are 2 accelerators per nodes, `psyclone.cfg` should
     have ``OCL_DEVICES_PER_NODE=2`` and the program must be executed with
     ``mpirun -n <total_ranks> -ppn 2 ./application`` (Note: `-ppn` is an
-    Intel MPI specific parameter, use equivalet configuration parameters for
+    Intel MPI specific parameter, use equivalent configuration parameters for
     other MPI implementations.)
 
 
