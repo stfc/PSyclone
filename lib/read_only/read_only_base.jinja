@@ -358,7 +358,7 @@ Contains
         {# The spaces take care of proper indentation #}
         checksum = 0
         {% for j in range(dim, 0, -1) %}
-        {{+" "*3*(dim-j)}}do i{{j}}=1, size(field, {{j}})
+        {{" "*3*(dim-j)}}do i{{j}}=1, size(field, {{j}})
         {% endfor %}
         {% if bits == 32 %}
         {{indent}}! transfer leaves undefined bits in a 64-bit target
