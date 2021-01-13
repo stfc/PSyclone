@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,39 +30,31 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: I. Kavcic, Met Office
+# -----------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound
+''' This module contains pytest tests for the ArrayMemberReference class. '''
 
-# LFRic infrastructure library
-PSYCLONE_RELPATH = ../../../../../..
-LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME = lfric_netcdf
-LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
-F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
+from __future__ import absolute_import
+import pytest
+from psyclone.psyir import symbols, nodes
+from psyclone.errors import GenerationError
 
-GHLIB_SRC = $(wildcard *.F90) $(wildcard *.f90)
 
-GHLIB_OBJ = $(filter %.o,$(GHLIB_SRC:.F90=.o) $(GHLIB_SRC:.f90=.o))
+def test_amr_constructor():
+    ''' Test that we can construct an ArrayMember. '''
+    amr = nodes.ArrayMember("sub_mesh")
+    assert len(amr.children) == 0
+    assert amr.name == "sub_mesh"
 
-default: $(GHLIB_OBJ)
-	$(AR) $(ARFLAGS) libgungho.a $(GHLIB_OBJ)
-default: $(LIB)
 
-# Dependencies
-# ------------
-assign_coordinate_field_mod.o: base_mesh_config_mod.o planet_config_mod.o
-configuration_mod.o: extrusion_uniform_config_mod.o finite_element_config_mod.o \
-	partitioning_config_mod.o perturbation_bell_config_mod.o planet_config_mod.o \
-	timestepping_config_mod.o base_mesh_config_mod.o io_utility_mod.o
-
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
-
-clean:
-	rm -f *.o *.mod *.a
+def test_amr_validate_child():
+    ''' Test the _validate_child method of ArrayMember. '''
+    idx = nodes.Literal("3", symbols.INTEGER_TYPE)
+    amr = nodes.ArrayMember("sub_mesh")
+    with pytest.raises(GenerationError) as err:
+        amr.addchild("wrong")
+    assert "'str' can't be child 0 of 'ArrayMember'" in str(err.value)
+    amr.addchild(idx)
+    assert amr.children[0] is idx
