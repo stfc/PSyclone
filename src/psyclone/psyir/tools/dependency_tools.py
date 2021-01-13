@@ -374,7 +374,7 @@ class DependencyTools(object):
                 is_array = var_info[0].indices is not None
             else:
                 # Find the symbol for this variable
-                symbol = loop.find_or_create_symbol(var_name)
+                symbol = symbol_table.lookup(var_name)
                 is_array = symbol.is_array
 
             if is_array:
