@@ -41,6 +41,7 @@ name=simple_timing
 libname:=lib$(name).a
 OBJS = $(name).o psy_data_base.o
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
+PROCESS=$$(../../get_python.sh) ../../process.py
 
 .PHONY: default
 
@@ -52,7 +53,7 @@ $(libname): $(OBJS)
 $(name).o:	psy_data_base.o
 
 psy_data_base.f90: ../../psy_data_base.jinja
-	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<

@@ -49,13 +49,19 @@ TRANS_SCRIPT ?= ./omp_trans.py
 F90 ?= gfortran
 F90FLAGS ?= -fopenmp -O2
 
+PSYCLONE = psyclone -api nemo -opsy psy.f90 -l output
+
+# The solutions scripts that the 'test' target will execute
+SOLUTION_SCRIPTS = $(wildcard solutions/*.py)
+
+.PHONY: test clean allclean ${SOLUTION_SCRIPTS}
+
 $(NAME): $(KERNELS) psy.o runner.o
 	$(F90) $(F90FLAGS) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
 
 # Target that uses PSyclone to generate 'psy.f90'
 psy.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
-	psyclone -s ${TRANS_SCRIPT} -api nemo \
-                     -opsy psy.f90 -l output tra_adv_mod.F90
+	${PSYCLONE} -s ${TRANS_SCRIPT} tra_adv_mod.F90
 
 # Make sure the infrastructure library is compiled, so the mods are found
 $(KERNELS): $(INF_LIB)
@@ -76,5 +82,9 @@ allclean: clean
 	rm -f ${NAME}
 	${MAKE} -C ${PROFILE_DIR}  clean
 
-test:
-	${MAKE} -C solutions test
+test: ${SOLUTION_SCRIPTS}
+
+${SOLUTION_SCRIPTS}:
+	${PSYCLONE} -s $@ tra_adv_mod.F90
+	${PSYCLONE} -s $@ --profile invokes tra_adv_mod.F90
+	${PSYCLONE} -s $@ --profile kernels tra_adv_mod.F90

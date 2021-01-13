@@ -1,0 +1,131 @@
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2020, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author: I. Kavcic, Met Office
+!
+! -----------------------------------------------------------------------------
+! Calls kernels to initialise a perturbation field on W3 space to analytical
+! formula and to propagate perturbation signal in time
+! -----------------------------------------------------------------------------
+module time_evolution_alg_mod
+
+  ! Infrastructure
+  use constants_mod, only : i_def, r_def, str_short
+  use log_mod,       only : log_event, &
+                            LOG_LEVEL_INFO
+  use mesh_mod,      only : mesh_type
+  use field_mod,     only : field_type
+
+  implicit none
+
+  private
+
+  public :: time_evolution_alg_init
+  public :: time_evolution_alg_step
+
+contains
+
+  !> @brief Initalise a perturbation field using mesh and coordinate data
+  !> @param[in, out] perturbation Perturbation field to initialise
+  !> @param[in] mesh Partitioned 3D mesh object
+  !> @param[in] chi Coordinate fields
+  subroutine time_evolution_alg_init(perturbation, mesh, chi)
+
+    use init_perturbation_kernel_mod, only : init_perturbation_kernel_type
+
+    implicit none
+
+    type(field_type), intent(inout) :: perturbation
+    type(mesh_type),  intent(in)    :: mesh
+    type(field_type), intent(in)    :: chi(3)
+
+    integer(i_def)   :: i
+
+    call log_event( "time_evolution_alg_init: Initialising perturbation "// &
+                    "field", LOG_LEVEL_INFO )
+    !---------------------------------------------------------------------------
+    ! TO COMPLETE (in the same invoke):
+    ! - Use built-ins to set 'perturbation' to 0
+    ! - Call kernel 'init_perturbation_kernel_mod.f90` to set the perturbation
+    !   field to initial condition:
+    !   perturbation = ampl(z)* exp( -((x - x_centre)/half_width_x)**2 &
+    !                                -((y - y_centre)/half_width_y)**2 )
+    !   where ampl(z) = max(perturbation_height - z, 0)/perturbation_scale
+    !---------------------------------------------------------------------------
+
+    ! Check the min/max values of the perturbation field
+    call perturbation%log_minmax(LOG_LEVEL_INFO, perturbation%name)
+
+  end subroutine time_evolution_alg_init
+
+  !> @brief Propagate perturbation field for one time-step using coordinate
+  !!        data and time-step size
+  !> @param[in,out] perturbation Perturbation field to propagate
+  !> @param[in] chi Coordinate fields
+  !> @param[in] step Current time-step
+  subroutine time_evolution_alg_step(perturbation, chi, tstep)
+
+    use timestepping_config_mod,      only : dt
+    use prop_perturbation_kernel_mod, only : prop_perturbation_kernel_type
+
+    implicit none
+
+    type(field_type), intent(inout) :: perturbation
+    type(field_type), intent(in)    :: chi(3)
+    integer(i_def),   intent(in)    :: tstep
+
+    real(r_def)              :: t_tot
+    character(len=str_short) :: tstr
+
+    write(tstr, '(I5)') tstep  ! Convert integer time-step to string
+    call log_event( "time_evolution_alg_step: Propagating perturbation "// &
+                    "field at time-step "//trim(adjustl(tstr)), LOG_LEVEL_INFO )
+    !---------------------------------------------------------------------------
+    ! TO COMPLETE: Propagate the perturbation field for a single time-step
+    ! (this algorithm is called from within the time-stepping loop in the
+    ! time_evolution_driver.f90 file).
+    ! - Calculate total propagating 't_tot' from time-step and dt
+    ! - Create and call 'prop_perturbation_kernel_mod.f90' that propagates
+    !   the field as
+    !   perturbation = ampl(z)* &
+    !                  exp( -((x - x_centre - u_vel*t_tot)/half_width_x)**2 &
+    !                       -((y - y_centre - v_vel*t_tot)/half_width_y)**2 )
+    !   where ampl(z) = max(perturbation_height - z, 0)/perturbation_scale
+    !---------------------------------------------------------------------------
+
+    ! Check the min/max values of the perturbation field using
+    call perturbation%log_minmax(LOG_LEVEL_INFO, perturbation%name)
+
+  end subroutine time_evolution_alg_step
+
+end module time_evolution_alg_mod

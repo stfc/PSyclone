@@ -38,7 +38,7 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import BinaryOperation, Literal, Array
+from psyclone.psyir.nodes import BinaryOperation, Literal, ArrayReference
 from psyclone.psyir.symbols import REAL_TYPE, INTEGER_TYPE
 
 

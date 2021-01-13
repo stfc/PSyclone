@@ -33,7 +33,10 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 
-.PHONY: test
+.PHONY: test clean
 
 test:
 	psyclone -s ./schedule.py -oalg /dev/null -opsy /dev/null helmholtz_solver_alg_mod.x90 -d ../code
+
+clean:
+	@echo "Nothing to clean"

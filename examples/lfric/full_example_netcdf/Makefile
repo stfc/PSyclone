@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Laboratory
+# Modifications: A. R. Porter, STFC Daresbury Laboratory,
+#                I.Kavcic, Met Office
 
 # The compiler to use may be specified via the F90 environment
 #
@@ -56,12 +57,11 @@ LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
 
-default: $(EXEC)
 compile: $(EXEC)
 transform: main_psy.f90
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) $$(nf-config --flibs) 
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) $$(nf-config --flibs)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH) netcdf
@@ -86,3 +86,4 @@ main_alg.f90: main_psy.f90
 
 clean:
 	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
+	make -C $(LFRIC_PATH) clean

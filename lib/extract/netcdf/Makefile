@@ -48,11 +48,17 @@ F90FLAGS += $$(nf-config --fflags)
 # double scalars and 2-dimension arrays
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
 		       -dims=2
+PROCESS=$$(../../get_python.sh) ../../process.py
 
 default: extract_netcdf_base.o psy_data_base.o
 process: extract_netcdf_base.f90
 
-.PHONY: default process clean
+.PHONY: default process clean all
+
+all:
+	$(MAKE) -C dl_esm_inf
+	$(MAKE) -C lfric
+
 
 # The dependencies
 # ----------------
@@ -62,10 +68,10 @@ extract_netcdf_base.o: psy_data_base.o
 # netcdf extraction class
 # ------------------------------------------------
 psy_data_base.f90:	../../psy_data_base.jinja
-	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 extract_netcdf_base.f90:	extract_netcdf_base.jinja
-	../../process.py $(PROCESS_ARGS) $< > extract_netcdf_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > extract_netcdf_base.f90
 
 # Compilation
 # -----------

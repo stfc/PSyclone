@@ -193,7 +193,7 @@ class Assignment(Statement):
         rtype: bool
 
         '''
-        from psyclone.psyir.nodes import Array, Range
-        if not isinstance(self.lhs, Array):
+        from psyclone.psyir.nodes import ArrayReference, Range
+        if not isinstance(self.lhs, ArrayReference):
             return False
         return any(dim for dim in self.lhs.children if isinstance(dim, Range))

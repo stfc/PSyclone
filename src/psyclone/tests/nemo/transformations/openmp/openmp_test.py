@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 ''' Module containing py.test tests for the transformation of
     the PSy representation of NEMO code '''
@@ -67,7 +67,7 @@ def test_omp_explicit_gen():
         "program explicit_do\n"
         "  implicit none\n"
         "  integer :: ji, jj, jk\n"
-        "  integer :: jpi, jpj, jpk\n"
+        "  integer, parameter :: jpi = 2, jpj = 4, jpk = 6\n"
         "  real :: r\n"
         "  real, dimension(jpi, jpj, jpk) :: umask\n"
         "  !$omp parallel do default(shared), private(ji,jj,jk), "
@@ -190,7 +190,8 @@ def test_omp_do_missing_region(parser):
     ''' Check that the correct error is raised if an OMPDoDirective is
     found outside an OMP parallel region at code-generation time. '''
     reader = FortranStringReader("program do_loop\n"
-                                 "integer :: ji, jpj\n"
+                                 "integer :: ji\n"
+                                 "integer, parameter :: jpj=32\n"
                                  "real :: sto_tmp(jpj)\n"
                                  "do ji = 1,jpj\n"
                                  "  sto_tmp(ji) = 1.0d0\n"
