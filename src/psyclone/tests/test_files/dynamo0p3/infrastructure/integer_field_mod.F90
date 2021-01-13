@@ -1,14 +1,14 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
+! (C) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-----------------------------------------------------------------------------
-! LICENCE.original is available from the Met Office Science Repository Service:
-! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! LICENCE is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities
+! Modifications copyright (c) 2021, Science and Technology Facilities
 ! Council
 ! All rights reserved.
 !
@@ -37,20 +37,19 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by: J. Henrichs, Bureau of Meteorology,
-!              I. Kavcic, Met Office
+! Modified by: I. Kavcic, Met Office
 
-!> @brief A module providing field related classes.
+!> @brief A module providing integer field related classes.
 !>
-!> @details Both a representation of a field which provides no access to the
-!> underlying data (to be used in the algorithm layer) and an accessor class
-!> (to be used in the Psy layer) are provided.
+!> @details This is a version of a field object that can hold integer data
+!> values. It contains both a representation of an integer field which provides
+!> no access to the underlying data (to be used in the algorithm layer) and an
+!> accessor class (to be used in the Psy layer) are provided.
 
-
-module field_mod
+module integer_field_mod
 
   use constants_mod,      only: r_def, r_double, i_def, i_halo_index, l_def, &
-                                str_def, real_type
+                                str_def, integer_type
   use function_space_mod, only: function_space_type
   use mesh_mod,           only: mesh_type
 
@@ -68,19 +67,19 @@ module field_mod
 
 ! Public types
 
-!______field_type_____________________________________________________________
+!______integer_field_type_____________________________________________________
 
-  !> Algorithm layer representation of a field.
+  !> Algorithm layer representation of an integer field.
   !>
   !> Objects of this type hold all the data of the field privately.
   !> Unpacking the data is done via the proxy type accessed by the Psy layer
   !> alone.
   !>
-  type, extends(field_parent_type), public :: field_type
+  type, extends(field_parent_type), public :: integer_field_type
     private
 
-    !> The floating point values of the field
-    real(kind=r_def), allocatable :: data( : )
+    !> The integer values of the field
+    integer(kind=i_def), allocatable :: data( : )
 
     ! IO interface procedure pointers
 
@@ -162,36 +161,36 @@ module field_mod
     !> Override default assignment for field_type pairs.
     generic           :: assignment(=) => field_type_assign
 
-  end type field_type
+  end type integer_field_type
 
-!______field_pointer_type_______________________________________________________
+!______integer_field_pointer_type_______________________________________________
 
-!> a class to hold a pointer to a field in an object that is a child of
-!> the pure abstract field class
+!> a class to hold a pointer to an integer field in an object that is a child
+!> of the pure abstract field class
 
-  type, extends(pure_abstract_field_type), public :: field_pointer_type
-    !> A pointer to a field
-    type(field_type), pointer, public :: field_ptr
+  type, extends(pure_abstract_field_type), public :: integer_field_pointer_type
+    !> A pointer to an integer field
+    type(integer_field_type), pointer, public :: field_ptr
   contains
-    !> Initialiser for a field pointer. May only be called once.
-    procedure, public :: field_pointer_initialiser
+    !> Initialiser for a field. May only be called once.
+    procedure, public :: integer_field_pointer_initialiser
     !> Finaliser for a field pointer object
-    final :: field_pointer_destructor
-  end type field_pointer_type
+    final :: integer_field_pointer_destructor
+  end type integer_field_pointer_type
 
-!______field_proxy_type_______________________________________________________
+!______integer_field_proxy_type_______________________________________________
 
   !> Psy layer representation of a field.
   !>
   !> This is an accessor class that allows access to the actual field
   !> information with each element accessed via a public pointer.
   !>
-  type, extends(field_parent_proxy_type), public :: field_proxy_type
+  type, extends(field_parent_proxy_type), public :: integer_field_proxy_type
 
     private
 
-    !> Allocatable array of type real which holds the values of the field
-    real(kind=r_def), public, pointer :: data( : ) => null()
+    !> Allocatable array of type integer which holds the values of the field
+    integer(kind=i_def), public, pointer :: data( : ) => null()
     !> Unique identifier used to identify a halo exchange, so the start of an
     !> asynchronous halo exchange can be matched with the end
     integer(kind=i_def) :: halo_request
@@ -235,21 +234,21 @@ module field_mod
     !> subroutine currently returns without waiting.
     procedure, public :: reduction_finish
 
-  end type field_proxy_type
+  end type integer_field_proxy_type
 
 !______end of type declarations_______________________________________________
 
 contains
 
-!______field_type_procedures____________________________________________________
+!______integer_field_type_procedures__________________________________________
 
   !> Function to create a proxy with access to the data in the field_type.
   !>
   !> @return The proxy type with public pointers to the elements of
   !> field_type
-  type(field_proxy_type ) function get_proxy(self)
+  type(integer_field_proxy_type) function get_proxy(self)
     implicit none
-    class(field_type), target, intent(in)  :: self
+    class(integer_field_type), target, intent(in)  :: self
 
     ! Call the routine that initialises the proxy for data held in the parent
     call self%field_parent_proxy_initialiser(get_proxy)
@@ -276,7 +275,7 @@ contains
                                 LOG_LEVEL_ERROR
     implicit none
 
-    class(field_type), intent(inout)               :: self
+    class(integer_field_type), intent(inout)       :: self
     type(function_space_type), pointer, intent(in) :: vector_space
     character(*), optional, intent(in)             :: name
     logical,      optional, intent(in)             :: ndata_first
@@ -288,9 +287,9 @@ contains
 
     call self%field_parent_initialiser(vector_space, &
                                        name=name, &
-                                       fortran_type=real_type, &
-                                       fortran_kind=r_def, &
-                                       ndata_first=ndata_first, &
+                                       fortran_type=integer_type, &
+                                       fortran_kind=i_def, &
+                                       ndata_first= ndata_first, &
                                        advection_flag=advection_flag)
 
     ! Create space for holding field data
@@ -298,26 +297,26 @@ contains
 
   end subroutine field_initialiser
 
-  !> Initialise a field pointer
+  !> Initialise an integer field pointer
   !>
-  !> @param [in] field_ptr A pointer to the field that is to be
+  !> @param [in] field_ptr A pointer to the integer field that is to be
   !>                       stored as a reference
-  subroutine field_pointer_initialiser(self, field_ptr)
+  subroutine integer_field_pointer_initialiser(self, field_ptr)
     implicit none
-    class(field_pointer_type) :: self
-    type(field_type), pointer :: field_ptr
+    class(integer_field_pointer_type) :: self
+    type(integer_field_type), pointer :: field_ptr
     self%field_ptr => field_ptr
-  end subroutine field_pointer_initialiser
+  end subroutine integer_field_pointer_initialiser
 
-  ! Finaliser for a field pointer
+  ! Finaliser for an integer field pointer
   !
   ! The following finaliser doesn't do anything. Without it, the Gnu compiler
   ! tries to create its own, but only ends up producing an Internal Compiler
-  ! Error, so it is included here to prevent that.
-  subroutine field_pointer_destructor(self)
+  ! Error, so its included here to prevent that.
+  subroutine integer_field_pointer_destructor(self)
     implicit none
-    type(field_pointer_type), intent(inout) :: self
-  end subroutine field_pointer_destructor
+    type(integer_field_pointer_type), intent(inout) :: self
+  end subroutine integer_field_pointer_destructor
 
   !> Create a new field that inherits the properties of the source field and
   !> has a copy of all the field data from the source field.
@@ -327,9 +326,9 @@ contains
   subroutine copy_field(self, dest, name)
 
     implicit none
-    class(field_type), target, intent(in)  :: self
-    class(field_type), target, intent(out) :: dest
-    character(*), optional, intent(in)     :: name
+    class(integer_field_type), target, intent(in)  :: self
+    class(integer_field_type), target, intent(out) :: dest
+    character(*), optional, intent(in)             :: name
 
     if (present(name)) then
       call self%copy_field_properties(dest, name)
@@ -350,9 +349,9 @@ contains
     use log_mod,         only : log_event, &
                                 LOG_LEVEL_ERROR
     implicit none
-    class(field_type), target, intent(in)  :: self
-    class(field_type), target, intent(out) :: dest
-    character(*), optional, intent(in)     :: name
+    class(integer_field_type), target, intent(in)  :: self
+    class(integer_field_type), target, intent(out) :: dest
+    character(*), optional, intent(in)             :: name
 
     if (present(name)) then
       call dest%initialise(self%vspace, name, self%is_advected())
@@ -380,8 +379,8 @@ contains
                                 log_scratch_space, &
                                 LOG_LEVEL_INFO
     implicit none
-    class(field_type), intent(in)  :: source
-    class(field_type), intent(out) :: dest
+    class(integer_field_type), intent(in)  :: source
+    class(integer_field_type), intent(out) :: dest
 
     write(log_scratch_space,'(A,A)')&
               '"field2=field1" syntax no longer supported. '// &
@@ -400,7 +399,7 @@ contains
 
     implicit none
 
-    class(field_type), intent(inout)    :: self
+    class(integer_field_type), intent(inout)    :: self
 
     call self%field_parent_final()
 
@@ -421,7 +420,7 @@ contains
 
     implicit none
 
-    type(field_type), intent(inout)    :: self
+    type(integer_field_type), intent(inout)    :: self
 
     call self%field_final()
 
@@ -432,7 +431,7 @@ contains
 
     implicit none
 
-    type(field_type), intent(inout)    :: self(:)
+    type(integer_field_type), intent(inout)    :: self(:)
     integer(i_def) :: i
 
     do i=lbound(self,1), ubound(self,1)
@@ -446,7 +445,7 @@ contains
 
     implicit none
 
-    type(field_type), intent(inout)    :: self(:,:)
+    type(integer_field_type), intent(inout)    :: self(:,:)
     integer(i_def) :: i,j
 
     do i=lbound(self,1), ubound(self,1)
@@ -462,7 +461,7 @@ contains
   !> @param [in] write_behaviour - pointer to procedure implementing write method
   subroutine set_write_behaviour(self, write_behaviour)
     implicit none
-    class(field_type), intent(inout)                  :: self
+    class(integer_field_type), intent(inout)                  :: self
     procedure(write_interface), pointer, intent(in) :: write_behaviour
     self%write_method => write_behaviour
   end subroutine set_write_behaviour
@@ -476,7 +475,7 @@ contains
 
     implicit none
 
-    class(field_type), intent(in) :: self
+    class(integer_field_type), intent(in) :: self
     procedure(write_interface), pointer, intent(inout) :: write_behaviour
 
     write_behaviour => self%write_method
@@ -485,23 +484,25 @@ contains
   end subroutine get_write_behaviour
 
   !> Setter for read behaviour
+  !> @param[in,out]  self  field_type
   !> @param [in] read_behaviour - pointer to procedure implementing read method
   subroutine set_read_behaviour(self, read_behaviour)
     implicit none
-    class(field_type), intent(inout)               :: self
+    class(integer_field_type), intent(inout)               :: self
     procedure(read_interface), pointer, intent(in) :: read_behaviour
     self%read_method => read_behaviour
   end subroutine set_read_behaviour
 
   !> Getter to get pointer to read behaviour
-  !> @param[in,out] read_behaviour -
-  !>                pointer to procedure implementing read method
+  !> @param[in]  self  field_type
+  !> @param [in] read_behaviour -
+  !>             pointer to procedure implementing read method
   !> @return pointer to procedure for read behaviour
   subroutine get_read_behaviour(self, read_behaviour)
 
     implicit none
 
-    class(field_type), intent(in) :: self
+    class(integer_field_type), intent(in) :: self
     procedure(read_interface), pointer, intent(inout) :: read_behaviour
 
     read_behaviour => self%read_method
@@ -516,7 +517,7 @@ contains
   !>             pointer to procedure implementing checkpoint write method
   subroutine set_checkpoint_write_behaviour(self, checkpoint_write_behaviour)
     implicit none
-    class(field_type), intent(inout)                  :: self
+    class(integer_field_type), intent(inout)                  :: self
     procedure(checkpoint_write_interface), pointer, intent(in)   :: checkpoint_write_behaviour
     self%checkpoint_write_method => checkpoint_write_behaviour
   end subroutine set_checkpoint_write_behaviour
@@ -527,7 +528,7 @@ contains
   !>             pointer to procedure implementing checkpoint read method
   subroutine set_checkpoint_read_behaviour(self, checkpoint_read_behaviour)
     implicit none
-    class(field_type), intent(inout)                  :: self
+    class(integer_field_type), intent(inout)                  :: self
     procedure(checkpoint_read_interface), pointer, intent(in)   :: checkpoint_read_behaviour
     self%checkpoint_read_method => checkpoint_read_behaviour
   end subroutine set_checkpoint_read_behaviour
@@ -539,7 +540,7 @@ contains
 
     implicit none
 
-    class(field_type), intent(in) :: self
+    class(integer_field_type), intent(in) :: self
     logical(l_def) :: checkpointable
 
     if (associated(self%checkpoint_write_method) .and. &
@@ -558,7 +559,7 @@ contains
 
     implicit none
 
-    class(field_type), intent(in) :: self
+    class(integer_field_type), intent(in) :: self
     logical(l_def) :: writeable
 
     writeable = associated(self%write_method)
@@ -572,7 +573,7 @@ contains
 
     implicit none
 
-    class(field_type), intent(in) :: self
+    class(integer_field_type), intent(in) :: self
     logical(l_def) :: readable
 
     readable = associated(self%read_method)
@@ -594,24 +595,19 @@ contains
     use constants_mod, only : r_double, i_def
     use log_mod, only : log_event,         &
                         log_scratch_space, &
-                        log_level,         &
                         LOG_LEVEL_INFO,    &
                         LOG_LEVEL_TRACE
 
     implicit none
 
-    class( field_type ), target, intent(in) :: self
-    integer(i_def),              intent(in) :: dump_level
-    character( * ),              intent(in) :: label
+    class( integer_field_type ), target, intent(in) :: self
+    integer(i_def),                      intent(in) :: dump_level
+    character( * ),                      intent(in) :: label
 
     integer(i_def)          :: cell
     integer(i_def)          :: layer
     integer(i_def)          :: df
     integer(i_def), pointer :: map(:) => null()
-
-    ! If we are not going to write the field to the log then do
-    ! not write the field to the scratch space.
-    if ( dump_level < log_level() ) return
 
     write( log_scratch_space, '( A, A)' ) trim( label ), " =["
     call log_event( log_scratch_space, dump_level )
@@ -620,7 +616,7 @@ contains
       map => self%vspace%get_cell_dofmap( cell )
       do df=1,self%vspace%get_ndf()
         do layer=0,self%vspace%get_nlayers()-1
-          write( log_scratch_space, '( I6, I6, I6, E16.8 )' ) &
+          write( log_scratch_space, '( I6, I6, I6, I16 )' ) &
               cell, df, layer+1, self%data( map( df ) + layer )
           call log_event( log_scratch_space, dump_level )
         end do
@@ -628,7 +624,6 @@ contains
     end do
 
     call log_event( '];', dump_level )
-    return
 
   end subroutine log_field
 
@@ -643,7 +638,7 @@ contains
 
     implicit none
 
-    class( field_type ), target, intent(in) :: self
+    class( integer_field_type ), target, intent(in) :: self
     integer(i_def),              intent(in) :: log_level
     character( * ),              intent(in) :: label
 
@@ -652,7 +647,7 @@ contains
     call log_event( label, log_level )
 
     do df=1,self%vspace%get_undf()
-      write( log_scratch_space, '( I6, E16.8 )' ) df,self%data( df )
+      write( log_scratch_space, '( I6, I16 )' ) df,self%data( df )
       call log_event( log_scratch_space, log_level )
     end do
 
@@ -667,30 +662,37 @@ contains
 
     use log_mod,    only : log_event, log_scratch_space,     &
                            application_log_level => log_level
-    use scalar_mod, only : scalar_type
+    use mpi_mod,    only : global_max, global_min
     implicit none
 
-    class( field_type ), target, intent(in) :: self
+    class( integer_field_type ), target, intent(in) :: self
     integer(i_def),              intent(in) :: log_level
     character( * ),              intent(in) :: label
-    integer(i_def)                          :: undf
-    type(scalar_type)                       :: fmin, fmax
+    integer(i_def)                          :: i
+    integer(i_def)                          :: l_min, l_max
+    integer(i_def)                          :: answer_min, answer_max
 
     ! If we aren't going to log the min and max then we don't need to
     ! do any further work here.
     if ( log_level < application_log_level() ) return
 
-    undf = self%vspace%get_last_dof_owned()
-    fmin = scalar_type( minval( self%data(1:undf) ) )
-    fmax = scalar_type( maxval( self%data(1:undf) ) )
+    l_max = self%data(1)
+    l_min = self%data(1)
+    do i = 2, self%vspace%get_last_dof_owned()
+      if( self%data(i) > l_max ) l_max = self%data(i)
+      if( self%data(i) < l_min ) l_min = self%data(i)
+    end do
+    ! Functions global_max() and global_min() rely on MPI comms
+    ! so these calls are disabled here. Max and min are simply
+    ! l_max and l_min.
+    !call global_max( l_max, answer_max )
+    !call global_min( l_min, answer_min )
+    answer_max = l_max
+    answer_min = l_min
 
-    write( log_scratch_space, '( A, A, A, 2E16.8 )' ) &
+    write( log_scratch_space, '( A, A, A, 2I16 )' ) &
          "Min/max ", trim( label ),                   &
-    ! Functions get_min() and get_max() rely on MPI comms so
-    ! these calls are disabled here. Min and max are simply
-    ! values of fmin and fmax scalars.
-    !     " = ", fmin%get_min(), fmax%get_max()
-         " = ", fmin%value, fmax%value
+         " = ", answer_min, answer_max
     call log_event( log_scratch_space, log_level )
 
   end subroutine log_minmax
@@ -704,27 +706,30 @@ contains
 
     use log_mod,    only : log_event, log_scratch_space,     &
                            application_log_level => log_level
-    use scalar_mod, only : scalar_type
+    use mpi_mod,    only : global_max
     implicit none
 
-    class( field_type ), target, intent(in) :: self
+    class( integer_field_type ), target, intent(in) :: self
     integer(i_def),              intent(in) :: log_level
     character( * ),              intent(in) :: label
-    integer(i_def)                          :: undf
-    type(scalar_type)                       :: fmax
+    integer(i_def)                          :: i
+    integer(i_def)                          :: l_max, answer
 
     ! If we aren't going to log the abs max then we don't need to
     ! do any further work here.
     if ( log_level < application_log_level() ) return
 
-    undf = self%vspace%get_last_dof_owned()
-    fmax = scalar_type( maxval( abs(self%data(1:undf)) ) )
+    l_max = abs(self%data(1))
+    do i = 2, self%vspace%get_last_dof_owned()
+      if( abs(self%data(i)) > l_max ) l_max = abs(self%data(i))
+    end do
+    ! Function global_max() relies on MPI comms so this call
+    ! is disabled here. Max is simply l_max.
+    !call global_max( l_max, answer )
+    answer = l_max
 
     write( log_scratch_space, '( A, A, E16.8 )' ) &
-    ! Function get_max() relies on MPI comms so this call is
-    ! disabled here. Max is simply the values of fmax scalar.
-    !     trim( label ), " = ", fmax%get_max()
-         trim( label ), " = ", fmax%value
+         trim( label ), " = ", answer
     call log_event( log_scratch_space, log_level )
 
   end subroutine log_absmax
@@ -739,7 +744,7 @@ contains
 
     implicit none
 
-    class(field_type),   intent(in)     :: this
+    class(integer_field_type),   intent(in)     :: this
     character(len=*),    intent(in)     :: field_name
 
     if (associated(this%write_method)) then
@@ -764,11 +769,11 @@ contains
 
     implicit none
 
-    class( field_type ),  target, intent( inout ) :: self
+    class( integer_field_type ),  target, intent( inout ) :: self
     character(len=*),     intent(in)              :: field_name
 
 
-    type( field_proxy_type )                      :: tmp_proxy
+    type( integer_field_proxy_type )              :: tmp_proxy
 
     if (associated(self%read_method)) then
 
@@ -798,12 +803,12 @@ contains
 
     implicit none
 
-    class( field_type ),  target, intent( inout ) :: self
+    class( integer_field_type ),  target, intent( inout ) :: self
     character(len=*),     intent(in)              :: field_name
     character(len=*),     intent(in)              :: file_name
 
 
-    type( field_proxy_type )                      :: tmp_proxy
+    type( integer_field_proxy_type )              :: tmp_proxy
 
 
     if (associated(self%checkpoint_read_method)) then
@@ -835,7 +840,7 @@ contains
 
     implicit none
 
-    class( field_type ),  target, intent( inout ) :: self
+    class( integer_field_type ),  target, intent( inout ) :: self
     character(len=*),     intent(in)              :: field_name
     character(len=*),     intent(in)              :: file_name
 
@@ -861,7 +866,7 @@ contains
     use count_mod,       only : halo_calls
     implicit none
 
-    class( field_proxy_type ), target, intent(inout) :: self
+    class( integer_field_proxy_type ), target, intent(inout) :: self
     integer(i_def), intent(in) :: depth
 
     if ( self%vspace%is_writable() ) then
@@ -891,7 +896,7 @@ contains
                                 LOG_LEVEL_ERROR
     implicit none
 
-    class( field_proxy_type ), target, intent(inout) :: self
+    class( integer_field_proxy_type ), target, intent(inout) :: self
     integer(i_def), intent(in) :: depth
 
     if ( self%vspace%is_writable() ) then
@@ -916,7 +921,7 @@ contains
     use count_mod,       only : halo_calls
     implicit none
 
-    class( field_proxy_type ), target, intent(inout) :: self
+    class( integer_field_proxy_type ), target, intent(inout) :: self
     integer(i_def), intent(in) :: depth
 
     if ( self%vspace%is_writable() ) then
@@ -945,15 +950,15 @@ contains
     use mpi_mod, only: global_sum
     implicit none
 
-    class(field_proxy_type), intent(in) :: self
+    class(integer_field_proxy_type), intent(in) :: self
 
-    real(r_def) :: l_sum
-    real(r_def) :: answer
+    integer(i_def) :: l_sum
+    integer(i_def) :: answer
 
     integer(i_def) :: i
 
     ! Generate local sum
-    l_sum = 0.0_r_def
+    l_sum = 0_i_def
     do i = 1, self%vspace%get_last_dof_owned()
       l_sum = l_sum + self%data(i)
     end do
@@ -968,10 +973,10 @@ contains
     use mpi_mod, only: global_min
     implicit none
 
-    class(field_proxy_type), intent(in) :: self
+    class(integer_field_proxy_type), intent(in) :: self
 
-    real(r_def) :: l_min
-    real(r_def) :: answer
+    integer(i_def) :: l_min
+    integer(i_def) :: answer
 
     integer(i_def) :: i
 
@@ -992,10 +997,10 @@ contains
     use mpi_mod, only: global_max
     implicit none
 
-    class(field_proxy_type), intent(in) :: self
+    class(integer_field_proxy_type), intent(in) :: self
 
-    real(r_def) :: l_max
-    real(r_def) :: answer
+    integer(i_def) :: l_max
+    integer(i_def) :: answer
 
     integer(i_def) :: i
 
@@ -1018,7 +1023,7 @@ contains
 
     implicit none
 
-    class(field_proxy_type), intent(in) :: self
+    class(integer_field_proxy_type), intent(in) :: self
 
     logical(l_def) :: is_dirty_tmp
 
@@ -1030,4 +1035,4 @@ contains
 
   end subroutine reduction_finish
 
-end module field_mod
+end module integer_field_mod
