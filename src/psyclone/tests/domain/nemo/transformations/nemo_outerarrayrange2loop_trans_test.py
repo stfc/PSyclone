@@ -50,9 +50,6 @@ from psyclone.tests.utilities import get_invoke
 
 # Constants
 API = "nemo"
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         os.pardir, "test_files")
-TEST_CONFIG = os.path.join(BASE_PATH, "nemo_test.cfg")
 
 
 def test_transform():
