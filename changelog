@@ -279,6 +279,8 @@
 	89) PR #1036 for #1033. Fix bug in coluring adjacent_face array with
 	OpenMP in LFRic API.
 
+	90) PR #1023 for #1017. Update and improve PSyData LFRic tutorial.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include

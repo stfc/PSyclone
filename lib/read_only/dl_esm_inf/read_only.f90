@@ -144,7 +144,7 @@ Contains
                 write(stderr, *) "New checksum:      ", cksum
                 write(stderr, *) "------------------- PSyData -------------------"
             else if(this%verbosity>1) then
-                write(stderr, *) "PSYDATA: checked variable ", trim(name)
+                write(stderr, *) "PSyData: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = cksum
