@@ -34,7 +34,10 @@
 # Author: S. Siso, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. '''
+function via the -s option.
+This script calls a successful exit from inside because it is a work in
+progress of the development tracked by issue #1010.
+'''
 
 from __future__ import print_function
 import sys

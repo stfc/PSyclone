@@ -44,7 +44,6 @@ import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
     ContainerSymbol, TypeSymbol, RoutineSymbol
-from psyclone.psyir.symbols.datatypes import TypeSymbol, DeferredType
 from psyclone.psyir.symbols.symbol import SymbolError
 from psyclone.errors import InternalError
 
@@ -604,7 +603,6 @@ class SymbolTable(object):
         for tag, tagged_symbol in list(self._tags.items()):
             if symbol is tagged_symbol:
                 del self._tags[tag]
-                break
 
         self._symbols.pop(symbol.name)
 

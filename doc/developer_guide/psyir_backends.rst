@@ -332,18 +332,17 @@ Back-ends for the PSy-layer
 
 The additional complexity of the PSy-layer comes from the fact that it
 contains multiple domain-specific concepts and parallel concepts that are not
-part of the target languages. Instead of dealing with this concepts in the
-visitors we require that any domain-specific concept introduced in top
+part of the target languages. Instead of dealing with these concepts in the
+visitors we require that any domain-specific concept introduced on top
 of the core PSyIR constructs contains the logic to lower this concept
-into language level constructs. The reasons to choose a method instead
+into language level constructs. The reasons for choosing a method instead
 of a visitor for this transformation are:
 
 - Each concept introduced by the API-developer will need lowering instructions,
   and this is better implied by an abstract class in the node that needs to
   be filled.
-- It fits better with the in-place transformation currently used for the
-  lowering in order to reuse the symbols or connections that are already
-  appropriate.
+- The lowering is done in-place. A method fits better with modifying the AST
+  in-place because it can use and modify the nodes private fields.
 
 The current proposed solution is to create a 2-phase generation workflow where
 a domain-specific PSyIR is first lowered to a language-level version of the

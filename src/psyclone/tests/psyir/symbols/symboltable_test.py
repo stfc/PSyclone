@@ -378,6 +378,7 @@ def test_imported_symbols():
     assert ("The 'my_mod' entry in this SymbolTable is not the supplied "
             "ContainerSymbol" in str(err.value))
 
+
 def test_remove_genericsymbols():
     ''' Test that the remove method removes generic symbols from the symbol
     table. Also check that it disassociates any existing tags to the symbol'''
@@ -455,6 +456,7 @@ def test_remove_containersymbols():
     assert ("Symbol with name 'my_mod' in this symbol table is not the "
             "same" in str(err.value))
 
+
 def test_remove_unsupported_types():
     ''' Test that the remove method raises appropriate errors when trying to
     remove unsupported types.'''
@@ -473,6 +475,7 @@ def test_remove_unsupported_types():
         sym_table.remove(var1)
     assert ("remove() currently only supports generic Symbol, ContainerSymbol "
             "and RoutineSymbol types but got: 'DataSymbol'" in str(err.value))
+
 
 def test_swap_symbol():
     ''' Test the SymbolTable.swap() method. '''
