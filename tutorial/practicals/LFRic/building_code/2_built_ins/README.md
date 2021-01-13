@@ -309,7 +309,7 @@ The generated code for the specific mathematical operation here
       END DO
 ```
 
-The above built-in code call also illustrates how `iterates_over = DOFS`
+The above built-in code call also illustrates how `operates_on = DOF`
 metadata in the definition of `X_plus_Y_code` translates to a
 **loop over DoFs** (`df` loop counter) in the PSy layer.
 
@@ -356,11 +356,11 @@ that adds two fields and stores the result in a third:
   type, public, extends(kernel_type) :: X_plus_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1)                   &
+          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)          &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: X_plus_Y_code
   end type X_plus_Y
@@ -370,7 +370,7 @@ The metadata is very similar to a user-defined LFRic kernel metadata
 with one major difference: built-ins are called from the [PSy-layer](
 ../background/LFRic_structure.md#psy-layer) loops over degrees of
 freedom (*DoFs*) of fields in the built-in, hence metadata identifier
-for this way of looping, `DOFS`. This means that the fields passed to
+for this way of looping, `DOF`. This means that the fields passed to
 a built-in call **must be on the same function space**.
 
 Built-ins need to work with fields on any function space, hence using the
