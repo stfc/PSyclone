@@ -293,6 +293,39 @@ def test_colour_trans_stencil(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
+def test_colour_trans_adjacent_face(dist_mem, tmpdir):
+    '''Test of the colouring transformation of a single loop with
+    adjacent face mesh metadata. We test when distributed memory is
+    both off and on.
+
+    '''
+    psy, invoke = get_invoke("24.1_mesh_prop_invoke.f90", TEST_API,
+                             name="invoke_0_testkern_mesh_prop_type",
+                             dist_mem=dist_mem)
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
+
+    if dist_mem:
+        index = 1
+    else:
+        index = 0
+
+    # Colour the loop
+    ctrans.apply(schedule.children[index])
+
+    # Store the results of applying this code transformation as
+    # a string
+    gen = str(psy.gen)
+
+    # Check that we index the adjacent face dofmap appropriately
+    assert (
+        "CALL testkern_mesh_prop_code(nlayers, a, f1_proxy%data, ndf_w1, "
+        "undf_w1, map_w1(:,cmap(colour, cell)), nfaces_re_h, "
+        "adjacent_face(:,cmap(colour, cell))" in gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
 def test_colouring_not_a_loop(dist_mem):
     '''Test that we raise an appropriate error if we attempt to colour
     something that is not a loop. We test when distributed memory is

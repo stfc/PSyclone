@@ -74,7 +74,6 @@ contains
     call log_event( "time_evolution_alg_init: Initialising perturbation "// &
                     "field", LOG_LEVEL_INFO )
     !---------------------------------------------------------------------------
-    ! TO COMPLETE (in the same invoke):
     ! - Use built-ins to set 'perturbation' to 0
     ! - Call kernel 'init_perturbation_kernel_mod.f90` to set the perturbation
     !   field to initial condition:
@@ -86,19 +85,16 @@ contains
                  init_perturbation_kernel_type(perturbation, chi) )
     !---------------------------------------------------------------------------
 
-    !---------------------------------------------------------------------------
-    ! TO COMPLETE: Check the min/max values of the perturbation field
-    ! using 'log_minmax' function
+    ! Check the min/max values of the perturbation field
     call perturbation%log_minmax(LOG_LEVEL_INFO, perturbation%name)
-    !---------------------------------------------------------------------------
 
   end subroutine time_evolution_alg_init
 
-  !> @brief Propagate perturbation field for one timestep using coordinate
-  !!        data and timestep size
+  !> @brief Propagate perturbation field for one time-step using coordinate
+  !!        data and time-step size
   !> @param[in,out] perturbation Perturbation field to propagate
   !> @param[in] chi Coordinate fields
-  !> @param[in] step Current timestep
+  !> @param[in] step Current time-step
   subroutine time_evolution_alg_step(perturbation, chi, tstep)
 
     use timestepping_config_mod,      only : dt
@@ -113,12 +109,14 @@ contains
     real(r_def)              :: t_tot
     character(len=str_short) :: tstr
 
-    write(tstr, '(I5)') tstep  ! Convert integer timestep to string
+    write(tstr, '(I5)') tstep  ! Convert integer time-step to string
     call log_event( "time_evolution_alg_step: Propagating perturbation "// &
-                    "field at timestep "//trim(adjustl(tstr)), LOG_LEVEL_INFO )
+                    "field at time-step "//trim(adjustl(tstr)), LOG_LEVEL_INFO )
     !---------------------------------------------------------------------------
-    ! TO COMPLETE: Propagate the perturbation field in a loop over timesteps
-    ! - Calculate total propagating 't_tot' from timestep and dt
+    ! Propagate the perturbation field for a single time-step
+    ! (this algorithm is called from within the time-stepping loop in the
+    ! time_evolution_driver.f90 file).
+    ! - Calculate total propagating 't_tot' from time-step and dt
     ! - Create and call 'prop_perturbation_kernel_mod.f90' that propagates
     !   the field as
     !   perturbation = ampl(z)* &
@@ -130,11 +128,8 @@ contains
                   prop_perturbation_kernel_type(perturbation, chi, t_tot) )
     !---------------------------------------------------------------------------
 
-    !---------------------------------------------------------------------------
-    ! TO COMPLETE: Check the min/max values of the perturbation field using
-    ! 'log_minmax' function
+    ! Check the min/max values of the perturbation field using
     call perturbation%log_minmax(LOG_LEVEL_INFO, perturbation%name)
-    !---------------------------------------------------------------------------
 
   end subroutine time_evolution_alg_step
 
