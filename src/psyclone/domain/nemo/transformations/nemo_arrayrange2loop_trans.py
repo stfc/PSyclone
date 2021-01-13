@@ -50,6 +50,7 @@ from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols.datatypes import ScalarType
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
     Assignment, Literal, Operation, BinaryOperation
 from psyclone.nemo import NemoLoop, NemoKern
@@ -329,6 +330,35 @@ class NemoArrayRange2LoopTrans(Transformation):
                 "Error in NemoArrayRange2LoopTrans transformation. This "
                 "transformation can only be applied to the outermost "
                 "Range.")
+
+        # If there is a loop variable defined in the config file and
+        # this variable is already defined in the code, is it defined
+        # as an integer?
+        array_index = node.position
+        loop_type_order = Config.get().api_conf("nemo").get_index_order()
+        loop_type_data = Config.get().api_conf("nemo").get_loop_type_data()
+        try:
+            loop_type = loop_type_order[array_index]
+            loop_type_info = loop_type_data[loop_type]
+            loop_variable_name = loop_type_info['var']
+            try:
+                symbol_table = node.scope.symbol_table
+                loop_variable_symbol = symbol_table.lookup(loop_variable_name)
+                # Check the existing loop variable name is a scalar integer
+                if not (loop_variable_symbol.is_scalar and
+                        loop_variable_symbol.datatype.intrinsic is
+                        ScalarType.Intrinsic.INTEGER):
+                    raise TransformationError(
+                        "The config file specifies '{0}' as the name of the "
+                        "iteration variable but this is already declared in "
+                        "the code as something that is not a scalar integer."
+                        "".format(loop_variable_name))
+            except KeyError:
+                # Variable is not defined
+                pass
+        except IndexError:
+            # There is no name for this index in the config file
+            pass
 
 
 def get_outer_index(array):

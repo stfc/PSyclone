@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,10 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
+
+! This code demonstrates an implicit loop with at least one of its
+! dimensions (dimension 2 of umask) having a specified lower and upper
+! bound (an array slice).
 
 program implicit_do_slice
   implicit none

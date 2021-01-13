@@ -43,7 +43,8 @@ import pytest
 
 from psyclone.psyir.nodes import Assignment
 from psyclone.psyGen import Transformation
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
+    ArrayType
 from psyclone.psyir.transformations import TransformationError
 from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
@@ -199,7 +200,7 @@ def test_apply_different_dims():
 
 def test_apply_var_name():
     '''Check that the variable name that is used when no names are
-    specified in the metadata does not clash with an existing symbol.
+    specified in the config file does not clash with an existing symbol.
 
     '''
     _, invoke_info = get_invoke("implicit_many_dims.f90", api=API, idx=0)
@@ -414,8 +415,8 @@ def test_array_valued_operator():
 
 def test_not_outermost_range():
     '''Check that the validate() method raises the expected exception if
-    the supplied node is not within an array reference that is within
-    the lhs of an assignment (i.e. it is within the rhs).
+    the supplied node is not the outermost Range within an array
+    reference.
 
     '''
     _, invoke_info = get_invoke("implicit_do2.f90", api=API, idx=0)
@@ -458,3 +459,25 @@ def test_outer_index_error():
     array_ref = assignment.lhs
     with pytest.raises(IndexError):
         _ = get_outer_index(array_ref)
+
+
+@pytest.mark.parametrize("datatype",
+                         [REAL_TYPE, ArrayType(INTEGER_TYPE, [10])])
+def test_loop_variable_name_error(datatype):
+    '''Check that the expected exception is raised when the config file
+    specifies a loop iteration name but it is already declared in the
+    code as something that is not a scalar.
+
+    '''
+    _, invoke_info = get_invoke("implicit_do.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
+    assignment = schedule[0]
+    array_ref = assignment.lhs
+    trans = NemoArrayRange2LoopTrans()
+    symbol_table = schedule.symbol_table
+    symbol_table.add(DataSymbol("jk", datatype))
+    with pytest.raises(TransformationError) as info:
+        trans.apply(array_ref.children[2])
+    assert ("The config file specifies 'jk' as the name of the iteration "
+            "variable but this is already declared in the code as something "
+            "that is not a scalar integer." in str(info.value))

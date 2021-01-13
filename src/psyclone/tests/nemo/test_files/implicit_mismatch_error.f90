@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,11 @@
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-program implicit_many_dims
+! This code demonstrates an invalid implicit loop. It is invalid
+! because there are more implicit dimensions i.e. ones with a ':' in
+! the umask array (2) than there are in the vmask array (1).
+
+program implicit_mismatch_error
   implicit none
   integer, parameter :: jpi=64, jpj=32
   real, dimension(jpi,jpj) :: umask, vmask
@@ -39,4 +43,4 @@ program implicit_many_dims
   ! This is invalid Fortran
   umask(:,:) = vmask(:,jpj) + 1.0
 
-end program implicit_many_dims
+end program implicit_mismatch_error

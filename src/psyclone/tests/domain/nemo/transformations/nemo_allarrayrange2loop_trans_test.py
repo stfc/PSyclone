@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,6 @@ def test_transform():
     NemoArrayRange2LoopTrans and that it is a Transformation.
 
     '''
-    assert NemoAllArrayRange2LoopTrans()
     assert isinstance(NemoAllArrayRange2LoopTrans(), Transformation)
 
 
@@ -97,8 +96,8 @@ def test_apply_multi_assignments():
     '''
     _, invoke_info = get_invoke("array_syntax.f90", api=API, idx=0)
     schedule = invoke_info.schedule
+    trans = NemoAllArrayRange2LoopTrans()
     for assignment in schedule.walk(Assignment):
-        trans = NemoAllArrayRange2LoopTrans()
         trans.apply(assignment)
     writer = FortranWriter()
     result = writer(schedule)

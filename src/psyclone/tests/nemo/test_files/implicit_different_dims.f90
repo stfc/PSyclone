@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,16 @@
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-program implicit_many_dims
+! This code demonstrates an implicit loop where the implicit array
+! dimensions of the arrays (umask and vmask in this case) do not
+! match. For example, the outermost dimension index specified with a
+! ':' is 5 for array umask but 4 for array vmask.
+
+program implicit_different_dims
   implicit none
   integer, parameter :: jpi=2, jpj=4, jpk=6, jpt=9, ndim=10
   real, dimension(jpi,jpj,jpk,jpt,ndim) :: umask, vmask
 
   umask(:,jpj,:,ndim,:) = vmask(jpi,:,:,:,ndim) + 1.0
 
-end program implicit_many_dims
+end program implicit_different_dims

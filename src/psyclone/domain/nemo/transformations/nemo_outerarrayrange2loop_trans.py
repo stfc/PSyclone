@@ -45,6 +45,8 @@ result in a reordering of the array accesses.
 
 from __future__ import absolute_import
 
+import six
+
 from psyclone.psyir.nodes import ArrayReference, Assignment
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -169,17 +171,18 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
                 "Error in NemoOuterArrayRange2LoopTrans transformation. The "
                 "supplied assignment node should have an ArrayReference node "
                 "on its lhs but found '{0}'."
-                "".format(type(node.parent).__name__))
+                "".format(type(node.lhs).__name__))
         array_reference = node.lhs
         # Has the array reference got a range?
         try:
             _ = get_outer_index(array_reference)
-        except IndexError:
-            raise TransformationError(
+        except IndexError as error:
+            message = (
                 "Error in NemoOuterArrayRange2LoopTrans transformation. The "
                 "supplied assignment node should have an ArrayReference node "
                 "on its lhs containing at least one Range node but there are "
                 "none.")
+            six.raise_from(TransformationError(message), error)
 
 
 # For automatic document generation

@@ -155,7 +155,7 @@ def test_validate_array_reference():
         trans.validate(assignment)
     assert("Transformation Error: Error in NemoOuterArrayRange2LoopTrans "
            "transformation. The supplied assignment node should have an "
-           "ArrayReference node on its lhs but found 'Schedule'."
+           "ArrayReference node on its lhs but found 'CodeBlock'."
            in str(info.value))
 
 

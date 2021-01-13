@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,10 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
+
+! This code demonstrates an implicit loop (as all three of the umask
+! indices are specified with a ':' when setting its values to 0) with
+! array bounds of unknown size within the subroutine.
 
 subroutine implicit_do(umask)
   ! Example of an implicit loop where the bounds of the array have not

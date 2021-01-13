@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 
 from __future__ import absolute_import
 
-import os
 import pytest
 
 from psyclone.nemo import NemoLoop, NemoKern
@@ -47,19 +46,12 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.errors import GenerationError
 
-# Constants
-API = "nemo"
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         os.pardir, "test_files")
-TEST_CONFIG = os.path.join(BASE_PATH, "nemo_test.cfg")
-
 
 def test_instance():
     '''Check that it is possible to create an instance of
     NemoLoop and that it has the expected properties.
 
     '''
-    assert NemoLoop()
     nemo_loop = NemoLoop()
     assert isinstance(nemo_loop, NemoLoop)
     assert isinstance(nemo_loop, Loop)
@@ -85,8 +77,8 @@ def test_instance_args():
 
 
 def test_create():
-    '''Test that the create static method creates a NemoLoop instance and
-    its children corectly.
+    '''Test that the static create() method creates a NemoLoop instance
+    and its children corectly.
 
     '''
     variable = DataSymbol("ji", INTEGER_TYPE)
@@ -105,8 +97,11 @@ def test_create():
     assert nemo_loop.loop_body.parent is nemo_loop
     assert nemo_loop.variable is variable
     assert nemo_loop.children[0] is start
+    assert nemo_loop.start_expr is start
     assert nemo_loop.children[1] is stop
+    assert nemo_loop.stop_expr is stop
     assert nemo_loop.children[2] is step
+    assert nemo_loop.step_expr is step
     assert nemo_loop.children[3] is nemo_loop.loop_body
     writer = FortranWriter()
     result = writer(nemo_loop)
@@ -117,8 +112,8 @@ def test_create():
 
 
 def test_create_unknown():
-    '''Test that the create static method creates a NemoLoop instance with
-    an unknown loop type if the loop type is not recognised.
+    '''Test that the static create() method creates a NemoLoop instance
+    with an unknown loop type if the loop type is not recognised.
 
     '''
     variable = DataSymbol("idx", INTEGER_TYPE)
@@ -132,7 +127,7 @@ def test_create_unknown():
 
 
 def test_create_errors():
-    '''Test that the expected exceptions are raises when the arguments to
+    '''Test that the expected exceptions are raised when the arguments to
     the create method are invalid.
 
     '''

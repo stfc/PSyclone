@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019-2020, Science and Technology Facilities Council.
+! Copyright (c) 2019-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@ subroutine data_ref()
   INTEGER :: ji
   real :: a(n)
   real :: fconst
+  ! Test code with an array accessed from within a structure
   do ji = 1, n
      prof%npind(ji) = 2.0*a(ji) + fconst
   end do
