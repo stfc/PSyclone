@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,51 +31,27 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
+# Author: A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''Python script intended to be passed to PSyclone using the -s option.
-This is a template that doesn't do anything, but it contains the
-framework to find a certain invoke.
-'''
+''' This module contains pytest tests for the Member class. '''
 
-from __future__ import print_function
-
-
-def trans(psy):
-    '''
-    Take the supplied psy object, and add kernel extraction code.
-
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
-
-    '''
-
-    # ------------------------------------------------------
-    # TOOD: import the transformation and create an instance
-    # ------------------------------------------------------
-    # from ... import ...
-    # my_transform = ...()
+from __future__ import absolute_import
+import pytest
+from psyclone.psyir import nodes
 
 
-    for invoke_name in psy.invokes.names:
-        print(invoke_name)
-
-        invoke = psy.invokes.get(invoke_name)
-
-        # Now get the schedule, to which we want to apply the transformation
-        schedule = invoke.schedule
+def test_member_constructor():
+    ''' Test that we can construct an instance of Member. '''
+    mem = nodes.Member("fred")
+    assert mem.name == "fred"
+    assert mem.children == []
 
 
-        # ------------------------------------------------------
-        # TODO: Apply the transformation
-        # ------------------------------------------------------
-        ....apply(schedule, {"region_name": ("time_evolution", name)})
-
-        # Just as feedback: show the modified schedule, which should have
-        # a new node at the top:
-        schedule.view()
-
-    return psy
+def test_member_constructor_errors():
+    ''' Test the validation checks in the constructor. '''
+    with pytest.raises(TypeError) as err:
+        nodes.Member("hello", parent="wrong")
+    assert ("parent of a Member must be either a "
+            "(ArrayOf)Structure(s)Reference or (ArrayOf)Structure(s)Member "
+            "but found 'str'" in str(err.value))
