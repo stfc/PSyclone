@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,8 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Container, Assignment, Return, ArrayReference, Node, Range, KernelSchedule
+    Container, Assignment, Return, ArrayReference, Node, Range, \
+    KernelSchedule, StructureReference, ArrayOfStructuresReference
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
@@ -591,6 +592,7 @@ class Fparser2Reader(object):
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
             Fortran2003.Assignment_Stmt: self._assignment_handler,
+            Fortran2003.Data_Ref: self._data_ref_handler,
             Fortran2003.Name: self._name_handler,
             Fortran2003.Parenthesis: self._parenthesis_handler,
             Fortran2003.Part_Ref: self._part_ref_handler,
@@ -2671,6 +2673,63 @@ class Fparser2Reader(object):
         self.process_nodes(parent=assignment, nodes=[node.items[2]])
 
         return assignment
+
+    def _data_ref_handler(self, node, parent):
+        '''
+        :param node: node in fparser2 parse tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Data_Ref`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
+
+        '''
+        # Bottom-up creation of full reference. The last element in the members
+        # list must be either an ArrayMember or a Member.
+        if isinstance(node.children[-1], Fortran2003.Part_Ref):
+            # An access to one or more array elements
+            subref = ArrayMember(node.children[-1].children[0].string)
+            self.process_nodes(parent=subref,
+                               nodes=node.children[-1].children[1:])
+            #create(members[-1][0], members[-1][1])
+        elif isinstance(node.children[-1], Fortran2003.Name):
+            # A member access
+            subref = Member(node.children[-1].string)
+        else:
+        #import pdb; pdb.set_trace()
+        members = []
+        for child in node.children[1:]:
+            if isinstance(child, Fortran2003.Name):
+                # Members of a structure do not refer to symbols
+                members.append(child.string)
+            elif isinstance(child, Fortran2003.Part_Ref):
+                fake_parent = Assignment(parent=parent)
+                # Any array-index expressions must refer to symbols
+                self.process_nodes(parent=fake_parent, nodes=child.children[1:])
+                members.append((child.children[0].string,
+                                fake_parent.children))
+            else:
+                raise NotImplementedError(str(node))
+
+        if isinstance(node.children[0], Fortran2003.Name):
+            # Base of reference is a scalar entity.
+            sym = parent.find_or_create_symbol(node.children[0].string)
+            return StructureReference.create(sym, members=members,
+                                             parent=parent)
+        elif isinstance(node.children[0], Fortran2003.Part_Ref):
+            # Base of reference is an array access. Lookup the corresponding
+            # symbol.
+            sym = parent.find_or_create_symbol(
+                node.children[0].children[0].string)
+            ref = ArrayOfStructuresReference.create(sym,
+                                                    members=members,
+                                                    parent=parent)
+            self.process_nodes(parent=ref,
+                               nodes=node.children[0].children[1].children)
+            return ref
+
+        raise NotImplementedError(str(node))
 
     def _unary_op_handler(self, node, parent):
         '''

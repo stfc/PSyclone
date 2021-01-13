@@ -118,9 +118,13 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
                 "An ArrayOfStructuresReference must refer to a symbol of "
                 "ArrayType but symbol '{0}' has type '{1}".format(
                     symbol.name, symbol.datatype))
-        if not isinstance(indices, list) or not indices:
+        if not indices:
+            index_list = []
+        else:
+            index_list = indices
+        if not isinstance(index_list, list):
             raise TypeError(
-                "The 'children' argument to  ArrayOfStructuresReference."
+                "If supplied, the 'indices' argument to ArrayOfStructuresReference."
                 "create() must be a list containing at least one array-index "
                 "expression but this is missing for symbol '{0}'".format(
                     symbol.name))
@@ -132,7 +136,7 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
 
         # Then add the array-index expressions. We don't validate the children
         # as that is handled in _validate_child.
-        for child in indices:
+        for child in index_list:
             ref.addchild(child)
             child.parent = ref
         return ref

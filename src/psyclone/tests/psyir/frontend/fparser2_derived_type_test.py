@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,9 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import KernelSchedule
+from psyclone.psyir.nodes import KernelSchedule, CodeBlock, Assignment, \
+    ArrayOfStructuresReference, StructureReference, Member, StructureMember, \
+    ArrayOfStructuresMember, ArrayMember, Literal
 from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
     TypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -184,3 +186,59 @@ def test_derived_type_accessibility():
     assert flag.visibility == Symbol.Visibility.PRIVATE
     scale = sym.datatype.lookup("scale")
     assert scale.visibility == Symbol.Visibility.PUBLIC
+
+
+def test_derived_type_ref(f2008_parser):
+    ''' Check that the frontend handles a basic reference to a member of
+    a derived type. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "subroutine my_sub()\n"
+        "  use some_mod, only: my_type\n"
+        "  type(my_type) :: var\n"
+        "  var%flag = 0\n"
+        "  var%region%start = 1\n"
+        "  var%region%subgrid(3)%stop = 1\n"
+        "  var%region%subgrid(3)%data(:) = 1.0\n"
+        "  var%region%subgrid(3)%data(var%start:var%stop) = 1.0\n"
+        "end subroutine my_sub\n")
+    fparser2spec = f2008_parser(reader)
+    sched = processor.generate_schedule("my_sub", fparser2spec)
+    sched.view()
+    assert not sched.walk(CodeBlock)
+    assign = sched.walk(Assignment)[0]
+    assert isinstance(assign.lhs, StructureReference)
+    assert isinstance(assign.lhs.children[0], Member)
+    assert assign.lhs.children[0].name == "flag"
+    assign = sched.walk(Assignment)[1]
+    assert isinstance(assign.lhs, StructureReference)
+    assert isinstance(assign.lhs.children[0], StructureMember)
+    assert assign.lhs.children[0].name == "region"
+
+
+def test_array_of_derived_type_ref(f2008_parser):
+    ''' Test that the frontend handles a reference to a member of an element
+    of an array of derived types. '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader("subroutine my_sub()\n"
+                                 "  use some_mod, only: my_type\n"
+                                 "  type(my_type), dimension(3) :: var\n"
+                                 "  integer :: idx = 2\n"
+                                 "  integer :: start = 2, stop = 3\n"
+                                 "  var(1)%flag = 0\n"
+                                 "  var(idx)%flag = 0\n"
+                                 "  var(start:stop)%flag = 1\n"
+                                 "  var(1)%region%start = 1\n"
+                                 "  var(1)%region%subgrid(3)%stop = 1\n"
+                                 "  var(1)%region%subgrid(3)%data(:) = 1.0\n"
+                                 "end subroutine my_sub\n")
+    fparser2spec = f2008_parser(reader)
+    sched = processor.generate_schedule("my_sub", fparser2spec)
+    sched.view()
+    assert not sched.walk(CodeBlock)
+    assign = sched.walk(Assignment)[0]
+    assert isinstance(assign.lhs, ArrayOfStructuresReference)
+    assert isinstance(assign.lhs.children[0], Member)
+    assert assign.lhs.children[0].name == "flag"
+    assert isinstance(assign.lhs.children[1], Literal)
+    assert 0
