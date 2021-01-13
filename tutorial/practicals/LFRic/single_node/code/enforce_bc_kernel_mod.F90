@@ -65,7 +65,7 @@ private
 type, public, extends(kernel_type) :: enforce_bc_kernel_type
   private
   type(arg_type) :: meta_args(1) = (/                                  &
-       arg_type(GH_FIELD, GH_REAL, GH_INC, ANY_SPACE_1)                &
+       arg_type(GH_FIELD,  GH_REAL,  GH_INC,  ANY_SPACE_1)             &
        /)
   integer :: operates_on = CELL_COLUMN
 contains
