@@ -273,6 +273,9 @@
 
 	87) PR #974 for #974. Support skip ci with GitHub Actions.
 
+	88) PR #1021 towards #363. Add PSyIR nodes for structure references and
+	its accessors, also the associated Fortran back-end visitors.
+
 
 release 1.9.0 20th May 2020
 
