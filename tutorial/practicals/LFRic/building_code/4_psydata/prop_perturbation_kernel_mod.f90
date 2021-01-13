@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,8 +43,9 @@ module prop_perturbation_kernel_mod
 
   use argument_mod,      only: arg_type, func_type,   &
                                GH_FIELD, GH_REAL,     &
+                               GH_SCALAR,             &
                                GH_READWRITE, GH_READ, &
-                               CELLS
+                               CELL_COLUMN
   use fs_continuity_mod, only: W3
   use constants_mod,     only: r_def, i_def
   use kernel_mod,        only: kernel_type
@@ -64,12 +65,12 @@ module prop_perturbation_kernel_mod
   !-----------------------------------------------------------------------------
   type, public, extends(kernel_type) :: prop_perturbation_kernel_type
     private
-    type(arg_type), dimension(3) :: meta_args = (/ &
-         arg_type(GH_FIELD,   GH_READWRITE, W3),   &
-         arg_type(GH_FIELD*3, GH_READ,      W3),   &
-         arg_type(GH_REAL,    GH_READ)             &
+    type(arg_type), dimension(3) :: meta_args = (/        &
+         arg_type(GH_FIELD,   GH_REAL, GH_READWRITE, W3), &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,      W3), &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)           &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: prop_perturbation_code
   end type prop_perturbation_kernel_type
