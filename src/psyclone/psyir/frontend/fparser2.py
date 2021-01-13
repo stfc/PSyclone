@@ -1173,8 +1173,6 @@ class Fparser2Reader(object):
             if mod_name not in parent.symbol_table:
                 new_container = True
                 container = ContainerSymbol(mod_name)
-                # It is OK if a parent symbol table also has a
-                # reference to this module so do not check ancestors.
                 parent.symbol_table.add(container)
             else:
                 new_container = False
@@ -1508,8 +1506,6 @@ class Fparser2Reader(object):
                 except ValueError:
                     # Error setting initial value
                     raise NotImplementedError()
-                # We don't want to check ancestor symbol tables as we're
-                # currently processing a *local* variable declaration.
                 symbol_table.add(sym)
             else:
                 # The symbol table already contains an entry with this name

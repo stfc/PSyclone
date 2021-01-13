@@ -183,11 +183,12 @@ class SymbolTable(object):
 
     def new_symbol(self, root_name=None, tag=None, check_ancestors=True,
                    symbol_type=None, **symbol_init_args):
-        ''' Create a new symbol. Optional root_name, tag, and check_ancestors
-        arguments can be given to choose the name and location of the new
-        Symbol. By default it creates a generic symbol but a symbol_type
-        argument and any additional initialization keyword arguments of this
-        sybmol_type can be given to refine the created Symbol.
+        ''' Create a new symbol. Optional root_name and check_ancestors
+        arguments can be given to choose the name following the rules of
+        next_available_name(). An optional tag can also be given.
+        By default it creates a generic symbol but a symbol_type argument
+        and any additional initialization keyword arguments of this
+        sybmol_type can be provided to refine the created Symbol.
 
         :param root_name: optional name to use when creating a new \
             symbol name. This will be appended with an integer if the name \
@@ -217,7 +218,7 @@ class SymbolTable(object):
         else:
             symbol_type = Symbol
 
-        available_name = self.new_symbol_name(root_name, check_ancestors)
+        available_name = self.next_available_name(root_name, check_ancestors)
         symbol = symbol_type(available_name, **symbol_init_args)
         self.add(symbol, tag)
         return symbol
@@ -229,8 +230,6 @@ class SymbolTable(object):
         the arguments available in the new_symbol() method can be given to
         refine the name and the type of the created Symbol.
 
-        #TODO: What happens if the symbol is found and some unmatching
-        arguments were given?
 
         :param str tag: tag identifier.
         :param str root_name: optional name of the new symbols if it needs \
@@ -250,14 +249,19 @@ class SymbolTable(object):
                         "Expected symbol with tag '{0}' to be of type '{1}' "
                         "but found type '{2}'.".format(
                         tag, symbol_type.__name__, type(symbol).__name__))
+            # TODO: What happens if the symbol is found and some unmatching
+            # arguments were given? If it needs to fail, we can implement the
+            # previous check polymorphically inside each symbol:
+            # symbol.match(arguments)
+            # which can also be useful for symbol comparisons in general.
             return symbol
         except KeyError:
             if not root_name:
                 root_name = tag
             return self.new_symbol(root_name, tag, **new_symbol_args)
 
-    def new_symbol_name(self, root_name=None, check_ancestors=True):
-        '''Create a symbol name that is not in this symbol table (if the
+    def next_available_name(self, root_name=None, check_ancestors=True):
+        '''Return a name that is not in this symbol table (if the
         `check_ancestors` argument is False) or in this or any
         ancestor symbol table (if the `check_ancestors` argument is
         True). If the `root_name` argument is not supplied or if it is
@@ -312,10 +316,6 @@ class SymbolTable(object):
         :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
         :param str tag: a tag identifier for the new symbol, by default no \
             tag is given.
-        :param bool check_ancestors: optional logical flag indicating \
-            whether the symbol name and tag (if provided) should be \
-            unique in this symbol table (False) or in this and all \
-            ancestor symbol tables (True). Defaults to True.
 
         :raises InternalError: if the new_symbol argument is not a \
             symbol.

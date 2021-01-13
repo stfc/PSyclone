@@ -98,8 +98,8 @@ def test_instance():
     assert sym_table._node is schedule
 
 
-def test_new_symbol_name_1():
-    '''Test that the new_symbol_name method returns names that are not
+def test_next_available_name_1():
+    '''Test that the next_available_name method returns names that are not
     already in the symbol table.
 
     '''
@@ -109,67 +109,67 @@ def test_new_symbol_name_1():
 
     # Check we can generate a new symbol name (and add it to the symbol
     # table as this is required for further testing).
-    name = sym_table.new_symbol_name()
+    name = sym_table.next_available_name()
     assert name == "psyir_tmp"
     sym_table.add(DataSymbol(name, REAL_TYPE))
     # Check we return the expected symbol name when there is a
     # supplied root name.
-    assert sym_table.new_symbol_name(root_name="my_name") == "my_name"
+    assert sym_table.next_available_name(root_name="my_name") == "my_name"
     # Check we return a new symbol by appending an integer index to
     # the root name when the names clash.
-    name = sym_table.new_symbol_name(root_name="my_mod")
+    name = sym_table.next_available_name(root_name="my_mod")
     assert name == "my_mod_1"
     sym_table.add(ContainerSymbol(name))
-    name = sym_table.new_symbol_name(root_name="my_mod")
+    name = sym_table.next_available_name(root_name="my_mod")
     assert name == "my_mod_2"
-    name = sym_table.new_symbol_name(root_name="my_mod_1")
+    name = sym_table.next_available_name(root_name="my_mod_1")
     assert name == "my_mod_1_1"
     # Check we return a new symbol by appending an integer index to
     # the default name when the names clash.
-    name = sym_table.new_symbol_name()
+    name = sym_table.next_available_name()
     assert name == "psyir_tmp_1"
     sym_table.add(DataSymbol(name, REAL_TYPE))
-    assert sym_table.new_symbol_name() == "psyir_tmp_2"
+    assert sym_table.next_available_name() == "psyir_tmp_2"
 
 
-def test_new_symbol_name_2():
-    '''Test that the new_symbol_name method returns an internal name if
+def test_next_available_name_2():
+    '''Test that the next_available_name method returns an internal name if
     the supplied root_name argument is an empty string.
 
     '''
     sym_table = SymbolTable()
-    name = sym_table.new_symbol_name(root_name="")
+    name = sym_table.next_available_name(root_name="")
     assert name == "psyir_tmp"
 
 
-def test_new_symbol_name_3():
-    '''Test that the new_symbol_name method returns an internal name if
+def test_next_available_name_3():
+    '''Test that the next_available_name method returns an internal name if
     the supplied root_name argument is None.
 
     '''
     sym_table = SymbolTable()
-    name = sym_table.new_symbol_name(root_name=None)
+    name = sym_table.next_available_name(root_name=None)
     assert name == "psyir_tmp"
 
 
-def test_new_symbol_name_4():
-    '''Test that the new_symbol_name method raises the expected exception
+def test_next_available_name_4():
+    '''Test that the next_available_name method raises the expected exception
     if an argument has the wrong type.
 
     '''
     sym_table = SymbolTable()
     with pytest.raises(TypeError) as excinfo:
-        _ = sym_table.new_symbol_name(root_name=7)
+        _ = sym_table.next_available_name(root_name=7)
     assert ("Argument root_name should be of type str or NoneType but found "
             "'int'." in str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
-        _ = sym_table.new_symbol_name(check_ancestors=7)
+        _ = sym_table.next_available_name(check_ancestors=7)
     assert ("Argument check_ancestors should be of type bool but found "
             "'int'." in str(excinfo.value))
 
 
 def test_new_symbol_5():
-    '''Check that new_symbol_name in the SymbolTable class behaves as
+    '''Check that next_available_name in the SymbolTable class behaves as
     expected with the check_ancestors flag being a) explicitly set to
     False, b) explicitly set to True and c) using the default value
     (True).
@@ -179,18 +179,18 @@ def test_new_symbol_5():
 
     # A clash in this symbol table should return a unique symbol
     for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
-        assert (schedule_symbol_table.new_symbol_name("symbol1", **arg)
+        assert (schedule_symbol_table.next_available_name("symbol1", **arg)
                 == "symbol1_1")
     # A clash in an ancestor symbol table will not be checked if
     # check_ancestors=False
     for arg in {}, {"check_ancestors": True}:
-        assert (schedule_symbol_table.new_symbol_name("symbol2", **arg)
+        assert (schedule_symbol_table.next_available_name("symbol2", **arg)
                 == "symbol2_1")
-    assert schedule_symbol_table.new_symbol_name(
+    assert schedule_symbol_table.next_available_name(
         "symbol2", check_ancestors=False) == "symbol2"
     # A clash with a symbol in a child symbol table is not checked
     for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
-        assert (container_symbol_table.new_symbol_name("symbol1", **arg)
+        assert (container_symbol_table.next_available_name("symbol1", **arg)
                 == "symbol1")
 
 
