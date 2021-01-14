@@ -302,7 +302,9 @@ class NemoInvokeSchedule(InvokeSchedule):
     _text_name = "NemoInvokeSchedule"
 
     def __init__(self, invoke=None):
-        super(NemoInvokeSchedule, self).__init__(None, None)
+        # TODO #1010: The name placeholder should be changed with the
+        # expected InvokeShcedule name to use the PSyIR backend.
+        super(NemoInvokeSchedule, self).__init__('name', None, None)
 
         self._invoke = invoke
         # Whether or not we've already checked the associated Fortran for

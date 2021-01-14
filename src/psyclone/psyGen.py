@@ -49,9 +49,10 @@ from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
-    Symbol, INTEGER_TYPE, BOOLEAN_TYPE
+    Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
-from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, PSyDataNode
+from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
+    Routine, PSyDataNode, Call, Reference
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 
@@ -257,6 +258,17 @@ class PSy(object):
     def __init__(self, invoke_info):
         self._name = invoke_info.name
         self._invokes = None
+        # create an empty PSy layer container
+        # TODO 1010: Alternatively the PSy object could be a Container itself
+        self._container = Container(self.name)
+
+    @property
+    def container(self):
+        '''
+        :returns: the container associated with this PSy object
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
+        '''
+        return self._container
 
     def __str__(self):
         return "PSy"
@@ -451,7 +463,8 @@ class Invoke(object):
 
         # create a name for the call if one does not already exist
         if alg_invocation.name is not None:
-            self._name = alg_invocation.name
+            # In Python2 unicode strings must be converted to str()
+            self._name = str(alg_invocation.name)
         elif len(alg_invocation.kcalls) == 1 and \
                 alg_invocation.kcalls[0].type == "kernelCall":
             # use the name of the kernel call with the position appended.
@@ -461,14 +474,16 @@ class Invoke(object):
                 alg_invocation.kcalls[0].ktype.name
         else:
             # use the position of the invoke
-            self._name = "invoke_"+str(idx)
+            self._name = "invoke_" + str(idx)
 
         if not reserved_names:
             reserved_names = []
-        reserved_names.append(self._name)
 
         # create the schedule
-        self._schedule = schedule_class(alg_invocation.kcalls, reserved_names)
+        self._schedule = schedule_class(self._name, alg_invocation.kcalls,
+                                        reserved_names)
+        if self.invokes:
+            self.invokes.psy.container.addchild(self._schedule)
 
         # let the schedule have access to me
         self._schedule.invoke = self
@@ -737,7 +752,7 @@ class Invoke(object):
         parent.add(invoke_sub)
 
 
-class InvokeSchedule(Schedule):
+class InvokeSchedule(Routine):
     '''
     Stores schedule information for an invocation call. Schedules can be
     optimised using transformations.
@@ -753,6 +768,7 @@ class InvokeSchedule(Schedule):
     >>> schedule = invoke.schedule
     >>> schedule.view()
 
+    :param str name: name of the Invoke.
     :param type KernFactory: class instance of the factory to use when \
      creating Kernels. e.g. :py:class:`psyclone.dynamo0p3.DynKernCallFactory`.
     :param type BuiltInFactory: class instance of the factory to use when \
@@ -765,9 +781,9 @@ class InvokeSchedule(Schedule):
     # Textual description of the node.
     _text_name = "InvokeSchedule"
 
-    def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
+    def __init__(self, name, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None):
-        super(InvokeSchedule, self).__init__()
+        super(InvokeSchedule, self).__init__(name)
 
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
@@ -2757,6 +2773,37 @@ class CodedKern(Kern):
         return (self.coloured_name(colour) + " " + self.name + "(" +
                 self.arguments.names + ") " + "[module_inline=" +
                 str(self._module_inline) + "]")
+
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of CodedKern concept into language level
+        PSyIR constructs. The CodedKern is implemented as a Call to a
+        routine with the appropriate arguments.
+
+        '''
+        symtab = self.scope.symbol_table
+        rsymbol = RoutineSymbol(self._name)
+        symtab.add(rsymbol)
+        call_node = Call(rsymbol)
+
+        # Swap itself with the appropriate Call node
+        self.parent.children[self.position] = call_node
+        call_node.parent = self.parent
+
+        # Add arguments as children
+        for argument in self.arguments.raw_arg_list():
+            # TODO #1010: Some arrays and structures are given by the name,
+            # not the PSyIR DataType, we just use the base name for now.
+            argument = argument.split('%')[0]
+            argument = argument.split('(')[0]
+            argument_symbol = symtab.lookup(argument)
+            call_node.addchild(Reference(argument_symbol))
+
+        if not self.module_inline:
+            # Import subroutine symbol
+            csymbol = ContainerSymbol(self._module_name)
+            symtab.add(csymbol)
+            rsymbol.interface = GlobalInterface(csymbol)
 
     def gen_code(self, parent):
         '''
