@@ -101,8 +101,6 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
         searched.
     :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
         `NoneType`
-    :param visibility: the visibility to give to any new symbol.
-    :type visibility: :py:class:`psyclone.Symbol.Visbility`
 
     :returns: the matching symbol.
     :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
