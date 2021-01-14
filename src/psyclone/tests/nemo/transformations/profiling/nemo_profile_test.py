@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -378,7 +378,9 @@ def test_profiling_case_loop(parser):
     ''' Check that we can put profiling around a CASE and a subsequent
     loop. '''
     code = ("subroutine my_test()\n"
+            "  use my_mod, only: a_type\n"
             "  integer :: igrd, ib, ii\n"
+            "  type(a_type) :: idx\n"
             "  real, dimension(:,:,:) :: pmask, tmask\n"
             "  real, dimension(:,:) :: bdypmask, bdytmask\n"
             "  select case(igrd)\n"

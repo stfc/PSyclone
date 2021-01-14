@@ -247,6 +247,8 @@ def test_scalar_parallelise(parser):
 
 
 # -----------------------------------------------------------------------------
+@pytest.mark.xfail(reason="#1028 dependency analysis for structures needs "
+                   "to be implemented")
 def test_derived_type(parser):
     ''' Tests assignment to derived type variables. '''
     reader = FortranStringReader('''program test
