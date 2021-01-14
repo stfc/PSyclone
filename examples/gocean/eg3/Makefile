@@ -86,6 +86,8 @@ compile-ocl: fd_lib ${FORTCL_LIB} ${KERNELS} psy_gen.o alg_gen.f90
 	@echo "Use 'FORTCL_KERNELS_FILE=allkernels.cl ./alg_opencl.exe' to run."
 
 compile-mpi-ocl: dm_fd_lib ${FORTCL_LIB} ${KERNELS} psy_gen_dm.o alg_gen_dm.f90
+	# TODO dl_esm_inf/#54: The generated binary will not execute properly until
+	# this issue is fixed.
 	${F90} ${LDFLAGS} -I${INF_INC} alg_gen_dm.f90 psy_gen_dm.o ${INF_LIB} \
 		${FORTCL_LIB} -lOpenCL -o alg_dm_opencl.exe
 	@echo "//OpenCL Kernels file" > allkernels.cl
