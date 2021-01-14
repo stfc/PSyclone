@@ -281,6 +281,10 @@
 
 	90) PR #1023 for #1017. Update and improve PSyData LFRic tutorial.
 
+        91) PR #894 towards #817. Adds support for LFRic kernel metadata
+        specifying the intrinsic type (real and integer) of fields and
+        operators.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
