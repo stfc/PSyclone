@@ -2676,6 +2676,9 @@ class Fparser2Reader(object):
 
     def _data_ref_handler(self, node, parent):
         '''
+        Create the PSyIR for an fparser2 Data_Ref (representing an access
+        to a derived type).
+
         :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Data_Ref`
         :param parent: Parent node of the PSyIR node we are constructing.
@@ -2684,10 +2687,12 @@ class Fparser2Reader(object):
         :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
 
+        :raises NotImplementedError: if the parse tree contains unsupported \
+                                     elements.
         '''
         # First we construct the full list of 'members' making up the
         # derived-type reference. e.g. for "var%region(1)%start" this
-        # will be ["var", ("region", [Literal("1")]), "start"].
+        # will be [("region", [Literal("1")]), "start"].
         members = []
         for child in node.children[1:]:
             if isinstance(child, Fortran2003.Name):
@@ -2714,7 +2719,8 @@ class Fparser2Reader(object):
             sym = parent.find_or_create_symbol(node.children[0].string)
             return StructureReference.create(sym, members=members,
                                              parent=parent)
-        elif isinstance(node.children[0], Fortran2003.Part_Ref):
+
+        if isinstance(node.children[0], Fortran2003.Part_Ref):
             # Base of reference is an array access. Lookup the corresponding
             # symbol.
             part_ref = node.children[0]
