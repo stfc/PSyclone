@@ -46,7 +46,7 @@ import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
     ContainerSymbol
-from psyclone.psyir.symbols.datatypes import TypeSymbol, DeferredType
+from psyclone.psyir.symbols.datatypes import TypeSymbol
 from psyclone.psyir.symbols.symbol import SymbolError
 from psyclone.errors import InternalError
 
@@ -181,9 +181,9 @@ class SymbolTable(object):
         new_key = key.lower()
         return new_key
 
-    def new_symbol(self, root_name=None, tag=None, check_ancestors=True,
+    def new_symbol(self, root_name=None, tag=None, shadowing=False,
                    symbol_type=None, **symbol_init_args):
-        ''' Create a new symbol. Optional root_name and check_ancestors
+        ''' Create a new symbol. Optional root_name and shadowing
         arguments can be given to choose the name following the rules of
         next_available_name(). An optional tag can also be given.
         By default it creates a generic symbol but a symbol_type argument
@@ -195,14 +195,13 @@ class SymbolTable(object):
             clashes with an existing symbol name.
         :type root_name: str or NoneType
         :param str tag: optional tag identifier for the new symbol.
-        :param bool check_ancestors: optional logical flag indicating \
-            whether the name should be unique in just this symbol table \
-            (False) or this and all ancestor symbol tables \
-            (True). Defaults to True.
+        :param bool shadowing: optional logical flag indicating whether the \
+            name can be overlapping with a symbol in any of the ancestors \
+            symbol tables. Defaults to False.
         :param symbol_type: class type of the new symbol.
         :type symbol_type: Class type :py:class:`psyclone.psyir.symbols.Symbol`
         :param symbol_init_args: arguments to create a new symbol.
-        :type symbol_init_args: unwrapped Dict[str, object]
+        :type symbol_init_args: unwrapped Dict[str] = object
 
         '''
 
@@ -218,7 +217,7 @@ class SymbolTable(object):
         else:
             symbol_type = Symbol
 
-        available_name = self.next_available_name(root_name, check_ancestors)
+        available_name = self.next_available_name(root_name, shadowing)
         symbol = symbol_type(available_name, **symbol_init_args)
         self.add(symbol, tag)
         return symbol
@@ -229,7 +228,6 @@ class SymbolTable(object):
         root of the symbol name. Optionally, a different root_name or any of
         the arguments available in the new_symbol() method can be given to
         refine the name and the type of the created Symbol.
-
 
         :param str tag: tag identifier.
         :param str root_name: optional name of the new symbols if it needs \
@@ -260,40 +258,40 @@ class SymbolTable(object):
                 root_name = tag
             return self.new_symbol(root_name, tag, **new_symbol_args)
 
-    def next_available_name(self, root_name=None, check_ancestors=True):
-        '''Return a name that is not in this symbol table (if the
-        `check_ancestors` argument is False) or in this or any
-        ancestor symbol table (if the `check_ancestors` argument is
-        True). If the `root_name` argument is not supplied or if it is
+    def next_available_name(self, root_name=None, shadowing=False):
+        '''Return a name that is not in the symbol table and therefore can
+        be used to declare a new symbol.
+        If the `root_name` argument is not supplied or if it is
         an empty string then the name is generated internally,
         otherwise the `root_name` is used. If required, an additional
         integer is appended to avoid clashes.
+        If the shadowing argument is True (is False by default), the names
+        in parent symbol tables will not be considered.
 
         :param root_name: optional name to use when creating a new \
             symbol name. This will be appended with an integer if the name \
             clashes with an existing symbol name.
         :type root_name: str or NoneType
-        :param bool check_ancestors: optional logical flag indicating \
-            whether the name should be unique in this symbol table \
-            (False) or in this and all ancestor symbol tables \
-            (True). Defaults to True.
+        :param bool shadowing: optional logical flag indicating whether the \
+            name can be overlapping with a symbol in any of the ancestors \
+            symbol tables. Defaults to False.
 
         :returns: the new unique symbol name.
         :rtype: str
 
         :raises TypeError: if the root_name argument is not a string \
             or None.
-        :raises TypeError: if the check_ancestors argument is not a bool.
+        :raises TypeError: if the shadowing argument is not a bool.
 
         '''
-        if not isinstance(check_ancestors, bool):
-            raise TypeError("Argument check_ancestors should be of type bool"
-                " but found '{0}'.".format(type(check_ancestors).__name__))
+        if not isinstance(shadowing, bool):
+            raise TypeError("Argument shadowing should be of type bool"
+                " but found '{0}'.".format(type(shadowing).__name__))
 
-        if check_ancestors:
-            symbols = self.get_symbols()
-        else:
+        if shadowing:
             symbols = self._symbols
+        else:
+            symbols = self.get_symbols()
 
         if root_name is not None:
             if not isinstance(root_name, six.string_types):
@@ -403,9 +401,9 @@ class SymbolTable(object):
         self._argument_list = argument_symbols[:]
 
     def lookup(self, name, visibility=None, scope_limit=None):
-        '''Look up a symbol in the symbol table (if the `check_ancestors`
-        argument is False) or in this or any ancestor symbol table (if
-        the `check_ancestors` argument is True).
+        '''Look up a symbol in the symbol table. The lookup can be limited
+        by visibility (e.g. just show public methods) or by scope_limit (e.g.
+        just show symbols up to a certain scope).
 
         :param str name: name of the symbol.
         :param visibilty: the visibility or list of visibilities that the \
@@ -467,15 +465,16 @@ class SymbolTable(object):
                                     "".format(name)), err)
 
     def lookup_with_tag(self, tag, scope_limit=None):
-        '''Look up a symbol using the supplied tag. If check_ancestors is True
-        then this and any ancestor symbol tables are searched,
-        otherwise only this symbol table is examined.
+        '''Look up a symbol by its tag. The lookup can be limited by scope_limit
+        (e.g. just show symbols up to a certain scope).
 
         :param str tag: tag identifier.
-        :param bool check_ancestors: optional logical flag indicating \
-            whether the tag should be from just this symbol table \
-            (False) or this and all ancestor symbol tables \
-            (True). Defaults to True.
+        :param scope_limit: optional Node which limits the symbol \
+            search space to the symbol tables of the nodes within the \
+            given scope. If it is None (the default), the whole \
+            scope (all symbol tables in ancestor nodes) is searched \
+            otherwise ancestors of the scope_limit node are not \
+            searched.
 
         :returns: symbol with the given tag.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -769,8 +768,6 @@ class SymbolTable(object):
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols import DeferredType
         # Accumulate into a set so as to remove any duplicates
         precision_symbols = set()
         for sym in self.datasymbols:

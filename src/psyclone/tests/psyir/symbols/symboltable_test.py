@@ -163,33 +163,33 @@ def test_next_available_name_4():
     assert ("Argument root_name should be of type str or NoneType but found "
             "'int'." in str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
-        _ = sym_table.next_available_name(check_ancestors=7)
-    assert ("Argument check_ancestors should be of type bool but found "
+        _ = sym_table.next_available_name(shadowing=7)
+    assert ("Argument shadowing should be of type bool but found "
             "'int'." in str(excinfo.value))
 
 
 def test_new_symbol_5():
     '''Check that next_available_name in the SymbolTable class behaves as
-    expected with the check_ancestors flag being a) explicitly set to
+    expected with the shadowing flag being a) explicitly set to
     False, b) explicitly set to True and c) using the default value
-    (True).
+    (False).
 
     '''
     schedule_symbol_table, container_symbol_table = create_hierarchy()
 
     # A clash in this symbol table should return a unique symbol
-    for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
+    for arg in {}, {"shadowing": True}, {"shadowing": False}:
         assert (schedule_symbol_table.next_available_name("symbol1", **arg)
                 == "symbol1_1")
     # A clash in an ancestor symbol table will not be checked if
-    # check_ancestors=False
-    for arg in {}, {"check_ancestors": True}:
+    # shadowing is False
+    for arg in {}, {"shadowing": False}:
         assert (schedule_symbol_table.next_available_name("symbol2", **arg)
                 == "symbol2_1")
     assert schedule_symbol_table.next_available_name(
-        "symbol2", check_ancestors=False) == "symbol2"
+        "symbol2", shadowing=True) == "symbol2"
     # A clash with a symbol in a child symbol table is not checked
-    for arg in {}, {"check_ancestors": True}, {"check_ancestors": False}:
+    for arg in {}, {"shadowing": True}, {"shadowing": False}:
         assert (container_symbol_table.next_available_name("symbol1", **arg)
                 == "symbol1")
 
@@ -583,9 +583,7 @@ def test_lookup_3():
 
 def test_lookup_4():
     '''Check that lookup() in the SymbolTable class behaves as
-    expected with the check_ancestors flag being a) explicitly set to
-    False, b) explicitly set to True and c) using the default value
-    (True).
+    expected with the scope_limit argument.
 
     '''
     schedule_symbol_table, container_symbol_table = create_hierarchy()
@@ -650,9 +648,7 @@ def test_lookup_with_tag_2():
 
 def test_lookup_with_tag_3():
     '''Check that lookup_with_tag() in the SymbolTable class behaves as
-    expected with the check_ancestors flag being a) explicitly set to
-    False, b) explicitly set to True and c) using the default value
-    (True).
+    expected with the scope_limit argument.
 
     '''
     schedule_symbol_table, container_symbol_table = create_hierarchy()
@@ -665,8 +661,8 @@ def test_lookup_with_tag_3():
             schedule_symbol_table.lookup_with_tag("does-not-exist", **arg)
             assert ("Could not find the tag 'does-not-exist' in the Symbol "
                     "Table." in str(info.value))
-    # The tag is in an ancestor symbol table. This will not be
-    # found if check_ancestors=False
+    # The tag is in an ancestor symbol table. This will not be found if 
+    # scope_limit is the current scope
     for arg in {}, {"scope_limit": None}:
         assert (schedule_symbol_table.lookup_with_tag(
             "symbol2_tag", **arg) is symbol2)
