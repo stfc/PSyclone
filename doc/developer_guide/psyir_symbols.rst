@@ -86,6 +86,7 @@ Symbols
 
 At the moment, nodes that represent a scope (all `Schedules` and `Containers`)
 have a symbol table which contains the symbols used by their descendant nodes.
+Nested scopes with their associated symbol table are allowed in the PSyIR.
 
 
 The `new_symbol` method is provided to create new symbols while avoiding name
@@ -105,8 +106,7 @@ tag, the following code can be used:
     variable = node.symbol_table.new_symbol("variable_name",
                                             tag="variable_with_the_result_x"
                                             symbol_type=DataSymbol,
-                                            datatype=DataType.INTEGER,
-                                            tag="variable_with_the_result_x")
+                                            datatype=DataType.INTEGER)
 
 There are two ways to retrieve the symbol from a symbol table. Using the
 `name` or using the `tag` as lookup keys. This is done with the two following

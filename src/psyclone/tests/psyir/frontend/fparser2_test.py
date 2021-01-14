@@ -2796,28 +2796,28 @@ def test_find_or_create_imported_symbol():
     assert (_find_or_create_imported_symbol(alpha,
         alpha.name, scope_limit=container).name == alpha.name)
 
-    # find_or_create_symbol method with invalid scope type
+    # Test _find_or_create_impored_symbol with invalid location
+    with pytest.raises(TypeError) as excinfo:
+        _ = _find_or_create_imported_symbol("hello", alpha.name)
+    assert ("The location argument 'hello' provided to "
+            "_find_or_create_imported_symbol() is not of type `Node`."
+            in str(excinfo.value))
+
+    # Test _find_or_create_impored_symbol with invalid scope type
     with pytest.raises(TypeError) as excinfo:
         _ = _find_or_create_imported_symbol(alpha, alpha.name, scope_limit="hello")
-    assert ("The scope_limit argument 'hello' provided to the "
-            "find_or_create_symbol method, is not of type `Node`."
+    assert ("The scope_limit argument 'hello' provided to "
+            "_find_or_create_imported_symbol() is not of type `Node`."
             in str(excinfo.value))
 
     # find_or_create_symbol method with invalid scope location
     with pytest.raises(ValueError) as excinfo:
         _ = _find_or_create_imported_symbol(alpha, alpha.name, scope_limit=alpha)
-    assert ("The scope_limit node 'Reference[name:'alpha']' provided to the "
-            "find_or_create_symbol method, is not an ancestor of this node "
-            "'Reference[name:'alpha']'." in str(excinfo.value))
+    assert ("The scope_limit node 'Reference[name:'alpha']' provided to "
+            "_find_or_create_imported_symbol() is not an ancestor of this "
+            "node 'Reference[name:'alpha']'." in str(excinfo.value))
 
-    # find_or_create_symbol method with invalid visibility
-    # with pytest.raises(TypeError) as excinfo:
-    #    _ = _find_or_create_imported_symbol(alpha, alpha.name, visibility="hello")
-    #assert ("visibility argument 'hello' provided to the find_or_create_symbol"
-    #        " method should be of `Symbol.Visibility` type but instead is: "
-    #        "'str'" in str(excinfo.value))
-
-    # With a valid visibility
+    # With a visibility parameter
     sym = _find_or_create_imported_symbol(alpha, "very_private",
                                       visibility=Symbol.Visibility.PRIVATE)
     assert sym.name == "very_private"

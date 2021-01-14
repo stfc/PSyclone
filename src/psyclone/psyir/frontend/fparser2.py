@@ -92,6 +92,8 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
     that the search through ancestor nodes stops when the scope_limit node
     is reached i.e. ancestors of the scope_limit node are not searched.
 
+    :param location: PSyIR node from which to operate.
+    :type location: :py:class:`psyclone.psyir.nodes.Node`
     :param str name: the name of the symbol.
     :param scope_limit: optional Node which limits the symbol \
         search space to the symbol tables of the nodes within the \
@@ -112,12 +114,17 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
         no ContainerSymbols from which it might be brought into scope.
 
     '''
+    if not isinstance(location, Node):
+        raise TypeError(
+            "The location argument '{0}' provided to _find_or_create_imported"
+            "_symbol() is not of type `Node`.".format(str(location)))
+
     if scope_limit:
         # Validate the supplied scope_limit
         if not isinstance(scope_limit, Node):
             raise TypeError(
-                "The scope_limit argument '{0}' provided to the "
-                "find_or_create_symbol method, is not of type `Node`."
+                "The scope_limit argument '{0}' provided to _find_or_"
+                "create_imported_symbol() is not of type `Node`."
                 "".format(str(scope_limit)))
 
         # Check that the scope_limit Node is an ancestor of this
@@ -133,8 +140,8 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
             # The scope_limit node is not an ancestor of the
             # supplied node so raise an exception.
             raise ValueError(
-                "The scope_limit node '{0}' provided to the "
-                "find_or_create_symbol method, is not an ancestor of this "
+                "The scope_limit node '{0}' provided to _find_or_create"
+                "_imported_symbol() is not an ancestor of this "
                 "node '{1}'.".format(str(scope_limit), str(location)))
 
     # Keep a reference to the most local SymbolTable with a wildcard

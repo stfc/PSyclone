@@ -97,7 +97,9 @@ class SymbolTable(object):
         return self._node
 
     def parent_symbol_table(self, scope_limit=None):
-        '''
+        '''If this symbol table is enclosed in another scope, return the
+        symbol table of the next outer scope. Otherwise return None.
+
         :param scope_limit: optional Node which limits the symbol \
             search space to the symbol tables of the nodes within the \
             given scope. If it is None (the default), the whole \
@@ -134,8 +136,18 @@ class SymbolTable(object):
     def get_symbols(self, scope_limit=None):
         '''Return symbols from this symbol table and all symbol tables
         associated with ancestors of the node that this symbol table
-        is attached to. If there are duplicates we only return one of
-        them (the one from the closest ancestor including self).
+        is attached to. If there are name duplicates we only return the
+        one from the closest ancestor including self. It accepts an
+        optional scope_limit argument.
+
+        :param scope_limit: optional Node which limits the symbol \
+            search space to the symbol tables of the nodes within the \
+            given scope. If it is None (the default), the whole \
+            scope (all symbol tables in ancestor nodes) is searched \
+            otherwise ancestors of the scope_limit node are not \
+            searched.
+        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
+            `NoneType`
 
         :returns: ordered dictionary of symbols indexed by symbol name.
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
@@ -153,8 +165,17 @@ class SymbolTable(object):
     def get_tags(self, scope_limit=None):
         '''Return tags from this symbol table and all symbol tables associated
         with ancestors of the node that this symbol table is attached
-        to. If there are duplicates we only return one of them (the
-        one from the closest ancestor including self).
+        to. If there are tag duplicates we only return the one from the closest
+        ancestor including self. It accepts an optional scope_limit argument.
+
+        :param scope_limit: optional Node which limits the symbol \
+            search space to the symbol tables of the nodes within the \
+            given scope. If it is None (the default), the whole \
+            scope (all symbol tables in ancestor nodes) is searched \
+            otherwise ancestors of the scope_limit node are not \
+            searched.
+        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
+            `NoneType`
 
         :returns: ordered dictionary of symbols indexed by tag.
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
@@ -485,8 +506,8 @@ class SymbolTable(object):
                                     "".format(name)), err)
 
     def lookup_with_tag(self, tag, scope_limit=None):
-        '''Look up a symbol by its tag. The lookup can be limited by scope_limit
-        (e.g. just show symbols up to a certain scope).
+        '''Look up a symbol by its tag. The lookup can be limited by
+        scope_limit (e.g. just show symbols up to a certain scope).
 
         :param str tag: tag identifier.
         :param scope_limit: optional Node which limits the symbol \
