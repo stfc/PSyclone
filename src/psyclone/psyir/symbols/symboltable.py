@@ -295,10 +295,11 @@ class SymbolTable(object):
         else:
             symbols = self._symbols
 
-        if root_name is not None and not isinstance(root_name, str):
-            raise TypeError(
-                "Argument root_name should be of type str or NoneType but "
-                "found '{0}'.".format(type(root_name).__name__))
+        if root_name is not None:
+            if not isinstance(root_name, six.string_types):
+                raise TypeError(
+                    "Argument root_name should be of type str or NoneType but "
+                    "found '{0}'.".format(type(root_name).__name__))
         if not root_name:
             root_name = Config.get().psyir_root_name
         candidate_name = root_name
