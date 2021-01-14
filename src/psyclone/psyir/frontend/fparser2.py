@@ -2685,33 +2685,30 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
 
         '''
-        # Bottom-up creation of full reference. The last element in the members
-        # list must be either an ArrayMember or a Member.
-        if isinstance(node.children[-1], Fortran2003.Part_Ref):
-            # An access to one or more array elements
-            subref = ArrayMember(node.children[-1].children[0].string)
-            self.process_nodes(parent=subref,
-                               nodes=node.children[-1].children[1:])
-            #create(members[-1][0], members[-1][1])
-        elif isinstance(node.children[-1], Fortran2003.Name):
-            # A member access
-            subref = Member(node.children[-1].string)
-        else:
-        #import pdb; pdb.set_trace()
+        # First we construct the full list of 'members' making up the
+        # derived-type reference. e.g. for "var%region(1)%start" this
+        # will be ["var", ("region", [Literal("1")]), "start"].
         members = []
         for child in node.children[1:]:
             if isinstance(child, Fortran2003.Name):
                 # Members of a structure do not refer to symbols
                 members.append(child.string)
             elif isinstance(child, Fortran2003.Part_Ref):
-                fake_parent = Assignment(parent=parent)
-                # Any array-index expressions must refer to symbols
-                self.process_nodes(parent=fake_parent, nodes=child.children[1:])
+                # In order to use process_nodes() we need a fake parent node
+                # through which we can access the symbol table. This is
+                # because array-index expressions must refer to symbols.
+                sched = parent.ancestor(Schedule, include_self=True)
+                fake_parent = ArrayReference(parent=sched,
+                                             symbol=Symbol("fake"))
+                self.process_nodes(parent=fake_parent,
+                                   nodes=child.children[1].children)
                 members.append((child.children[0].string,
                                 fake_parent.children))
             else:
                 raise NotImplementedError(str(node))
 
+        # Now we have the list of members, use the `create()` method of the
+        # appropriate Reference subclass.
         if isinstance(node.children[0], Fortran2003.Name):
             # Base of reference is a scalar entity.
             sym = parent.find_or_create_symbol(node.children[0].string)
@@ -2720,13 +2717,15 @@ class Fparser2Reader(object):
         elif isinstance(node.children[0], Fortran2003.Part_Ref):
             # Base of reference is an array access. Lookup the corresponding
             # symbol.
-            sym = parent.find_or_create_symbol(
-                node.children[0].children[0].string)
-            ref = ArrayOfStructuresReference.create(sym,
-                                                    members=members,
+            part_ref = node.children[0]
+            sym = parent.find_or_create_symbol(part_ref.children[0].string)
+            # We have to create the reference before its children because
+            # processing the array-index expressions requires access to the
+            # symbol table.
+            ref = ArrayOfStructuresReference.create(sym, members=members,
                                                     parent=parent)
-            self.process_nodes(parent=ref,
-                               nodes=node.children[0].children[1].children)
+            # Now process the array-index expressions
+            self.process_nodes(parent=ref, nodes=part_ref.children[1].children)
             return ref
 
         raise NotImplementedError(str(node))

@@ -120,7 +120,9 @@ def test_asr_create_errors(component_symbol):
     assert "ArrayType but symbol 'scalar' has type 'Scalar" in str(err.value)
     # Missing children (for array-index expressions)
     with pytest.raises(TypeError) as err:
-        _ = nodes.ArrayOfStructuresReference.create(component_symbol)
+        _ = nodes.ArrayOfStructuresReference.create(component_symbol,
+                                                    indices=False,
+                                                    members=["hello"])
     assert ("must be a list containing at least one array-index expression "
             "but this is missing for symbol 'grid'" in str(err.value))
     # Missing member(s)

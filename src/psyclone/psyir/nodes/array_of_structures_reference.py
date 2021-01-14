@@ -108,6 +108,8 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
             are not of the expected type.
 
         '''
+        # TODO #363 if a symbol is imported via a USE then it will be
+        # represented with a Symbol, not a DataSymbol.
         if not isinstance(symbol, symbols.DataSymbol):
             raise TypeError(
                 "The 'symbol' argument to ArrayOfStructuresReference.create() "
@@ -118,16 +120,16 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
                 "An ArrayOfStructuresReference must refer to a symbol of "
                 "ArrayType but symbol '{0}' has type '{1}".format(
                     symbol.name, symbol.datatype))
-        if not indices:
+        if indices is None:
             index_list = []
         else:
             index_list = indices
         if not isinstance(index_list, list):
             raise TypeError(
-                "If supplied, the 'indices' argument to ArrayOfStructuresReference."
-                "create() must be a list containing at least one array-index "
-                "expression but this is missing for symbol '{0}'".format(
-                    symbol.name))
+                "If supplied, the 'indices' argument to "
+                "ArrayOfStructuresReference.create() must be a list "
+                "containing at least one array-index expression but this is "
+                "missing for symbol '{0}'".format(symbol.name))
 
         # First use the StructureReference _create class method to create a
         # reference to the base structure of the array.

@@ -41,11 +41,11 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import KernelSchedule, CodeBlock, Assignment, \
     ArrayOfStructuresReference, StructureReference, Member, StructureMember, \
-    ArrayOfStructuresMember, ArrayMember, Literal
+    ArrayOfStructuresMember, ArrayMember, Literal, Reference, Range
 from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
     TypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from fparser.two.Fortran2003 import Specification_Part
+from fparser.two import Fortran2003
 from fparser.common.readfortran import FortranStringReader
 
 
@@ -59,7 +59,7 @@ def test_deferred_derived_type():
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod\n"
                                  "type(my_type) :: var")
-    fparser2spec = Specification_Part(reader)
+    fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     vsym = symtab.lookup("var")
     assert isinstance(vsym.datatype, TypeSymbol)
@@ -75,7 +75,7 @@ def test_missing_derived_type():
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("type(my_type) :: var")
-    fparser2spec = Specification_Part(reader)
+    fparser2spec = Fortran2003.Specification_Part(reader)
     # This should raise an error because there's no Container from which
     # the definition of 'my_type' can be brought into scope.
     with pytest.raises(SymbolError) as err:
@@ -146,7 +146,7 @@ def test_parse_derived_type(use_stmt):
                                  "  real, dimension(3) :: posn\n"
                                  "end type my_type\n"
                                  "type(my_type) :: var\n".format(use_stmt))
-    fparser2spec = Specification_Part(reader)
+    fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
     assert isinstance(sym, TypeSymbol)
@@ -178,7 +178,7 @@ def test_derived_type_accessibility():
                                  "  integer :: flag\n"
                                  "  real, public :: scale\n"
                                  "end type my_type\n")
-    fparser2spec = Specification_Part(reader)
+    fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
     assert isinstance(sym, TypeSymbol)
@@ -189,7 +189,7 @@ def test_derived_type_accessibility():
 
 
 def test_derived_type_ref(f2008_parser):
-    ''' Check that the frontend handles a basic reference to a member of
+    ''' Check that the frontend handles a references to a member of
     a derived type. '''
     processor = Fparser2Reader()
     reader = FortranStringReader(
@@ -204,16 +204,41 @@ def test_derived_type_ref(f2008_parser):
         "end subroutine my_sub\n")
     fparser2spec = f2008_parser(reader)
     sched = processor.generate_schedule("my_sub", fparser2spec)
-    sched.view()
     assert not sched.walk(CodeBlock)
-    assign = sched.walk(Assignment)[0]
+    assignments = sched.walk(Assignment)
+    # var%flag
+    assign = assignments[0]
     assert isinstance(assign.lhs, StructureReference)
     assert isinstance(assign.lhs.children[0], Member)
     assert assign.lhs.children[0].name == "flag"
-    assign = sched.walk(Assignment)[1]
+    # var%region%start
+    assign = assignments[1]
     assert isinstance(assign.lhs, StructureReference)
     assert isinstance(assign.lhs.children[0], StructureMember)
     assert assign.lhs.children[0].name == "region"
+    assert isinstance(assign.lhs.children[0].children[0], Member)
+    assert assign.lhs.children[0].children[0].name == "start"
+    # var%region%subgrid(3)%stop
+    assign = assignments[2]
+    amem = assign.lhs.children[0].children[0]
+    assert isinstance(amem, ArrayOfStructuresMember)
+    assert isinstance(amem.children[0], Member)
+    assert isinstance(amem.children[1], Literal)
+    assert amem.children[0].name == "stop"
+    # var%region%subgrid(3)%data(:)
+    assign = assignments[3]
+    amem = assign.lhs.children[0].children[0]
+    assert isinstance(amem, ArrayOfStructuresMember)
+    assert isinstance(amem.children[0], ArrayMember)
+    assert isinstance(amem.children[0].children[0], Range)
+    assign = assignments[4]
+    # var%region%subgrid(3)%data(var%start:var%stop)
+    amem = assign.lhs.children[0].children[0].children[0]
+    assert isinstance(amem, ArrayMember)
+    assert isinstance(amem.children[0], Range)
+    assert isinstance(amem.children[0].children[0], StructureReference)
+    assert isinstance(amem.children[0].children[0].children[0], Member)
+    assert amem.children[0].children[0].children[0].name == "start"
 
 
 def test_array_of_derived_type_ref(f2008_parser):
@@ -234,11 +259,82 @@ def test_array_of_derived_type_ref(f2008_parser):
                                  "end subroutine my_sub\n")
     fparser2spec = f2008_parser(reader)
     sched = processor.generate_schedule("my_sub", fparser2spec)
-    sched.view()
     assert not sched.walk(CodeBlock)
-    assign = sched.walk(Assignment)[0]
+    assignments = sched.walk(Assignment)
+    # var(1)%flag
+    assign = assignments[0]
     assert isinstance(assign.lhs, ArrayOfStructuresReference)
     assert isinstance(assign.lhs.children[0], Member)
     assert assign.lhs.children[0].name == "flag"
     assert isinstance(assign.lhs.children[1], Literal)
-    assert 0
+    # var(idx)%flag
+    assign = assignments[1]
+    assert isinstance(assign.lhs, ArrayOfStructuresReference)
+    assert isinstance(assign.lhs.children[0], Member)
+    assert isinstance(assign.lhs.children[1], Reference)
+    assert assign.lhs.children[1].symbol.name == "idx"
+    # var(start:stop)%flag
+    assign = assignments[2]
+    assert isinstance(assign.lhs, ArrayOfStructuresReference)
+    assert isinstance(assign.lhs.children[0], Member)
+    assert isinstance(assign.lhs.children[1], Range)
+    assert isinstance(assign.lhs.children[1].children[0], Reference)
+    assert assign.lhs.children[1].children[0].symbol.name == "start"
+    # var(1)%region%start
+    assign = assignments[3]
+    assert isinstance(assign.lhs, ArrayOfStructuresReference)
+    assert isinstance(assign.lhs.children[0], StructureMember)
+    assert isinstance(assign.lhs.children[1], Literal)
+    assert assign.lhs.children[0].name == "region"
+    assert isinstance(assign.lhs.children[0].children[0], Member)
+    # var(1)%region%subgrid(3)%stop
+    assign = assignments[4]
+    assert isinstance(assign.lhs, ArrayOfStructuresReference)
+    assert isinstance(assign.lhs.children[0].children[0],
+                      ArrayOfStructuresMember)
+    assert isinstance(assign.lhs.children[0].children[0].children[0],
+                      Member)
+    assert isinstance(assign.lhs.children[0].children[0].children[1],
+                      Literal)
+    # var(1)%region%subgrid(3)%data(:)
+    assign = assignments[5]
+    assert isinstance(assign.lhs, ArrayOfStructuresReference)
+    amem = assign.lhs.children[0].children[0]
+    assert isinstance(amem, ArrayOfStructuresMember)
+    assert isinstance(amem.children[0], ArrayMember)
+    assert isinstance(amem.children[1], Literal)
+    assert isinstance(amem.children[0].children[0], Range)
+
+
+def test_derived_type_codeblocks(f2008_parser):
+    ''' Check that we create a CodeBlock if we encounter unsupported
+    entries in a parse tree describing a derived-type access. We have
+    to test with invalid content in two locations. '''
+    code = ("subroutine my_sub()\n"
+            "  use some_mod, only: my_type\n"
+            "  type(my_type), dimension(3) :: var\n"
+            "  var(1)%region%subgrid(3)%stop = 1\n"
+            "end subroutine my_sub\n")
+    processor = Fparser2Reader()
+    # First create a valid parse tree.
+    reader = FortranStringReader(code)
+    fparser2spec = f2008_parser(reader)
+    dref = Fortran2003.walk(fparser2spec, Fortran2003.Data_Ref)[0]
+    # Now break the Data_Ref instance by modifying its first child. Requesting
+    # a subset of items from a tuple appears to generate a new tuple so
+    # explicitly create a list and then create a tuple from that.
+    item_list = ["hello"] + list(dref.items[1:])
+    dref.items = tuple(item_list)
+    sched = processor.generate_schedule("my_sub", fparser2spec)
+    cblocks = sched.walk(CodeBlock)
+    assert len(cblocks) == 1
+    assert isinstance(cblocks[0].parent, Assignment)
+    # Repeat but this time break the Data_Ref by modifying its second child.
+    reader = FortranStringReader(code)
+    fparser2spec = f2008_parser(reader)
+    dref = Fortran2003.walk(fparser2spec, Fortran2003.Data_Ref)[0]
+    dref.items = (dref.items[0], "hello")
+    sched = processor.generate_schedule("my_sub", fparser2spec)
+    cblocks = sched.walk(CodeBlock)
+    assert len(cblocks) == 1
+    assert isinstance(cblocks[0].parent, Assignment)
