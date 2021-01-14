@@ -101,7 +101,7 @@ Contains
         if (.not. is_enabled) return
 
         if (this%verbosity>1) then
-            write(stderr, *) "PSYDATA - testing ", name
+            write(stderr, *) "PSyData - testing ", name
         endif
         value_proxy = value%get_proxy()
         call this%ProvideVariable(name, value_proxy%data)
@@ -140,10 +140,6 @@ Contains
         character(8) :: index_string   ! Enough for a 6 digit number plus '()'
 
         if (.not. is_enabled) return
-
-        if (this%verbosity>1) then
-            write(stderr, *) "PSYDATA - testing ", name
-        endif
 
         ! Provide each member of the vector as a normal field. This way
         ! the NAN/infinite testing will be done for each member individually.
