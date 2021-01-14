@@ -98,10 +98,29 @@ class SymbolTable(object):
 
     def parent_symbol_table(self, scope_limit=None):
         '''
+        :param scope_limit: optional Node which limits the symbol \
+            search space to the symbol tables of the nodes within the \
+            given scope. If it is None (the default), the whole \
+            scope (all symbol tables in ancestor nodes) is searched \
+            otherwise ancestors of the scope_limit node are not \
+            searched.
+        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
+            `NoneType`
+
         :returns: the 'parent' SymbolTable of the current SymbolTable (i.e.
                   the one that encloses this one in the PSyIR hierarchy).
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
         '''
+
+        # Validate the supplied scope_limit
+        if scope_limit:
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import Node
+            if not isinstance(scope_limit, Node):
+                raise TypeError(
+                    "The scope_limit argument '{0}', is not of type `Node`."
+                    "".format(str(scope_limit)))
+
         # We use the Node with which this table is associated in order to
         # move up the Node hierarchy
         if self.node and self.node:
@@ -223,7 +242,7 @@ class SymbolTable(object):
         return symbol
 
     def symbol_from_tag(self, tag, root_name=None, **new_symbol_args):
-        ''' Lookup tag, but if it doesn't exist create a new symbol with the
+        ''' Lookup a tag, if it doesn't exist create a new symbol with the
         given tag. By default it creates a generic Symbol with the tag as the
         root of the symbol name. Optionally, a different root_name or any of
         the arguments available in the new_symbol() method can be given to
@@ -240,6 +259,7 @@ class SymbolTable(object):
         '''
         try:
             symbol = self.lookup_with_tag(tag)
+            # Check that the symbol found matches the requested description
             if 'symbol_type' in new_symbol_args:
                 symbol_type = new_symbol_args['symbol_type']
                 if not isinstance(symbol, new_symbol_args['symbol_type']):

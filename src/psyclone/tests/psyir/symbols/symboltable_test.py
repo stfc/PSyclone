@@ -98,6 +98,27 @@ def test_instance():
     assert sym_table._node is schedule
 
 
+def test_parent_symbol_table():
+    '''Check that the parent_symbol_table() method behaves as expected with the
+    scope_limit argument.
+
+    '''
+    inner_symbol_table, outer_symbol_table = create_hierarchy()
+    inner_scope = inner_symbol_table.node
+
+    assert inner_symbol_table.parent_symbol_table() is outer_symbol_table
+    assert outer_symbol_table.parent_symbol_table() is None
+
+    # Limit recursion by the scope_limit parameter
+    assert inner_symbol_table.parent_symbol_table(
+            scope_limit=inner_scope) is None
+
+    # Provide a wrong scope_limit parameter
+    with pytest.raises(TypeError) as err:
+        _ = inner_symbol_table.parent_symbol_table(scope_limit=2)
+    assert "The scope_limit argument '2', is not of type `Node`." in str(err)
+
+
 def test_next_available_name_1():
     '''Test that the next_available_name method returns names that are not
     already in the symbol table.
