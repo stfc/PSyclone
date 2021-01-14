@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -379,7 +379,42 @@ def test_imported_symbols():
             "ContainerSymbol" in str(err.value))
 
 
-def test_remove():
+def test_remove_genericsymbols():
+    ''' Test that the remove method removes generic symbols from the symbol
+    table. Also check that it disassociates any existing tags to the symbol'''
+
+    sym_table = SymbolTable()
+    symbol_a = Symbol("a")
+    symbol_b = Symbol("b")
+    symbol_c = Symbol("c")
+
+    sym_table.add(symbol_a, tag="tag1")
+    sym_table.add(symbol_b, tag="tag2")
+
+    assert "a" in sym_table
+    assert "tag1" in sym_table.tags_dict
+
+    sym_table.remove(symbol_a)
+
+    assert "a" not in sym_table
+    assert "tag1" not in sym_table.tags_dict
+
+    # Tag1 can now be reused
+    sym_table.add(symbol_c, tag="tag1")
+
+
+def test_remove_routineymbols():
+    ''' Test that the remove method removes RoutineSymbols from the symbol
+    table.'''
+    sym_table = SymbolTable()
+    symbol_a = RoutineSymbol("a")
+    sym_table.add(symbol_a)
+    assert "a" in sym_table
+    sym_table.remove(symbol_a)
+    assert "a" not in sym_table
+
+
+def test_remove_containersymbols():
     '''Test that the remove method removes ContainerSymbols from the symbol
     table. Also checks that appropriate errors are raised when the method is
     provided with wrong parameters or if there are DataSymbols that reference
@@ -395,11 +430,6 @@ def test_remove():
     var1 = sym_table.lookup("var1")
     assert var1
     assert sym_table.imported_symbols(my_mod) == [var1]
-    # We should not be able to remove a Symbol that is not a ContainerSymbol
-    with pytest.raises(TypeError) as err:
-        sym_table.remove(var1)
-    assert ("expects a ContainerSymbol or Symbol object but got" in
-            str(err.value))
     # We should not be able to remove a Container if it is referenced
     # by an existing Symbol
     with pytest.raises(ValueError) as err:
@@ -418,11 +448,6 @@ def test_remove():
         sym_table.remove(my_mod)
     assert ("Cannot remove Symbol 'my_mod' from symbol table because it does "
             "not" in str(err.value))
-    # Attempt to supply something that is not a Symbol
-    with pytest.raises(TypeError) as err:
-        sym_table.remove("broken")
-    assert ("remove() expects a ContainerSymbol or Symbol object but got: "
-            in str(err.value))
     # Attempting to remove a Symbol that is not in the table but that has
     # the same name as an entry in the table is an error
     sym_table.add(ContainerSymbol("my_mod"))
@@ -430,6 +455,26 @@ def test_remove():
         sym_table.remove(ContainerSymbol("my_mod"))
     assert ("Symbol with name 'my_mod' in this symbol table is not the "
             "same" in str(err.value))
+
+
+def test_remove_unsupported_types():
+    ''' Test that the remove method raises appropriate errors when trying to
+    remove unsupported types.'''
+    sym_table = SymbolTable()
+
+    # Attempt to supply something that is not a Symbol
+    with pytest.raises(TypeError) as err:
+        sym_table.remove("broken")
+    assert ("remove() expects a Symbol argument but found: 'str'."
+            in str(err.value))
+
+    # We should not be able to remove a Symbol that is not currently supported
+    var1 = DataSymbol("var1", REAL_TYPE)
+    sym_table.add(var1)
+    with pytest.raises(NotImplementedError) as err:
+        sym_table.remove(var1)
+    assert ("remove() currently only supports generic Symbol, ContainerSymbol "
+            "and RoutineSymbol types but got: 'DataSymbol'" in str(err.value))
 
 
 def test_swap_symbol():
