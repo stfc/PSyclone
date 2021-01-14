@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@ import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
     ContainerSymbol
+from psyclone.psyir.symbols.datatypes import TypeSymbol, DeferredType
 from psyclone.psyir.symbols.symbol import SymbolError
 from psyclone.errors import InternalError
 
@@ -747,9 +748,9 @@ class SymbolTable(object):
         '''
         # Accumulate into a set so as to remove any duplicates
         precision_symbols = set()
-        from psyclone.psyir.symbols import DeferredType
         for sym in self.datasymbols:
-            if (not isinstance(sym.datatype, DeferredType) and
+            # Not all types have the 'precision' attribute (e.g. DeferredType)
+            if (hasattr(sym.datatype, "precision") and
                     isinstance(sym.datatype.precision, DataSymbol)):
                 precision_symbols.add(sym.datatype.precision)
         return list(precision_symbols)
@@ -762,6 +763,15 @@ class SymbolTable(object):
         '''
         return [sym for sym in self.symbols if isinstance(sym,
                                                           ContainerSymbol)]
+
+    @property
+    def local_typesymbols(self):
+        '''
+        :returns: the local TypeSymbols present in the Symbol Table.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.TypeSymbol`
+        '''
+        return [sym for sym in self.symbols if
+                (isinstance(sym, TypeSymbol) and sym.is_local)]
 
     @property
     def iteration_indices(self):

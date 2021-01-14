@@ -169,7 +169,7 @@ Contains
         if (.not. is_enabled) return
 
         if (num_pre_vars /= num_post_vars) then
-            write(stderr, *) "PSYDATA: The same number of variables must be provided before"
+            write(stderr, *) "PSyData: The same number of variables must be provided before"
             write(stderr, *) "and after the instrumented region. But the values are:"
             write(stderr, *) "Before: ", num_pre_vars, " after: ", num_post_vars
             call this%Abort("PreStart: Inconsistent parameters")
@@ -289,7 +289,7 @@ Contains
                 write(stderr,*) "New value:      ", value
                 write(stderr,*) "------------- PSyData -------------------------"
             else if(this%verbosity>1) then
-                write(stderr,*) "PSYDATA: checked variable ", trim(name)
+                write(stderr,*) "PSyData: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
@@ -329,7 +329,7 @@ Contains
                 write(stderr,*) "New checksum:      ", checksum
                 write(stderr,*) "------------- PSyData -------------------------"
             else if(this%verbosity>1) then
-                write(stderr,*) "PSYDATA: checked variable ", trim(name)
+                write(stderr,*) "PSyData: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
@@ -358,7 +358,7 @@ Contains
         {# The spaces take care of proper indentation #}
         checksum = 0
         {% for j in range(dim, 0, -1) %}
-        {{+" "*3*(dim-j)}}do i{{j}}=1, size(field, {{j}})
+        {{" "*3*(dim-j)}}do i{{j}}=1, size(field, {{j}})
         {% endfor %}
         {% if bits == 32 %}
         {{indent}}! transfer leaves undefined bits in a 64-bit target
