@@ -37,6 +37,7 @@
 ''' This module contains the implementation of the StructureReference node. '''
 
 from __future__ import absolute_import
+import six
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_member import ArrayMember
@@ -168,7 +169,7 @@ class StructureReference(Reference):
         if isinstance(members[-1], tuple):
             # An access to one or more array elements
             subref = ArrayMember.create(members[-1][0], members[-1][1])
-        elif isinstance(members[-1], str):
+        elif isinstance(members[-1], six.string_types):
             # A member access
             subref = Member(members[-1])
         else:
@@ -189,7 +190,7 @@ class StructureReference(Reference):
                 # This is an array access so we have an ArrayOfStructuresMember
                 subref = ArrayOfStructuresMember.create(
                     component[0], component[1], subref)
-            elif isinstance(component, str):
+            elif isinstance(component, six.string_types):
                 # No array access so just a StructureMember
                 subref = StructureMember.create(component, subref)
             else:
