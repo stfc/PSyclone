@@ -55,7 +55,8 @@ from psyclone.parse.utils import ParseError
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.dynamo0p3_builtins import BUILTIN_ITERATION_SPACES
+from psyclone.dynamo0p3_builtins import (BUILTIN_ITERATION_SPACES,
+                                         DynBuiltInCallFactory)
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface)
@@ -4937,7 +4938,7 @@ class DynInvoke(Invoke):
         if not alg_invocation and not idx:
             # This if test is added to support pyreverse.
             return
-        self._schedule = DynInvokeSchedule(None)  # for pyreverse
+        self._schedule = DynInvokeSchedule('name', None)  # for pyreverse
         reserved_names_list = []
         reserved_names_list.extend(LFRicArgDescriptor.STENCIL_MAPPING.values())
         reserved_names_list.extend(LFRicArgDescriptor.VALID_STENCIL_DIRECTIONS)
@@ -5238,11 +5239,18 @@ class DynInvoke(Invoke):
 class DynInvokeSchedule(InvokeSchedule):
     ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo-
     specific factories for creating kernel and infrastructure calls
-    to the base class so it creates the ones we require. '''
+    to the base class so it creates the ones we require.
 
-    def __init__(self, arg, reserved_names=None):
-        from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
-        InvokeSchedule.__init__(self, DynKernCallFactory,
+    :param str name: name of the Invoke.
+    :param arg: list of KernelCalls parsed from the algorithm layer.
+    :type arg: list of :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param reserved_names: optional list of names that are not allowed in the \
+                           new InvokeSchedule SymbolTable.
+    :type reserved_names: list of str
+    '''
+
+    def __init__(self, name, arg, reserved_names=None):
+        InvokeSchedule.__init__(self, name, DynKernCallFactory,
                                 DynBuiltInCallFactory, arg, reserved_names)
 
     def node_str(self, colour=True):

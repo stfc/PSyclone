@@ -62,7 +62,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, Symbol, ArgumentInterface
+    INTEGER_TYPE, DataSymbol, Symbol, ArgumentInterface, ContainerSymbol
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -112,6 +112,16 @@ class GOPSy(PSy):
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
+
+        # Add GOcean infrastructure-specific libraries
+        kind_params_sym = ContainerSymbol("kind_params_mod")
+        kind_params_sym.wildcard_import = True
+        self.container.symbol_table.add(kind_params_sym)
+        field_sym = ContainerSymbol("field_mod")
+        field_sym.wildcard_import = True
+        self.container.symbol_table.add(field_sym)
+
+        # Create invokes
         self._invokes = GOInvokes(invoke_info.calls, self)
 
     @property
@@ -209,7 +219,7 @@ class GOInvoke(Invoke):
 
     '''
     def __init__(self, alg_invocation, idx, invokes):
-        self._schedule = GOInvokeSchedule(None)  # for pyreverse
+        self._schedule = GOInvokeSchedule('name', None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
 
         if Config.get().distributed_memory:
@@ -351,12 +361,21 @@ class GOInvoke(Invoke):
 class GOInvokeSchedule(InvokeSchedule):
     ''' The GOcean specific InvokeSchedule sub-class. We call the base class
     constructor and pass it factories to create GO-specific calls to both
-    user-supplied kernels and built-ins. '''
+    user-supplied kernels and built-ins.
+
+    :param str name: name of the Invoke.
+    :param alg_calls: list of KernelCalls parsed from the algorithm layer.
+    :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param reserved_names: optional list of names that are not allowed in the \
+                           new InvokeSchedule SymbolTable.
+    :type reserved_names: list of str
+    '''
     # Textual description of the node.
     _text_name = "GOInvokeSchedule"
 
-    def __init__(self, alg_calls, reserved_names=None):
-        InvokeSchedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
+    def __init__(self, name, alg_calls, reserved_names=None):
+        InvokeSchedule.__init__(self, name, GOKernCallFactory,
+                                GOBuiltInCallFactory,
                                 alg_calls, reserved_names)
 
         # The GOcean Constants Loops Bounds Optimization is implemented using
@@ -2484,9 +2503,8 @@ class GOKernelSchedule(KernelSchedule):
 
     :param str name: Kernel subroutine name
     '''
-    def __init__(self, name):
-        super(GOKernelSchedule, self).__init__(name)
-        self._symbol_table = GOSymbolTable(self)
+    # Polymorphic parameter to initialize the Symbol Table of the Schedule
+    _symbol_table_class = GOSymbolTable
 
 
 class GOHaloExchange(HaloExchange):
