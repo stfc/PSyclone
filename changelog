@@ -288,6 +288,10 @@
         92) PR #1029 towards #1010. Sets up initial API and examples for
         generating PSy-layer code using the PSyIR backends.
 
+        93) PR #1032 for #1019. Adds OpenCL configuration parameters to
+        enable profiling and out-of-order execution of kernels. Also adds
+        an 'OpenCL devices per node' configuration option.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
