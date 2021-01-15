@@ -39,7 +39,22 @@
 # target here and ask the user to select a different Makefile.
 default:
 	@echo "Please use one of the transformation-specific Makefiles, e.g."
-	@echo "make -f Makefile.extract"
+	@echo "make -f Makefile.extract_one"
+
+# Target for testing the tutorials with compilation (use only one PSyData wrapper)
+compile:
+	make -f solutions/Makefile.nan_all
+
+# Target for CI, only do the transformation (use all transformation scripts)
+test:
+	make clean
+	make -f solutions/Makefile.extract_one time_evolution_alg_mod_psy.f90
+	make clean
+	make -f solutions/Makefile.extract_all time_evolution_alg_mod_psy.f90
+	make clean
+	make -f solutions/Makefile.nan_all time_evolution_alg_mod_psy.f90
+	make clean
+	make -f solutions/Makefile.readonly_all time_evolution_alg_mod_psy.f90
 
 # This will define a 'test' target, that tutorial checking will use
 include Makefile.inc

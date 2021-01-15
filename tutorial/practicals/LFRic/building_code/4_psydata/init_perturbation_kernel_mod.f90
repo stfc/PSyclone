@@ -119,7 +119,7 @@ module init_perturbation_kernel_mod
         x(3) = chi_3(map_w3(df) + k)
 
         !-----------------------------------------------------------------------
-        ! TO COMPLETE: Initialise perturbation field to the prescribed
+        ! Initialise perturbation field to the prescribed
         ! analytical expression on each DoF, i.e. perturbation( map_w3(df) + k )
         ampl = max(perturbation_height - x(3), 0.0_r_def)/perturbation_scale
         xt = ( x(1) - x_centre )/half_width_x

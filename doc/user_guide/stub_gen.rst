@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2020, Science and Technology Facilities Council
+.. Copyright (c) 2017-2021, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -197,7 +197,7 @@ is shown below:
 
     type, extends(kernel_type) :: simple_type
       type(arg_type), dimension(1) :: meta_args = &
-           (/ arg_type(gh_field, gh_inc, w1) /)
+           (/ arg_type(gh_field, gh_real, gh_inc, w1) /)
       integer :: operates_on = cell_column
     contains
       procedure, nopass :: code => simple_code
@@ -302,12 +302,12 @@ Kernel, excluding the subroutine body, is given below.
   type, public, extends(kernel_type) :: ru_kernel_type
     private
     type(arg_type) :: meta_args(6) = (/                                  &
-         arg_type(GH_FIELD,               GH_INC,  W2),                  &
-         arg_type(GH_FIELD,               GH_READ, W3),                  &
+         arg_type(GH_FIELD,   GH_REAL,    GH_INC,  W2),                  &
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ, W3),                  &
          arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                      &
          arg_type(GH_SCALAR,  GH_REAL,    GH_READ),                      &
-         arg_type(GH_FIELD,               GH_READ, W0),                  &
-         arg_type(GH_FIELD*3,             GH_READ, W0)                   &
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ, W0),                  &
+         arg_type(GH_FIELD*3, GH_REAL,    GH_READ, W0)                   &
          /)
     type(func_type) :: meta_funcs(3) = (/                                &
          func_type(W2, GH_BASIS, GH_DIFF_BASIS),                         &

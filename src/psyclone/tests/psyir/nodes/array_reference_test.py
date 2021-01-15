@@ -158,7 +158,7 @@ def test_array_children_validation():
     with pytest.raises(GenerationError) as excinfo:
         array.addchild(assignment)
     assert ("Item 'Assignment' can't be child 0 of 'ArrayReference'. The valid"
-            " format is: '[DataNode | Range]*'." in str(excinfo.value))
+            " format is: '[DataNode | Range]+'." in str(excinfo.value))
 
     # Valid children
     array.addchild(datanode1)

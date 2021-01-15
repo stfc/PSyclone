@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,8 +49,10 @@ from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
-    Symbol, INTEGER_TYPE, BOOLEAN_TYPE
-from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, PSyDataNode
+    Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE
+from psyclone.psyir.symbols.datatypes import UnknownFortranType
+from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
+    Routine, PSyDataNode, Call, Reference
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 
@@ -261,6 +263,17 @@ class PSy(object):
     def __init__(self, invoke_info):
         self._name = invoke_info.name
         self._invokes = None
+        # create an empty PSy layer container
+        # TODO 1010: Alternatively the PSy object could be a Container itself
+        self._container = Container(self.name)
+
+    @property
+    def container(self):
+        '''
+        :returns: the container associated with this PSy object
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
+        '''
+        return self._container
 
     def __str__(self):
         return "PSy"
@@ -343,9 +356,22 @@ class Invokes(object):
         :param parent: the parent node in the AST to which to add content.
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
+        def raise_unmatching_options(option_name):
+            ''' Create unmatching OpenCL options error message.
+
+            :param str option_name: name of the option that failed.
+            :raises NotImplementedError: with the given option_name.
+            '''
+            raise NotImplementedError(
+                "The current implementation creates a single OpenCL context "
+                "for all the invokes which needs certain OpenCL options to "
+                "match between invokes. Found '{0}' with unmatching values "
+                "between invokes.".format(option_name))
         opencl_kernels = []
         opencl_num_queues = 1
         generate_ocl_init = False
+        ocl_enable_profiling = None
+        ocl_out_of_order = None
         for invoke in self.invoke_list:
             # If we are generating OpenCL for an Invoke then we need to
             # create routine(s) to set the arguments of the Kernel(s) it
@@ -353,7 +379,24 @@ class Invokes(object):
             # duplication.
             if invoke.schedule.opencl:
                 generate_ocl_init = True
-                for kern in invoke.schedule.coded_kernels():
+                isch = invoke.schedule
+
+                # The enable_profiling option must be equal in all invokes
+                if ocl_enable_profiling is not None and \
+                   ocl_enable_profiling != isch.get_opencl_option(
+                        'enable_profiling'):
+                    raise_unmatching_options('enable_profiling')
+                ocl_enable_profiling = isch.get_opencl_option(
+                    'enable_profiling')
+
+                # The out_of_order option must be equal in all invokes
+                if ocl_out_of_order is not None and \
+                   ocl_out_of_order != isch.get_opencl_option('out_of_order'):
+                    raise_unmatching_options('out_of_order')
+                ocl_out_of_order = isch.get_opencl_option('out_of_order')
+
+                # openCL_num_queues must be the maximum number from any invoke
+                for kern in isch.coded_kernels():
                     if kern.name not in opencl_kernels:
                         # Compute the maximum number of command queues that
                         # will be needed.
@@ -364,10 +407,11 @@ class Invokes(object):
                         kern.gen_arg_setter_code(parent)
             invoke.gen_code(parent)
         if generate_ocl_init:
-            self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues)
+            self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues,
+                              ocl_enable_profiling, ocl_out_of_order)
 
-    @staticmethod
-    def gen_ocl_init(parent, kernels, num_queues):
+    def gen_ocl_init(self, parent, kernels, num_queues, enable_profiling,
+                     out_of_order):
         '''
         Generates a subroutine to initialise the OpenCL environment and
         construct the list of OpenCL kernel objects used by this PSy layer.
@@ -379,9 +423,24 @@ class Invokes(object):
         :type kernels: list of str
         :param int num_queues: total number of queues needed for the OpenCL \
                                implementation.
+        :param bool enable_profiling: value given to the enable_profiling \
+                                      flag in the OpenCL initialisation.
+        :param bool out_of_order: value given to the out_of_order flag in \
+                                  the OpenCL initialisation.
+
         '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
             CallGen, UseGen, CharDeclGen, IfThenGen
+
+        def bool_to_fortran(value):
+            '''
+            :param bool value: a python boolean value
+            :returns: the Fortran representation of the given boolean value.
+            :rtype: str
+            '''
+            if value:
+                return ".True."
+            return ".False."
 
         sub = SubroutineGen(parent, "psy_init")
         parent.add(sub)
@@ -402,7 +461,24 @@ class Invokes(object):
         # Initialise the OpenCL environment
         ifthen.add(CommentGen(ifthen,
                               " Initialise the OpenCL environment/device"))
-        ifthen.add(CallGen(ifthen, "ocl_env_init", [num_queues]))
+        sub.add(DeclGen(sub, datatype="integer",
+                        entity_decls=["ocl_device_num"],
+                        initial_values=["1"]))
+
+        distributed_memory = Config.get().distributed_memory
+        devices_per_node = Config.get().ocl_devices_per_node
+
+        if devices_per_node > 1 and distributed_memory:
+            my_rank = self.gen_rank_expression(sub)
+            # Add + 1 as FortCL devices are 1-indexed
+            ifthen.add(AssignGen(ifthen, lhs="ocl_device_num",
+                                 rhs="mod({0} - 1, {1}) + 1"
+                                 "".format(my_rank, devices_per_node)))
+
+        ifthen.add(CallGen(ifthen, "ocl_env_init",
+                           [num_queues, 'ocl_device_num',
+                            bool_to_fortran(enable_profiling),
+                            bool_to_fortran(out_of_order)]))
 
         # Create a list of our kernels
         ifthen.add(CommentGen(ifthen,
@@ -419,8 +495,18 @@ class Invokes(object):
         ifthen.add(CommentGen(ifthen,
                               " Create the OpenCL kernel objects. Expects "
                               "to find all of the compiled"))
-        ifthen.add(CommentGen(ifthen, " kernels in PSYCLONE_KERNELS_FILE."))
+        ifthen.add(CommentGen(ifthen, " kernels in FORTCL_KERNELS_FILE."))
         ifthen.add(CallGen(ifthen, "add_kernels", [nkernstr, "kernel_names"]))
+
+    @abc.abstractmethod
+    def gen_rank_expression(self, scope):
+        ''' Generate the expression to retrieve the process rank.
+
+        :param scope: where the expression is going to be located.
+        :type scope: :py:class:`psyclone.f2pygen.BaseGen`
+        :return: generate the expression to retrieve the process rank.
+        :rtype: str
+        '''
 
 
 class Invoke(object):
@@ -455,7 +541,8 @@ class Invoke(object):
 
         # create a name for the call if one does not already exist
         if alg_invocation.name is not None:
-            self._name = alg_invocation.name
+            # In Python2 unicode strings must be converted to str()
+            self._name = str(alg_invocation.name)
         elif len(alg_invocation.kcalls) == 1 and \
                 alg_invocation.kcalls[0].type == "kernelCall":
             # use the name of the kernel call with the position appended.
@@ -465,14 +552,16 @@ class Invoke(object):
                 alg_invocation.kcalls[0].ktype.name
         else:
             # use the position of the invoke
-            self._name = "invoke_"+str(idx)
+            self._name = "invoke_" + str(idx)
 
         if not reserved_names:
             reserved_names = []
-        reserved_names.append(self._name)
 
         # create the schedule
-        self._schedule = schedule_class(alg_invocation.kcalls, reserved_names)
+        self._schedule = schedule_class(self._name, alg_invocation.kcalls,
+                                        reserved_names)
+        if self.invokes:
+            self.invokes.psy.container.addchild(self._schedule)
 
         # let the schedule have access to me
         self._schedule.invoke = self
@@ -768,7 +857,7 @@ class Invoke(object):
         parent.add(invoke_sub)
 
 
-class InvokeSchedule(Schedule):
+class InvokeSchedule(Routine):
     '''
     Stores schedule information for an invocation call. Schedules can be
     optimised using transformations.
@@ -784,6 +873,7 @@ class InvokeSchedule(Schedule):
     >>> schedule = invoke.schedule
     >>> schedule.view()
 
+    :param str name: name of the Invoke.
     :param type KernFactory: class instance of the factory to use when \
      creating Kernels. e.g. :py:class:`psyclone.dynamo0p3.DynKernCallFactory`.
     :param type BuiltInFactory: class instance of the factory to use when \
@@ -796,15 +886,17 @@ class InvokeSchedule(Schedule):
     # Textual description of the node.
     _text_name = "InvokeSchedule"
 
-    def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
+    def __init__(self, name, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None):
-        super(InvokeSchedule, self).__init__()
+        super(InvokeSchedule, self).__init__(name)
 
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
 
         # InvokeSchedule opencl_options default values
-        self._opencl_options = {"end_barrier": True}
+        self._opencl_options = {"end_barrier": True,
+                                "enable_profiling": False,
+                                "out_of_order": False}
 
         # Populate the Schedule Symbol Table with the reserved names.
         if reserved_names:
@@ -839,23 +931,31 @@ class InvokeSchedule(Schedule):
         :type options: dictionary of <string>:<value>
 
         '''
-        valid_opencl_options = ['end_barrier']
+        valid_opencl_options = ['end_barrier', 'enable_profiling',
+                                'out_of_order']
 
         # Validate that the options given are supported and store them
         for key, value in options.items():
             if key in valid_opencl_options:
-                if key == "end_barrier":
-                    if not isinstance(value, bool):
-                        raise TypeError(
-                            "InvokeSchedule opencl_option 'end_barrier' "
-                            "should be a boolean.")
+                # All current options should contain boolean values
+                if not isinstance(value, bool):
+                    raise TypeError(
+                        "InvokeSchedule OpenCL option '{0}' "
+                        "should be a boolean.".format(key))
             else:
                 raise AttributeError(
-                    "InvokeSchedule does not support the opencl_option '{0}'. "
+                    "InvokeSchedule does not support the OpenCL option '{0}'. "
                     "The supported options are: {1}."
                     "".format(key, valid_opencl_options))
 
             self._opencl_options[key] = value
+
+    def get_opencl_option(self, key):
+        '''
+        :returns: The value of the requested Invoke OpenCL option.
+        :rtype: bool
+        '''
+        return self._opencl_options[key]
 
     @property
     def invoke(self):
@@ -2719,16 +2819,16 @@ class CodedKern(Kern):
                 if key == "local_size":
                     if not isinstance(value, int):
                         raise TypeError(
-                            "CodedKern opencl_option 'local_size' should be "
+                            "CodedKern OpenCL option 'local_size' should be "
                             "an integer.")
                 if key == "queue_number":
                     if not isinstance(value, int):
                         raise TypeError(
-                            "CodedKern opencl_option 'queue_number' should be "
+                            "CodedKern OpenCL option 'queue_number' should be "
                             "an integer.")
             else:
                 raise AttributeError(
-                    "CodedKern does not support the opencl_option '{0}'. "
+                    "CodedKern does not support the OpenCL option '{0}'. "
                     "The supported options are: {1}."
                     "".format(key, valid_opencl_kernel_options))
 
@@ -2788,6 +2888,37 @@ class CodedKern(Kern):
         return (self.coloured_name(colour) + " " + self.name + "(" +
                 self.arguments.names + ") " + "[module_inline=" +
                 str(self._module_inline) + "]")
+
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of CodedKern concept into language level
+        PSyIR constructs. The CodedKern is implemented as a Call to a
+        routine with the appropriate arguments.
+
+        '''
+        symtab = self.scope.symbol_table
+        rsymbol = RoutineSymbol(self._name)
+        symtab.add(rsymbol)
+        call_node = Call(rsymbol)
+
+        # Swap itself with the appropriate Call node
+        self.parent.children[self.position] = call_node
+        call_node.parent = self.parent
+
+        # Add arguments as children
+        for argument in self.arguments.raw_arg_list():
+            # TODO #1010: Some arrays and structures are given by the name,
+            # not the PSyIR DataType, we just use the base name for now.
+            argument = argument.split('%')[0]
+            argument = argument.split('(')[0]
+            argument_symbol = symtab.lookup(argument)
+            call_node.addchild(Reference(argument_symbol))
+
+        if not self.module_inline:
+            # Import subroutine symbol
+            csymbol = ContainerSymbol(self._module_name)
+            symtab.add(csymbol)
+            rsymbol.interface = GlobalInterface(csymbol)
 
     def gen_code(self, parent):
         '''
@@ -3014,7 +3145,7 @@ class CodedKern(Kern):
         # We can't rename OpenCL kernels as the Invoke set_args functions
         # have already been generated. The link to an specific kernel
         # implementation is delayed to run-time in OpenCL. (e.g. FortCL has
-        # the  PSYCLONE_KERNELS_FILE environment variable)
+        # the  FORTCL_KERNELS_FILE environment variable)
         if not self.root.opencl:
             if self._kern_schedule:
                 # A PSyIR kernel schedule has been created. This means
@@ -3103,7 +3234,7 @@ class CodedKern(Kern):
     def _rename_psyir(self, suffix):
         '''Rename the PSyIR module and kernel names by adding the supplied
         suffix to the names. This change affects the KernCall and
-        KernelSchedule nodes.
+        KernelSchedule nodes as well as the kernel metadata declaration.
 
         :param str suffix: the string to insert into the quantity names.
 
@@ -3124,6 +3255,18 @@ class CodedKern(Kern):
         kern_schedule = self.get_kernel_schedule()
         kern_schedule.name = new_kern_name[:]
         kern_schedule.root.name = new_mod_name[:]
+
+        # TODO #1013. This needs re-doing properly - in particular the
+        # RoutineSymbol associated with the kernel needs to be replaced. For
+        # now we only fix the specific case of the name of the kernel routine
+        # in the kernel metadata as otherwise various compilation tests
+        # fail.
+        container_table = kern_schedule.root.symbol_table
+        for sym in container_table.local_typesymbols:
+            if isinstance(sym.datatype, UnknownFortranType):
+                orig_declaration = sym.datatype.declaration
+                sym.datatype.declaration = orig_declaration.replace(
+                    orig_kern_name, new_kern_name)
 
     def _prepare_opencl_kernel_schedule(self):
         ''' Generic method to introduce kernel modifications when generating
