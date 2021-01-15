@@ -351,9 +351,22 @@ class Invokes(object):
         :param parent: the parent node in the AST to which to add content.
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
+        def raise_unmatching_options(option_name):
+            ''' Create unmatching OpenCL options error message.
+
+            :param str option_name: name of the option that failed.
+            :raises NotImplementedError: with the given option_name.
+            '''
+            raise NotImplementedError(
+                "The current implementation creates a single OpenCL context "
+                "for all the invokes which needs certain OpenCL options to "
+                "match between invokes. Found '{0}' with unmatching values "
+                "between invokes.".format(option_name))
         opencl_kernels = []
         opencl_num_queues = 1
         generate_ocl_init = False
+        ocl_enable_profiling = None
+        ocl_out_of_order = None
         for invoke in self.invoke_list:
             # If we are generating OpenCL for an Invoke then we need to
             # create routine(s) to set the arguments of the Kernel(s) it
@@ -361,7 +374,24 @@ class Invokes(object):
             # duplication.
             if invoke.schedule.opencl:
                 generate_ocl_init = True
-                for kern in invoke.schedule.coded_kernels():
+                isch = invoke.schedule
+
+                # The enable_profiling option must be equal in all invokes
+                if ocl_enable_profiling is not None and \
+                   ocl_enable_profiling != isch.get_opencl_option(
+                        'enable_profiling'):
+                    raise_unmatching_options('enable_profiling')
+                ocl_enable_profiling = isch.get_opencl_option(
+                    'enable_profiling')
+
+                # The out_of_order option must be equal in all invokes
+                if ocl_out_of_order is not None and \
+                   ocl_out_of_order != isch.get_opencl_option('out_of_order'):
+                    raise_unmatching_options('out_of_order')
+                ocl_out_of_order = isch.get_opencl_option('out_of_order')
+
+                # openCL_num_queues must be the maximum number from any invoke
+                for kern in isch.coded_kernels():
                     if kern.name not in opencl_kernels:
                         # Compute the maximum number of command queues that
                         # will be needed.
@@ -372,10 +402,11 @@ class Invokes(object):
                         kern.gen_arg_setter_code(parent)
             invoke.gen_code(parent)
         if generate_ocl_init:
-            self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues)
+            self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues,
+                              ocl_enable_profiling, ocl_out_of_order)
 
-    @staticmethod
-    def gen_ocl_init(parent, kernels, num_queues):
+    def gen_ocl_init(self, parent, kernels, num_queues, enable_profiling,
+                     out_of_order):
         '''
         Generates a subroutine to initialise the OpenCL environment and
         construct the list of OpenCL kernel objects used by this PSy layer.
@@ -387,9 +418,24 @@ class Invokes(object):
         :type kernels: list of str
         :param int num_queues: total number of queues needed for the OpenCL \
                                implementation.
+        :param bool enable_profiling: value given to the enable_profiling \
+                                      flag in the OpenCL initialisation.
+        :param bool out_of_order: value given to the out_of_order flag in \
+                                  the OpenCL initialisation.
+
         '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
             CallGen, UseGen, CharDeclGen, IfThenGen
+
+        def bool_to_fortran(value):
+            '''
+            :param bool value: a python boolean value
+            :returns: the Fortran representation of the given boolean value.
+            :rtype: str
+            '''
+            if value:
+                return ".True."
+            return ".False."
 
         sub = SubroutineGen(parent, "psy_init")
         parent.add(sub)
@@ -410,7 +456,24 @@ class Invokes(object):
         # Initialise the OpenCL environment
         ifthen.add(CommentGen(ifthen,
                               " Initialise the OpenCL environment/device"))
-        ifthen.add(CallGen(ifthen, "ocl_env_init", [num_queues]))
+        sub.add(DeclGen(sub, datatype="integer",
+                        entity_decls=["ocl_device_num"],
+                        initial_values=["1"]))
+
+        distributed_memory = Config.get().distributed_memory
+        devices_per_node = Config.get().ocl_devices_per_node
+
+        if devices_per_node > 1 and distributed_memory:
+            my_rank = self.gen_rank_expression(sub)
+            # Add + 1 as FortCL devices are 1-indexed
+            ifthen.add(AssignGen(ifthen, lhs="ocl_device_num",
+                                 rhs="mod({0} - 1, {1}) + 1"
+                                 "".format(my_rank, devices_per_node)))
+
+        ifthen.add(CallGen(ifthen, "ocl_env_init",
+                           [num_queues, 'ocl_device_num',
+                            bool_to_fortran(enable_profiling),
+                            bool_to_fortran(out_of_order)]))
 
         # Create a list of our kernels
         ifthen.add(CommentGen(ifthen,
@@ -427,8 +490,18 @@ class Invokes(object):
         ifthen.add(CommentGen(ifthen,
                               " Create the OpenCL kernel objects. Expects "
                               "to find all of the compiled"))
-        ifthen.add(CommentGen(ifthen, " kernels in PSYCLONE_KERNELS_FILE."))
+        ifthen.add(CommentGen(ifthen, " kernels in FORTCL_KERNELS_FILE."))
         ifthen.add(CallGen(ifthen, "add_kernels", [nkernstr, "kernel_names"]))
+
+    @abc.abstractmethod
+    def gen_rank_expression(self, scope):
+        ''' Generate the expression to retrieve the process rank.
+
+        :param scope: where the expression is going to be located.
+        :type scope: :py:class:`psyclone.f2pygen.BaseGen`
+        :return: generate the expression to retrieve the process rank.
+        :rtype: str
+        '''
 
 
 class Invoke(object):
@@ -789,7 +862,9 @@ class InvokeSchedule(Routine):
         self._opencl = False  # Whether or not to generate OpenCL
 
         # InvokeSchedule opencl_options default values
-        self._opencl_options = {"end_barrier": True}
+        self._opencl_options = {"end_barrier": True,
+                                "enable_profiling": False,
+                                "out_of_order": False}
 
         # Populate the Schedule Symbol Table with the reserved names.
         if reserved_names:
@@ -824,23 +899,31 @@ class InvokeSchedule(Routine):
         :type options: dictionary of <string>:<value>
 
         '''
-        valid_opencl_options = ['end_barrier']
+        valid_opencl_options = ['end_barrier', 'enable_profiling',
+                                'out_of_order']
 
         # Validate that the options given are supported and store them
         for key, value in options.items():
             if key in valid_opencl_options:
-                if key == "end_barrier":
-                    if not isinstance(value, bool):
-                        raise TypeError(
-                            "InvokeSchedule opencl_option 'end_barrier' "
-                            "should be a boolean.")
+                # All current options should contain boolean values
+                if not isinstance(value, bool):
+                    raise TypeError(
+                        "InvokeSchedule OpenCL option '{0}' "
+                        "should be a boolean.".format(key))
             else:
                 raise AttributeError(
-                    "InvokeSchedule does not support the opencl_option '{0}'. "
+                    "InvokeSchedule does not support the OpenCL option '{0}'. "
                     "The supported options are: {1}."
                     "".format(key, valid_opencl_options))
 
             self._opencl_options[key] = value
+
+    def get_opencl_option(self, key):
+        '''
+        :returns: The value of the requested Invoke OpenCL option.
+        :rtype: bool
+        '''
+        return self._opencl_options[key]
 
     @property
     def invoke(self):
@@ -2704,16 +2787,16 @@ class CodedKern(Kern):
                 if key == "local_size":
                     if not isinstance(value, int):
                         raise TypeError(
-                            "CodedKern opencl_option 'local_size' should be "
+                            "CodedKern OpenCL option 'local_size' should be "
                             "an integer.")
                 if key == "queue_number":
                     if not isinstance(value, int):
                         raise TypeError(
-                            "CodedKern opencl_option 'queue_number' should be "
+                            "CodedKern OpenCL option 'queue_number' should be "
                             "an integer.")
             else:
                 raise AttributeError(
-                    "CodedKern does not support the opencl_option '{0}'. "
+                    "CodedKern does not support the OpenCL option '{0}'. "
                     "The supported options are: {1}."
                     "".format(key, valid_opencl_kernel_options))
 
@@ -3030,7 +3113,7 @@ class CodedKern(Kern):
         # We can't rename OpenCL kernels as the Invoke set_args functions
         # have already been generated. The link to an specific kernel
         # implementation is delayed to run-time in OpenCL. (e.g. FortCL has
-        # the  PSYCLONE_KERNELS_FILE environment variable)
+        # the  FORTCL_KERNELS_FILE environment variable)
         if not self.root.opencl:
             if self._kern_schedule:
                 # A PSyIR kernel schedule has been created. This means
