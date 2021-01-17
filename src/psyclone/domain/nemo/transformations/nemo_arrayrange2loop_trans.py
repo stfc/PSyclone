@@ -351,8 +351,8 @@ class NemoArrayRange2LoopTrans(Transformation):
                     raise TransformationError(
                         "The config file specifies '{0}' as the name of the "
                         "iteration variable but this is already declared in "
-                        "the code as something that is not a scalar integer."
-                        "".format(loop_variable_name))
+                        "the code as something that is not a scalar integer, "
+                        "or is a deferred type.".format(loop_variable_name))
             except KeyError:
                 # Variable is not defined
                 pass

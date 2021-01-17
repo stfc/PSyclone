@@ -96,13 +96,9 @@ def test_create():
     assert children[0].parent is nemo_loop.loop_body
     assert nemo_loop.loop_body.parent is nemo_loop
     assert nemo_loop.variable is variable
-    assert nemo_loop.children[0] is start
     assert nemo_loop.start_expr is start
-    assert nemo_loop.children[1] is stop
     assert nemo_loop.stop_expr is stop
-    assert nemo_loop.children[2] is step
     assert nemo_loop.step_expr is step
-    assert nemo_loop.children[3] is nemo_loop.loop_body
     writer = FortranWriter()
     result = writer(nemo_loop)
     assert (

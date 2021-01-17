@@ -480,4 +480,5 @@ def test_loop_variable_name_error(datatype):
         trans.apply(array_ref.children[2])
     assert ("The config file specifies 'jk' as the name of the iteration "
             "variable but this is already declared in the code as something "
-            "that is not a scalar integer." in str(info.value))
+            "that is not a scalar integer, or is a deferred type."
+            in str(info.value))
