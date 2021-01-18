@@ -2597,7 +2597,7 @@ def test_handling_end_subroutine_stmt():
     assert not fake_parent.children  # No new children created
 
 
-# (1/4) fparser2reader::nodes_to_code_block
+# (1/3) fparser2reader::nodes_to_code_block
 def test_nodes_to_code_block_1(f2008_parser):
     '''Check that a statement codeblock that is at the "top level" in the
     PSyIR has the structure property set to statement (as it has a
@@ -2618,7 +2618,7 @@ def test_nodes_to_code_block_1(f2008_parser):
     assert schedule[0].structure == CodeBlock.Structure.STATEMENT
 
 
-# (2/4) fparser2reader::nodes_to_code_block
+# (2/3) fparser2reader::nodes_to_code_block
 def test_nodes_to_code_block_2(f2008_parser):
     '''Check that a statement codeblock that is within another statement
     in the PSyIR has the structure property set to statement (as it
@@ -2641,7 +2641,7 @@ def test_nodes_to_code_block_2(f2008_parser):
     assert schedule[0].if_body[0].structure == CodeBlock.Structure.STATEMENT
 
 
-# (3/4) fparser2reader::nodes_to_code_block
+# (3/3) fparser2reader::nodes_to_code_block
 @pytest.mark.usefixtures("f2008_parser")
 def test_nodes_to_code_block_3():
     '''Check that a codeblock that has a directive as a parent causes the
