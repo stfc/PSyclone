@@ -46,6 +46,7 @@ from psyclone.psyir.nodes.array_of_structures_member import \
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import DataSymbol, TypeSymbol, StructureType, \
     DeferredType
+from psyclone.errors import InternalError
 
 
 class StructureReference(Reference):
@@ -212,6 +213,22 @@ class StructureReference(Reference):
         for entity in self._children:
             result += str(entity) + "\n"
         return result
+
+    @property
+    def member(self):
+        '''
+        :returns: the member of the structure that this reference is to.
+        :rtype: :py:class:`psyclone.psyir.nodes.Member`
+
+        :raises InternalError: if the first child of this node is not an \
+                               instance of Member.
+        '''
+        if not isinstance(self.children[0], Member):
+            raise InternalError(
+                "StructureReference malformed or incomplete. The first child "
+                "must be an instance of Member, but found '{0}'".format(
+                    type(self.children[0]).__name__))
+        return self.children[0]
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All variables used as indices

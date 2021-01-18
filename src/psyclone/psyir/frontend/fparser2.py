@@ -2716,11 +2716,13 @@ class Fparser2Reader(object):
                 sched = parent.ancestor(Schedule, include_self=True)
                 fake_parent = ArrayReference(parent=sched,
                                              symbol=Symbol("fake"))
-                self.process_nodes(parent=fake_parent,
-                                   nodes=child.children[1].children)
-                members.append((child.children[0].string,
-                                fake_parent.children))
+                array_name = child.children[0].string
+                subscript_list = child.children[1].children
+                self.process_nodes(parent=fake_parent, nodes=subscript_list)
+                members.append((array_name, fake_parent.children))
             else:
+                # Found an unsupported entry in the parse tree. This will
+                # result in a CodeBlock.
                 raise NotImplementedError(str(node))
 
         # Now we have the list of members, use the `create()` method of the
@@ -2745,6 +2747,7 @@ class Fparser2Reader(object):
             self.process_nodes(parent=ref, nodes=part_ref.children[1].children)
             return ref
 
+        # Not a Part_Ref or a Name so this will result in a CodeBlock.
         raise NotImplementedError(str(node))
 
     def _unary_op_handler(self, node, parent):
