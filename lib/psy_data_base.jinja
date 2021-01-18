@@ -118,13 +118,19 @@ module psy_data_base_mod
 
             {% set indent="                " %}
             {% if GENERIC_DECLARE %}
-            ! Declare generic interface for PreDeclareVariable:
+            !> Declare generic interface for PreDeclareVariable. The generic
+            !! interface is only added if explicitly requested. This allows
+            !! a derived class to provide its own implementation of a function
+            !! to be part of this generic interface.
             generic, public :: PreDeclareVariable => &
                 {{all_declares|join(", &\n"+indent) }}
             {% endif %}
 
             {% if GENERIC_PROVIDE %}
-            !> The generic interface for providing the value of variables:
+            !> The generic interface for providing the value of variables.
+            !! It is only added if explicitly requested. This allows a
+            !! derived class to provide its own implementation of a function
+            !! to be part of this generic interface.
             generic, public :: ProvideVariable => &
                 {{all_provides|join(", &\n"+indent) }}
             {% endif %}

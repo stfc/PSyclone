@@ -127,7 +127,10 @@ module read_only_base_mod
         !> The generic interface for providing the value of variables,
         !! which in case of the read-only verification either computes
         !! the checksum (before a kernel), or compares a checksum (after
-        !! a kernel call).
+        !! a kernel call). The generic interface is only defined if
+        !! explicitly requested. This allows a derived class to implement
+        !! its own functions and provide them as part of the generic
+        !! interface.
         generic, public :: ProvideVariable => &
             {{all_provides|join(", &\n"+indent) }}
         {% endif %}
