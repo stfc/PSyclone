@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -63,6 +63,7 @@ DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
 VALID_PSY_DATA_PREFIXES = profile extract
+OCL_DEVICES_PER_NODE = 1
 [dynamo0.3]
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
@@ -113,7 +114,7 @@ def bool_entry(request):
 
 
 @pytest.fixture(scope="module",
-                params=["REPROD_PAD_SIZE"])
+                params=["REPROD_PAD_SIZE", "OCL_DEVICES_PER_NODE"])
 def int_entry(request):
     '''
     Parameterised fixture that returns the names of integer members of the

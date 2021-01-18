@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -802,7 +802,7 @@ def test_fw_container_2(fort_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(container)
     assert ("The Fortran back-end requires all children of a Container "
-            "to be KernelSchedules." in str(excinfo.value))
+            "to be a sub-class of Routine." in str(excinfo.value))
 
 
 def test_fw_container_3(fort_writer, monkeypatch):
