@@ -130,7 +130,7 @@ By default the `get_symbol`, `new_symbol`, `add`, `lookup`,
 take into account the symbols in any ancestor symbol tables. Ancestor symbol
 tables are symbol tables attached to nodes that are ancestors of the
 node that the current symbol table is attached to. These are found in order
-with the `parent_symbol_table` method. This method, provides a `scope_limit`
+with the `parent_symbol_table` method. This method provides a `scope_limit`
 argument to limit the extend of the upwards recursion provided to each
 method that uses it.
 

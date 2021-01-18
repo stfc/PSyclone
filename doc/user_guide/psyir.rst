@@ -347,8 +347,8 @@ in the symbol table.
 
 Alternatively, the ``SymbolTable`` also provides the ``new_symbol()`` method
 (see Section :ref:`symbol-label` for more details) that uses a new distinct
-name from any existing names in the symbol table. By default the
-value of the ``PSYIR_ROOT_NAME`` variable specified in the ``DEFAULT``
+name from any existing names in the symbol table. By default the generated
+name is the value ``PSYIR_ROOT_NAME`` variable specified in the ``DEFAULT``
 section of the PSyclone config file, followed by an optional "_" and
 an integer. For example, the following code:
 
@@ -394,11 +394,11 @@ gives the following output::
   something_0
   something_1
 
-By default, ``new_symbol()`` created generic symbols, but often the user
-will want to specify a Symbol sub-class with some given parameters. The
-``new_symbol()`` method accepts a symbol_type parameter to specify the
-subclass and any available argument in the subclass constructor as keyword
-arguments. For example, the following code:
+By default, ``new_symbol()`` creates generic symbols, but often the user
+will want to specify a Symbol subclass with some given parameters. The
+``new_symbol()`` method accepts a ``symbol_type`` parameter to specify the
+subclass.  Arguments for the constructor of that subclass may be supplied
+as keyword arguments. For example, the following code:
  
 .. code-block:: python
 
@@ -409,7 +409,8 @@ arguments. For example, the following code:
                           datatype=REAL_TYPE,
                           constant_value=3)
 
-declares a data constant parameter called "something" of type REAL_TYPE.
+declares a symbol named "something" of REAL_TYPE datatype where the
+constant_value argument will be passed to the DataSymbol constructor.
 
 An example of using the ``new_symbol()`` method can be found in the
 PSyclone ``examples/psyir`` directory.
