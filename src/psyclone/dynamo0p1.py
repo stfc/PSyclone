@@ -245,8 +245,9 @@ class DynLoop(Loop):
         try:
             self.variable = symtab.lookup_with_tag(tag)
         except KeyError:
-            self.variable = symtab.new_symbol(suggested_name, tag,
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            self.variable = symtab.new_symbol(
+                suggested_name, tag, symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE)
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,

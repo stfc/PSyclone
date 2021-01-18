@@ -484,8 +484,9 @@ class GOLoop(Loop):
         try:
             self.variable = symtab.lookup_with_tag(tag)
         except KeyError:
-            self.variable = symtab.new_symbol(suggested_name, tag,
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            self.variable = symtab.new_symbol(
+                suggested_name, tag, symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE)
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
@@ -1157,7 +1158,8 @@ class GOKern(CodedKern):
         # Create array for the global work size argument of the kernel
         symtab = self.root.symbol_table
         garg = self._arguments.find_grid_access()
-        glob_size = symtab.new_symbol("globalsize", symbol_type=DataSymbol,
+        glob_size = symtab.new_symbol(
+            "globalsize", symbol_type=DataSymbol,
             datatype=ArrayType(INTEGER_TYPE, [2])).name
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[glob_size + "(2)"]))
@@ -1169,7 +1171,8 @@ class GOKern(CodedKern):
                              rhs="(/{0}, {1}/)".format(num_x, num_y)))
 
         # Create array for the local work size argument of the kernel
-        local_size = symtab.new_symbol("localsize", symbol_type=DataSymbol,
+        local_size = symtab.new_symbol(
+            "localsize", symbol_type=DataSymbol,
             datatype=ArrayType(INTEGER_TYPE, [2])).name
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[local_size + "(2)"]))
@@ -1293,14 +1296,14 @@ class GOKern(CodedKern):
         kobj = argsetter_st.new_symbol("kernel_obj").name
 
         # Add argument symbols to provide the iteration boundary values
-        xstart_name = argsetter_st.new_symbol("xstart",
-            symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
-        xstop_name = argsetter_st.new_symbol("xstop",
-            symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
-        ystart_name = argsetter_st.new_symbol("ystart",
-            symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
-        ystop_name = argsetter_st.new_symbol("ystop",
-            symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
+        xstart_name = argsetter_st.new_symbol(
+            "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
+        xstop_name = argsetter_st.new_symbol(
+            "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
+        ystart_name = argsetter_st.new_symbol(
+            "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
+        ystop_name = argsetter_st.new_symbol(
+            "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
         boundary_names = [xstart_name, xstop_name, ystart_name, ystop_name]
 
         # Join argument list
@@ -1371,8 +1374,8 @@ class GOKern(CodedKern):
                                 target=True, entity_decls=[arg.name]))
 
         # Declare local variables
-        err_name = argsetter_st.new_symbol("ierr",
-            symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
+        err_name = argsetter_st.new_symbol(
+            "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
         sub.add(DeclGen(sub, datatype="integer", entity_decls=[err_name]))
 
         # Set kernel arguments
@@ -1415,17 +1418,17 @@ class GOKern(CodedKern):
 
         # Create new symbols and insert them as kernel arguments after
         # the initial iteration indices
-        xstart_symbol = kernel_st.new_symbol("xstart",
-            symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+        xstart_symbol = kernel_st.new_symbol(
+            "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
             interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        xstop_symbol = kernel_st.new_symbol("xstop",
-            symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+        xstop_symbol = kernel_st.new_symbol(
+            "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
             interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        ystart_symbol = kernel_st.new_symbol("ystart",
-            symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+        ystart_symbol = kernel_st.new_symbol(
+            "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
             interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        ystop_symbol = kernel_st.new_symbol("ystop",
-            symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+        ystop_symbol = kernel_st.new_symbol(
+            "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
             interface=ArgumentInterface(ArgumentInterface.Access.READ))
         kernel_st.specify_argument_list(
             iteration_indices +

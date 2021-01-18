@@ -41,7 +41,7 @@ from __future__ import absolute_import
 import os
 import pytest
 import fparser
-from fparser.common.readfortran import FortranStringReader
+from fparser.common.readfortran import FortranStringReader, FortranFileReader
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part, \
     Type_Declaration_Stmt, Execution_Part, Name, Stmt_Function_Stmt, \
@@ -2762,8 +2762,8 @@ def test_find_or_create_imported_symbol():
     assert field_old.symbol in kernel_schedule.symbol_table.symbols
 
     # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
-    assert isinstance(_find_or_create_imported_symbol(field_old,
-        field_old.name, scope_limit=kernel_schedule), DataSymbol)
+    assert isinstance(_find_or_create_imported_symbol(
+        field_old, field_old.name, scope_limit=kernel_schedule), DataSymbol)
     assert field_old.symbol.name == field_old.name
 
     # Symbol in KernelSchedule SymbolTable with parent scope, so
@@ -2789,12 +2789,12 @@ def test_find_or_create_imported_symbol():
     # kernel so do not search the container symbol table.
     with pytest.raises(SymbolError) as excinfo:
         _ = _find_or_create_imported_symbol(alpha, alpha.name,
-                                        scope_limit=kernel_schedule)
+                                            scope_limit=kernel_schedule)
     assert "No Symbol found for name 'alpha'." in str(excinfo.value)
 
     # Symbol in Container SymbolTable with Container scope
-    assert (_find_or_create_imported_symbol(alpha,
-        alpha.name, scope_limit=container).name == alpha.name)
+    assert (_find_or_create_imported_symbol(
+        alpha, alpha.name, scope_limit=container).name == alpha.name)
 
     # Test _find_or_create_impored_symbol with invalid location
     with pytest.raises(TypeError) as excinfo:
@@ -2805,25 +2805,28 @@ def test_find_or_create_imported_symbol():
 
     # Test _find_or_create_impored_symbol with invalid scope type
     with pytest.raises(TypeError) as excinfo:
-        _ = _find_or_create_imported_symbol(alpha, alpha.name, scope_limit="hello")
+        _ = _find_or_create_imported_symbol(alpha, alpha.name,
+                                            scope_limit="hello")
     assert ("The scope_limit argument 'hello' provided to "
             "_find_or_create_imported_symbol() is not of type `Node`."
             in str(excinfo.value))
 
     # find_or_create_symbol method with invalid scope location
     with pytest.raises(ValueError) as excinfo:
-        _ = _find_or_create_imported_symbol(alpha, alpha.name, scope_limit=alpha)
+        _ = _find_or_create_imported_symbol(alpha, alpha.name,
+                                            scope_limit=alpha)
     assert ("The scope_limit node 'Reference[name:'alpha']' provided to "
             "_find_or_create_imported_symbol() is not an ancestor of this "
             "node 'Reference[name:'alpha']'." in str(excinfo.value))
 
     # With a visibility parameter
     sym = _find_or_create_imported_symbol(alpha, "very_private",
-                                      visibility=Symbol.Visibility.PRIVATE)
+                                          visibility=Symbol.Visibility.PRIVATE)
     assert sym.name == "very_private"
     assert sym.visibility == Symbol.Visibility.PRIVATE
     assert sym is container.symbol_table.lookup("very_private",
                                                 scope_limit=container)
+
 
 def test_find_or_create_imported_symbol_2():
     ''' Check that the _find_or_create_imported_symbol() method creates new
@@ -2855,6 +2858,7 @@ def test_find_or_create_imported_symbol_2():
     new_symbol = _find_or_create_imported_symbol(assign, "undefined")
     assert new_symbol.name == "undefined"
     assert isinstance(new_symbol.interface, UnresolvedInterface)
+    # pylint: disable=unidiomatic-typecheck
     assert type(new_symbol) == Symbol
     assert "undefined" not in container.symbol_table
     assert kernel1.symbol_table.lookup("undefined") is new_symbol
@@ -2863,8 +2867,6 @@ def test_find_or_create_imported_symbol_2():
 def test_nemo_find_container_symbol(parser):
     ''' Check that find_or_create_symbol() works for the NEMO API when the
     searched-for symbol is declared in the parent module. '''
-    from fparser.common.readfortran import FortranFileReader
-    from psyclone.psyir.nodes import BinaryOperation
     reader = FortranFileReader(
         os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(

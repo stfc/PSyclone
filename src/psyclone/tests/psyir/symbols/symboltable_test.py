@@ -727,7 +727,7 @@ def test_lookup_with_tag_3():
             schedule_symbol_table.lookup_with_tag("does-not-exist", **arg)
             assert ("Could not find the tag 'does-not-exist' in the Symbol "
                     "Table." in str(info.value))
-    # The tag is in an ancestor symbol table. This will not be found if 
+    # The tag is in an ancestor symbol table. This will not be found if
     # scope_limit is the current scope
     for arg in {}, {"scope_limit": None}:
         assert (schedule_symbol_table.lookup_with_tag(
@@ -1241,6 +1241,7 @@ def test_symbols_tags_dict():
     assert schedule_symbol_table.symbols_dict is schedule_symbol_table._symbols
     assert schedule_symbol_table.tags_dict is schedule_symbol_table._tags
 
+
 def test_new_symbol():
     '''Test that the new_symbol method creates and returns symbols as
     expected. '''
@@ -1312,9 +1313,8 @@ def test_new_symbol():
     with pytest.raises(TypeError) as err:
         sym1 = symtab.new_symbol("wrong", symbol_type=str,
                                  visibility=Symbol.Visibility.PRIVATE)
-    assert ("The symbol_type parameter should be of type Symbol or one of its "
-            "sub-classes but found" in str(err))
-
+    assert ("The symbol_type parameter should be a type class of Symbol or"
+            " one of its sub-classes but found" in str(err))
 
 
 def test_symbol_from_tag():

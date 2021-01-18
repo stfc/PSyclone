@@ -59,8 +59,9 @@ from psyclone.psyir.backend.c import CWriter
 
 # Symbol table, symbols and scalar datatypes
 SYMBOL_TABLE = SymbolTable()
-ARG1 = SYMBOL_TABLE.new_symbol(symbol_type=DataSymbol, datatype=REAL_TYPE,
-    interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
+ARG1 = SYMBOL_TABLE.new_symbol(
+        symbol_type=DataSymbol, datatype=REAL_TYPE,
+        interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
 SYMBOL_TABLE.specify_argument_list([ARG1])
 TMP_SYMBOL = SYMBOL_TABLE.new_symbol(symbol_type=DataSymbol,
                                      datatype=REAL_DOUBLE_TYPE)
@@ -73,7 +74,7 @@ ROUTINE_SYMBOL = RoutineSymbol("my_sub")
 # Array using precision defined by another symbol
 SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
 ARRAY = SYMBOL_TABLE.new_symbol(root_name="a", symbol_type=DataSymbol,
-    datatype=ArrayType(SCALAR_TYPE, [10]))
+                                datatype=ArrayType(SCALAR_TYPE, [10]))
 
 # Nodes which do not have Nodes as children and (some) predefined
 # scalar datatypes

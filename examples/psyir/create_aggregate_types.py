@@ -58,8 +58,9 @@ from psyclone.psyir.backend.fortran import FortranWriter
 
 # Symbol table for container (container itself created after kernel)
 CONTAINER_SYMBOL_TABLE = SymbolTable()
-REAL_KIND = CONTAINER_SYMBOL_TABLE.new_symbol(root_name="RKIND",
-        symbol_type=DataSymbol, datatype=INTEGER_TYPE, constant_value=8)
+REAL_KIND = CONTAINER_SYMBOL_TABLE.new_symbol(
+        root_name="RKIND", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+        constant_value=8)
 
 # Shorthand for a scalar type with REAL_KIND precision
 SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
@@ -109,7 +110,7 @@ print("Container Symbol Table:")
 print(str(CONTAINER_SYMBOL_TABLE))
 
 INDEX_SYMBOL = SYMBOL_TABLE.new_symbol(root_name="i", symbol_type=DataSymbol,
-        datatype=INTEGER4_TYPE)
+                                       datatype=INTEGER4_TYPE)
 
 # Some predefined scalar datatypes
 TWO = Literal("2.0", SCALAR_TYPE)

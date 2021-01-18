@@ -79,7 +79,7 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
 
 
 def _find_or_create_imported_symbol(location, name, scope_limit=None,
-        **kargs):
+                                    **kargs):
     '''Returns the symbol with the name 'name' from a symbol table
     associated with this node or one of its ancestors.  If the symbol
     is not found and there are no ContainerSymbols with wildcard imports
@@ -119,7 +119,7 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
             "The location argument '{0}' provided to _find_or_create_imported"
             "_symbol() is not of type `Node`.".format(str(location)))
 
-    if scope_limit:
+    if scope_limit is not None:
         # Validate the supplied scope_limit
         if not isinstance(scope_limit, Node):
             raise TypeError(
@@ -159,16 +159,16 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
             symbol_table = test_node.symbol_table
 
             try:
-                # If the reference matches a Symbol in this
-                # SymbolTable then return the Symbol.
+                # If the name matches a Symbol in this SymbolTable then
+                # return the Symbol.
                 return symbol_table.lookup(name, scope_limit=test_node)
             except KeyError:
-                # The Reference Node does not match any Symbols in
+                # The supplied name does not match any Symbols in
                 # this SymbolTable. Does this SymbolTable have any
                 # wildcard imports?
-                for csym in symbol_table.containersymbols:
-                    if csym.wildcard_import:
-                        if not first_symbol_table:
+                if first_symbol_table is None:
+                    for csym in symbol_table.containersymbols:
+                        if csym.wildcard_import:
                             first_symbol_table = symbol_table
                             break
 
@@ -185,8 +185,8 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
         # it may be being brought into scope. Therefore create a generic
         # Symbol with a deferred interface and add it to the most
         # local SymbolTable with a wildcard import.
-        return first_symbol_table.new_symbol(name,
-                interface=UnresolvedInterface(), **kargs)
+        return first_symbol_table.new_symbol(
+                name, interface=UnresolvedInterface(), **kargs)
 
     # All requested Nodes have been checked but there has been no
     # match and there are no wildcard imports so raise an exception.

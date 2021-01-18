@@ -48,7 +48,7 @@ from psyclone.psyir.nodes.node import (ChildrenList, Node,
 from psyclone.psyir.nodes import Schedule, Reference, Container, \
     Assignment, Return, Loop, Literal, Statement, node, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
-    INTEGER_TYPE, REAL_TYPE, SymbolTable, ContainerSymbol
+    INTEGER_TYPE, REAL_TYPE, SymbolTable
 from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
@@ -667,6 +667,7 @@ def test_scope():
             "'Literal[value:'x', Scalar<INTEGER, UNDEFINED>]' as "
             "none of its ancestors are Container or Schedule nodes."
             in str(excinfo.value))
+
 
 def test_children_validation():
     ''' Test that nodes are validated when inserted as children of other

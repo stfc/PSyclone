@@ -144,8 +144,8 @@ class KernelTrans(Transformation):
         # container containing this kernel which is not supported.
         for var in kernel_schedule.walk(nodes.Reference):
             try:
-                var.scope.symbol_table.lookup(var.name,
-                    scope_limit=var.ancestor(nodes.KernelSchedule))
+                var.scope.symbol_table.lookup(
+                    var.name, scope_limit=var.ancestor(nodes.KernelSchedule))
             except KeyError as err:
                 six.raise_from(TransformationError(
                     "Kernel '{0}' contains accesses to data (variable '{1}') "
@@ -972,12 +972,14 @@ class OMPLoopTrans(ParallelLoopTrans):
             try:
                 symtab.lookup_with_tag("omp_thread_index")
             except KeyError:
-                symtab.new_symbol("th_idx", tag="omp_thread_index",
+                symtab.new_symbol(
+                    "th_idx", tag="omp_thread_index",
                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
             try:
                 symtab.lookup_with_tag("omp_num_threads")
             except KeyError:
-                symtab.new_symbol("nthreads", tag="omp_num_threads",
+                symtab.new_symbol(
+                    "nthreads", tag="omp_num_threads",
                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
         return super(OMPLoopTrans, self).apply(node, options)

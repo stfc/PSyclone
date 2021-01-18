@@ -1000,24 +1000,24 @@ class InvokeSchedule(Routine):
                                          "get_kernel_by_name"]))
 
             # Declare variables needed on a OpenCL PSy-layer invoke
-            nqueues = self.symbol_table.new_symbol("num_cmd_queues",
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-                tag="opencl_num_cmd_queues").name
-            qlist = self.symbol_table.new_symbol("cmd_queues",
-                symbol_type=DataSymbol,
+            nqueues = self.symbol_table.new_symbol(
+                "num_cmd_queues", symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE, tag="opencl_num_cmd_queues").name
+            qlist = self.symbol_table.new_symbol(
+                "cmd_queues", symbol_type=DataSymbol,
                 datatype=ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE]),
                 tag="opencl_cmd_queues").name
-            first = self.symbol_table.new_symbol("first_time",
-                symbol_type=DataSymbol, datatype=BOOLEAN_TYPE,
-                tag="first_time").name
-            flag = self.symbol_table.new_symbol("ierr",
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            first = self.symbol_table.new_symbol(
+                "first_time", symbol_type=DataSymbol,
+                datatype=BOOLEAN_TYPE, tag="first_time").name
+            flag = self.symbol_table.new_symbol(
+                "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
                 tag="opencl_error").name
-            self.root.symbol_table.new_symbol("size_in_bytes",
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            self.root.symbol_table.new_symbol(
+                "size_in_bytes", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
                 tag="opencl_bytes")
-            self.root.symbol_table.new_symbol("write_event",
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            self.root.symbol_table.new_symbol(
+                "write_event", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
                 tag="opencl_wevent")
 
             parent.add(DeclGen(parent, datatype="integer", save=True,
@@ -2624,7 +2624,11 @@ class Kern(Statement):
         we will be using the OpenMP reduction clause. Otherwise we
         will be computing the reduction ourselves and therefore need
         to store values into a (padded) array separately for each
-        thread.'''
+        thread.
+
+        :param str name: original name of the variable to be reduced.
+
+        '''
         if self.reprod_reduction:
             idx_name = \
                 self.root.symbol_table.lookup_with_tag("omp_thread_index").name
@@ -3666,21 +3670,21 @@ class DataAccess(object):
 
 
 class Argument(object):
-    ''' Argument base class '''
+    ''' Argument base class
+
+    :param call: the call that this argument is associated with.
+    :type call: :py:class:`psyclone.psyGen.Kern`
+    :param arg_info: Information about this argument collected by \
+                     the parser.
+    :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
+    :param access: the way in which this argument is accessed in \
+                   the 'Kern'. Valid values are specified in the config \
+                   object of the current API.
+    :type access: str
+
+    '''
 
     def __init__(self, call, arg_info, access):
-        '''
-        :param call: the call that this argument is associated with.
-        :type call: :py:class:`psyclone.psyGen.Kern`
-        :param arg_info: Information about this argument collected by \
-                         the parser.
-        :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
-        :param access: the way in which this argument is accessed in \
-                 the 'Kern'. Valid values are specified in the config object \
-                 of the current API.
-        :type access: str
-
-        '''
         self._call = call
         if arg_info is not None:
             self._text = arg_info.text
@@ -4365,3 +4369,13 @@ class ACCDataDirective(ACCDirective):
         self._pre_gen_validate()
         self._add_region(start_text="DATA", end_text="END DATA",
                          data_movement="analyse")
+
+
+__all__ = ['PSyFactory', 'PSy', 'Invokes', 'Invoke', 'InvokeSchedule',
+           'Directive', 'ACCDirective', 'ACCEnterDataDirective',
+           'ACCParallelDirective', 'ACCLoopDirective', 'OMPDirective',
+           'OMPParallelDirective', 'OMPDoDirective', 'OMPParallelDoDirective',
+           'GlobalSum', 'HaloExchange', 'Kern', 'CodedKern', 'InlinedKern',
+           'BuiltIn', 'Arguments', 'DataAccess', 'Argument', 'KernelArgument',
+           'TransInfo', 'Transformation', 'DummyTransformation',
+           'ACCKernelsDirective', 'ACCDataDirective']

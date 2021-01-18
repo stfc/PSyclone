@@ -4648,7 +4648,7 @@ class DynBasisFunctions(DynCollection):
             # argument
             decl_list = [
                 symbol_table.symbol_from_tag(name+"_"+qr_arg_name).name
-                    for name in self.qr_dim_vars[qr_type]]
+                for name in self.qr_dim_vars[qr_type]]
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=decl_list))
@@ -6462,8 +6462,9 @@ class DynLoop(Loop):
         try:
             self.variable = symtab.lookup_with_tag(tag)
         except KeyError:
-            self.variable = symtab.new_symbol(suggested_name, tag,
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            self.variable = symtab.new_symbol(
+                suggested_name, tag, symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE)
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,

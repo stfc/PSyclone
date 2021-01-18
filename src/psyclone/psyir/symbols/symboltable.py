@@ -110,10 +110,10 @@ class SymbolTable(object):
         :returns: the 'parent' SymbolTable of the current SymbolTable (i.e.
                   the one that encloses this one in the PSyIR hierarchy).
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
-        '''
 
+        '''
         # Validate the supplied scope_limit
-        if scope_limit:
+        if scope_limit is not None:
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.nodes import Node
             if not isinstance(scope_limit, Node):
@@ -123,7 +123,7 @@ class SymbolTable(object):
 
         # We use the Node with which this table is associated in order to
         # move up the Node hierarchy
-        if self.node and self.node:
+        if self.node:
             search_next = self.node
             while search_next is not scope_limit and search_next.parent:
                 search_next = search_next.parent
@@ -226,7 +226,7 @@ class SymbolTable(object):
         next_available_name(). An optional tag can also be given.
         By default it creates a generic symbol but a symbol_type argument
         and any additional initialization keyword arguments of this
-        sybmol_type can be provided to refine the created Symbol.
+        symbol_type can be provided to refine the created Symbol.
 
         :param root_name: optional name to use when creating a new \
             symbol name. This will be appended with an integer if the name \
@@ -237,21 +237,24 @@ class SymbolTable(object):
             name can be overlapping with a symbol in any of the ancestors \
             symbol tables. Defaults to False.
         :param symbol_type: class type of the new symbol.
-        :type symbol_type: Class type :py:class:`psyclone.psyir.symbols.Symbol`
+        :type symbol_type: type object of class (or subclasses) of \
+                           :py:class:`psyclone.psyir.symbols.Symbol`
         :param symbol_init_args: arguments to create a new symbol.
         :type symbol_init_args: unwrapped Dict[str] = object
 
-        '''
+        :raises TypeError: if the type_symbol argument is not the type of a \
+                           Symbol object class or one of its subclasses.
 
+        '''
         # Only type-check symbol_type, the other arguments are just passed down
         # and type checked inside each relevant method.
-        if symbol_type:
+        if symbol_type is not None:
             if not (isinstance(symbol_type, type) and
                     Symbol in inspect.getmro(symbol_type)):
                 raise TypeError(
-                    "The symbol_type parameter should be of type Symbol or "
-                    "one of its sub-classes but found '{0}' instead."
-                    .format(type(symbol_type)))
+                    "The symbol_type parameter should be a type class of "
+                    "Symbol or one of its sub-classes but found '{0}' instead."
+                    .format(type(symbol_type).__name__))
         else:
             symbol_type = Symbol
 
@@ -268,13 +271,18 @@ class SymbolTable(object):
         refine the name and the type of the created Symbol.
 
         :param str tag: tag identifier.
-        :param str root_name: optional name of the new symbols if it needs \
-            to be created. Otherwise it is ignored.
+        :param str root_name: optional name of the new symbol if it needs \
+                              to be created. Otherwise it is ignored.
         :param new_symbol_args: arguments to create a new symbol.
         :type new_symbol_args: unwrapped Dict[str, object]
 
         :returns: symbol associated with the given tag.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :raises SymbolError: if the symbol already exists but the type_symbol \
+                             argument does not match the type of the symbol \
+                             found.
+
         '''
         try:
             symbol = self.lookup_with_tag(tag)
@@ -285,12 +293,9 @@ class SymbolTable(object):
                     raise SymbolError(
                         "Expected symbol with tag '{0}' to be of type '{1}' "
                         "but found type '{2}'.".format(
-                        tag, symbol_type.__name__, type(symbol).__name__))
-            # TODO: What happens if the symbol is found and some unmatching
-            # arguments were given? If it needs to fail, we can implement the
-            # previous check polymorphically inside each symbol:
-            # symbol.match(arguments)
-            # which can also be useful for symbol comparisons in general.
+                            tag, symbol_type.__name__, type(symbol).__name__))
+            # TODO #1057: If the symbol is found and some unmatching arguments
+            # were given it should also fail here.
             return symbol
         except KeyError:
             if not root_name:
@@ -307,10 +312,9 @@ class SymbolTable(object):
         If the shadowing argument is True (is False by default), the names
         in parent symbol tables will not be considered.
 
-        :param root_name: optional name to use when creating a new \
+        :param str root_name: optional name to use when creating a new \
             symbol name. This will be appended with an integer if the name \
             clashes with an existing symbol name.
-        :type root_name: str or NoneType
         :param bool shadowing: optional logical flag indicating whether the \
             name can be overlapping with a symbol in any of the ancestors \
             symbol tables. Defaults to False.
@@ -324,12 +328,16 @@ class SymbolTable(object):
 
         '''
         if not isinstance(shadowing, bool):
-            raise TypeError("Argument shadowing should be of type bool"
+            raise TypeError(
+                "Argument shadowing should be of type bool"
                 " but found '{0}'.".format(type(shadowing).__name__))
 
         if shadowing:
             symbols = self._symbols
         else:
+            # If symbol shadowing is not permitted, the list of symbols names
+            # that can't be used includes all the symbols from all the ancestor
+            # symbol tables.
             symbols = self.get_symbols()
 
         if root_name is not None:
@@ -635,11 +643,12 @@ class SymbolTable(object):
         # pylint: disable=unidiomatic-typecheck
         if not (isinstance(symbol, (ContainerSymbol, RoutineSymbol)) or
                 type(symbol) == Symbol):
-            raise NotImplementedError("remove() currently only supports "
-                "generic Symbol, ContainerSymbol and RoutineSymbol types "
-                "but got: '{0}'".format(type(symbol).__name__))
-
+            raise NotImplementedError(
+                "remove() currently only supports generic Symbol, "
+                "ContainerSymbol and RoutineSymbol types but got: '{0}'"
+                "".format(type(symbol).__name__))
         # pylint: enable=unidiomatic-typecheck
+
         if symbol.name not in self._symbols:
             raise KeyError("Cannot remove Symbol '{0}' from symbol table "
                            "because it does not exist.".format(symbol.name))

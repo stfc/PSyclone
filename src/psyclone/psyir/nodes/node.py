@@ -42,7 +42,7 @@ This module contains the abstract Node implementation.
 '''
 
 import abc
-from psyclone.psyir.symbols import SymbolError, Symbol, UnresolvedInterface
+from psyclone.psyir.symbols import SymbolError
 from psyclone.errors import GenerationError, InternalError
 
 
