@@ -10,7 +10,7 @@
 !-----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020, Science and Technology Facilities Council.
+! Modifications copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -126,7 +126,6 @@ module argument_mod
 ! Function space attributes
   integer, public, parameter :: GH_BASIS       = 751
   integer, public, parameter :: GH_DIFF_BASIS  = 767
-  integer, public, parameter :: GH_ORIENTATION = 397
   integer, public, parameter :: GH_COLUMN_BANDED_DOFMAP = 541
   integer, public, parameter :: GH_COLUMN_INDIRECTION_DOFMAP = 204
 
