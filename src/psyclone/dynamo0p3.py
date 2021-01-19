@@ -7750,9 +7750,32 @@ class DynKern(CodedKern):
             # TODO replace the PSyIR argument data symbols with LFRic
             # data symbols, see issue #935. For the moment we simply
             # return the unmodified PSyIR schedule
+
+            self.psyir_to_lfric(psyir_schedule)
+            
             self._kern_schedule = psyir_schedule
 
         return self._kern_schedule
+
+    def psyir_to_lfric(self, psyir_schedule):
+        '''Replace the PSyIR kernel argument symbols with the equivalent LFRic
+        symbols. This method assumes that the kernel symbols conform
+        to kernel metadata and LFRic API.
+
+        '''
+        # Get the kernel code arguments
+        symbol_table = psyir_schedule.symbol_table
+        kern_code_args = symbol_table.argument_list
+
+        # Get the kernel code interface according to the kernel
+        # metadata and LFRic API
+        interface_info = KernelInterface(self)
+        interface_info.generate()
+        interface_args = interface_info.arglist
+
+        for idx, kern_code_arg in enumerate(kern_code_args):
+            interface_arg = interface_args[idx]
+            kern_code_arg.specialise(interface_arg)
 
     def validate_kernel_code_args(self):
         '''Check that the arguments in the kernel code match the expected
