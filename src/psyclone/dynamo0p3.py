@@ -2541,74 +2541,6 @@ class DynDofmaps(DynCollection):
                                entity_decls=[dmap]))
 
 
-class DynOrientations(DynCollection):
-    '''
-    Handle the declaration of any orientation arrays. Orientation arrays
-    are initialised on a per-cell basis (within the loop over cells) and
-    this is therefore handled by the kernel-call generation.
-
-    '''
-    # We use a named-tuple to manage the storage of the various quantities
-    # that we require. This is neater and more robust than a dict.
-    Orientation = namedtuple("Orientation", ["name", "field",
-                                             "function_space"])
-
-    def __init__(self, node):
-        super(DynOrientations, self).__init__(node)
-
-        self._orients = []
-
-        # Loop over each kernel call and check whether orientation is required.
-        # If it is then we create an Orientation object for it and store in
-        # our internal list.
-        for call in self._calls:
-            for unique_fs in call.arguments.unique_fss:
-                if call.fs_descriptors.exists(unique_fs):
-                    fs_descriptor = call.fs_descriptors.get_descriptor(
-                        unique_fs)
-                    if fs_descriptor.requires_orientation:
-                        field = call.arguments.get_arg_on_space(unique_fs)
-                        oname = unique_fs.orientation_name
-                        self._orients.append(
-                            self.Orientation(oname, field, unique_fs))
-
-    def _stub_declarations(self, parent):
-        '''
-        Insert declarations for any orientation quantities into a Kernel stub.
-
-        :param parent: the f2pygen node representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("dynamo0.3")
-
-        for orient in self._orients:
-            ndf_name = orient.function_space.ndf_name
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", dimension=ndf_name,
-                               entity_decls=[orient.name]))
-
-    def _invoke_declarations(self, parent):
-        '''
-        Insert declarations for any orientation quantities into a PSy-layer
-        routine.
-
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("dynamo0.3")
-
-        declns = [orient.name+"(:) => null()" for orient in self._orients]
-        # Remove duplicate orientation pointers by using OrderedDict
-        declns = list(OrderedDict.fromkeys(declns))
-        if declns:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True, entity_decls=declns))
-
-
 class DynFunctionSpaces(DynCollection):
     '''
     Handles the declaration and initialisation of all function-space-related
@@ -4995,9 +4927,6 @@ class DynInvoke(Invoke):
         # Information required by kernels that operate on cell-columns
         self.cell_iterators = DynCellIterators(self)
 
-        # Information on any orientation arrays required by this invoke
-        self.orientation = DynOrientations(self)
-
         # Information on the required properties of the reference element
         self.reference_element_properties = DynReferenceElement(self)
 
@@ -5172,7 +5101,7 @@ class DynInvoke(Invoke):
 
         # Declare all quantities required by this PSy routine (invoke)
         for entities in [self.scalar_args, self.fields, self.lma_ops,
-                         self.stencil, self.orientation, self.meshes,
+                         self.stencil, self.meshes,
                          self.function_spaces, self.dofmaps, self.cma_ops,
                          self.boundary_conditions, self.evaluators,
                          self.proxies, self.cell_iterators,
@@ -5206,7 +5135,7 @@ class DynInvoke(Invoke):
 
         for entities in [self.proxies, self.run_time_checks,
                          self.cell_iterators, self.meshes,
-                         self.stencil, self.orientation, self.dofmaps,
+                         self.stencil, self.dofmaps,
                          self.cma_ops, self.boundary_conditions,
                          self.function_spaces, self.evaluators,
                          self.reference_element_properties,
@@ -7546,14 +7475,7 @@ class DynKern(CodedKern):
         ''' Returns the names used by the Kernel that vary from one
         invocation to the next and therefore require privatisation
         when parallelised. '''
-        lvars = []
-        # Orientation maps
-        for unique_fs in self.arguments.unique_fss:
-            if self._fs_descriptors.exists(unique_fs):
-                fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
-                if fs_descriptor.requires_orientation:
-                    lvars.append(unique_fs.orientation_name)
-        return lvars
+        return []
 
     @property
     def base_name(self):
@@ -7606,7 +7528,7 @@ class DynKern(CodedKern):
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
                          DynCMAOperators, DynScalarArgs, DynFields,
                          DynLMAOperators, DynStencils, DynBasisFunctions,
-                         DynOrientations, DynBoundaryConditions,
+                         DynBoundaryConditions,
                          DynReferenceElement, LFRicMeshProperties]:
             entities(self).declarations(sub_stub)
 
@@ -7702,24 +7624,6 @@ class DynKern(CodedKern):
             cell_index = "cell"
 
         parent.add(CommentGen(parent, ""))
-
-        # Orientation array lookup is done for each cell
-        oname = ""
-        for unique_fs in self.arguments.unique_fss:
-            if self._fs_descriptors.exists(unique_fs):
-                fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
-                if fs_descriptor.requires_orientation:
-                    field = self.arguments.get_arg_on_space(unique_fs)
-                    oname = unique_fs.orientation_name
-                    parent.add(
-                        AssignGen(parent, pointer=True,
-                                  lhs=oname,
-                                  rhs=field.proxy_name_indexed + "%" +
-                                  field.ref_name(unique_fs) +
-                                  "%get_cell_orientation(" +
-                                  cell_index + ")"))
-        if oname:
-            parent.add(CommentGen(parent, ""))
 
         super(DynKern, self).gen_code(parent)
 
@@ -7893,13 +7797,6 @@ class FSDescriptor(object):
         associated with this function space, otherwise it returns
         False. '''
         return "gh_diff_basis" in self._descriptor.operator_names
-
-    @property
-    def requires_orientation(self):
-        ''' Returns True if an orientation function is
-        associated with this function space, otherwise it returns
-        False. '''
-        return "gh_orientation" in self._descriptor.operator_names
 
     @property
     def fs_name(self):
@@ -8786,7 +8683,6 @@ __all__ = [
     'DynCollection',
     'DynStencils',
     'DynDofmaps',
-    'DynOrientations',
     'DynFunctionSpaces',
     'DynFields',
     'DynProxies',

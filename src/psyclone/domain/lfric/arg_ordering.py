@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -278,9 +278,8 @@ class ArgOrdering(object):
                                             var_accesses=var_accesses)
 
             # Provide any optional arguments. These arguments are
-            # associated with the keyword arguments (basis function,
-            # differential basis function and orientation) for a
-            # function space.
+            # associated with the keyword arguments (basis function
+            # and differential basis function) for a function space.
             if self._kern.fs_descriptors.exists(unique_fs):
                 descriptors = self._kern.fs_descriptors
                 descriptor = descriptors.get_descriptor(unique_fs)
@@ -288,8 +287,6 @@ class ArgOrdering(object):
                     self.basis(unique_fs, var_accesses=var_accesses)
                 if descriptor.requires_diff_basis:
                     self.diff_basis(unique_fs, var_accesses=var_accesses)
-                if descriptor.requires_orientation:
-                    self.orientation(unique_fs, var_accesses=var_accesses)
             # Fix for boundary_dofs array to the boundary condition
             # kernel (enforce_bc_kernel) arguments
             if self._kern.name.lower() == "enforce_bc_code" and \
@@ -632,22 +629,6 @@ class ArgOrdering(object):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
-
-    def orientation(self, function_space, var_accesses=None):
-        '''Add orientation information for this function space to the
-        argument list. If supplied it also stores this access in
-        var_accesses.
-
-        :param function_space: the function space for which orientation \
-            information is added.
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        '''
-        self.append(function_space.orientation_name, var_accesses)
 
     @abc.abstractmethod
     def field_bcs_kernel(self, function_space, var_accesses=None):
