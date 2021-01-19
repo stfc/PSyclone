@@ -382,8 +382,9 @@ class SymbolTable(object):
         if tag:
             if tag in self.get_tags():
                 raise KeyError(
-                    "Symbol table already contains the tag '{0}' for symbol"
-                    " '{1}', so it can not be associated to symbol '{2}'.".
+                    "This symbol table, or an outer scope ancestor symbol "
+                    "table, already contains the tag '{0}' for the symbol"
+                    " '{1}', so it can not be associated with symbol '{2}'.".
                     format(tag, self.lookup_with_tag(tag), new_symbol.name))
             self._tags[tag] = new_symbol
 

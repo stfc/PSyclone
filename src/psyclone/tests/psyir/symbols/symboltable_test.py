@@ -287,9 +287,10 @@ def test_add_with_tags_1():
 
     with pytest.raises(KeyError) as error:
         sym_table.add(DataSymbol("var1", REAL_TYPE), tag="tag1")
-    assert ("Symbol table already contains the tag 'tag1' for symbol "
-            "'symbol_tag1', so it can not be associated to symbol "
-            "'var1'.") in str(error.value)
+    assert ("This symbol table, or an outer scope ancestor symbol table, "
+            "already contains the tag 'tag1' for the symbol 'symbol_tag1', "
+            "so it can not be associated with symbol 'var1'."
+            in str(error.value))
 
 
 def test_add_with_tags_hierachical():
@@ -305,22 +306,20 @@ def test_add_with_tags_hierachical():
     with pytest.raises(KeyError) as info:
         schedule_symbol_table.add(symbol3, tag="symbol1_tag")
         assert (
-            "Symbol table already contains the tag 'symbol1_tag' for "
-            "symbol 'symbol1: <Scalar<INTEGER, UNDEFINED>, Local>', so "
-            "it can not be associated to symbol 'symbol3'."
-            in str(info.value))
+            "This symbol table, or an outer scope ancestor symbol table, "
+            "already contains the tag 'symbol1_tag' for the symbol 'symbol1: "
+            "<Scalar<INTEGER, UNDEFINED>, Local>', so it can not be associated"
+            "with symbol 'symbol3'." in str(info.value))
     # A clash of tags in an ancestor symbol table should raise an exception.
     with pytest.raises(KeyError) as info:
         schedule_symbol_table.add(symbol3, tag="symbol2_tag")
         assert (
-            "Symbol table already contains the tag 'symbol2_tag' for "
-            "symbol 'symbol2: <Scalar<INTEGER, UNDEFINED>, Local>', so "
-            "it can not be associated to symbol 'symbol3'."
-            in str(info.value))
+            "This symbol table, or an outer scope ancestor symbol table, "
+            "already contains the tag 'symbol2_tag' for the symbol 'symbol2: "
+            "<Scalar<INTEGER, UNDEFINED>, Local>', so it can not be associated"
+            " to symbol 'symbol3'." in str(info.value))
     # A clash of tags with a child symbol table is not checked for now.
     container_symbol_table.add(symbol1, tag="symbol1_tag")
-    del container_symbol_table._symbols[symbol1.name]
-    del container_symbol_table._tags["symbol1_tag"]
 
 
 def test_imported_symbols():
@@ -663,7 +662,7 @@ def test_lookup_4():
     assert ("Could not find 'does-not-exist' in the Symbol Table."
             in str(info.value))
     # The symbol is in an ancestor symbol table. This will not be
-    # found if scope_limit
+    # found if the lookup scope_limit is below this ancestor.
     for arg in {}, {"scope_limit": None}:
         assert schedule_symbol_table.lookup(symbol2.name, **arg) is symbol2
     with pytest.raises(KeyError) as info:
@@ -1097,8 +1096,10 @@ def test_copy_external_global():
                       interface=GlobalInterface(container3))
     with pytest.raises(KeyError) as error:
         symtab.copy_external_global(var5, "tag")
-    assert "Symbol table already contains the tag 'tag' for symbol 'symbol'," \
-           " so it can not be associated to symbol 'c'." in str(error.value)
+    assert ("This symbol table, or an outer scope ancestor symbol table, "
+            "already contains the tag 'tag' for the symbol 'symbol',"
+            " so it can not be associated with symbol 'c'."
+            in str(error.value))
 
     # It should also fail if the symbol exist and the tag is given to another
     # symbol
@@ -1162,8 +1163,7 @@ def test_get_symbols():
     symbol1 = DataSymbol("symbol1", INTEGER_TYPE)
     schedule_symbol_table.add(symbol1)
 
-    # all_symbols() works when the symbol table is not attached to a
-    # node.
+    # get_symbols() works when the symbol table is not attached to a node.
     all_symbols = schedule_symbol_table.get_symbols()
     assert len(all_symbols) == 1
     assert all_symbols[symbol1.name] is symbol1
@@ -1175,13 +1175,13 @@ def test_get_symbols():
     _ = Container.create("my_container", container_symbol_table,
                          [schedule])
 
-    # all_symbols() works when the symbol table is attached to a
+    # get_symbols() works when the symbol table is attached to a
     # node which has no parent.
     all_symbols = container_symbol_table.get_symbols()
     assert len(all_symbols) == 1
     assert all_symbols[symbol2.name] is symbol2
 
-    # all_symbols() works when the symbol table has ancestor symbol
+    # get_symbols() works when the symbol table has ancestor symbol
     # tables.
     all_symbols = schedule_symbol_table.get_symbols()
     assert len(all_symbols) == 2
@@ -1199,7 +1199,7 @@ def test_get_tags():
     symbol1_tag = "symbol1_tag"
     schedule_symbol_table.add(symbol1, tag=symbol1_tag)
 
-    # all_tags() works when the symbol table is not attached to a node.
+    # get_tags() works when the symbol table is not attached to a node.
     all_tags = schedule_symbol_table.get_tags()
     assert len(all_tags) == 1
     assert all_tags["symbol1_tag"] is symbol1
@@ -1212,13 +1212,13 @@ def test_get_tags():
     _ = Container.create("my_container", container_symbol_table,
                          [schedule])
 
-    # all_tags() works when the symbol table is attached to a
+    # get_tags() works when the symbol table is attached to a
     # node which has no parent.
     all_tags = container_symbol_table.get_tags()
     assert len(all_tags) == 1
     assert all_tags[symbol2_tag] is symbol2
 
-    # all_tags() works when the symbol table has ancestor symbol
+    # get_tags() works when the symbol table has ancestor symbol
     # tables.
     all_tags = schedule_symbol_table.get_tags()
     assert len(all_tags) == 2
@@ -1267,9 +1267,12 @@ def test_new_symbol():
     assert symtab.lookup_with_tag("my_tag") is sym
 
     # But tags can not be repeated
-    with pytest.raises(KeyError):
+    with pytest.raises(KeyError) as error:
         sym = symtab.new_symbol("generic", tag="my_tag")
-    # Error message already checked
+    assert ("This symbol table, or an outer scope ancestor symbol table, "
+            "already contains the tag 'my_tag' for the symbol 'generic_2', "
+            "so it can not be associated with symbol 'generic_3'."
+            in str(error.value))
 
     # New symbols can be given a Symbol sub-type
     sym1 = symtab.new_symbol("routine", symbol_type=RoutineSymbol)
@@ -1281,7 +1284,7 @@ def test_new_symbol():
     assert type(sym2) == DataSymbol
     assert symtab.lookup("routine") is sym1
     assert symtab.lookup("data") is sym2
-    # which by will be initialised with default values
+    # which will be initialised with default values
     assert sym1.visibility is Symbol.Visibility.PUBLIC
     assert sym2.visibility is Symbol.Visibility.PUBLIC
     assert isinstance(sym1.interface, LocalInterface)
@@ -1331,7 +1334,7 @@ def test_symbol_from_tag():
     tag2 = symtab.symbol_from_tag("tag2")
     assert isinstance(tag2, Symbol)
     assert symtab.lookup_with_tag("tag2") is tag2
-    # By default is is a generic symbol with the same name as the tag
+    # By default it is a generic symbol with the same name as the tag
     assert type(tag2) == Symbol
     assert tag2.name == "tag2"
 
@@ -1362,11 +1365,11 @@ def test_symbol_from_tag():
     assert tag4 is tag4b
     assert tag4b.name == "var"
 
-    # Check that if fails if the Symbol type is different than expected
+    # Check that it fails if the Symbol type is different than expected
     with pytest.raises(SymbolError) as err:
         symtab.symbol_from_tag("tag3", symbol_type=RoutineSymbol)
     assert ("Expected symbol with tag 'tag3' to be of type 'RoutineSymbol' "
             "but found type 'DataSymbol'." in str(err))
 
-    # TODO: What happens if the Symbol parameters: e.g. interface are
-    # different?
+    # TODO #1057: It should also fail the symbol is found but the properties
+    # are different than the requested ones.
