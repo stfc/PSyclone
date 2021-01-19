@@ -295,6 +295,10 @@
         94) PR #1044 towards #817. Updates the metadata in LFRic test
         kernels to specify the type of field and operator arguments.
 
+        95) PR #1038 for #999. Changes to the PSyData wrapper libraries
+        so that they build with Intel. (Ensures that generic interfaces
+        to various routines are declared in the correct locations.)
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
