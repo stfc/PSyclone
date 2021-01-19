@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council
+! Copyright (c) 2020-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author A. Coughtrie, Met Office
+! Modified I. Kavcic, Met Office
 
 module testkern_stencil_cross2d_mod
 
@@ -41,13 +42,13 @@ module testkern_stencil_cross2d_mod
   implicit none
   ! Test kernel for 2D Cross stencil use
   type, extends(kernel_type) :: testkern_stencil_cross2d_type
-     type(arg_type), dimension(4) :: meta_args =              &
-          (/ arg_type(gh_field, gh_inc,  w1),                 &
-             arg_type(gh_field, gh_read, w2, stencil(cross2d)), &
-             arg_type(gh_field, gh_read, w2),                 &
-             arg_type(gh_field, gh_read, w3)                  &
+     type(arg_type), dimension(4) :: meta_args =                         &
+          (/ arg_type(gh_field, gh_real, gh_inc,  w1),                   &
+             arg_type(gh_field, gh_real, gh_read, w2, stencil(cross2d)), &
+             arg_type(gh_field, gh_real, gh_read, w2),                   &
+             arg_type(gh_field, gh_real, gh_read, w3)                    &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_stencil_cross2d_code
   end type testkern_stencil_cross2d_type
