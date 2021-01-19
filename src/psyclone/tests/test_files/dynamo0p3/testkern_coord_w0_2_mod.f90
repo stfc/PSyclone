@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -44,11 +44,11 @@ module testkern_coord_w0_2_mod
   implicit none
   
   type, extends(kernel_type) :: testkern_coord_w0_2_type
-     type(arg_type), dimension(2) :: meta_args = &
-          (/ arg_type(gh_field*3, gh_inc, w0),   &
-             arg_type(gh_field,   gh_inc, w0)    &
+     type(arg_type), dimension(2) :: meta_args =        &
+          (/ arg_type(gh_field*3, gh_real, gh_inc, w0), &
+             arg_type(gh_field,   gh_real, gh_inc, w0)  &
           /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_coord_w0_2_code
   end type testkern_coord_w0_2_type

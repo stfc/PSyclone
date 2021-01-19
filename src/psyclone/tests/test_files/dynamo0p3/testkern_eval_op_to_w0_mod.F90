@@ -1,5 +1,5 @@
 !-------------------------------------------------------------------------------
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -42,14 +42,14 @@ module testkern_eval_op_to_w0_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_eval_op_to_w0_type
-     type(arg_type)  :: meta_args(3) =  (/     &
-       arg_type(GH_OPERATOR, GH_READ, W2, W0), &
-       arg_type(GH_FIELD,    GH_READ, W3),     &
-       arg_type(GH_FIELD,    GH_INC,  W0)      &
+     type(arg_type)  :: meta_args(3) =  (/              &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ, W2, W0), &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, W3),     &
+       arg_type(GH_FIELD,    GH_REAL, GH_INC,  W0)      &
        /)
-     type(func_type) :: meta_funcs(2) = (/     &
-       func_type(W2, GH_BASIS, GH_DIFF_BASIS), &
-       func_type(W3, GH_DIFF_BASIS)            &
+     type(func_type) :: meta_funcs(2) = (/              &
+       func_type(W2, GH_BASIS, GH_DIFF_BASIS),          &
+       func_type(W3, GH_DIFF_BASIS)                     &
        /)
      integer :: operates_on = CELL_COLUMN
      integer :: gh_shape = gh_evaluator
