@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019-2020, Science and Technology Facilities Council
+! Copyright (c) 2019-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -45,12 +45,12 @@ module testkern_anyd_any_space_mod
   ! and continuous readers (any_space_1 and any_w2)
   type, public, extends(kernel_type) :: testkern_anyd_any_space_type
      private
-     type(arg_type), dimension(3) :: meta_args = (/                    &
-          arg_type(gh_field, gh_readwrite, any_discontinuous_space_1), &
-          arg_type(gh_field, gh_read,      any_space_1),               &
-          arg_type(gh_field, gh_read,      any_w2)                     &
+     type(arg_type), dimension(3) :: meta_args = (/                             &
+          arg_type(gh_field, gh_real, gh_readwrite, any_discontinuous_space_1), &
+          arg_type(gh_field, gh_real, gh_read,      any_space_1),               &
+          arg_type(gh_field, gh_real, gh_read,      any_w2)                     &
           /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, public, nopass :: code => testkern_anyd_any_space_code
   end type testkern_anyd_any_space_type

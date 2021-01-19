@@ -61,20 +61,12 @@ module nan_test_psy_data_mod
         !! as empty functions (the base class creates other functions, e.g.
         !! DeclareArray2dInt, but since they are not used by
         !! GOcean, there is no need to add them here).
-        generic, public :: PreDeclareVariable => DeclareScalarInt,    &
-                                                 DeclareScalarReal,   &
-                                                 DeclareScalarDouble, &
-                                                 DeclareArray2dDouble,&
-                                                 DeclareField
+        generic, public :: PreDeclareVariable => DeclareField
 
         !> The generic interface for providing the value of variables,
         !! which in this case verifies that all floating point values
         !! are not NAN and not infinite.
-        generic, public :: ProvideVariable => ProvideScalarInt,    &
-                                              ProvideScalarReal,   &
-                                              ProvideScalarDouble, &
-                                              ProvideArray2dDouble,&
-                                              ProvideField
+        generic, public :: ProvideVariable => ProvideField
 
     end type nan_test_PSyDataType
 
@@ -103,12 +95,13 @@ Contains
     !! @param[in] value The value of the variable.
     subroutine ProvideField(this, name, value)
         use field_mod, only : r2d_field
+        use nan_test_base_mod, only : NANTestBaseType
         implicit none
         class(nan_test_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
 
-        call this%ProvideVariable(name, value%data)
+        call this%ProvideArray2dDouble(name, value%data)
     end subroutine ProvideField
     
 end module nan_test_psy_data_mod
