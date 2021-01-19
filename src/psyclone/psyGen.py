@@ -508,18 +508,18 @@ class Invoke(object):
     '''Manage an individual invoke call.
 
     :param alg_invocation: metadata from the parsed code capturing \
-        information for this Invoke instance.
-    :type alg_invocation: :py:class`psyclone.parse.algorithm.InvokeCall`
-    :param int idx: position/index of this invoke call in the subroutine.
-        If not None, this number is added to the name ("invoke_").
+                           information for this Invoke instance.
+    :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
+    :param int idx: position/index of this invoke call in the subroutine. \
+                    If not None, this number is added to the name ("invoke\_").
     :param schedule_class: the schedule class to create for this invoke.
     :type schedule_class: :py:class:`psyclone.psyGen.InvokeSchedule`
     :param invokes: the Invokes instance that contains this Invoke \
-        instance.
-    :type invokes: :py:class:`psyclone.psyGen.invokes`
-    :param reserved_names: optional argument: list of reserved names,
-        i.e. names that should not be used e.g. as a PSyclone-created
-        variable name.
+                    instance.
+    :type invokes: :py:class:`psyclone.psyGen.Invokes`
+    :param reserved_names: optional list of reserved names, i.e. names that \
+                           should not be used e.g. as a PSyclone-created \
+                           variable name.
     :type reserved_names: list of str
 
     '''
@@ -2260,13 +2260,13 @@ class HaloExchange(Statement):
 
     :param field: the field that this halo exchange will act on
     :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param check_dirty: optional argument default True indicating
-    whether this halo exchange should be subject to a run-time check
-    for clean/dirty halos.
+    :param check_dirty: optional argument default True indicating whether \
+                        this halo exchange should be subject to a run-time \
+                        check for clean/dirty halos.
     :type check_dirty: bool
-    :param vector_index: optional vector index (default None) to
-    identify which index of a vector field this halo exchange is
-    responsible for
+    :param vector_index: optional vector index (default None) to identify \
+                         which index of a vector field this halo exchange is \
+                         responsible for.
     :type vector_index: int
     :param parent: optional parent (default None) of this object
     :type parent: :py:class:`psyclone.psyGen.node`
@@ -2333,7 +2333,7 @@ class HaloExchange(Statement):
         return [self._field]
 
     def check_vector_halos_differ(self, node):
-        '''helper method which checks that two halo exchange nodes (one being
+        '''Helper method which checks that two halo exchange nodes (one being
         self and the other being passed by argument) operating on the
         same field, both have vector fields of the same size and use
         different vector indices. If this is the case then the halo
@@ -2341,21 +2341,22 @@ class HaloExchange(Statement):
         case then an internal error will have occured and we raise an
         appropriate exception.
 
-        :param node: a halo exchange which should exchange the same
-        field as self
+        :param node: a halo exchange which should exchange the same field as \
+                     self.
         :type node: :py:class:`psyclone.psyGen.HaloExchange`
-        :raises GenerationError: if the argument passed is not a halo exchange
-        :raises GenerationError: if the field name in the halo
-        exchange passed in has a different name to the field in this
-        halo exchange
-        :raises GenerationError: if the field in this halo exchange is
-        not a vector field
-        :raises GenerationError: if the vector size of the field in
-        this halo exchange is different to vector size of the field in
-        the halo exchange passed by argument.
-        :raises GenerationError: if the vector index of the field in
-        this halo exchange is the same as the vector index of the
-        field in the halo exchange passed by argument.
+        :raises GenerationError: if the argument passed is not a halo exchange.
+        :raises GenerationError: if the field name in the halo exchange \
+                                 passed in has a different name to the field \
+                                 in this halo exchange.
+        :raises GenerationError: if the field in this halo exchange is not a \
+                                 vector field
+        :raises GenerationError: if the vector size of the field in this halo \
+                                 exchange is different to vector size of the \
+                                 field in the halo exchange passed by argument.
+        :raises GenerationError: if the vector index of the field in this \
+                                 halo exchange is the same as the vector \
+                                 index of the field in the halo exchange \
+                                 passed by argument.
 
         '''
 
@@ -2895,7 +2896,7 @@ class CodedKern(Kern):
         writes the kernel itself to file if it has been transformed.
 
         :param parent: The parent of this kernel call in the f2pygen AST.
-        :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
+        :type parent: :py:class:`psyclone.f2pygen.LoopGen`
 
         :raises NotImplementedError: if there is a name clash that prevents \
             the kernel from being module-inlined without changing its name.
@@ -3683,7 +3684,6 @@ class Argument(object):
     :type access: str
 
     '''
-
     def __init__(self, call, arg_info, access):
         self._call = call
         if arg_info is not None:
@@ -3827,7 +3827,7 @@ class Argument(object):
         reader then return an empty list.
 
         :param ignore_halos: if `True` then any write dependencies \
-            involving a halo exchange are ignored. Defaults to `False.
+            involving a halo exchange are ignored. Defaults to `False`.
         :type ignore_halos: bool
 
         :returns: a list of arguments that have a preceding write \
@@ -4371,6 +4371,7 @@ class ACCDataDirective(ACCDirective):
                          data_movement="analyse")
 
 
+# For Sphinx AutoAPI documentation generation
 __all__ = ['PSyFactory', 'PSy', 'Invokes', 'Invoke', 'InvokeSchedule',
            'Directive', 'ACCDirective', 'ACCEnterDataDirective',
            'ACCParallelDirective', 'ACCLoopDirective', 'OMPDirective',
