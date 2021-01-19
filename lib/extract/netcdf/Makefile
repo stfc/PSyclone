@@ -67,11 +67,11 @@ extract_netcdf_base.o: psy_data_base.o
 # Jinja rules for creating the base class, and the
 # netcdf extraction class
 # ------------------------------------------------
-psy_data_base.f90:	../../psy_data_base.jinja
-	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
+psy_data_base.f90:	../../psy_data_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
-extract_netcdf_base.f90:	extract_netcdf_base.jinja
-	$(PROCESS) $(PROCESS_ARGS) $< > extract_netcdf_base.f90
+extract_netcdf_base.f90:	extract_netcdf_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_netcdf_base.f90
 
 # Compilation
 # -----------
