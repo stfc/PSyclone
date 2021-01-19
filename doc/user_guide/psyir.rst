@@ -159,8 +159,14 @@ To solve this issue some Nodes also provide methods for semantic navigation:
    .. automethod:: psyclone.psyir.nodes.IfBlock.if_body()
 
    .. automethod:: psyclone.psyir.nodes.IfBlock.else_body()
+- ``ArrayReference``:
+   .. automethod:: psyclone.psyir.nodes.ArrayMixin.indices()
 - ``Directive``:
    .. automethod:: psyclone.psyGen.Directive.dir_body()
+- ``StructureReference``:
+   .. automethod:: psyclone.psyir.nodes.StructureReference.member()
+- ``StructureMember``:
+   .. automethod:: psyclone.psyir.nodes.StructureMember.member()
 
 These are the recommended methods to navigate the tree for analysis or
 operations that depend on the Node type.

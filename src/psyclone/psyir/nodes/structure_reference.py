@@ -75,7 +75,7 @@ class StructureReference(Reference):
         return False
 
     @staticmethod
-    def create(symbol, members=None, parent=None):
+    def create(symbol, members, parent=None):
         '''
         Create a StructureReference instance given a symbol and a
         list of components. e.g. for "field%bundle(2)%flag" this

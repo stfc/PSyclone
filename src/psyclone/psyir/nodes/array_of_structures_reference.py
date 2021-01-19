@@ -44,6 +44,7 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir import symbols
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.errors import InternalError
 
 
 class ArrayOfStructuresReference(StructureReference, ArrayMixin):
@@ -74,7 +75,7 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
         return isinstance(child, (DataNode, Range))
 
     @staticmethod
-    def create(symbol, indices=None, members=None, parent=None):
+    def create(symbol, indices, members, parent=None):
         '''
         Create a reference to a member of one or more elements of an array of
         structures.
@@ -120,13 +121,9 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
                 "An ArrayOfStructuresReference must refer to a symbol of "
                 "ArrayType but symbol '{0}' has type '{1}".format(
                     symbol.name, symbol.datatype))
-        if indices is None:
-            index_list = []
-        else:
-            index_list = indices
-        if not isinstance(index_list, list):
+        if not isinstance(indices, list) or not indices:
             raise TypeError(
-                "If supplied, the 'indices' argument to "
+                "The 'indices' argument to "
                 "ArrayOfStructuresReference.create() must be a list "
                 "containing at least one array-index expression but this is "
                 "missing for symbol '{0}'".format(symbol.name))
@@ -138,10 +135,30 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
 
         # Then add the array-index expressions. We don't validate the children
         # as that is handled in _validate_child.
-        for child in index_list:
+        for child in indices:
             ref.addchild(child)
             child.parent = ref
         return ref
+
+    def indices(self):
+        '''
+        Supports semantic-navigation by returning the list of nodes
+        representing the index expressions for this array reference.
+
+        :returns: the PSyIR nodes representing the array-index expressions.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises InternalError: if this node has fewer than 2 children.
+
+        '''
+        if len(self._children) < 2:
+            raise InternalError(
+                "ArrayOfStructuresReference malformed or incomplete: must "
+                "have one or more children representing array-index "
+                "expressions but found none.")
+        for idx, child in enumerate(self._children, start=1):
+            self._validate_child(idx, child)
+        return self.children[1:]
 
 
 # For AutoAPI documentation generation

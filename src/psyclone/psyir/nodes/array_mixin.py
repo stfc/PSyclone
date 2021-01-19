@@ -45,6 +45,7 @@ from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.symbols.datatypes import ScalarType
+from psyclone.errors import InternalError
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -255,6 +256,26 @@ class ArrayMixin(object):
                         and step.value == "1"):
                     return True
         return False
+
+    def indices(self):
+        '''
+        Supports semantic-navigation by returning the list of nodes
+        representing the index expressions for this array reference.
+
+        :returns: the PSyIR nodes representing the array-index expressions.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises InternalError: if this node has no children.
+
+        '''
+        if not self._children:
+            raise InternalError(
+                "Array malformed or incomplete: must have one or more "
+                "children representing array-index expressions but found "
+                "none.")
+        for idx, child in enumerate(self._children):
+            self._validate_child(idx, child)
+        return self.children
 
 
 # For AutoAPI documentation generation

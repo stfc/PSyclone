@@ -43,6 +43,7 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.ranges import Range
+from psyclone.errors import InternalError
 
 
 class ArrayOfStructuresMember(StructureMember, ArrayMixin):
@@ -106,6 +107,33 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
             return isinstance(child, Member)
         # All subsequent child must be array-index expressions
         return isinstance(child, (DataNode, Range))
+
+    @property
+    def indices(self):
+        '''
+        Supports semantic-navigation by returning the list of nodes
+        representing the index expressions for this array reference.
+
+        :returns: the PSyIR nodes representing the array-index expressions.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises InternalError: if this node does not have at least two \
+                               children.
+
+        '''
+        if len(self._children) < 2:
+            raise InternalError(
+                "ArrayOfStructuresMember malformed or incomplete: must "
+                "have one or more children representing array-index "
+                "expressions but found none.")
+        for idx, child in enumerate(self._children[1:], start=1):
+            if not self._validate_child(idx, child):
+                raise InternalError(
+                    "ArrayOfStructuresMember malformed or incomplete: child "
+                    "{0} must represent an array-index expression but found "
+                    "'{1}' instead of psyir.nodes.DataNode or Range".format(
+                        idx, type(child).__name__))
+        return self._children[1:]
 
 
 # For AutoAPI automatic documentation generation

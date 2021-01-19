@@ -2738,13 +2738,17 @@ class Fparser2Reader(object):
             # symbol.
             part_ref = node.children[0]
             sym = parent.find_or_create_symbol(part_ref.children[0].string)
-            # We have to create the reference before its children because
-            # processing the array-index expressions requires access to the
-            # symbol table.
-            ref = ArrayOfStructuresReference.create(sym, members=members,
-                                                    parent=parent)
-            # Now process the array-index expressions
-            self.process_nodes(parent=ref, nodes=part_ref.children[1].children)
+            # Processing the array-index expressions requires access to the
+            # symbol table so create a fake ArrayReference node.
+            sched = parent.ancestor(Schedule, include_self=True)
+            fake_parent = ArrayReference(parent=sched,
+                                         symbol=Symbol("fake"))
+            # The children of the fake node represent the indices of the
+            # ArrayOfStructuresReference.
+            self.process_nodes(parent=fake_parent,
+                               nodes=part_ref.children[1].children)
+            ref = ArrayOfStructuresReference.create(
+                sym, fake_parent.children, members, parent=parent)
             return ref
 
         # Not a Part_Ref or a Name so this will result in a CodeBlock.

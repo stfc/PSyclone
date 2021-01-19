@@ -40,7 +40,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir import symbols, nodes
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.tests.utilities import check_links
 
 
@@ -79,3 +79,27 @@ def test_asmr_validate_child():
     idx = nodes.Reference(symbols.DataSymbol("idx", symbols.INTEGER_TYPE))
     asmr.addchild(idx)
     assert asmr.children[1] is idx
+
+
+def test_asmr_indices():
+    ''' Test the indices property of ArrayOfStructuresMember. '''
+    asmr = nodes.ArrayOfStructuresMember.create(
+        "regions", [nodes.Literal("3", symbols.INTEGER_TYPE)],
+        nodes.Member("sub_mesh"))
+    indices = asmr.indices
+    assert len(indices) == 1
+    assert isinstance(indices[0], nodes.Literal)
+    assert indices[0].value == "3"
+    # Break the children of the node to check that we get the expected
+    # error.
+    asmr._children = [asmr._children[0]]
+    with pytest.raises(InternalError) as err:
+        asmr.indices
+    assert ("must have one or more children representing array-index "
+            "expressions but found none" in str(err.value))
+    asmr._children = [asmr._children[0], "hello"]
+    with pytest.raises(InternalError) as err:
+        asmr.indices
+    assert ("malformed or incomplete: child 1 must represent an array-index "
+            "expression but found 'str' instead of psyir.nodes.DataNode or "
+            "Range" in str(err.value))
