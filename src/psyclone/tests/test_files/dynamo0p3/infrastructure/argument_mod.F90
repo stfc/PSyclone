@@ -54,7 +54,7 @@
 !> arg_type type.
 
 !> A kernel may also require additional data associated with a particular
-!> function space (basis function, differential basis function and orientation
+!> function space (basis function and differential basis function
 !> information). This information is specified in the xxx type.
 !> the PSy layer needs to know how this is to be accessed.
 !> read, write etc and which function space it belongs. These are the three

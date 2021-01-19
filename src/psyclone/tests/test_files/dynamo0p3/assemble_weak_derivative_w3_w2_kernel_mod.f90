@@ -73,7 +73,7 @@ contains
   subroutine assemble_weak_derivative_w3_w2_kernel_code(cell, nlayers, ncell_3d,    &
                                             local_stencil, xdata, ydata, zdata,     &
                                             ndf_w3, basis_w3,                       &
-                                            ndf_w2, diff_basis_w2, orientation_w2,  &
+                                            ndf_w2, diff_basis_w2,                  &
                                             ndf_w0, undf_w0, map_w0, diff_basis_w0, &
                                             np_xy, np_z, weights_xy, weights_z)
 
@@ -85,7 +85,6 @@ contains
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), intent(in) :: ndf_w3, ndf_w2, undf_w0
     integer(kind=i_def), intent(in) :: np_xy, np_z
-    integer(kind=i_def), intent(in), dimension(ndf_w2) :: orientation_w2
     integer(kind=i_def), intent(in), dimension(ndf_w0) :: map_w0
     real(kind=r_def), intent(out), dimension(ndf_w3,ndf_w2,ncell_3d) :: local_stencil
     real(kind=r_def), intent(in), dimension(undf_w0) :: xdata
