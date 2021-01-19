@@ -49,7 +49,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.errors import InternalError
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, DeferredType
 from psyclone.psyir.symbols.datatypes import ScalarType
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
     Assignment, Literal, Operation, BinaryOperation
@@ -345,7 +345,8 @@ class NemoArrayRange2LoopTrans(Transformation):
                 symbol_table = node.scope.symbol_table
                 loop_variable_symbol = symbol_table.lookup(loop_variable_name)
                 # Check the existing loop variable name is a scalar integer
-                if not (loop_variable_symbol.is_scalar and
+                if isinstance(loop_variable_symbol, DeferredType) or \
+                   not (loop_variable_symbol.is_scalar and
                         loop_variable_symbol.datatype.intrinsic is
                         ScalarType.Intrinsic.INTEGER):
                     raise TransformationError(
