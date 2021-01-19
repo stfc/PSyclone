@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
 
 '''Test that the expected kernel arguments, based on the kernel
 metadata, are created and declared within a symbol table using
@@ -758,16 +759,6 @@ def test_diff_basis():
     assert diff_basis_symbol.shape[2].symbol is nqph_symbol
     assert isinstance(diff_basis_symbol.shape[3], Reference)
     assert diff_basis_symbol.shape[3].symbol is nqpv_symbol
-
-
-@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
-def test_orientation():
-    '''Test that the KernelInterface class orientation method adds the
-    expected symbols to the symbol table and the _arglist list.
-
-    '''
-    kernel_interface = KernelInterface(None)
-    kernel_interface.orientation(None)
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
