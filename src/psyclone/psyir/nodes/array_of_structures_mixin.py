@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,73 +31,75 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#         I. Kavcic, Met Office
+#         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the implementation of the ArrayMember node.'''
+''' This module contains the implementation of the abstract
+    ArrayOfStructuresMixin. '''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes.member import Member
+import abc
+import six
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.ranges import Range
+from psyclone.errors import InternalError
 
 
-class ArrayMember(Member, ArrayMixin):
+@six.add_metaclass(abc.ABCMeta)
+class ArrayOfStructuresMixin(ArrayMixin):
     '''
-    Node representing an access to the element(s) of an array that is a
-    member of a structure. Must have one or more children which give the
-    array-index expressions for the array access.
+    Abstract class used to add functionality common to Nodes that represent
+    accesses to arrays of structures.
 
     '''
-    # Textual description of the node.
-    _children_valid_format = "[DataNode | Range]+"
-    _text_name = "ArrayMember"
-
-    @staticmethod
-    def create(member_name, indices, parent=None):
-        '''
-        Construct an ArrayMember instance describing an array access to a
-        member of a structure.
-
-        e.g. for the Fortran `grid%subdomains(1,2)`, `subdomains` must be an
-        array and we are accessing element (1,2) of it. We would therefore
-        create the ArrayMember for this access by calling:
-
-        >>> amem = ArrayMember.create("subdomains",
-                                      [Literal("1", INTEGER_TYPE),
-                                       Literal("2", INTEGER_TYPE)])
-
-        :param str member_name: the name of the member of the structure that \
-            is being accessed.
-        :param indices: the array-index expressions.
-        :type indices: list of :py:class:`psyclone.psyir.nodes.DataNode` or
-            :py:class:`psyclone.psyir.nodes.Range`
-        :param parent: the parent of this node in the PSyIR tree.
-        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
-
-        '''
-        obj = ArrayMember(member_name, parent=parent)
-        # Add any array-index expressions as children
-        for child in indices:
-            obj.addchild(child)
-            child.parent = obj
-        return obj
-
     @staticmethod
     def _validate_child(position, child):
         '''
         :param int position: the position to be validated.
         :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
+        :type child: sub-class of :py:class:`psyclone.psyir.nodes.Node`
 
         :return: whether the given child and position are valid for this node.
         :rtype: bool
 
         '''
-        # pylint: disable=unused-argument
+        if position == 0:
+            # The first child must be a Member
+            return isinstance(child, Member)
+        # All subsequent children must be array-index expressions
         return isinstance(child, (DataNode, Range))
+
+    @property
+    def indices(self):
+        '''
+        Supports semantic-navigation by returning the list of nodes
+        representing the index expressions for this array reference.
+
+        :returns: the PSyIR nodes representing the array-index expressions.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises InternalError: if this node does not have at least two \
+                               children.
+
+        '''
+        if len(self._children) < 2:
+            raise InternalError(
+                "{0} malformed or incomplete: must "
+                "have one or more children representing array-index "
+                "expressions but found none.")
+        for idx, child in enumerate(self._children[1:], start=1):
+            if not self._validate_child(idx, child):
+                raise InternalError(
+                    "{0} malformed or incomplete: child "
+                    "{1} must represent an array-index expression but found "
+                    "'{2}' instead of psyir.nodes.DataNode or Range".format(
+                        type(self).__name__, idx, type(child).__name__))
+        return self._children[1:]
 
 
 # For AutoAPI documentation generation
-__all__ = ['ArrayMember']
+__all__ = ['ArrayOfStructuresMixin']

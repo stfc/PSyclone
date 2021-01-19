@@ -39,14 +39,11 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.structure_member import StructureMember
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.member import Member
-from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.ranges import Range
-from psyclone.errors import InternalError
+from psyclone.psyir.nodes.array_of_structures_mixin import \
+    ArrayOfStructuresMixin
 
 
-class ArrayOfStructuresMember(StructureMember, ArrayMixin):
+class ArrayOfStructuresMember(ArrayOfStructuresMixin, StructureMember):
     '''
     Node representing a membership expression of a parent structure where the
     expression resolves to the component of one or more elements of an array
@@ -88,52 +85,15 @@ class ArrayOfStructuresMember(StructureMember, ArrayMixin):
         :rtype: :py:class:`psyclone.psyir.nodes.ArrayOfStructuresMember`
 
         '''
-        return ArrayOfStructuresMember._create_array_member(
-            member_name, indices, inner_member, parent=parent)
-
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        if position == 0:
-            # The first child must be a Member
-            return isinstance(child, Member)
-        # All subsequent child must be array-index expressions
-        return isinstance(child, (DataNode, Range))
-
-    @property
-    def indices(self):
-        '''
-        Supports semantic-navigation by returning the list of nodes
-        representing the index expressions for this array reference.
-
-        :returns: the PSyIR nodes representing the array-index expressions.
-        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
-
-        :raises InternalError: if this node does not have at least two \
-                               children.
-
-        '''
-        if len(self._children) < 2:
-            raise InternalError(
-                "ArrayOfStructuresMember malformed or incomplete: must "
-                "have one or more children representing array-index "
-                "expressions but found none.")
-        for idx, child in enumerate(self._children[1:], start=1):
-            if not self._validate_child(idx, child):
-                raise InternalError(
-                    "ArrayOfStructuresMember malformed or incomplete: child "
-                    "{0} must represent an array-index expression but found "
-                    "'{1}' instead of psyir.nodes.DataNode or Range".format(
-                        idx, type(child).__name__))
-        return self._children[1:]
+        obj = ArrayOfStructuresMember(member_name, parent=parent)
+        # Add any child Member as the first child
+        obj.addchild(inner_member)
+        inner_member.parent = obj
+        # Add any array-index expressions as children
+        for child in indices:
+            obj.addchild(child)
+            child.parent = obj
+        return obj
 
 
 # For AutoAPI automatic documentation generation
