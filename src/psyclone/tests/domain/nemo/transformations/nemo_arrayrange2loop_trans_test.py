@@ -44,7 +44,7 @@ import pytest
 from psyclone.psyir.nodes import Assignment
 from psyclone.psyGen import Transformation
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    ArrayType
+    ArrayType, DeferredType
 from psyclone.psyir.transformations import TransformationError
 from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
@@ -462,7 +462,8 @@ def test_outer_index_error():
 
 
 @pytest.mark.parametrize("datatype",
-                         [REAL_TYPE, ArrayType(INTEGER_TYPE, [10])])
+                         [REAL_TYPE, ArrayType(INTEGER_TYPE, [10]),
+                          DeferredType()])
 def test_loop_variable_name_error(datatype):
     '''Check that the expected exception is raised when the config file
     specifies a loop iteration name but it is already declared in the
