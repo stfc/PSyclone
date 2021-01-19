@@ -1664,21 +1664,6 @@ def test_vector_field_deref(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_orientation(tmpdir):
-    ''' Tests that orientation information is created correctly in
-    the PSy layer. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "9_orientation.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    generated_code = str(psy.gen)
-    assert ("INTEGER(KIND=i_def), pointer :: orientation_w2(:) "
-            "=> null()") in generated_code
-    assert ("orientation_w2 => f2_proxy%vspace%"
-            "get_cell_orientation(cell)" in generated_code)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
 def test_any_space_1(tmpdir):
     ''' Tests that any_space is implemented correctly in the PSy
     layer. Includes more than one type of any_space declaration

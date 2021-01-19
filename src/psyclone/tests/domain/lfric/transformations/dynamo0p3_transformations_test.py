@@ -463,48 +463,6 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_omp_colour_orient_trans(monkeypatch, annexed, dist_mem):
-    '''Test the OpenMP transformation applied to a coloured loop when the
-    kernel expects orientation information. We test when distributed
-    memory is on or off. We also test when annexed is False and True
-    as it affects how many halo exchanges are generated.
-
-    '''
-    config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
-    psy, invoke = get_invoke("9.1_orientation2.f90", TEST_API,
-                             name="invoke_0_testkern_orientation2_type",
-                             dist_mem=dist_mem)
-    schedule = invoke.schedule
-
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
-
-    if dist_mem:
-        if annexed:
-            index = 4
-        else:
-            index = 5
-    else:
-        index = 0
-
-    # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[index])
-
-    # Then apply OpenMP to the inner loop
-    schedule, _ = otrans.apply(cschedule.children[index].loop_body[0])
-
-    invoke.schedule = schedule
-    code = str(psy.gen)
-
-    # Check that we're using the colour map when getting the orientation
-    assert "get_cell_orientation(cmap(colour, cell))" in code
-
-    # Check that the list of private variables is correct
-    assert "private(cell,orientation_w2)" in code
-
-
 def test_omp_parallel_colouring_needed(monkeypatch, annexed, dist_mem):
     '''Test that we raise an error when applying an OpenMP PARALLEL DO
     transformation to a loop that requires colouring (i.e. has a field

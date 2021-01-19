@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@ module assemble_weak_derivative_w3_w2_kernel_mod
                                     GH_FIELD, GH_OPERATOR,   &
                                     GH_WRITE, GH_READ,       &
                                     GH_BASIS, GH_DIFF_BASIS, &
-                                    GH_ORIENTATION,          &
                                     CELL_COLUMN,             &
                                     gh_quadrature_XYoZ
 
@@ -59,7 +58,7 @@ module assemble_weak_derivative_w3_w2_kernel_mod
     type(func_type) :: meta_funcs(3) = (/                      &
          func_type(W0, GH_DIFF_BASIS),                         &
          func_type(W3, GH_BASIS),                              &
-         func_type(W2, GH_DIFF_BASIS, GH_ORIENTATION)          &
+         func_type(W2, GH_DIFF_BASIS)                          &
          /)
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = gh_quadrature_XYoZ
