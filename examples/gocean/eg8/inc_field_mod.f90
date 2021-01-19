@@ -29,40 +29,29 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: A. R. Porter and S. Siso, STFC Daresbury Lab.
+! Author: A. R. Porter and S. Siso, STFC Daresbury Lab
 
-!> \brief Compute the potential vorticity, z
-!! \detail Given the current pressure and velocity fields,
-!! computes the potential voriticity.
-module compute_z_mod
+module inc_field_mod
   use kind_params_mod
   use kernel_mod
   use argument_mod
-  use grid_mod
-  use field_mod
+  use grid_mod, only: GO_OFFSET_SW
   implicit none
 
-  private
-
-  public compute_z, compute_z_code
-
-  type, extends(kernel_type) :: compute_z
-     type(go_arg), dimension(6) :: meta_args =    &
-          (/ go_arg(GO_WRITE, GO_CF, GO_POINTWISE),        & ! z
-             go_arg(GO_READ,  GO_CT, GO_STENCIL(000,110,110)),        & ! p
-             go_arg(GO_READ,  GO_CU, GO_STENCIL(000,010,010)),        & ! u
-             go_arg(GO_READ,  GO_CV, GO_STENCIL(000,110,000)),        & ! v
-             go_arg(GO_READ,  GO_GRID_DX_CONST),           & ! dx
-             go_arg(GO_READ,  GO_GRID_DY_CONST)            & ! dy
+  type, extends(kernel_type) :: inc_field
+     type(go_arg), dimension(4) :: meta_args =             &
+          (/ go_arg(GO_WRITE, GO_CT, GO_POINTWISE),        & ! field
+             ! We have to pass in the extend of the field array as PGI
+             ! does not support assumed-size arguments in accelerator
+             ! regions. Ultimately PSyclone will do this for us.
+             go_arg(GO_READ,  GO_I_SCALAR, GO_POINTWISE),  & ! nx
+             go_arg(GO_READ,  GO_I_SCALAR, GO_POINTWISE),  & ! ny
+             go_arg(GO_READ,  GO_I_SCALAR, GO_POINTWISE)   & ! istp
            /)
-     !> This kernel operates on fields that live on an
-     !! orthogonal, regular grid.
-     integer :: GRID_TYPE = GO_ORTHOGONAL_REGULAR
-
      !> This kernel writes only to internal points of the
      !! simulation domain.
      integer :: ITERATES_OVER = GO_INTERNAL_PTS
-  
+
      !> Although the staggering of variables used in an Arakawa
      !! C grid is well defined, the way in which they are indexed is
      !! an implementation choice. This can be thought of as choosing
@@ -72,32 +61,19 @@ module compute_z_mod
      !! to the South and West of it.
      integer :: index_offset = GO_OFFSET_SW
 
-   contains
-     procedure, nopass :: code => compute_z_code
-  end type compute_z
+  contains
+    procedure, nopass :: code => inc_field_code
+  end type inc_field
 
 contains
 
-  !===================================================
+  subroutine inc_field_code(ji, jj, fld1, nx, ny, istp)
+    integer, intent(in) :: ji, jj, nx, ny
+    real(go_wp), dimension(nx,ny), intent(inout) :: fld1
+    integer, intent(in) :: istp
 
-  !> Compute the potential vorticity on the grid point (i,j)
-  subroutine compute_z_code(i, j, z, p, u, v, dx, dy)
-    implicit none
-    integer,  intent(in) :: I, J
-    real(go_wp), intent(in) :: dx, dy
-    real(go_wp), intent(inout), dimension(:,:) :: z
-    real(go_wp), intent(in),  dimension(:,:) :: p, u, v
+    fld1(ji,jj) = fld1(ji,jj) + real(istp, go_wp)
+    
+  end subroutine inc_field_code
 
-    ! Original code looked like:
-    ! DO J=1,N
-    !    DO I=1,M
-    !       Z(I+1,J+1) =(FSDX*(V(I+1,J+1)-V(I,J+1))-FSDY*(U(I+1,J+1) & 
-    !                    -U(I+1,J)))/(P(I,J)+P(I+1,J)+P(I+1,J+1)+P(I,J+1))
-
-    Z(I,J) =( (4.0d0/dx)*( V(I,J)-V(I-1,J))-    &
-              (4.0d0/dy)*( U(I,J)-U(I,J-1)) ) / &
-            (P(I-1,J-1)+P(I,J-1)+ P(I,J)+P(I-1,J))
-
-  end subroutine compute_z_code
-
-end module compute_z_mod
+end module inc_field_mod

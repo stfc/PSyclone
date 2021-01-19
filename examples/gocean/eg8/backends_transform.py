@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,25 +30,43 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# -----------------------------------------------------------------------------
+# Author: S. Siso, STFC Daresbury Lab
 
-include ../../common.mk
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option.
+This script calls a successful exit from inside because it is a work in
+progress of the development tracked by issue #1010.
+'''
 
-.PHONY: serial dm
+from __future__ import print_function
+import sys
+from psyclone.psyir.backend.fortran import FortranWriter
 
-transform: serial dm backends
 
-serial:
-	${PSYCLONE} -nodm solver_mod.x90
+def trans(psy):
+    ''' Use the PSyIR back-end to generate PSy-layer target code'''
 
-dm:
-	${PSYCLONE} solver_mod.x90
+    invoke = psy.invokes.get('invoke_0_inc_field')
+    schedule = invoke.schedule
 
-backends:
-	${PSYCLONE} -s ./backends_transform.py -nodm solver_mod.x90
+    print("DSL level view:")
+    schedule.view()
 
-compile:
-	@echo "No compilation supported for lfric/eg4"
+    print("f2pygen code:")
+    print(str(psy.gen))
 
-all: transform compile
+    # In-place lowering to Language-level PSyIR
+    schedule.lower_to_language_level()
+
+    print("")
+    print("Language level view:")
+    schedule.view()
+
+    fvisitor = FortranWriter()
+    print("")
+    print("FortranWriter code:")
+    print(fvisitor(psy.container))
+
+    # This PSyclone call should terminate gracefully here
+    sys.exit(0)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,25 +30,16 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# -----------------------------------------------------------------------------
+# Author: S. Siso, STFC Daresbury Laboratory
 
 include ../../common.mk
 
-.PHONY: serial dm
+GENERATED_FILES += 
+ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
-transform: serial dm backends
+.PHONY: transform
 
-serial:
-	${PSYCLONE} -nodm solver_mod.x90
-
-dm:
-	${PSYCLONE} solver_mod.x90
-
-backends:
-	${PSYCLONE} -s ./backends_transform.py -nodm solver_mod.x90
-
-compile:
-	@echo "No compilation supported for lfric/eg4"
-
-all: transform compile
+transform:
+	${PSYCLONE} -nodm -s ./backends_transform.py -api gocean1.0 alg.f90 \
+		-oalg /dev/null -opsy /dev/null
