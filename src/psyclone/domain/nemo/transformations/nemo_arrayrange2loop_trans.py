@@ -148,7 +148,7 @@ class NemoArrayRange2LoopTrans(Transformation):
         except IndexError:
             lower_bound_info = None
             upper_bound_info = None
-            loop_variable_name = symbol_table.new_symbol_name("idx")
+            loop_variable_name = symbol_table.next_available_name("idx")
 
         # Lower bound
         if not array_reference.is_lower_bound(array_index):
