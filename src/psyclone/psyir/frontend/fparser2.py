@@ -1500,28 +1500,39 @@ class Fparser2Reader(object):
                 # scalar
                 datatype = base_type
 
-            if sym_name not in symbol_table:
-                try:
-                    sym = DataSymbol(sym_name, datatype,
-                                     visibility=visibility,
-                                     constant_value=ct_expr,
-                                     interface=interface)
-                except ValueError:
-                    # Error setting initial value
-                    raise NotImplementedError()
-                # We don't want to check ancestor symbol tables as we're
-                # currently processing a *local* variable declaration.
-                symbol_table.add(sym, check_ancestors=False)
-            else:
-                # The symbol table already contains an entry with this name
-                # so update its interface information.
-                sym = symbol_table.lookup(sym_name)
+            # Make sure the declared symbol exists in the SymbolTable
+            try:
+                sym = symbol_table.lookup(sym_name, check_ancestors=False)
+                if sym is symbol_table.lookup_with_tag("own_routine_symbol"):
+                    # In case it is its own function routine symbol, Fortran
+                    # will declare it inside the function as a DataSymbol.
+                    # Remove the RoutineSymbol in order to free the exact name
+                    # for the DataSymbol.
+                    symbol_table.remove(sym)
+                    # And trigger the exception path
+                    raise KeyError
                 if not sym.is_unresolved:
                     raise SymbolError(
                         "Symbol '{0}' already present in SymbolTable with "
                         "a defined interface ({1}).".format(
                             sym_name, str(sym.interface)))
-                sym.interface = interface
+            except KeyError:
+                try:
+                    sym = DataSymbol(sym_name, datatype,
+                                     visibility=visibility,
+                                     constant_value=ct_expr)
+                except ValueError:
+                    # Error setting initial value have to be raised as
+                    # NotImplementedError in order to create an UnknownType
+                    # Therefore, the Error doesn't need raise_from or message
+                    # pylint: disable=raise-missing-from
+                    raise NotImplementedError()
+                # We don't want to check ancestor symbol tables as we're
+                # currently processing a *local* variable declaration.
+                symbol_table.add(sym, check_ancestors=False)
+
+            # The Symbol must have the interface given by the declaration
+            sym.interface = interface
 
     def _process_derived_type_decln(self, parent, decl, default_visibility,
                                     visibility_map):
