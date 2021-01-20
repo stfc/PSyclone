@@ -299,3 +299,26 @@ class DataSymbol(Symbol):
         self._datatype = symbol_in.datatype
         self._constant_value = symbol_in.constant_value
         self._interface = symbol_in.interface
+
+    def specialise(self, other_symbol):
+        ''' xxx '''
+        # Check that the other_symbol is a sub-class of self
+        assert isinstance(other_symbol, self.__class__)
+
+        # Check that the members of each class are the same
+        import inspect
+        my_members = [member[0] for member in inspect.getmembers(self)]
+        other_symbol_members = [member[0] for member in inspect.getmembers(other_symbol)]
+        print (len(my_members))
+        print (len(other_symbol_members))
+        if not (my_members == other_symbol_members):
+            print (my_members)
+            print (other_symbol_members)
+            exit(1)
+        #for index in range(len(my_members)):
+        #    if my_members[index] != other_symbol_members[index]:
+        #        print ("{0} {1}\n".format(my_members[index], other_symbol_members[index]))
+        # exit(1)
+
+        # Make self an instance of the subclass
+        self.__class__ = other_symbol.__class__
