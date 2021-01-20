@@ -38,7 +38,6 @@ transformation.'''
 
 from __future__ import absolute_import
 
-import os
 import pytest
 
 from psyclone.psyir.nodes import Assignment
