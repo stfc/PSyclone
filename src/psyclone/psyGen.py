@@ -49,7 +49,8 @@ from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
-    Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE
+    Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
+    ArgumentInterface, DeferredType, SymbolError
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
     Routine, PSyDataNode, Call, Reference
@@ -3708,9 +3709,21 @@ class Argument(object):
             # associated call.
             if self._call:
                 tag = "AlgArgs_" + self._text
-                # TODO #720: Deprecate name_from_tag method
-                self._name = self._call.root.symbol_table.name_from_tag(
-                    tag, self._orig_name)
+                try:
+                    symbol = self._call.root.symbol_table.lookup_with_tag(tag)
+                except KeyError:
+                    previous_arguments = \
+                            self._call.root.symbol_table.argument_list
+                    # TODO: Type should be specified here !?
+                    # TODO: Interface.Access should come from access
+                    symbol = DataSymbol(
+                        self._orig_name, DeferredType(),
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READWRITE))
+                    self._call.root.symbol_table.add(symbol, tag)
+                    self._call.root.symbol_table.specify_argument_list(
+                        previous_arguments + [symbol])
+                self._name = symbol.name
 
     def __str__(self):
         return self._name

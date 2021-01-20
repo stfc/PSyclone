@@ -114,12 +114,12 @@ class GOPSy(PSy):
         PSy.__init__(self, invoke_info)
 
         # Add GOcean infrastructure-specific libraries
-        kind_params_sym = ContainerSymbol("kind_params_mod")
-        kind_params_sym.wildcard_import = True
-        self.container.symbol_table.add(kind_params_sym)
         field_sym = ContainerSymbol("field_mod")
         field_sym.wildcard_import = True
         self.container.symbol_table.add(field_sym)
+        kind_params_sym = ContainerSymbol("kind_params_mod")
+        kind_params_sym.wildcard_import = True
+        self.container.symbol_table.add(kind_params_sym)
 
         # Create invokes
         self._invokes = GOInvokes(invoke_info.calls, self)
