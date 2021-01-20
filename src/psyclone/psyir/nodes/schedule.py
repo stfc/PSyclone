@@ -61,6 +61,9 @@ class Schedule(Node):
     _text_name = "Schedule"
     _colour_key = "Schedule"
 
+    # Polymorphic parameter to initialize the Symbol Table of the Schedule
+    _symbol_table_class = SymbolTable
+
     @staticmethod
     def _validate_child(position, child):
         '''
@@ -80,7 +83,7 @@ class Schedule(Node):
         if symbol_table:
             self._symbol_table = symbol_table
         else:
-            self._symbol_table = SymbolTable(self)
+            self._symbol_table = self._symbol_table_class(self)
 
     @property
     def dag_name(self):

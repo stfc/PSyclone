@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,11 +48,13 @@ from psyclone.psyir.backend.fortran import gen_intent, FortranWriter, \
     is_fortran_intrinsic, precedence
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
-    KernelSchedule, ArrayReference, Range
+    KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
+    StructureReference
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
-    DeferredType, RoutineSymbol, Symbol, UnknownType, UnknownFortranType
+    DeferredType, RoutineSymbol, Symbol, UnknownType, UnknownFortranType, \
+    TypeSymbol, StructureType
 from psyclone.tests.utilities import create_schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError
@@ -120,10 +122,8 @@ def test_gen_dims(fort_writer):
     array_type = ArrayType(INTEGER_TYPE,
                            [Reference(arg), 2, literal, arg_plus_1,
                             ArrayType.Extent.ATTRIBUTE])
-    symbol = DataSymbol("dummy", array_type,
-                        interface=ArgumentInterface(
-                            ArgumentInterface.Access.UNKNOWN))
-    assert fort_writer._gen_dims(symbol) == ["arg", "2", "4", "arg + 1_4", ":"]
+    assert fort_writer._gen_dims(array_type.shape) == ["arg", "2", "4",
+                                                       "arg + 1_4", ":"]
 
 
 def test_gen_dims_error(monkeypatch, fort_writer):
@@ -132,12 +132,9 @@ def test_gen_dims_error(monkeypatch, fort_writer):
 
     '''
     array_type = ArrayType(INTEGER_TYPE, [10])
-    symbol = DataSymbol("dummy", array_type,
-                        interface=ArgumentInterface(
-                            ArgumentInterface.Access.UNKNOWN))
     monkeypatch.setattr(array_type, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = fort_writer._gen_dims(symbol)
+        _ = fort_writer._gen_dims(array_type.shape)
     assert "unsupported gen_dims index 'invalid'" in str(excinfo.value)
 
 
@@ -160,7 +157,7 @@ def test_gen_datatype_default_precision(type_name, result):
     array_type = ArrayType(scalar_type, [10, 10])
     for my_type in [scalar_type, array_type]:
         symbol = DataSymbol("dummy", my_type)
-        assert gen_datatype(symbol) == result
+        assert gen_datatype(symbol.datatype, symbol.name) == result
 
 
 @pytest.mark.parametrize(
@@ -186,7 +183,7 @@ def test_gen_datatype_relative_precision(type_name, precision, result):
     array_type = ArrayType(scalar_type, [10, 10])
     for my_type in [scalar_type, array_type]:
         symbol = DataSymbol("dummy", my_type)
-        assert gen_datatype(symbol) == result
+        assert gen_datatype(symbol.datatype, symbol.name) == result
 
 
 @pytest.mark.parametrize("precision", [1, 2, 4, 8, 16, 32])
@@ -208,13 +205,13 @@ def test_gen_datatype_absolute_precision(type_name, precision, fort_name):
         symbol = DataSymbol(symbol_name, my_type)
         if precision in [32]:
             with pytest.raises(VisitorError) as excinfo:
-                gen_datatype(symbol)
+                gen_datatype(symbol.datatype, symbol.name)
             assert ("Datatype '{0}' in symbol '{1}' supports fixed precision "
                     "of [1, 2, 4, 8, 16] but found '{2}'."
                     "".format(fort_name, symbol_name, precision)
                     in str(excinfo.value))
         else:
-            assert (gen_datatype(symbol) ==
+            assert (gen_datatype(symbol.datatype, symbol.name) ==
                     "{0}*{1}".format(fort_name, precision))
 
 
@@ -235,12 +232,13 @@ def test_gen_datatype_absolute_precision_real(precision):
         symbol = DataSymbol(symbol_name, my_type)
         if precision in [1, 2, 32]:
             with pytest.raises(VisitorError) as excinfo:
-                gen_datatype(symbol)
+                gen_datatype(symbol.datatype, symbol.name)
             assert ("Datatype 'real' in symbol '{0}' supports fixed precision "
                     "of [4, 8, 16] but found '{1}'."
                     "".format(symbol_name, precision) in str(excinfo.value))
         else:
-            assert gen_datatype(symbol) == "real*{0}".format(precision)
+            assert (gen_datatype(symbol.datatype, symbol.name) ==
+                    "real*{0}".format(precision))
 
 
 def test_gen_datatype_absolute_precision_character():
@@ -255,7 +253,7 @@ def test_gen_datatype_absolute_precision_character():
     for my_type in [scalar_type, array_type]:
         symbol = DataSymbol(symbol_name, my_type)
         with pytest.raises(VisitorError) as excinfo:
-            gen_datatype(symbol)
+            gen_datatype(symbol.datatype, symbol.name)
         assert ("Explicit precision not supported for datatype '{0}' in "
                 "symbol '{1}' in Fortran backend."
                 "".format("character", symbol_name) in str(excinfo.value))
@@ -279,16 +277,25 @@ def test_gen_datatype_kind_precision(type_name, result):
     scalar_type = ScalarType(type_name, precision=precision)
     array_type = ArrayType(scalar_type, [10, 10])
     for my_type in [scalar_type, array_type]:
-        symbol = DataSymbol(symbol_name, my_type)
         if type_name == ScalarType.Intrinsic.CHARACTER:
             with pytest.raises(VisitorError) as excinfo:
-                gen_datatype(symbol)
+                gen_datatype(my_type, symbol_name)
             assert ("kind not supported for datatype '{0}' in symbol '{1}' "
                     "in Fortran backend.".format("character", symbol_name)
                     in str(excinfo.value))
         else:
-            assert (gen_datatype(symbol) ==
+            assert (gen_datatype(my_type, symbol_name) ==
                     "{0}(kind={1})".format(result, precision_name))
+
+
+def test_gen_datatype_derived_type():
+    ''' Check that gen_datatype handles derived types. '''
+    # A symbol representing a single derived type
+    tsym = TypeSymbol("my_type", DeferredType())
+    assert gen_datatype(tsym, "my_type") == "type(my_type)"
+    # An array of derived types
+    atype = ArrayType(tsym, [10])
+    assert gen_datatype(atype, "my_list") == "type(my_type)"
 
 
 def test_gen_datatype_exception_1():
@@ -300,7 +307,7 @@ def test_gen_datatype_exception_1():
     symbol = DataSymbol("fred", data_type)
     symbol.datatype._intrinsic = None
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = gen_datatype(symbol)
+        _ = gen_datatype(symbol.datatype, symbol.name)
     assert ("Unsupported datatype 'None' for symbol 'fred' found in "
             "gen_datatype()." in str(excinfo.value))
 
@@ -314,7 +321,7 @@ def test_gen_datatype_exception_2():
     symbol = DataSymbol("fred", data_type)
     symbol.datatype._precision = None
     with pytest.raises(VisitorError) as excinfo:
-        _ = gen_datatype(symbol)
+        _ = gen_datatype(symbol.datatype, symbol.name)
     assert ("Unsupported precision type 'NoneType' found for symbol 'fred' "
             "in Fortran backend." in str(excinfo.value))
 
@@ -338,6 +345,62 @@ def test_gen_datatype_exception_2():
 #             "WARNING  Fortran does not support relative precision for the "
 #             "'integer' datatype but 'Precision.DOUBLE' was specified for "
 #             "variable 'dummy'." in caplog.text)
+
+
+def test_gen_typedecl_validation(fort_writer, monkeypatch):
+    ''' Test the various validation checks in gen_typedecl(). '''
+    with pytest.raises(VisitorError) as err:
+        fort_writer.gen_typedecl("hello")
+    assert ("gen_typedecl expects a TypeSymbol as argument but got: 'str'" in
+            str(err.value))
+    # UnknownType is abstract so we create an UnknownFortranType and then
+    # monkeypatch it.
+    tsymbol = TypeSymbol("my_type",
+                         UnknownFortranType("type my_type\nend type my_type"))
+    monkeypatch.setattr(tsymbol.datatype, "__class__", UnknownType)
+
+    with pytest.raises(VisitorError) as err:
+        fort_writer.gen_typedecl(tsymbol)
+    assert ("cannot generate code for symbol 'my_type' of type "
+            "'UnknownType'" in str(err.value))
+
+
+def test_gen_typedecl_unknown_fortran_type(fort_writer):
+    ''' Check that gen_typedecl() works for a symbol of UnknownFortranType. '''
+    tsymbol = TypeSymbol("my_type",
+                         UnknownFortranType("type my_type\nend type my_type"))
+    assert (fort_writer.gen_typedecl(tsymbol) ==
+            "type my_type\nend type my_type")
+
+
+def test_gen_typedecl(fort_writer):
+    ''' Test normal operation of gen_typedecl(). '''
+    atype = ArrayType(REAL_TYPE, [3, 5])
+    dynamic_atype = ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED])
+    tsymbol = TypeSymbol("grid_type", DeferredType())
+    dtype = StructureType.create([
+        # Scalar integer
+        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        # Private, scalar integer
+        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE),
+        # Static array
+        ("matrix", atype, Symbol.Visibility.PUBLIC),
+        # Allocatable array
+        ("data", dynamic_atype, Symbol.Visibility.PUBLIC),
+        # Derived type
+        ("grid", tsymbol, Symbol.Visibility.PRIVATE)])
+    tsymbol = TypeSymbol("my_type", dtype)
+    assert (fort_writer.gen_typedecl(tsymbol) ==
+            "type :: my_type\n"
+            "  integer :: flag\n"
+            "  integer, private :: secret\n"
+            "  real, dimension(3,5) :: matrix\n"
+            "  real, allocatable, dimension(:) :: data\n"
+            "  type(grid_type), private :: grid\n"
+            "end type my_type\n")
+    private_tsymbol = TypeSymbol("my_type", dtype, Symbol.Visibility.PRIVATE)
+    gen_code = fort_writer.gen_typedecl(private_tsymbol)
+    assert gen_code.startswith("type, private :: my_type\n")
 
 
 def test_reverse_map():
@@ -592,11 +655,25 @@ def test_gen_decls(fort_writer):
     symbol_table.add(argument_variable)
     local_variable = DataSymbol("local", INTEGER_TYPE)
     symbol_table.add(local_variable)
+    dtype = StructureType.create([
+        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+    dtype_variable = TypeSymbol("field", dtype)
+    symbol_table.add(dtype_variable)
+    grid_type = TypeSymbol("grid_type", DeferredType(),
+                           interface=GlobalInterface(
+                               symbol_table.lookup("my_module")))
+    symbol_table.add(grid_type)
+    grid_variable = DataSymbol("grid", grid_type)
+    symbol_table.add(grid_variable)
     result = fort_writer.gen_decls(symbol_table)
     assert (result ==
-            "use my_module, only : my_use\n"
+            "use my_module, only : grid_type, my_use\n"
             "integer :: arg\n"
-            "integer :: local\n")
+            "integer :: local\n"
+            "type(grid_type) :: grid\n"
+            "type :: field\n"
+            "  integer :: flag\n"
+            "end type field\n")
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_decls(symbol_table, args_allowed=False)
     assert ("Arguments are not allowed in this context but this symbol table "
@@ -725,7 +802,7 @@ def test_fw_container_2(fort_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(container)
     assert ("The Fortran back-end requires all children of a Container "
-            "to be KernelSchedules." in str(excinfo.value))
+            "to be a sub-class of Routine." in str(excinfo.value))
 
 
 def test_fw_container_3(fort_writer, monkeypatch):
@@ -1053,9 +1130,9 @@ def test_fw_reference(fort_writer):
         "end subroutine tmp\n") in result
 
 
-def test_fw_array(fort_writer):
+def test_fw_arrayreference(fort_writer):
     '''Check the FortranWriter class array method correctly prints
-    out the Fortran representation of an array
+    out the Fortran representation of an array reference.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -1073,6 +1150,23 @@ def test_fw_array(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     assert "a(2,n,3)=0.0" in result
+
+
+def test_fw_arrayreference_incomplete(fort_writer):
+    '''
+    Test that the correct error is raised if an incomplete ArrayReference
+    is encountered.
+    '''
+    array_type = ArrayType(REAL_TYPE, [10])
+    symbol = DataSymbol("b", array_type)
+    # create() must be supplied with a shape
+    array = ArrayReference.create(symbol, [Literal("1", INTEGER_TYPE)])
+    # Remove its children
+    array._children = []
+    with pytest.raises(VisitorError) as err:
+        fort_writer.arrayreference_node(array)
+    assert ("Incomplete ArrayReference node (for symbol 'b') found: must "
+            "have one or more children" in str(err.value))
 
 
 def test_fw_range(fort_writer):
@@ -1149,6 +1243,100 @@ def test_fw_range(fort_writer):
     result = fort_writer.arrayreference_node(array)
     assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),1:2:3,"
                       "UBOUND(a, 3):LBOUND(a, 3):3)")
+
+
+def test_fw_structureref(fort_writer):
+    ''' Test the FortranWriter support for StructureReference. '''
+    region_type = StructureType.create([
+        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+    region_type_sym = TypeSymbol("grid_type", region_type)
+    region_array_type = ArrayType(region_type_sym, [2, 2])
+    grid_type = StructureType.create([
+        ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("area", region_type_sym, Symbol.Visibility.PUBLIC),
+        ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
+    grid_type_sym = TypeSymbol("grid_type", grid_type)
+    grid_var = DataSymbol("grid", grid_type_sym)
+    grid_ref = StructureReference.create(grid_var, ['area', 'nx'])
+    assert fort_writer.structurereference_node(grid_ref) == "grid%area%nx"
+    level_ref = StructureReference.create(
+        grid_var, [('levels', [Literal("1", INTEGER_TYPE),
+                               Literal("2", INTEGER_TYPE)]), 'ny'])
+    assert fort_writer(level_ref) == "grid%levels(1,2)%ny"
+    # Make the number of children invalid
+    level_ref._children = ["1", "2"]
+    with pytest.raises(VisitorError) as err:
+        fort_writer(level_ref)
+    assert ("StructureReference must have a single child but the reference "
+            "to symbol 'grid' has 2" in str(err.value))
+    # Single child but not of the right type
+    level_ref._children = [Literal("1", INTEGER_TYPE)]
+    with pytest.raises(VisitorError) as err:
+        fort_writer(level_ref)
+    assert ("StructureReference must have a single child which is a sub-"
+            "class of Member but the reference to symbol 'grid' has a child "
+            "of type 'Literal'" in str(err.value))
+
+
+def test_fw_arrayofstructuresref(fort_writer):
+    ''' Test the FortranWriter support for ArrayOfStructuresReference. '''
+    grid_type = StructureType.create([
+        ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+    grid_type_sym = TypeSymbol("grid_type", grid_type)
+    grid_array_type = ArrayType(grid_type_sym, [10])
+    grid_var = DataSymbol("grid", grid_array_type)
+    grid_ref = ArrayOfStructuresReference.create(grid_var,
+                                                 [Literal("3", INTEGER_TYPE)],
+                                                 ["dx"])
+    assert (fort_writer.arrayofstructuresreference_node(grid_ref) ==
+            "grid(3)%dx")
+    # Break the node to trigger checks
+    # Make the first node something other than a member
+    grid_ref._children = [grid_ref._children[1], grid_ref._children[1]]
+    with pytest.raises(VisitorError) as err:
+        fort_writer.arrayofstructuresreference_node(grid_ref)
+    assert ("An ArrayOfStructuresReference must have a Member as its first "
+            "child but found 'Literal'" in str(err.value))
+    # Remove a child
+    grid_ref._children = [grid_ref._children[0]]
+    with pytest.raises(VisitorError) as err:
+        fort_writer.arrayofstructuresreference_node(grid_ref)
+    assert ("An ArrayOfStructuresReference must have at least two children "
+            "but found 1" in str(err.value))
+
+
+def test_fw_arrayofstructuresmember(fort_writer):
+    ''' Test the FortranWriter support for ArrayOfStructuresMember. '''
+    region_type = StructureType.create([
+        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+    region_type_sym = TypeSymbol("grid_type", region_type)
+    region_array_type = ArrayType(region_type_sym, [2, 2])
+    # The grid type contains an array of region-type structures
+    grid_type = StructureType.create([
+        ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
+    grid_type_sym = TypeSymbol("grid_type", grid_type)
+    grid_var = DataSymbol("grid", grid_type_sym)
+    # Reference to an element of an array that is a structure
+    level_ref = StructureReference.create(grid_var,
+                                          [("levels",
+                                            [Literal("1", INTEGER_TYPE),
+                                             Literal("1", INTEGER_TYPE)])])
+    assert (fort_writer.structurereference_node(level_ref) ==
+            "grid%levels(1,1)")
+    # Reference to a member of a structure that is an element of an array
+    grid_ref = StructureReference.create(grid_var,
+                                         [("levels",
+                                           [Literal("1", INTEGER_TYPE),
+                                            Literal("1", INTEGER_TYPE)]),
+                                          "nx"])
+    assert (fort_writer.structurereference_node(grid_ref) ==
+            "grid%levels(1,1)%nx")
+    # Reference to an *array* of structures
+    grid_ref = StructureReference.create(grid_var, ["levels"])
+    assert fort_writer.structurereference_node(grid_ref) == "grid%levels"
+
 
 # literal is already checked within previous tests
 

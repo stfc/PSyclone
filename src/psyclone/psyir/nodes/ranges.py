@@ -36,7 +36,8 @@
 
 ''' Module containing the definition of the Range node. '''
 
-from psyclone.psyir.nodes import Node, Literal
+from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE
 

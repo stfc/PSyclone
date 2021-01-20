@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,52 +31,42 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
+# Author: S. Siso, STFC Daresbury Lab
 
-'''Python script intended to be passed to PSyclone using the -s option.
-This is a template that doesn't do anything, but it contains the
-framework to find a certain invoke.
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option.
+This script calls a successful exit from inside because it is a work in
+progress of the development tracked by issue #1010.
 '''
 
 from __future__ import print_function
+import sys
+from psyclone.psyir.backend.fortran import FortranWriter
 
 
 def trans(psy):
-    '''
-    Take the supplied psy object, and add kernel extraction code.
+    ''' Use the PSyIR back-end to generate PSy-layer target code'''
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
-
-    '''
-
-    # ------------------------------------------------------
-    # TOOD: import the transformation and create an instance
-    # ------------------------------------------------------
-    # from ... import ...
-    # my_transform = ...()
-
-
-    # ------------------------------------------------------
-    # TODO: use the name that is specified for the perturbation
-    # propagation invoke here. Note that it will get a "invoke_"
-    # as prefix!
-    # ------------------------------------------------------
-    invoke = psy.invokes.get("")
-
-    # Now get the schedule, to which we want to apply the transformation
+    invoke = psy.invokes.get('invoke_0_inc_field')
     schedule = invoke.schedule
 
-    # ------------------------------------------------------
-    # TODO: Apply the transformation
-    # ------------------------------------------------------
-    ... .apply(schedule)
-
-    # Just as feedback: show the modified schedule, which should have
-    # a new node at the top:
+    print("DSL level view:")
     schedule.view()
 
-    return psy
+    print("f2pygen code:")
+    print(str(psy.gen))
+
+    # In-place lowering to Language-level PSyIR
+    schedule.lower_to_language_level()
+
+    print("")
+    print("Language level view:")
+    schedule.view()
+
+    fvisitor = FortranWriter()
+    print("")
+    print("FortranWriter code:")
+    print(fvisitor(psy.container))
+
+    # This PSyclone call should terminate gracefully here
+    sys.exit(0)

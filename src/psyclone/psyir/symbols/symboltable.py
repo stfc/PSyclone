@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ from collections import OrderedDict
 import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
-    ContainerSymbol
+    ContainerSymbol, TypeSymbol, RoutineSymbol
 from psyclone.psyir.symbols.symbol import SymbolError
 from psyclone.errors import InternalError
 
@@ -543,27 +543,40 @@ class SymbolTable(object):
 
     def remove(self, symbol):
         '''
-        Remove the supplied Symbol or ContainerSymbol from the Symbol Table.
-        Support for removing other types of Symbol will be added as required.
+        Remove the supplied symbol from the Symbol Table. This has a high
+        potential to leave broken links, so this method checks for some
+        references to the removed symbol depending on the symbol type.
+
+        Currently, generic Symbols, ContainerSymbols and RoutineSymbols are
+        supported. Support for removing other types of Symbol will be added
+        as required.
 
         TODO #898. This method should check for any references/uses of
-        the target symbol, even if it's not a ContainerSymbol.
+        the target symbol.
 
         :param symbol: the container symbol to remove.
         :type symbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
 
-        :raises TypeError: if the supplied symbol is not a ContainerSymbol.
+        :raises TypeError: if the supplied symbol is not of type Symbol.
+        :raises NotImplementedError: the removal of this symbol type is not \
+                                     supported yet.
         :raises KeyError: if the supplied symbol is not in the symbol table.
         :raises ValueError: if the supplied container symbol is referenced \
                             by one or more DataSymbols.
         :raises InternalError: if the supplied symbol is not the same as the \
                                entry with that name in this SymbolTable.
         '''
+        if not isinstance(symbol, Symbol):
+            raise TypeError("remove() expects a Symbol argument but found: "
+                            "'{0}'.".format(type(symbol).__name__))
+
         # pylint: disable=unidiomatic-typecheck
-        if not (isinstance(symbol, ContainerSymbol) or type(symbol) == Symbol):
-            raise TypeError("remove() expects a ContainerSymbol or Symbol "
-                            "object but got: '{0}'".format(
-                                type(symbol).__name__))
+        if not (isinstance(symbol, (ContainerSymbol, RoutineSymbol)) or
+                type(symbol) == Symbol):
+            raise NotImplementedError("remove() currently only supports "
+                "generic Symbol, ContainerSymbol and RoutineSymbol types "
+                "but got: '{0}'".format(type(symbol).__name__))
+
         # pylint: enable=unidiomatic-typecheck
         if symbol.name not in self._symbols:
             raise KeyError("Cannot remove Symbol '{0}' from symbol table "
@@ -575,6 +588,7 @@ class SymbolTable(object):
                 "The Symbol with name '{0}' in this symbol table is not the "
                 "same Symbol object as the one that has been supplied to the "
                 "remove() method.".format(symbol.name))
+
         # We can only remove a ContainerSymbol if no DataSymbols are
         # being imported from it
         if (isinstance(symbol, ContainerSymbol) and
@@ -584,6 +598,12 @@ class SymbolTable(object):
                 "{1} are imported from it - remove them first.".format(
                     symbol.name,
                     [sym.name for sym in self.imported_symbols(symbol)]))
+
+        # If the symbol had a tag, it should be disassociated
+        for tag, tagged_symbol in list(self._tags.items()):
+            if symbol is tagged_symbol:
+                del self._tags[tag]
+
         self._symbols.pop(symbol.name)
 
     @property
@@ -747,9 +767,9 @@ class SymbolTable(object):
         '''
         # Accumulate into a set so as to remove any duplicates
         precision_symbols = set()
-        from psyclone.psyir.symbols import DeferredType
         for sym in self.datasymbols:
-            if (not isinstance(sym.datatype, DeferredType) and
+            # Not all types have the 'precision' attribute (e.g. DeferredType)
+            if (hasattr(sym.datatype, "precision") and
                     isinstance(sym.datatype.precision, DataSymbol)):
                 precision_symbols.add(sym.datatype.precision)
         return list(precision_symbols)
@@ -762,6 +782,15 @@ class SymbolTable(object):
         '''
         return [sym for sym in self.symbols if isinstance(sym,
                                                           ContainerSymbol)]
+
+    @property
+    def local_typesymbols(self):
+        '''
+        :returns: the local TypeSymbols present in the Symbol Table.
+        :rtype: list of :py:class:`psyclone.psyir.symbols.TypeSymbol`
+        '''
+        return [sym for sym in self.symbols if
+                (isinstance(sym, TypeSymbol) and sym.is_local)]
 
     @property
     def iteration_indices(self):
