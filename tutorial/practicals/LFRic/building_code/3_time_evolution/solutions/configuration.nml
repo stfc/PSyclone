@@ -1,0 +1,57 @@
+&base_mesh
+  filename        = '../../data/mesh_planar100x100-1000x1000.nc'
+  prime_mesh_name = 'dynamics'
+  geometry        = 'planar'
+  partitioner     = 'planar'
+/
+
+&domain_size
+  planar_domain_min_x = -50000.0
+  planar_domain_max_x =  50000.0
+  planar_domain_min_y = -50000.0
+  planar_domain_max_y =  50000.0
+/
+
+&extrusion_uniform
+  domain_top       = 10000.0
+  number_of_layers = 10
+/
+
+&finite_element
+  cellshape        = 'quadrilateral'
+  element_order    = 0
+  coordinate_order = 1
+/
+
+&partitioning
+  panel_xproc         = 1
+  panel_yproc         = 1
+  panel_decomposition = 'auto'
+/
+
+&perturbation_bell
+  half_width_x        = 2000.0
+  half_width_y        = 4000.0
+  perturbation_scale  = 1.0
+  perturbation_height = 5000.0
+  x_centre            = 10500.0
+  y_centre            = 20500.0
+  u_vel               = -5.0
+  v_vel               = -5.0
+/
+
+&planet
+  gravity        = 9.80665
+  radius         = 6371229.0
+  omega          = 7.292116E-5
+  rd             = 287.05
+  cp             = 1005.0
+  p_zero         = 100000.0
+  scaling_factor = 1.0
+/
+
+&timestepping
+  dt             = 500.0
+  timestep_start = 1
+  timestep_end   = 10
+/

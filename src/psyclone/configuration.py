@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology,
 #           I. Kavcic, Met Office
 
@@ -44,6 +44,7 @@ Deals with reading the config file and storing default settings.
 from __future__ import absolute_import, print_function
 from collections import namedtuple
 import os
+import six
 from psyclone.errors import InternalError
 
 
@@ -205,6 +206,9 @@ class Config(object):
         # The root name to use when creating internal PSyIR names.
         self._psyir_root_name = None
 
+        # Number of OpenCL devices per node
+        self._ocl_devices_per_node = 1
+
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
         '''Loads a configuration file.
@@ -327,6 +331,14 @@ class Config(object):
                 self._config["DEFAULT"]["VALID_PSY_DATA_PREFIXES"].split()
         except KeyError:
             self._valid_psy_data_prefixes = []
+
+        try:
+            self._ocl_devices_per_node = self._config['DEFAULT'].getint(
+                'OCL_DEVICES_PER_NODE')
+        except ValueError as err:
+            six.raise_from(ConfigurationError(
+                "error while parsing OCL_DEVICES_PER_NODE: "
+                "{0}".format(str(err)), config=self), err)
 
         # Verify that the prefixes will result in valid Fortran names:
         import re
@@ -664,6 +676,12 @@ class Config(object):
         :rtype: list of str'''
         return self._valid_psy_data_prefixes
 
+    @property
+    def ocl_devices_per_node(self):
+        ''':returns: The number of OpenCL devices per node.
+        :rtype: int'''
+        return self._ocl_devices_per_node
+
     def get_default_keys(self):
         '''Returns all keys from the default section.
         :returns list: List of all keys of the default section as strings.
@@ -918,6 +936,8 @@ class GOceanConfig(APISpecificConfig):
         # a property, and 'type' is a string.
         # These values are taken from the psyclone config file.
         self._grid_properties = {}
+        # Initialise debug_mode settings (default to False if it doesn't exist)
+        self._debug_mode = False
         for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.
@@ -936,6 +956,15 @@ class GOceanConfig(APISpecificConfig):
             elif key == "access_mapping":
                 # Handled in the base class APISpecificConfig
                 pass
+            elif key == "debug_mode":
+                # Boolean that specifies if debug mode is enabled
+                try:
+                    self._debug_mode = section.getboolean("debug_mode")
+                except ValueError as err:
+                    six.raise_from(ConfigurationError(
+                        "error while parsing DEBUG_MODE in the "
+                        "[gocean1p0] section of the config file: {0}"
+                        .format(str(err))), err)
             elif key == "grid-properties":
                 # Grid properties have the format:
                 # go_grid_area_u: {0}%%grid%%area_u: array: real,
@@ -1028,6 +1057,15 @@ class GOceanConfig(APISpecificConfig):
             namedtuple("Property","fortran type intrinsic_type") instances.
         '''
         return self._grid_properties
+
+    @property
+    def debug_mode(self):
+        '''
+        :returns: whether we are generating additional debug code.
+        :rtype: bool
+
+        '''
+        return self._debug_mode
 
 
 # =============================================================================

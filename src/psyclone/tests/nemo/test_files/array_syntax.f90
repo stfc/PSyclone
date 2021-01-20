@@ -30,9 +30,10 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
+! Modified by R. W. Ford, STFC Daresbury Lab
 
 SUBROUTINE tra_ldf_iso()
-  INTEGER :: jpi, jpj, jpk
+  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
   LOGICAL :: l_ptr
   INTEGER, DIMENSION(jpi,jpj) :: tmask
   REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw

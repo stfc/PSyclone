@@ -63,10 +63,12 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Profile": "green",
                        "Extract": "green",
                        "ReadOnlyVerify": "green",
+                       "NanTest": "green",
                        "If": "red",
                        "Assignment": "blue",
                        "Range": "white",
                        "Reference": "yellow",
+                       "Member": "yellow",
                        "Operation": "blue",
                        "Literal": "yellow",
                        "Return": "yellow",
@@ -1059,6 +1061,17 @@ class Node(object):
         if omp_dir:
             return True
         return False
+
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of DSL or high-level concepts into generic
+        PSyIR constructs. The generic implementation only recurses down
+        to its children, but this method must be re-implemented by Nodes
+        that represent high-level concepts.
+
+        '''
+        for child in self.children:
+            child.lower_to_language_level()
 
     def gen_code(self, parent):
         '''Abstract base class for code generation function.

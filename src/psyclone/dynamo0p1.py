@@ -40,7 +40,8 @@
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Loop, Literal, Reference, Array, Schedule
+from psyclone.psyir.nodes import Loop, Literal, Reference, ArrayReference, \
+    Schedule
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, GenerationError
@@ -172,8 +173,6 @@ class DynamoPSy(PSy):
         psy_module.add(lfric_use)
         # add all invoke specific information
         self.invokes.gen_code(psy_module)
-        # inline kernel subroutines if requested
-        self.inline(psy_module)
         return psy_module.root
 
 
@@ -191,7 +190,7 @@ class DynInvoke(Invoke):
         Also overrides the gen_code method so that we generate dynamo
         specific invocation code. '''
     def __init__(self, alg_invocation, idx, invokes):
-        self._schedule = DynInvokeSchedule(None)  # for pyreverse
+        self._schedule = DynInvokeSchedule('name', None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule, invokes)
 
     def gen_code(self, parent):
@@ -216,8 +215,8 @@ class DynInvokeSchedule(InvokeSchedule):
     ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo
         specific loop and infrastructure classes to the base class so it
         creates the ones we require. '''
-    def __init__(self, arg, reserved_names=None):
-        InvokeSchedule.__init__(self, DynKernCallFactory,
+    def __init__(self, name, arg, reserved_names=None):
+        InvokeSchedule.__init__(self, name, DynKernCallFactory,
                                 DynBuiltInCallFactory, arg, reserved_names)
 
 
@@ -275,8 +274,9 @@ class DynLoop(Loop):
             self.stop_expr = Reference(DataSymbol("ncolour", INTEGER_TYPE),
                                        parent=self)
         elif self._loop_type == "colour":
-            self.stop_expr = Array(DataSymbol("ncp_ncolour", INTEGER_TYPE),
-                                   parent=self)
+            self.stop_expr = ArrayReference(DataSymbol("ncp_ncolour",
+                                                       INTEGER_TYPE),
+                                            parent=self)
             self.stop_expr.addchild(
                 Reference(DataSymbol("colour", INTEGER_TYPE)),
                 parent=self.stop_expr)

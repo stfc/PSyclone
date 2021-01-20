@@ -1,0 +1,8 @@
+*.o
+*.mod
+*_alg_mod.f90
+*_alg_mod_psy.f90
+simple_kernels_part1
+simple_kernels_part2
+part1/setval_field_w3_kernel_mod.f90
+part2/add_fields_any_kernel_mod.f90

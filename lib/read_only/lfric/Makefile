@@ -47,7 +47,8 @@
 
 # This directory points to an external, compiled version of the LFRic,
 # which is required to find the module files when compiling this library:
-LFRIC_DIR ?= ../../../../lfric/trunk/miniapps/gravity_wave/working/field
+LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure/
+LFRIC_LIB=$(LFRIC_DIR)/liblfric.a
 
 # The LFRic ReadOnly library needs the PreDeclareVariable() and
 # ProvideVariable() routines for the basic Fortran types real, int,
@@ -56,6 +57,7 @@ LFRIC_DIR ?= ../../../../lfric/trunk/miniapps/gravity_wave/working/field
 # consistent code creation.
 PROCESS_ARGS = -prefix=read_only_verify_ -types=real,int,double \
 		       -dims=1,2,3,4
+PROCESS=$$(../../get_python.sh) ../../process.py
 
 F90 ?= gfortran
 F90FLAGS ?=
@@ -71,36 +73,31 @@ default: $(LIB_NAME)
 $(LIB_NAME): $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
-
-# Give a useful error message if field_mod cannot be found
-$(LFRIC_DIR)/field_mod.mod:
-	$(error "Cannot find field_mod.mod in $(LFRIC_DIR).")
-
 # Add all dependencies. The LFRic ReadOnly library extends the
 # ReadOnlyBase type, which in turn extends the PSyDataBase type.
 # --------------------------------------------------------------
-read_only.o: 	  $(LFRIC_DIR)/field_mod.mod read_only.f90 \
-			 	  read_only_base.o
+read_only.o: 	  $(LFRIC_LIB) read_only.f90 read_only_base.o
 
 read_only_base.o: psy_data_base.o
-
-
-# Rules for file creation:
-# ------------------------
-read_only.f90:	read_only.jinja Makefile
-	../../process.py $(PROCESS_ARGS) read_only.jinja > read_only.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 # The LFRic ReadOnly library is built on the psy-data base library
-# and the read-only base library. So add the rules to process
-# these files to get the plain Fortran files:
+# and the read-only base library. This library uses the `declareXXX`
+# functions implemented in `psy_data_base`, hence the parameter
+# `-generic-declare`. It also uses the `provideXXX` functions
+# implemented in `read_only_base`, which are added with the
+# `-generic-provide` parameter.
 psy_data_base.f90: ../../psy_data_base.jinja Makefile
-	../../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
 read_only_base.f90: ../read_only_base.jinja Makefile
-	../../process.py $(PROCESS_ARGS) $< > read_only_base.f90
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > read_only_base.f90
+
+# Create LFRic infrastructure library if required
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_DIR)
 
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.* read_only.f90
+	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.*

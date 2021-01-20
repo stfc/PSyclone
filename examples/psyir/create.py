@@ -49,7 +49,7 @@ C representation of the PSyIR.
 from __future__ import print_function
 from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     BinaryOperation, NaryOperation, Assignment, IfBlock, Loop, \
-    Container, Range, Array, Call, KernelSchedule
+    Container, Range, ArrayReference, Call, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, SymbolTable, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, \
     GlobalInterface, REAL_TYPE, REAL4_TYPE, REAL_DOUBLE_TYPE, INTEGER_TYPE, \
@@ -111,7 +111,7 @@ UBOUND = BinaryOperation.create(
     BinaryOperation.Operator.UBOUND,
     Reference(ARRAY), INT_ONE)
 MY_RANGE = Range.create(LBOUND, UBOUND)
-TMPARRAY = Array.create(ARRAY, [MY_RANGE])
+TMPARRAY = ArrayReference.create(ARRAY, [MY_RANGE])
 
 # Assignments
 ASSIGN1 = Assignment.create(TMP1, ZERO)

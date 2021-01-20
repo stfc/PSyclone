@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -71,10 +71,16 @@ def test_kernel_stub_invalid_iteration_space():
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert ("Expected the kernel to operate on one of "
+    assert ("supports kernels that operate on one of "
             "['cells', 'cell_column'] but found 'dof' in kernel "
+            "'testkern_dofs_code'." in str(excinfo.value))
+    kernel._iterates_over = "domain"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = kernel.gen_stub
+    assert ("supports kernels that operate on one of "
+            "['cells', 'cell_column'] but found 'domain' in kernel "
             "'testkern_dofs_code'." in str(excinfo.value))
 
 
@@ -95,10 +101,10 @@ def test_dynscalars_stub_err():
     arg = kernel.arguments.args[1]
     arg._intrinsic_type = "invalid-scalar-type"
     with pytest.raises(InternalError) as err:
-        _ = DynScalarArgs(kernel)
-    assert ("DynScalarArgs.__init__(): Found an unsupported intrinsic type "
-            "'invalid-scalar-type' for the scalar argument 'iscalar_2'. "
-            "Supported types are ['real', 'integer']." in str(err.value))
+        DynScalarArgs(kernel)
+    assert ("Found an unsupported intrinsic type 'invalid-scalar-type' "
+            "for the scalar argument 'iscalar_2'. Supported types are "
+            "['real', 'integer']." in str(err.value))
 
 
 def test_stub_generate_with_anyw2():

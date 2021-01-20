@@ -137,8 +137,6 @@ class GOPSy(PSy):
                               only=["scalar_field_type"]))
         # add in the subroutines for each invocation
         self.invokes.gen_code(psy_module)
-        # inline kernels where requested
-        self.inline(psy_module)
         return psy_module.root
 
 
@@ -226,8 +224,8 @@ class GOInvokeSchedule(InvokeSchedule):
     supply our API-specific factories to the base InvokeSchedule class
     constructor. '''
 
-    def __init__(self, alg_calls, reserved_names=None):
-        InvokeSchedule.__init__(self, GOKernCallFactory,
+    def __init__(self, name, alg_calls, reserved_names=None):
+        InvokeSchedule.__init__(self, name, GOKernCallFactory,
                                 GOBuiltInCallFactory, alg_calls,
                                 reserved_names)
 

@@ -44,8 +44,8 @@ import pytest
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.nodes import Node, CodeBlock, Assignment, \
-    Reference, Return, Array, Literal, UnaryOperation, BinaryOperation, \
-    Schedule
+    Reference, Return, ArrayReference, Literal, UnaryOperation, \
+    BinaryOperation, Schedule
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     ArrayType, REAL_TYPE, INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE
 
@@ -167,7 +167,7 @@ def test_cw_array():
     cwriter = CWriter()
 
     symbol = DataSymbol('a', REAL_TYPE)
-    arr = Array(symbol)
+    arr = ArrayReference(symbol)
     lit = Literal('0.0', REAL_TYPE)
     assignment = Assignment.create(arr, lit)
 
@@ -399,7 +399,7 @@ def test_cw_size():
     ''' Check the CWriter class SIZE method raises the expected error since
     there is no C equivalent. '''
     cwriter = CWriter()
-    arr = Array(DataSymbol('a', INTEGER_TYPE))
+    arr = ArrayReference(DataSymbol('a', INTEGER_TYPE))
     lit = Literal('1', INTEGER_TYPE)
     size = BinaryOperation.create(BinaryOperation.Operator.SIZE, arr, lit)
     lhs = Reference(DataSymbol('length', INTEGER_TYPE))

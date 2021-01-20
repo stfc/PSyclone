@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,11 +46,13 @@ import abc
 import six
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.f2pygen import DirectiveGen
+from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
-from psyclone.psyir.symbols import DataSymbol, ArrayType, \
-    Symbol, INTEGER_TYPE, BOOLEAN_TYPE
-from psyclone.psyir.nodes import Node, Schedule, Loop, Statement
+from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
+    Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE
+from psyclone.psyir.symbols.datatypes import UnknownFortranType
+from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
+    Routine, PSyDataNode, Call, Reference
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 
@@ -125,7 +127,6 @@ def zero_reduction_variables(red_call_list, parent):
     '''zero all reduction variables associated with the calls in the call
     list'''
     if red_call_list:
-        from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Zero summation variables"))
         parent.add(CommentGen(parent, ""))
@@ -257,6 +258,17 @@ class PSy(object):
     def __init__(self, invoke_info):
         self._name = invoke_info.name
         self._invokes = None
+        # create an empty PSy layer container
+        # TODO 1010: Alternatively the PSy object could be a Container itself
+        self._container = Container(self.name)
+
+    @property
+    def container(self):
+        '''
+        :returns: the container associated with this PSy object
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
+        '''
+        return self._container
 
     def __str__(self):
         return "PSy"
@@ -283,31 +295,6 @@ class PSy(object):
         :returns: root node of generated Fortran AST.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
-
-    def inline(self, module):
-        '''Inline all kernel subroutines into the module that are marked for
-        inlining. Avoid inlining the same kernel more than once.
-
-        :param module: the module to which the kernel is added for inlining.
-        :type module: :py:class:`psyclone.f2pygen.ModuleGen`
-
-        :raises InternalError: if kernel_code (fparser1 AST of kernel) \
-                is None.
-        '''
-        inlined_kernel_names = []
-        for invoke in self.invokes.invoke_list:
-            schedule = invoke.schedule
-            for kernel in schedule.walk(CodedKern):
-                if kernel.module_inline:
-                    # raise an internal error if kernel_code is None
-                    if kernel._kernel_code is None:
-                        raise InternalError(
-                            "Have no fparser1 AST for kernel {0}."
-                            " Therefore cannot inline it."
-                            .format(kernel))
-                    if kernel.name.lower() not in inlined_kernel_names:
-                        inlined_kernel_names.append(kernel.name.lower())
-                        module.add_raw_subroutine(kernel._kernel_code)
 
 
 class Invokes(object):
@@ -364,9 +351,22 @@ class Invokes(object):
         :param parent: the parent node in the AST to which to add content.
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
+        def raise_unmatching_options(option_name):
+            ''' Create unmatching OpenCL options error message.
+
+            :param str option_name: name of the option that failed.
+            :raises NotImplementedError: with the given option_name.
+            '''
+            raise NotImplementedError(
+                "The current implementation creates a single OpenCL context "
+                "for all the invokes which needs certain OpenCL options to "
+                "match between invokes. Found '{0}' with unmatching values "
+                "between invokes.".format(option_name))
         opencl_kernels = []
         opencl_num_queues = 1
         generate_ocl_init = False
+        ocl_enable_profiling = None
+        ocl_out_of_order = None
         for invoke in self.invoke_list:
             # If we are generating OpenCL for an Invoke then we need to
             # create routine(s) to set the arguments of the Kernel(s) it
@@ -374,7 +374,24 @@ class Invokes(object):
             # duplication.
             if invoke.schedule.opencl:
                 generate_ocl_init = True
-                for kern in invoke.schedule.coded_kernels():
+                isch = invoke.schedule
+
+                # The enable_profiling option must be equal in all invokes
+                if ocl_enable_profiling is not None and \
+                   ocl_enable_profiling != isch.get_opencl_option(
+                        'enable_profiling'):
+                    raise_unmatching_options('enable_profiling')
+                ocl_enable_profiling = isch.get_opencl_option(
+                    'enable_profiling')
+
+                # The out_of_order option must be equal in all invokes
+                if ocl_out_of_order is not None and \
+                   ocl_out_of_order != isch.get_opencl_option('out_of_order'):
+                    raise_unmatching_options('out_of_order')
+                ocl_out_of_order = isch.get_opencl_option('out_of_order')
+
+                # openCL_num_queues must be the maximum number from any invoke
+                for kern in isch.coded_kernels():
                     if kern.name not in opencl_kernels:
                         # Compute the maximum number of command queues that
                         # will be needed.
@@ -385,10 +402,11 @@ class Invokes(object):
                         kern.gen_arg_setter_code(parent)
             invoke.gen_code(parent)
         if generate_ocl_init:
-            self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues)
+            self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues,
+                              ocl_enable_profiling, ocl_out_of_order)
 
-    @staticmethod
-    def gen_ocl_init(parent, kernels, num_queues):
+    def gen_ocl_init(self, parent, kernels, num_queues, enable_profiling,
+                     out_of_order):
         '''
         Generates a subroutine to initialise the OpenCL environment and
         construct the list of OpenCL kernel objects used by this PSy layer.
@@ -400,9 +418,24 @@ class Invokes(object):
         :type kernels: list of str
         :param int num_queues: total number of queues needed for the OpenCL \
                                implementation.
+        :param bool enable_profiling: value given to the enable_profiling \
+                                      flag in the OpenCL initialisation.
+        :param bool out_of_order: value given to the out_of_order flag in \
+                                  the OpenCL initialisation.
+
         '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
-            CallGen, UseGen, CommentGen, CharDeclGen, IfThenGen
+            CallGen, UseGen, CharDeclGen, IfThenGen
+
+        def bool_to_fortran(value):
+            '''
+            :param bool value: a python boolean value
+            :returns: the Fortran representation of the given boolean value.
+            :rtype: str
+            '''
+            if value:
+                return ".True."
+            return ".False."
 
         sub = SubroutineGen(parent, "psy_init")
         parent.add(sub)
@@ -423,7 +456,24 @@ class Invokes(object):
         # Initialise the OpenCL environment
         ifthen.add(CommentGen(ifthen,
                               " Initialise the OpenCL environment/device"))
-        ifthen.add(CallGen(ifthen, "ocl_env_init", [num_queues]))
+        sub.add(DeclGen(sub, datatype="integer",
+                        entity_decls=["ocl_device_num"],
+                        initial_values=["1"]))
+
+        distributed_memory = Config.get().distributed_memory
+        devices_per_node = Config.get().ocl_devices_per_node
+
+        if devices_per_node > 1 and distributed_memory:
+            my_rank = self.gen_rank_expression(sub)
+            # Add + 1 as FortCL devices are 1-indexed
+            ifthen.add(AssignGen(ifthen, lhs="ocl_device_num",
+                                 rhs="mod({0} - 1, {1}) + 1"
+                                 "".format(my_rank, devices_per_node)))
+
+        ifthen.add(CallGen(ifthen, "ocl_env_init",
+                           [num_queues, 'ocl_device_num',
+                            bool_to_fortran(enable_profiling),
+                            bool_to_fortran(out_of_order)]))
 
         # Create a list of our kernels
         ifthen.add(CommentGen(ifthen,
@@ -440,8 +490,18 @@ class Invokes(object):
         ifthen.add(CommentGen(ifthen,
                               " Create the OpenCL kernel objects. Expects "
                               "to find all of the compiled"))
-        ifthen.add(CommentGen(ifthen, " kernels in PSYCLONE_KERNELS_FILE."))
+        ifthen.add(CommentGen(ifthen, " kernels in FORTCL_KERNELS_FILE."))
         ifthen.add(CallGen(ifthen, "add_kernels", [nkernstr, "kernel_names"]))
+
+    @abc.abstractmethod
+    def gen_rank_expression(self, scope):
+        ''' Generate the expression to retrieve the process rank.
+
+        :param scope: where the expression is going to be located.
+        :type scope: :py:class:`psyclone.f2pygen.BaseGen`
+        :return: generate the expression to retrieve the process rank.
+        :rtype: str
+        '''
 
 
 class Invoke(object):
@@ -476,7 +536,8 @@ class Invoke(object):
 
         # create a name for the call if one does not already exist
         if alg_invocation.name is not None:
-            self._name = alg_invocation.name
+            # In Python2 unicode strings must be converted to str()
+            self._name = str(alg_invocation.name)
         elif len(alg_invocation.kcalls) == 1 and \
                 alg_invocation.kcalls[0].type == "kernelCall":
             # use the name of the kernel call with the position appended.
@@ -486,14 +547,16 @@ class Invoke(object):
                 alg_invocation.kcalls[0].ktype.name
         else:
             # use the position of the invoke
-            self._name = "invoke_"+str(idx)
+            self._name = "invoke_" + str(idx)
 
         if not reserved_names:
             reserved_names = []
-        reserved_names.append(self._name)
 
         # create the schedule
-        self._schedule = schedule_class(alg_invocation.kcalls, reserved_names)
+        self._schedule = schedule_class(self._name, alg_invocation.kcalls,
+                                        reserved_names)
+        if self.invokes:
+            self.invokes.psy.container.addchild(self._schedule)
 
         # let the schedule have access to me
         self._schedule.invoke = self
@@ -762,7 +825,7 @@ class Invoke(object):
         parent.add(invoke_sub)
 
 
-class InvokeSchedule(Schedule):
+class InvokeSchedule(Routine):
     '''
     Stores schedule information for an invocation call. Schedules can be
     optimised using transformations.
@@ -778,6 +841,7 @@ class InvokeSchedule(Schedule):
     >>> schedule = invoke.schedule
     >>> schedule.view()
 
+    :param str name: name of the Invoke.
     :param type KernFactory: class instance of the factory to use when \
      creating Kernels. e.g. :py:class:`psyclone.dynamo0p3.DynKernCallFactory`.
     :param type BuiltInFactory: class instance of the factory to use when \
@@ -790,15 +854,17 @@ class InvokeSchedule(Schedule):
     # Textual description of the node.
     _text_name = "InvokeSchedule"
 
-    def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
+    def __init__(self, name, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None):
-        super(InvokeSchedule, self).__init__()
+        super(InvokeSchedule, self).__init__(name)
 
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
 
         # InvokeSchedule opencl_options default values
-        self._opencl_options = {"end_barrier": True}
+        self._opencl_options = {"end_barrier": True,
+                                "enable_profiling": False,
+                                "out_of_order": False}
 
         # Populate the Schedule Symbol Table with the reserved names.
         if reserved_names:
@@ -833,23 +899,31 @@ class InvokeSchedule(Schedule):
         :type options: dictionary of <string>:<value>
 
         '''
-        valid_opencl_options = ['end_barrier']
+        valid_opencl_options = ['end_barrier', 'enable_profiling',
+                                'out_of_order']
 
         # Validate that the options given are supported and store them
         for key, value in options.items():
             if key in valid_opencl_options:
-                if key == "end_barrier":
-                    if not isinstance(value, bool):
-                        raise TypeError(
-                            "InvokeSchedule opencl_option 'end_barrier' "
-                            "should be a boolean.")
+                # All current options should contain boolean values
+                if not isinstance(value, bool):
+                    raise TypeError(
+                        "InvokeSchedule OpenCL option '{0}' "
+                        "should be a boolean.".format(key))
             else:
                 raise AttributeError(
-                    "InvokeSchedule does not support the opencl_option '{0}'. "
+                    "InvokeSchedule does not support the OpenCL option '{0}'. "
                     "The supported options are: {1}."
                     "".format(key, valid_opencl_options))
 
             self._opencl_options[key] = value
+
+    def get_opencl_option(self, key):
+        '''
+        :returns: The value of the requested Invoke OpenCL option.
+        :rtype: bool
+        '''
+        return self._opencl_options[key]
 
     @property
     def invoke(self):
@@ -887,8 +961,8 @@ class InvokeSchedule(Schedule):
                        which to add content.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
-            IfThenGen, CallGen
+        from psyclone.f2pygen import UseGen, DeclGen, AssignGen, IfThenGen, \
+            CallGen
 
         # The gen_code methods may generate new Symbol names, however, we want
         # subsequent calls to invoke.gen_code() to produce the exact same code,
@@ -1236,6 +1310,25 @@ class ACCDirective(Directive):
         '''
         return "ACC_directive_" + str(self.abs_position)
 
+    def _pre_gen_validate(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this ACCDirective encloses any form of \
+            PSyData node since calls to PSyData routines within OpenACC \
+            regions are not supported.
+
+        '''
+        data_nodes = self.walk(PSyDataNode)
+        if data_nodes:
+            raise GenerationError(
+                "Cannot include calls to PSyData routines within OpenACC "
+                "regions but found {0} within a region enclosed "
+                "by an '{1}'".format(
+                    [type(node).__name__ for node in data_nodes],
+                    type(self).__name__))
+
 
 @six.add_metaclass(abc.ABCMeta)
 class ACCEnterDataDirective(ACCDirective):
@@ -1287,13 +1380,15 @@ class ACCEnterDataDirective(ACCDirective):
         :raises GenerationError: if no data is found to copy in.
 
         '''
-        from psyclone.f2pygen import CommentGen
+        self._pre_gen_validate()
 
         # We must generate a list of all of the fields accessed by
-        # OpenACC kernels (calls within an OpenACC parallel directive)
-        # 1. Find all parallel directives. We store this list for later
-        #    use in any sub-class.
-        self._acc_dirs = self.root.walk(ACCParallelDirective)
+        # OpenACC kernels (calls within an OpenACC parallel or kernels
+        # directive)
+        # 1. Find all parallel and kernels directives. We store this list for
+        #    later use in any sub-class.
+        self._acc_dirs = self.root.walk((ACCParallelDirective,
+                                         ACCKernelsDirective))
         # 2. For each directive, loop over each of the fields used by
         #    the kernels it contains (this list is given by var_list)
         #    and add it to our list if we don't already have it
@@ -1313,8 +1408,8 @@ class ACCEnterDataDirective(ACCDirective):
             # There should be at least one variable to copyin.
             raise GenerationError(
                 "ACCEnterData directive did not find any data to copyin. "
-                "Perhaps there are no ACCParallel directives within the "
-                "region.")
+                "Perhaps there are no ACCParallel or ACCKernels directives "
+                "within the region.")
         parent.add(DirectiveGen(parent, "acc", "begin", "enter data",
                                 copy_in_str))
         # 5. Call an API-specific subclass of this class in case
@@ -1365,7 +1460,9 @@ class ACCParallelDirective(ACCDirective):
 
         :param parent: node in the f2pygen AST to which to add node(s).
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
         '''
+        self._pre_gen_validate()
 
         # Since we use "default(present)" the Schedule must contain an
         # 'enter data' directive. We don't mandate the order in which
@@ -1458,6 +1555,7 @@ class ACCParallelDirective(ACCDirective):
         Update the underlying fparser2 parse tree with nodes for the start
         and end of this parallel region.
         '''
+        self._pre_gen_validate()
         self._add_region(start_text="PARALLEL", end_text="END PARALLEL")
 
 
@@ -1511,6 +1609,26 @@ class ACCLoopDirective(ACCDirective):
         text += "]"
         return text
 
+    def _pre_gen_validate(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this ACCLoopDirective is not enclosed \
+                            within some OpenACC parallel or kernels region.
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user can
+        # apply transformations to the code). As an orphaned loop directive,
+        # we must have an ACCParallelDirective or an ACCKernelsDirective as
+        # an ancestor somewhere back up the tree.
+        if not self.ancestor((ACCParallelDirective, ACCKernelsDirective)):
+            raise GenerationError(
+                "ACCLoopDirective must have an ACCParallelDirective or "
+                "ACCKernelsDirective as an ancestor in the Schedule")
+
+        super(ACCLoopDirective, self)._pre_gen_validate()
+
     def gen_code(self, parent):
         '''
         Generate the f2pygen AST entries in the Schedule for this OpenACC
@@ -1522,16 +1640,7 @@ class ACCLoopDirective(ACCDirective):
         :raises GenerationError: if this "!$acc loop" is not enclosed within \
                                  an ACC Parallel region.
         '''
-
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user can
-        # apply transformations to the code). As an orphaned loop directive,
-        # we must have an ACCParallelDirective as an ancestor somewhere
-        # back up the tree.
-        if not self.ancestor(ACCParallelDirective):
-            raise GenerationError(
-                "ACCLoopDirective must have an ACCParallelDirective as an "
-                "ancestor in the Schedule")
+        self._pre_gen_validate()
 
         # Add any clauses to the directive
         options = []
@@ -1553,7 +1662,10 @@ class ACCLoopDirective(ACCDirective):
         '''
         Update the existing fparser2 parse tree with the code associated with
         this ACC LOOP directive.
+
         '''
+        self._pre_gen_validate()
+
         text = "LOOP"
         if self._sequential:
             text += " SEQ"
@@ -1637,8 +1749,7 @@ class OMPParallelDirective(OMPDirective):
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
         code'''
-        from psyclone.f2pygen import AssignGen, UseGen, \
-            CommentGen, DeclGen
+        from psyclone.f2pygen import AssignGen, UseGen, DeclGen
 
         private_list = self._get_private_list()
 
@@ -1911,6 +2022,25 @@ class OMPDoDirective(OMPDirective):
         ''' returns whether reprod has been set for this object or not '''
         return self._reprod
 
+    def _pre_gen_validate(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPDoDirective is not enclosed \
+                            within some OpenMP parallel region.
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). As an orphaned loop
+        # directive, we must have an OMPParallelDirective as an ancestor
+        # somewhere back up the tree.
+        if not self.ancestor(OMPParallelDirective,
+                             excluding=OMPParallelDoDirective):
+            raise GenerationError(
+                "OMPDoDirective must be inside an OMP parallel region but "
+                "could not find an ancestor OMPParallelDirective node")
+
     def gen_code(self, parent):
         '''
         Generate the f2pygen AST entries in the Schedule for this OpenMP do
@@ -1923,15 +2053,7 @@ class OMPDoDirective(OMPDirective):
                                  an OMP Parallel region.
 
         '''
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). As an orphaned loop
-        # directive, we must have an OMPRegionDirective as an ancestor
-        # somewhere back up the tree.
-        if not self.ancestor(OMPParallelDirective,
-                             excluding=OMPParallelDoDirective):
-            raise GenerationError("OMPOrphanLoopDirective must have an "
-                                  "OMPRegionDirective as ancestor")
+        self._pre_gen_validate()
 
         if self._reprod:
             local_reduction_string = ""
@@ -1983,6 +2105,8 @@ class OMPDoDirective(OMPDirective):
                                  correct structure to permit the insertion \
                                  of the OpenMP parallel do.
         '''
+        self._pre_gen_validate()
+
         # Since this is an OpenMP do, it can only be applied
         # to a single loop.
         if len(self.dir_body.children) != 1:
@@ -2610,7 +2734,7 @@ class CodedKern(Kern):
         # Whether or not to in-line this kernel into the module containing
         # the PSy layer
         self._module_inline = False
-        self._opencl_options = {'local_size': 1, 'queue_number': 1}
+        self._opencl_options = {'local_size': 64, 'queue_number': 1}
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
                 "error: In kernel '{0}' the number of arguments specified "
@@ -2663,16 +2787,16 @@ class CodedKern(Kern):
                 if key == "local_size":
                     if not isinstance(value, int):
                         raise TypeError(
-                            "CodedKern opencl_option 'local_size' should be "
+                            "CodedKern OpenCL option 'local_size' should be "
                             "an integer.")
                 if key == "queue_number":
                     if not isinstance(value, int):
                         raise TypeError(
-                            "CodedKern opencl_option 'queue_number' should be "
+                            "CodedKern OpenCL option 'queue_number' should be "
                             "an integer.")
             else:
                 raise AttributeError(
-                    "CodedKern does not support the opencl_option '{0}'. "
+                    "CodedKern does not support the OpenCL option '{0}'. "
                     "The supported options are: {1}."
                     "".format(key, valid_opencl_kernel_options))
 
@@ -2696,6 +2820,10 @@ class CodedKern(Kern):
 
     @property
     def module_inline(self):
+        '''
+        :returns: whether or not this kernel is being module-inlined.
+        :rtype: bool
+        '''
         return self._module_inline
 
     @module_inline.setter
@@ -2703,28 +2831,18 @@ class CodedKern(Kern):
         '''
         Setter for whether or not to module-inline this kernel.
 
-        :param bool value: Whether or not to module-inline this kernel.
-        :raises NotImplementedError: if module-inlining is enabled and the \
-                                     kernel has been transformed.
+        :param bool value: whether or not to module-inline this kernel.
         '''
         # Check all kernels in the same invoke as this one and set any
         # with the same name to the same value as this one. This is
         # required as inlining (or not) affects all calls to the same
-        # kernel within an invoke. Note, this will set this kernel as
-        # well so there is no need to set it locally.
-        if value and self.modified:
-            # TODO #229. Kernel in-lining is currently implemented via
-            # manipulation of the fparser1 Parse Tree while
-            # transformations work with the fparser2 Parse Tree-derived
-            # PSyIR.  Therefore there is presently no way to inline a
-            # transformed kernel.
-            raise NotImplementedError(
-                "Cannot module-inline a transformed kernel ({0}).".
-                format(self.name))
+        # kernel within an invoke.
         my_schedule = self.ancestor(InvokeSchedule)
         for kernel in my_schedule.walk(Kern):
-            if kernel.name == self.name:
-                kernel._module_inline = value
+            if kernel is self:
+                self._module_inline = value
+            elif kernel.name == self.name and kernel.module_inline != value:
+                kernel.module_inline = value
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
@@ -2739,6 +2857,37 @@ class CodedKern(Kern):
                 self.arguments.names + ") " + "[module_inline=" +
                 str(self._module_inline) + "]")
 
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of CodedKern concept into language level
+        PSyIR constructs. The CodedKern is implemented as a Call to a
+        routine with the appropriate arguments.
+
+        '''
+        symtab = self.scope.symbol_table
+        rsymbol = RoutineSymbol(self._name)
+        symtab.add(rsymbol)
+        call_node = Call(rsymbol)
+
+        # Swap itself with the appropriate Call node
+        self.parent.children[self.position] = call_node
+        call_node.parent = self.parent
+
+        # Add arguments as children
+        for argument in self.arguments.raw_arg_list():
+            # TODO #1010: Some arrays and structures are given by the name,
+            # not the PSyIR DataType, we just use the base name for now.
+            argument = argument.split('%')[0]
+            argument = argument.split('(')[0]
+            argument_symbol = symtab.lookup(argument)
+            call_node.addchild(Reference(argument_symbol))
+
+        if not self.module_inline:
+            # Import subroutine symbol
+            csymbol = ContainerSymbol(self._module_name)
+            symtab.add(csymbol)
+            rsymbol.interface = GlobalInterface(csymbol)
+
     def gen_code(self, parent):
         '''
         Generates the f2pygen AST of the Fortran for this kernel call and
@@ -2746,19 +2895,71 @@ class CodedKern(Kern):
 
         :param parent: The parent of this kernel call in the f2pygen AST.
         :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
+
+        :raises NotImplementedError: if there is a name clash that prevents \
+            the kernel from being module-inlined without changing its name.
         '''
-        from psyclone.f2pygen import CallGen, UseGen
+        from psyclone.f2pygen import CallGen, UseGen, PSyIRGen
 
         # If the kernel has been transformed then we rename it. If it
         # is *not* being module inlined then we also write it to file.
         self.rename_and_write()
 
-        parent.add(CallGen(parent, self._name,
-                           self.arguments.raw_arg_list()))
+        # Add the subroutine call with the necessary arguments
+        arguments = self.arguments.raw_arg_list()
+        parent.add(CallGen(parent, self._name, arguments))
 
+        # Also add the subroutine declaration, this can just be the import
+        # statement, or the whole subroutine inlined into the module.
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name, only=True,
                               funcnames=[self._name]))
+        else:
+            # Find the root f2pygen module
+            module = parent
+            while module.parent:
+                module = module.parent
+
+            # Check for name clashes
+            try:
+                existing_symbol = self.scope.symbol_table.lookup(self._name)
+            except KeyError:
+                existing_symbol = None
+
+            if not existing_symbol:
+                # If it doesn't exist already, module-inline the subroutine by:
+                # 1) Registering the subroutine symbol in the Container
+                self.root.symbol_table.add(RoutineSymbol(self._name))
+                # 2) Converting the PSyIR kernel into a f2pygen node (of
+                # PSyIRGen kind) under the PSy-layer f2pygen module.
+                module.add(PSyIRGen(module, self.get_kernel_schedule()))
+            else:
+                # If the symbol already exists, make sure it refers
+                # to the exact same subroutine.
+                if not isinstance(existing_symbol, RoutineSymbol):
+                    raise NotImplementedError(
+                        "Can not module-inline subroutine '{0}' because symbol"
+                        "'{1}' with the same name already exists and changing"
+                        " names of module-inlined subroutines is not "
+                        "implemented yet.".format(self._name, existing_symbol))
+
+                # Make sure the generated code is an exact match by creating
+                # the f2pygen node (which in turn creates the fparser1) of the
+                # kernel_schedule and then compare it to the fparser1 trees of
+                # the PSyIRGen f2pygen nodes children of module.
+                search = PSyIRGen(module, self.get_kernel_schedule()).root
+                for child in module.children:
+                    if isinstance(child, PSyIRGen):
+                        if child.root == search:
+                            # If there is an exact match (the implementation is
+                            # the same), it is safe to continue.
+                            break
+                else:
+                    raise NotImplementedError(
+                        "Can not inline subroutine '{0}' because another "
+                        "subroutine with the same name already exists and"
+                        " versioning of module-inlined subroutines is not"
+                        " implemented yet.".format(self._name))
 
     def gen_arg_setter_code(self, parent):
         '''
@@ -2912,7 +3113,7 @@ class CodedKern(Kern):
         # We can't rename OpenCL kernels as the Invoke set_args functions
         # have already been generated. The link to an specific kernel
         # implementation is delayed to run-time in OpenCL. (e.g. FortCL has
-        # the  PSYCLONE_KERNELS_FILE environment variable)
+        # the  FORTCL_KERNELS_FILE environment variable)
         if not self.root.opencl:
             if self._kern_schedule:
                 # A PSyIR kernel schedule has been created. This means
@@ -2934,16 +3135,17 @@ class CodedKern(Kern):
         # If this kernel is being module in-lined then we do not need to
         # write it to file.
         if self.module_inline:
-            # TODO #229. We cannot currently inline transformed kernels
-            # (because that requires an fparser1 AST and we only have an
-            # fparser2 AST of the modified kernel) so raise an error.
-            raise NotImplementedError("Cannot module-inline a transformed "
-                                      "kernel ({0})".format(self.name))
+            # TODO #1013: However, the file is already created (opened) and
+            # currently this file is needed for the name versioning, so this
+            # will create an unnecessary file.
+            os.close(fdesc)
+            return
 
         if self.root.opencl:
             from psyclone.psyir.backend.opencl import OpenCLWriter
             ocl_writer = OpenCLWriter(
                 kernels_local_size=self._opencl_options['local_size'])
+            self._prepare_opencl_kernel_schedule()
             new_kern_code = ocl_writer(self.get_kernel_schedule())
         elif self._kern_schedule:
             # A PSyIR kernel schedule has been created. This means
@@ -3000,7 +3202,7 @@ class CodedKern(Kern):
     def _rename_psyir(self, suffix):
         '''Rename the PSyIR module and kernel names by adding the supplied
         suffix to the names. This change affects the KernCall and
-        KernelSchedule nodes.
+        KernelSchedule nodes as well as the kernel metadata declaration.
 
         :param str suffix: the string to insert into the quantity names.
 
@@ -3021,6 +3223,24 @@ class CodedKern(Kern):
         kern_schedule = self.get_kernel_schedule()
         kern_schedule.name = new_kern_name[:]
         kern_schedule.root.name = new_mod_name[:]
+
+        # TODO #1013. This needs re-doing properly - in particular the
+        # RoutineSymbol associated with the kernel needs to be replaced. For
+        # now we only fix the specific case of the name of the kernel routine
+        # in the kernel metadata as otherwise various compilation tests
+        # fail.
+        container_table = kern_schedule.root.symbol_table
+        for sym in container_table.local_typesymbols:
+            if isinstance(sym.datatype, UnknownFortranType):
+                orig_declaration = sym.datatype.declaration
+                sym.datatype.declaration = orig_declaration.replace(
+                    orig_kern_name, new_kern_name)
+
+    def _prepare_opencl_kernel_schedule(self):
+        ''' Generic method to introduce kernel modifications when generating
+        OpenCL kernels. By default this does nothing, but it can be
+        sub-classed by the APIs to introduce kernel modifications.
+        '''
 
     def _rename_ast(self, suffix):
         '''
@@ -4058,6 +4278,8 @@ class ACCKernelsDirective(ACCDirective):
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
+        self._pre_gen_validate()
+
         data_movement = ""
         if self._default_present:
             data_movement = "default(present)"
@@ -4067,11 +4289,35 @@ class ACCKernelsDirective(ACCDirective):
             child.gen_code(parent)
         parent.add(DirectiveGen(parent, "acc", "end", "kernels", ""))
 
+    @property
+    def ref_list(self):
+        '''
+        Returns a list of the references (whether to arrays or objects)
+        required by the Kernel call(s) that are children of this
+        directive. This is the list of quantities that must be
+        available on the remote device (probably a GPU) before
+        the parallel region can be begun.
+
+        :returns: list of variable names
+        :rtype: list of str
+        '''
+        variables = []
+
+        # Look-up the kernels that are children of this node
+        for call in self.kernels():
+            for arg in call.arguments.acc_args:
+                if arg not in variables:
+                    variables.append(arg)
+        return variables
+
     def update(self):
         '''
         Updates the fparser2 AST by inserting nodes for this ACC kernels
         directive.
+
         '''
+        self._pre_gen_validate()
+
         data_movement = None
         if self._default_present:
             data_movement = "present"
@@ -4120,5 +4366,6 @@ class ACCDataDirective(ACCDirective):
         directive.
 
         '''
+        self._pre_gen_validate()
         self._add_region(start_text="DATA", end_text="END DATA",
                          data_movement="analyse")

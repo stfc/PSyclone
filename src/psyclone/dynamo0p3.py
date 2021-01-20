@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,17 +48,19 @@ import abc
 import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
+import six
 import fparser
 from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.dynamo0p3_builtins import BUILTIN_ITERATION_SPACES
+from psyclone.dynamo0p3_builtins import (BUILTIN_ITERATION_SPACES,
+                                         DynBuiltInCallFactory)
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
-                                   LFRicArgDescriptor)
-from psyclone.psyir.nodes import Loop, Literal, Schedule
+                                   LFRicArgDescriptor, KernelInterface)
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Reference
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
                              Arguments, KernelArgument, HaloExchange,
@@ -69,7 +71,6 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DirectiveGen, DoGen,
                               IfThenGen, ModuleGen, SubroutineGen, TypeDeclGen,
                               UseGen)
-
 
 # --------------------------------------------------------------------------- #
 # ========== First section : Parser specialisations and classes ============= #
@@ -97,8 +98,8 @@ QUADRATURE_TYPE_MAP = {
 SUPPORTED_FORTRAN_DATATYPES = ["real", "integer", "logical"]
 
 # ---------- Mapping from metadata data_type to Fortran intrinsic type ------ #
-MAPPING_DATA_TYPES = dict(zip(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
-                              SUPPORTED_FORTRAN_DATATYPES[0:2]))
+MAPPING_DATA_TYPES = OrderedDict(zip(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
+                                     SUPPORTED_FORTRAN_DATATYPES[0:2]))
 
 # ---------- Loops (bounds, types, names) ----------------------------------- #
 # These are loop bound names which identify positions in a field's
@@ -142,7 +143,7 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
 # Valid LFRic iteration spaces for user-supplied kernels and built-in kernels
 # TODO #870 rm 'cells' from list below.
-USER_KERNEL_ITERATION_SPACES = ["cells", "cell_column"]
+USER_KERNEL_ITERATION_SPACES = ["cells", "cell_column", "domain"]
 VALID_ITERATION_SPACES = USER_KERNEL_ITERATION_SPACES + \
     BUILTIN_ITERATION_SPACES
 
@@ -577,9 +578,29 @@ class DynKernMetadata(KernelType):
         Check that the meta-data conforms to Dynamo 0.3 rules for a
         user-provided kernel or a built-in
 
-        :param bool need_evaluator: whether this kernel requires an
-                                    evaluator/quadrature
-        :raises: ParseError: if meta-data breaks the Dynamo 0.3 rules
+        :param bool need_evaluator: whether this kernel requires an \
+                                    evaluator/quadrature.
+        :raises ParseError: if the kernel metadata specifies writing to the \
+                            read-only function space.
+        :raises ParseError: if a user-supplied LFRic kernel updates/writes \
+                            to a scalar argument.
+        :raises ParseError: if a kernel does not have at least one argument \
+                            that is updated/written to.
+        :raises ParseError: if a kernel does not require basis or \
+                            differential basis functions but specifies one \
+                            or more gh_shapes.
+        :raises ParseError: if a kernel does not require basis or \
+                            differential basis functions but specifies \
+                            gh_evaluator_targets.
+        :raises ParseError: if a kernel specifies gh_evaluator_targets \
+                            but does not need an evaluator.
+        :raises ParseError: if a kernel requires an evaluator on a \
+                            specific function space but does not have an \
+                            argument on that space.
+        :raises ParseError: if a kernel that has LMA operator arguments \
+                            also has a field argument with an invalid \
+                            data type (other than 'gh_real').
+
         '''
         from psyclone.dynamo0p3_builtins import BUILTIN_MAP
         # We must have at least one argument that is written to
@@ -606,9 +627,9 @@ class DynKernMetadata(KernelType):
                         "argument with '{1}' access."
                         .format(self.name, arg.access.api_specific_name()))
         if write_count == 0:
-            raise ParseError("A Dynamo 0.3 kernel must have at least one "
+            raise ParseError("An LFRic kernel must have at least one "
                              "argument that is updated (written to) but "
-                             "found none for kernel {0}".format(self.name))
+                             "found none for kernel '{0}'.".format(self.name))
 
         # Check that no shape has been supplied if no basis or
         # differential basis functions are required for the kernel
@@ -642,8 +663,24 @@ class DynKernMetadata(KernelType):
                 if eval_fs not in fs_list:
                     raise ParseError(
                         "Kernel '{0}' specifies that an evaluator is required "
-                        "on {1} but does not have an argument on this space."
+                        "on '{1}' but does not have an argument on this space."
                         .format(self.name, eval_fs))
+
+        # If we have an LMA operator as argument then only field arguments
+        # with 'gh_real' data type are permitted
+        lma_ops = psyGen.args_filter(self._arg_descriptors,
+                                     arg_types=["gh_operator"])
+        if lma_ops:
+            for arg in self._arg_descriptors:
+                if (arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES
+                        and arg.data_type != "gh_real"):
+                    raise ParseError(
+                        "In the LFRic API a kernel that has an LMA "
+                        "operator argument must only have field arguments "
+                        "with 'gh_real' data type but kernel '{0}' has a "
+                        "field argument with '{1}' data type.".
+                        format(self.name, arg.data_type))
+
         # If we have a columnwise operator as argument then we need to
         # identify the operation that this kernel performs (one of
         # assemble, apply/apply-inverse and matrix-matrix)
@@ -654,6 +691,9 @@ class DynKernMetadata(KernelType):
 
         # Perform checks for inter-grid kernels
         self._validate_inter_grid()
+
+        # Perform checks for a kernel with operates_on == domain
+        self._validate_operates_on_domain(need_evaluator)
 
     def _validate_inter_grid(self):
         '''
@@ -753,23 +793,44 @@ class DynKernMetadata(KernelType):
         self._is_intergrid = True
 
     def _identify_cma_op(self, cwise_ops):
-        '''Identify and return the type of CMA-operator-related operation
-        this kernel performs (one of "assemble", "apply" or "matrix-matrix")'''
+        '''
+        Identify and return the type of CMA-operator-related operation
+        this kernel performs (one of "assemble", "apply" or "matrix-matrix")
 
+        :param cwise_ops: all column-wise operator arguments in a kernel.
+        :type cwise_ops: list of str
+
+        :returns: the type of CMA-operator-related operation that this \
+                  kernel performs.
+        :rtype: str
+
+        :raises ParseError: if the kernel metadata does not conform to the \
+                            LFRic rules for a kernel with a CMA operator.
+
+        '''
         for arg in self._arg_descriptors:
             # No vector arguments are permitted
             if arg.vector_size > 1:
                 raise ParseError(
-                    "Kernel {0} takes a CMA operator but has a "
+                    "Kernel '{0}' takes a CMA operator but has a "
                     "vector argument '{1}'. This is forbidden.".
                     format(self.name,
                            arg.argument_type+"*"+str(arg.vector_size)))
             # No stencil accesses are permitted
             if arg.stencil:
                 raise ParseError(
-                    "Kernel {0} takes a CMA operator but has an argument "
+                    "Kernel '{0}' takes a CMA operator but has an argument "
                     "with a stencil access ('{1}'). This is forbidden.".
                     format(self.name, arg.stencil['type']))
+            # Only field arguments with 'gh_real' data type are permitted
+            if (arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES and
+                    arg.data_type != "gh_real"):
+                raise ParseError(
+                    "In the LFRic API a kernel that takes a CMA operator "
+                    "argument must only have field arguments with "
+                    "'gh_real' data type but kernel '{0}' has a field "
+                    "argument with '{1}' data type.".
+                    format(self.name, arg.data_type))
 
         # Count the number of CMA operators that are written to
         write_count = 0
@@ -784,16 +845,16 @@ class DynKernMetadata(KernelType):
             # written field as arguments
             if len(cwise_ops) != 1:
                 raise ParseError(
-                    "In the Dynamo 0.3 API a kernel that applies a CMA "
+                    "In the LFRic API a kernel that applies a CMA "
                     "operator must only have one such operator in its "
-                    "list of arguments but found {0} for kernel {1}".
+                    "list of arguments but found {0} for kernel '{1}'.".
                     format(len(cwise_ops), self.name))
             cma_op = cwise_ops[0]
             if len(self._arg_descriptors) != 3:
                 raise ParseError(
-                    "In the Dynamo 0.3 API a kernel that applies a CMA "
+                    "In the LFRic API a kernel that applies a CMA "
                     "operator must have 3 arguments (the operator and "
-                    "two fields) but kernel {0} has {1} arguments".
+                    "two fields) but kernel '{0}' has {1} arguments.".
                     format(self.name, len(self._arg_descriptors)))
             # Check that the other two arguments are fields
             farg_read = psyGen.args_filter(
@@ -807,29 +868,29 @@ class DynKernMetadata(KernelType):
                 arg_accesses=write_accesses)
             if len(farg_read) != 1:
                 raise ParseError(
-                    "Kernel {0} has a read-only CMA operator. In order "
+                    "Kernel '{0}' has a read-only CMA operator. In order "
                     "to apply it the kernel must have one read-only field "
                     "argument.".format(self.name))
             if len(farg_write) != 1:
                 raise ParseError(
-                    "Kernel {0} has a read-only CMA operator. In order "
+                    "Kernel '{0}' has a read-only CMA operator. In order "
                     "to apply it the kernel must write to one field "
                     "argument.".format(self.name))
             # Check that the function spaces match up
             if farg_read[0].function_space != cma_op.function_space_from:
                 raise ParseError(
-                    "Kernel {0} applies a CMA operator but the function "
-                    "space of the field argument it reads from ({1}) "
+                    "Kernel '{0}' applies a CMA operator but the function "
+                    "space of the field argument it reads from ('{1}') "
                     "does not match the 'from' space of the operator "
-                    "({2})".format(self.name, farg_read[0].function_space,
-                                   cma_op.function_space_from))
+                    "('{2}').".format(self.name, farg_read[0].function_space,
+                                      cma_op.function_space_from))
             if farg_write[0].function_space != cma_op.function_space_to:
                 raise ParseError(
-                    "Kernel {0} applies a CMA operator but the function "
-                    "space of the field argument it writes to ({1}) "
+                    "Kernel '{0}' applies a CMA operator but the function "
+                    "space of the field argument it writes to ('{1}') "
                     "does not match the 'to' space of the operator "
-                    "({2})".format(self.name, farg_write[0].function_space,
-                                   cma_op.function_space_to))
+                    "('{2}').".format(self.name, farg_write[0].function_space,
+                                      cma_op.function_space_to))
             # This is a valid CMA-apply or CMA-apply-inverse kernel
             return "apply"
 
@@ -851,7 +912,7 @@ class DynKernMetadata(KernelType):
                         write_args.remove(arg)
                         break
                 raise ParseError(
-                    "Kernel {0} writes to a column-wise operator but "
+                    "Kernel '{0}' writes to a column-wise operator but "
                     "also writes to {1} argument(s). This is not "
                     "allowed.".format(self.name,
                                       [str(arg.argument_type) for arg
@@ -868,10 +929,10 @@ class DynKernMetadata(KernelType):
                     return "assembly"
                 else:
                     raise ParseError(
-                        "Kernel {0} has a single column-wise operator "
+                        "Kernel '{0}' has a single column-wise operator "
                         "argument but does not conform to the rules for an "
                         "Assembly kernel because it does not have any read-"
-                        "only LMA operator arguments".format(self.name))
+                        "only LMA operator arguments.".format(self.name))
             else:
                 # A valid matrix-matrix kernel must only have CMA operators
                 # and scalars as arguments.
@@ -883,16 +944,65 @@ class DynKernMetadata(KernelType):
                     raise ParseError(
                         "A column-wise matrix-matrix kernel must have only "
                         "column-wise operators and scalars as arguments but "
-                        "kernel {0} has: {1}.".
+                        "kernel '{0}' has: {1}.".
                         format(self.name,
                                [str(arg.argument_type) for arg in
                                 self._arg_descriptors]))
                 return "matrix-matrix"
         else:
             raise ParseError(
-                "A Dynamo 0.3 kernel cannot update more than one CMA "
-                "(column-wise) operator but kernel {0} updates {1}".
+                "An LFRic kernel cannot update more than one CMA "
+                "(column-wise) operator but kernel '{0}' updates {1}.".
                 format(self.name, write_count))
+
+    def _validate_operates_on_domain(self, need_evaluator):
+        '''
+        Check whether a kernel that has operates_on == domain obeys
+        the rules for the LFRic API.
+
+        :raises ParseError: if the kernel metadata does not obey the rules \
+                            for an LFRic kernel with operates_on = domain.
+        '''
+        if self.iterates_over != "domain":
+            return
+
+        # A kernel which operates on the 'domain' is currently restricted
+        # to only accepting scalar and field arguments.
+        valid_arg_types = (LFRicArgDescriptor.VALID_SCALAR_NAMES +
+                           LFRicArgDescriptor.VALID_FIELD_NAMES)
+        for arg in self._arg_descriptors:
+            if arg.argument_type not in valid_arg_types:
+                raise ParseError(
+                    "In the LFRic API a kernel which operates on the 'domain' "
+                    "is only permitted to accept scalar and field arguments "
+                    "but the metadata for kernel '{0}' includes an argument "
+                    "of type '{1}'".format(self.name, arg.argument_type))
+
+        if need_evaluator:
+            raise ParseError(
+                "In the LFRic API a kernel that operates on the 'domain' "
+                "cannot be passed basis/differential basis functions but the "
+                "metadata for kernel '{0}' contains an entry for 'meta_funcs'".
+                format(self.name))
+
+        if self.reference_element.properties:
+            raise ParseError(
+                "Kernel '{0}' operates on the domain but requests properties "
+                "of the reference element ({1}). This is not permitted in the "
+                "LFRic API.".format(self.name,
+                                    self.reference_element.properties))
+
+        if self.mesh.properties:
+            raise ParseError(
+                "Kernel '{0}' operates on the domain but requests properties "
+                "of the mesh ({1}). This is not permitted in the "
+                "LFRic API.".format(self.name, self.mesh.properties))
+
+        if self._is_intergrid:
+            raise ParseError(
+                "Kernel '{0}' operates on the domain but has fields on "
+                "different mesh resolutions (multi-grid). This is not "
+                "permitted in the LFRic API.".format(self.name))
 
     @property
     def func_descriptors(self):
@@ -972,7 +1082,7 @@ class DynamoPSy(PSy):
         # Initialise the dictionary that holds the names of required
         # LFRic data structures and their proxies for the "use"
         # statements in modules that contain PSy-layer routines.
-        infmod_list = ["field_mod", "operator_mod"]
+        infmod_list = ["field_mod", "integer_field_mod", "operator_mod"]
         self._infrastructure_modules = OrderedDict(
             (k, set()) for k in infmod_list)
 
@@ -1023,8 +1133,6 @@ class DynamoPSy(PSy):
 
         # Add all invoke-specific information
         self.invokes.gen_code(psy_module)
-        # Inline kernels where requested
-        self.inline(psy_module)
 
         # Include required infrastructure modules. The sets of required
         # LFRic data structures and their proxies are updated in the
@@ -1755,7 +1863,14 @@ class LFRicMeshProperties(DynCollection):
                                             self._kernel, [1])
                 if not stub:
                     # This is a kernel call from within an invoke
-                    adj_face += "(:,cell)"
+                    cell_name = "cell"
+                    if self._kernel.is_coloured():
+                        colour_name = "colour"
+                        cmap_name = "cmap"
+                        adj_face += "(:,{0}({1}, {2}))".format(
+                            cmap_name, colour_name, cell_name)
+                    else:
+                        adj_face += "(:,{0})".format(cell_name)
                 arg_list.append(adj_face)
             else:
                 raise InternalError(
@@ -2633,19 +2748,68 @@ class DynFields(DynCollection):
                        routine to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises InternalError: for an unsupported intrinsic type of field \
+                               argument data.
+        :raises GenerationError: if the same field has different data \
+                                 types in different kernel calls within \
+                                 the same Invoke.
+
         '''
         # Add the Invoke subroutine argument declarations for fields
-        fld_args = self._invoke.unique_declarations(
-            argument_types=LFRicArgDescriptor.VALID_FIELD_NAMES)
-        # Create a list of field names
-        fld_arg_list = [arg.declaration_name for arg in fld_args]
-        if fld_arg_list:
+        fld_args = []
+        for kern in self._invoke.schedule.kernels():
+            fld_args.extend(psyGen.args_filter(
+                kern.arguments.args,
+                arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES))
+        # Create lists of field names for real- and integer-valued fields
+        # TODO in #1047: Improve implementation of argument lists creation
+        # and intrinsic type checks.
+        real_fld_arg_list = []
+        int_fld_arg_list = []
+        for fld in fld_args:
+            declname = fld.declaration_name
+            if fld.intrinsic_type == "real":
+                real_fld_arg_list.append(declname)
+            elif fld.intrinsic_type == "integer":
+                int_fld_arg_list.append(declname)
+            else:
+                raise InternalError(
+                    "Found an unsupported intrinsic type '{0}' in "
+                    "Invoke declarations for the field argument '{1}'. "
+                    "Supported types are {2}.".
+                    format(fld.intrinsic_type, declname,
+                           list(MAPPING_DATA_TYPES.values())))
+        # Remove duplicates using OrderedDict
+        real_fld_arg_list = list(OrderedDict.fromkeys(real_fld_arg_list))
+        int_fld_arg_list = list(OrderedDict.fromkeys(int_fld_arg_list))
+        # Check that the same field name is not found in both real and
+        # integer field lists (for instance if passed to one kernel as a
+        # real-valued and to another kernel as an integer-valued field)
+        flds_multi_type_list = list(
+            set(real_fld_arg_list).intersection(set(int_fld_arg_list)))
+        if flds_multi_type_list:
+            raise GenerationError(
+                "At least one field ({0}) in Invoke '{1}' has different "
+                "metadata for data type ({2}) in different kernels. "
+                "This is invalid.".
+                format(flds_multi_type_list, self._invoke.name,
+                       list(MAPPING_DATA_TYPES.keys())))
+
+        # Declare real and integer fields
+        if real_fld_arg_list:
             dtype = "field_type"
             parent.add(TypeDeclGen(parent, datatype=dtype,
-                                   entity_decls=fld_arg_list,
+                                   entity_decls=real_fld_arg_list,
                                    intent="in"))
-            (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
-             add(dtype))
+            (self._invoke.invokes.psy.
+             infrastructure_modules["field_mod"].add(dtype))
+        if int_fld_arg_list:
+            dtype = "integer_field_type"
+            parent.add(TypeDeclGen(parent, datatype=dtype,
+                                   entity_decls=int_fld_arg_list,
+                                   intent="in"))
+            (self._invoke.invokes.psy.
+             infrastructure_modules["integer_field_mod"].add(dtype))
 
     def _stub_declarations(self, parent):
         '''
@@ -2654,6 +2818,9 @@ class DynFields(DynCollection):
         :param parent: the node in the f2pygen AST representing the Kernel \
                        stub to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises InternalError: for an unsupported data type of field \
+                               argument data.
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
@@ -2664,6 +2831,17 @@ class DynFields(DynCollection):
             undf_name = fld.function_space.undf_name
             intent = fld.intent
             dtype = fld.intrinsic_type
+
+            # Check for invalid descriptor data type
+            fld_ad_dtype = fld.descriptor.data_type
+            if (fld_ad_dtype not in
+                    LFRicArgDescriptor.VALID_FIELD_DATA_TYPES):
+                raise InternalError(
+                    "Found an unsupported data type '{0}' in kernel "
+                    "stub declarations for the field argument '{1}'. "
+                    "Supported types are {2}.".
+                    format(fld_ad_dtype, fld.declaration_name,
+                           LFRicArgDescriptor.VALID_FIELD_DATA_TYPES))
 
             if fld.vector_size > 1:
                 for idx in range(1, fld.vector_size+1):
@@ -2881,16 +3059,27 @@ class DynProxies(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        field_proxy_decs = self._invoke.unique_proxy_declarations(
-            LFRicArgDescriptor.VALID_FIELD_NAMES)
-        if field_proxy_decs:
+        # Declarations of real and integer field proxies
+        real_field_proxy_decs = self._invoke.unique_proxy_declarations(
+            LFRicArgDescriptor.VALID_FIELD_NAMES, intrinsic_type="real")
+        if real_field_proxy_decs:
             dtype = "field_proxy_type"
             parent.add(TypeDeclGen(parent,
                                    datatype=dtype,
-                                   entity_decls=field_proxy_decs))
+                                   entity_decls=real_field_proxy_decs))
             (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
              add(dtype))
+        int_field_proxy_decs = self._invoke.unique_proxy_declarations(
+            LFRicArgDescriptor.VALID_FIELD_NAMES, intrinsic_type="integer")
+        if int_field_proxy_decs:
+            dtype = "integer_field_proxy_type"
+            parent.add(TypeDeclGen(parent,
+                                   datatype=dtype,
+                                   entity_decls=int_field_proxy_decs))
+            (self._invoke.invokes.psy.
+             infrastructure_modules["integer_field_mod"].add(dtype))
 
+        # Declarations of LMA operator proxies
         op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_operator"])
         if op_proxy_decs:
@@ -2901,6 +3090,7 @@ class DynProxies(DynCollection):
             (self._invoke.invokes.psy.infrastructure_modules["operator_mod"].
              add(dtype))
 
+        # Declarations of CMA operator proxies
         cma_op_proxy_decs = self._invoke.unique_proxy_declarations(
             ["gh_columnwise_operator"])
         if cma_op_proxy_decs:
@@ -3042,6 +3232,10 @@ class DynScalarArgs(DynCollection):
         super(DynScalarArgs, self).__init__(node)
 
         # Create lists of real and integer scalar arguments
+        # TODO in #1047: Improve implementation of argument lists creation
+        # and intrinsic type checks (also checking that the same
+        # scalar argument is declared as `gh_real` and `gh_integer`
+        # in different kernels within the same Invoke).
         self._real_scalar_names = {}
         self._int_scalar_names = {}
         scalar_args = {}
@@ -3067,9 +3261,8 @@ class DynScalarArgs(DynCollection):
                     self._int_scalar_names[intent].append(declname)
                 else:
                     raise InternalError(
-                        "DynScalarArgs.__init__(): Found an unsupported "
-                        "intrinsic type '{0}' for the scalar argument "
-                        "'{1}'. Supported types are {2}.".
+                        "Found an unsupported intrinsic type '{0}' for the "
+                        "scalar argument '{1}'. Supported types are {2}.".
                         format(arg.intrinsic_type, declname,
                                list(MAPPING_DATA_TYPES.values())))
 
@@ -4745,7 +4938,7 @@ class DynInvoke(Invoke):
         if not alg_invocation and not idx:
             # This if test is added to support pyreverse.
             return
-        self._schedule = DynInvokeSchedule(None)  # for pyreverse
+        self._schedule = DynInvokeSchedule('name', None)  # for pyreverse
         reserved_names_list = []
         reserved_names_list.extend(LFRicArgDescriptor.STENCIL_MAPPING.values())
         reserved_names_list.extend(LFRicArgDescriptor.VALID_STENCIL_DIRECTIONS)
@@ -4848,17 +5041,22 @@ class DynInvoke(Invoke):
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
-    def unique_proxy_declarations(self, argument_types, access=None):
+    def unique_proxy_declarations(self, argument_types, access=None,
+                                  intrinsic_type=None):
         '''
         Returns a list of all required proxy declarations for the specified
-        argument type. If access is supplied (e.g. "AccessType.WRITE")
-        then only declarations with that access are returned.
+        argument types. If access is supplied (e.g. "AccessType.WRITE")
+        then only declarations with that access are returned. If an intrinsic
+        type is supplied then only declarations with that intrinsic type
+        are returned.
 
         :param argument_types: argument types that proxy declarations are \
                                searched for.
         :type argument_types: list of str
         :param access: optional AccessType for the specified argument type.
         :type access: :py:class:`psyclone.core.access_type.AccessType`
+        :param intrinsic_type: optional intrinsic type of argument data.
+        :type intrinsic_type: str
 
         :returns: a list of all required proxy declarations for the \
                   specified argument type.
@@ -4867,31 +5065,38 @@ class DynInvoke(Invoke):
         :raises InternalError: if the supplied argument types are invalid.
         :raises InternalError: if an invalid access is specified, i.e. \
                                not of type AccessType.
+        :raises InternalError: if an invalid intrinsic type is specified.
 
         '''
-        # First check for invalid argument types and invalid access
+        # First check for invalid argument types, access and intrinsic type
         if any(argtype not in LFRicArgDescriptor.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
-                "DynInvoke.unique_proxy_declarations() called with at least "
-                "one invalid argument type. Expected one of {0} but found {1}."
-                .format(str(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES),
-                        str(argument_types)))
+                "Expected one of {0} as a valid argument type but found {1}.".
+                format(str(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES),
+                       str(argument_types)))
         if access and not isinstance(access, AccessType):
             api_config = Config.get().api_conf("dynamo0.3")
             valid_names = api_config.get_valid_accesses_api()
             raise InternalError(
-                "DynInvoke.unique_proxy_declarations() called with an invalid "
-                "access type. Expected one of {0} but found '{1}'.".
+                "Expected one of {0} as a valid access type but found '{1}'.".
                 format(valid_names, access))
+        if (intrinsic_type and intrinsic_type not in
+                MAPPING_DATA_TYPES.values()):
+            raise InternalError(
+                "Expected one of {0} as a valid intrinsic type but found "
+                "'{1}'.".format(str(MAPPING_DATA_TYPES.values()),
+                                intrinsic_type))
         # Create declarations list
         declarations = []
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
-                if not access or arg.access == access:
-                    if arg.text and arg.argument_type in argument_types:
-                        if arg.proxy_declaration_name not in declarations:
-                            declarations.append(arg.proxy_declaration_name)
+                if not intrinsic_type or arg.intrinsic_type == intrinsic_type:
+                    if not access or arg.access == access:
+                        if arg.text and arg.argument_type in argument_types:
+                            if arg.proxy_declaration_name not in declarations:
+                                declarations.append(
+                                    arg.proxy_declaration_name)
         return declarations
 
     def arg_for_funcspace(self, fspace):
@@ -5034,11 +5239,18 @@ class DynInvoke(Invoke):
 class DynInvokeSchedule(InvokeSchedule):
     ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo-
     specific factories for creating kernel and infrastructure calls
-    to the base class so it creates the ones we require. '''
+    to the base class so it creates the ones we require.
 
-    def __init__(self, arg, reserved_names=None):
-        from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
-        InvokeSchedule.__init__(self, DynKernCallFactory,
+    :param str name: name of the Invoke.
+    :param arg: list of KernelCalls parsed from the algorithm layer.
+    :type arg: list of :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param reserved_names: optional list of names that are not allowed in the \
+                           new InvokeSchedule SymbolTable.
+    :type reserved_names: list of str
+    '''
+
+    def __init__(self, name, arg, reserved_names=None):
+        InvokeSchedule.__init__(self, name, DynKernCallFactory,
                                 DynBuiltInCallFactory, arg, reserved_names)
 
     def node_str(self, colour=True):
@@ -6471,7 +6683,7 @@ class DynLoop(Loop):
             # space. _field_name holds the name of the argument that
             # determines the iteration space of this kernel and that
             # is set-up to be the one on the coarse mesh (in
-            # DynKerelArguments.iteration_space_arg()).
+            # DynKernelArguments.iteration_space_arg()).
             mesh_name = "mesh_" + self._field_name
         else:
             # It's not an inter-grid kernel so there's only one mesh
@@ -7040,8 +7252,8 @@ class DynKern(CodedKern):
                     pre = "iscalar_"
                 else:
                     raise InternalError(
-                        "DynKern.load_meta(): expected one of {0} data types "
-                        "for a scalar argument but found '{1}'.".
+                        "Expected one of {0} data types for a scalar "
+                        "argument but found '{1}'.".
                         format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES,
                                descriptor.data_type))
             else:
@@ -7359,15 +7571,21 @@ class DynKern(CodedKern):
         :returns: root of fparser1 AST for the stub routine.
         :rtype: :py:class:`fparser.one.block_statements.Module`
 
-        :raises InternalError: if the supplied kernel stub does not operate \
+        :raises GenerationError: if the supplied kernel stub does not operate \
             on a supported subset of the domain (currently only "cell_column").
 
         '''
+        # The operates-on/iterates-over values supported by the stub generator.
+        supported_operates_on = USER_KERNEL_ITERATION_SPACES[:]
+        # TODO #925 Add support for 'domain' kernels
+        supported_operates_on.remove("domain")
+
         # Check operates-on (iteration space) before generating code
-        if self.iterates_over not in USER_KERNEL_ITERATION_SPACES:
-            raise InternalError(
-                "Expected the kernel to operate on one of {0} but found '{1}' "
-                "in kernel '{2}'.".format(USER_KERNEL_ITERATION_SPACES,
+        if self.iterates_over not in supported_operates_on:
+            raise GenerationError(
+                "The LFRic API kernel-stub generator supports kernels that "
+                "operate on one of {0} but found '{1}' "
+                "in kernel '{2}'.".format(supported_operates_on,
                                           self.iterates_over, self.name))
 
         # Get configuration for valid argument kinds
@@ -7505,137 +7723,155 @@ class DynKern(CodedKern):
 
         super(DynKern, self).gen_code(parent)
 
-# class DinoWriters(ArgOrdering):
-#    def __init__(self, kern, parent=None, position=None):
-#        ArgOrdering.__init__(self, kern)
-#        self._parent = parent
-#        self._position = position
-#        self._scalar_position = None
-#        self._array_position = None
-#
-#    def cell_position(self):
-#        ''' get dino to output cell position information '''
-#        # dino outputs a full field so we do not need cell index information
-#        pass
-#
-#    def mesh_height(self):
-#        ''' get dino to output the height of the mesh (nlayers)'''
-#        nlayers_name = self._name_space_manager.create_name(
-#            root_name="nlayers", context="PSyVars", label="nlayers")
-#        self._add_dino_scalar(nlayers_name)
-#
-#    def field_vector(self, argvect):
-#        '''get dino to output field vector data associated with the argument
-#        'argvect' '''
-#        # TBD
-#        pass
-#
-#    def field(self, arg):
-#        '''get dino to output field datat associated with the argument
-#        'arg' '''
-#        if arg.intent in ["in", "inout"]:
-#            text = arg.proxy_name + "%data"
-#            self._add_dino_array(text)
-#
-#    def stencil_unknown_extent(self, arg):
-#        '''get dino to output stencil information associated with the argument
-#        'arg' if the extent is unknown '''
-#        # TBD
-#        pass
-#
-#    def stencil_unknown_direction(self, arg):
-#        '''get dino to output stencil information associated with the argument
-#        'arg' if the direction is unknown '''
-#        # TBD
-#        pass
-#
-#    def stencil(self, arg):
-#        '''get dino to output general stencil information associated with the
-#        argument 'arg' '''
-#        # TBD
-#        pass
-#
-#    def operator(self, arg):
-#        ''' get dino to output the operator arguments '''
-#        # TBD
-#        pass
-#
-#    def scalar(self, scalar_arg):
-#        '''get dino to output the value of the scalar argument'''
-#        if scalar_arg in ["in", "inout"]:
-#            self._add_dino_scalar(scalar_arg.name)
-#
-#    def fs_common(self, function_space):
-#        '''get dino to output any arguments common to LMA operators and
-#        fields on a space. '''
-#        # There is currently one: "ndf".
-#        ndf_name = function_space.ndf_name
-#        self._add_dino_scalar(ndf_name)
-#
-#    def fs_compulsory_field(self, function_space):
-#        '''get dino to output compulsory arguments if there is a field on this
-#        function space'''
-#        undf_name = function_space.undf_name
-#        self._add_dino_scalar(undf_name)
-#
-#    def basis(self, function_space):
-#        '''get dino to output basis function information for the function
-#        space'''
-#        # TBD
-#        pass
-#
-#    def diff_basis(self, function_space):
-#        '''get dino to output differential basis function information for the
-#        function space'''
-#        # TBD
-#         pass
-#
-#    def orientation(self, function_space):
-#        '''get dino to output orientation information for the function
-#        space'''
-#        # TBD
-#        pass
-#
-#    def field_bcs_kernel(self, function_space):
-#        '''get dino to output any boundary_dofs information for bc_kernel'''
-#        # TBD
-#        pass
-#
-#    def quad_rule(self):
-#        '''get dino to output qr information '''
-#        # TBD
-#        pass
-#
-#    def generate(self):
-#        '''perform any additional actions before and after kernel
-#        argument-list based generation'''
-#        self._parent.add(CommentGen(self._parent, " dino output start"),
-#                         position=["before", self._position])
-#        scalar_comment = CommentGen(self._parent, " dino scalars")
-#        self._parent.add(scalar_comment,
-#                         position=["before", self._position])
-#        array_comment = CommentGen(self._parent, " dino arrays")
-#        self._parent.add(array_comment,
-#                         position=["before", self._position])
-#        self._scalar_position = scalar_comment.root
-#        self._array_position = array_comment.root
-#        self._parent.add(CommentGen(self._parent, " dino output end"),
-#                         position=["before", self._position])
-#        self._parent.add(CommentGen(self._parent, ""),
-#                         position=["before", self._position])
-#        ArgOrdering.generate(self)
-#
-#    def _add_dino_scalar(self, name):
-#        ''' add a dino output call for a scalar variable '''
-#        self._parent.add(CallGen(self._parent, name="dino%output_scalar",
-#                                 args=[name]),
-#                         position=["after", self._scalar_position])
-#
-#    def _add_dino_array(self, name):
-#        ''' add a dino output call for an array variable '''
-#        self._parent.add(CallGen(self._parent, name="dino%output_array",
-#                                 args=[name]),
-#                         position=["after", self._array_position])
+    def get_kernel_schedule(self):
+        '''Returns a PSyIR Schedule representing the kernel code. The base
+        class creates the PSyIR schedule on first invocation which is
+        then checked for consistency with the kernel metadata
+        here. The Schedule is just generated on first invocation, this
+        allows us to retain transformations that may subsequently be
+        applied to the Schedule (but will not adapt to transformations
+        applied to the fparser2 AST).
+
+        Once issue #935 is implemented, this routine will return the
+        PSyIR Schedule using LFRic-specific PSyIR where possible.
+
+        :returns: Schedule representing the kernel code.
+        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+
+        '''
+        if self._kern_schedule is None:
+            # Get the PSyIR Kernel Schedule
+            psyir_schedule = super(DynKern, self).get_kernel_schedule()
+
+            # Before transforming, check the validity of the kernel
+            # arguments
+            self.validate_kernel_code_args()
+
+            # TODO replace the PSyIR argument data symbols with LFRic
+            # data symbols, see issue #935. For the moment we simply
+            # return the unmodified PSyIR schedule
+            self._kern_schedule = psyir_schedule
+
+        return self._kern_schedule
+
+    def validate_kernel_code_args(self):
+        '''Check that the arguments in the kernel code match the expected
+        arguments as defined by the kernel metadata and the LFRic
+        API.
+
+        '''
+        # Get the kernel code arguments
+        psyir_schedule = super(DynKern, self).get_kernel_schedule()
+        symbol_table = psyir_schedule.symbol_table
+        kern_code_args = symbol_table.argument_list
+
+        # Get the kernel code interface according to the kernel
+        # metadata and LFRic API
+        interface_info = KernelInterface(self)
+        interface_info.generate()
+        interface_args = interface_info.arglist
+
+        # 1: Check the the number of arguments match
+        actual_n_args = len(kern_code_args)
+        expected_n_args = len(interface_args)
+        if actual_n_args != expected_n_args:
+            raise GenerationError(
+                "In kernel '{0}' the number of arguments indicated by the "
+                "kernel metadata is {1} but the actual number of kernel "
+                "arguments found is {2}.".format(
+                    self.name, expected_n_args, actual_n_args))
+
+        # 2: Check that the properties of each argument matches
+        for idx, kern_code_arg in enumerate(kern_code_args):
+            interface_arg = interface_args[idx]
+            self._validate_kernel_code_arg(kern_code_arg, interface_arg)
+
+    def _validate_kernel_code_arg(self, kern_code_arg, interface_arg):
+        '''Internal method to check that the supplied argument descriptions
+        match and raise appropriate exceptions if not.
+
+        :param kern_code_arg: kernel code argument.
+        :type kern_code_arg: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param interface_arg: expected argument.
+        :type interface_arg: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises GenerationError: if the contents of the arguments do \
+            not match.
+        :raises InternalError: if an unexpected datatype is found.
+
+        '''
+        # 1: intrinsic datatype
+        actual_datatype = kern_code_arg.datatype.intrinsic
+        expected_datatype = interface_arg.datatype.intrinsic
+        if actual_datatype != expected_datatype:
+            raise GenerationError(
+                "Kernel argument '{0}' has datatype '{1}' "
+                "in kernel '{2}' but the LFRic API expects '{3}'."
+                "".format(kern_code_arg.name, actual_datatype,
+                          self.name, expected_datatype))
+        # 2: precision
+        actual_precision = kern_code_arg.datatype.precision
+        expected_precision = interface_arg.datatype.precision
+        if actual_precision.name != expected_precision.name:
+            raise GenerationError(
+                "Kernel argument '{0}' has precision '{1}' "
+                "in kernel '{2}' but the LFRic API expects '{3}'."
+                "".format(kern_code_arg.name, actual_precision.name,
+                          self.name, expected_precision.name))
+        # 3: intent
+        actual_intent = kern_code_arg.interface.access
+        expected_intent = interface_arg.interface.access
+        if actual_intent.name != expected_intent.name:
+            raise GenerationError(
+                "Kernel argument '{0}' has intent '{1}' "
+                "in kernel '{2}' but the LFRic API expects intent '{3}'."
+                "".format(kern_code_arg.name, actual_intent.name,
+                          self.name, expected_intent.name))
+        # 4: scalar or array
+        if interface_arg.is_scalar:
+            if not kern_code_arg.is_scalar:
+                raise GenerationError(
+                    "Argument '{0}' to kernel '{1}' should be a scalar "
+                    "according to the LFRic API, but it is not."
+                    "".format(kern_code_arg.name, self.name))
+        elif interface_arg.is_array:
+            if not kern_code_arg.is_array:
+                raise GenerationError(
+                    "Argument '{0}' to kernel '{1}' should be an array "
+                    "according to the LFRic API, but it is not."
+                    "".format(kern_code_arg.name, self.name))
+            # 4.1: array dimensions
+            if len(interface_arg.shape) != len(kern_code_arg.shape):
+                raise GenerationError(
+                    "Argument '{0}' to kernel '{1}' should be an array "
+                    "with {2} dimension(s) according to the LFRic API, but "
+                    "found {3}.".format(kern_code_arg.name, self.name,
+                                        len(interface_arg.shape),
+                                        len(kern_code_arg.shape)))
+            for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
+                interface_arg_dim = interface_arg.shape[dim_idx]
+                if (isinstance(kern_code_arg_dim, Reference) and
+                        isinstance(interface_arg_dim, Reference) and
+                        isinstance(kern_code_arg_dim.symbol, DataSymbol) and
+                        isinstance(interface_arg_dim.symbol, DataSymbol)):
+                    # Only check when there is a symbol. Unspecified
+                    # dimensions, dimensions with scalar values,
+                    # offsets, or dimensions that include arithmetic
+                    # are skipped.
+                    try:
+                        self._validate_kernel_code_arg(
+                            kern_code_arg_dim.symbol, interface_arg_dim.symbol)
+                    except GenerationError as info:
+                        six.raise_from(GenerationError(
+                            "For dimension {0} in array argument '{1}' to "
+                            "kernel '{2}' the following error was found: "
+                            "{3}".format(dim_idx+1, kern_code_arg.name,
+                                         self.name, str(info.args[0]))), info)
+        else:
+            raise InternalError(
+                "unexpected argument type found for '{0}' in kernel '{1}'. "
+                "Expecting a scalar or an array.".format(
+                    kern_code_arg.name, self.name))
 
 
 class FSDescriptor(object):
