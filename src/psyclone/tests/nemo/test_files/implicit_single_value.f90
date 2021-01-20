@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council.
+! Copyright (c) 2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,19 +29,17 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, STFC Daresbury Lab
-! Modified by R. W. Ford, STFC Daresbury Lab
+! Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-program explicit_over_implicit
+! This code demonstrates an implicit loop (as the second dimension of
+! umask and vmask are specified with a ':') with one or more (4 in this
+! case) of the associated array dimensions being single valued.
+
+program implicit_single_value
   implicit none
-  integer :: ji, jj, jk
-  integer, parameter :: jpi=10, jpj=20, jpk=30
-  real, dimension(jpi,jpj,jpk) :: umask, vmask
+  integer :: jpi, jpj, jpk, jpt, ndim
+  real, dimension(jpi,jpj,jpk,jpt,ndim) :: umask, vmask
 
-  ! Test code with explicit NEMO-style do loop over levels containing an
-  ! an implicit loop over the i-j slab...
-  DO jk = 1, jpk
-     umask(:,:,jk) = vmask(:,:,jk) + 1.0
-  END DO
+  umask(1,:,jpk,jpt,1) = vmask(1,:,jpk,jpt,1) + 1.0
 
-end program explicit_over_implicit
+end program implicit_single_value

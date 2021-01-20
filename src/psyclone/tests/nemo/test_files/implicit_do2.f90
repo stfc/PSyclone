@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council.
+! Copyright (c) 2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,19 +29,17 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, STFC Daresbury Lab
-! Modified by R. W. Ford, STFC Daresbury Lab
+! Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-program explicit_over_implicit
+! This code demonstrates an 3d implicit loop with implicit arrays on
+! both the lhs and rhs of the assingment.
+
+program implicit_do2
   implicit none
-  integer :: ji, jj, jk
-  integer, parameter :: jpi=10, jpj=20, jpk=30
-  real, dimension(jpi,jpj,jpk) :: umask, vmask
+  integer, parameter :: jpi=10, jpj=10, jpk=10
+  real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk) :: umask, vmask
 
-  ! Test code with explicit NEMO-style do loop over levels containing an
-  ! an implicit loop over the i-j slab...
-  DO jk = 1, jpk
-     umask(:,:,jk) = vmask(:,:,jk) + 1.0
-  END DO
+  ! Test code with implicit NEMO-style do loop
+  umask(:,:,:) = vmask(:,:,:)
 
-end program explicit_over_implicit
+end program implicit_do2

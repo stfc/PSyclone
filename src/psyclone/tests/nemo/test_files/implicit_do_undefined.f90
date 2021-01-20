@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council.
+! Copyright (c) 2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,19 +29,18 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, STFC Daresbury Lab
-! Modified by R. W. Ford, STFC Daresbury Lab
+! Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-program explicit_over_implicit
+! This code demonstrates an implicit loop (as all three of the umask
+! indices are specified with a ':' when setting its values to 0) with
+! array bounds of unknown size within the subroutine.
+
+subroutine implicit_do(umask)
+  ! Example of an implicit loop where the bounds of the array have not
+  ! been specified.
   implicit none
-  integer :: ji, jj, jk
-  integer, parameter :: jpi=10, jpj=20, jpk=30
-  real, dimension(jpi,jpj,jpk) :: umask, vmask
+  real(kind=kind(1.0d0)), dimension(:,:,:) :: umask
 
-  ! Test code with explicit NEMO-style do loop over levels containing an
-  ! an implicit loop over the i-j slab...
-  DO jk = 1, jpk
-     umask(:,:,jk) = vmask(:,:,jk) + 1.0
-  END DO
+  umask(:,:,:) = 0.0d0
 
-end program explicit_over_implicit
+end subroutine implicit_do

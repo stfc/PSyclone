@@ -29,19 +29,16 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, STFC Daresbury Lab
-! Modified by R. W. Ford, STFC Daresbury Lab
+! Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-program explicit_over_implicit
+program matrix_multiply
+ 
   implicit none
-  integer :: ji, jj, jk
-  integer, parameter :: jpi=10, jpj=20, jpk=30
-  real, dimension(jpi,jpj,jpk) :: umask, vmask
+  integer, parameter :: jpi=10, jpj=10
+  real(kind=kind(1.0d0)), dimension(jpi) :: umask
+  real(kind=kind(1.0d0)), dimension(jpi,jpj) :: vmask
 
-  ! Test code with explicit NEMO-style do loop over levels containing an
-  ! an implicit loop over the i-j slab...
-  DO jk = 1, jpk
-     umask(:,:,jk) = vmask(:,:,jk) + 1.0
-  END DO
+  ! This is not an implicit loop as matmul returns an array
+  umask(:) = matmul(vmask(:,:), umask(:))
 
-end program explicit_over_implicit
+end program matrix_multiply

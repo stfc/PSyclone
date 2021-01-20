@@ -30,32 +30,22 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified by R. W. Ford, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+# Author R. W. Ford, STFC Daresbury Lab
 
-include ../../common.mk
+'''Transformation module for NEMO.
+'''
 
-FORTRAN_FILES = tridiagonal_solve.f90 if_example.f90 copy_stencil.f90 hori_diff.f90
+from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
+    import NemoArrayRange2LoopTrans
+from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
+    import NemoOuterArrayRange2LoopTrans
+from psyclone.domain.nemo.transformations.nemo_allarrayrange2loop_trans \
+    import NemoAllArrayRange2LoopTrans
 
-.PHONY: ${FORTRAN_FILES} intrinsic tra_adv
+# The entities in the __all__ list are made available to import directly from
+# this package e.g.:
+# from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 
-transform: ${FORTRAN_FILES} intrinsic tra_adv
-
-${FORTRAN_FILES}:
-	${PSYCLONE} -s ./sir_trans.py -api nemo $@ -opsy /dev/null
-
-# intrinsic_example.f90 and tracer_advection.f90 make use of a
-# different transformation script
-intrinsic:
-	${PSYCLONE} -s ./sir_trans_all.py -api nemo intrinsic_example.f90 \
--opsy /dev/null
-tra_adv:
-	${PSYCLONE} -s ./sir_trans_all.py -api nemo tra_adv_compute.F90 \
--opsy /dev/null
-
-# We don't do any compilation for this example
-compile:
-	@echo "No compilation supported for nemo/eg4"
-
-all: transform compile
+__all__ = ['NemoArrayRange2LoopTrans', 'NemoOuterArrayRange2LoopTrans',
+           'NemoAllArrayRange2LoopTrans']
