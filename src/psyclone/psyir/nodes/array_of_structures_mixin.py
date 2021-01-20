@@ -52,8 +52,11 @@ from psyclone.errors import InternalError
 @six.add_metaclass(abc.ABCMeta)
 class ArrayOfStructuresMixin(ArrayMixin):
     '''
-    Abstract class used to add functionality common to Nodes that represent
-    accesses to arrays of structures.
+    Abstract class used to extend the ArrayMixin class with functionality
+    common to Nodes that represent accesses to arrays of structures. The
+    primary difference is that the first child of such Nodes must be an
+    instance of Member. Subsequent children then represent the array-index
+    expressions.
 
     '''
     @staticmethod

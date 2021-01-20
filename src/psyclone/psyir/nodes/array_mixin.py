@@ -220,7 +220,8 @@ class ArrayMixin(object):
         :returns: the PSyIR nodes representing the array-index expressions.
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises InternalError: if this node has no children.
+        :raises InternalError: if this node has no children or if they are \
+                               not valid array-index expressions.
 
         '''
         if not self._children:
