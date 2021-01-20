@@ -288,6 +288,17 @@
         92) PR #1029 towards #1010. Sets up initial API and examples for
         generating PSy-layer code using the PSyIR backends.
 
+        93) PR #1032 for #1019. Adds OpenCL configuration parameters to
+        enable profiling and out-of-order execution of kernels. Also adds
+        an 'OpenCL devices per node' configuration option.
+
+        94) PR #1044 towards #817. Updates the metadata in LFRic test
+        kernels to specify the type of field and operator arguments.
+
+        95) PR #1038 for #999. Changes to the PSyData wrapper libraries
+        so that they build with Intel. (Ensures that generic interfaces
+        to various routines are declared in the correct locations.)
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
