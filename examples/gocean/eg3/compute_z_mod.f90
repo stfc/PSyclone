@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018, Science and Technology Facilities Council.
+! Copyright (c) 2018-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab.
+! Authors: A. R. Porter and S. Siso, STFC Daresbury Lab.
 
 !> \brief Compute the potential vorticity, z
 !! \detail Given the current pressure and velocity fields,
@@ -49,9 +49,9 @@ module compute_z_mod
   type, extends(kernel_type) :: compute_z
      type(go_arg), dimension(6) :: meta_args =    &
           (/ go_arg(GO_WRITE, GO_CF, GO_POINTWISE),        & ! z
-             go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
-             go_arg(GO_READ,  GO_CU, GO_POINTWISE),        & ! u
-             go_arg(GO_READ,  GO_CV, GO_POINTWISE),        & ! v
+             go_arg(GO_READ,  GO_CT, GO_STENCIL(000,110,110)),        & ! p
+             go_arg(GO_READ,  GO_CU, GO_STENCIL(000,010,010)),        & ! u
+             go_arg(GO_READ,  GO_CV, GO_STENCIL(000,110,000)),        & ! v
              go_arg(GO_READ,  GO_GRID_DX_CONST),           & ! dx
              go_arg(GO_READ,  GO_GRID_DY_CONST)            & ! dy
            /)

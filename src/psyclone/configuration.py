@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology,
 #           I. Kavcic, Met Office
 
@@ -206,6 +206,9 @@ class Config(object):
         # The root name to use when creating internal PSyIR names.
         self._psyir_root_name = None
 
+        # Number of OpenCL devices per node
+        self._ocl_devices_per_node = 1
+
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
         '''Loads a configuration file.
@@ -328,6 +331,14 @@ class Config(object):
                 self._config["DEFAULT"]["VALID_PSY_DATA_PREFIXES"].split()
         except KeyError:
             self._valid_psy_data_prefixes = []
+
+        try:
+            self._ocl_devices_per_node = self._config['DEFAULT'].getint(
+                'OCL_DEVICES_PER_NODE')
+        except ValueError as err:
+            six.raise_from(ConfigurationError(
+                "error while parsing OCL_DEVICES_PER_NODE: "
+                "{0}".format(str(err)), config=self), err)
 
         # Verify that the prefixes will result in valid Fortran names:
         import re
@@ -664,6 +675,12 @@ class Config(object):
         ''':returns: The list of all valid class prefixes.
         :rtype: list of str'''
         return self._valid_psy_data_prefixes
+
+    @property
+    def ocl_devices_per_node(self):
+        ''':returns: The number of OpenCL devices per node.
+        :rtype: int'''
+        return self._ocl_devices_per_node
 
     def get_default_keys(self):
         '''Returns all keys from the default section.

@@ -37,13 +37,16 @@ include ../../common.mk
 
 .PHONY: serial dm
 
-transform: serial dm
+transform: serial dm backends
 
 serial:
 	${PSYCLONE} -nodm solver_mod.x90
 
 dm:
 	${PSYCLONE} solver_mod.x90
+
+backends:
+	${PSYCLONE} -s ./backends_transform.py -nodm solver_mod.x90
 
 compile:
 	@echo "No compilation supported for lfric/eg4"
