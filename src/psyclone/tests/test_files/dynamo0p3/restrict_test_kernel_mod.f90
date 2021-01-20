@@ -2,7 +2,7 @@
 !
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2020, Science and Technology Facilities Council
+! Copyright (c) 2018-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -47,9 +47,11 @@ module restrict_test_kernel_mod
 
   type, public, extends(kernel_type) :: restrict_test_kernel_type
      private
-     type(arg_type) :: meta_args(2) = (/                                &
-          arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1, mesh_arg=GH_COARSE), &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, mesh_arg=GH_FINE   ) &
+     type(arg_type) :: meta_args(2) = (/                            &
+          arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_1,         &
+                                               mesh_arg=GH_COARSE), &
+          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2,         &
+                                               mesh_arg=GH_FINE  )  &
           /)
     integer :: operates_on = CELL_COLUMN
   contains
