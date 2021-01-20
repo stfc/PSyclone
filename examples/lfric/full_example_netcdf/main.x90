@@ -33,6 +33,7 @@
 
 program main
 
+    use global_mesh_base_mod,   only: global_mesh_base_type
     use global_mesh_netcdf_mod, only: global_mesh_type => global_mesh_netcdf_type
     use mesh_mod,               only: mesh_type, PLANE
     use partition_mod,          only: partition_type, partitioner_planar, partitioner_interface
@@ -47,7 +48,7 @@ program main
     implicit none
 
     type(global_mesh_type), target             :: global_mesh
-    class(global_mesh_type), pointer           :: global_mesh_ptr
+    class(global_mesh_base_type), pointer      :: global_mesh_ptr
     type(partition_type)                       :: partition
     type(mesh_type), target                    :: mesh
     type(uniform_extrusion_type), target       :: extrusion
