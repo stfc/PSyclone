@@ -1,6 +1,6 @@
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,7 @@
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
 ! Modified by J. Henrichs, Bureau of Meteorology
+! Modified by I. Kavcic, Met Office
 
 module testkern_w0_mod
 
@@ -45,9 +46,9 @@ module testkern_w0_mod
 
   type, public, extends(kernel_type) :: testkern_w0_type
      private
-     type(arg_type), dimension(2) :: meta_args =  &
-          (/ arg_type(gh_field, gh_inc,  w0),     &
-             arg_type(gh_field, gh_read, w0)      &
+     type(arg_type), dimension(2) :: meta_args =       &
+          (/ arg_type(gh_field, gh_real, gh_inc,  w0), &
+             arg_type(gh_field, gh_real, gh_read, w0)  &
            /)
      integer :: operates_on = cell_column
    contains
@@ -60,11 +61,9 @@ contains
 
   subroutine testkern_w0_code(nlayers, fld1, fld2, ndf_w0, undf_w0, map_w0)
 
-    use constants_mod, only: r_def, i_def
-    
     implicit none
 
-    integer                                             :: nlayers
+    integer(kind=i_def), intent(in)                     :: nlayers
     real(kind=r_def), dimension(undf_w0), intent(inout) :: fld1
     real(kind=r_def), dimension(undf_w0), intent(in)    :: fld2
     integer(kind=i_def)                                 :: ndf_w0, undf_w0

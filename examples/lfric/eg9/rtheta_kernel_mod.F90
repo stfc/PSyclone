@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,10 @@
 module rtheta_kernel_mod
 
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,               &
-                                    GH_FIELD, GH_READ, GH_INC,         &
-                                    GH_BASIS, GH_DIFF_BASIS,           &
+use argument_mod,            only : arg_type, func_type,     &
+                                    GH_FIELD, GH_REAL,       &
+                                    GH_READ, GH_INC,         &
+                                    GH_BASIS, GH_DIFF_BASIS, &
                                     CELL_COLUMN, GH_QUADRATURE_XYoZ
 use fs_continuity_mod,       only : W0, W2
 use constants_mod,           only : r_def, i_def
@@ -64,9 +65,9 @@ private
 type, public, extends(kernel_type) :: rtheta_kernel_type
   private
   type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD,   GH_INC,  W0),                              &
-       arg_type(GH_FIELD,   GH_READ, W0),                              &
-       arg_type(GH_FIELD,   GH_READ, W2)                               &
+       arg_type(GH_FIELD, GH_REAL, GH_INC,  W0),                       &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W0),                       &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W2)                        &
        /)
   type(func_type) :: meta_funcs(2) = (/                                &
        func_type(W0, GH_BASIS, GH_DIFF_BASIS),                         &
@@ -88,15 +89,15 @@ contains
 !> @brief Compute the right hand side of the thermodynamic equation
 !! @param[in] nlayers Number of layers
 !! @param[in,out] r_theta Right hand side of the thermodynamic equation
-!! @param[in,out] theta Potential temperature
-!! @param[in] u wind field
+!! @param[in] theta Potential temperature
+!! @param[in] u Wind field
 !! @param[in] ndf_w0 Number of degrees of freedom per cell for w0
-!! @param[in] undf_w0  Number of unique degrees of freedom  for w0
+!! @param[in] undf_w0  Number of unique degrees of freedom for w0
 !! @param[in] map_w0 Dofmap for the cell at the base of the column for w0
 !! @param[in] w0_basis Basis functions evaluated at gaussian quadrature points
 !! @param[in] w0_diff_basis Differential basis functions evaluated at gaussian quadrature points
 !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
-!! @param[in] undf_w2  Number of unique degrees of freedom  for w2
+!! @param[in] undf_w2 Number of unique degrees of freedom for w2
 !! @param[in] map_w2 Dofmap for the cell at the base of the column for w2
 !! @param[in] w2_basis Basis functions evaluated at gaussian quadrature points
 !! @param[in] nqp_h Number of horizontal quadrature points
