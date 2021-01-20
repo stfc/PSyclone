@@ -227,18 +227,18 @@ def test_derived_type_ref(f2008_parser):
     assert amem.children[0].name == "stop"
     # var%region%subgrid(3)%data(:)
     assign = assignments[3]
-    amem = assign.lhs.children[0].children[0]
+    amem = assign.lhs.member.member
     assert isinstance(amem, ArrayOfStructuresMember)
-    assert isinstance(amem.children[0], ArrayMember)
-    assert isinstance(amem.children[0].children[0], Range)
+    assert isinstance(amem.member, ArrayMember)
+    assert isinstance(amem.member.indices[0], Range)
     assign = assignments[4]
     # var%region%subgrid(3)%data(var%start:var%stop)
-    amem = assign.lhs.children[0].children[0].children[0]
+    amem = assign.lhs.member.member.member
     assert isinstance(amem, ArrayMember)
-    assert isinstance(amem.children[0], Range)
-    assert isinstance(amem.children[0].children[0], StructureReference)
-    assert isinstance(amem.children[0].children[0].children[0], Member)
-    assert amem.children[0].children[0].children[0].name == "start"
+    assert isinstance(amem.indices[0], Range)
+    assert isinstance(amem.indices[0].children[0], StructureReference)
+    assert isinstance(amem.indices[0].children[0].member, Member)
+    assert amem.indices[0].children[0].member.name == "start"
 
 
 def test_array_of_derived_type_ref(f2008_parser):
@@ -276,34 +276,31 @@ def test_array_of_derived_type_ref(f2008_parser):
     # var(start:stop)%flag
     assign = assignments[2]
     assert isinstance(assign.lhs, ArrayOfStructuresReference)
-    assert isinstance(assign.lhs.children[0], Member)
-    assert isinstance(assign.lhs.children[1], Range)
-    assert isinstance(assign.lhs.children[1].children[0], Reference)
-    assert assign.lhs.children[1].children[0].symbol.name == "start"
+    assert isinstance(assign.lhs.member, Member)
+    assert isinstance(assign.lhs.indices[0], Range)
+    assert isinstance(assign.lhs.indices[0].children[0], Reference)
+    assert assign.lhs.indices[0].children[0].symbol.name == "start"
     # var(1)%region%start
     assign = assignments[3]
     assert isinstance(assign.lhs, ArrayOfStructuresReference)
-    assert isinstance(assign.lhs.children[0], StructureMember)
-    assert isinstance(assign.lhs.children[1], Literal)
-    assert assign.lhs.children[0].name == "region"
-    assert isinstance(assign.lhs.children[0].children[0], Member)
+    assert isinstance(assign.lhs.member, StructureMember)
+    assert isinstance(assign.lhs.indices[0], Literal)
+    assert assign.lhs.member.name == "region"
+    assert isinstance(assign.lhs.member.member, Member)
     # var(1)%region%subgrid(3)%stop
     assign = assignments[4]
     assert isinstance(assign.lhs, ArrayOfStructuresReference)
-    assert isinstance(assign.lhs.children[0].children[0],
-                      ArrayOfStructuresMember)
-    assert isinstance(assign.lhs.children[0].children[0].children[0],
-                      Member)
-    assert isinstance(assign.lhs.children[0].children[0].children[1],
-                      Literal)
+    assert isinstance(assign.lhs.member.member, ArrayOfStructuresMember)
+    assert isinstance(assign.lhs.member.member.member, Member)
+    assert isinstance(assign.lhs.member.member.indices[0], Literal)
     # var(1)%region%subgrid(3)%data(:)
     assign = assignments[5]
     assert isinstance(assign.lhs, ArrayOfStructuresReference)
-    amem = assign.lhs.children[0].children[0]
+    amem = assign.lhs.member.member
     assert isinstance(amem, ArrayOfStructuresMember)
-    assert isinstance(amem.children[0], ArrayMember)
-    assert isinstance(amem.children[1], Literal)
-    assert isinstance(amem.children[0].children[0], Range)
+    assert isinstance(amem.member, ArrayMember)
+    assert isinstance(amem.indices[0], Literal)
+    assert isinstance(amem.member.indices[0], Range)
 
 
 def test_derived_type_codeblocks(f2008_parser):
