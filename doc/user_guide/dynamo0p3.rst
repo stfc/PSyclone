@@ -1120,6 +1120,19 @@ would be declared as::
 
   STENCIL(CROSS)
 
+The ``REGION`` stencil references a block of cells:
+
+.. code-block:: none
+
+  | 9 | 8 | 7 |
+  | 2 | 1 | 6 |
+  | 3 | 4 | 5 |
+
+
+and would be declared as::
+
+  STENCIL(REGION)
+
 Below is an example of stencil information within the full kernel metadata::
 
   type(arg_type) :: meta_args(3) = (/                                  &
