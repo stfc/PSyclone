@@ -505,7 +505,7 @@ class Invokes(object):
 
 
 class Invoke(object):
-    '''Manage an individual invoke call.
+    r'''Manage an individual invoke call.
 
     :param alg_invocation: metadata from the parsed code capturing \
                            information for this Invoke instance.
