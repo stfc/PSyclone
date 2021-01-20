@@ -41,6 +41,7 @@
 from __future__ import absolute_import
 from psyclone.psyir.symbols.symbol import Symbol
 from psyclone.psyir.symbols.typesymbol import TypeSymbol
+from psyclone.errors import InternalError
 
 
 class DataSymbol(Symbol):
@@ -301,24 +302,25 @@ class DataSymbol(Symbol):
         self._interface = symbol_in.interface
 
     def specialise(self, other_symbol):
-        ''' xxx '''
+        '''In-place specialisation of a class into a subclass. Done so any
+        references to seld remain valid.
+
+        ************
+
+        '''
         # Check that the other_symbol is a sub-class of self
-        assert isinstance(other_symbol, self.__class__)
+        if not isinstance(other_symbol, self.__class__):
+            raise InternalError("Not a subclass")
 
-        # Check that the members of each class are the same
-        import inspect
-        my_members = [member[0] for member in inspect.getmembers(self)]
-        other_symbol_members = [member[0] for member in inspect.getmembers(other_symbol)]
-        print (len(my_members))
-        print (len(other_symbol_members))
-        if not (my_members == other_symbol_members):
-            print (my_members)
-            print (other_symbol_members)
-            exit(1)
-        #for index in range(len(my_members)):
-        #    if my_members[index] != other_symbol_members[index]:
-        #        print ("{0} {1}\n".format(my_members[index], other_symbol_members[index]))
-        # exit(1)
-
+        # Check that other_symbol implements a set_properties method
+        if not (hasattr(other_symbol, "set_properties") and \
+                ismethod(other_symbol.set_properties)):
+            raise InternalError(
+                "No set_properties method implemented in class '{0}'"
+                "".format(other_symbol.__class__.__name__))
+        
         # Make self an instance of the subclass
         self.__class__ = other_symbol.__class__
+
+        # update self with the additional properties specified by the subclass
+        other_symbol.set_properties(self)
