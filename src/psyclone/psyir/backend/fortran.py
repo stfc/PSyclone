@@ -50,7 +50,7 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol, \
     TypeSymbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
-    Reference, Literal, KernelSchedule, DataNode, CodeBlock, Member, Range
+    Routine, Reference, Literal, DataNode, CodeBlock, Member, Range
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.errors import InternalError
 
@@ -538,10 +538,24 @@ class FortranWriter(PSyIRVisitor):
         :raises InternalError: if a Routine symbol with an unrecognised \
                                visibility is encountered.
         '''
+
+        # Find the symbol that represents itself, this one will not need
+        # an accessibility statement
+        try:
+            itself = symbol_table.lookup_with_tag('own_routine_symbol')
+        except KeyError:
+            itself = None
+
         public_routines = []
         private_routines = []
         for symbol in symbol_table.symbols:
             if isinstance(symbol, RoutineSymbol):
+
+                # Skip the symbol representing the routine where these
+                # declarations belong
+                if symbol is itself:
+                    continue
+
                 # It doesn't matter whether this symbol has a local or global
                 # interface - its accessibility in *this* context is determined
                 # by the local accessibility statements. e.g. if we are
@@ -662,19 +676,18 @@ class FortranWriter(PSyIRVisitor):
         :raises VisitorError: if the name attribute of the supplied \
         node is empty or None.
         :raises VisitorError: if any of the children of the supplied \
-        Container node are not KernelSchedules.
+        Container node are not Routines.
 
         '''
         if not node.name:
             raise VisitorError("Expected Container node name to have a value.")
 
-        # All children must be KernelSchedules as modules within
+        # All children must be Routine as modules within
         # modules are not supported.
-        if not all([isinstance(child, KernelSchedule)
-                    for child in node.children]):
+        if not all([isinstance(child, Routine) for child in node.children]):
             raise VisitorError(
                 "The Fortran back-end requires all children of a Container "
-                "to be KernelSchedules.")
+                "to be a sub-class of Routine.")
 
         result = "{0}module {1}\n".format(self._nindent, node.name)
 
@@ -699,8 +712,8 @@ class FortranWriter(PSyIRVisitor):
         result += "{0}end module {1}\n".format(self._nindent, node.name)
         return result
 
-    def kernelschedule_node(self, node):
-        '''This method is called when a KernelSchedule instance is found in
+    def routine_node(self, node):
+        '''This method is called when a Routine node is found in
         the PSyIR tree.
 
         The constants_mod module is currently hardcoded into the
@@ -728,6 +741,14 @@ class FortranWriter(PSyIRVisitor):
         self._depth += 1
         # Declare the kernel data.
         declarations = self.gen_decls(node.symbol_table)
+        # Fortran declares all variables found in the inner nested scopes
+        # at the Routine level. There can be name clashes as PSyIR supports
+        # nested scopes.
+        # TODO #1010: Nested scopes name clashes can be resolved here as a
+        # Fortran-specific feature, or in the lower_to_language_level for
+        # a more generic solution.
+        # for schedule in node.walk(Schedule):
+        #     declarations += self.gen_decls(schedule.symbol_table)
         # Get the executable statements.
         exec_statements = ""
         for child in node.children:

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -463,7 +463,7 @@ def test_dag_names():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     assert super(Schedule, schedule).dag_name == "node_0"
-    assert schedule.dag_name == "schedule_0"
+    assert schedule.dag_name == "routine_invoke_0_testkern_type_0"
     assert schedule.children[0].dag_name == "checkHaloExchange(f1)_0"
     assert schedule.children[4].dag_name == "loop_5"
     schedule.children[4].loop_type = "colour"
@@ -571,12 +571,12 @@ def test_node_dag_wrong_file_format(monkeypatch):
 # versions. Need a raw-string (r"") to get new-lines handled nicely.
 EXPECTED2 = re.compile(
     r"digraph {\n"
-    r"\s*schedule_0_start\n"
-    r"\s*schedule_0_end\n"
+    r"\s*routine_invoke_0_0_start\n"
+    r"\s*routine_invoke_0_0_end\n"
     r"\s*loop_1_start\n"
     r"\s*loop_1_end\n"
     r"\s*loop_1_end -> loop_7_start \[color=green\]\n"
-    r"\s*schedule_0_start -> loop_1_start \[color=blue\]\n"
+    r"\s*routine_invoke_0_0_start -> loop_1_start \[color=blue\]\n"
     r"\s*schedule_5_start\n"
     r"\s*schedule_5_end\n"
     r"\s*schedule_5_end -> loop_1_end \[color=blue\]\n"
@@ -586,7 +586,7 @@ EXPECTED2 = re.compile(
     r"\s*schedule_5_start -> kernel_testkern_qr_code_6 \[color=blue\]\n"
     r"\s*loop_7_start\n"
     r"\s*loop_7_end\n"
-    r"\s*loop_7_end -> schedule_0_end \[color=blue\]\n"
+    r"\s*loop_7_end -> routine_invoke_0_0_end \[color=blue\]\n"
     r"\s*loop_1_end -> loop_7_start \[color=red\]\n"
     r"\s*schedule_11_start\n"
     r"\s*schedule_11_end\n"
@@ -623,8 +623,8 @@ def test_node_dag(tmpdir, have_graphviz):
     assert EXPECTED2.match(result)
     my_file = tmpdir.join('test.svg')
     result = my_file.read()
-    for name in ["<title>schedule_0_start</title>",
-                 "<title>schedule_0_end</title>",
+    for name in ["<title>routine_invoke_0_0_start</title>",
+                 "<title>routine_invoke_0_0_end</title>",
                  "<title>loop_1_start</title>",
                  "<title>loop_1_end</title>",
                  "<title>kernel_testkern_qr_code_6</title>",
@@ -896,3 +896,27 @@ def test_children_setter():
         testnode.children = Node()
     assert "The 'my_children' parameter of the node.children setter must be" \
            " a list or None." in str(error.value)
+
+
+def test_lower_to_language_level(monkeypatch):
+    ''' Test that Node has a lower_to_language_level() method that \
+    recurses to the same method of its children. '''
+
+    # Monkeypatch the lower_to_language_level to just mark a flag
+    def visited(self):
+        self._visited_flag = True
+    monkeypatch.setattr(Statement, "lower_to_language_level", visited)
+
+    testnode = Schedule()
+    node1 = Statement()
+    node2 = Statement()
+    testnode.children = [node1, node2]
+
+    # Execute method
+    testnode.lower_to_language_level()
+
+    # Check all children have been visited
+    for child in testnode.children:
+        # This member only exists in the monkeypatched version
+        # pylint:disable=no-member
+        assert child._visited_flag
