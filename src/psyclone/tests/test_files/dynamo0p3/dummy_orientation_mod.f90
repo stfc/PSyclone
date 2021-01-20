@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -42,11 +42,11 @@ module dummy_orientation_mod
   implicit none
 
   type, extends(kernel_type) :: dummy_orientation_type
-     type(arg_type), meta_args(4) =                       &
-          (/ arg_type(gh_field,    gh_inc,       w0),     &
-             arg_type(gh_operator, gh_readwrite, w1, w1), &
-             arg_type(gh_field,    gh_read,      w2),     &
-             arg_type(gh_operator, gh_write,     w3, w3)  &
+     type(arg_type), meta_args(4) =                                &
+          (/ arg_type(gh_field,    gh_real, gh_inc,       w0),     &
+             arg_type(gh_operator, gh_real, gh_readwrite, w1, w1), &
+             arg_type(gh_field,    gh_real, gh_read,      w2),     &
+             arg_type(gh_operator, gh_real, gh_write,     w3, w3)  &
            /)
      type(func_type), meta_funcs(4) =       &
           (/ func_type(w0, gh_orientation), &
@@ -54,7 +54,7 @@ module dummy_orientation_mod
              func_type(w2, gh_orientation), &
              func_type(w3, gh_orientation)  &
            /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_orientation_code
   end type dummy_orientation_type

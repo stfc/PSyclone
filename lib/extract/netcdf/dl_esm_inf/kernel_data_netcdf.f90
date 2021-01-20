@@ -60,26 +60,11 @@ module extract_psy_data_mod
         procedure :: DeclareFieldDouble, WriteFieldDouble
 
         !> The generic interface for declaring a variable:
-        generic, public :: PreDeclareVariable => DeclareScalarInt,    &
-                                                 DeclareScalarReal,   &
-                                                 DeclareScalarDouble, &
-                                                 DeclareFieldDouble,  &
-                                                 DeclareArray2dDouble
+        generic, public :: PreDeclareVariable => DeclareFieldDouble
 
         !> The generic interface for providing the value of variables,
         !! which in case of the NetCDF interface is written:                                               
-        generic, public :: ProvideVariable => WriteScalarInt,    &
-                                              WriteScalarReal,   &
-                                              WriteScalarDouble, &
-                                              WriteFieldDouble
-
-        !> The generic interface for reading in variables previously
-        !! written. Used in a driver that e.g. read previously written
-        !! files.
-        generic, public :: ReadVariable => ReadScalarInt,    &
-                                           ReadScalarReal,   &
-                                           ReadScalarDouble, &
-                                           ReadArray2DDouble
+        generic, public :: ProvideVariable => WriteFieldDouble
 
     end type extract_PSyDataType
 

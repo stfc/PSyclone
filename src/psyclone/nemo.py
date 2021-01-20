@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.errors import GenerationError
 
 
 class NemoFparser2Reader(Fparser2Reader):
@@ -476,10 +477,69 @@ class NemoLoop(Loop):
         variable. Defaults to an empty string.
     '''
     def __init__(self, parent=None, variable=None):
-        valid_loop_types = Config.get().api_conf("nemo").get_valid_loop_types()
+        # The order in which names are returned in
+        # get_valid_loop_types depends on the Python implementation
+        # (as it pulls the values from a dictionary). To make it clear
+        # that there is no implied ordering here we store
+        # valid_loop_types as a set, rather than a list.
+        valid_loop_types = set(
+            Config.get().api_conf("nemo").get_valid_loop_types())
         Loop.__init__(self, parent=parent,
                       variable=variable,
                       valid_loop_types=valid_loop_types)
+
+    @staticmethod
+    def create(variable, start, stop, step, children):
+        '''Create a NemoLoop instance given valid instances of a variable,
+        start, stop and step nodes, and a list of child nodes for the
+        loop body.
+
+        :param variable: the PSyIR node containing the variable \
+            of the loop iterator.
+        :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param start: the PSyIR node determining the value for the \
+            start of the loop.
+        :type start: :py:class:`psyclone.psyir.nodes.Node`
+        :param end: the PSyIR node determining the value for the end \
+            of the loop.
+        :type end: :py:class:`psyclone.psyir.nodes.Node`
+        :param step: the PSyIR node determining the value for the loop \
+            step.
+        :type step: :py:class:`psyclone.psyir.nodes.Node`
+        :param children: a list of PSyIR nodes contained in the \
+            loop.
+        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: a NemoLoop instance.
+        :rtype: :py:class:`psyclone.nemo.NemoLoop`
+
+        :raises GenerationError: if the arguments to the create method \
+            are not of the expected type.
+
+        '''
+        Loop._check_variable(variable)
+
+        if not isinstance(children, list):
+            raise GenerationError(
+                "children argument in create method of NemoLoop class "
+                "should be a list but found '{0}'."
+                "".format(type(children).__name__))
+
+        # Create the loop
+        loop = NemoLoop(variable=variable)
+        schedule = Schedule(parent=loop, children=children)
+        loop.children = [start, stop, step, schedule]
+        for child in children:
+            child.parent = schedule
+        start.parent = loop
+        stop.parent = loop
+        step.parent = loop
+
+        # Indicate the type of loop
+        loop_type_mapping = Config.get().api_conf("nemo") \
+                                        .get_loop_type_mapping()
+        loop.loop_type = loop_type_mapping.get(variable.name, "unknown")
+        return loop
 
     @property
     def kernel(self):

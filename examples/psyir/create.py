@@ -59,27 +59,22 @@ from psyclone.psyir.backend.c import CWriter
 
 # Symbol table, symbols and scalar datatypes
 SYMBOL_TABLE = SymbolTable()
-TMP_NAME1 = SYMBOL_TABLE.new_symbol_name()
-ARG1 = DataSymbol(TMP_NAME1, REAL_TYPE, interface=ArgumentInterface(
-    ArgumentInterface.Access.READWRITE))
-SYMBOL_TABLE.add(ARG1)
-TMP_NAME2 = SYMBOL_TABLE.new_symbol_name()
-TMP_SYMBOL = DataSymbol(TMP_NAME2, REAL_DOUBLE_TYPE)
-SYMBOL_TABLE.add(TMP_SYMBOL)
-INDEX_NAME = SYMBOL_TABLE.new_symbol_name(root_name="i")
-INDEX_SYMBOL = DataSymbol(INDEX_NAME, INTEGER4_TYPE)
-SYMBOL_TABLE.add(INDEX_SYMBOL)
+ARG1 = SYMBOL_TABLE.new_symbol(
+        symbol_type=DataSymbol, datatype=REAL_TYPE,
+        interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
 SYMBOL_TABLE.specify_argument_list([ARG1])
-REAL_KIND_NAME = SYMBOL_TABLE.new_symbol_name(root_name="RKIND")
-REAL_KIND = DataSymbol(REAL_KIND_NAME, INTEGER_TYPE, constant_value=8)
-SYMBOL_TABLE.add(REAL_KIND)
+TMP_SYMBOL = SYMBOL_TABLE.new_symbol(symbol_type=DataSymbol,
+                                     datatype=REAL_DOUBLE_TYPE)
+INDEX_SYMBOL = SYMBOL_TABLE.new_symbol(root_name="i", symbol_type=DataSymbol,
+                                       datatype=INTEGER4_TYPE)
+REAL_KIND = SYMBOL_TABLE.new_symbol(root_name="RKIND", symbol_type=DataSymbol,
+                                    datatype=INTEGER_TYPE, constant_value=8)
 ROUTINE_SYMBOL = RoutineSymbol("my_sub")
 
 # Array using precision defined by another symbol
-ARRAY_NAME = SYMBOL_TABLE.new_symbol_name(root_name="a")
 SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
-ARRAY = DataSymbol(ARRAY_NAME, ArrayType(SCALAR_TYPE, [10]))
-SYMBOL_TABLE.add(ARRAY)
+ARRAY = SYMBOL_TABLE.new_symbol(root_name="a", symbol_type=DataSymbol,
+                                datatype=ArrayType(SCALAR_TYPE, [10]))
 
 # Nodes which do not have Nodes as children and (some) predefined
 # scalar datatypes
