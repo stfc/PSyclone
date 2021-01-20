@@ -63,7 +63,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
-    ContainerSymbol
+    ContainerSymbol, TypeSymbol, DeferredType, UnresolvedInterface
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -1840,6 +1840,23 @@ class GOKernelArgument(KernelArgument):
 
         self._arg = arg
         KernelArgument.__init__(self, arg, arg_info, call)
+
+    def infere_datatype(self):
+        if self.argument_type == "field":
+            # All GOcean fields are r2d_type:
+            # r2d_type can have DeferredType and UnresolvedInterface because
+            # it is an unnamed import from a module.
+            type_symbol = self._call.root.symbol_table.symbol_from_tag(
+                "r2d_type", symbol_type=TypeSymbol, datatype=DeferredType(),
+                interface=UnresolvedInterface())
+            return type_symbol
+        if self.argument_type == "scalar":
+            # All GOcean scalars are integers
+            return INTEGER_TYPE
+        if self.argument_type == "grid_property":
+            pass  # Info is at api_config.grid_properties[str] ?
+
+        return DeferredType()
 
     @property
     def argument_type(self):

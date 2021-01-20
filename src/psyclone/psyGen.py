@@ -50,7 +50,7 @@ from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
-    ArgumentInterface, DeferredType, SymbolError
+    ArgumentInterface, DeferredType
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
     Routine, PSyDataNode, Call, Reference
@@ -3712,15 +3712,30 @@ class Argument(object):
                 previous_arguments = \
                         self._call.root.symbol_table.argument_list
                 tag = "AlgArgs_" + self._text
-                # TODO: Type should be specified here !?
                 # TODO: Interface.Access should come from access
-                symbol = self._call.root.symbol_table.symbol_from_tag(
+                new_argument = self._call.root.symbol_table.symbol_from_tag(
                     tag, root_name=self._orig_name, symbol_type=DataSymbol,
-                    datatype=DeferredType(), interface=ArgumentInterface(
-                            ArgumentInterface.Access.READWRITE))
-                self._call.root.symbol_table.specify_argument_list(
-                    previous_arguments + [symbol])
-                self._name = symbol.name
+                    datatype=self.infere_datatype(),
+                    interface=ArgumentInterface(
+                        ArgumentInterface.Access.READWRITE))
+
+                # Unless the argument already exists with another interface
+                # (e.g. globals) they come from the invoke argument list
+                if isinstance(new_argument.interface, ArgumentInterface):
+                    self._call.root.symbol_table.specify_argument_list(
+                        previous_arguments + [new_argument])
+                self._name = new_argument.name
+
+    def infere_datatype(self):
+        ''' Infere the datatype of this argument using the API rules. If no
+        specialisation of this method has been provided make the type
+        DeferredType at this point.
+
+        :returns: the datatype of this argument.
+        :rtype: :py:class::`psyclone.psyir.symbols.datatype`
+        '''
+        # pylint: disable=no-self-use
+        return DeferredType()
 
     def __str__(self):
         return self._name
