@@ -42,7 +42,8 @@ program time_evolution_driver
 
   ! Infrastructure
   use constants_mod,          only : i_def, i_native, r_def, str_short
-  use global_mesh_netcdf_mod, only : global_mesh_type => global_mesh_netcdf_type
+  use global_mesh_base_mod,   only : global_mesh_base_type
+  use global_mesh_netcdf_mod, only : global_mesh_netcdf_type
   use mesh_mod,               only : mesh_type
   use partition_mod,          only : partition_type,     &
                                      partitioner_planar, &
@@ -82,8 +83,8 @@ program time_evolution_driver
   implicit none
 
   ! Global and local mesh data types
-  type(global_mesh_type), target  :: global_mesh
-  type(global_mesh_type), pointer :: global_mesh_ptr => null()
+  type(global_mesh_netcdf_type), target :: global_mesh
+  class(global_mesh_base_type), pointer :: global_mesh_ptr => null()
   type(mesh_type), target         :: mesh
   ! Extrusion
   type(uniform_extrusion_type), target  :: extrusion
@@ -134,7 +135,7 @@ program time_evolution_driver
   ! Read global 2D mesh from the NetCDF file
   call log_event( "Creating global 2D mesh from the mesh file '"// &
                   trim(filename)//"'", LOG_LEVEL_INFO )
-  global_mesh = global_mesh_type(filename, prime_mesh_name)
+  global_mesh = global_mesh_netcdf_type(filename, prime_mesh_name)
   global_mesh_ptr => global_mesh
 
   ! Generate the partition object
