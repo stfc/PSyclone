@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,8 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Container, Assignment, Return, ArrayReference, Node, Range, KernelSchedule
+    Container, Assignment, Return, ArrayReference, Node, Range, \
+    KernelSchedule, StructureReference, ArrayOfStructuresReference
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
@@ -707,6 +708,7 @@ class Fparser2Reader(object):
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
             Fortran2003.Assignment_Stmt: self._assignment_handler,
+            Fortran2003.Data_Ref: self._data_ref_handler,
             Fortran2003.Name: self._name_handler,
             Fortran2003.Parenthesis: self._parenthesis_handler,
             Fortran2003.Part_Ref: self._part_ref_handler,
@@ -2797,6 +2799,77 @@ class Fparser2Reader(object):
         self.process_nodes(parent=assignment, nodes=[node.items[2]])
 
         return assignment
+
+    def _data_ref_handler(self, node, parent):
+        '''
+        Create the PSyIR for an fparser2 Data_Ref (representing an access
+        to a derived type).
+
+        :param node: node in fparser2 parse tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Data_Ref`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
+
+        :raises NotImplementedError: if the parse tree contains unsupported \
+                                     elements.
+        '''
+        # First we construct the full list of 'members' making up the
+        # derived-type reference. e.g. for "var%region(1)%start" this
+        # will be [("region", [Literal("1")]), "start"].
+        members = []
+        for child in node.children[1:]:
+            if isinstance(child, Fortran2003.Name):
+                # Members of a structure do not refer to symbols
+                members.append(child.string)
+            elif isinstance(child, Fortran2003.Part_Ref):
+                # In order to use process_nodes() we need a fake parent node
+                # through which we can access the symbol table. This is
+                # because array-index expressions must refer to symbols.
+                sched = parent.ancestor(Schedule, include_self=True)
+                fake_parent = ArrayReference(parent=sched,
+                                             symbol=Symbol("fake"))
+                array_name = child.children[0].string
+                subscript_list = child.children[1].children
+                self.process_nodes(parent=fake_parent, nodes=subscript_list)
+                members.append((array_name, fake_parent.children))
+            else:
+                # Found an unsupported entry in the parse tree. This will
+                # result in a CodeBlock.
+                raise NotImplementedError(str(node))
+
+        # Now we have the list of members, use the `create()` method of the
+        # appropriate Reference subclass.
+        if isinstance(node.children[0], Fortran2003.Name):
+            # Base of reference is a scalar entity.
+            sym = _find_or_create_imported_symbol(parent,
+                                                  node.children[0].string)
+            return StructureReference.create(sym, members=members,
+                                             parent=parent)
+
+        if isinstance(node.children[0], Fortran2003.Part_Ref):
+            # Base of reference is an array access. Lookup the corresponding
+            # symbol.
+            part_ref = node.children[0]
+            sym = _find_or_create_imported_symbol(parent,
+                                                  part_ref.children[0].string)
+            # Processing the array-index expressions requires access to the
+            # symbol table so create a fake ArrayReference node.
+            sched = parent.ancestor(Schedule, include_self=True)
+            fake_parent = ArrayReference(parent=sched,
+                                         symbol=Symbol("fake"))
+            # The children of the fake node represent the indices of the
+            # ArrayOfStructuresReference.
+            self.process_nodes(parent=fake_parent,
+                               nodes=part_ref.children[1].children)
+            ref = ArrayOfStructuresReference.create(
+                sym, fake_parent.children, members, parent=parent)
+            return ref
+
+        # Not a Part_Ref or a Name so this will result in a CodeBlock.
+        raise NotImplementedError(str(node))
 
     def _unary_op_handler(self, node, parent):
         '''
