@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018-2020, Science and Technology Facilities
+! Modifications copyright (c) 2018-2021, Science and Technology Facilities
 ! Council.
 ! All rights reserved.
 !
@@ -52,8 +52,8 @@ module rtheta_bd_kernel_mod
   use argument_mod,          only : arg_type, func_type,         &
                                     mesh_data_type,              &
                                     reference_element_data_type, &
-                                    GH_FIELD, GH_READ,           &
-                                    GH_READWRITE,                &
+                                    GH_FIELD, GH_REAL,           &
+                                    GH_READ, GH_READWRITE,       &
                                     STENCIL, CROSS,              &
                                     GH_BASIS, GH_DIFF_BASIS,     &
                                     GH_QUADRATURE_face,          &
@@ -78,9 +78,9 @@ module rtheta_bd_kernel_mod
   type, public, extends(kernel_type) :: rtheta_bd_kernel_type
     private
     type(arg_type) :: meta_args(3) = (/                                     &
-         arg_type(GH_FIELD, GH_READWRITE, Wtheta),                          &
-         arg_type(GH_FIELD, GH_READ,      Wtheta, STENCIL(CROSS)),          &
-         arg_type(GH_FIELD, GH_READ,      W2,     STENCIL(CROSS))           &
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta),                 &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      Wtheta, STENCIL(CROSS)), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      W2,     STENCIL(CROSS))  &
          /)
     type(func_type) :: meta_funcs(2) = (/                                   &
          func_type(W2,     GH_BASIS),                                       &

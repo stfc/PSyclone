@@ -142,9 +142,8 @@ class PSyDataNode(Statement):
         # PSyDataNode. This allows the variable name to be shown in str
         # (and also, calling create_name in gen() would result in the name
         # being changed every time gen() is called).
-        self._var_name = symtab.new_symbol_name(
-            self._psy_data_symbol_with_prefix)
-        symtab.add(Symbol(self._var_name))
+        self._var_name = symtab.new_symbol(
+            self._psy_data_symbol_with_prefix).name
 
         if children and parent:
             # Correct the parent's list of children. Use a slice of the list
