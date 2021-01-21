@@ -80,7 +80,7 @@ To test the `copy_stencil.f90`, `hori_diff.f90`,
 To test the `intrinsic_example.f90` and `tra_adv_compute.F90` examples run:
 
 ```sh
-> psyclone -s ./sir_trans_intrinsics.py -api nemo <filename> -opsy /dev/null
+> psyclone -s ./sir_trans_all.py -api nemo <filename> -opsy /dev/null
 ```
 
 ## Building Dawn

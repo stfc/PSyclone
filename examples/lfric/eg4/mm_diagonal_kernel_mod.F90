@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,10 @@
 !>          i.e D(df) = M(df,df)
 module mm_diagonal_kernel_mod
 
-use argument_mod,            only : arg_type,                               &
-                                    GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
-                                    ANY_SPACE_1,                            &
+use argument_mod,            only : arg_type,                 &
+                                    GH_FIELD, GH_OPERATOR,    &
+                                    GH_REAL, GH_READ, GH_INC, &
+                                    ANY_SPACE_1,              &
                                     CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
@@ -63,9 +64,9 @@ private
 
 type, public, extends(kernel_type) :: mm_diagonal_kernel_type
   private
-  type(arg_type) :: meta_args(2) = (/                                  &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1)        &
+  type(arg_type) :: meta_args(2) = (/                                    &
+       arg_type(GH_FIELD,    GH_REAL, GH_INC,  ANY_SPACE_1),             &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_1) &
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -79,16 +80,15 @@ public mm_diagonal_kernel_code
 
 contains
 
-!> @brief The subroutine which is called directly by the Psy layer, strores the diagonal of a mass_matrix
-!> @param[in]  cell the horizontal cell index
-!! @param[in] nlayers Integer the number of layers
-!! @param[in] ndf The number of degrees of freedom per cell
-!! @param[in] undf The unique number of degrees of freedom
-!! @param[in] map Integer array holding the dofmap for the cell at the base of the column
-!! @param[in,out] mm_diag Real array the field array to store the diagonal entries
-!!                of the mass matrix
-!! @param[in] ncell_3d total number of cells
-!! @param[in] mass_matrix Real: Array holding mass matrix values
+!> @brief Stores the diagonal of a mass_matrix
+!> @param[in] cell Horizontal cell index
+!! @param[in] nlayers Number of layers
+!! @param[in,out] mm_diag Diagonal entries of the mass matrix
+!! @param[in] ncell_3d Total number of cells
+!! @param[in] mass_matrix Mass matrix values
+!! @param[in] ndf Number of degrees of freedom per cell
+!! @param[in] undf Unique number of degrees of freedom
+!! @param[in] map Dofmap for the cell at the base of the column
 subroutine mm_diagonal_kernel_code(cell,        &
                                    nlayers,     &
                                    mm_diag,     &

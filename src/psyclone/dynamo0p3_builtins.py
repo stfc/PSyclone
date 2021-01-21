@@ -181,7 +181,7 @@ class DynBuiltIn(BuiltIn):
         self._func_descriptors = call.ktype.func_descriptors
         self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
         self._idx_name = \
-            self.root.symbol_table.name_from_tag("dof_loop_idx", root="df")
+            self.root.symbol_table.symbol_from_tag("dof_loop_idx", "df").name
         # Check that this built-in kernel is valid
         self._validate()
 
