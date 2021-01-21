@@ -45,6 +45,7 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols.datatypes import ScalarType
 from psyclone.errors import InternalError
 
@@ -57,12 +58,18 @@ class ArrayMixin(object):
 
     '''
     @staticmethod
-    @abc.abstractmethod
     def _validate_child(position, child):
         '''
-        Checks that the supplied child node is valid at the supplied position.
-        Abstract here so must be overridden in subclass.
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
         '''
+        # pylint: disable=unused-argument
+        return isinstance(child, (DataNode, Range))
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All variables used as indices
@@ -73,6 +80,8 @@ class ArrayMixin(object):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        # This will set the array-name as READ
+        super(ArrayMixin, self).reference_accesses(var_accesses)
         # Now add all children: Note that the class Reference
         # does not recurse to the children (which store the indices), so at
         # this stage no index information has been stored:
