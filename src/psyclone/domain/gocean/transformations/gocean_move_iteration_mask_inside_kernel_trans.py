@@ -65,45 +65,43 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
     def apply(self, kernel):
         self.validate(kernel)
 
-        # Update Kernel Call
+        # Get useful references
         invoke_st = kernel.ancestor(InvokeSchedule).symbol_table
         inner_loop = kernel.parent.parent
         outer_loop = inner_loop.parent.parent
         cursor = outer_loop.position
 
-        # Find names available for the boundary variables
-        xstart_name = invoke_st.new_symbol_name("xstart")
-        xstop_name = invoke_st.new_symbol_name("xstop")
-        ystart_name = invoke_st.new_symbol_name("ystart")
-        ystop_name = invoke_st.new_symbol_name("ystop")
+        # Update Kernel Call
+        if False:
+            # Create new symbols and initialise them with
+            inv_xstart = invoke_st.new_symbol(
+                "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            inv_xstop = invoke_st.new_symbol(
+                "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            inv_ystart = invoke_st.new_symbol(
+                "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            inv_ystop = invoke_st.new_symbol(
+                "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
-        # Create new symbols and initialise them with
-        xstart_symbol = DataSymbol(xstart_name, INTEGER_TYPE)
-        xstop_symbol = DataSymbol(xstop_name, INTEGER_TYPE)
-        ystart_symbol = DataSymbol(ystart_name, INTEGER_TYPE)
-        ystop_symbol = DataSymbol(ystop_name, INTEGER_TYPE)
-        invoke_st.add(xstart_symbol)
-        invoke_st.add(xstop_symbol)
-        invoke_st.add(ystart_symbol)
-        invoke_st.add(ystop_symbol)
-        arguments = kernel.arguments.raw_arg_list()
-        arguments.extend([xstart_name, xstop_name, ystart_name, ystop_name])
+            arguments = kernel.arguments.raw_arg_list()
+            arguments.extend([inv_xstart.name, inv_xstop.name,
+                              inv_ystart.name, inv_ystop.name])
 
-        assign1 = Assignment.create(Reference(xstart_symbol),
-                                    inner_loop._lower_bound())
-        outer_loop.parent.children.insert(cursor, assign1)
-        cursor = cursor + 1
-        assign2 = Assignment.create(Reference(xstop_symbol),
-                                    inner_loop._upper_bound())
-        outer_loop.parent.children.insert(cursor, assign2)
-        cursor = cursor + 1
-        assign3 = Assignment.create(Reference(ystart_symbol),
-                                    outer_loop._lower_bound())
-        outer_loop.parent.children.insert(cursor, assign3)
-        cursor = cursor + 1
-        assign4 = Assignment.create(Reference(ystop_symbol),
-                                    outer_loop._upper_bound())
-        outer_loop.parent.children.insert(cursor, assign4)
+            assign1 = Assignment.create(Reference(inv_xstart),
+                                        inner_loop._lower_bound())
+            outer_loop.parent.children.insert(cursor, assign1)
+            cursor = cursor + 1
+            assign2 = Assignment.create(Reference(inv_xstop),
+                                        inner_loop._upper_bound())
+            outer_loop.parent.children.insert(cursor, assign2)
+            cursor = cursor + 1
+            assign3 = Assignment.create(Reference(inv_ystart),
+                                        outer_loop._lower_bound())
+            outer_loop.parent.children.insert(cursor, assign3)
+            cursor = cursor + 1
+            assign4 = Assignment.create(Reference(inv_ystop),
+                                        outer_loop._upper_bound())
+            outer_loop.parent.children.insert(cursor, assign4)
 
         # Now that the boundaries are inside the kernel, the looping should go
         # trough all the field points
@@ -118,30 +116,20 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         iteration_indices = kernel_st.iteration_indices
         data_arguments = kernel_st.data_arguments
 
-        # Find names available for the boundary variables
-        xstart_name = kernel_st.new_symbol_name("xstart")
-        xstop_name = kernel_st.new_symbol_name("xstop")
-        ystart_name = kernel_st.new_symbol_name("ystart")
-        ystop_name = kernel_st.new_symbol_name("ystop")
-
         # Create new symbols and insert them as kernel arguments after
         # the initial iteration indices
-        xstart_symbol = DataSymbol(xstart_name, INTEGER_TYPE,
-                                   interface=ArgumentInterface(
-                                       ArgumentInterface.Access.READ))
-        xstop_symbol = DataSymbol(xstop_name, INTEGER_TYPE,
-                                  interface=ArgumentInterface(
-                                      ArgumentInterface.Access.READ))
-        ystart_symbol = DataSymbol(ystart_name, INTEGER_TYPE,
-                                   interface=ArgumentInterface(
-                                       ArgumentInterface.Access.READ))
-        ystop_symbol = DataSymbol(ystop_name, INTEGER_TYPE,
-                                  interface=ArgumentInterface(
-                                      ArgumentInterface.Access.READ))
-        kernel_st.add(xstart_symbol)
-        kernel_st.add(xstop_symbol)
-        kernel_st.add(ystart_symbol)
-        kernel_st.add(ystop_symbol)
+        xstart_symbol = kernel_st.new_symbol(
+            "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        xstop_symbol = kernel_st.new_symbol(
+            "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        ystart_symbol = kernel_st.new_symbol(
+            "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        ystop_symbol = kernel_st.new_symbol(
+            "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
         kernel_st.specify_argument_list(
             iteration_indices +
             [xstart_symbol, xstop_symbol, ystart_symbol, ystop_symbol] +
