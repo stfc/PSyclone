@@ -59,17 +59,17 @@ from psyclone.parse.algorithm import Arg
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, KernelSchedule
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    AccessType, ACCEnterDataDirective, HaloExchange
+    AccessType, ACCEnterDataDirective, HaloExchange, Routine
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
-    ContainerSymbol
+    ContainerSymbol, UnknownFortranType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import BinaryOperation, Reference, Return, IfBlock
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
-    IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen
+    IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen
 
 
 # The different grid-point types that a field can live on
@@ -1544,8 +1544,9 @@ class GOKern(CodedKern):
                     ifthen.add(AssignGen(
                         ifthen, lhs="{0}%data_on_device".format(arg.name),
                         rhs=".true."))
-                    # Fields also have a 'read_from_device_f' function pointer
-                    # to specify how to read the data back from the device.
+
+                    # Fields need to provide a function pointer to how the
+                    # device data is going to be read and written.
                     try:
                         read_fp = symtab.lookup_with_tag("ocl_read_func").name
                     except KeyError:
@@ -1553,9 +1554,18 @@ class GOKern(CodedKern):
                         # generated first.
                         read_fp = self.gen_ocl_read_from_device_function(
                             parent.parent)
+                    try:
+                        write_fp = \
+                            symtab.lookup_with_tag("ocl_write_func").name
+                    except KeyError:
+                        write_fp = self.gen_ocl_write_to_device_function(
+                            parent.parent)
                     ifthen.add(AssignGen(
-                        ifthen, lhs="{0}%read_from_device_f".format(arg.name),
+                        ifthen, lhs="{0}%read_from_device_c".format(arg.name),
                         rhs=read_fp, pointer=True))
+                    ifthen.add(AssignGen(
+                        ifthen, lhs="{0}%write_from_device_c".format(arg.name),
+                        rhs=write_fp, pointer=True))
 
                 # Ensure data copies have finished
                 ifthen.add(CommentGen(
@@ -1582,27 +1592,107 @@ class GOKern(CodedKern):
             "read_from_device", symbol_type=RoutineSymbol,
             tag="ocl_read_func").name
 
-        # Generate the routine in the given f2pygen_module
-        args = ["from", "to", "nx", "ny", "width"]
-        sub = SubroutineGen(f2pygen_module, name=subroutine_name, args=args)
-        f2pygen_module.add(sub)
-        sub.add(UseGen(sub, name="fortcl", only=True,
-                       funcnames=["read_buffer"]))
-        sub.add(UseGen(sub, name="iso_c_binding", only=True,
-                       funcnames=["c_intptr_t"]))
+        subroutine = Routine(subroutine_name)
+        sub_st = subroutine.symbol_table
 
-        sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
-                        intent="in", entity_decls=["from"]))
-        sub.add(DeclGen(sub, datatype="real", kind="go_wp", intent="inout",
-                        dimension=":,:", entity_decls=["to"]))
-        sub.add(DeclGen(sub, datatype="integer", intent="in",
-                        entity_decls=["nx", "ny", "width"]))
-        sub.add(
-            CallGen(
-                sub, name="read_buffer",
-                args=["from", "to", "int(width*ny, kind=8)"]))
+        # Import the 'iso_c_binding', 'clfrontran' and 'fortcl' modules
+        kind_params_sym = ContainerSymbol("iso_c_binding")
+        kind_params_sym.wildcard_import = True
+        sub_st.add(kind_params_sym)
+        kind_params_sym = ContainerSymbol("clfortran")
+        kind_params_sym.wildcard_import = True
+        sub_st.add(kind_params_sym)
+        kind_params_sym = ContainerSymbol("fortcl")
+        kind_params_sym.wildcard_import = True
+        sub_st.add(kind_params_sym)
+
+        # Declare the routine variables, the 'value' and 'pointer' attributes
+        # are not supported by the PSyIR, so all the arguments will need to be
+        # UnknownFortranType, in this case this is fine because this function
+        # will only be generated in Fortran.
+        interface = ArgumentInterface(ArgumentInterface.Access.READ)
+        s_from = DataSymbol(
+            "from", interface=interface, datatype=UnknownFortranType(
+                "INTEGER(KIND=c_intptr_t), intent(in), value :: from\n"))
+        s_to = DataSymbol(
+            "to", interface=interface, datatype=UnknownFortranType(
+                "TYPE(c_ptr), intent(in), value :: to\n"))
+        s_offset = DataSymbol(
+            "offset", interface=interface, datatype=UnknownFortranType(
+                "INTEGER(KIND=c_int), intent(in), value :: offset\n"))
+        s_nx = DataSymbol(
+            "nx", interface=interface, datatype=UnknownFortranType(
+                "INTEGER(KIND=c_int), intent(in), value :: nx\n"))
+        s_ny = DataSymbol(
+            "ny", interface=interface, datatype=UnknownFortranType(
+                "INTEGER(KIND=c_int), intent(in), value :: ny\n"))
+        s_stride = DataSymbol(
+            "stride", interface=interface, datatype=UnknownFortranType(
+                "INTEGER(KIND=c_int), intent(in), value :: stride\n"))
+
+        sub_st.add(s_from)
+        sub_st.add(s_to)
+        sub_st.add(s_offset)
+        sub_st.add(s_nx)
+        sub_st.add(s_ny)
+        sub_st.add(s_stride)
+        sub_st.specify_argument_list([s_from, s_to, s_offset, s_nx, s_ny,
+                                      s_stride])
+
+        # cmd_queues_type = ArrayType(UnknownFortranType(
+        #    "INTEGER(KIND=c_intptr_t), pointer :: cmd_queues\n"), 10)
+        # cmd_queues = DataSymbol(
+        #    "cmd_queues", interface=interface, datatype=cmd_queues_type)
+
+        # Insert the code in the invoke module
+        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+
+        # INTEGER(KIND=c_intptr_t), pointer :: cmd_queues(:)
+        # integer(kind=c_int32_t) :: ierr
+        # integer(kind=8) :: offset_in_bytes, size_in_bytes
+        # cmd_queues => get_cmd_queues()
+        # offset_in_bytes = int(offset, kind=8) * 8_8
+        # size_in_bytes = int(ny*(nx+stride), kind=8) * 8_8
+        # write(*,*) "Read", from, to, offset, nx, ny, stride
+        # write(*,*) "in OCL", offset_in_bytes, size_in_bytes
+        # !CALL read_buffer(from, to, int(nx*ny, kind=8))
+        # ierr = clEnqueueReadBuffer( &
+        # cmd_queues(1), &
+        # from, &
+        # CL_BLOCKING, & ! Is blocking
+        # offset_in_bytes, & ! Offset
+        # size_in_bytes, &
+        # to, &
+        # 0, C_NULL_PTR, & ! Wait list
+        # C_NULL_PTR) ! event
 
         return subroutine_name
+
+    def gen_ocl_write_to_device_function(self, f2pygen_module):
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_name = self.root.symbol_table.new_symbol(
+            "write_to_device", symbol_type=RoutineSymbol,
+            tag="ocl_write_func").name
+
+        # Generate the routine in the given f2pygen_module
+        args = ["from", "to", "offset", "nx", "ny", "stride"]
+        sub = SubroutineGen(f2pygen_module, name=subroutine_name, args=args)
+        f2pygen_module.add(sub)
+
+        # Import modules
+        sub.add(UseGen(sub, name="fortcl", only=True,
+                       funcnames=["get_cmd_queues"]))
+        sub.add(UseGen(sub, name="iso_c_binding"))
+        sub.add(UseGen(sub, name="clfortran"))
+
+        # Declare variables
+        sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
+                        intent="in", entity_decls=["from"]))
+        sub.add(TypeDeclGen(sub, datatype="c_ptr", intent="in",
+                            entity_decls=["to"]))
+        sub.add(DeclGen(sub, datatype="integer", intent="in",
+                        entity_decls=["offset", "nx", "ny", "stride"]))
 
     def get_kernel_schedule(self):
         '''
