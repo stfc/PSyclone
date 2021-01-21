@@ -2631,6 +2631,7 @@ def test_kernel_datatype_not_found():
                  api=TEST_API)
     assert 'Kernel type testkern_type does not exist' in str(excinfo.value)
 
+
 STENCIL_CODE = '''
 module stencil_mod
   type, extends(kernel_type) :: stencil_type

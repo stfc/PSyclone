@@ -367,9 +367,10 @@ def test_stencil_vector(dist_mem, tmpdir):
                "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
            in str(result)
     assert (
-               "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
-               "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+               "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => "
                "null()\n"
+               "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:)"
+               " => null()\n"
                "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
                "null()\n") \
            in str(result)
@@ -377,8 +378,8 @@ def test_stencil_vector(dist_mem, tmpdir):
                "      f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
                "(STENCIL_CROSS,f2_extent)\n"
                "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-               "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n") \
-           in str(result)
+               "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
+           ) in str(result)
     assert (
                "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, "
                "f2_proxy(4)%data, f2_stencil_size(cell), "
@@ -409,24 +410,27 @@ def test_stencil_xory_vector(dist_mem, tmpdir):
                "      INTEGER(KIND=i_def), intent(in) :: f2_direction\n") \
            in result
     assert (
-               "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
-               "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
+               "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => "
                "null()\n"
+               "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:)"
+               " => null()\n"
                "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
                "null()\n") \
            in result
     assert (
                "      IF (f2_direction .eq. x_direction) THEN\n"
-               "        f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
+               "        f2_stencil_map => "
+               "f2_proxy(1)%vspace%get_stencil_dofmap"
                "(STENCIL_1DX,f2_extent)\n"
                "      END IF\n"
                "      IF (f2_direction .eq. y_direction) THEN\n"
-               "        f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
+               "        f2_stencil_map => "
+               "f2_proxy(1)%vspace%get_stencil_dofmap"
                "(STENCIL_1DY,f2_extent)\n"
                "      END IF\n"
                "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-               "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n") \
-           in result
+               "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
+           ) in result
     assert (
                "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, "
                "f2_proxy(4)%data, f2_stencil_size(cell), f2_direction, "
