@@ -42,7 +42,7 @@ LDFLAGS=
 # external libraries to be available.
 ALL_LIBS=template simple_timing
 
-.PHONY: default all $(ALL_LIBS) clean
+.PHONY: default all $(ALL_LIBS) clean allclean
 
 default: all
 
@@ -65,4 +65,6 @@ nvidia:
 
 clean:
 	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) clean; )
-
+	$(MAKE) -C nvidia clean
+	$(MAKE) -C dl_timer clean
+	$(MAKE) -C drhook clean
