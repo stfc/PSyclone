@@ -1564,7 +1564,7 @@ class GOKern(CodedKern):
                         ifthen, lhs="{0}%read_from_device_c".format(arg.name),
                         rhs=read_fp, pointer=True))
                     ifthen.add(AssignGen(
-                        ifthen, lhs="{0}%write_from_device_c".format(arg.name),
+                        ifthen, lhs="{0}%write_to_device_c".format(arg.name),
                         rhs=write_fp, pointer=True))
 
                 # Ensure data copies have finished
@@ -1639,14 +1639,31 @@ class GOKern(CodedKern):
         sub_st.specify_argument_list([s_from, s_to, s_offset, s_nx, s_ny,
                                       s_stride])
 
-        # cmd_queues_type = ArrayType(UnknownFortranType(
-        #    "INTEGER(KIND=c_intptr_t), pointer :: cmd_queues\n"), 10)
-        # cmd_queues = DataSymbol(
-        #    "cmd_queues", interface=interface, datatype=cmd_queues_type)
+        cmd_queues = DataSymbol(
+            "cmd_queues", datatype=UnknownFortranType(
+                "INTEGER(KIND=c_intptr_t), pointer, dimension(:) :: cmd_queues"
+                " => get_cmd_queues()\n"))
+        cmd_queue = DataSymbol(
+            "cmd_queue", datatype=UnknownFortranType(
+                "INTEGER(KIND=c_intptr_t), pointer :: cmd_queue"
+                "= cmd_queues(1)\n"))
+        ierr = DataSymbol(
+            "ierr", datatype=UnknownFortranType(
+                "integer(kind=c_int32_t) :: ierr\n"))
+        offset_in_bytes = DataSymbol(
+            "offset_in_bytes", datatype=UnknownFortranType(
+                "integer(kind=8) :: offset_in_bytes\n"))
+        size_in_bytes = DataSymbol(
+            "size_in_bytes", datatype=UnknownFortranType(
+                "integer(kind=8) :: size_in_bytes\n"))
+
+        sub_st.add(cmd_queues)
+        sub_st.add(ierr)
+        sub_st.add(offset_in_bytes)
+        sub_st.add(size_in_bytes)
 
         # Insert the code in the invoke module
         f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
-
 
         # INTEGER(KIND=c_intptr_t), pointer :: cmd_queues(:)
         # integer(kind=c_int32_t) :: ierr
@@ -1675,24 +1692,78 @@ class GOKern(CodedKern):
             "write_to_device", symbol_type=RoutineSymbol,
             tag="ocl_write_func").name
 
-        # Generate the routine in the given f2pygen_module
-        args = ["from", "to", "offset", "nx", "ny", "stride"]
-        sub = SubroutineGen(f2pygen_module, name=subroutine_name, args=args)
-        f2pygen_module.add(sub)
+        subroutine = Routine(subroutine_name)
+        sub_st = subroutine.symbol_table
 
-        # Import modules
-        sub.add(UseGen(sub, name="fortcl", only=True,
-                       funcnames=["get_cmd_queues"]))
-        sub.add(UseGen(sub, name="iso_c_binding"))
-        sub.add(UseGen(sub, name="clfortran"))
+        # Import the 'iso_c_binding', 'clfrontran' and 'fortcl' modules
+        kind_params_sym = ContainerSymbol("iso_c_binding")
+        kind_params_sym.wildcard_import = True
+        sub_st.add(kind_params_sym)
+        kind_params_sym = ContainerSymbol("clfortran")
+        kind_params_sym.wildcard_import = True
+        sub_st.add(kind_params_sym)
+        kind_params_sym = ContainerSymbol("fortcl")
+        kind_params_sym.wildcard_import = True
+        sub_st.add(kind_params_sym)
 
-        # Declare variables
-        sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
-                        intent="in", entity_decls=["from"]))
-        sub.add(TypeDeclGen(sub, datatype="c_ptr", intent="in",
-                            entity_decls=["to"]))
-        sub.add(DeclGen(sub, datatype="integer", intent="in",
-                        entity_decls=["offset", "nx", "ny", "stride"]))
+        # Declare the routine variables, the 'value' and 'pointer' attributes
+        # are not supported by the PSyIR, so all the arguments will need to be
+        # UnknownFortranType, in this case this is fine because this function
+        # will only be generated in Fortran.
+        interface = ArgumentInterface(ArgumentInterface.Access.READ)
+        s_from = DataSymbol(
+            "from", interface=interface, datatype=UnknownFortranType(
+                "INTEGER(KIND=c_intptr_t), intent(in), value :: from\n"))
+        s_to = DataSymbol(
+            "to", interface=interface, datatype=UnknownFortranType(
+                "TYPE(c_ptr), intent(in), value :: to\n"))
+        s_offset = DataSymbol(
+            "offset", interface=interface, datatype=UnknownFortranType(
+                "INTEGER(KIND=c_int), intent(in), value :: offset\n"))
+        s_nx = DataSymbol(
+            "nx", interface=interface, datatype=UnknownFortranType(
+                "INTEGER(KIND=c_int), intent(in), value :: nx\n"))
+        s_ny = DataSymbol(
+            "ny", interface=interface, datatype=UnknownFortranType(
+                "INTEGER(KIND=c_int), intent(in), value :: ny\n"))
+        s_stride = DataSymbol(
+            "stride", interface=interface, datatype=UnknownFortranType(
+                "INTEGER(KIND=c_int), intent(in), value :: stride\n"))
+
+        sub_st.add(s_from)
+        sub_st.add(s_to)
+        sub_st.add(s_offset)
+        sub_st.add(s_nx)
+        sub_st.add(s_ny)
+        sub_st.add(s_stride)
+        sub_st.specify_argument_list([s_from, s_to, s_offset, s_nx, s_ny,
+                                      s_stride])
+
+        cmd_queues = DataSymbol(
+            "cmd_queues", datatype=UnknownFortranType(
+                "INTEGER(KIND=c_intptr_t), pointer, dimension(:) :: cmd_queues"
+                " => get_cmd_queues()\n"))
+        ierr = DataSymbol(
+            "ierr", datatype=UnknownFortranType(
+                "integer(kind=c_int32_t) :: ierr\n"))
+        offset_in_bytes = DataSymbol(
+            "offset_in_bytes", datatype=UnknownFortranType(
+                "integer(kind=8) :: offset_in_bytes\n"))
+        size_in_bytes = DataSymbol(
+            "size_in_bytes", datatype=UnknownFortranType(
+                "integer(kind=8) :: size_in_bytes\n"))
+
+        sub_st.add(cmd_queues)
+        sub_st.add(ierr)
+        sub_st.add(offset_in_bytes)
+        sub_st.add(size_in_bytes)
+
+        # Code goes here ...
+
+        # Insert the code in the invoke module
+        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        return subroutine_name
 
     def get_kernel_schedule(self):
         '''
