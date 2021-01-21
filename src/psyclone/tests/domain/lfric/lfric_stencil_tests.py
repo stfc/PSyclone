@@ -31,18 +31,21 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. Coughtrie, Met Office
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+#         I. Kavcic and A. Coughtrie, Met Office,
+#         C. M. Maynard, Met Office/University of Reading,
+#         J. Henrichs, Bureau of Meteorology.
 
-''' Module containing tests of LFRic stencils through the Dynamo0.3 API '''
+''' Module containing tests of LFRic stencils through the LFRic API '''
 
 # imports
 from __future__ import absolute_import, print_function
 
 import os
 
+import pytest
 import fparser
 from fparser import api as fpapi
-import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicArgDescriptor
@@ -56,11 +59,6 @@ from psyclone.tests.lfric_build import LFRicBuild
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../..", "test_files", "dynamo0p3")
-# Get the root directory of this PSyclone distribution
-ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__)))))
-# Construct the path to the default configuration file
-DEFAULT_CFG_FILE = os.path.join(ROOT_PATH, "config", "psyclone.cfg")
 
 TEST_API = "dynamo0.3"
 
@@ -70,8 +68,8 @@ def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
 
-
 # Tests
+
 
 STENCIL_CODE = '''
 module stencil_mod
