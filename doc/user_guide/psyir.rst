@@ -164,7 +164,7 @@ To solve this issue some Nodes also provide methods for semantic navigation:
 - ``Directive``:
    .. automethod:: psyclone.psyGen.Directive.dir_body()
 - Nodes representing accesses of data within a structure (e.g.
-  ``StructureReference``, ``StructureMember``):
+   ``StructureReference``, ``StructureMember``):
    .. automethod:: psyclone.psyir.nodes.StructureReference.member()
 
 These are the recommended methods to navigate the tree for analysis or
