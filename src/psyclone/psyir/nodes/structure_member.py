@@ -113,9 +113,9 @@ class StructureMember(Member):
         '''
         if not isinstance(self.children[0], Member):
             raise InternalError(
-                "StructureMember malformed or incomplete. The first child "
-                "must be an instance of Member, but found '{0}'".format(
-                    type(self.children[0]).__name__))
+                "{0} malformed or incomplete. The first child "
+                "must be an instance of Member, but found '{1}'".format(
+                    type(self).__name__, type(self.children[0]).__name__))
         return self.children[0]
 
 

@@ -86,10 +86,10 @@ class ArrayOfStructuresMember(ArrayOfStructuresMixin, StructureMember):
 
         '''
         obj = ArrayOfStructuresMember(member_name, parent=parent)
-        # Add any child Member as the first child
+        # Add the inner_member node as the first child
         obj.addchild(inner_member)
         inner_member.parent = obj
-        # Add any array-index expressions as children
+        # Add the array-index expressions as subsequent children
         for child in indices:
             obj.addchild(child)
             child.parent = obj

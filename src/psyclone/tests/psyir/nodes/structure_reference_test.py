@@ -183,7 +183,7 @@ def test_reference_accesses():
 
 
 def test_struc_ref_semantic_nav():
-    ''' Test the 'member' method of the StructureReference. '''
+    ''' Test the 'member' property of the StructureReference. '''
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
     grid_type_symbol = symbols.TypeSymbol("grid_type", grid_type)
@@ -194,6 +194,6 @@ def test_struc_ref_semantic_nav():
     # Break the first child to check that we get the expected error
     sref._children = ["broken"]
     with pytest.raises(InternalError) as err:
-        sref.member
+        _ = sref.member
     assert ("StructureReference malformed or incomplete. The first child "
             "must be an instance of Member, but found 'str'" in str(err.value))

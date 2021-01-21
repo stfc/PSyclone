@@ -140,6 +140,6 @@ def test_sm_member_property():
     # Break the node's children to check the exception
     smem_ref._children = ["wrong"]
     with pytest.raises(InternalError) as err:
-        smem_ref.member
+        _ = smem_ref.member
     assert ("StructureMember malformed or incomplete. The first child must "
             "be an instance of Member, but found 'str'" in str(err.value))
