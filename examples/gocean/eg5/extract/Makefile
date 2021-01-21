@@ -39,11 +39,12 @@
 #     export F90=mpif90
 #     export F90FLAGS="-O3"
 # The dl_esm_inf infrastructure library:
-#     export INF_DIR=../../../external/dl_esm_inf/finite_difference/src
+#     export INF_DIR=../../../../external/dl_esm_inf/finite_difference/src
 # The dl_esm_inf extract wrapper library:
-#     export EXTRACT_DIR = ../../../lib/extract/netcdf/dl_esm_inf
+#     export EXTRACT_DIR = ../../../../lib/extract/netcdf/dl_esm_inf
 
-include ../../common.mk
+PSYROOT=../../../..
+include $(PSYROOT)/examples/common.mk
 
 # Reset the default goal to be 'compile', i.e. to include compilation
 .DEFAULT_GOAL:=
@@ -54,11 +55,11 @@ GENERATED_FILES += *.o *.mod $(NAME) $(DRIVER_INIT) $(DRIVER_INIT).f90 \
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
-SHARED_DIR ?= ../../../external
+SHARED_DIR ?= $(PSYROOT)/external
 INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
-EXTRACT_DIR ?= ../../../lib/extract/netcdf/dl_esm_inf
+EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/dl_esm_inf
 
 # The two kernels used in the application.
 KERNELS = init_field_mod.o update_field_mod.o
