@@ -216,6 +216,11 @@ read-only variables:
     New value:         123.00000000000000     
     --------------------------------------
 
+Example 6: Code Creation using PSyIR
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This examples shows how the new PSyIR will be used to create compilable
+code.
+
 
 .. _examples_lfric:
 
