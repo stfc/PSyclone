@@ -1,4 +1,4 @@
-# PSyclone GOcean Example 5
+# PSyclone GOcean PSyData Example 2 - Profiling
 
 **Author:** J. Henrichs, Bureau of Meteorology
 
@@ -44,18 +44,18 @@ to find the various software packages:
 
 ### INF_DIR:
    The location of the dl_esm_inf infrastructure library, it defaults to
-   ``../../../external/dl_esm_inf/finite_difference``,
+   ``../../../../external/dl_esm_inf/finite_difference``,
    which is the version included in PSyclone.
 ### DL_TIMER_ROOT:
     The location of the apeg-dl_timer library. It defaults to
-    ``../../../../apeg-dl_timer``, i.e. it is assumed that apeg-dl_timer
+    ``../../../../../apeg-dl_timer``, i.e. it is assumed that apeg-dl_timer
     is installed next to PSyclone.
     Note that until Issue #730 is complete, executing this example
     will fail as the labels produced by PSyclone are longer than
     permitted by the dl_timer library.
 ### DRHOOK_DIR:
     The location of DrHook. It defaults to
-    ``../../../../drhook``, i.e. it is assumed that DrHook is
+    ``../../../../../drhook``, i.e. it is assumed that DrHook is
     installed next to PSyclone.
 
 The makefile here will invoke psyclone with the ``--profile invokes``
@@ -86,7 +86,7 @@ library, you should see:
 
 BSD 3-Clause License
 
-Copyright (c) 2020, Science and Technology Facilities Council.
+Copyright (c) 2020-2021, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
