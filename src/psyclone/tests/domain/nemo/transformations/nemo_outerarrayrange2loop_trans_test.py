@@ -38,11 +38,11 @@ transformation.'''
 
 from __future__ import absolute_import
 
-import os
 import pytest
 
-from psyclone.psyir.nodes import Assignment
-from psyclone.psyGen import Transformation
+from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.nodes import Assignment, CodeBlock
+from psyclone.psyGen import Transformation, PSyFactory
 from psyclone.psyir.transformations import TransformationError
 from psyclone.domain.nemo.transformations import NemoOuterArrayRange2LoopTrans
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -139,21 +139,37 @@ def test_validate_assignment():
            "found 'NoneType'." in str(info.value))
 
 
-def test_validate_array_reference():
+def test_validate_array_reference(parser):
     '''Check that the validate method raises an exception if the supplied
     argument is not an Assignment node with an array reference on its lhs.
 
     '''
-    _, invoke_info = get_invoke("data_ref.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    assignment = schedule[0].loop_body[0]
+    code = '''subroutine data_ref()
+  use some_mod, only: prof_type
+  INTEGER, parameter :: n=16
+  INTEGER :: ji
+  real :: a(n), fconst
+  type(prof_type) :: prof
+  do ji = 1, n
+     prof%npind(ji) = 2.0*a(ji) + fconst
+  end do
+END subroutine data_ref
+'''
+    reader = FortranStringReader(code)
+    prog = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(prog)
+    schedule = psy.invokes.invoke_list[0].schedule
+    assignment = schedule.walk(Assignment)[0]
+    # Break the PSyIR so that there is a CodeBlock on the LHS
+    assignment.children[0] = CodeBlock(prog.children,
+                                       CodeBlock.Structure.EXPRESSION)
     trans = NemoOuterArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
     assert("Transformation Error: Error in NemoOuterArrayRange2LoopTrans "
-           "transformation. The supplied assignment node should have an "
-           "ArrayReference node on its lhs but found 'CodeBlock'."
-           in str(info.value))
+           "transformation. The supplied assignment node should have either an"
+           " ArrayReference or an ArrayOfStructuresReference node on its lhs "
+           "but found 'CodeBlock'." in str(info.value))
 
 
 # lhs array reference has a range
@@ -172,6 +188,6 @@ def test_validate_range():
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
     assert("Transformation Error: Error in NemoOuterArrayRange2LoopTrans "
-           "transformation. The supplied assignment node should have an "
-           "ArrayReference node on its lhs containing at least one Range "
-           "node but there are none." in str(info.value))
+           "transformation. The LHS of the supplied assignment node should "
+           "be an ArrayReference/ArrayOfStructuresReference node containing "
+           "at least one Range node but there are none." in str(info.value))
