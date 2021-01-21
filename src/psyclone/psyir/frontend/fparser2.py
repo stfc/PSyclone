@@ -2844,7 +2844,8 @@ class Fparser2Reader(object):
         # appropriate Reference subclass.
         if isinstance(node.children[0], Fortran2003.Name):
             # Base of reference is a scalar entity.
-            sym = parent.find_or_create_symbol(node.children[0].string)
+            sym = _find_or_create_imported_symbol(parent,
+                                                  node.children[0].string)
             return StructureReference.create(sym, members=members,
                                              parent=parent)
 
@@ -2852,7 +2853,8 @@ class Fparser2Reader(object):
             # Base of reference is an array access. Lookup the corresponding
             # symbol.
             part_ref = node.children[0]
-            sym = parent.find_or_create_symbol(part_ref.children[0].string)
+            sym = _find_or_create_imported_symbol(parent,
+                                                  part_ref.children[0].string)
             # Processing the array-index expressions requires access to the
             # symbol table so create a fake ArrayReference node.
             sched = parent.ancestor(Schedule, include_self=True)
