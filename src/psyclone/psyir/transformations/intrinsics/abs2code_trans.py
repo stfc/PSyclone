@@ -123,12 +123,10 @@ class Abs2CodeTrans(Operator2CodeTrans):
         # or there may be errors (arguments are of different types)
         # but this can't be checked as we don't have the appropriate
         # methods to query nodes (see #658).
-        res_var = symbol_table.new_symbol_name("res_abs")
-        symbol_res_var = DataSymbol(res_var, REAL_TYPE)
-        symbol_table.add(symbol_res_var)
-        tmp_var = symbol_table.new_symbol_name("tmp_abs")
-        symbol_tmp_var = DataSymbol(tmp_var, REAL_TYPE)
-        symbol_table.add(symbol_tmp_var)
+        symbol_res_var = symbol_table.new_symbol(
+            "res_abs", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        symbol_tmp_var = symbol_table.new_symbol(
+            "tmp_abs", symbol_type=DataSymbol, datatype=REAL_TYPE)
 
         # Replace operation with a temporary (res_X).
         oper_parent.children[node.position] = Reference(symbol_res_var,

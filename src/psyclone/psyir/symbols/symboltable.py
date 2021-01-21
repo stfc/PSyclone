@@ -40,11 +40,12 @@
 
 from __future__ import print_function, absolute_import
 from collections import OrderedDict
+import inspect
+from copy import copy
 import six
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol, DataSymbol, GlobalInterface, \
-    ContainerSymbol, TypeSymbol, RoutineSymbol
-from psyclone.psyir.symbols.symbol import SymbolError
+    ContainerSymbol, TypeSymbol, RoutineSymbol, SymbolError
 from psyclone.errors import InternalError
 
 
@@ -74,6 +75,7 @@ class SymbolTable(object):
         # Dict of tags. Some symbols can be identified with a tag.
         self._tags = {}
         # Reference to the node to which this symbol table belongs.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Schedule, Container
         if node and not isinstance(node, (Schedule, Container)):
             raise TypeError(
@@ -85,66 +87,105 @@ class SymbolTable(object):
     @property
     def node(self):
         '''
-        :returns: reference to the Schedule or Container to which this \
-            symbol table belongs.
+        :returns: the Schedule or Container to which this symbol table belongs.
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`, \
             :py:class:`psyclone.psyir.nodes.Container` or NoneType
 
         '''
         return self._node
 
-    @property
-    def parent(self):
-        '''
+    def parent_symbol_table(self, scope_limit=None):
+        '''If this symbol table is enclosed in another scope, return the
+        symbol table of the next outer scope. Otherwise return None.
+
+        :param scope_limit: optional Node which limits the symbol \
+            search space to the symbol tables of the nodes within the \
+            given scope. If it is None (the default), the whole \
+            scope (all symbol tables in ancestor nodes) is searched \
+            otherwise ancestors of the scope_limit node are not \
+            searched.
+        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
+            `NoneType`
+
         :returns: the 'parent' SymbolTable of the current SymbolTable (i.e.
                   the one that encloses this one in the PSyIR hierarchy).
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
+
         '''
+        # Validate the supplied scope_limit
+        if scope_limit is not None:
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import Node
+            if not isinstance(scope_limit, Node):
+                raise TypeError(
+                    "The scope_limit argument '{0}', is not of type `Node`."
+                    "".format(str(scope_limit)))
+
         # We use the Node with which this table is associated in order to
         # move up the Node hierarchy
-        if self.node and self.node.parent:
-            return self.node.parent.scope.symbol_table
+        if self.node:
+            search_next = self.node
+            while search_next is not scope_limit and search_next.parent:
+                search_next = search_next.parent
+                if hasattr(search_next, 'symbol_table'):
+                    return search_next.symbol_table
         return None
 
-    @property
-    def _all_symbols(self):
+    def get_symbols(self, scope_limit=None):
         '''Return symbols from this symbol table and all symbol tables
         associated with ancestors of the node that this symbol table
-        is attached to. If there are duplicates we only return one of
-        them (the one from the closest ancestor including self).
+        is attached to. If there are name duplicates we only return the
+        one from the closest ancestor including self. It accepts an
+        optional scope_limit argument.
+
+        :param scope_limit: optional Node which limits the symbol \
+            search space to the symbol tables of the nodes within the \
+            given scope. If it is None (the default), the whole \
+            scope (all symbol tables in ancestor nodes) is searched \
+            otherwise ancestors of the scope_limit node are not \
+            searched.
+        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
+            `NoneType`
 
         :returns: ordered dictionary of symbols indexed by symbol name.
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        all_symbols = OrderedDict(self._symbols)
+        all_symbols = OrderedDict()
         current = self
-        while current.parent:
-            current = current.parent
-            for symbol_name in current.symbols_dict:
+        while current:
+            for symbol_name, symbol in current.symbols_dict.items():
                 if symbol_name not in all_symbols:
-                    all_symbols[symbol_name] = current.symbols_dict[
-                        symbol_name]
+                    all_symbols[symbol_name] = symbol
+            current = current.parent_symbol_table(scope_limit)
         return all_symbols
 
-    @property
-    def _all_tags(self):
+    def get_tags(self, scope_limit=None):
         '''Return tags from this symbol table and all symbol tables associated
         with ancestors of the node that this symbol table is attached
-        to. If there are duplicates we only return one of them (the
-        one from the closest ancestor including self).
+        to. If there are tag duplicates we only return the one from the closest
+        ancestor including self. It accepts an optional scope_limit argument.
+
+        :param scope_limit: optional Node which limits the symbol \
+            search space to the symbol tables of the nodes within the \
+            given scope. If it is None (the default), the whole \
+            scope (all symbol tables in ancestor nodes) is searched \
+            otherwise ancestors of the scope_limit node are not \
+            searched.
+        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
+            `NoneType`
 
         :returns: ordered dictionary of symbols indexed by tag.
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        all_tags = OrderedDict(self._tags)
+        all_tags = OrderedDict()
         current = self
-        while current.parent:
-            current = current.parent
-            for tag in current.tags_dict:
+        while current:
+            for tag, symbol in current.tags_dict.items():
                 if tag not in all_tags:
-                    all_tags[tag] = current.tags_dict[tag]
+                    all_tags[tag] = symbol
+            current = current.parent_symbol_table(scope_limit)
         return all_tags
 
     def shallow_copy(self):
@@ -157,7 +198,6 @@ class SymbolTable(object):
 
         '''
         # pylint: disable=protected-access
-        from copy import copy
         new_st = SymbolTable()
         new_st._symbols = copy(self._symbols)
         new_st._argument_list = copy(self._argument_list)
@@ -179,40 +219,132 @@ class SymbolTable(object):
         new_key = key.lower()
         return new_key
 
-    def new_symbol_name(self, root_name=None, check_ancestors=True):
-        '''Create a symbol name that is not in this symbol table (if the
-        `check_ancestors` argument is False) or in this or any
-        ancestor symbol table (if the `check_ancestors` argument is
-        True). If the `root_name` argument is not supplied or if it is
-        an empty string then the name is generated internally,
-        otherwise the `root_name` is used. If required, an additional
-        integer is appended to avoid clashes.
+    def new_symbol(self, root_name=None, tag=None, shadowing=False,
+                   symbol_type=None, **symbol_init_args):
+        ''' Create a new symbol. Optional root_name and shadowing
+        arguments can be given to choose the name following the rules of
+        next_available_name(). An optional tag can also be given.
+        By default it creates a generic symbol but a symbol_type argument
+        and any additional initialization keyword arguments of this
+        symbol_type can be provided to refine the created Symbol.
 
         :param root_name: optional name to use when creating a new \
             symbol name. This will be appended with an integer if the name \
             clashes with an existing symbol name.
         :type root_name: str or NoneType
-        :param bool check_ancestors: optional logical flag indicating \
-            whether the name should be unique in this symbol table \
-            (False) or in this and all ancestor symbol tables \
-            (True). Defaults to True.
+        :param str tag: optional tag identifier for the new symbol.
+        :param bool shadowing: optional logical flag indicating whether the \
+            name can be overlapping with a symbol in any of the ancestors \
+            symbol tables. Defaults to False.
+        :param symbol_type: class type of the new symbol.
+        :type symbol_type: type object of class (or subclasses) of \
+                           :py:class:`psyclone.psyir.symbols.Symbol`
+        :param symbol_init_args: arguments to create a new symbol.
+        :type symbol_init_args: unwrapped Dict[str] = object
+
+        :raises TypeError: if the type_symbol argument is not the type of a \
+                           Symbol object class or one of its subclasses.
+
+        '''
+        # Only type-check symbol_type, the other arguments are just passed down
+        # and type checked inside each relevant method.
+        if symbol_type is not None:
+            if not (isinstance(symbol_type, type) and
+                    Symbol in inspect.getmro(symbol_type)):
+                raise TypeError(
+                    "The symbol_type parameter should be a type class of "
+                    "Symbol or one of its sub-classes but found '{0}' instead."
+                    .format(type(symbol_type).__name__))
+        else:
+            symbol_type = Symbol
+
+        available_name = self.next_available_name(root_name, shadowing)
+        symbol = symbol_type(available_name, **symbol_init_args)
+        self.add(symbol, tag)
+        return symbol
+
+    def symbol_from_tag(self, tag, root_name=None, **new_symbol_args):
+        ''' Lookup a tag, if it doesn't exist create a new symbol with the
+        given tag. By default it creates a generic Symbol with the tag as the
+        root of the symbol name. Optionally, a different root_name or any of
+        the arguments available in the new_symbol() method can be given to
+        refine the name and the type of the created Symbol.
+
+        :param str tag: tag identifier.
+        :param str root_name: optional name of the new symbol if it needs \
+                              to be created. Otherwise it is ignored.
+        :param new_symbol_args: arguments to create a new symbol.
+        :type new_symbol_args: unwrapped Dict[str, object]
+
+        :returns: symbol associated with the given tag.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :raises SymbolError: if the symbol already exists but the type_symbol \
+                             argument does not match the type of the symbol \
+                             found.
+
+        '''
+        try:
+            symbol = self.lookup_with_tag(tag)
+            # Check that the symbol found matches the requested description
+            if 'symbol_type' in new_symbol_args:
+                symbol_type = new_symbol_args['symbol_type']
+                if not isinstance(symbol, new_symbol_args['symbol_type']):
+                    raise SymbolError(
+                        "Expected symbol with tag '{0}' to be of type '{1}' "
+                        "but found type '{2}'.".format(
+                            tag, symbol_type.__name__, type(symbol).__name__))
+            # TODO #1057: If the symbol is found and some unmatching arguments
+            # were given it should also fail here.
+            return symbol
+        except KeyError:
+            if not root_name:
+                root_name = tag
+            return self.new_symbol(root_name, tag, **new_symbol_args)
+
+    def next_available_name(self, root_name=None, shadowing=False):
+        '''Return a name that is not in the symbol table and therefore can
+        be used to declare a new symbol.
+        If the `root_name` argument is not supplied or if it is
+        an empty string then the name is generated internally,
+        otherwise the `root_name` is used. If required, an additional
+        integer is appended to avoid clashes.
+        If the shadowing argument is True (is False by default), the names
+        in parent symbol tables will not be considered.
+
+        :param str root_name: optional name to use when creating a new \
+            symbol name. This will be appended with an integer if the name \
+            clashes with an existing symbol name.
+        :param bool shadowing: optional logical flag indicating whether the \
+            name can be overlapping with a symbol in any of the ancestors \
+            symbol tables. Defaults to False.
 
         :returns: the new unique symbol name.
         :rtype: str
 
         :raises TypeError: if the root_name argument is not a string \
             or None.
+        :raises TypeError: if the shadowing argument is not a bool.
 
         '''
-        if check_ancestors:
-            symbols = self._all_symbols
-        else:
-            symbols = self._symbols
-
-        if root_name is not None and not isinstance(root_name, str):
+        if not isinstance(shadowing, bool):
             raise TypeError(
-                "Argument root_name should be of type str or NoneType but "
-                "found '{0}'.".format(type(root_name).__name__))
+                "Argument shadowing should be of type bool"
+                " but found '{0}'.".format(type(shadowing).__name__))
+
+        if shadowing:
+            symbols = self._symbols
+        else:
+            # If symbol shadowing is not permitted, the list of symbols names
+            # that can't be used includes all the symbols from all the ancestor
+            # symbol tables.
+            symbols = self.get_symbols()
+
+        if root_name is not None:
+            if not isinstance(root_name, six.string_types):
+                raise TypeError(
+                    "Argument root_name should be of type str or NoneType but "
+                    "found '{0}'.".format(type(root_name).__name__))
         if not root_name:
             root_name = Config.get().psyir_root_name
         candidate_name = root_name
@@ -222,7 +354,7 @@ class SymbolTable(object):
             idx += 1
         return candidate_name
 
-    def add(self, new_symbol, tag=None, check_ancestors=True):
+    def add(self, new_symbol, tag=None):
         '''Add a new symbol to the symbol table if the symbol name is not
         already in use.
 
@@ -230,10 +362,6 @@ class SymbolTable(object):
         :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
         :param str tag: a tag identifier for the new symbol, by default no \
             tag is given.
-        :param bool check_ancestors: optional logical flag indicating \
-            whether the symbol name and tag (if provided) should be \
-            unique in this symbol table (False) or in this and all \
-            ancestor symbol tables (True). Defaults to True.
 
         :raises InternalError: if the new_symbol argument is not a \
             symbol.
@@ -242,30 +370,22 @@ class SymbolTable(object):
             use.
 
         '''
-        if check_ancestors:
-            symbols = self._all_symbols
-        else:
-            symbols = self._symbols
-
         if not isinstance(new_symbol, Symbol):
             raise InternalError("Symbol '{0}' is not a symbol, but '{1}'.'"
                                 .format(new_symbol, type(new_symbol).__name__))
 
         key = self._normalize(new_symbol.name)
-        if key in symbols:
+        if key in self._symbols:
             raise KeyError("Symbol table already contains a symbol with"
                            " name '{0}'.".format(new_symbol.name))
 
         if tag:
-            if check_ancestors:
-                tags = self._all_tags
-            else:
-                tags = self._tags
-            if tag in tags:
+            if tag in self.get_tags():
                 raise KeyError(
-                    "Symbol table already contains the tag '{0}' for symbol"
-                    " '{1}', so it can not be associated to symbol '{2}'.".
-                    format(tag, tags[tag], new_symbol.name))
+                    "This symbol table, or an outer scope ancestor symbol "
+                    "table, already contains the tag '{0}' for the symbol"
+                    " '{1}', so it can not be associated with symbol '{2}'.".
+                    format(tag, self.lookup_with_tag(tag), new_symbol.name))
             self._tags[tag] = new_symbol
 
         self._symbols[key] = new_symbol
@@ -328,19 +448,23 @@ class SymbolTable(object):
         self._validate_arg_list(argument_symbols)
         self._argument_list = argument_symbols[:]
 
-    def lookup(self, name, visibility=None, check_ancestors=True):
-        '''Look up a symbol in the symbol table (if the `check_ancestors`
-        argument is False) or in this or any ancestor symbol table (if
-        the `check_ancestors` argument is True).
+    def lookup(self, name, visibility=None, scope_limit=None):
+        '''Look up a symbol in the symbol table. The lookup can be limited
+        by visibility (e.g. just show public methods) or by scope_limit (e.g.
+        just show symbols up to a certain scope).
 
         :param str name: name of the symbol.
         :param visibilty: the visibility or list of visibilities that the \
                           symbol must have.
         :type visibility: [list of] :py:class:`psyclone.symbols.Visibility`
-        :param bool check_ancestors: optional logical flag indicating \
-            whether the symbol name should be unique in this symbol \
-            table (False) or in this and all ancestor symbol tables \
-            (True). Defaults to True.
+        :param scope_limit: optional Node which limits the symbol \
+            search space to the symbol tables of the nodes within the \
+            given scope. If it is None (the default), the whole \
+            scope (all symbol tables in ancestor nodes) is searched \
+            otherwise ancestors of the scope_limit node are not \
+            searched.
+        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
+            `NoneType`
 
         :returns: the symbol with the given name and, if specified, visibility.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -358,13 +482,8 @@ class SymbolTable(object):
                 "a str but found '{0}'."
                 "".format(type(name).__name__))
 
-        if check_ancestors:
-            symbols = self._all_symbols
-        else:
-            symbols = self._symbols
-
         try:
-            symbol = symbols[self._normalize(name)]
+            symbol = self.get_symbols(scope_limit)[self._normalize(name)]
             if visibility:
                 if not isinstance(visibility, list):
                     vis_list = [visibility]
@@ -389,20 +508,21 @@ class SymbolTable(object):
                         "requested visibility: {2}".format(
                             name, symbol.visibility.name, vis_names))
             return symbol
-        except KeyError:
-            raise KeyError("Could not find '{0}' in the Symbol Table."
-                           "".format(name))
+        except KeyError as err:
+            six.raise_from(KeyError("Could not find '{0}' in the Symbol Table."
+                                    "".format(name)), err)
 
-    def lookup_with_tag(self, tag, check_ancestors=True):
-        '''Look up a symbol using the supplied tag. If check_ancestors is True
-        then this and any ancestor symbol tables are searched,
-        otherwise only this symbol table is examined.
+    def lookup_with_tag(self, tag, scope_limit=None):
+        '''Look up a symbol by its tag. The lookup can be limited by
+        scope_limit (e.g. just show symbols up to a certain scope).
 
         :param str tag: tag identifier.
-        :param bool check_ancestors: optional logical flag indicating \
-            whether the tag should be from just this symbol table \
-            (False) or this and all ancestor symbol tables \
-            (True). Defaults to True.
+        :param scope_limit: optional Node which limits the symbol \
+            search space to the symbol tables of the nodes within the \
+            given scope. If it is None (the default), the whole \
+            scope (all symbol tables in ancestor nodes) is searched \
+            otherwise ancestors of the scope_limit node are not \
+            searched.
 
         :returns: symbol with the given tag.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -416,61 +536,12 @@ class SymbolTable(object):
                 "Expected the tag argument to the lookup_with_tag() method "
                 "to be a str but found '{0}'.".format(type(tag).__name__))
 
-        if check_ancestors:
-            tags = self._all_tags
-        else:
-            tags = self._tags
-
         try:
-            return tags[tag]
-        except KeyError:
-            raise KeyError("Could not find the tag '{0}' in the Symbol Table."
-                           "".format(tag))
-
-    def name_from_tag(self, tag, root=None, check_ancestors=True):
-        '''If the supplied tag exists in this symbol table (if the
-        `check_ancestors` argument is False) or in this or any
-        ancestor symbol table (if the `check_ancestors` argument is
-        True), then return the symbol name associated with it,
-        otherwise create a new symbol associated with this tag (using
-        the tag as name or optionally the provided root) and return
-        the name of the new symbol.
-
-        Note that this method creates generic Symbols without properties like
-        datatypes and just returns the name string (not the Symbol object).
-        This is commonly needed on the current psy-layer implementation but not
-        recommended on new style PSyIR. This method may be deprecated in the
-        future. (TODO #720)
-
-        There is no need to check the argument types as this method
-        calls methods which check the argument types.
-
-        :param str tag: tag identifier.
-        :param str root: optional name of the new symbols if this needs to \
-            be created.
-        :param bool check_ancestors: optional logical flag indicating \
-            whether the tag should be from just this symbol table \
-            (False) or this and all ancestor symbol tables \
-            (True). Defaults to True.
-
-        :returns: name associated with the given tag.
-        :rtype: str
-
-        '''
-        try:
-            return self.lookup_with_tag(
-                tag, check_ancestors=check_ancestors).name
-        except KeyError:
-            if root:
-                name = self.new_symbol_name(
-                    root, check_ancestors=check_ancestors)
-            else:
-                name = self.new_symbol_name(
-                    tag, check_ancestors=check_ancestors)
-            # No need to check ancestors as this has already been done
-            # when creating the name.
-            self.add(Symbol(name), tag=tag, check_ancestors=False)
-            return name
+            return self.get_tags(scope_limit)[tag]
+        except KeyError as err:
+            six.raise_from(
+                KeyError("Could not find the tag '{0}' in the Symbol Table."
+                         "".format(tag)), err)
 
     def __contains__(self, key):
         '''Check if the given key is part of the Symbol Table.
@@ -573,11 +644,12 @@ class SymbolTable(object):
         # pylint: disable=unidiomatic-typecheck
         if not (isinstance(symbol, (ContainerSymbol, RoutineSymbol)) or
                 type(symbol) == Symbol):
-            raise NotImplementedError("remove() currently only supports "
-                "generic Symbol, ContainerSymbol and RoutineSymbol types "
-                "but got: '{0}'".format(type(symbol).__name__))
-
+            raise NotImplementedError(
+                "remove() currently only supports generic Symbol, "
+                "ContainerSymbol and RoutineSymbol types but got: '{0}'"
+                "".format(type(symbol).__name__))
         # pylint: enable=unidiomatic-typecheck
+
         if symbol.name not in self._symbols:
             raise KeyError("Cannot remove Symbol '{0}' from symbol table "
                            "because it does not exist.".format(symbol.name))
@@ -625,7 +697,7 @@ class SymbolTable(object):
         except ValueError as err:
             # If the SymbolTable is inconsistent at this point then
             # we have an InternalError.
-            raise InternalError(str(err.args))
+            six.raise_from(InternalError(str(err.args)), err)
         return self._argument_list
 
     @staticmethod

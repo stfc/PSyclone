@@ -79,6 +79,122 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
                   "inout": ArgumentInterface.Access.READWRITE}
 
 
+def _find_or_create_imported_symbol(location, name, scope_limit=None,
+                                    **kargs):
+    '''Returns the symbol with the name 'name' from a symbol table
+    associated with this node or one of its ancestors.  If the symbol
+    is not found and there are no ContainerSymbols with wildcard imports
+    then an exception is raised. However, if there are one or more
+    ContainerSymbols with wildcard imports (which could therefore be
+    bringing the symbol into scope) then a new Symbol with the
+    specified visibility but of unknown interface is created and
+    inserted in the most local SymbolTable that has such an import.
+    The scope_limit variable further limits the symbol table search so
+    that the search through ancestor nodes stops when the scope_limit node
+    is reached i.e. ancestors of the scope_limit node are not searched.
+
+    :param location: PSyIR node from which to operate.
+    :type location: :py:class:`psyclone.psyir.nodes.Node`
+    :param str name: the name of the symbol.
+    :param scope_limit: optional Node which limits the symbol \
+        search space to the symbol tables of the nodes within the \
+        given scope. If it is None (the default), the whole \
+        scope (all symbol tables in ancestor nodes) is searched \
+        otherwise ancestors of the scope_limit node are not \
+        searched.
+    :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
+        `NoneType`
+
+    :returns: the matching symbol.
+    :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+    :raises TypeError: if the supplied scope_limit is not a Node.
+    :raises ValueError: if the supplied scope_limit node is not an \
+        ancestor of the supplied node.
+    :raises SymbolError: if no matching symbol is found and there are \
+        no ContainerSymbols from which it might be brought into scope.
+
+    '''
+    if not isinstance(location, Node):
+        raise TypeError(
+            "The location argument '{0}' provided to _find_or_create_imported"
+            "_symbol() is not of type `Node`.".format(str(location)))
+
+    if scope_limit is not None:
+        # Validate the supplied scope_limit
+        if not isinstance(scope_limit, Node):
+            raise TypeError(
+                "The scope_limit argument '{0}' provided to _find_or_"
+                "create_imported_symbol() is not of type `Node`."
+                "".format(str(scope_limit)))
+
+        # Check that the scope_limit Node is an ancestor of this
+        # Reference Node and raise an exception if not.
+        mynode = location.parent
+        while mynode is not None:
+            if mynode is scope_limit:
+                # The scope_limit node is an ancestor of the
+                # supplied node.
+                break
+            mynode = mynode.parent
+        else:
+            # The scope_limit node is not an ancestor of the
+            # supplied node so raise an exception.
+            raise ValueError(
+                "The scope_limit node '{0}' provided to _find_or_create"
+                "_imported_symbol() is not an ancestor of this "
+                "node '{1}'.".format(str(scope_limit), str(location)))
+
+    # Keep a reference to the most local SymbolTable with a wildcard
+    # import in case we need to create a Symbol.
+    first_symbol_table = None
+    test_node = location
+
+    # Iterate over ancestor Nodes of this Node.
+    while test_node:
+        # For simplicity, test every Node for the existence of a
+        # SymbolTable (rather than checking for the particular
+        # Node types which we know to have SymbolTables).
+        if hasattr(test_node, 'symbol_table'):
+            # This Node does have a SymbolTable.
+            symbol_table = test_node.symbol_table
+
+            try:
+                # If the name matches a Symbol in this SymbolTable then
+                # return the Symbol.
+                return symbol_table.lookup(name, scope_limit=test_node)
+            except KeyError:
+                # The supplied name does not match any Symbols in
+                # this SymbolTable. Does this SymbolTable have any
+                # wildcard imports?
+                if first_symbol_table is None:
+                    for csym in symbol_table.containersymbols:
+                        if csym.wildcard_import:
+                            first_symbol_table = symbol_table
+                            break
+
+        if test_node is scope_limit:
+            # The ancestor scope/top-level Node has been reached and
+            # nothing has matched.
+            break
+
+        # Move on to the next ancestor.
+        test_node = test_node.parent
+
+    if first_symbol_table:
+        # No symbol found but there are one or more Containers from which
+        # it may be being brought into scope. Therefore create a generic
+        # Symbol with a deferred interface and add it to the most
+        # local SymbolTable with a wildcard import.
+        return first_symbol_table.new_symbol(
+                name, interface=UnresolvedInterface(), **kargs)
+
+    # All requested Nodes have been checked but there has been no
+    # match and there are no wildcard imports so raise an exception.
+    raise SymbolError(
+        "No Symbol found for name '{0}'.".format(name))
+
+
 def _check_args(array, dim):
     '''Utility routine used by the _check_bound_is_full_extent and
     _check_array_range_literal functions to check common arguments.
@@ -1175,9 +1291,7 @@ class Fparser2Reader(object):
             if mod_name not in parent.symbol_table:
                 new_container = True
                 container = ContainerSymbol(mod_name)
-                # It is OK if a parent symbol table also has a
-                # reference to this module so do not check ancestors.
-                parent.symbol_table.add(container, check_ancestors=False)
+                parent.symbol_table.add(container)
             else:
                 new_container = False
                 container = parent.symbol_table.lookup(mod_name)
@@ -1206,8 +1320,7 @@ class Fparser2Reader(object):
                         # Symbol.
                         parent.symbol_table.add(
                             Symbol(sym_name,
-                                   interface=GlobalInterface(container)),
-                            check_ancestors=False)
+                                   interface=GlobalInterface(container)))
                     else:
                         # There's already a symbol with this name
                         existing_symbol = parent.symbol_table.lookup(
@@ -1324,7 +1437,7 @@ class Fparser2Reader(object):
             # This is a variable of derived type
             type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
             # Do we already have a Symbol for this derived type?
-            type_symbol = parent.find_or_create_symbol(type_name)
+            type_symbol = _find_or_create_imported_symbol(parent, type_name)
             # pylint: disable=unidiomatic-typecheck
             if type(type_symbol) == Symbol:
                 # We do but we didn't know what kind of symbol it was. Create
@@ -1504,7 +1617,7 @@ class Fparser2Reader(object):
 
             # Make sure the declared symbol exists in the SymbolTable
             try:
-                sym = symbol_table.lookup(sym_name, check_ancestors=False)
+                sym = symbol_table.lookup(sym_name, scope_limit=parent)
                 if sym is symbol_table.lookup_with_tag("own_routine_symbol"):
                     # In case it is its own function routine symbol, Fortran
                     # will declare it inside the function as a DataSymbol.
@@ -1529,9 +1642,8 @@ class Fparser2Reader(object):
                     # Therefore, the Error doesn't need raise_from or message
                     # pylint: disable=raise-missing-from
                     raise NotImplementedError()
-                # We don't want to check ancestor symbol tables as we're
-                # currently processing a *local* variable declaration.
-                symbol_table.add(sym, check_ancestors=False)
+
+                symbol_table.add(sym)
 
             # The Symbol must have the interface given by the declaration
             sym.interface = interface
@@ -1716,7 +1828,8 @@ class Fparser2Reader(object):
                         # If a suitable unqualified use statement is found then
                         # this call creates a Symbol and inserts it in the
                         # appropriate symbol table.
-                        parent.find_or_create_symbol(name, visibility=vis)
+                        _find_or_create_imported_symbol(parent, name,
+                                                        visibility=vis)
                     except SymbolError as err:
                         # Improve the error message with context-specific info
                         six.raise_from(SymbolError(
@@ -1992,7 +2105,8 @@ class Fparser2Reader(object):
         loop_var = str(ctrl[0].items[1][0])
         variable_name = str(loop_var)
         try:
-            data_symbol = parent.find_or_create_symbol(variable_name)
+            data_symbol = _find_or_create_imported_symbol(parent,
+                                                          variable_name)
         except SymbolError:
             raise InternalError(
                 "Loop-variable name '{0}' is not declared and there are no "
@@ -2468,7 +2582,8 @@ class Fparser2Reader(object):
             range_idx = 0
             for idx, child in enumerate(array.children):
                 if isinstance(child, Range):
-                    symbol = array.find_or_create_symbol(loop_vars[range_idx])
+                    symbol = _find_or_create_imported_symbol(
+                                array, loop_vars[range_idx])
                     array.children[idx] = Reference(symbol, parent=array)
                     range_idx += 1
 
@@ -2570,11 +2685,10 @@ class Fparser2Reader(object):
         new_parent = parent
         for idx in range(rank, 0, -1):
 
-            loop_vars[idx-1] = symbol_table.new_symbol_name(
-                "widx{0}".format(idx))
-
-            data_symbol = DataSymbol(loop_vars[idx-1], integer_type)
-            symbol_table.add(data_symbol)
+            data_symbol = symbol_table.new_symbol(
+                "widx{0}".format(idx), symbol_type=DataSymbol,
+                datatype=integer_type)
+            loop_vars[idx-1] = data_symbol.name
 
             loop = Loop(parent=new_parent, variable=data_symbol,
                         annotations=annotations)
@@ -2587,7 +2701,8 @@ class Fparser2Reader(object):
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
                                         parent=loop)
             loop.addchild(size_node)
-            symbol = size_node.find_or_create_symbol(arrays[0].name)
+            symbol = _find_or_create_imported_symbol(
+                        size_node, arrays[0].name)
 
             size_node.addchild(Reference(symbol, parent=size_node))
             size_node.addchild(Literal(str(idx), integer_type,
@@ -2942,7 +3057,7 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
 
         '''
-        symbol = parent.find_or_create_symbol(node.string)
+        symbol = _find_or_create_imported_symbol(parent, node.string)
         return Reference(symbol, parent)
 
     def _parenthesis_handler(self, node, parent):
@@ -2982,7 +3097,7 @@ class Fparser2Reader(object):
 
         '''
         reference_name = node.items[0].string.lower()
-        symbol = parent.find_or_create_symbol(reference_name)
+        symbol = _find_or_create_imported_symbol(parent, reference_name)
 
         array = ArrayReference(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
