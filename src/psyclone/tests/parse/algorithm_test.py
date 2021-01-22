@@ -75,15 +75,17 @@ def test_parser_createinvokecall(parser):
     '''Test that valid invoke calls are created without an
     exception. Limit this to builtins as kernel calls fail as there is
     no associated use statement declared. Test with names, real
-    scalars and integer scalars as the parser represents these in
-    different ways so the create_invoke_call needs to deal with the
-    different representations.
+    scalars, integer scalars and structure references, including ones
+    to self, as the parser represents these in different ways so the
+    create_invoke_call needs to deal with the different
+    representations.
 
     '''
     from fparser.two.Fortran2003 import Call_Stmt
     statement = Call_Stmt(
         "call invoke(name=\"dummy\", setval_c(a,1.0), setval_c(a,1), "
-        "setval_c(a,b))")
+        "setval_c(a,b), setval_c(a%c, b), setval_c(self%a, 1.0), "
+        "setval_c(self%a, b))")
     parse = Parser()
     result = parse.create_invoke_call(statement)
 

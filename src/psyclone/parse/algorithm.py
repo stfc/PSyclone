@@ -49,7 +49,8 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
     Actual_Arg_Spec, Data_Ref, Part_Ref, Char_Literal_Constant, \
     Section_Subscript_List, Name, Real_Literal_Constant, \
     Int_Literal_Constant, Function_Reference, Level_2_Unary_Expr, \
-    Add_Operand, Parenthesis, Structure_Constructor, Component_Spec_List
+    Add_Operand, Parenthesis, Structure_Constructor, Component_Spec_List, \
+    Proc_Component_Ref
 # pylint: enable=no-name-in-module
 
 from psyclone.configuration import Config
@@ -595,8 +596,10 @@ def get_kernel(parse_tree, alg_filename):
             var_name = "{0}_{1}".format(lhs, rhs)
             var_name = var_name.lower()
             arguments.append(Arg('indexed_variable', full_text, var_name))
-        elif isinstance(argument, Data_Ref):
-            # A structure dereference e.g. base%arg, base%arg(n)
+        elif isinstance(argument, (Data_Ref, Proc_Component_Ref)):
+            # A structure dereference e.g. base%arg, base%arg(n) It is
+            # a Proc_Component_Ref if the structure constructor uses
+            # self e.g. self%arg
             full_text = argument.tostr().lower()
             var_name = create_var_name(argument).lower()
             arguments.append(Arg('variable', full_text, var_name))
@@ -630,19 +633,25 @@ def create_var_name(arg_parse_tree):
     brackets and potentially dereferences using '%'.
 
     :param arg_parse_tree: the input argument. Contains braces and \
-    potentially dereferencing. e.g. a%b(c)
-    :type arg_parse_tree: fparser.two.Fortran2003.Data_Ref
-    :returns: a valid variable name as a string
+        potentially dereferencing. e.g. a%b(c).
+    :type arg_parse_tree: fparser.two.Fortran2003.Data_Ref or \
+        fparser.two.Fortran2003.Proc_Component_Ref
+
+    :returns: a valid variable name as a string.
     :rtype: str
+
     :raises InternalError: if unrecognised fparser content is found.
 
     '''
     var_name = ""
     tree = arg_parse_tree
-    while isinstance(tree, Data_Ref):
+    while isinstance(tree, (Data_Ref, Proc_Component_Ref)):
         # replace '%' with '_'
         var_name += str(tree.items[0]) + "_"
-        tree = tree.items[1]
+        index = 1  # Index for Data_Ref
+        if isinstance(tree, Proc_Component_Ref):
+            index = 2
+        tree = tree.items[index]
     if isinstance(tree, Name):
         # add name to the end
         var_name += str(tree)
