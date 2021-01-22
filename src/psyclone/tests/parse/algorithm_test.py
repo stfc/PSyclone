@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@ file. Some tests for this file are in parse_test.py. This file adds
 tests for code that is not covered there.'''
 
 from __future__ import absolute_import
+import six
 
 import pytest
 
@@ -336,10 +337,13 @@ def test_createvarname_error1():
     exception in the expected way.
 
     '''
+    name = "class"
+    if six.PY2:
+        name = "type"
     with pytest.raises(InternalError) as excinfo:
         _ = create_var_name("invalid")
     assert ("algorithm.py:create_var_name unrecognised structure "
-            "'<class 'str'>'" in str(excinfo.value))
+            "'<{0} 'str'>'".format(name) in str(excinfo.value))
 
 
 def test_createvarname_error2(monkeypatch):
@@ -348,13 +352,16 @@ def test_createvarname_error2(monkeypatch):
     exception in the expected way.
 
     '''
+    name = "class"
+    if six.PY2:
+        name = "type"
     content = Data_Ref("a%b")
     monkeypatch.setattr(content, "items", ["invalid", "invalid"])
     with pytest.raises(InternalError) as excinfo:
         _ = create_var_name(content)
     assert ("algorithm.py:create_var_name unrecognised structure "
-            "'<class 'str'>' in '<class 'fparser.two.Fortran2003."
-            "Data_Ref'>'" in str(excinfo.value))
+            "'<{0} 'str'>' in '<class 'fparser.two.Fortran2003."
+            "Data_Ref'>'".format(name) in str(excinfo.value))
 
 
 @pytest.mark.parametrize("expression,expected", [
