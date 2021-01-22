@@ -56,7 +56,8 @@ from psyclone.configuration import Config, ConfigurationError
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, KernelSchedule
+from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
+    KernelSchedule, StructureReference
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     AccessType, ACCEnterDataDirective, HaloExchange
@@ -793,9 +794,15 @@ class GOLoop(Loop):
             # contains the actual grid points. The property value is a
             # string with a placeholder ({0}) where the name of the field
             # must go.
-            data = api_config.grid_properties["go_grid_data"].fortran \
-                .format(self.field_name)
-            stop.addchild(Literal(data, INTEGER_TYPE, parent=stop))
+            # This is a bit hacky - can it be improved? Probably requires
+            # a change to the config file.
+            dref_str = api_config.grid_properties["go_grid_data"].fortran
+            members = dref_str.split("%")
+            if members[0] != "{0}":
+                raise NotImplementedError("ARPDBG")
+            fld_sym = schedule.symbol_table.lookup(self.field_name)
+            sref = StructureReference.create(fld_sym, members[1:], parent=stop)
+            stop.addchild(sref)
             if self._loop_type == "inner":
                 stop.addchild(Literal("1", INTEGER_TYPE, parent=stop))
             elif self._loop_type == "outer":
