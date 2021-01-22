@@ -704,6 +704,7 @@ class FortranWriter(PSyIRVisitor):
 
         result += (
             "{1}\n"
+            "{0}implicit none\n"
             "{0}contains\n"
             "{2}\n"
             "".format(self._nindent, declarations, subroutines))
