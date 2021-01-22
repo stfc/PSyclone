@@ -34,7 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains pytest tests for the ArrayMemberReference class. '''
+''' This module contains pytest tests for the ArrayMember class. '''
 
 from __future__ import absolute_import
 import pytest
@@ -42,14 +42,31 @@ from psyclone.psyir import symbols, nodes
 from psyclone.errors import GenerationError
 
 
-def test_amr_constructor():
+def test_am_constructor():
     ''' Test that we can construct an ArrayMember. '''
     amr = nodes.ArrayMember("sub_mesh")
     assert len(amr.children) == 0
     assert amr.name == "sub_mesh"
 
 
-def test_amr_validate_child():
+def test_am_create():
+    ''' Test the create method of ArrayMember. '''
+    amem = nodes.ArrayMember.create("subdomains",
+                                    [nodes.Literal("1", symbols.INTEGER_TYPE),
+                                     nodes.Literal("2", symbols.INTEGER_TYPE)])
+    assert isinstance(amem, nodes.ArrayMember)
+    assert len(amem.children) == 2
+    assert isinstance(amem.indices[1], nodes.Literal)
+    assert amem.indices[1].parent is amem
+
+    with pytest.raises(GenerationError) as err:
+        nodes.ArrayMember.create("subdomains",
+                                 nodes.Literal("1", symbols.INTEGER_TYPE))
+    assert ("indices argument in create method of ArrayMember class should be "
+            "a list but found 'Literal'" in str(err.value))
+
+
+def test_am_validate_child():
     ''' Test the _validate_child method of ArrayMember. '''
     idx = nodes.Literal("3", symbols.INTEGER_TYPE)
     amr = nodes.ArrayMember("sub_mesh")
