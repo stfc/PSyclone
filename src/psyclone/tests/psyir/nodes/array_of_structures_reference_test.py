@@ -144,4 +144,4 @@ def test_ast_str():
         ssym, [nodes.Literal("2", symbols.INTEGER_TYPE)], ["nx"])
     assert (str(asref) == "ArrayOfStructuresReference[name:'grid']\n"
             "Member[name:'nx']\n"
-            "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n")
+            "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]")

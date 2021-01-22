@@ -47,6 +47,7 @@ from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import DataSymbol, TypeSymbol, StructureType, \
     DeferredType
 from psyclone.errors import InternalError
+from psyclone.core.access_info import AccessType
 
 
 class StructureReference(Reference):
@@ -223,11 +224,11 @@ class StructureReference(Reference):
         :raises InternalError: if the first child of this node is not an \
                                instance of Member.
         '''
-        if not isinstance(self.children[0], Member):
+        if not self.children or not isinstance(self.children[0], Member):
             raise InternalError(
-                "{0} malformed or incomplete. The first child "
-                "must be an instance of Member, but found '{1}'".format(
-                    type(self).__name__, type(self.children[0]).__name__))
+                "{0} malformed or incomplete. It must have a single child "
+                "that must be a (sub-class of) Member, but found: {1}".format(
+                    type(self).__name__, self.children))
         return self.children[0]
 
     def reference_accesses(self, var_accesses):
