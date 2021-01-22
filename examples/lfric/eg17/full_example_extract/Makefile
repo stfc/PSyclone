@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,9 @@
 #
 # export F90=gfortran
 # export F90FLAGS="-Wall -g -fcheck=bound"
-include ../../common.mk
+PSYROOT=../../../..
+
+include $(PSYROOT)/examples/common.mk
 
 .DEFAULT_GOAL := $(EXEC)
 
@@ -50,10 +52,10 @@ F90FLAGS ?= -Wall -g
 OBJ = main_psy.o main_alg.o testkern_w0_mod.o
 
 EXEC = extract
-EXTRACT_DIR ?= ../../../lib/extract/netcdf/lfric
+EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/lfric
 EXTRACT_NAME =_kernel_data_netcdf
 EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
-LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_DIR ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_DIR)/lib$(LFRIC_NAME).a
 
@@ -85,6 +87,9 @@ main_alg.o:	main_psy.o
 .precious: main_psy.f90 main_alg.f90
 
 main_alg.f90: main_psy.f90
+
+transform: main_psy.f90
+
 
 %_psy.f90:	%.x90
 	${PSYCLONE} -s ./extract_transform.py \

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,10 @@
 #
 # export F90=gfortran
 # export F90FLAGS="-Wall -g -fcheck=bound"
-include ../../common.mk
+
+PSYROOT=../../../..
+
+include $(PSYROOT)/examples/common.mk
 
 .DEFAULT_GOAL := $(EXEC)
 
@@ -51,7 +54,7 @@ F90FLAGS ?= -Wall -g -fcheck=bound
 OBJ = main_psy.o main_alg.o testkern_w0_mod.o
 
 EXEC = example
-LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH = $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
