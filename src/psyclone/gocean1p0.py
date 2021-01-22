@@ -50,8 +50,10 @@
 from __future__ import print_function
 import re
 import six
-from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
+from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, \
+    Execution_Part
 from fparser.two.parser import ParserFactory
+from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
@@ -1587,10 +1589,12 @@ class GOKern(CodedKern):
         :rtype: str
 
         '''
+
         # Create the symbol for the routine and add it to the symbol table.
         subroutine_name = self.root.symbol_table.new_symbol(
             "read_from_device", symbol_type=RoutineSymbol,
             tag="ocl_read_func").name
+
 
         subroutine = Routine(subroutine_name)
         sub_st = subroutine.symbol_table
@@ -1662,27 +1666,30 @@ class GOKern(CodedKern):
         sub_st.add(offset_in_bytes)
         sub_st.add(size_in_bytes)
 
+        code = '''
+            offset_in_bytes = int(offset, kind=8) * 8_8
+            size_in_bytes = int(ny*(nx+stride), kind=8) * 8_8
+            write(*,*) "Read", from, to, offset, nx, ny, stride
+            write(*,*) "in OCL", offset_in_bytes, size_in_bytes
+            !CALL read_buffer(from, to, int(nx*ny, kind=8))
+            ierr = clEnqueueReadBuffer( &
+                cmd_queues(1), &
+                from, &
+                CL_BLOCKING, & ! Is blocking
+                offset_in_bytes, & ! Offset
+                size_in_bytes, &
+                to, &
+                0, C_NULL_PTR, & ! Wait list
+                C_NULL_PTR) ! event
+        '''
+
+        processor = Fparser2Reader()
+        reader = FortranStringReader(code)
+        exe_part = Execution_Part.match(reader)
+        processor.process_nodes(subroutine, exe_part[0])
+
         # Insert the code in the invoke module
         f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
-
-        # INTEGER(KIND=c_intptr_t), pointer :: cmd_queues(:)
-        # integer(kind=c_int32_t) :: ierr
-        # integer(kind=8) :: offset_in_bytes, size_in_bytes
-        # cmd_queues => get_cmd_queues()
-        # offset_in_bytes = int(offset, kind=8) * 8_8
-        # size_in_bytes = int(ny*(nx+stride), kind=8) * 8_8
-        # write(*,*) "Read", from, to, offset, nx, ny, stride
-        # write(*,*) "in OCL", offset_in_bytes, size_in_bytes
-        # !CALL read_buffer(from, to, int(nx*ny, kind=8))
-        # ierr = clEnqueueReadBuffer( &
-        # cmd_queues(1), &
-        # from, &
-        # CL_BLOCKING, & ! Is blocking
-        # offset_in_bytes, & ! Offset
-        # size_in_bytes, &
-        # to, &
-        # 0, C_NULL_PTR, & ! Wait list
-        # C_NULL_PTR) ! event
 
         return subroutine_name
 
@@ -1759,6 +1766,28 @@ class GOKern(CodedKern):
         sub_st.add(size_in_bytes)
 
         # Code goes here ...
+
+        code = '''
+            offset_in_bytes = int(offset, kind=8) * 8_8
+            size_in_bytes = int(ny*(nx+stride), kind=8) * 8_8
+            write(*,*) "Read", from, to, offset, nx, ny, stride
+            write(*,*) "in OCL", offset_in_bytes, size_in_bytes
+            !CALL read_buffer(from, to, int(nx*ny, kind=8))
+            ierr = clEnqueueReadBuffer( &
+                cmd_queues(1), &
+                from, &
+                CL_BLOCKING, & ! Is blocking
+                offset_in_bytes, & ! Offset
+                size_in_bytes, &
+                to, &
+                0, C_NULL_PTR, & ! Wait list
+                C_NULL_PTR) ! event
+        '''
+
+        processor = Fparser2Reader()
+        reader = FortranStringReader(code)
+        exe_part = Execution_Part.match(reader)
+        processor.process_nodes(subroutine, exe_part[0])
 
         # Insert the code in the invoke module
         f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
