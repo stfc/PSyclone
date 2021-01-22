@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
+.. Modified by J. Henrichs, Bureau of Meteorology
 
 .. _examples:
 
@@ -397,14 +398,33 @@ code that is output is the same as the original (but looks different
 as it has been translated to PSyIR and then output by the PSyIR
 fortran back-end).
 
-Example 16: Kernel Extraction
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example 17: Runnable Simplified LFRic Examples
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This directory contains three simplified LFRic examples, that can be
+compiled and executed - a suitable Fortran compiler is of course
+required. The examples are using a subset of the LFRic infrastructure
+library, which is contained in PSyclone and which has been slightly
+modified to make it easier to create stand-alone, non-MPI LFRic codes.
 
-The subdirectory ``full_example_extract`` contains a runnable example
-of LFRic code that creates a NetCDF file with the input and output
-parameters of a simple kernel. This example requires the installation
-of a Fortran compiler and NetCDF development environment. After compilation
-of the code, you can run the example. which will produce a NetCDF file:
+Example 17.1: Very Simple Runnable Example
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The subdirectory ``full_example`` contains a very simple example code
+that uses PSyclone to create two single kernels. It uses unit-testing
+code from various classes to create the required data structures like
+mesh etc.
+
+Example 17.2: Very Simple Runnable Example With NetCDF
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The subdirectory ``fulf_example_netcdf`` contains code very similar
+to the previous example, but uses NetCDF to read the initial grid.
+
+Example 17.3: Kernel Parameter Extraction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This example in the subdirectory ``full_example_extract`` shows the
+use of kernel extraction. It requires the installation of a NetCDF
+development environment. When running the created binary it will
+create two NetCDF files, each one containing the input- and output-
+parameters for the corresponding kernel call. For example:
 
 .. code-block:: bash
 
