@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' Performs py.test tests on the ArrayReference PSyIR node. '''
+''' Performs py.test tests of the ArrayReference PSyIR node. '''
 
 from __future__ import absolute_import
 import pytest
@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
     Literal, BinaryOperation, Range, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, ArrayType, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
 
@@ -121,7 +121,7 @@ def test_array_create_invalid2():
     with pytest.raises(GenerationError) as excinfo:
         _ = ArrayReference.create(symbol_temp, children)
     assert ("the symbol should have the same number of dimensions as indices "
-            "(provided in the 'children' argument). Expecting '3' but found "
+            "(provided in the 'indices' argument). Expecting '3' but found "
             "'1'." in str(excinfo.value))
 
 
@@ -141,7 +141,7 @@ def test_array_create_invalid3():
     with pytest.raises(GenerationError) as excinfo:
         _ = ArrayReference.create(DataSymbol("temp", REAL_SINGLE_TYPE),
                                   "invalid")
-    assert ("children argument in create method of ArrayReference class should"
+    assert ("indices argument in create method of ArrayReference class should"
             " be a list but found 'str'." in str(excinfo.value))
 
 
@@ -430,3 +430,26 @@ def test_array_is_full_range():
     my_range = Range.create(lbound, ubound, one)
     array_reference = ArrayReference.create(symbol, [my_range])
     assert array_reference.is_full_range(0)
+
+
+def test_array_indices():
+    ''' Tests for the indices property (provided by the ArrayMixin class). '''
+    one = Literal("1", INTEGER_TYPE)
+    array = ArrayReference.create(DataSymbol("test",
+                                             ArrayType(REAL_TYPE, [10])),
+                                  [one])
+    assert array.indices == [one]
+    # Add an invalid child
+    array._children = [one, "hello"]
+    with pytest.raises(InternalError) as err:
+        _ = array.indices
+    assert ("ArrayReference malformed or incomplete: child 1 must by a "
+            "psyir.nodes.DataNode or Range representing an array-index "
+            "expression but found 'str'" in str(err.value))
+    # Remove the children altogether
+    array._children = []
+    with pytest.raises(InternalError) as err:
+        _ = array.indices
+    assert ("ArrayReference malformed or incomplete: must have one or more "
+            "children representing array-index expressions but found none"
+            in str(err.value))

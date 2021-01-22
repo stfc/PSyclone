@@ -133,12 +133,10 @@ class Sign2CodeTrans(Operator2CodeTrans):
         # or there may be errors (arguments are of different types)
         # but this can't be checked as we don't have the appropriate
         # methods to query nodes (see #658).
-        res_var = symbol_table.new_symbol_name("res_sign")
-        res_var_symbol = DataSymbol(res_var, REAL_TYPE)
-        symbol_table.add(res_var_symbol)
-        tmp_var = symbol_table.new_symbol_name("tmp_sign")
-        tmp_var_symbol = DataSymbol(tmp_var, REAL_TYPE)
-        symbol_table.add(tmp_var_symbol)
+        res_var_symbol = symbol_table.new_symbol(
+            "res_sign", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        tmp_var_symbol = symbol_table.new_symbol(
+            "tmp_sign", symbol_type=DataSymbol, datatype=REAL_TYPE)
 
         # Replace operator with a temporary (res_var).
         oper_parent.children[node.position] = Reference(res_var_symbol,
