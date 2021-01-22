@@ -108,11 +108,9 @@ class LFRicArgDescriptor(Descriptor):
     VALID_STENCIL_DIRECTIONS = ["x_direction", "y_direction"]
     # Note, xory1d does not have a direct mapping in STENCIL_MAPPING as it
     # indicates either x1d or y1d.
-    # Note, the LFRic infrastructure currently does not have 'region' as
-    # an option in stencil_dofmap_mod.F90 so it is not included in
-    # STENCIL_MAPPING (TODO #194: Add support for region stencils).
     STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
-                       "cross": "STENCIL_CROSS", "cross2d": "STENCIL_2D_CROSS"}
+                       "cross": "STENCIL_CROSS", "cross2d": "STENCIL_2D_CROSS",
+                       "region": "STENCIL_REGION"}
 
     # Supported LFRic API mesh types that may be specified for a field
     # using the mesh_arg=... meta-data element (for inter-grid kernels that
