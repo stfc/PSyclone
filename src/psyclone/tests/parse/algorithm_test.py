@@ -218,6 +218,7 @@ def test_getkernel_invalid_tree():
         "Expected a parse tree (type Part_Ref or Structure_Constructor) but "
         "found instance of ") in str(excinfo.value)
 
+
 @pytest.mark.parametrize("cls", [Part_Ref, Structure_Constructor])
 def test_getkernel_invalid_children(cls, monkeypatch):
     '''Test that if the get_kernel function finds Part_Ref or
@@ -329,7 +330,7 @@ def test_getkernel_argerror(monkeypatch):
 # function create_var_name() tests
 
 
-def test_createvarname_unknown_content():
+def test_createvarname_error1():
     '''Test that if the create_var_name function does not recognise
     content within the parse tree passed to it, then it raises an
     exception in the expected way.
@@ -337,7 +338,23 @@ def test_createvarname_unknown_content():
     '''
     with pytest.raises(InternalError) as excinfo:
         _ = create_var_name("invalid")
-    assert "unrecognised structure" in str(excinfo.value)
+    assert ("algorithm.py:create_var_name unrecognised structure "
+            "'<class 'str'>'" in str(excinfo.value))
+
+
+def test_createvarname_error2(monkeypatch):
+    '''Test that if the create_var_name function does not recognise
+    content within a Data_Ref passed to it, then it raises an
+    exception in the expected way.
+
+    '''
+    content = Data_Ref("a%b")
+    monkeypatch.setattr(content, "items", ["invalid", "invalid"])
+    with pytest.raises(InternalError) as excinfo:
+        _ = create_var_name(content)
+    assert ("algorithm.py:create_var_name unrecognised structure "
+            "'<class 'str'>' in '<class 'fparser.two.Fortran2003."
+            "Data_Ref'>'" in str(excinfo.value))
 
 
 @pytest.mark.parametrize("expression,expected", [
