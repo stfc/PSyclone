@@ -209,9 +209,9 @@ class StructureReference(Reference):
         return ref
 
     def __str__(self):
-        result = super(StructureReference, self).__str__() + "\n"
+        result = super(StructureReference, self).__str__()
         for entity in self._children:
-            result += str(entity) + "\n"
+            result += "\n" + str(entity)
         return result
 
     @property

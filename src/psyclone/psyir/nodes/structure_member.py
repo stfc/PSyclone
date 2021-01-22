@@ -81,8 +81,7 @@ class StructureMember(Member):
 
     def __str__(self):
         result = super(StructureMember, self).__str__() + "\n"
-        if self._children[0]:
-            result += str(self._children[0]) + "\n"
+        result += str(self._children[0])
         return result
 
     @staticmethod

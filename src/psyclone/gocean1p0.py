@@ -63,8 +63,8 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
-    ContainerSymbol
+    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, Symbol, \
+    ContainerSymbol, DeferredType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -731,6 +731,44 @@ class GOLoop(Loop):
              'inner': {'start': data[5], 'stop': data[6]}}
 
     # -------------------------------------------------------------------------
+    def _grid_property_reference(self, grid_property):
+        '''
+        Create a PSyIR reference using the supplied grid-property
+        information (which will have been read from the config file.
+
+        :param str grid_property: the property of the grid for which to \
+            create a reference. This is the format string read from the \
+            config file or just a simple name.
+
+        :returns: A reference to a symbol.
+        :rtype: :py:class:`psyclone.psyir.nodes.Reference` or sub-class
+
+        '''
+        members = grid_property.split("%")
+        if len(members) == 1:
+            # We don't have a derived-type reference so create a Reference to
+            # a data symbol.
+            try:
+                sym = self.scope.symbol_table.lookup(members[0])
+            except KeyError:
+                sym = self.scope.symbol_table.new_symbol(
+                    members[0], symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            return Reference(sym, parent=self)
+
+        if members[0] != "{0}":
+            raise NotImplementedError(
+                "Supplied grid property is a derived-type reference but does "
+                "not begin with '{{0}}': '{0}'".format(grid_property))
+
+        fld_sym = self.scope.symbol_table.lookup(self.field_name)
+        if type(fld_sym) == Symbol:
+            # We now know that this must be a DataSymbol.
+            # TODO to be replaced with functionality from #935.
+            fld_sym.__class__ = DataSymbol
+            fld_sym.datatype = DeferredType()
+        return StructureReference.create(fld_sym, members[1:], parent=self)
+
+    # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
     def _upper_bound(self):
         ''' Creates the PSyIR of the upper bound of this loop.
@@ -787,21 +825,11 @@ class GOLoop(Loop):
             # the array itself
             stop = BinaryOperation(BinaryOperation.Operator.SIZE,
                                    self)
-            # TODO 363 - needs to be updated once the PSyIR has support for
-            # Fortran derived types.
             api_config = Config.get().api_conf("gocean1.0")
             # Use the data property to access the member of the field that
-            # contains the actual grid points. The property value is a
-            # string with a placeholder ({0}) where the name of the field
-            # must go.
-            # This is a bit hacky - can it be improved? Probably requires
-            # a change to the config file.
-            dref_str = api_config.grid_properties["go_grid_data"].fortran
-            members = dref_str.split("%")
-            if members[0] != "{0}":
-                raise NotImplementedError("ARPDBG")
-            fld_sym = schedule.symbol_table.lookup(self.field_name)
-            sref = StructureReference.create(fld_sym, members[1:], parent=stop)
+            # contains the actual grid points.
+            sref = self._grid_property_reference(
+                api_config.grid_properties["go_grid_data"].fortran)
             stop.addchild(sref)
             if self._loop_type == "inner":
                 stop.addchild(Literal("1", INTEGER_TYPE, parent=stop))
@@ -827,12 +855,8 @@ class GOLoop(Loop):
         # key is 'internal' or 'whole', and _loop_type is either
         # 'inner' or 'outer'. The four possible combinations are
         # defined in the config file:
-        stop_format = props["go_grid_{0}_{1}_stop"
-                            .format(key, self._loop_type)].fortran
-        stop = stop_format.format(self.field_name)
-        # TODO 363 - this needs updating once the PSyIR has support for
-        # Fortran derived types.
-        return Literal(stop, INTEGER_TYPE, self)
+        return self._grid_property_reference(
+            props["go_grid_{0}_{1}_stop".format(key, self._loop_type)].fortran)
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
@@ -903,11 +927,9 @@ class GOLoop(Loop):
         # key is 'internal' or 'whole', and _loop_type is either
         # 'inner' or 'outer'. The four possible combinations are
         # defined in the config file:
-        start_format = props["go_grid_{0}_{1}_start"
-                             .format(key, self._loop_type)].fortran
-        start = start_format.format(self.field_name)
-        # TODO 363 - update once the PSyIR supports derived types
-        return Literal(start, INTEGER_TYPE, self)
+        return self._grid_property_reference(
+            props["go_grid_{0}_{1}_start".format(key,
+                                                 self._loop_type)].fortran)
 
     def node_str(self, colour=True):
         ''' Creates a text description of this node with (optional) control
