@@ -629,13 +629,15 @@ def get_kernel(parse_tree, alg_filename):
 
 
 def create_var_name(arg_parse_tree):
-    '''Creates a valid variable name from an argument that includes
-    brackets and potentially dereferences using '%'.
+    '''Creates a valid variable name from an argument that optionally
+    includes brackets and potentially dereferences using '%'.
 
     :param arg_parse_tree: the input argument. Contains braces and \
         potentially dereferencing. e.g. a%b(c).
-    :type arg_parse_tree: fparser.two.Fortran2003.Data_Ref or \
-        fparser.two.Fortran2003.Proc_Component_Ref
+    :type arg_parse_tree: :py:class:`fparser.two.Fortran2003.Name` or \
+        :py:class:`fparser.two.Fortran2003.Data_Ref` or \
+        :py:class:`fparser.two.Fortran2003.Part_Ref` or \
+        :py:class:`fparser.two.Fortran2003.Proc_Component_Ref`
 
     :returns: a valid variable name as a string.
     :rtype: str
@@ -646,11 +648,11 @@ def create_var_name(arg_parse_tree):
     tree = arg_parse_tree
     if isinstance(tree, Name):
         return str(tree)
-    elif isinstance(tree, Part_Ref):
+    if isinstance(tree, Part_Ref):
         return str(tree.items[0])
-    elif isinstance(tree, Proc_Component_Ref):
+    if isinstance(tree, Proc_Component_Ref):
         return "{0}_{1}".format(tree.items[0], tree.items[2])
-    elif isinstance(tree, Data_Ref):
+    if isinstance(tree, Data_Ref):
         component_names = []
         for item in tree.items:
             if isinstance(item, (Data_Ref, Part_Ref)):
@@ -662,10 +664,9 @@ def create_var_name(arg_parse_tree):
                     "algorithm.py:create_var_name unrecognised structure "
                     "'{0}' in '{1}'.".format(type(item), type(tree)))
         return "_".join(component_names)
-    else:
-        raise InternalError(
-            "algorithm.py:create_var_name unrecognised structure "
-            "'{0}'".format(type(tree)))
+    raise InternalError(
+        "algorithm.py:create_var_name unrecognised structure "
+        "'{0}'".format(type(tree)))
 
 # Section 3: Classes holding algorithm information.
 
