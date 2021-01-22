@@ -47,8 +47,9 @@ from fparser.two.utils import walk
 from fparser.two.Fortran2003 import Main_Program, Module, \
     Subroutine_Subprogram, Function_Subprogram, Use_Stmt, Call_Stmt, \
     Actual_Arg_Spec, Data_Ref, Part_Ref, Char_Literal_Constant, \
-    Section_Subscript_List, Name, Real_Literal_Constant, Int_Literal_Constant,\
-    Function_Reference, Level_2_Unary_Expr, Add_Operand, Parenthesis
+    Section_Subscript_List, Name, Real_Literal_Constant, \
+    Int_Literal_Constant, Function_Reference, Level_2_Unary_Expr, \
+    Add_Operand, Parenthesis, Structure_Constructor, Component_Spec_List
 # pylint: enable=no-name-in-module
 
 from psyclone.configuration import Config
@@ -256,7 +257,8 @@ class Parser(object):
                         format(str(statement), self._alg_filename))
                 invoke_label = self.check_invoke_label(argument)
 
-            elif isinstance(argument, (Data_Ref, Part_Ref)):
+            elif isinstance(
+                    argument, (Data_Ref, Part_Ref, Structure_Constructor)):
                 # This should be a kernel call.
                 kernel_call = self.create_kernel_call(argument)
                 kernel_calls.append(kernel_call)
@@ -278,12 +280,14 @@ class Parser(object):
         information.
 
         :param argument: Parse tree of an invoke argument. This \
-        should contain a kernel name and associated arguments.
-        :type argument: :py:class:`fparser.two.Fortran2003.Part_Ref`
+            should contain a kernel name and associated arguments.
+        :type argument: :py:class:`fparser.two.Fortran2003.Part_Ref` or \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+
         :returns: A builtin or coded kernel call object which contains \
-        relevant information about the Kernel.
+            relevant information about the Kernel.
         :rtype: :py:class:`psyclone.parse.algorithm.KernelCall` or \
-        :py:class:`psyclone.parse.algorithm.BuiltInCall`
+            :py:class:`psyclone.parse.algorithm.BuiltInCall`
 
         '''
         kernel_name, args = get_kernel(argument, self._alg_filename)
@@ -526,37 +530,41 @@ def get_kernel(parse_tree, alg_filename):
     relevant information about the arguments associated with the
     kernel.
 
-    :param parse_tree: Parse tree of an invoke argument. This \
-    should contain a kernel name and associated arguments.
-    :type argument: :py:class:`fparser.two.Fortran2003.Part_Ref`
+    :param parse_tree: parse tree of an invoke argument. This \
+        should contain a kernel name and associated arguments.
+    :type parse_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` or \
+        :py:class:`fparser.two.Fortran2003.Structure_Constructor`
     :param str alg_filename: The file containing the algorithm code.
 
     :returns: a 2-tuple with the name of the kernel being called and a \
-    list of 'Arg' instances containing the required information for \
-    the arguments being passed from the algorithm layer. The list \
-    order is the same as the argument order.
-
+        list of 'Arg' instances containing the required information for \
+        the arguments being passed from the algorithm layer. The list \
+        order is the same as the argument order.
     :rtype: (str, list of :py:class:`psyclone.parse.algorithm.Arg`)
+
     :raises InternalError: if the parse tree is of the wrong type.
     :raises InternalError: if an unsupported argument format is found.
 
     '''
     # pylint: disable=too-many-branches
-    if not isinstance(parse_tree, Part_Ref):
+    if not isinstance(parse_tree, (Part_Ref, Structure_Constructor)):
         raise InternalError(
-            "algorithm.py:get_kernel: Expected a parse tree (type Part_Ref) "
-            "but found instance of '{0}'.".format(type(parse_tree)))
+            "algorithm.py:get_kernel: Expected a parse tree (type Part_Ref "
+            "or Structure_Constructor) but found instance of '{0}'."
+            "".format(type(parse_tree)))
 
     if len(parse_tree.items) != 2:
         raise InternalError(
-            "algorithm.py:get_kernel: Expected Part_Ref to have 2 children "
+            "algorithm.py:get_kernel: Expected Part_Ref or "
+            "Structure_Constructor to have 2 children "
             "but found {0}.".format(len(parse_tree.items)))
 
     kernel_name = str(parse_tree.items[0])
 
     # Extract argument list. This can be removed when fparser#211 is fixed.
     argument_list = []
-    if isinstance(parse_tree.items[1], Section_Subscript_List):
+    if isinstance(parse_tree.items[1],
+                  (Section_Subscript_List, Component_Spec_List)):
         argument_list = parse_tree.items[1].items
     else:
         # Expecting a single entry rather than a list
