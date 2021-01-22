@@ -41,7 +41,7 @@ from __future__ import absolute_import
 
 import pytest
 
-from fparser.two.Fortran2003 import Part_Ref, Structure_Constructor
+from fparser.two.Fortran2003 import Part_Ref
 
 from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg
@@ -68,27 +68,8 @@ def test_parser_parse(tmpdir):
     assert ("Program, module, function or subroutine not found in parse tree "
             "for file") in str(excinfo.value)
 
-# create_invoke_call tests
-
 
 def test_parser_createinvokecall(parser):
-    '''Test that valid invoke calls are created without an
-    exception. Limit this to builtins as kernel calls fail as there is
-    no associated use statement declared. Test with names, real
-    scalars and integer scalars as the parser represents these in
-    different ways so the create_invoke_call needs to deal with the
-    different representations.
-
-    '''
-    from fparser.two.Fortran2003 import Call_Stmt
-    statement = Call_Stmt(
-        "call invoke(name=\"dummy\", setval_c(a,1.0), setval_c(a,1), "
-        "setval_c(a,b))")
-    parse = Parser()
-    result = parse.create_invoke_call(statement)
-
-
-def test_parser_createinvokecall_error(parser):
     '''Test that if an argument to an invoke call is not what is expected
     then the appropriate exception is raised.
 
@@ -209,26 +190,25 @@ def test_getkernel_invalid_tree():
     with pytest.raises(InternalError) as excinfo:
         _ = get_kernel("invalid", "dummy.f90")
     assert (
-        "Expected a parse tree (type Part_Ref or Structure_Constructor) but "
-        "found instance of ") in str(excinfo.value)
+        "Expected a parse tree (type Part_Ref) but found instance of ") \
+        in str(excinfo.value)
 
-@pytest.mark.parametrize("cls", [Part_Ref, Structure_Constructor])
-def test_getkernel_invalid_children(cls, parser, monkeypatch):
-    '''Test that if the get_kernel function finds Part_Ref or
-    Structure_Constructor as the top level of the parse tree but this
-    does not have two children then it raises an exception in the
-    expected way. Create the parse_tree in-place rather than running
-    PSyclone. Once created make the parse_tree content invalid using
-    monkeypatch.
+
+def test_getkernel_invalid_children(parser, monkeypatch):
+    '''Test that if the get_kernel function finds Part_Ref as the top
+    level of the parse tree but this does not have two children then
+    it raises an exception in the expected way. Create the parse_tree
+    in-place rather than running PSyclone. Once created make the
+    parse_tree content invalid using monkeypatch.
 
     '''
     # pylint: disable=unused-argument
-    parse_tree = cls("kernel(arg)")
+    parse_tree = Part_Ref("kernel(arg)")
     monkeypatch.setattr(parse_tree, "items", [None, None, None])
     with pytest.raises(InternalError) as excinfo:
         _ = get_kernel(parse_tree, "dummy.f90")
-    assert ("Expected Part_Ref or Structure_Constructor to have 2 children "
-            "but found 3.") in str(excinfo.value)
+    assert "Expected Part_Ref to have 2 children but found 3." \
+        in str(excinfo.value)
 
 
 def test_getkernel_invalid_arg(parser, monkeypatch):
@@ -260,7 +240,7 @@ def test_getkernel_isliteral(parser, content):
 
     '''
     # pylint: disable=unused-argument
-    tree = Structure_Constructor("sub({0})".format(content))
+    tree = Part_Ref("sub({0})".format(content))
     kern_name, args = get_kernel(tree, "dummy.f90")
     assert kern_name == "sub"
     assert len(args) == 1
