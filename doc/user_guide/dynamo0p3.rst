@@ -260,7 +260,8 @@ The metadata for a Kernel which operates on a cell-column may specify
 that a Kernel performs a stencil operation on a field. Any such
 metadata must provide a stencil type. See the
 :ref:`dynamo0.3-api-meta-args` section for more details. The supported
-stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS`` or ``CROSS2D``.
+stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``, ``CROSS2D`` or
+``REGION``.
 
 If a stencil operation is specified by the Kernel metadata the
 algorithm layer must provide the ``extent`` of the stencil (the
@@ -1095,9 +1096,9 @@ Stencil metadata is written in the following format::
 
   STENCIL(type)
 
-where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D``,
-``CROSS`` or ``CROSS2D``.  As the stencil ``extent`` (the maximum distance from the
-central cell that the stencil extends) is not provided in the metadata,
+where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``,
+``CROSS2D`` or ``REGION``.  As the stencil ``extent`` (the maximum distance from
+the central cell that the stencil extends) is not provided in the metadata,
 it is expected to be provided by the algorithm writer as part of the
 ``invoke`` call (see Section :ref:`dynamo0.3-alg-stencil`). As there
 is currently no way to specify a fixed extent value for stencils in the
@@ -1134,6 +1135,19 @@ and the following stencil (with ``extent=2``):
 would be declared as::
 
   STENCIL(CROSS)
+
+The ``REGION`` stencil references a block of cells:
+
+.. code-block:: none
+
+  | 9 | 8 | 7 |
+  | 2 | 1 | 6 |
+  | 3 | 4 | 5 |
+
+
+and would be declared as::
+
+  STENCIL(REGION)
 
 Below is an example of stencil information within the full kernel metadata::
 
