@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -50,16 +50,16 @@ module testkern_write_any_anyd_mod
   ! Description: function spaces with one continuous (any_space_1)
   ! and one discontinuous (any_discontinuous_space_1) field writer
   type, extends(kernel_type) :: testkern_write_any_anyd_type
-     type(arg_type), dimension(7) :: meta_args = (/                &
-          arg_type(gh_field, gh_inc,   any_space_1),               &
-          arg_type(gh_field, gh_read,  w2),                        &
-          arg_type(gh_field, gh_read,  w1),                        &
-          arg_type(gh_field, gh_write, any_discontinuous_space_1), &
-          arg_type(gh_field, gh_read,  wtheta),                    &
-          arg_type(gh_field, gh_read,  w2h),                       &
-          arg_type(gh_field, gh_read,  w2v)                        &
+     type(arg_type), dimension(7) :: meta_args = (/                         &
+          arg_type(gh_field, gh_real, gh_inc,   any_space_1),               &
+          arg_type(gh_field, gh_real, gh_read,  w2),                        &
+          arg_type(gh_field, gh_real, gh_read,  w1),                        &
+          arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_1), &
+          arg_type(gh_field, gh_real, gh_read,  wtheta),                    &
+          arg_type(gh_field, gh_real, gh_read,  w2h),                       &
+          arg_type(gh_field, gh_real, gh_read,  w2v)                        &
           /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_write_any_anyd_code
   end type testkern_write_any_anyd_type

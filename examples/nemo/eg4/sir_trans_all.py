@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2020, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,23 +34,30 @@
 # Author: R. W. Ford, STFC Daresbury Lab
 
 '''Module providing a transformation script that converts the supplied
-PSyIR to the Stencil intermediate representation (SIR), modifying any
-PSyIR min, abs and sign intrinsics to PSyIR code beforehand using
-transformations, as SIR does not support intrinsics. Translation to
-the SIR is limited to the NEMO API. The NEMO API has no algorithm
-layer so all of the original code is captured in the invoke
+PSyIR to the Stencil intermediate representation (SIR) and
+
+1) modifies any PSyIR min, abs and sign intrinsics to PSyIR code
+beforehand using transformations, as SIR does not support intrinsics.
+
+2) transforms implicit loops to explicit loops as the SIR does not
+have the concept of implicit loops.
+
+Translation to the SIR is limited to the NEMO API. The NEMO API has no
+algorithm layer so all of the original code is captured in the invoke
 objects. Therefore by translating all of the invoke objects, all of
 the original code is translated.
 
 '''
 from __future__ import print_function
 from psyclone.psyir.backend.sir import SIRWriter
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.nemo import NemoKern
 from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
-                                  NaryOperation, Operation)
+                                  NaryOperation, Operation, Assignment)
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
     Min2CodeTrans
+from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 
 
 def trans(psy):
@@ -65,18 +72,23 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-
     abs_trans = Abs2CodeTrans()
     sign_trans = Sign2CodeTrans()
     min_trans = Min2CodeTrans()
+    nemo_loop_trans = NemoAllArrayRange2LoopTrans()
 
     sir_writer = SIRWriter()
+    fortran_writer = FortranWriter()
+
     # For each Invoke write out the SIR representation of the
     # schedule. Note, there is no algorithm layer in the NEMO API so
     # the invokes represent all of the original code.
     for invoke in psy.invokes.invoke_list:
-        sched = invoke.schedule
-        for kernel in sched.walk(NemoKern):
+        schedule = invoke.schedule
+        for assignment in schedule.walk(Assignment):
+            nemo_loop_trans.apply(assignment)
+
+        for kernel in schedule.walk(NemoKern):
 
             # The NEMO api currently has no symbol table so create one
             # to allow the generation of new variables. Note, this
@@ -96,7 +108,9 @@ def trans(psy):
                                        NaryOperation.Operator.MIN]:
                     # Apply (2-n arg) MIN transformation
                     min_trans.apply(oper, symbol_table)
-        kern = sir_writer(sched)
+        kern = fortran_writer(schedule)
+        print(kern)
+        kern = sir_writer(schedule)
         print(kern)
 
     return psy

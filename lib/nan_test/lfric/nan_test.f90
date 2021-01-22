@@ -1,39 +1,3 @@
-{# Added this as jinja code so that it is understood that the
-   comment does not apply to THIS file. #}
-{{ "! ==================================================" }}
-{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE " }}
-{{ "! DO NOT MODIFY DIRECTLY                            " }}
-{{ "! ==================================================" }}
-
-{# The LFRic NANTest library uses the NANTestBaseType to
-   implement the PreDeclareVariable() and ProvideVariable()
-   methods for all Fortran basic types, and for 1- to 4-
-   dimensional arrays. It only implements the required
-   support for LFRic fields and vector-fields. Still,
-   this subroutine has to create the generic interfaces to
-   ALL these functions (the ones from NANTestBaseType and
-   and for fields/vector-fields), for which jinja is used. -#}
-
-{% if ALL_DIMS is not defined %}
-   {# Support 1 to 4 dimensional arrays if not specified #}
-   {% set ALL_DIMS = [1, 2, 3, 4] %}
-{% endif %}
-
-{# The types that are supported for the DeclareVariable() and
-   ProvideVariable() routines. The first entry of each tuple
-   is the name used when naming subroutines and in user messages.
-   The second entry is the Fortran declaration. The third entry
-   is the number of bits. There is slightly different code
-   required for 32 and 64 bit values (due to the fact that the
-   Fortran transfer(value, mould) function leaves undefined bits
-   when mould is larger than value.) #}
-
-{% if ALL_TYPES is not defined %}
-   {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
-                        ("Real",   "real(kind=real32)",   32),
-                        ("Int",    "integer(kind=int32)", 32) ] %}
-{% endif %}
-
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
@@ -88,32 +52,16 @@ module nan_test_psy_data_mod
         procedure :: DeclareField,  ProvideField
         procedure :: DeclareFieldVector,  ProvideFieldVector
 
-        {# Collect the various procedures for the same generic interface #}
-        {# ------------------------------------------------------------- #}
-        {% set all_declares=[] %}
-        {% set all_provides=[] %}
-        {% for name, type, bits in ALL_TYPES %}
-          {{ all_declares.append("DeclareScalar"~name) or "" -}}
-          {{ all_provides.append("ProvideScalar"~name) or "" -}}
-          {% for dim in ALL_DIMS %}
-            {{ all_declares.append("DeclareArray"~dim~"d"~name) or "" -}}
-            {{ all_provides.append("ProvideArray"~dim~"d"~name) or "" -}}
-          {% endfor %}
-        {% endfor %}
-
-        {% set indent="            " %}
         ! Declare generic interface for PreDeclareVariable:
         generic, public :: PreDeclareVariable => &
-            DeclareField, &
-            DeclareFieldVector, &
-            {{all_declares|join(", &\n"+indent) }}
+            DeclareField,                        &
+            DeclareFieldVector
 
         !> The generic interface for providing the value of variables
         !! (which checks for non normal IEEE numbers)
         generic, public :: ProvideVariable => &
-            ProvideField,       &
-            ProvideFieldVector, &
-            {{all_provides|join(", &\n"+indent) }}
+            ProvideField,                     &
+            ProvideFieldVector
                                               
     end type nan_test_PSyDataType
 

@@ -9,7 +9,7 @@
 !
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,9 +43,9 @@
 
 module scaled_matrix_vector_kernel_mod
 
-  use argument_mod,      only : arg_type,              &
-                                GH_FIELD, GH_OPERATOR, &
-                                GH_READ, GH_INC,       &
+  use argument_mod,      only : arg_type,                 &
+                                GH_FIELD, GH_OPERATOR,    &
+                                GH_REAL, GH_READ, GH_INC, &
                                 CELL_COLUMN
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W3
@@ -61,12 +61,12 @@ module scaled_matrix_vector_kernel_mod
 
   type, public, extends(kernel_type) :: scaled_matrix_vector_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/         &
-        arg_type(GH_FIELD,    GH_INC,  W2),     &
-        arg_type(GH_FIELD,    GH_READ, W3),     &
-        arg_type(GH_OPERATOR, GH_READ, W2, W3), &
-        arg_type(GH_FIELD,    GH_READ, W2),     &
-        arg_type(GH_FIELD,    GH_READ, W2)      &
+    type(arg_type) :: meta_args(5) = (/                  &
+        arg_type(GH_FIELD,    GH_REAL, GH_INC,  W2),     &
+        arg_type(GH_FIELD,    GH_REAL, GH_READ, W3),     &
+        arg_type(GH_OPERATOR, GH_REAL, GH_READ, W2, W3), &
+        arg_type(GH_FIELD,    GH_REAL, GH_READ, W2),     &
+        arg_type(GH_FIELD,    GH_REAL, GH_READ, W2)      &
         /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -75,12 +75,12 @@ module scaled_matrix_vector_kernel_mod
 
   type, public, extends(kernel_type) :: opt_scaled_matrix_vector_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/         &
-        arg_type(GH_FIELD,    GH_INC,  W2),     &
-        arg_type(GH_FIELD,    GH_READ, W3),     &
-        arg_type(GH_OPERATOR, GH_READ, W2, W3), &
-        arg_type(GH_FIELD,    GH_READ, W2),     &
-        arg_type(GH_FIELD,    GH_READ, W2)      &
+    type(arg_type) :: meta_args(5) = (/                  &
+        arg_type(GH_FIELD,    GH_REAL, GH_INC,  W2),     &
+        arg_type(GH_FIELD,    GH_REAL, GH_READ, W3),     &
+        arg_type(GH_OPERATOR, GH_REAL, GH_READ, W2, W3), &
+        arg_type(GH_FIELD,    GH_REAL, GH_READ, W2),     &
+        arg_type(GH_FIELD,    GH_REAL, GH_READ, W2)      &
           /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -99,14 +99,14 @@ contains
 !>        and y is a field in the same space as lhs
 !> @param[in] cell Horizontal cell index
 !! @param[in] nlayers Number of layers
-!> @param[inout] lhs Output lhs (A*x)
+!> @param[in,out] lhs Output lhs (A*x)
 !! @param[in] x Input data
 !! @param[in] ncell_3d Total number of cells
 !! @param[in] matrix Local matrix assembly form of the operator A
 !! @param[in] y Field to scale output by
 !! @param[in] z Second field to scale output by
 !! @param[in] ndf1 Number of degrees of freedom per cell for the output field
-!! @param[in] undf1 Unique number of degrees of freedom  for the output field
+!! @param[in] undf1 Unique number of degrees of freedom for the output field
 !! @param[in] map1 Dofmap for the cell at the base of the column for the output field
 !! @param[in] ndf2 Number of degrees of freedom per cell for the input field
 !! @param[in] undf2 Unique number of degrees of freedom for the input field
