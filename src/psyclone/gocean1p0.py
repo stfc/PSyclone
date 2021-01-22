@@ -1842,6 +1842,15 @@ class GOKernelArgument(KernelArgument):
         KernelArgument.__init__(self, arg, arg_info, call)
 
     def infere_datatype(self):
+        # There are 3 places from where we can get the PSy-layer argument
+        # types:
+        #   - API rules and config file
+        #   - Kernel metadata
+        #   - Kernel signature
+        #
+        # This method uses the API rules but ideally we could check that the
+        # 3 type descriptions match.
+
         if self.argument_type == "field":
             # All GOcean fields are r2d_type:
             # r2d_type can have DeferredType and UnresolvedInterface because
@@ -1854,7 +1863,9 @@ class GOKernelArgument(KernelArgument):
             # All GOcean scalars are integers
             return INTEGER_TYPE
         if self.argument_type == "grid_property":
-            pass  # Info is at api_config.grid_properties[str] ?
+            # We can still have them DeferredType() for now, but if we need
+            # the type it is at api_config.grid_properties[str]
+            pass
 
         return DeferredType()
 
