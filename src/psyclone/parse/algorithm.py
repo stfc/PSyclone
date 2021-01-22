@@ -643,26 +643,29 @@ def create_var_name(arg_parse_tree):
     :raises InternalError: if unrecognised fparser content is found.
 
     '''
-    var_name = ""
     tree = arg_parse_tree
-    while isinstance(tree, (Data_Ref, Proc_Component_Ref)):
-        # replace '%' with '_'
-        var_name += str(tree.items[0]) + "_"
-        index = 1  # Index for Data_Ref
-        if isinstance(tree, Proc_Component_Ref):
-            index = 2
-        tree = tree.items[index]
     if isinstance(tree, Name):
-        # add name to the end
-        var_name += str(tree)
+        return str(tree)
     elif isinstance(tree, Part_Ref):
-        # add name before the brackets to the end
-        var_name += str(tree.items[0])
+        return str(tree.items[0])
+    elif isinstance(tree, Proc_Component_Ref):
+        return "{0}_{1}".format(tree.items[0], tree.items[2])
+    elif isinstance(tree, Data_Ref):
+        component_names = []
+        for item in tree.items:
+            if isinstance(item, (Data_Ref, Part_Ref)):
+                component_names.append(str(item.items[0]))
+            elif isinstance(item, Name):
+                component_names.append(str(item))
+            else:
+                raise InternalError(
+                    "algorithm.py:create_var_name unrecognised structure "
+                    "'{0}' in '{1}'.".format(type(item), type(tree)))
+        return "_".join(component_names)
     else:
         raise InternalError(
             "algorithm.py:create_var_name unrecognised structure "
             "'{0}'".format(type(tree)))
-    return var_name
 
 # Section 3: Classes holding algorithm information.
 
