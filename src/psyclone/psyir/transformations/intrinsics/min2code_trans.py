@@ -134,15 +134,13 @@ class Min2CodeTrans(Operator2CodeTrans):
         # integers), or there may be errors (arguments are of
         # different types) but this can't be checked as we don't have
         # appropriate methods to query nodes (see #658).
-        res_var = symbol_table.new_symbol_name("res_min")
-        res_var_symbol = DataSymbol(res_var, REAL_TYPE)
-        symbol_table.add(res_var_symbol)
+        res_var_symbol = symbol_table.new_symbol(
+            "res_min", symbol_type=DataSymbol, datatype=REAL_TYPE)
         # Create a temporary variable. Again there is an
         # assumption here about the datatype - please see previous
         # comment (associated issue #658).
-        tmp_var = symbol_table.new_symbol_name("tmp_min")
-        tmp_var_symbol = DataSymbol(tmp_var, REAL_TYPE)
-        symbol_table.add(tmp_var_symbol)
+        tmp_var_symbol = symbol_table.new_symbol(
+            "tmp_min", symbol_type=DataSymbol, datatype=REAL_TYPE)
 
         # Replace operation with a temporary (res_var).
         oper_parent.children[node.position] = Reference(res_var_symbol,

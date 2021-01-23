@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council.
+! Copyright (c) 2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,11 +29,18 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-subroutine data_ref()
-  INTEGER :: dummy
-  do ji = 1, n
-     prof%npind(ji) = 2.0*a(ji) + fconst
-  end do
-END subroutine data_ref
+! This code demonstrates an implicit loop with at least one of its
+! dimensions (dimension 2 of umask) having a specified lower and upper
+! bound (an array slice).
+
+program implicit_do_slice
+  implicit none
+  integer, parameter :: jpi=10, jpj=10, jpk=10
+  real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk) :: umask
+
+  ! Test code with implicit NEMO-style do loop with a fixed slice
+  umask(:,2:4,:) = 0.0d0
+
+end program implicit_do_slice
