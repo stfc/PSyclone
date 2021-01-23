@@ -686,11 +686,11 @@ def test_transform_errors(capsys):
     # out is unicode, and has no replace function, so convert to string first
     out = str(out).replace("\n", "")
 
-    correct_re = (".*GOInvokeSchedule.*"
-                  r"    .*Profile.*"
-                  r"        .*Loop.*\[type='outer'.*"
-                  r"        .*Loop.*\[type='outer'.*"
-                  r"        .*Loop.*\[type='outer'.*")
+    correct_re = (".*GOInvokeSchedule.*?"
+                  r"Profile.*?"
+                  r"Loop.*\[type='outer'.*?"
+                  r"Loop.*\[type='outer'.*?"
+                  r"Loop.*\[type='outer'")
     assert re.search(correct_re, out)
 
     # Test that we don't add a profile node inside a OMP do loop (which
