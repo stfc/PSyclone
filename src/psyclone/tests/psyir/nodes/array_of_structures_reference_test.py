@@ -111,24 +111,25 @@ def test_asr_create_errors(component_symbol):
     is done within the StructureReference class so there's not much to check
     here. '''
     with pytest.raises(TypeError) as err:
-        _ = nodes.ArrayOfStructuresReference.create(1)
+        _ = nodes.ArrayOfStructuresReference.create(1, [], [])
     assert ("'symbol' argument to ArrayOfStructuresReference.create() should "
             "be a DataSymbol but found 'int'" in str(err.value))
     scalar_symbol = symbols.DataSymbol("scalar", symbols.INTEGER_TYPE)
     with pytest.raises(TypeError) as err:
-        _ = nodes.ArrayOfStructuresReference.create(scalar_symbol)
+        _ = nodes.ArrayOfStructuresReference.create(scalar_symbol, [], [])
     assert "ArrayType but symbol 'scalar' has type 'Scalar" in str(err.value)
     # Missing children (for array-index expressions)
     with pytest.raises(TypeError) as err:
-        _ = nodes.ArrayOfStructuresReference.create(component_symbol)
+        _ = nodes.ArrayOfStructuresReference.create(component_symbol,
+                                                    False, ["hello"])
     assert ("must be a list containing at least one array-index expression "
             "but this is missing for symbol 'grid'" in str(err.value))
     # Missing member(s)
-    with pytest.raises(TypeError) as err:
+    with pytest.raises(ValueError) as err:
         _ = nodes.ArrayOfStructuresReference.create(
-            component_symbol,
-            indices=[nodes.Literal("1", symbols.INTEGER_TYPE)])
-    assert "must be a list but found 'NoneType'" in str(err.value)
+            component_symbol, [nodes.Literal("1", symbols.INTEGER_TYPE)], [])
+    assert ("'members' that are being accessed but got an empty list for "
+            "symbol 'grid'" in str(err.value))
 
 
 def test_ast_str():

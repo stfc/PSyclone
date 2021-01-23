@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -247,9 +247,13 @@ def test_scalar_parallelise(parser):
 
 
 # -----------------------------------------------------------------------------
+@pytest.mark.xfail(reason="#1028 dependency analysis for structures needs "
+                   "to be implemented")
 def test_derived_type(parser):
     ''' Tests assignment to derived type variables. '''
     reader = FortranStringReader('''program test
+                                 use my_mod, only: my_type
+                                 type(my_type) :: a, b
                                  integer :: ji, jj, jpi, jpj
                                  do jj = 1, jpj   ! loop 0
                                     do ji = 1, jpi
