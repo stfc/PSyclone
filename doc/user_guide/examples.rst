@@ -411,7 +411,7 @@ Example 17.1: Very Simple Runnable Example
 The subdirectory ``full_example`` contains a very simple example code
 that uses PSyclone to create two single kernels. It uses unit-testing
 code from various classes to create the required data structures like
-mesh etc.
+initial grid etc.
 
 Example 17.2: Very Simple Runnable Example With NetCDF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -422,9 +422,9 @@ Example 17.3: Kernel Parameter Extraction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This example in the subdirectory ``full_example_extract`` shows the
 use of kernel extraction. It requires the installation of a NetCDF
-development environment. When running the created binary it will
-create two NetCDF files, each one containing the input- and output-
-parameters for the corresponding kernel call. For example:
+development environment. When running the compiled binary it will
+create two NetCDF files, each one containing the input- and
+output-parameters for the corresponding kernel call. For example:
 
 .. code-block:: bash
 
