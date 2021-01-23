@@ -40,11 +40,9 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes import Operation, BinaryOperation, Literal
-from psyclone.psyir.nodes.ranges import Range
+from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.core.access_info import AccessType
-from psyclone.psyir.symbols import Symbol, DataSymbol, ScalarType
-from psyclone.errors import GenerationError
+from psyclone.psyir.symbols import Symbol
 
 
 class Reference(DataNode):

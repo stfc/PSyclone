@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ def test_kernelschedule_create():
     assert kschedule.return_type is None
     check_links(kschedule, [assignment])
     assert kschedule.symbol_table is symbol_table
-    result = FortranWriter().kernelschedule_node(kschedule)
+    result = FortranWriter().routine_node(kschedule)
     assert result == (
         "subroutine mod_name()\n"
         "  real :: tmp\n\n"

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -44,9 +44,9 @@ module testkern_orientation2_mod
 
   type, extends(kernel_type) :: testkern_orientation2_type
     type(arg_type) :: meta_args(3) = (/                                  &
-         arg_type(GH_FIELD,   GH_INC,   W1),                             &
-         arg_type(GH_FIELD,   GH_READ,  W2),                             &
-         arg_type(GH_FIELD*3, GH_READ,  W0)                              &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,   W1),                    &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W2),                    &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  W0)                     &
          /)
     type(func_type) :: meta_funcs(3) = (/                                &
          func_type(W1, GH_BASIS),                                        &

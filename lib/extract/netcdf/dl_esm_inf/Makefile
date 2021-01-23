@@ -63,7 +63,7 @@ psy_data_base.f90: ../../../psy_data_base.jinja Makefile
 
 
 extract_netcdf_base.f90: ../extract_netcdf_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) $< > extract_netcdf_base.f90
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > extract_netcdf_base.f90
 
 # The dl_esm_inf library
 $(INF_LIB):

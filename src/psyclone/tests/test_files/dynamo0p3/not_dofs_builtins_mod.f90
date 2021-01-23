@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: setval_c
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD,           GH_INC, ANY_SPACE_1),          &
+          arg_type(GH_FIELD,  GH_REAL, GH_INC, ANY_SPACE_1),          &
           arg_type(GH_SCALAR, GH_REAL, GH_READ            )           &
           /)
      ! Deliberately BREAK the meta-data - we only support operates_on

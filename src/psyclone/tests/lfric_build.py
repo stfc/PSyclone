@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
-#          J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
+#          J. Henrichs, Bureau of Meteorology,
+#          I. Kavcic, Met Office
 
 ''' Module containing configuration required to build code generated
 for the LFRic domain. '''
@@ -96,6 +96,7 @@ class LFRicBuild(Compile):
                               "field_parent_mod",
                               "count_mod",
                               "field_mod",
+                              "integer_field_mod",
                               "quadrature_rule_mod",
                               "quadrature_mod",
                               "quadrature_xyz_mod",

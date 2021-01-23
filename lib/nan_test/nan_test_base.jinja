@@ -93,18 +93,29 @@ module nan_test_base_mod
     contains
         ! The various procedures used
 
-        {# Declare the jinja created procedures #}
-        {# ------------------------------------ #}
+        {# Collect and declare the various procedures for the same generic interface -#}
+        {# ------------------------------------------------------------------------- -#}
+        {% set all_declares=[] -%}
+        {% set all_provides=[] -%}
         {% for name, type, bits in ALL_TYPES %}
         procedure :: ProvideScalar{{name}}
+          {{- all_provides.append("ProvideScalar"~name) or "" }}
           {% for dim in ALL_DIMS %}
         procedure :: ProvideArray{{dim}}d{{name}}
+            {{ all_provides.append("ProvideArray"~dim~"d"~name) or "" }}
           {% endfor %}
         {% endfor %}
 
+        {% set indent="            " %}
+        {% if GENERIC_PROVIDE %}
+        !> The generic interface for providing the value of variables:
+        generic, public :: ProvideVariable => &
+            {{all_provides|join(", &\n"+indent) }}
+        {% endif %}
+
     end type NANTestBaseType
 
-    {% set indent="        " %}
+
 
 Contains
 
@@ -183,7 +194,7 @@ Contains
         if (IEEE_SUPPORT_DATATYPE(value)) then
             {# The spaces take care of proper indentation #}
             {% for j in range(dim, 0, -1) %}
-            {{+" "*3*(dim-j)}}do i{{j}}=1, size(value, {{j}})
+            {{ " "*3*(dim-j)}}do i{{j}}=1, size(value, {{j}})
             {% endfor %}
             {{indent}}if (.not. IEEE_IS_FINITE(value({{vars}}))) then
             {{indent}}    write(stderr, *) "PSyData: Variable ", name," has the invalid value"

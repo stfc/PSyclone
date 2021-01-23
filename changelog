@@ -256,8 +256,8 @@
 	81) PR #1011 for #1008. Auto kernel profiling can fail after OpenMP
 	transformations.
 
-        82) PR #951 for #950. Adds f2pygen support for generating code from
-        PSyIR nodes.
+	82) PR #951 for #950. Adds f2pygen support for generating code from
+	PSyIR nodes.
 
 	83) PR #1026 for #1025. Removes code associated with, and
 	reference to, travis as we have migrated to github actions.
@@ -265,8 +265,54 @@
 	84) PR #944 towards #925. Added metadata support and constraints
 	tests for operates_on=domain kernels.
 
-        85) PR #901 towards #873. Adds PSyIR support for recognised quantities
-        in LFRic kernels. Currently only used for argument validation.
+	85) PR #901 towards #873. Adds PSyIR support for recognised quantities
+	in LFRic kernels. Currently only used for argument validation.
+
+	86) PR #1034 for #1037. Final fixes for problems found when
+	running with LOCALE=C.
+
+	87) PR #974 for #974. Support skip ci with GitHub Actions.
+
+	88) PR #1021 towards #363. Add PSyIR nodes for structure references and
+	its accessors, also the associated Fortran back-end visitors.
+
+	89) PR #1036 for #1033. Fix bug in coluring adjacent_face array with
+	OpenMP in LFRic API.
+
+	90) PR #1023 for #1017. Update and improve PSyData LFRic tutorial.
+
+        91) PR #894 towards #817. Adds support for LFRic kernel metadata
+        specifying the intrinsic type (real and integer) of fields and
+        operators.
+
+        92) PR #1029 towards #1010. Sets up initial API and examples for
+        generating PSy-layer code using the PSyIR backends.
+
+        93) PR #1032 for #1019. Adds OpenCL configuration parameters to
+        enable profiling and out-of-order execution of kernels. Also adds
+        an 'OpenCL devices per node' configuration option.
+
+        94) PR #1044 towards #817. Updates the metadata in LFRic test
+        kernels to specify the type of field and operator arguments.
+
+        95) PR #1038 for #999. Changes to the PSyData wrapper libraries
+        so that they build with Intel. (Ensures that generic interfaces
+        to various routines are declared in the correct locations.)
+
+        96) PR #1024 for #843. Implements the ArrayRange2LoopTrans for
+        the NEMO API.
+
+        97) PR #1045 towards #817. Updates the LFRic kernel metadata
+        in the examples to specify the type of field and operator args.
+
+        98) PR #1042 for #1039. Adds new method to SymbolTable that
+        supports the creation of symbols of particular types.
+
+	99) PR #1053 towards #363. Add frontend support and semantic navigation
+	methods for PSyIR structures.
+
+        100) PR #1060 (and #1046) for #194. Enables the support for region
+        stencils in LFRic.
 
 release 1.9.0 20th May 2020
 

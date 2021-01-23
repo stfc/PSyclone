@@ -1,39 +1,3 @@
-{# Added this as jinja code so that it is understood that the
-   comment does not apply to THIS file. #}
-{{ "! ==================================================" }}
-{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE " }}
-{{ "! DO NOT MODIFY DIRECTLY                            " }}
-{{ "! ==================================================" }}
-
-{# The LFRic NetCDF kernel extraction library uses the
-   ExtractNetcdfBaseType to implement the PreDeclareVariable()
-   and ProvideVariable() methods for all Fortran basic types,
-   and for 1- to 4- dimensional arrays. It only implements the
-   required support for LFRic fields and vector-fields. Still,
-   this subroutine has to create the generic interfaces to
-   ALL these functions (the ones from the base class and
-   for fields/vector-fields), for which jinja is used. -#}
-
-{% if ALL_DIMS is not defined -%}
-   {# Support 1 to 4 dimensional arrays if not specified #}
-   {% set ALL_DIMS = [1, 2, 3, 4] -%}
-{% endif -%}
-
-{# The types that are supported for the DeclareVariable() and
-   ProvideVariable() routines. The first entry of each tuple
-   is the name used when naming subroutines and in user messages.
-   The second entry is the Fortran declaration. The third entry
-   is the number of bits. There is slightly different code
-   required for 32 and 64 bit values (due to the fact that the
-   Fortran transfer(value, mould) function leaves undefined bits
-   when mould is larger than value.) #}
-
-{% if ALL_TYPES is not defined -%}
-   {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
-                        ("Real",   "real(kind=real32)",   32),
-                        ("Int",    "integer(kind=int32)", 32) ] -%}
-{% endif -%}
-
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
@@ -95,44 +59,17 @@ module extract_psy_data_mod
         procedure :: DeclareField,       WriteField
         procedure :: DeclareFieldVector, WriteFieldVector
 
-        {# Collect the various procedures for the same generic interface #}
-        {# ------------------------------------------------------------- #}
-        {% set all_declares=[] %}
-        {% set all_writes=[] %}
-        {% set all_reads=[] %}
-        {% for name, type, bits in ALL_TYPES %}
-          {{ all_declares.append("DeclareScalar"~name) or "" -}}
-          {{ all_writes.append("WriteScalar"~name) or "" -}}
-          {{ all_reads.append("ReadScalar"~name) or "" -}}
-          {% for dim in ALL_DIMS %}
-            {{ all_declares.append("DeclareArray"~dim~"d"~name) or "" -}}
-            {{ all_writes.append("WriteArray"~dim~"d"~name) or "" -}}
-            {{ all_reads.append("ReadArray"~dim~"d"~name) or "" -}}
-          {% endfor %}
-        {% endfor %}
-
-        {% set indent="            " %}
         !> Declare generic interface for PreDeclareVariable:
         generic, public :: PreDeclareVariable => &
             DeclareField,       &
-            DeclareFieldVector, &
-            {{all_declares|join(", &\n"+indent) }}
+            DeclareFieldVector
 
         !> The generic interface for providing the value of variables,
         !! which in case of the kernel extraction writes the data to
         !! the NetCDF file.
         generic, public :: ProvideVariable => &
             WriteField,       &
-            WriteFieldVector, &
-            {{all_writes|join(", &\n"+indent) }}
-
-        !> The generic interface for reading in variables previously
-        !! written. This is not part of the standard PSyData API, but
-        !! it is convenient for a driver that e.g. reads previously written
-        !! files. The driver does not use LFRic fields (only Fortran arrays),
-        !! so there is no need to provided field-specific read functions.
-        generic, public :: ReadVariable => &
-            {{all_reads|join(", &\n"+indent) }}
+            WriteFieldVector
 
     end type extract_PSyDataType
 

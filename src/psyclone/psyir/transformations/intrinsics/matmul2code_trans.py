@@ -291,12 +291,10 @@ class Matmul2CodeTrans(Operator2CodeTrans):
 
         # Create new i and j loop iterators.
         symbol_table = node.scope.symbol_table
-        i_loop_name = symbol_table.new_symbol_name("i")
-        i_loop_symbol = DataSymbol(i_loop_name, INTEGER_TYPE)
-        symbol_table.add(i_loop_symbol)
-        j_loop_name = symbol_table.new_symbol_name("j")
-        j_loop_symbol = DataSymbol(j_loop_name, INTEGER_TYPE)
-        symbol_table.add(j_loop_symbol)
+        i_loop_symbol = symbol_table.new_symbol("i", symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE)
+        j_loop_symbol = symbol_table.new_symbol("j", symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE)
 
         # Create "result(i)"
         result_dims = [Reference(i_loop_symbol)]

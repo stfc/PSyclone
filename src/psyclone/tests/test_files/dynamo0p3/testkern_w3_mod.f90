@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@ module testkern_w3_mod
   implicit none
 
   ! Description: discontinuous field (read)writer (w3)
+  ! TODO #874 change this metadata to include data type
   type, extends(kernel_type) :: testkern_w3_type
      type(arg_type), dimension(5) :: meta_args = (/       &
           arg_type(gh_scalar, gh_real, gh_read),          &

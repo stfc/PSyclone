@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1281,7 +1281,7 @@ def test_goloop_no_parent():
 def test_goloop_no_children():
     ''' Attempt to generate code for a loop that has no child
     kernel calls '''
-    gosched = GOInvokeSchedule([])
+    gosched = GOInvokeSchedule('name', [])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
@@ -1295,7 +1295,7 @@ def test_goloop_no_children():
 def test_goloop_unsupp_offset():
     ''' Attempt to generate code for a loop with constant bounds with
     an unsupported index offset '''
-    gosched = GOInvokeSchedule([])
+    gosched = GOInvokeSchedule('name', [])
     # This test expects constant loop bounds
     gosched._const_loop_bounds = True
     gojloop = GOLoop(parent=gosched, loop_type="outer")
@@ -1314,7 +1314,7 @@ def test_goloop_unsupp_offset():
 def test_goloop_unmatched_offsets():
     ''' Attempt to generate code for a loop with constant bounds with
     two different index offsets '''
-    gosched = GOInvokeSchedule([])
+    gosched = GOInvokeSchedule('name', [])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
@@ -1338,7 +1338,7 @@ def test_goloop_unmatched_offsets():
 def test_goloop_bounds_invalid_iteration_space():
     ''' Check that the _upper/lower_bound() methods raise the expected error
     if the iteration space is not recognised. '''
-    gosched = GOInvokeSchedule([])
+    gosched = GOInvokeSchedule('name', [])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     # Have to turn-off constant loop bounds to get to the error condition
     gosched._const_loop_bounds = False
