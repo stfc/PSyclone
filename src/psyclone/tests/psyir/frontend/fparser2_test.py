@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -2600,7 +2600,7 @@ def test_handling_end_subroutine_stmt():
     assert not fake_parent.children  # No new children created
 
 
-# (1/4) fparser2reader::nodes_to_code_block
+# (1/3) fparser2reader::nodes_to_code_block
 def test_nodes_to_code_block_1(f2008_parser):
     '''Check that a statement codeblock that is at the "top level" in the
     PSyIR has the structure property set to statement (as it has a
@@ -2621,7 +2621,7 @@ def test_nodes_to_code_block_1(f2008_parser):
     assert schedule[0].structure == CodeBlock.Structure.STATEMENT
 
 
-# (2/4) fparser2reader::nodes_to_code_block
+# (2/3) fparser2reader::nodes_to_code_block
 def test_nodes_to_code_block_2(f2008_parser):
     '''Check that a statement codeblock that is within another statement
     in the PSyIR has the structure property set to statement (as it
@@ -2644,33 +2644,9 @@ def test_nodes_to_code_block_2(f2008_parser):
     assert schedule[0].if_body[0].structure == CodeBlock.Structure.STATEMENT
 
 
-# (3/4) fparser2reader::nodes_to_code_block
-@pytest.mark.usefixtures("disable_declaration_check")
-def test_nodes_to_code_block_3(f2008_parser):
-    '''Check that a codeblock that contains an expression has the
-    structure property set to expression.
-
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-    '''
-    # The derived-type reference is currently a code block in the PSyIR
-    reader = FortranStringReader('''
-        program test
-        if (a%text == "HELLO") then
-        end if
-        end program test
-        ''')
-    prog = f2008_parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
-    code_block = schedule[0].condition.children[0]
-    assert isinstance(code_block, CodeBlock)
-    assert code_block.structure == CodeBlock.Structure.EXPRESSION
-
-
-# (4/4) fparser2reader::nodes_to_code_block
+# (3/3) fparser2reader::nodes_to_code_block
 @pytest.mark.usefixtures("f2008_parser")
-def test_nodes_to_code_block_4():
+def test_nodes_to_code_block_3():
     '''Check that a codeblock that has a directive as a parent causes the
     expected exception.
 
