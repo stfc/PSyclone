@@ -176,9 +176,8 @@ class GOceanExtractNode(ExtractNode):
         sym = Symbol("PSyDataType")
         sym_table.add(sym)
 
-        psy_data = sym_table.new_symbol_name(self.add_psydata_class_prefix
-                                             ("psy_data"))
-        sym_table.add(Symbol(psy_data))
+        root_name = self.add_psydata_class_prefix("psy_data")
+        psy_data = sym_table.new_symbol(root_name).name
         var_decl = TypeDeclGen(prog, datatype=self.add_psydata_class_prefix
                                ("PSyDataType"),
                                entity_decls=[psy_data])
@@ -222,9 +221,8 @@ class GOceanExtractNode(ExtractNode):
                 # No derived type, so we can just use the
                 # variable name directly in the driver
                 local_name = var_name
-            unique_local_name = sym_table.new_symbol_name(local_name)
+            unique_local_name = sym_table.new_symbol(local_name).name
             rename_variable[local_name] = unique_local_name
-            sym_table.add(Symbol(unique_local_name))
             local_name = unique_local_name
 
             # TODO: #644 - we need to identify arrays!!

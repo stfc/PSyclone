@@ -1,7 +1,7 @@
-!-------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,30 +29,18 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified: I. Kavcic, Met Office
+! Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-program operator_example
+! This code demonstrates an implicit loop (as all three of the umask
+! indices are specified with a ':' when setting its values to 0) with
+! array bounds of unknown size within the subroutine.
 
-  use constants_mod,                 only : i_def
-  use fs_continuity_mod,             only : W1
-  use function_space_collection_mod, only : function_space_collection
-  use field_mod,                     only : field_type
-  use operator_mod,                  only : operator_type
-  use quadrature_xyoz_mod,           only : quadrature_xyoz_type
-  use testkern_operator_orient_mod,  only : testkern_operator_orient_type
-
+subroutine implicit_do(umask)
+  ! Example of an implicit loop where the bounds of the array have not
+  ! been specified.
   implicit none
+  real(kind=kind(1.0d0)), dimension(:,:,:) :: umask
 
-  type(field_type)                    :: coord(3)
-  type(operator_type)                 :: mm_w1
-  type(quadrature_xyoz_type), pointer :: qr => null
-  integer(i_def)                      :: mesh_id = 1
-  integer(i_def)                      :: element_order = 0
+  umask(:,:,:) = 0.0d0
 
-  mm_w1 = operator_type(function_space_collection%get_fs(mesh_id,element_order,W1), &
-                        function_space_collection%get_fs(mesh_id,element_order,W1))
-
-  call invoke(testkern_operator_orient_type(mm_w1, coord, qr))
-
-end program operator_example
+end subroutine implicit_do

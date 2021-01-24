@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2020, Science and Technology Facilities Council
+.. Copyright (c) 2017-2021, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -260,7 +260,8 @@ The metadata for a Kernel which operates on a cell-column may specify
 that a Kernel performs a stencil operation on a field. Any such
 metadata must provide a stencil type. See the
 :ref:`dynamo0.3-api-meta-args` section for more details. The supported
-stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS`` or ``CROSS2D``.
+stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``, ``CROSS2D`` or
+``REGION``.
 
 If a stencil operation is specified by the Kernel metadata the
 algorithm layer must provide the ``extent`` of the stencil (the
@@ -1095,9 +1096,9 @@ Stencil metadata is written in the following format::
 
   STENCIL(type)
 
-where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D``,
-``CROSS`` or ``CROSS2D``.  As the stencil ``extent`` (the maximum distance from the
-central cell that the stencil extends) is not provided in the metadata,
+where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``,
+``CROSS2D`` or ``REGION``.  As the stencil ``extent`` (the maximum distance from
+the central cell that the stencil extends) is not provided in the metadata,
 it is expected to be provided by the algorithm writer as part of the
 ``invoke`` call (see Section :ref:`dynamo0.3-alg-stencil`). As there
 is currently no way to specify a fixed extent value for stencils in the
@@ -1134,6 +1135,19 @@ and the following stencil (with ``extent=2``):
 would be declared as::
 
   STENCIL(CROSS)
+
+The ``REGION`` stencil references a block of cells:
+
+.. code-block:: none
+
+  | 9 | 8 | 7 |
+  | 2 | 1 | 6 |
+  | 3 | 4 | 5 |
+
+
+and would be declared as::
+
+  STENCIL(REGION)
 
 Below is an example of stencil information within the full kernel metadata::
 
@@ -1505,72 +1519,63 @@ conventions, are:
          array of type ``i_def`` with intent ``in``. It has one dimension
          sized by the local degrees of freedom for the function space.
 
-   3) For each operation on the function space (``basis``, ``diff_basis``,
-      ``orientation``) in the order specified in the metadata
+   3) For each operation on the function space (``basis``, ``diff_basis``),
+      in the order specified in the metadata, pass real arrays of kind
+      ``r_def`` with intent ``in``. For each shape specified in the
+      ``gh_shape`` metadata entry:
 
-      1) If it is a basis or differential basis function then we must pass
-         real arrays of kind ``r_def`` with intent ``in``. For each shape
-         specified in the ``gh_shape`` metadata entry:
+      1) If shape is ``gh_quadrature_*`` then the arrays are of rank four
+         and are named
+         ``"basis_"<field_function_space>_<quadrature_arg_name>`` or
+         ``"diff_basis_"<field_function_space>_<quadrature_arg_name>``,
+         as appropriate:
 
-         1) If shape is ``gh_quadrature_*`` then the arrays are of rank four
-            and are named
-            ``"basis_"<field_function_space>_<quadrature_arg_name>`` or
-            ``"diff_basis_"<field_function_space>_<quadrature_arg_name>``,
-            as appropriate:
+         1) If shape is ``gh_quadrature_xyoz`` then the arrays have extent
+            (``dimension``, ``number_of_dofs``, ``np_xy``, ``np_z``).
 
-            1) If shape is ``gh_quadrature_xyoz`` then the arrays have extent
-               (``dimension``, ``number_of_dofs``, ``np_xy``,
-               ``np_z``).
+         2) If shape is ``gh_quadrature_face`` or ``gh_quadrature_edge``
+            then the  arrays have extent
+            (``dimension``, ``number_of_dofs``, ``np_xyz``, ``nfaces`` or
+            ``nedges``).
 
-            2) If shape is ``gh_quadrature_face`` or ``gh_quadrature_edge``
-               then the  arrays have extent
-               (``dimension``, ``number_of_dofs``, ``np_xyz``, ``nfaces`` or
-               ``nedges``).
+      2) If shape is ``gh_evaluator`` then we pass one array for
+         each target function space (i.e. as specified by
+         ``gh_evaluator_targets``). Each of these arrays are of rank three
+         with extent (``dimension``, ``number_of_dofs``,
+         ``ndf_<target_function_space>``). The name of the argument is
+         ``"basis_"<field_function_space>"_on_"<target_function_space>`` or
+         ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``,
+         as appropriate.
 
-         2) If shape is ``gh_evaluator`` then we pass one array for
-            each target function space (i.e. as specified by
-            ``gh_evaluator_targets``). Each of these arrays are of rank three
-            with extent (``dimension``, ``number_of_dofs``,
-            ``ndf_<target_function_space>``). The name of the argument is
-            ``"basis_"<field_function_space>"_on_"<target_function_space>`` or
-            ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``,
-            as appropriate.
+      Here ``<quadrature_arg_name>`` is the name of the corresponding
+      quadrature object being passed to the Invoke.
+      ``dimension`` is 1 or 3 and depends upon the function space
+      (see :ref:`dynamo0.3-function-space` above for more information) and
+      whether or not it is a basis or a differential basis function (see
+      the table below). ``number_of_dofs`` is the number of degrees of
+      freedom (DoFs) associated with the function space and ``np_*`` are
+      the number of points to be evaluated: i) ``*_xyz`` in
+      all directions (3D); ii) ``*_xy`` in the horizontal plane (2D);
+      iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the
+      vertical (1D). ``nfaces`` and ``nedges`` are the number of horizontal
+      faces/edges obtained from the appropriate quadrature object supplied
+      to the Invoke.
 
-         where ``<quadrature_arg_name>`` is the name of the corresponding
-         quadrature object being passed to the Invoke.
-         ``dimension`` is 1 or 3 and depends upon the function space
-         (see :ref:`dynamo0.3-function-space` above for more information) and
-         whether or not it is a basis or a differential basis function (see
-         the table below). ``number_of_dofs`` is the number of degrees of
-         freedom (DoFs) associated with the function space and ``np_*`` are
-         the number of points to be evaluated: i) ``*_xyz`` in
-         all directions (3D); ii) ``*_xy`` in the horizontal plane (2D);
-         iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the
-         vertical (1D). ``nfaces`` and ``nedges`` are the number of horizontal
-         faces/edges obtained from the appropriate quadrature object supplied
-         to the Invoke.
+      .. tabularcolumns:: |l|c|l|
 
-         .. tabularcolumns:: |l|c|l|
-
-         +---------------+-----------+------------------------------------+
-         | Function Type | Dimension | Function Space Name                |
-         +===============+===========+====================================+
-         | Basis         |    1      | W0, W2trace, W2Htrace, W2Vtrace,   |
-         |               |           | W3, Wtheta, Wchi                   |
-         |               +-----------+------------------------------------+
-         |               |    3      | W1, W2, W2H, W2V, W2broken, ANY_W2 |
-         +---------------+-----------+------------------------------------+
-         | Differential  |    1      | W2, W2H, W2V, W2broken, ANY_W2     |
-         | Basis         +-----------+------------------------------------+
-         |               |    3      | W0, W1, W2trace, W2Htrace,         |
-         |               |           | W2Vtrace, W3, Wtheta, Wchi         |
-         +---------------+-----------+------------------------------------+
-
-      2) If it is an orientation array, include the associated argument.
-         The argument is an integer array of type ``i_def`` with intent ``in``.
-         There is one dimension of size the local degrees of freedom for the
-         function space. The name of the array is
-         ``"orientation_"<field_function_space>``.
+      +---------------+-----------+------------------------------------+
+      | Function Type | Dimension | Function Space Name                |
+      +===============+===========+====================================+
+      | Basis         |    1      | W0, W2trace, W2Htrace, W2Vtrace,   |
+      |               |           | W3, Wtheta, Wchi                   |
+      |               +-----------+------------------------------------+
+      |               |    3      | W1, W2, W2H, W2V, W2broken, ANY_W2 |
+      +---------------+-----------+------------------------------------+
+      | Differential  |    1      | W2, W2H, W2V, W2broken, ANY_W2     |
+      | Basis         +-----------+------------------------------------+
+      |               |    3      | W0, W1, W2trace, W2Htrace,         |
+      |               |           | W2Vtrace, W3, Wtheta, Wchi         |
+      +---------------+-----------+------------------------------------+
 
 5) If either the ``normals_to_horizontal_faces`` or
    ``outward_normals_to_horizontal_faces`` properties of the reference
