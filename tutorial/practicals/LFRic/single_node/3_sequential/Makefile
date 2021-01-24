@@ -37,9 +37,10 @@
 include ../../../common.mk
 
 transform:
-	$(PSYCLONE) -s ./loop_fuse.py example_alg.x90 -oalg /dev/null -opsy /dev/null
-	$(PSYCLONE) -s ./kernel_constants.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
-	$(PSYCLONE) -s ./matvec_opt.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+	# commented out until issue #1015 is addressed
+	# $(PSYCLONE) -s ./loop_fuse.py example_alg.x90 -oalg /dev/null -opsy /dev/null
+	# $(PSYCLONE) -s ./kernel_constants.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+	# $(PSYCLONE) -s ./matvec_opt.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
 
 compile: transform
 	@echo "No compilation supported for tutorial/lfric/single_node/3_sequential"

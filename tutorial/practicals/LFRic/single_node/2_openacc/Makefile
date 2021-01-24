@@ -37,8 +37,9 @@
 include ../../../common.mk
 
 transform:
-	$(PSYCLONE) -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
-	$(PSYCLONE) -s solutions/acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+	# commented out until issue #1015 is addressed
+	# $(PSYCLONE) -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+	# $(PSYCLONE) -s solutions/acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
 
 compile: transform
 	@echo "No compilation supported for tutorial/lfric/single_node/2_openacc"
