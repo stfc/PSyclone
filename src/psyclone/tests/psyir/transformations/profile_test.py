@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -686,11 +686,11 @@ def test_transform_errors(capsys):
     # out is unicode, and has no replace function, so convert to string first
     out = str(out).replace("\n", "")
 
-    correct_re = (".*GOInvokeSchedule.*"
-                  r"    .*Profile.*"
-                  r"        .*Loop.*\[type='outer'.*"
-                  r"        .*Loop.*\[type='outer'.*"
-                  r"        .*Loop.*\[type='outer'.*")
+    correct_re = (".*GOInvokeSchedule.*?"
+                  r"Profile.*?"
+                  r"Loop.*\[type='outer'.*?"
+                  r"Loop.*\[type='outer'.*?"
+                  r"Loop.*\[type='outer'")
     assert re.search(correct_re, out)
 
     # Test that we don't add a profile node inside a OMP do loop (which

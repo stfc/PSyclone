@@ -41,10 +41,13 @@
 from __future__ import absolute_import
 import abc
 import six
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols.datatypes import ScalarType
+from psyclone.errors import InternalError
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -54,58 +57,19 @@ class ArrayMixin(object):
     Array accesses.
 
     '''
-    @abc.abstractproperty
-    def name(self):
-        ''' Returns the name of the node. Abstract here so must be overridden
-            in subclass. '''
-
-    @abc.abstractproperty
-    def children(self):
-        ''' Returns the list of children of this node. Abstract here so must
-            be overridden in subclass. '''
-
     @staticmethod
-    @abc.abstractmethod
     def _validate_child(position, child):
         '''
-        Checks that the supplied child node is valid at the supplied position.
-        Abstract here so must be overridden in subclass.
-        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
 
-    @classmethod
-    def _create_array_member(cls, member_name, indices=None,
-                             inner_member=None, parent=None):
-        '''
-        Create an access to (one or more elements of) an array within a
-        structure. The array may or may not itself be of structure type. If
-        it is then ``inner_member`` specifies the Member of that structure
-        that is accessed.
-
-        :param str member_name: the name of the array member of the structure \
-            that is being accessed.
-        :param indices: the array-index expressions or None.
-        :param inner_member: the member of the `member_name` structure that \
-            is being accessed.
-        :type inner_member: :py:class:`psyclone.psyir.nodes.Member`
-        :type indices: list of :py:class:`psyclone.psyir.nodes.DataNode`
-        :param parent: the parent of this node in the PSyIR tree.
-        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: a new instance of type `cls`.
-        :rtype: `cls`
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
 
         '''
-        obj = cls(member_name, parent=parent)
-        # Add any child Member as the first child
-        if inner_member:
-            obj.addchild(inner_member)
-            inner_member.parent = obj
-        # Add any array-index expressions as children
-        if indices:
-            for child in indices:
-                obj.addchild(child)
-                child.parent = obj
-        return obj
+        # pylint: disable=unused-argument
+        return isinstance(child, (DataNode, Range))
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All variables used as indices
@@ -116,6 +80,8 @@ class ArrayMixin(object):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        # This will set the array-name as READ
+        super(ArrayMixin, self).reference_accesses(var_accesses)
         # Now add all children: Note that the class Reference
         # does not recurse to the children (which store the indices), so at
         # this stage no index information has been stored:
@@ -145,11 +111,11 @@ class ArrayMixin(object):
             raise TypeError(
                 "The index argument should be an integer but found '{0}'."
                 "".format(type(index).__name__))
-        if index > len(self.children)-1:
+        if index > len(self.indices)-1:
             raise ValueError(
                 "In ArrayReference '{0}' the specified index '{1}' must be "
                 "less than the number of dimensions '{2}'."
-                "".format(self.name, index, len(self.children)))
+                "".format(self.name, index, len(self.indices)))
 
     def is_lower_bound(self, index):
         '''Returns True if the specified array index contains a Range node
@@ -169,10 +135,9 @@ class ArrayMixin(object):
         :rtype: bool
 
         '''
-        from psyclone.psyir.nodes.reference import Reference
         self._validate_index(index)
 
-        array_dimension = self.children[index]
+        array_dimension = self.indices[index]
         if not isinstance(array_dimension, Range):
             return False
 
@@ -208,10 +173,9 @@ class ArrayMixin(object):
         :rtype: bool
 
         '''
-        from psyclone.psyir.nodes.reference import Reference
         self._validate_index(index)
 
-        array_dimension = self.children[index]
+        array_dimension = self.indices[index]
         if not isinstance(array_dimension, Range):
             return False
 
@@ -246,7 +210,7 @@ class ArrayMixin(object):
         '''
         self._validate_index(index)
 
-        array_dimension = self.children[index]
+        array_dimension = self.indices[index]
         if isinstance(array_dimension, Range):
             if self.is_lower_bound(index) and self.is_upper_bound(index):
                 step = array_dimension.children[2]
@@ -255,6 +219,33 @@ class ArrayMixin(object):
                         and step.value == "1"):
                     return True
         return False
+
+    @property
+    def indices(self):
+        '''
+        Supports semantic-navigation by returning the list of nodes
+        representing the index expressions for this array reference.
+
+        :returns: the PSyIR nodes representing the array-index expressions.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises InternalError: if this node has no children or if they are \
+                               not valid array-index expressions.
+
+        '''
+        if not self._children:
+            raise InternalError(
+                "{0} malformed or incomplete: must have one or more "
+                "children representing array-index expressions but found "
+                "none.".format(type(self).__name__))
+        for idx, child in enumerate(self._children):
+            if not self._validate_child(idx, child):
+                raise InternalError(
+                    "{0} malformed or incomplete: child {1} must by a psyir."
+                    "nodes.DataNode or Range representing an array-index "
+                    "expression but found '{2}'".format(
+                        type(self).__name__, idx, type(child).__name__))
+        return self.children
 
 
 # For AutoAPI documentation generation

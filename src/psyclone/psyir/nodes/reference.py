@@ -40,7 +40,7 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes import Operation, BinaryOperation
+from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.core.access_info import AccessType
 from psyclone.psyir.symbols import Symbol
 
