@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@
 ''' This module contains the DataSymbol and its interfaces.'''
 
 from __future__ import absolute_import
+from inspect import ismethod
 from psyclone.psyir.symbols.symbol import Symbol
 from psyclone.psyir.symbols.typesymbol import TypeSymbol
 from psyclone.errors import InternalError
@@ -303,7 +304,7 @@ class DataSymbol(Symbol):
 
     def specialise(self, other_symbol):
         '''In-place specialisation of a class into a subclass. Done so any
-        references to seld remain valid.
+        references to self remain valid.
 
         ************
 

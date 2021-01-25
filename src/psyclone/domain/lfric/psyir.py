@@ -102,6 +102,9 @@ for info in GENERIC_SCALAR_DATATYPES:
         "        super({0}DataSymbol, self).__init__(\n"
         "            name, {0}DataType(precision=precision),\n"
         "            interface=interface)\n"
+        "    def set_properties(self, other_symbol):\n"
+        "        # *** Update reference to DataType ***\n"
+        "        pass\n"
         "".format(NAME))
 
 
@@ -159,6 +162,8 @@ for info in SPECIFIC_SCALAR_DATATYPES:
     TYPE = "".join(info.generic_type.title().split())
     ARGS = ["self", "name"] + info.properties + ["interface=None"]
     VARS = ["        self.{0} = {0}".format(var) for var in info.properties]
+    RVARS = ["        other_symbol.{0} = self.{0}"
+             "".format(var) for var in info.properties]
     # Create the specific datatype
     exec(
         "class {0}DataType({1}DataType):\n"
@@ -171,7 +176,11 @@ for info in SPECIFIC_SCALAR_DATATYPES:
         "{3}\n"
         "        super({0}DataSymbol, self).__init__(\n"
         "            name, interface=interface)\n"
-        "".format(NAME, TYPE, ", ".join(ARGS), "\n".join(VARS)))
+        "    def set_properties(self, other_symbol):\n"
+        "        pass\n"
+        "{4}\n"
+        "".format(NAME, TYPE, ", ".join(ARGS), "\n".join(VARS),
+                  "\n".join(RVARS)))
 
 # Define LFRic field datatypes and symbols
 
@@ -258,6 +267,8 @@ for array_type in ARRAY_DATATYPES + FIELD_DATATYPES:
             ["interface=None"])
     VARS = ["        self.{0} = {0}".format(var) for var in
             array_type.properties]
+    RVARS = ["        other_symbol.{0} = self.{0}"
+             "".format(var) for var in array_type.properties]
     # Create the specific datatype
     exec(
         "class {0}DataType(ArrayType):\n"
@@ -277,7 +288,11 @@ for array_type in ARRAY_DATATYPES + FIELD_DATATYPES:
         "{2}\n"
         "        super({0}DataSymbol, self).__init__(\n"
         "            name, {0}DataType(dims), interface=interface)\n"
-        "".format(NAME, ", ".join(ARGS), "\n".join(VARS)))
+        "    def set_properties(self, other_symbol):\n"
+        "        pass\n"
+        "{3}\n"
+        "".format(NAME, ", ".join(ARGS), "\n".join(VARS),
+                  "\n".join(RVARS)))
 
 # Generate LFRic vector-field-data symbols as subclasses of field-data symbols
 for array_type in FIELD_DATATYPES:

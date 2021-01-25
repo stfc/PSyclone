@@ -99,6 +99,16 @@ def test_generic_scalars(data_type, symbol, intrinsic, precision):
     assert lfric_symbol.datatype.precision == 4
 
 
+def test_generic_scalars_set_properties():
+    ''' Nothing should change apart from name of DataType object '''
+    symbol = lfric_psyir.LfricIntegerScalarDataSymbol
+    lfric_symbol = symbol("lfric_symbol_name")
+    generic_type = psyir.DataType(ScalarType.Intrinsic.INTEGER, precision=???)
+    generic_symbol = psyir.DataSymbol("symbol_name", generic_type)
+    assert isinstance(generic_type, psyir.DataType)
+    lfric_symbol.set_properties(generic_symbol)
+    assert isinstance(generic_type, lfric_symbol_type)
+
 # Scalar literals
 def test_scalar_literals():
     '''Test the scalar literals are defined correctly.'''
