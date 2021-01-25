@@ -92,7 +92,7 @@ The PSyclone metadata is stored as the *private* data within the definition
 of an individual kernel type. They come in two main forms: derived types
 (e.g. `arg_type` in the above example) and `integer` arguments (single-valued
 such as `operates_on` above or arrays). Here we briefly explain the contents
-of `arg_type` and `operates_on` metadata. For more information please refer
+of the `arg_type` and `operates_on` metadata. For more information please refer
 to the [*Metadata* section](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#metadata)
 of the LFRic (Dynamo 0.3) API [user documentation](
@@ -103,8 +103,8 @@ arguments that this kernel operates on:
 * A `real`-valued field argument (`GH_FIELD`, `GH_REAL`) with the degrees of
   freedom (DoFs) on the `W0` function space that is being updated in this kernel
   (`GH_INC` access for updating fields on continuous function spaces);
-* A `real`-valued scalar (`GH_SCALAR`, `GH_REAL`) whose value is read
-  (`GH_READ`) and used to update the field with.
+* A `real`-valued scalar (`GH_SCALAR`, `GH_REAL`) that is read
+  (`GH_READ`) and used to update the field.
 
 The `GH_` prefix comes from "GungHo", the name of the dynamical core used in
 the LFRic model. Please refer to the documentation for more information on

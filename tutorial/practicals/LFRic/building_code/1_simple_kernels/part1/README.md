@@ -35,9 +35,9 @@ setval_field_w0_kernel_mod.f90) in an editor. The `arg_type` [metadata](
 ```
 
 describes two arguments: a `real`-valued field (`GH_FIELD`, `GH_REAL`) with
-the degrees of freedom (DoFs) on the `W0` function space to be updated
-(`GH_INC`) and a `real`-valued scalar (`GH_SCALAR`, `GH_REAL`) whose value
-is read (`GH_READ`) and used to update the field with.
+the degrees of freedom (DoFs) on the `W0` function space and a `real`-valued
+scalar (`GH_SCALAR`, `GH_REAL`). The field is to be updated (`GH_INC`)
+while the scalar is read only (`GH_READ`).
 
 The kernel `setval_field_w0_code()` subroutine body is empty and needs
 to be populated. We will first create the code for the argument list and
