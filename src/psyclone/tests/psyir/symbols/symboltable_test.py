@@ -1409,24 +1409,25 @@ def test_rename_symbol():
     # The previous name should fail the lookup now
     with pytest.raises(KeyError) as err:
         schedule_symbol_table.lookup("symbol1")
+    assert "Could not find 'symbol1' in the Symbol Table." in str(err.value)
 
     # Check argument conditions
     with pytest.raises(TypeError) as err:
         schedule_symbol_table.rename_symbol("not_a_symbol", "other")
     assert ("The symbol argument of rename_symbol() must be a Symbol, but "
-            "found: 'str'." in str(err))
+            "found: 'str'." in str(err.value))
 
     with pytest.raises(TypeError) as err:
         schedule_symbol_table.rename_symbol(symbol, 3)
     assert ("The name argument of rename_symbol() must be a str, but "
-            "found:" in str(err))
+            "found:" in str(err.value))
 
     with pytest.raises(ValueError) as err:
         container_symbol_table.rename_symbol(symbol, "somethingelse")
     assert ("The symbol argument of rename_symbol() must belong to this "
-            "symbol_table instance, but " in str(err))
+            "symbol_table instance, but " in str(err.value))
 
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(KeyError) as err:
         schedule_symbol_table.rename_symbol(symbol, "array")
     assert ("The name argument of rename_symbol() must not already exist in "
-            "this symbol_table instance, but 'array' does." in str(err))
+            "this symbol_table instance, but 'array' does." in str(err.value))

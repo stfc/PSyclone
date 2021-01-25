@@ -967,10 +967,10 @@ class SymbolTable(object):
 
         :raises TypeError: if the symbol is not a Symbol.
         :raises TypeError: if the name is not a str.
-        :raises ValueError: if the given symbol does not belog to this symbol \
-                            table.
-        :raises ValueError: if the given variable name already exists in the \
+        :raises ValueError: if the given symbol does not belong to this \
                             symbol table.
+        :raises KeyError: if the given variable name already exists in the \
+                          symbol table.
 
         '''
         if not isinstance(symbol, Symbol):
@@ -989,14 +989,15 @@ class SymbolTable(object):
                 " found: '{0}'.".format(type(symbol).__name__))
 
         if name in self._symbols:
-            raise ValueError(
+            raise KeyError(
                 "The name argument of rename_symbol() must not already exist "
                 "in this symbol_table instance, but '{0}' does.".format(name))
 
         # Delete current dictionary entry
         del self._symbols[symbol.name]
 
-        # Rename symbol using protected access as symbol cannot expose a setter
+        # Rename symbol using protected access as the Symbol class should not
+        # expose a name attribute setter.
         # pylint: disable=protected-access
         symbol._name = name
 
