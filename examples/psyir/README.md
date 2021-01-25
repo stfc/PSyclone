@@ -63,3 +63,14 @@ To run this example:
 ```sh
 > python create_aggregate_types.py
 ```
+
+## Example 3:
+
+Demonstrates how to manipulate an existing PSyIR tree. This example
+imports the tree already created in Example 1 and applies some modifications
+to it. Then it generated the new modified output code. This example may
+be run by doing:
+
+```sh
+> python modify.py
+```
