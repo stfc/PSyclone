@@ -49,7 +49,7 @@ from psyclone.parse.kernel import Descriptor
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import PSyFactory
-from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule, \
+from psyclone.gocean1p0 import GOKern, GOLoop, \
     GOKernelArgument, GOKernelArguments, GOKernelGridArgument, \
     GOBuiltInCallFactory, GOSymbolTable
 from psyclone.tests.utilities import get_invoke
@@ -57,7 +57,7 @@ from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.psyir.symbols import SymbolTable, DeferredType, \
     ContainerSymbol, DataSymbol, GlobalInterface, REAL_TYPE, INTEGER_TYPE, \
     ArgumentInterface
-from psyclone.psyir.nodes import Schedule, Node
+from psyclone.psyir.nodes import Node
 from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
 API = "gocean1.0"
@@ -1162,7 +1162,6 @@ def test_goschedule_str(dist_mem):
         # str without constant loop bounds and with distributed memory
         # where the p field has a stencil access
         sched_str = str(schedule)
-        print(sched_str)
         expected_sched = (
             "GOInvokeSchedule[invoke='invoke_0', Constant loop "
             "bounds=False]:\n"
@@ -1273,97 +1272,6 @@ def test_gosched_ijstop():
     # Attempt to query the upper bound of the j loop
     with pytest.raises(GenerationError):
         _ = schedule.jloop_stop
-
-
-def test_goloop_no_parent():
-    ''' Attempt to generate code for a loop that has no GOInvokeSchedule
-    as a parent '''
-    # First create with a schedule as one is required to declare the
-    # loop variable
-    schedule = Schedule()
-    goloop = GOLoop(loop_type="inner", parent=schedule)
-    schedule.children = [goloop]
-    # Now remove parent and children
-    goloop.parent = None
-    goloop.children = None
-    # Try and generate the code for this loop even though it
-    # has no parent schedule and no children
-    with pytest.raises(GenerationError):
-        goloop.gen_code(None)
-
-
-def test_goloop_no_children():
-    ''' Attempt to generate code for a loop that has no child
-    kernel calls '''
-    gosched = GOInvokeSchedule('name', [])
-    gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
-    gosched.addchild(gojloop)
-    gojloop.loop_body.addchild(goiloop)
-    # Try and generate the code for this loop even though it
-    # has no children
-    with pytest.raises(GenerationError):
-        goiloop.gen_code(None)
-
-
-def test_goloop_unsupp_offset():
-    ''' Attempt to generate code for a loop with constant bounds with
-    an unsupported index offset '''
-    gosched = GOInvokeSchedule('name', [])
-    # This test expects constant loop bounds
-    gosched._const_loop_bounds = True
-    gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
-    gosched.addchild(gojloop)
-    gojloop.loop_body.addchild(goiloop)
-    gokern = GOKern()
-    # Set the index-offset of this kernel to a value that is not
-    # supported when using constant loop bounds
-    gokern._index_offset = "offset_se"
-    goiloop.loop_body.addchild(gokern)
-    with pytest.raises(GenerationError):
-        goiloop.gen_code(None)
-
-
-def test_goloop_unmatched_offsets():
-    ''' Attempt to generate code for a loop with constant bounds with
-    two different index offsets '''
-    gosched = GOInvokeSchedule('name', [])
-    gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
-    gosched.addchild(gojloop)
-    gojloop.loop_body.addchild(goiloop)
-    gokern1 = GOKern()
-    gokern2 = GOKern()
-    # Set the index-offset of this kernel to a value that is not
-    # supported when using constant loop bounds
-    gokern1._index_offset = "go_offset_ne"
-    gokern2._index_offset = "go_offset_sw"
-    goiloop.loop_body.addchild(gokern1)
-    goiloop.loop_body.addchild(gokern2)
-    with pytest.raises(GenerationError) as excinfo:
-        goiloop.gen_code(None)
-    # Note that the kernels do not have a name, so there is a double space
-    assert "All Kernels must expect the same grid offset but kernel  " \
-        "has offset go_offset_sw which does not match go_offset_ne" \
-        in str(excinfo.value)
-
-
-def test_goloop_bounds_invalid_iteration_space():
-    ''' Check that the _upper/lower_bound() methods raise the expected error
-    if the iteration space is not recognised. '''
-    gosched = GOInvokeSchedule('name', [])
-    gojloop = GOLoop(parent=gosched, loop_type="outer")
-    # Have to turn-off constant loop bounds to get to the error condition
-    gosched._const_loop_bounds = False
-    # Set the iteration space to something invalid
-    gojloop._iteration_space = "broken"
-    with pytest.raises(GenerationError) as err:
-        gojloop._upper_bound()
-    assert "Unrecognised iteration space, 'broken'." in str(err.value)
-    with pytest.raises(GenerationError) as err:
-        gojloop._lower_bound()
-    assert "Unrecognised iteration space, 'broken'." in str(err.value)
 
 
 def test_writetoread_dag(tmpdir, have_graphviz):
