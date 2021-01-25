@@ -43,15 +43,16 @@ import six
 import pytest
 
 from fparser.two.Fortran2003 import Part_Ref, Structure_Constructor, \
-    Data_Ref, Proc_Component_Ref, Name
+    Data_Ref, Proc_Component_Ref, Name, Call_Stmt, Use_Stmt, \
+    Actual_Arg_Spec
+from fparser.two.parser import ParserFactory
 
 from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg
-
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError
 
-from fparser.two.parser import ParserFactory
+
 ParserFactory().create()
 
 
@@ -86,13 +87,12 @@ def test_parser_createinvokecall():
     representations.
 
     '''
-    from fparser.two.Fortran2003 import Call_Stmt
     statement = Call_Stmt(
         "call invoke(name=\"dummy\", setval_c(a,1.0), setval_c(a,1), "
         "setval_c(a,b), setval_c(a%c, b), setval_c(self%a, 1.0), "
         "setval_c(self%a, b))")
     parse = Parser()
-    result = parse.create_invoke_call(statement)
+    _ = parse.create_invoke_call(statement)
 
 
 def test_parser_createinvokecall_error():
@@ -100,8 +100,6 @@ def test_parser_createinvokecall_error():
     then the appropriate exception is raised.
 
     '''
-    # pylint: disable=unused-argument
-    from fparser.two.Fortran2003 import Call_Stmt
     statement = Call_Stmt("call invoke(0.0)")
     tmp = Parser()
     with pytest.raises(ParseError) as excinfo:
@@ -127,11 +125,9 @@ def test_parser_caseinsensitive1():
     statement is case insensitive.
 
     '''
-    from fparser.two import Fortran2003 as f2003
-    from fparser.two.parser import ParserFactory
     ParserFactory().create(std="f2003")
     parser = Parser()
-    use = f2003.Use_Stmt("use my_mod, only : SETVAL_X")
+    use = Use_Stmt("use my_mod, only : SETVAL_X")
     parser.update_arg_to_module_map(use)
     with pytest.raises(ParseError) as excinfo:
         parser.create_builtin_kernel_call("SetVal_X", None)
@@ -150,15 +146,12 @@ def test_parser_caseinsensitive2(monkeypatch):
         raise an exception.
 
         '''
-        # pylint: disable=unused-argument
         raise NotImplementedError("test_parser_caseinsensitive2")
 
     monkeypatch.setattr("psyclone.parse.kernel.get_kernel_ast", dummy_func)
-    from fparser.two import Fortran2003 as f2003
-    from fparser.two.parser import ParserFactory
     ParserFactory().create(std="f2003")
     parser = Parser()
-    use = f2003.Use_Stmt("use my_mod, only : MY_KERN")
+    use = Use_Stmt("use my_mod, only : MY_KERN")
     parser.update_arg_to_module_map(use)
     with pytest.raises(NotImplementedError) as excinfo:
         # We have monkeypatched the function 'get_kernel_ast' to
@@ -195,8 +188,6 @@ def test_getinvokelabel_invalid_items(monkeypatch):
     monkeypatch.
 
     '''
-    # pylint: disable=unused-argument
-    from fparser.two.Fortran2003 import Actual_Arg_Spec
     parse_tree = Actual_Arg_Spec("name='myname'")
     monkeypatch.setattr(parse_tree, "items", [None, None, None])
     with pytest.raises(InternalError) as excinfo:
@@ -230,7 +221,6 @@ def test_getkernel_invalid_children(cls, monkeypatch):
     monkeypatch.
 
     '''
-    # pylint: disable=unused-argument
     parse_tree = cls("kernel(arg)")
     monkeypatch.setattr(parse_tree, "items", [None, None, None])
     with pytest.raises(InternalError) as excinfo:
@@ -247,7 +237,6 @@ def test_getkernel_invalid_arg(monkeypatch):
     using monkeypatch.
 
     '''
-    # pylint: disable=unused-argument
     parse_tree = Part_Ref("kernel(arg)")
     monkeypatch.setattr(parse_tree, "items", [None, "invalid"])
     with pytest.raises(InternalError) as excinfo:
@@ -267,7 +256,6 @@ def test_getkernel_isliteral(content):
     literal argument and returns them correctly.
 
     '''
-    # pylint: disable=unused-argument
     tree = Structure_Constructor("sub({0})".format(content))
     kern_name, args = get_kernel(tree, "dummy.f90")
     assert kern_name == "sub"
@@ -287,7 +275,6 @@ def test_getkernel_isarg(content):
     including a function reference, and returns them correctly
 
     '''
-    # pylint: disable=unused-argument
     tree = Part_Ref("sub({0})".format(content))
     kern_name, args = get_kernel(tree, "dummy.f90")
     assert kern_name == "sub"
@@ -308,7 +295,6 @@ def test_getkernel_noexpr(content):
     currently supported).
 
     '''
-    # pylint: disable=unused-argument
     tree = Part_Ref("sub({0})".format(content))
     with pytest.raises(NotImplementedError) as excinfo:
         _, _ = get_kernel(tree, "dummy.f90")
@@ -321,7 +307,6 @@ def test_getkernel_argerror(monkeypatch):
     not recognise the fparser2 parse tree for an argument.
 
     '''
-    # pylint: disable=unused-argument
     tree = Part_Ref("sub(dummy)")
     monkeypatch.setattr(tree, "items", ["sub", None])
     with pytest.raises(InternalError) as excinfo:

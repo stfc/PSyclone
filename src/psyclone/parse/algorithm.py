@@ -639,7 +639,7 @@ def create_var_name(arg_parse_tree):
         :py:class:`fparser.two.Fortran2003.Part_Ref` or \
         :py:class:`fparser.two.Fortran2003.Proc_Component_Ref`
 
-    :returns: a valid variable name as a string.
+    :returns: a valid variable name.
     :rtype: str
 
     :raises InternalError: if unrecognised fparser content is found.
@@ -975,3 +975,8 @@ class Arg(object):
 
         '''
         return self._form == "literal"
+
+
+__all__ = ["parse", "Parser", "get_builtin_defs", "get_invoke_label",
+           "get_kernel", "create_var_name", "FileInfo", "InvokeCall",
+           "ParsedCall", "KernelCall", "BuiltInCall", "Arg"]
