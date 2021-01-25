@@ -64,7 +64,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, Symbol, \
-    ContainerSymbol, DeferredType
+    ContainerSymbol, DeferredType, TypeSymbol, GlobalInterface
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -765,7 +765,20 @@ class GOLoop(Loop):
             # We now know that this must be a DataSymbol.
             # TODO to be replaced with functionality from #935.
             fld_sym.__class__ = DataSymbol
-            fld_sym.datatype = DeferredType()
+            try:
+                fld_type = self.scope.symbol_table.lookup("r2d_field")
+            except KeyError:
+                # TODO 1010. The symbol table of the Container is not an
+                # ancestor of the local scope and therefore we have to
+                # explicitly get a reference to it.
+                fld_mod = self.root.invoke.invokes.psy.container.\
+                    symbol_table.lookup("field_mod")
+                fld_type = self.scope.symbol_table.new_symbol(
+                    "r2d_field", tag="field_type", symbol_type=TypeSymbol,
+                    datatype=DeferredType(),
+                    interface=GlobalInterface(fld_mod))
+            fld_sym.datatype = fld_type
+            fld_sym._constant_value = None
         return StructureReference.create(fld_sym, members[1:], parent=self)
 
     # -------------------------------------------------------------------------
