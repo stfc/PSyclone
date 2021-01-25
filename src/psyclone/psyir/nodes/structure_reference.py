@@ -99,8 +99,6 @@ class StructureReference(Reference):
         :raises TypeError: if the supplied symbol is not a DataSymbol.
 
         '''
-        # TODO #363 if a symbol is imported via a USE then it will be
-        # represented with a Symbol, not a DataSymbol.
         if not isinstance(symbol, DataSymbol):
             raise TypeError(
                 "The 'symbol' argument to StructureReference.create() "
