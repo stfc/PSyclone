@@ -371,14 +371,19 @@ def test_location(parser):
     assert x_accesses[0].location == x_accesses[1].location
 
 
+@pytest.mark.xfail(reason="#1028 dependency analysis for structures needs "
+                   "to be implemented")
 def test_user_defined_variables(parser):
     ''' Test reading and writing to user defined variables. This is
-    only partially supported atm because the PSyIR does not support such
-    variables (#363).
+    not supported atm because the dependence analysis for these PSyIR
+    nodes has not yet been implemented (#1028).
+
+    Also TODO #1028: is this a duplicate of test_derived_type in
+    tests/psyir/dependency_tools_test.py?
     '''
-    # TODO #363: this uses a work around for user defined types atm.
     reader = FortranStringReader('''program test_prog
-                                       use some_mod
+                                       use some_mod, only: my_type
+                                       type(my_type) :: a, e
                                        a%b%c(ji, jj) = d
                                        e%f = d
                                     end program test_prog''')

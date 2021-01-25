@@ -301,9 +301,9 @@ def test_same_range():
 
     array_type = ArrayType(REAL_TYPE, [10])
     array_value = ArrayReference.create(
-        DataSymbol("dummy", array_type), children=[DataNode("x")])
+        DataSymbol("dummy", array_type), [DataNode("x")])
     array_range = ArrayReference.create(
-        DataSymbol("dummy", array_type), children=[Range()])
+        DataSymbol("dummy", array_type), [Range()])
 
     with pytest.raises(TypeError) as info:
         ArrayRange2LoopTrans.same_range(array_value, None, None, None)
