@@ -1,7 +1,7 @@
 <!--
 BSD 3-Clause License
 
-Copyright (c) 2019, Science and Technology Facilities Council.
+Copyright (c) 2019-2021, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -56,8 +56,7 @@ subset of the tree. This example may be run by doing:
 ## Example 2:
 
 Demonstrates how to create and manipulate aggregate types (a.k.a.
-derived types in Fortran) within the PSyIR. This is currently a
-work in progress and does not yet generate any code (TODO #363).
+derived types in Fortran) within the PSyIR.
 To run this example:
 
 ```sh

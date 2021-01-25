@@ -41,9 +41,6 @@ Once you have psyclone installed, this script may be run by doing:
 
 >>> python create_aggregate_types.py
 
-TODO #363 Ultimately this will output a Fortran representation of the PSyIR but
-this is a work in progress.
-
 '''
 from __future__ import print_function
 from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
