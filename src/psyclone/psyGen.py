@@ -2876,14 +2876,9 @@ class CodedKern(Kern):
         self.parent.children[self.position] = call_node
         call_node.parent = self.parent
 
-        # Add arguments as children
-        for argument in self.arguments.raw_arg_list():
-            # TODO #1010: Some arrays and structures are given by the name,
-            # not the PSyIR DataType, we just use the base name for now.
-            argument = argument.split('%')[0]
-            argument = argument.split('(')[0]
-            argument_symbol = symtab.lookup(argument)
-            call_node.addchild(Reference(argument_symbol))
+        # Add arguments PSyIR expressions as children
+        for argument in self.arguments.args:
+            call_node.addchild(argument.psyir_expression())
 
         if not self.module_inline:
             # Import subroutine symbol
@@ -3725,6 +3720,12 @@ class Argument(object):
                     self._call.root.symbol_table.specify_argument_list(
                         previous_arguments + [new_argument])
                 self._name = new_argument.name
+
+    @abc.abstractmethod
+    def psyir_expression(self):
+        ''' Return PSyIR expression'''
+        raise NotImplementedError("")
+
 
     def infere_datatype(self):
         ''' Infere the datatype of this argument using the API rules. If no

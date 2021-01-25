@@ -67,7 +67,8 @@ from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import BinaryOperation, Reference, Return, IfBlock
+from psyclone.psyir.nodes import BinaryOperation, Reference, Return, IfBlock, \
+    StructureReference
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
     IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen
 
@@ -1655,7 +1656,7 @@ class GOKernelArguments(Arguments):
             # arg is a GO1p0Descriptor object
             if arg.argument_type == "grid_property":
                 # This is an argument supplied by the psy layer
-                self._args.append(GOKernelGridArgument(arg))
+                self._args.append(GOKernelGridArgument(arg, parent_call))
             elif arg.argument_type == "scalar" or arg.argument_type == "field":
                 # This is a kernel argument supplied by the Algorithm layer
                 self._args.append(GOKernelArgument(arg, call.args[idx],
@@ -1841,6 +1842,18 @@ class GOKernelArgument(KernelArgument):
         self._arg = arg
         KernelArgument.__init__(self, arg, arg_info, call)
 
+    def psyir_expression(self):
+
+        tag = "AlgArgs_" + self._text
+        symbol = self._call.root.symbol_table.symbol_from_tag(tag)
+
+        if self.argument_type == "field":
+            return StructureReference.create(symbol, ["data"])
+
+        if self.argument_type == "scalar":
+            return Reference(symbol)
+        raise InternalError("")
+
     def infere_datatype(self):
         # There are 3 places from where we can get the PSy-layer argument
         # types:
@@ -1862,12 +1875,7 @@ class GOKernelArgument(KernelArgument):
         if self.argument_type == "scalar":
             # All GOcean scalars are integers
             return INTEGER_TYPE
-        if self.argument_type == "grid_property":
-            # We can still have them DeferredType() for now, but if we need
-            # the type it is at api_config.grid_properties[str]
-            pass
-
-        return DeferredType()
+        raise InternalError("")
 
     @property
     def argument_type(self):
@@ -1909,7 +1917,7 @@ class GOKernelGridArgument(Argument):
     :raises GenerationError: if the grid property is not recognised.
 
     '''
-    def __init__(self, arg):
+    def __init__(self, arg, kernel_call):
         super(GOKernelGridArgument, self).__init__(None, None, arg.access)
 
         api_config = Config.get().api_conf("gocean1.0")
@@ -1930,11 +1938,26 @@ class GOKernelGridArgument(Argument):
         # This object always represents an argument that is a grid_property
         self._argument_type = "grid_property"
 
+        self._call = kernel_call
+
     @property
     def name(self):
         ''' Returns the Fortran name of the grid property, which is used
         in error messages etc.'''
         return self._name
+
+    def psyir_expression(self):
+
+        # Find field from which to access grid properties
+        base_field = self._call.arguments.find_grid_access().name
+        tag = "AlgArgs_" + base_field
+        symbol = self._call.root.symbol_table.symbol_from_tag(tag)
+
+        # Get aggregate grid type accessors without the base name
+        access = self.dereference(base_field).split('%')[1:]
+
+        # Contstruct the PSyIR reference
+        return StructureReference.create(symbol, access)
 
     def dereference(self, fld_name):
         '''Returns a Fortran string to dereference a grid property of the
