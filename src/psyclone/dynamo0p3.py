@@ -1852,14 +1852,14 @@ class LFRicMeshProperties(DynCollection):
                     in self._kernel.reference_element.properties)
                 if not has_nfaces:
                     name = self._symbol_table.symbol_from_tag(
-                            "nfaces_re_h").name
+                        "nfaces_re_h").name
                     arg_list.append(name)
                     if var_accesses is not None:
                         var_accesses.add_access(name, AccessType.READ,
                                                 self._kernel)
 
                 adj_face = self._symbol_table.symbol_from_tag(
-                        "adjacent_face").name
+                    "adjacent_face").name
                 if var_accesses is not None:
                     var_accesses.add_access(adj_face, AccessType.READ,
                                             self._kernel, [1])
@@ -1947,7 +1947,7 @@ class LFRicMeshProperties(DynCollection):
         for prop in self._properties:
             if prop == MeshPropertiesMetaData.Property.ADJACENT_FACE:
                 adj_face = self._symbol_table.symbol_from_tag(
-                        "adjacent_face").name
+                    "adjacent_face").name
                 # 'nfaces_re_h' will have been declared by the
                 # DynReferenceElement class.
                 parent.add(
@@ -3402,7 +3402,7 @@ class DynCMAOperators(DynCollection):
             # First create a pointer to the array containing the actual
             # matrix
             cma_name = self._symbol_table.symbol_from_tag(
-                    op_name+"_matrix").name
+                op_name+"_matrix").name
             parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
                                  rhs=self._cma_ops[op_name]["arg"].
                                  proxy_name_indexed+"%columnwise_matrix"))
@@ -3451,7 +3451,7 @@ class DynCMAOperators(DynCollection):
         for op_name in self._cma_ops:
             # Declare the operator matrix itself
             cma_name = self._symbol_table.symbol_from_tag(
-                    op_name+"_matrix").name
+                op_name+"_matrix").name
             dtype = self._cma_ops[op_name]["datatype"]
             parent.add(DeclGen(parent, datatype=dtype,
                                kind=api_config.default_kind[dtype],
@@ -3755,7 +3755,7 @@ class DynMeshes(object):
                 parent.add(CommentGen(parent, ""))
                 # Look-up variable names for colourmap and number of colours
                 colour_map = self._schedule.symbol_table.symbol_from_tag(
-                        "cmap").name
+                    "cmap").name
                 ncolour = \
                     self._schedule.symbol_table.symbol_from_tag("ncolour").name
                 # Get the number of colours
@@ -4594,7 +4594,7 @@ class DynBasisFunctions(DynCollection):
                         entity_decls=decl_list))
             # Get the quadrature proxy
             proxy_name = symbol_table.symbol_from_tag(
-                    qr_arg_name+"_proxy").name
+                qr_arg_name+"_proxy").name
             parent.add(
                 AssignGen(parent, lhs=proxy_name,
                           rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
@@ -7297,7 +7297,7 @@ class DynKern(CodedKern):
             if qr_arg.varname:
                 tag = "AlgArgs_" + qr_arg.text
                 qr_name = self.root.symbol_table.symbol_from_tag(
-                        tag, qr_arg.varname).name
+                    tag, qr_arg.varname).name
             else:
                 # If we don't have a name then we must be doing kernel-stub
                 # generation so create a suitable name.
@@ -7534,8 +7534,8 @@ class DynKern(CodedKern):
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
                          DynCMAOperators, DynScalarArgs, DynFields,
                          DynLMAOperators, DynStencils, DynBasisFunctions,
-                         DynBoundaryConditions,
-                         DynReferenceElement, LFRicMeshProperties]:
+                         DynBoundaryConditions, DynReferenceElement,
+                         LFRicMeshProperties]:
             entities(self).declarations(sub_stub)
 
         # Create the arglist

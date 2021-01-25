@@ -672,6 +672,28 @@ def test_lfric_stub_args2():
     assert "weights_xyz_qr_face: READ" in var_info
 
 
+def test_lfric_stub_args3():
+    '''Check variable usage detection for cell position, operator
+
+    '''
+    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+    from psyclone.domain.lfric import KernStubArgList
+    ast = get_ast("dynamo0.3",
+                  "testkern_any_discontinuous_space_op_1_mod.f90")
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    var_accesses = VariablesAccessInfo()
+    create_arg_list = KernStubArgList(kernel)
+    create_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    assert "cell: READ" in var_info
+    assert "op_3: READ" in var_info
+    assert "op_3_ncell_3d: READ" in var_info
+    assert "op_4: READ" in var_info
+    assert "op_4_ncell_3d: READ" in var_info
+
+
 def test_lfric_stub_boundary_dofs():
     '''Check variable usage detection for boundary dofs.
 
