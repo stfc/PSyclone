@@ -230,19 +230,18 @@ class StructureReference(Reference):
         return self.children[0]
 
     def reference_accesses(self, var_accesses):
-        '''Get all variable access information. All variables used as indices
+        '''
+        TODO #1028 dependency analysis for structures needs to be
+        implemented.
+
+        Get all variable access information. All variables used as indices
         in the access of the array will be added as READ.
 
         :param var_accesses: variable access information.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: TODO #1028 dependency analysis for \
-            structures needs to be implemented.
-
         '''
-        raise NotImplementedError(
-            "Dependency analysis has not yet been implemented for Structures.")
 
 
 # For AutoAPI documentation generation

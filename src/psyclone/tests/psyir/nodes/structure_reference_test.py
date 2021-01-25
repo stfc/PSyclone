@@ -169,18 +169,16 @@ def test_struc_ref_str():
 
 
 def test_reference_accesses():
-    ''' Test that the reference_accesses method raises a
-    NotImplementedError. This will be addressed by #1028. '''
+    ''' Test that the reference_accesses method does nothing. This will
+    be addressed by #1028. '''
     var_access_info = VariablesAccessInfo()
     dref = nodes.StructureReference.create(
         symbols.DataSymbol(
             "grid",
             symbols.TypeSymbol("grid_type", symbols.DeferredType())),
         ["data"])
-    with pytest.raises(NotImplementedError) as err:
-        dref.reference_accesses(var_access_info)
-    assert ("Dependency analysis has not yet been implemented for "
-            "Structures." in str(err.value))
+    dref.reference_accesses(var_access_info)
+    assert var_access_info.all_vars == []
 
 
 def test_struc_ref_semantic_nav():
