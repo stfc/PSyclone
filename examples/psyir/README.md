@@ -60,5 +60,5 @@ derived types in Fortran) within the PSyIR.
 To run this example:
 
 ```sh
-> python create_aggregate_types.py
+> python create_structure_types.py
 ```
