@@ -324,6 +324,9 @@
         103) PR #1051 towards #817. Add field and operator data type
         to kernel metadata in the LFRic tutorials.
 
+	104) PR #1059 for #960. Removed LFRic support for orientation as
+	this is not required.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
