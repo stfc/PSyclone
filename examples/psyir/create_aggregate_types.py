@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 
-'''A simple Python script showing how to create and manipulate
-aggregate types within the PSyIR. In order to use it you must first install
-PSyclone. See README.md in the top-level psyclone directory.
+'''A Python script showing how to create and manipulate symbols of structure
+type within the PSyIR. In order to use it you must first install PSyclone.
+See README.md in the top-level psyclone directory.
 
 Once you have psyclone installed, this script may be run by doing:
 
@@ -101,10 +101,11 @@ SYMBOL_TABLE.specify_argument_list([FIELD_SYMBOL])
 FIELD_BUNDLE_SYMBOL = DataSymbol("chi", ArrayType(FIELD_TYPE_SYMBOL, [3]))
 SYMBOL_TABLE.add(FIELD_BUNDLE_SYMBOL)
 
-print("Kernel Symbol Table:")
-print(str(SYMBOL_TABLE))
 print("Container Symbol Table:")
 print(str(CONTAINER_SYMBOL_TABLE))
+
+print("Kernel Symbol Table:")
+print(str(SYMBOL_TABLE))
 
 INDEX_SYMBOL = SYMBOL_TABLE.new_symbol(root_name="i", symbol_type=DataSymbol,
                                        datatype=INTEGER4_TYPE)
@@ -147,13 +148,14 @@ ASSIGNMENTS = [
 
 # KernelSchedule
 KERNEL_SCHEDULE = KernelSchedule.create("work", SYMBOL_TABLE, ASSIGNMENTS)
-KERNEL_SCHEDULE.view()
 
 # Container
 CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
                              [KERNEL_SCHEDULE])
+CONTAINER.view()
 
 # Write out the code as Fortran.
 WRITER = FortranWriter()
 RESULT = WRITER(CONTAINER)
+print("\n")
 print(RESULT)
