@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,8 +51,9 @@ import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
-    Literal, Node, Schedule, KernelSchedule
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE
+    Literal, Node, Schedule, KernelSchedule, Call, Reference
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
+    GlobalInterface, ContainerSymbol, Symbol
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     OMPParallelDoDirective, InlinedKern, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
@@ -335,7 +336,7 @@ def test_invokeschedule_node_str():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     # Create a plain InvokeSchedule
-    sched = InvokeSchedule(None, None)
+    sched = InvokeSchedule('name', None, None)
     # Manually supply it with an Invoke object created with the Dynamo API.
     sched._invoke = psy.invokes.invoke_list[0]
     output = sched.node_str()
@@ -505,6 +506,57 @@ def test_codedkern_module_inline_gen_code_modified_kernels(tmpdir):
     assert "SUBROUTINE ru_0_code(" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_codedkern_lower_to_language_level():
+    ''' Check that a generic CodedKern can be lowered to a subroutine call
+    with the appropriate arguments'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.children[0].loop_body[0]
+
+    # TODO 1010: LFRic still needs psy.gen to create symbols. But these must
+    # eventually be created automatically before the gen() call, for now we
+    # manually create the symbols that appear in the PSyIR tree.
+    schedule.symbol_table.add(Symbol("f1_proxy"))
+    schedule.symbol_table.add(Symbol("f2_proxy"))
+    schedule.symbol_table.add(Symbol("m1_proxy"))
+    schedule.symbol_table.add(Symbol("m2_proxy"))
+    schedule.symbol_table.add(Symbol("ndf_w1"))
+    schedule.symbol_table.add(Symbol("undf_w1"))
+    schedule.symbol_table.add(Symbol("map_w1"))
+    schedule.symbol_table.add(Symbol("ndf_w2"))
+    schedule.symbol_table.add(Symbol("undf_w2"))
+    schedule.symbol_table.add(Symbol("map_w2"))
+    schedule.symbol_table.add(Symbol("ndf_w3"))
+    schedule.symbol_table.add(Symbol("undf_w3"))
+    schedule.symbol_table.add(Symbol("map_w3"))
+
+    # In DSL-level it is a CodedKern with no children
+    assert isinstance(kern, CodedKern)
+    assert len(kern.children) == 0
+    number_of_arguments = len(kern.arguments.raw_arg_list())
+
+    kern.lower_to_language_level()
+
+    # In language-level it is a Call with arguments as children
+    call = schedule.children[0].loop_body[0]
+    assert not isinstance(call, CodedKern)
+    assert isinstance(call, Call)
+    assert call.routine.name == 'testkern_code'
+    assert len(call.children) == number_of_arguments
+    assert isinstance(call.children[0], Reference)
+
+    # A RoutineSymbol and the ContainerSymbol from where it is imported are
+    # in the symbol table
+    rsymbol = call.scope.symbol_table.lookup('testkern_code')
+    assert isinstance(rsymbol, RoutineSymbol)
+    assert isinstance(rsymbol.interface, GlobalInterface)
+    csymbol = rsymbol.interface.container_symbol
+    assert isinstance(csymbol, ContainerSymbol)
+    assert csymbol.name == "testkern_mod"
 
 
 def test_kern_coloured_text():

@@ -45,6 +45,11 @@ Illustrates the use of the read-only verification in PSyclone. The
 resulting code may be compiled and executed to show warnings printed
 by the read-only verification.
 
+## Example 8
+
+Informs the development of the code generation of PSy-layer code using the
+PSyIR language backends.
+
 ## Licence
 
 -----------------------------------------------------------------------------

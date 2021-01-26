@@ -233,10 +233,10 @@ class ArrayType(DataType):
     :param list shape: shape of the symbol in column-major order \
         (leftmost index is contiguous in memory). Each entry \
         represents an array dimension. If it is \
-        DataSymbol.Extent.ATTRIBUTE the extent of that dimension is \
+        ArrayType.Extent.ATTRIBUTE the extent of that dimension is \
         unknown but can be obtained by querying the run-time system \
         (e.g. using the SIZE intrinsic in Fortran). If it is \
-        DataSymbol.Extent.DEFERRED then the extent is also unknown and \
+        ArrayType.Extent.DEFERRED then the extent is also unknown and \
         may or may not be defined at run-time (e.g. the array is \
         ALLOCATABLE in Fortran). Otherwise it can be an int or a \
         DataNode (that returns an int). Note that providing an int is \
@@ -318,13 +318,13 @@ class ArrayType(DataType):
             (leftmost index is contiguous in memory) with each entry \
             representing an array dimension.
 
-        :rtype: a list of DataSymbol.Extent.ATTRIBUTE, \
-            DataSymbol.Extent.DEFERRED, or \
+        :rtype: a list of ArrayType.Extent.ATTRIBUTE, \
+            ArrayType.Extent.DEFERRED, or \
             :py:class:`psyclone.psyir.nodes.DataNode`. If an entry is \
-            DataSymbol.Extent.ATTRIBUTE the extent of that dimension \
+            ArrayType.Extent.ATTRIBUTE the extent of that dimension \
             is unknown but can be obtained by querying the run-time \
             system (e.g. using the SIZE intrinsic in Fortran). If it \
-            is DataSymbol.Extent.DEFERRED then the extent is also \
+            is ArrayType.Extent.DEFERRED then the extent is also \
             unknown and may or may not be defined at run-time \
             (e.g. the array is ALLOCATABLE in Fortran). Otherwise an \
             entry is a DataNode that returns an int.

@@ -61,6 +61,8 @@ boundary conditions.
 cd eg4/
 psyclone solver_mod.x90
 ```
+It also has the `backends` Makefile target to inform the development of
+PSy-layer code generation using the PSyIR backends.
 
 ## Example 5: Stencils
 

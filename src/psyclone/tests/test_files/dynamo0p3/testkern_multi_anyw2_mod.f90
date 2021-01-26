@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -46,12 +46,12 @@ module testkern_multi_anyw2_mod
   ! produce correct code.
   type, public, extends(kernel_type) :: testkern_multi_anyw2_type
     private
-    type(arg_type), dimension(3) :: meta_args = (/ &
-         arg_type(gh_field, gh_inc,  any_w2),      &
-         arg_type(gh_field, gh_read, any_w2),      &
-         arg_type(gh_field, gh_read, any_w2)       &
+    type(arg_type), dimension(3) :: meta_args = (/     &
+         arg_type(gh_field, gh_real, gh_inc,  any_w2), &
+         arg_type(gh_field, gh_real, gh_read, any_w2), &
+         arg_type(gh_field, gh_real, gh_read, any_w2)  &
          /)
-    integer :: operates_on = CELL_COLUMN
+    integer :: operates_on = cell_column
   contains
     procedure, nopass :: code => testkern_multi_anyw2_code
   end type testkern_multi_anyw2_type

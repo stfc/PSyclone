@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -135,23 +135,23 @@ class KernelTrans(Transformation):
                        "".format(kern.name, str(error.value)))
             six.raise_from(TransformationError(message), error)
         except SymbolError as err:
-            raise TransformationError(
+            six.raise_from(TransformationError(
                 "Kernel '{0}' contains accesses to data that are not captured "
                 "in the PSyIR Symbol Table(s) ({1}). Cannot transform such a "
-                "kernel.".format(kern.name, str(err.args[0])))
+                "kernel.".format(kern.name, str(err.args[0]))), err)
         # Check that all kernel symbols are declared in the kernel
         # symbol table(s). At this point they may be declared in a
         # container containing this kernel which is not supported.
         for var in kernel_schedule.walk(nodes.Reference):
             try:
-                _ = var.find_or_create_symbol(
+                var.scope.symbol_table.lookup(
                     var.name, scope_limit=var.ancestor(nodes.KernelSchedule))
-            except SymbolError:
-                raise TransformationError(
+            except KeyError as err:
+                six.raise_from(TransformationError(
                     "Kernel '{0}' contains accesses to data (variable '{1}') "
                     "that are not captured in the PSyIR Symbol Table(s) "
                     "within KernelSchedule scope. Cannot transform such a "
-                    "kernel.".format(kern.name, var.name))
+                    "kernel.".format(kern.name, var.name)), err)
 
 
 class LoopFuseTrans(Transformation):
@@ -972,15 +972,15 @@ class OMPLoopTrans(ParallelLoopTrans):
             try:
                 symtab.lookup_with_tag("omp_thread_index")
             except KeyError:
-                thread_idx = symtab.new_symbol_name("th_idx")
-                symtab.add(DataSymbol(thread_idx, INTEGER_TYPE),
-                           tag="omp_thread_index")
+                symtab.new_symbol(
+                    "th_idx", tag="omp_thread_index",
+                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
             try:
                 symtab.lookup_with_tag("omp_num_threads")
             except KeyError:
-                nthread = symtab.new_symbol_name("nthreads")
-                symtab.add(DataSymbol(nthread, INTEGER_TYPE),
-                           tag="omp_num_threads")
+                symtab.new_symbol(
+                    "nthreads", tag="omp_num_threads",
+                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
         return super(OMPLoopTrans, self).apply(node, options)
 

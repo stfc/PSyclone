@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -44,16 +44,16 @@ module testkern_anyw2_operator_mod
 
   type, public, extends(kernel_type) :: testkern_anyw2_operator_type
     private
-    type(arg_type), dimension(4) :: meta_args = (/        &
-         arg_type(gh_operator, gh_write, any_w2, any_w2), &
-         arg_type(gh_field,    gh_read,  any_w2),         &
-         arg_type(gh_field,    gh_read,  any_w2),         &
-         arg_type(gh_field,    gh_read,  any_w2)          &
+    type(arg_type), dimension(4) :: meta_args = (/                 &
+         arg_type(gh_operator, gh_real, gh_write, any_w2, any_w2), &
+         arg_type(gh_field,    gh_real, gh_read,  any_w2),         &
+         arg_type(gh_field,    gh_real, gh_read,  any_w2),         &
+         arg_type(gh_field,    gh_real, gh_read,  any_w2)          &
          /)
-    type(func_type) :: meta_funcs(1) =  (/ &
-         func_type(any_w2, gh_basis)       &
+    type(func_type) :: meta_funcs(1) =  (/                         &
+         func_type(any_w2, gh_basis)                               &
          /)
-    integer :: operates_on = CELL_COLUMN
+    integer :: operates_on = cell_column
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
     procedure, nopass :: code => testkern_anyw2_operator_code

@@ -63,10 +63,7 @@ psy_data_base.f90: ../../../psy_data_base.jinja Makefile
 
 
 extract_netcdf_base.f90: ../extract_netcdf_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) $< > extract_netcdf_base.f90
-
-kernel_data_netcdf.f90: kernel_data_netcdf.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) $< > kernel_data_netcdf.f90
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > extract_netcdf_base.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<

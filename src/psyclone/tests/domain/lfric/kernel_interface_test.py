@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
 
 '''Test that the expected kernel arguments, based on the kernel
 metadata, are created and declared within a symbol table using
@@ -761,16 +762,6 @@ def test_diff_basis():
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
-def test_orientation():
-    '''Test that the KernelInterface class orientation method adds the
-    expected symbols to the symbol table and the _arglist list.
-
-    '''
-    kernel_interface = KernelInterface(None)
-    kernel_interface.orientation(None)
-
-
-@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_field_bcs_kernel():
     '''Test that the KernelInterface class field_bcs_kernel method adds the
     expected symbols to the symbol table and the _arglist list.
@@ -978,75 +969,6 @@ def test_quad_rule_error(monkeypatch):
     assert(
         "Unsupported quadrature shape 'invalid_shape' found in "
         "kernel_interface." in str(info.value))
-
-
-def test_create_symbol_tag():
-    '''Test that an existing symbol with a matching tag is returned'''
-    symbol1 = lfric_psyir.CellPositionDataSymbol("test")
-    kernel_interface = KernelInterface(None)
-    kernel_interface._symbol_table.add(symbol1, tag="test")
-    symbol2 = kernel_interface._create_symbol(
-        "test", lfric_psyir.CellPositionDataSymbol)
-    assert symbol2 is symbol1
-
-
-def test_create_symbol_tag_error():
-    '''Test that an existing symbol with the same tag as this raises an
-    exception if its type differs from the supplied type.
-
-    '''
-    symbol1 = lfric_psyir.CellPositionDataSymbol("test")
-    kernel_interface = KernelInterface(None)
-    kernel_interface._symbol_table.add(symbol1, tag="test")
-    with pytest.raises(InternalError) as info:
-        _ = kernel_interface._create_symbol(
-            "test", lfric_psyir.MeshHeightDataSymbol)
-    assert (
-        "Expected symbol with tag 'test' to be of type 'MeshHeightDataSymbol' "
-        "but found type 'CellPositionDataSymbol'." in str(info.value))
-
-
-def test_create_symbol_new():
-    '''Test that a new symbol is created correctly and added to the symbol
-    table succesfuly with the supplied tag and the default interface
-    if one is not supplied. Also check the symbol is returned from the
-    method.
-
-    '''
-    kernel_interface = KernelInterface(None)
-    symbol1 = kernel_interface._create_symbol(
-        "test", lfric_psyir.CellPositionDataSymbol)
-    symbol2 = kernel_interface._symbol_table.lookup_with_tag("test")
-    assert symbol2 is symbol1
-    assert isinstance(symbol1.interface, ArgumentInterface)
-    assert (symbol1.interface.access ==
-            kernel_interface._read_access.access)
-
-
-def test_create_symbol_args():
-    '''Test that a new symbol is created correctly and added to the symbol
-    table successfully when it makes use of the extra_args, dims and
-    interface optional arguments. We don't check or test for errors in
-    argument types and values as this is an internal method.
-
-    '''
-    kernel_interface = KernelInterface(None)
-    size_symbol = lfric_psyir.NumberOfUniqueDofsDataSymbol(
-        "ndofs", "w3",
-        interface=ArgumentInterface(ArgumentInterface.Access.READ))
-    symbol1 = kernel_interface._create_symbol(
-        "test", lfric_psyir.RealFieldDataDataSymbol, extra_args=["w3"],
-        dims=[Reference(size_symbol)],
-        interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
-
-    symbol2 = kernel_interface._symbol_table.lookup_with_tag("test")
-    assert symbol2 is symbol1
-    assert symbol1.fs == "w3"
-    assert len(symbol1.shape) == 1
-    assert isinstance(symbol1.shape[0], Reference)
-    assert symbol1.shape[0].symbol == size_symbol
-    assert isinstance(symbol1.interface, ArgumentInterface)
-    assert symbol1.interface.access == ArgumentInterface.Access.READWRITE
 
 
 def test_create_basis_errors(monkeypatch):

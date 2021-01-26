@@ -118,18 +118,46 @@ module extract_netcdf_base_mod
         procedure :: PostEnd
         procedure :: OpenRead
 
-        {# Declare the jinja created procedures #}
-        {# ------------------------------------ #}
+        {# Collect and declare the various procedures for the same generic interface -#}
+        {# ------------------------------------------------------------------------- -#}
+        {% set all_declares=[] -%}
+        {% set all_provides=[] -%}
+        {% set all_reads=[] -%}
         {% for name, type, bits in ALL_TYPES %}
         procedure :: DeclareScalar{{name}}
         procedure :: WriteScalar{{name}}
         procedure :: ReadScalar{{name}}
+          {{- all_declares.append("DeclareScalar"~name) or "" -}}
+          {{- all_provides.append("WriteScalar"~name) or "" }}
+          {{- all_reads.append("ReadScalar"~name) or "" }}
           {% for dim in ALL_DIMS %}
         procedure :: DeclareArray{{dim}}d{{name}}
         procedure :: WriteArray{{dim}}d{{name}}
         procedure :: ReadArray{{dim}}d{{name}}
+            {{- all_declares.append("DeclareArray"~dim~"d"~name) or "" -}}
+            {{ all_provides.append("WriteArray"~dim~"d"~name) or "" }}
+            {{ all_reads.append("ReadArray"~dim~"d"~name) or "" }}
           {% endfor %}
         {% endfor %}
+
+        {%- set indent="            " -%}
+        {% if GENERIC_DECLARE %}
+        ! Declare generic interface for PreDeclareVariable:
+        generic, public :: PreDeclareVariable => &
+            {{all_declares|join(", &\n"+indent) }}
+        {% endif %}
+
+        {% if GENERIC_PROVIDE %}
+        !> The generic interface for providing the value of variables:
+        generic, public :: ProvideVariable => &
+            {{all_provides|join(", &\n"+indent) }}
+        {% endif %}
+
+        !> The generic interface for reading the value of variables.
+        !! This is not part of the official PSyData API, but used in
+        !! the drivers created by PSyclone.
+        generic, public :: ReadVariable => &
+            {{all_reads|join(", &\n"+indent) }}
 
     end type ExtractNetcdfBaseType
 

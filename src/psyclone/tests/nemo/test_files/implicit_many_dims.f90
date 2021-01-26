@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council.
+! Copyright (c) 2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,11 +29,17 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-subroutine data_ref()
-  INTEGER :: dummy
-  do ji = 1, n
-     prof%npind(ji) = 2.0*a(ji) + fconst
-  end do
-END subroutine data_ref
+! This code demonstrates an implicit loop with more than three of the
+! associated array dimensions being implicit. In this case it is all 5
+! of the umask and vmask array indices.
+
+program implicit_many_dims
+  implicit none
+  integer, parameter :: jpi=10, jpj=20, jpk=30, jpt=40, ndim=50
+  real, dimension(jpi,jpj,jpk,jpt,ndim) :: umask, vmask
+
+  umask(:,:,:,:,:) = vmask(:,:,:,:,:) + 1.0
+
+end program implicit_many_dims

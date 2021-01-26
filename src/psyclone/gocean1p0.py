@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,8 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, Symbol, ArgumentInterface
+    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
+    ContainerSymbol
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -112,6 +113,16 @@ class GOPSy(PSy):
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
+
+        # Add GOcean infrastructure-specific libraries
+        kind_params_sym = ContainerSymbol("kind_params_mod")
+        kind_params_sym.wildcard_import = True
+        self.container.symbol_table.add(kind_params_sym)
+        field_sym = ContainerSymbol("field_mod")
+        field_sym.wildcard_import = True
+        self.container.symbol_table.add(field_sym)
+
+        # Create invokes
         self._invokes = GOInvokes(invoke_info.calls, self)
 
     @property
@@ -176,6 +187,18 @@ class GOInvokes(Invokes):
                     # those seen so far
                     index_offsets.append(kern_call.index_offset)
 
+    def gen_rank_expression(self, scope):
+        ''' Generate the expression to retrieve the process rank.
+
+        :param scope: where the expression is going to be located.
+        :type scope: :py:class:`psyclone.f2pygen.BaseGen`
+        :return: generate the Fortran expression to retrieve the process rank.
+        :rtype: str
+        '''
+        scope.add(UseGen(scope, name="parallel_mod", only=True,
+                         funcnames=["get_rank"]))
+        return "get_rank()"
+
 
 class GOInvoke(Invoke):
     '''
@@ -197,7 +220,7 @@ class GOInvoke(Invoke):
 
     '''
     def __init__(self, alg_invocation, idx, invokes):
-        self._schedule = GOInvokeSchedule(None)  # for pyreverse
+        self._schedule = GOInvokeSchedule('name', None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
 
         if Config.get().distributed_memory:
@@ -339,12 +362,21 @@ class GOInvoke(Invoke):
 class GOInvokeSchedule(InvokeSchedule):
     ''' The GOcean specific InvokeSchedule sub-class. We call the base class
     constructor and pass it factories to create GO-specific calls to both
-    user-supplied kernels and built-ins. '''
+    user-supplied kernels and built-ins.
+
+    :param str name: name of the Invoke.
+    :param alg_calls: list of KernelCalls parsed from the algorithm layer.
+    :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param reserved_names: optional list of names that are not allowed in the \
+                           new InvokeSchedule SymbolTable.
+    :type reserved_names: list of str
+    '''
     # Textual description of the node.
     _text_name = "GOInvokeSchedule"
 
-    def __init__(self, alg_calls, reserved_names=None):
-        InvokeSchedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
+    def __init__(self, name, alg_calls, reserved_names=None):
+        InvokeSchedule.__init__(self, name, GOKernCallFactory,
+                                GOBuiltInCallFactory,
                                 alg_calls, reserved_names)
 
         # The GOcean Constants Loops Bounds Optimization is implemented using
@@ -450,12 +482,11 @@ class GOLoop(Loop):
 
         symtab = self.scope.symbol_table
         try:
-            data_symbol = symtab.lookup_with_tag(tag)
+            self.variable = symtab.lookup_with_tag(tag)
         except KeyError:
-            name = symtab.new_symbol_name(suggested_name)
-            data_symbol = DataSymbol(name, INTEGER_TYPE)
-            symtab.add(data_symbol, tag=tag)
-        self.variable = data_symbol
+            self.variable = symtab.new_symbol(
+                suggested_name, tag, symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE)
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
@@ -1127,8 +1158,9 @@ class GOKern(CodedKern):
         # Create array for the global work size argument of the kernel
         symtab = self.root.symbol_table
         garg = self._arguments.find_grid_access()
-        glob_size = symtab.new_symbol_name("globalsize")
-        symtab.add(DataSymbol(glob_size, ArrayType(INTEGER_TYPE, [2])))
+        glob_size = symtab.new_symbol(
+            "globalsize", symbol_type=DataSymbol,
+            datatype=ArrayType(INTEGER_TYPE, [2])).name
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[glob_size + "(2)"]))
         num_x = api_config.grid_properties["go_grid_nx"].fortran\
@@ -1139,8 +1171,9 @@ class GOKern(CodedKern):
                              rhs="(/{0}, {1}/)".format(num_x, num_y)))
 
         # Create array for the local work size argument of the kernel
-        local_size = symtab.new_symbol_name("localsize")
-        symtab.add(DataSymbol(local_size, ArrayType(INTEGER_TYPE, [2])))
+        local_size = symtab.new_symbol(
+            "localsize", symbol_type=DataSymbol,
+            datatype=ArrayType(INTEGER_TYPE, [2])).name
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[local_size + "(2)"]))
 
@@ -1260,18 +1293,17 @@ class GOKern(CodedKern):
         argsetter_st = SymbolTable()
 
         # Add an argument symbol for the kernel object
-        kobj = argsetter_st.new_symbol_name("kernel_obj")
-        argsetter_st.add(Symbol(kobj))
+        kobj = argsetter_st.new_symbol("kernel_obj").name
 
         # Add argument symbols to provide the iteration boundary values
-        xstart_name = argsetter_st.new_symbol_name("xstart")
-        xstop_name = argsetter_st.new_symbol_name("xstop")
-        ystart_name = argsetter_st.new_symbol_name("ystart")
-        ystop_name = argsetter_st.new_symbol_name("ystop")
-        argsetter_st.add(DataSymbol(xstart_name, INTEGER_TYPE))
-        argsetter_st.add(DataSymbol(xstop_name, INTEGER_TYPE))
-        argsetter_st.add(DataSymbol(ystart_name, INTEGER_TYPE))
-        argsetter_st.add(DataSymbol(ystop_name, INTEGER_TYPE))
+        xstart_name = argsetter_st.new_symbol(
+            "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
+        xstop_name = argsetter_st.new_symbol(
+            "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
+        ystart_name = argsetter_st.new_symbol(
+            "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
+        ystop_name = argsetter_st.new_symbol(
+            "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
         boundary_names = [xstart_name, xstop_name, ystart_name, ystop_name]
 
         # Join argument list
@@ -1279,12 +1311,14 @@ class GOKern(CodedKern):
                [arg.name for arg in self._arguments.args]
 
         # Declare the subroutine in the Invoke SymbolTable and the argsetter
-        # subroutine SymbolTable.
-        sub_name = self.root.symbol_table.new_symbol_name(
-            self.name + "_set_args")
-        sub_symbol = Symbol(sub_name)
-        self.root.symbol_table.add(sub_symbol, tag=sub_name)
-        argsetter_st.add(sub_symbol)
+        # subroutine SymbolTable. Subroutine names should be an exact match.
+        sub_name = self.name + "_set_args"
+        try:
+            self.root.symbol_table.lookup(sub_name)
+        except KeyError:
+            self.root.symbol_table.add(RoutineSymbol(sub_name), tag=sub_name)
+        argsetter_st.add(RoutineSymbol(sub_name), tag=sub_name)
+
         sub = SubroutineGen(parent, name=sub_name, args=args)
         parent.add(sub)
         sub.add(UseGen(sub, name="ocl_utils_mod", only=True,
@@ -1340,8 +1374,8 @@ class GOKern(CodedKern):
                                 target=True, entity_decls=[arg.name]))
 
         # Declare local variables
-        err_name = argsetter_st.new_symbol_name("ierr")
-        argsetter_st.add(DataSymbol(err_name, INTEGER_TYPE))
+        err_name = argsetter_st.new_symbol(
+            "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
         sub.add(DeclGen(sub, datatype="integer", entity_decls=[err_name]))
 
         # Set kernel arguments
@@ -1382,30 +1416,20 @@ class GOKern(CodedKern):
         iteration_indices = kernel_st.iteration_indices
         data_arguments = kernel_st.data_arguments
 
-        # Find names available for the boundary variables
-        xstart_name = kernel_st.new_symbol_name("xstart")
-        xstop_name = kernel_st.new_symbol_name("xstop")
-        ystart_name = kernel_st.new_symbol_name("ystart")
-        ystop_name = kernel_st.new_symbol_name("ystop")
-
         # Create new symbols and insert them as kernel arguments after
         # the initial iteration indices
-        xstart_symbol = DataSymbol(xstart_name, INTEGER_TYPE,
-                                   interface=ArgumentInterface(
-                                       ArgumentInterface.Access.READ))
-        xstop_symbol = DataSymbol(xstop_name, INTEGER_TYPE,
-                                  interface=ArgumentInterface(
-                                      ArgumentInterface.Access.READ))
-        ystart_symbol = DataSymbol(ystart_name, INTEGER_TYPE,
-                                   interface=ArgumentInterface(
-                                       ArgumentInterface.Access.READ))
-        ystop_symbol = DataSymbol(ystop_name, INTEGER_TYPE,
-                                  interface=ArgumentInterface(
-                                      ArgumentInterface.Access.READ))
-        kernel_st.add(xstart_symbol)
-        kernel_st.add(xstop_symbol)
-        kernel_st.add(ystart_symbol)
-        kernel_st.add(ystop_symbol)
+        xstart_symbol = kernel_st.new_symbol(
+            "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        xstop_symbol = kernel_st.new_symbol(
+            "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        ystart_symbol = kernel_st.new_symbol(
+            "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+        ystop_symbol = kernel_st.new_symbol(
+            "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
         kernel_st.specify_argument_list(
             iteration_indices +
             [xstart_symbol, xstop_symbol, ystart_symbol, ystop_symbol] +
@@ -1554,10 +1578,9 @@ class GOKern(CodedKern):
 
         '''
         # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = self.root.symbol_table.new_symbol_name(
-            "read_from_device")
-        subroutine_symbol = Symbol(subroutine_name)
-        self.root.symbol_table.add(subroutine_symbol, tag="ocl_read_func")
+        subroutine_name = self.root.symbol_table.new_symbol(
+            "read_from_device", symbol_type=RoutineSymbol,
+            tag="ocl_read_func").name
 
         # Generate the routine in the given f2pygen_module
         args = ["from", "to", "nx", "ny", "width"]
@@ -2472,9 +2495,8 @@ class GOKernelSchedule(KernelSchedule):
 
     :param str name: Kernel subroutine name
     '''
-    def __init__(self, name):
-        super(GOKernelSchedule, self).__init__(name)
-        self._symbol_table = GOSymbolTable(self)
+    # Polymorphic parameter to initialize the Symbol Table of the Schedule
+    _symbol_table_class = GOSymbolTable
 
 
 class GOHaloExchange(HaloExchange):

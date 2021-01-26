@@ -39,11 +39,10 @@
 from __future__ import absolute_import
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.ranges import Range
+from psyclone.errors import GenerationError
 
 
-class ArrayMember(Member, ArrayMixin):
+class ArrayMember(ArrayMixin, Member):
     '''
     Node representing an access to the element(s) of an array that is a
     member of a structure. Must have one or more children which give the
@@ -76,23 +75,21 @@ class ArrayMember(Member, ArrayMixin):
         :param parent: the parent of this node in the PSyIR tree.
         :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises GenerationError: if the supplied `indices` argument is not \
+                                 a list.
         '''
-        return ArrayMember._create_array_member(
-            member_name, indices=indices, parent=parent)
+        if not isinstance(indices, list):
+            raise GenerationError(
+                "indices argument in create method of ArrayMember class "
+                "should be a list but found '{0}'."
+                "".format(type(indices).__name__))
 
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        # pylint: disable=unused-argument
-        return isinstance(child, (DataNode, Range))
+        obj = ArrayMember(member_name, parent=parent)
+        # Add any array-index expressions as children
+        for child in indices:
+            obj.addchild(child)
+            child.parent = obj
+        return obj
 
 
 # For AutoAPI documentation generation
