@@ -6326,8 +6326,15 @@ class HaloReadAccess(HaloDepth):
         '''
         self._annexed_only = False
         call = halo_check_arg(field, AccessType.all_read_accesses())
-        # no test required here as all calls exist within a loop
-        loop = call.parent.parent
+
+        loop = call.ancestor(DynLoop)
+        if not loop:
+            # A Kernel call without a parent loop must be operating on
+            # the whole domain. Stencil accesses are not permitted for
+            # such kernels and all arguments must be on discontinuous
+            # function spaces so they have write rather than inc access.
+            self._needs_clean_outer = True
+            return
 
         # For GH_INC we accumulate contributions into the field being
         # modified. In order to get correct results for owned and

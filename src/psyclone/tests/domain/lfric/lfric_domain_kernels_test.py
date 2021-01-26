@@ -294,3 +294,33 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir):
     # Should have no loop over cells
     assert "DO cell=" not in gen_code
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
+    ''' Check the generation of the PSy layer for an invoke consisting of a
+    kernel with operates_on=domain and another with operates_on=cell_column.
+    '''
+    _, info = parse(os.path.join(BASE_PATH, "25.1_multikern_domain.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    gen_code = str(psy.gen)
+    print(gen_code)
+    expected = (
+        "      END DO\n"
+        "      !\n")
+    if dist_mem:
+        expected += (
+            "      ! Set halos dirty/clean for fields modified in the above "
+            "loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n"
+            "      !\n")
+    expected += (
+        "      CALL testkern_domain_code(nlayers, b, f1_proxy%data, "
+        "ndf_w3, undf_w3, map_w3)\n")
+    assert expected in gen_code
+    if dist_mem:
+        assert "CALL f1_proxy%set_dirty()\n" in gen_code
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
