@@ -427,15 +427,16 @@ PSyIR nodes are connected together via parent and child methods
 provided by the ``Node`` baseclass.
 
 These nodes can be created in isolation and then connected
-together. For example::
+together. For example:
 
-    > ...
-    > assignment = Assignment()
-    > literal = Literal("0.0", REAL_TYPE)
-    > reference = Reference(symbol)
-    > literal.parent = assignment
-    > reference.parent = assignment
-    > assignment.children = [reference, literal]
+.. code-block:: python
+
+    assignment = Assignment()
+    literal = Literal("0.0", REAL_TYPE)
+    reference = Reference(symbol)
+    literal.parent = assignment
+    reference.parent = assignment
+    assignment.children = [reference, literal]
     
 However, as connections get more complicated, creating the correct
 connections can become difficult to manage and error prone. Further,
@@ -445,12 +446,53 @@ in some cases children must be collected together within a
 To simplify this complexity, each of the Kernel-layer nodes which
 contain other nodes have a static ``create`` method which helps
 construct the PSyIR using a bottom up approach. Using this method, the
-above example then becomes::
+above example then becomes:
 
-    > ...
-    > literal = Literal("0.0", REAL_TYPE)
-    > reference = Reference(symbol)
-    > assignment = Assignment.create(reference, literal)
+.. code-block:: python
+
+    literal = Literal("0.0", REAL_TYPE)
+    reference = Reference(symbol)
+    assignment = Assignment.create(reference, literal)
 
 More complete examples of using this approach can be found in the
 PSyclone ``examples/psyir`` directory.
+
+
+Modifying the PSyIR
+===================
+
+Once we have a complete PSyIR AST created, the PSyIR also provides methods to
+modify the tree in a consistent way (e.g. without breaking its many internal
+references). Some complete examples of modifying the PSyIR can be found in the
+PSyclone ``examples/psyir/modify.py`` script.
+Below there are examples of possible PSyIR modifications:
+
+Renaming symbols
+-----------------
+The symbol table provides the method ``rename_symbol()`` that given a symbol
+and a unused name it will rename the symbol an affect all the references in
+the PSyIR tree to that symbol. For example, the PSyIR representing the
+following Fortran code:
+
+.. code-block:: fortran
+
+    subroutine work(psyir_tmp)
+        real, intent(inout) :: psyir_tmp
+        psyir_tmp=0.0
+    end subroutine
+
+Could be modified by PSyIR statements:
+
+.. code-block:: python
+
+    symbol = symbol_table.lookup("psyir_tmp")
+    symbol_table.rename_symbol(tmp_symbol, "new_variable")
+
+To obtain the representation for:
+
+.. code-block:: fortran
+
+    subroutine work(new_variable)
+        real, intent(inout) :: new_variable
+        new_variable=0.0
+    end subroutine
