@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -463,48 +463,6 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_omp_colour_orient_trans(monkeypatch, annexed, dist_mem):
-    '''Test the OpenMP transformation applied to a coloured loop when the
-    kernel expects orientation information. We test when distributed
-    memory is on or off. We also test when annexed is False and True
-    as it affects how many halo exchanges are generated.
-
-    '''
-    config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
-    psy, invoke = get_invoke("9.1_orientation2.f90", TEST_API,
-                             name="invoke_0_testkern_orientation2_type",
-                             dist_mem=dist_mem)
-    schedule = invoke.schedule
-
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
-
-    if dist_mem:
-        if annexed:
-            index = 4
-        else:
-            index = 5
-    else:
-        index = 0
-
-    # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[index])
-
-    # Then apply OpenMP to the inner loop
-    schedule, _ = otrans.apply(cschedule.children[index].loop_body[0])
-
-    invoke.schedule = schedule
-    code = str(psy.gen)
-
-    # Check that we're using the colour map when getting the orientation
-    assert "get_cell_orientation(cmap(colour, cell))" in code
-
-    # Check that the list of private variables is correct
-    assert "private(cell,orientation_w2)" in code
-
-
 def test_omp_parallel_colouring_needed(monkeypatch, annexed, dist_mem):
     '''Test that we raise an error when applying an OpenMP PARALLEL DO
     transformation to a loop that requires colouring (i.e. has a field
@@ -579,15 +537,15 @@ def test_check_seq_colours_omp_parallel_do(monkeypatch, annexed, dist_mem):
     config = Config.get()
     dyn_config = config.api_conf("dynamo0.3")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
-    _, invoke = get_invoke("9.1_orientation2.f90", TEST_API,
-                           name="invoke_0_testkern_orientation2_type",
+    _, invoke = get_invoke("1.1.0_single_invoke_xyoz_qr.f90", TEST_API,
+                           name="invoke_0_testkern_qr_type",
                            dist_mem=dist_mem)
     schedule = invoke.schedule
     if dist_mem:
         if annexed:
-            index = 4
+            index = 3
         else:
-            index = 5
+            index = 4
     else:
         index = 0
 
@@ -617,15 +575,15 @@ def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
     config = Config.get()
     dyn_config = config.api_conf("dynamo0.3")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
-    psy, invoke = get_invoke("9.1_orientation2.f90", TEST_API,
-                             name="invoke_0_testkern_orientation2_type",
+    psy, invoke = get_invoke("1.1.0_single_invoke_xyoz_qr.f90", TEST_API,
+                             name="invoke_0_testkern_qr_type",
                              dist_mem=dist_mem)
     schedule = invoke.schedule
     if dist_mem:
         if annexed:
-            index = 4
+            index = 3
         else:
-            index = 5
+            index = 4
     else:
         index = 0
 
@@ -6632,7 +6590,7 @@ def test_async_hex_preserve_properties():
     schedule = invoke.schedule
 
     # We don't need this halo exchange
-    f2_hex = schedule.children[0]
+    f2_hex = schedule.children[1]
     _, known = f2_hex.required()
     field_name = f2_hex.field.name
     stencil_type = f2_hex._compute_stencil_type()
@@ -6640,7 +6598,7 @@ def test_async_hex_preserve_properties():
 
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(f2_hex)
-    f2_async_hex_start = schedule.children[0]
+    f2_async_hex_start = schedule.children[1]
 
     _, f2_async_start_known = f2_async_hex_start.required()
     assert f2_async_start_known == known
@@ -6648,14 +6606,14 @@ def test_async_hex_preserve_properties():
     assert f2_async_hex_start._compute_stencil_type() == stencil_type
     assert f2_async_hex_start._compute_halo_depth() == halo_depth
 
-    f2_async_hex_end = schedule.children[1]
+    f2_async_hex_end = schedule.children[2]
     _, f2_async_end_known = f2_async_hex_end.required()
     assert f2_async_end_known == known
     assert f2_async_hex_end.field.name == field_name
     assert f2_async_hex_end._compute_stencil_type() == stencil_type
     assert f2_async_hex_end._compute_halo_depth() == halo_depth
 
-    # we do need this halo exchange
+    # We do need this halo exchange
     f1_hex = schedule.children[6]
     _, known = f1_hex.required()
     field_name = f1_hex.field.name
@@ -6760,13 +6718,13 @@ def test_async_hex_move_error_2():
 
     mtrans = MoveTrans()
 
-    # start before prev modifier
+    # Start before prev modifier
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = mtrans.apply(schedule.children[5],
                                    schedule.children[4])
     assert "dependencies forbid" in str(excinfo.value)
 
-    # end after following reader
+    # End after following reader
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = mtrans.apply(schedule.children[6],
                                    schedule.children[7],
