@@ -38,7 +38,6 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.node import Node
-from psyclone.core.access_info import AccessType
 
 
 class Member(Node):

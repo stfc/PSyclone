@@ -733,14 +733,14 @@ class GOLoop(Loop):
     # -------------------------------------------------------------------------
     def _grid_property_reference(self, grid_property):
         '''
-        Create a PSyIR reference using the supplied grid-property
-        information (which will have been read from the config file.
+        Create a PSyIR reference expression using the supplied grid-property
+        information (which will have been read from the config file).
 
         :param str grid_property: the property of the grid for which to \
             create a reference. This is the format string read from the \
             config file or just a simple name.
 
-        :returns: A reference to a symbol.
+        :returns: the PSyIR expression for the grid-property access.
         :rtype: :py:class:`psyclone.psyir.nodes.Reference` or sub-class
 
         '''
@@ -761,9 +761,12 @@ class GOLoop(Loop):
                 "not begin with '{{0}}': '{0}'".format(grid_property))
 
         fld_sym = self.scope.symbol_table.lookup(self.field_name)
+        # TODO to be replaced with functionality from #935. May also be fixed
+        # by #1010 as that will result in fld_sym being of the correct type.
+        # pylint: disable=unidiomatic-typecheck
         if type(fld_sym) == Symbol:
             # We now know that this must be a DataSymbol.
-            # TODO to be replaced with functionality from #935.
+            # pylint: disable=protected-access
             fld_sym.__class__ = DataSymbol
             try:
                 fld_type = self.scope.symbol_table.lookup("r2d_field")

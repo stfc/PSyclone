@@ -47,7 +47,6 @@ from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import DataSymbol, TypeSymbol, StructureType, \
     DeferredType
 from psyclone.errors import InternalError
-from psyclone.core.access_info import AccessType
 
 
 class StructureReference(Reference):

@@ -41,7 +41,7 @@
 from __future__ import absolute_import, print_function
 import pytest
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
-from psyclone.psyir.nodes import Schedule, Reference
+from psyclone.psyir.nodes import Schedule, Reference, StructureReference
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.errors import GenerationError
 from psyclone.tests.utilities import get_invoke
@@ -151,6 +151,7 @@ def test_goloop_grid_prop_ref():
     href = loop._grid_property_reference("hello")
     hsym = schedule.symbol_table.lookup("hello")
     assert isinstance(hsym, DataSymbol)
+    assert href.parent is loop
     assert hsym.datatype == INTEGER_TYPE
     assert isinstance(href, Reference)
     # A derived-type reference must be in the form of a format string with
@@ -160,5 +161,6 @@ def test_goloop_grid_prop_ref():
     assert ("Supplied grid property is a derived-type reference but does "
             "not begin with '{0}': 'wrong%one'" in str(err.value))
     gref = loop._grid_property_reference("{0}%grid%xstart")
-    assert isinstance(gref, Reference)
+    assert isinstance(gref, StructureReference)
+    assert gref.parent is loop
     assert gref.symbol.name == "cv_fld"
