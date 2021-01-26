@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -371,14 +371,19 @@ def test_location(parser):
     assert x_accesses[0].location == x_accesses[1].location
 
 
+@pytest.mark.xfail(reason="#1028 dependency analysis for structures needs "
+                   "to be implemented")
 def test_user_defined_variables(parser):
     ''' Test reading and writing to user defined variables. This is
-    only partially supported atm because the PSyIR does not support such
-    variables (#363).
+    not supported atm because the dependence analysis for these PSyIR
+    nodes has not yet been implemented (#1028).
+
+    Also TODO #1028: is this a duplicate of test_derived_type in
+    tests/psyir/dependency_tools_test.py?
     '''
-    # TODO #363: this uses a work around for user defined types atm.
     reader = FortranStringReader('''program test_prog
-                                       use some_mod
+                                       use some_mod, only: my_type
+                                       type(my_type) :: a, e
                                        a%b%c(ji, jj) = d
                                        e%f = d
                                     end program test_prog''')
@@ -565,7 +570,6 @@ def test_lfric_various_basis():
     _, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
                                 "dynamo0.3", idx=0)
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
-    assert "orientation_w2: READ" in var_info
     assert "basis_w3_qr: READ" in var_info
     assert "diff_basis_w0_qr: READ" in var_info
     assert "diff_basis_w2_qr: READ" in var_info
@@ -674,7 +678,8 @@ def test_lfric_stub_args3():
     '''
     from psyclone.dynamo0p3 import DynKernMetadata, DynKern
     from psyclone.domain.lfric import KernStubArgList
-    ast = get_ast("dynamo0.3", "dummy_orientation_mod.f90")
+    ast = get_ast("dynamo0.3",
+                  "testkern_any_discontinuous_space_op_1_mod.f90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
@@ -683,14 +688,10 @@ def test_lfric_stub_args3():
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     assert "cell: READ" in var_info
-    assert "op_2_ncell_3d: READ" in var_info
-    assert "op_2: READ" in var_info
-    assert "op_4_ncell_3d: READ" in var_info
+    assert "op_3: READ" in var_info
+    assert "op_3_ncell_3d: READ" in var_info
     assert "op_4: READ" in var_info
-    assert "orientation_w0: READ" in var_info
-    assert "orientation_w1: READ" in var_info
-    assert "orientation_w2: READ" in var_info
-    assert "orientation_w3: READ" in var_info
+    assert "op_4_ncell_3d: READ" in var_info
 
 
 def test_lfric_stub_boundary_dofs():

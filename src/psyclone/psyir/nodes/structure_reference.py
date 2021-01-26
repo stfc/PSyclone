@@ -37,6 +37,7 @@
 ''' This module contains the implementation of the StructureReference node. '''
 
 from __future__ import absolute_import
+import six
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_member import ArrayMember
@@ -45,6 +46,7 @@ from psyclone.psyir.nodes.array_of_structures_member import \
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import DataSymbol, TypeSymbol, StructureType, \
     DeferredType
+from psyclone.errors import InternalError
 
 
 class StructureReference(Reference):
@@ -73,7 +75,7 @@ class StructureReference(Reference):
         return False
 
     @staticmethod
-    def create(symbol, members=None, parent=None):
+    def create(symbol, members, parent=None):
         '''
         Create a StructureReference instance given a symbol and a
         list of components. e.g. for "field%bundle(2)%flag" this
@@ -96,6 +98,8 @@ class StructureReference(Reference):
         :raises TypeError: if the supplied symbol is not a DataSymbol.
 
         '''
+        # TODO #363 if a symbol is imported via a USE then it will be
+        # represented with a Symbol, not a DataSymbol.
         if not isinstance(symbol, DataSymbol):
             raise TypeError(
                 "The 'symbol' argument to StructureReference.create() "
@@ -166,7 +170,7 @@ class StructureReference(Reference):
         if isinstance(members[-1], tuple):
             # An access to one or more array elements
             subref = ArrayMember.create(members[-1][0], members[-1][1])
-        elif isinstance(members[-1], str):
+        elif isinstance(members[-1], six.string_types):
             # A member access
             subref = Member(members[-1])
         else:
@@ -187,7 +191,7 @@ class StructureReference(Reference):
                 # This is an array access so we have an ArrayOfStructuresMember
                 subref = ArrayOfStructuresMember.create(
                     component[0], component[1], subref)
-            elif isinstance(component, str):
+            elif isinstance(component, six.string_types):
                 # No array access so just a StructureMember
                 subref = StructureMember.create(component, subref)
             else:
@@ -209,6 +213,22 @@ class StructureReference(Reference):
         for entity in self._children:
             result += str(entity) + "\n"
         return result
+
+    @property
+    def member(self):
+        '''
+        :returns: the member of the structure that this reference is to.
+        :rtype: :py:class:`psyclone.psyir.nodes.Member`
+
+        :raises InternalError: if the first child of this node is not an \
+                               instance of Member.
+        '''
+        if not isinstance(self.children[0], Member):
+            raise InternalError(
+                "{0} malformed or incomplete. The first child "
+                "must be an instance of Member, but found '{1}'".format(
+                    type(self).__name__, type(self.children[0]).__name__))
+        return self.children[0]
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All variables used as indices

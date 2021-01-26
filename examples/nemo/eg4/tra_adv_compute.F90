@@ -37,7 +37,7 @@ contains
     !   END DO
     !END DO
 
-    ! Not sure how to cope with implicit loops in the SIR backend
+    ! SIR backend can only deal with triply nested loops
     ! zwx(:,:,jpk) = 0.e0   ;   zwy(:,:,jpk) = 0.e0
 
     DO jk = 1, jpk-1
@@ -49,7 +49,7 @@ contains
        END DO
     END DO
 
-    ! Not sure how to cope with implicit loops in the SIR backend
+    ! SIR backend can only deal with triply nested loops
     ! zslpx(:,:,jpk) = 0.e0   ;   zslpy(:,:,jpk) = 0.e0 
 
     DO jk = 1, jpk-1
@@ -116,15 +116,14 @@ contains
        END DO
     END DO
     
-    ! Not sure how to cope with implicit loops in the SIR backend
+    ! SIR backend can only deal with triply nested loops
     ! zwx (:,:, 1 ) = 0.e0    ;    zwx (:,:,jpk) = 0.e0
     
-    ! Not sure how to cope with implicit loops in the SIR backend
-    ! DO jk = 2, jpk-1   
-    !     zwx(:,:,jk) = tmask(:,:,jk) * ( mydomain(:,:,jk-1) - mydomain(:,:,jk) )
-    ! END DO
+    DO jk = 2, jpk-1   
+       zwx(:,:,jk) = tmask(:,:,jk) * ( mydomain(:,:,jk-1) - mydomain(:,:,jk) )
+    END DO
 
-    ! Not sure how to cope with implicit loops in the SIR backend
+    ! SIR backend can only deal with triply nested loops
     ! zslpx(:,:,1) = 0.e0
     
     DO jk = 2, jpk-1    
@@ -146,7 +145,7 @@ contains
        END DO
     END DO
     
-    ! Not sure how to cope with implicit loops in the SIR backend
+    ! SIR backend can only deal with triply nested loops
     ! zwx(:,:, 1 ) = pwn(:,:,1) * mydomain(:,:,1)
 
     zdt  = 1

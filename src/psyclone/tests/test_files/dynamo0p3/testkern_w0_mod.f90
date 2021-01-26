@@ -1,6 +1,6 @@
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -42,10 +42,10 @@ module testkern_w0_mod
 
   type, extends(kernel_type) :: testkern_w0_type
      type(arg_type), dimension(2) :: meta_args = &
-          (/ arg_type(gh_field, gh_inc,  w0),    &
-             arg_type(gh_field, gh_read, w0)     &
+          (/ arg_type(gh_field, gh_real, gh_inc,  w0),    &
+             arg_type(gh_field, gh_real, gh_read, w0)     &
            /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_w0_code
   end type testkern_w0_type

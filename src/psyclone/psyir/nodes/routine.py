@@ -182,14 +182,14 @@ class Routine(Schedule):
                             "'{0}'".format(type(new_name).__name__))
         if not self._name:
             self._name = new_name
-            self.symbol_table.add(RoutineSymbol(new_name),
-                                      tag='own_routine_symbol')
+            self.symbol_table.add(
+                    RoutineSymbol(new_name), tag='own_routine_symbol')
         elif self._name != new_name:
             old_symbol = self.symbol_table.lookup(self._name)
             self.symbol_table.remove(old_symbol)
             self._name = new_name
-            self.symbol_table.add(RoutineSymbol(new_name),
-                                      tag='own_routine_symbol')
+            self.symbol_table.add(
+                    RoutineSymbol(new_name), tag='own_routine_symbol')
 
     def __str__(self):
         result = self.node_str(False) + ":\n"

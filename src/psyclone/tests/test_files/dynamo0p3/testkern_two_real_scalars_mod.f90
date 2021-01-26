@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -47,13 +47,13 @@ module testkern_two_real_scalars_mod
   type, extends(kernel_type) :: testkern_two_real_scalars_type
      type(arg_type), dimension(6) :: meta_args =        &
           (/ arg_type(gh_scalar, gh_real, gh_read    ), &
-             arg_type(gh_field,           gh_inc,  w1), &
-             arg_type(gh_field,           gh_read, w2), &
-             arg_type(gh_field,           gh_read, w2), &
-             arg_type(gh_field,           gh_read, w3), &
+             arg_type(gh_field,  gh_real, gh_inc,  w1), &
+             arg_type(gh_field,  gh_real, gh_read, w2), &
+             arg_type(gh_field,  gh_real, gh_read, w2), &
+             arg_type(gh_field,  gh_real, gh_read, w3), &
              arg_type(gh_scalar, gh_real, gh_read    )  &
            /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_two_real_scalars_code
   end type testkern_two_real_scalars_type

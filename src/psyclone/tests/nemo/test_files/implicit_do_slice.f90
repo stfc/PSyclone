@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,39 +29,18 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-module dummy_orientation_mod
+! This code demonstrates an implicit loop with at least one of its
+! dimensions (dimension 2 of umask) having a specified lower and upper
+! bound (an array slice).
 
-  use argument_mod
-  use fs_continuity_mod
-  use kernel_mod
-  use constants_mod
-
+program implicit_do_slice
   implicit none
+  integer, parameter :: jpi=10, jpj=10, jpk=10
+  real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk) :: umask
 
-  type, extends(kernel_type) :: dummy_orientation_type
-     type(arg_type), meta_args(4) =                       &
-          (/ arg_type(gh_field,    gh_inc,       w0),     &
-             arg_type(gh_operator, gh_readwrite, w1, w1), &
-             arg_type(gh_field,    gh_read,      w2),     &
-             arg_type(gh_operator, gh_write,     w3, w3)  &
-           /)
-     type(func_type), meta_funcs(4) =       &
-          (/ func_type(w0, gh_orientation), &
-             func_type(w1, gh_orientation), &
-             func_type(w2, gh_orientation), &
-             func_type(w3, gh_orientation)  &
-           /)
-     integer :: operates_on = CELL_COLUMN
-   contains
-     procedure, nopass :: code => dummy_orientation_code
-  end type dummy_orientation_type
-contains
+  ! Test code with implicit NEMO-style do loop with a fixed slice
+  umask(:,2:4,:) = 0.0d0
 
-  subroutine dummy_orientation_code()
-  end subroutine dummy_orientation_code
-
-end module dummy_orientation_mod
-
+end program implicit_do_slice

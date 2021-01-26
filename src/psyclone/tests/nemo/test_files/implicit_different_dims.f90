@@ -1,7 +1,7 @@
-!-------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,30 +29,18 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified: I. Kavcic, Met Office
+! Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-program operator_example
+! This code demonstrates an implicit loop where the implicit array
+! dimensions of the arrays (umask and vmask in this case) do not
+! match. For example, the outermost dimension index specified with a
+! ':' is 5 for array umask but 4 for array vmask.
 
-  use constants_mod,                  only : i_def
-  use fs_continuity_mod,              only : W1, W3
-  use function_space_collection_mod,  only : function_space_collection
-  use field_mod,                      only : field_type
-  use operator_mod,                   only : operator_type
-  use quadrature_xyoz_mod,            only : quadrature_xyoz_type
-  use testkern_operator_orient_2_mod, only : testkern_operator_orient_2_type
-
+program implicit_different_dims
   implicit none
+  integer, parameter :: jpi=2, jpj=4, jpk=6, jpt=9, ndim=10
+  real, dimension(jpi,jpj,jpk,jpt,ndim) :: umask, vmask
 
-  type(field_type)                    :: coord(3)
-  type(operator_type)                 :: my_mapping
-  type(quadrature_xyoz_type), pointer :: qr => null
-  integer(i_def)                      :: mesh_id = 1
-  integer(i_def)                      :: element_order = 0
+  umask(:,jpj,:,ndim,:) = vmask(jpi,:,:,:,ndim) + 1.0
 
-  my_mapping = operator_type(function_space_collection%get_fs(mesh_id,element_order,W1), &
-                             function_space_collection%get_fs(mesh_id,element_order,W3))
-
-  call invoke(testkern_operator_orient_2_type(my_mapping, coord, qr))
-
-end program operator_example
+end program implicit_different_dims

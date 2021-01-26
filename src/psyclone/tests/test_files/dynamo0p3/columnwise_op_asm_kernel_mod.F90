@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -61,6 +61,7 @@ private
 ! Public types
 !-------------------------------------------------------------------------------
 
+! TODO #874 change this metadata to include data type
 type, public, extends(kernel_type) :: columnwise_op_asm_kernel_type
   private
   type(arg_type) :: meta_args(2) = (/                                         &
