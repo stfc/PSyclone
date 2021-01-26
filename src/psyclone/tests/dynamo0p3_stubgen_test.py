@@ -532,62 +532,6 @@ def test_arg_descriptor_vec_str():
     assert expected_output in result
 
 
-# Orientation : spaces
-ORIENTATION_OUTPUT = (
-    "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
-    "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
-    "undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, "
-    "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3)\n"
-    "      USE constants_mod, ONLY: r_def, i_def\n"
-    "      IMPLICIT NONE\n"
-    "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-    "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
-    "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
-    "      INTEGER(KIND=i_def), intent(in) :: "
-    "undf_w0, ndf_w1, undf_w2, ndf_w3\n"
-    "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
-    "field_1_w0\n"
-    "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-    "field_3_w2\n"
-    "      INTEGER(KIND=i_def), intent(in) :: cell\n"
-    "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
-    "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
-    "op_2_ncell_3d) :: op_2\n"
-    "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
-    "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
-    "op_4_ncell_3d) :: op_4\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: "
-    "orientation_w0\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: "
-    "orientation_w1\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: "
-    "orientation_w2\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: "
-    "orientation_w3\n"
-    "    END SUBROUTINE dummy_orientation_code\n"
-    "  END MODULE dummy_orientation_mod")
-
-
-def test_orientation_stubs():
-    ''' Test that orientation is handled correctly for kernel
-    stubs '''
-    # Read-in the meta-data from file (it's in a file because it's also
-    # used when testing the genkernelstub script from the command
-    # line).
-    with open(os.path.join(BASE_PATH, "dummy_orientation_mod.f90"),
-              "r") as myfile:
-        orientation = myfile.read()
-
-    ast = fpapi.parse(orientation, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    generated_code = kernel.gen_stub
-    assert ORIENTATION_OUTPUT in str(generated_code)
-
-
 def test_enforce_bc_kernel_stub_gen():
     ''' Test that the enforce_bc_kernel boundary layer argument modification
     is handled correctly for kernel stubs.
@@ -812,10 +756,10 @@ def test_kernel_stub_gen_cmd_line():
     # We use the Popen constructor here rather than check_output because
     # the latter is only available in Python 2.7 onwards.
     out = Popen(["genkernelstub",
-                 os.path.join(BASE_PATH, "dummy_orientation_mod.f90")],
+                 os.path.join(BASE_PATH, "simple_with_scalars.f90")],
                 stdout=PIPE).communicate()[0]
 
-    assert ORIENTATION_OUTPUT in out.decode('utf-8')
+    assert SIMPLE_WITH_SCALARS in out.decode('utf-8')
 
 
 def test_stub_stencil_extent():
