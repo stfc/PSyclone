@@ -42,25 +42,35 @@ Once you have psyclone installed, this script may be run by doing:
 >>> python modify.py
 
 This will first create a tree as specified in the create.py file and
-output its code representation. Then will proceed to modify the tree
-and generate a second output with the modified code representation.
+then proceed to modify the tree and generate the modified code Fortran
+representation.
 
 '''
-
-# This creates the tree specified in create.py an import some of its
-# global variables to perform modifications on it.
-from create import SYMBOL_TABLE, CONTAINER, TMP_SYMBOL
-
-# PSyclone imports
+from create import create_psyir_tree
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
-# Rename one of the subroutine local symbols.
-SYMBOL_TABLE.rename_symbol(TMP_SYMBOL, "new_variable")
+def modify_psyir_tree():
+    ''' Apply modifications to the PSyIR tree created in create.py
+
+    :returns: a modified PSyIR tree.
+    :rtype: :py:class:`psyclone.psyir.nodes.Container`
+
+    '''
+    container = create_psyir_tree()
+    subroutine = container.children[0]
+
+    # Rename one of the subroutine local symbols.
+    tmp_symbol = subroutine.symbol_table.lookup("psyir_tmp")
+    subroutine.symbol_table.rename_symbol(tmp_symbol, "new_variable")
+
+    return container
 
 
-# Write out the modified code as Fortran.
-print("New code after the modifications:\n")
-WRITER = FortranWriter()
-RESULT = WRITER(CONTAINER)
-print(RESULT)
+if __name__ == "__main__":
+    psyir_tree = modify_psyir_tree()
+
+    # Write out the modified code as Fortran.
+    writer = FortranWriter()
+    result = writer(psyir_tree)
+    print(result)

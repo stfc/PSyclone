@@ -1,7 +1,7 @@
 <!--
 BSD 3-Clause License
 
-Copyright (c) 2019, Science and Technology Facilities Council.
+Copyright (c) 2019-2021, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@ ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 Author R. W. Ford, STFC Daresbury Lab
+Modified S. Siso, STFC Daresbury Lab
 -->
 
 # PSyclone PSyIR Examples
@@ -67,8 +68,8 @@ To run this example:
 ## Example 3:
 
 Demonstrates how to manipulate an existing PSyIR tree. This example
-imports the tree already created in Example 1 and applies some modifications
-to it. Then it generated the new modified output code. This example may
+imports the PSyIR created in Example 1, applies some modifications
+to it and then generated the new modified output code. This example may
 be run by doing:
 
 ```sh
