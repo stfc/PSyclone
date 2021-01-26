@@ -37,12 +37,19 @@
     the 'domain'. '''
 
 from __future__ import absolute_import
+import os
 import pytest
 from fparser import api as fpapi
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
 from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.parse.utils import ParseError
 
+BASE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))),
+    "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
 
 
@@ -271,3 +278,17 @@ end module restrict_mod
         DynKernMetadata(ast, name="restrict_kernel_type")
     assert ("'restrict_kernel_type' operates on the domain but has fields on "
             "different mesh resolutions" in str(err.value))
+
+
+def test_psy_gen_domain_kernel():
+    ''' Check the generation of the PSy layer for an invoke consisting of a
+    single kernel with operates_on=domain. '''
+    _, info = parse(os.path.join(BASE_PATH, "25.0_domain.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    gen_code = str(psy.gen)
+    print(gen_code)
+    assert ("CALL testkern_domain_code(nlayers, b, f1_proxy%data, ndf_w3, "
+            "undf_w3, map_w3)" in gen_code)
+    assert "DO cell=" not in gen_code
