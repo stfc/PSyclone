@@ -67,6 +67,16 @@ to create code.
 	  expectation that ``gen_code()`` and ``update()`` methods will
 	  be removed.
 
+
+Language-level nodes
+--------------------
+
+.. psyir_oneline:: psyclone.psyir.nodes.Loop
+.. psyir_oneline:: psyclone.psyir.nodes.Schedule
+.. psyir_oneline:: psyclone.psyir.nodes.Container
+.. psyir_oneline:: psyclone.psyir.nodes.Literal
+
+
 PSy-layer nodes
 ---------------
 
