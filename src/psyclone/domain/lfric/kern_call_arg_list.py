@@ -412,11 +412,16 @@ class KernCallArgList(ArgOrdering):
         undf_name = function_space.undf_name
         self.append(undf_name, var_accesses)
         map_name = function_space.map_name
-        # We add the whole map variable,
-        # not just the dimension that is used in the call
-        self.append("{0}(:,{1})".format(map_name,
-                                        self._cell_ref_name(var_accesses)),
-                    var_accesses, var_access_name=map_name)
+        if self._kern.iterates_over == 'domain':
+            # This kernel is not within a loop over cells so pass the whole
+            # dofmap.
+            self.append("{0}".format(map_name),
+                        var_accesses, var_access_name=map_name)
+        else:
+            # Pass the dofmap for the cell column
+            self.append("{0}(:,{1})".format(map_name,
+                                            self._cell_ref_name(var_accesses)),
+                        var_accesses, var_access_name=map_name)
 
     def fs_intergrid(self, function_space, var_accesses=None):
         '''Add function-space related arguments for an intergrid kernel.

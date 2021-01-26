@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@ from psyclone.psyGen import PSyFactory
 from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.parse.utils import ParseError
+from psyclone.tests.lfric_build import LFRicBuild
 
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
@@ -280,15 +281,16 @@ end module restrict_mod
             "different mesh resolutions" in str(err.value))
 
 
-def test_psy_gen_domain_kernel():
+def test_psy_gen_domain_kernel(dist_mem, tmpdir):
     ''' Check the generation of the PSy layer for an invoke consisting of a
     single kernel with operates_on=domain. '''
     _, info = parse(os.path.join(BASE_PATH, "25.0_domain.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    invoke = psy.invokes.invoke_list[0]
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
     gen_code = str(psy.gen)
-    print(gen_code)
+    # Kernel call should include whole dofmap
     assert ("CALL testkern_domain_code(nlayers, b, f1_proxy%data, ndf_w3, "
             "undf_w3, map_w3)" in gen_code)
+    # Should have no loop over cells
     assert "DO cell=" not in gen_code
+    assert LFRicBuild(tmpdir).code_compiles(psy)

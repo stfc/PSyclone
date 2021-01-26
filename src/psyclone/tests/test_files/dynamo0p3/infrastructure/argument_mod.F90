@@ -137,6 +137,7 @@ module argument_mod
   integer, public, parameter :: CELLS       = 396
   integer, public, parameter :: CELL_COLUMN = 402
   integer, public, parameter :: ALL_DOFS    = 945
+  integer, public, parameter :: DOMAIN      = 946
 
 ! Quadrature metadata
   integer, public, parameter :: QUADRATURE_XYZ      = 501

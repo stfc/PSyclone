@@ -2340,7 +2340,8 @@ class DynDofmaps(DynCollection):
 
         for call in self._calls:
             # We only need a dofmap if the kernel operates on a cell_column
-            if call.iterates_over == "cell_column":
+            # or the domain.
+            if call.iterates_over in ["cell_column", "domain"]:
                 for unique_fs in call.arguments.unique_fss:
                     # We only need a dofmap if there is a *field* on this
                     # function space. If there is then we use it to look
@@ -7661,22 +7662,23 @@ class DynKern(CodedKern):
                            kind=api_config.default_kind["integer"],
                            entity_decls=["cell"]))
 
-        parent_loop = self.parent.parent
+        parent_loop = self.ancestor(DynLoop)
 
         # Check whether this kernel reads from an operator
-        op_args = parent_loop.args_filter(
-            arg_types=LFRicArgDescriptor.VALID_OPERATOR_NAMES,
-            arg_accesses=[AccessType.READ, AccessType.READWRITE])
-        if op_args:
-            # It does. We must check that our parent loop does not
-            # go beyond the L1 halo.
-            if parent_loop.upper_bound_name == "cell_halo" and \
-               parent_loop.upper_bound_halo_depth > 1:
-                raise GenerationError(
-                    "Kernel '{0}' reads from an operator and therefore "
-                    "cannot be used for cells beyond the level 1 halo. "
-                    "However the containing loop goes out to level {1}".
-                    format(self._name, parent_loop.upper_bound_halo_depth))
+        if parent_loop:
+            op_args = parent_loop.args_filter(
+                arg_types=LFRicArgDescriptor.VALID_OPERATOR_NAMES,
+                arg_accesses=[AccessType.READ, AccessType.READWRITE])
+            if op_args:
+                # It does. We must check that our parent loop does not
+                # go beyond the L1 halo.
+                if parent_loop.upper_bound_name == "cell_halo" and \
+                   parent_loop.upper_bound_halo_depth > 1:
+                    raise GenerationError(
+                        "Kernel '{0}' reads from an operator and therefore "
+                        "cannot be used for cells beyond the level 1 halo. "
+                        "However the containing loop goes out to level {1}".
+                        format(self._name, parent_loop.upper_bound_halo_depth))
 
         # If this kernel is being called from within a coloured
         # loop then we have to look-up the name of the colour map
@@ -8746,24 +8748,36 @@ class DynKernCallFactory(object):
     user-supplied kernel routine. '''
     @staticmethod
     def create(call, parent=None):
-        ''' Create the objects needed for a call to the kernel
-        described in the call object '''
+        '''
+        Create the objects needed for a call to the kernel
+        described in the call object.
 
-        # Loop over cells
-        cloop = DynLoop(parent=parent)
+        :param call: information on the kernel call as obtained from the \
+                     Algorithm layer.
+        :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
+        :param parent: the parent of this kernel call in the PSyIR.
+        :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
 
+        '''
         # The kernel itself
         kern = DynKern()
-        kern.load(call, cloop.loop_body)
 
-        # Add the kernel as a child of the loop
-        cloop.loop_body.addchild(kern)
+        if call.ktype.iterates_over == "domain":
+            # Kernel operates on whole domain so there is no loop
+            kern.load(call, parent=parent)
+            return kern
+        else:
+            # Loop over cells
+            cloop = DynLoop(parent=parent)
 
-        # Set-up the loop now we have the kernel object
-        cloop.load(kern)
+            kern.load(call, cloop.loop_body)
 
-        # Return the outermost loop
-        return cloop
+            # Add the kernel as a child of the loop
+            cloop.loop_body.addchild(kern)
+
+            # Set-up the loop now we have the kernel object
+            cloop.load(kern)
+            return cloop
 
 
 class DynACCEnterDataDirective(ACCEnterDataDirective):
