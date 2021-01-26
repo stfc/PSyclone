@@ -31,7 +31,7 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-Author R. W. Ford, STFC Daresbury Lab
+Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 -->
 
 # PSyclone PSyIR Examples
@@ -55,7 +55,7 @@ subset of the tree. This example may be run by doing:
 
 ## Example 2:
 
-Demonstrates how to create and manipulate aggregate types (a.k.a.
+Demonstrates how to create and manipulate structure types (a.k.a.
 derived types in Fortran) within the PSyIR.
 To run this example:
 

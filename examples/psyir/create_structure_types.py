@@ -39,7 +39,7 @@ See README.md in the top-level psyclone directory.
 
 Once you have psyclone installed, this script may be run by doing:
 
->>> python create_aggregate_types.py
+>>> python create_structure_types.py
 
 '''
 from __future__ import print_function
