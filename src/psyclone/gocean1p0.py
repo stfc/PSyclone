@@ -1645,8 +1645,8 @@ class GOKern(CodedKern):
 
         cmd_queues = DataSymbol(
             "cmd_queues", datatype=UnknownFortranType(
-                "INTEGER(KIND=c_intptr_t), pointer, dimension(:) :: cmd_queues"
-                " => get_cmd_queues()\n"))
+                "INTEGER(KIND=c_intptr_t), pointer, dimension(:) ::"
+                "cmd_queues\n"))
         cmd_queue = DataSymbol(
             "cmd_queue", datatype=UnknownFortranType(
                 "INTEGER(KIND=c_intptr_t), pointer :: cmd_queue"
@@ -1667,11 +1667,12 @@ class GOKern(CodedKern):
         sub_st.add(size_in_bytes)
 
         code = '''
+            cmd_queues => get_cmd_queues()
             offset_in_bytes = int(offset, kind=8) * 8_8
             size_in_bytes = int(ny*(nx+stride), kind=8) * 8_8
-            write(*,*) "Read", from, to, offset, nx, ny, stride
-            write(*,*) "in OCL", offset_in_bytes, size_in_bytes
-            !CALL read_buffer(from, to, int(nx*ny, kind=8))
+            !write(*,*) "Read", from, to, offset, nx, ny, stride
+            !write(*,*) "in OCL", offset_in_bytes, size_in_bytes
+            ierr = clFinish(cmd_queues(1))
             ierr = clEnqueueReadBuffer( &
                 cmd_queues(1), &
                 from, &
@@ -1720,10 +1721,10 @@ class GOKern(CodedKern):
         interface = ArgumentInterface(ArgumentInterface.Access.READ)
         s_from = DataSymbol(
             "from", interface=interface, datatype=UnknownFortranType(
-                "INTEGER(KIND=c_intptr_t), intent(in), value :: from\n"))
+                "TYPE(c_ptr), intent(in), value :: from\n"))
         s_to = DataSymbol(
             "to", interface=interface, datatype=UnknownFortranType(
-                "TYPE(c_ptr), intent(in), value :: to\n"))
+                "INTEGER(KIND=c_intptr_t), intent(in), value :: to\n"))
         s_offset = DataSymbol(
             "offset", interface=interface, datatype=UnknownFortranType(
                 "INTEGER(KIND=c_int), intent(in), value :: offset\n"))
@@ -1748,8 +1749,8 @@ class GOKern(CodedKern):
 
         cmd_queues = DataSymbol(
             "cmd_queues", datatype=UnknownFortranType(
-                "INTEGER(KIND=c_intptr_t), pointer, dimension(:) :: cmd_queues"
-                " => get_cmd_queues()\n"))
+                "INTEGER(KIND=c_intptr_t), pointer, dimension(:) :: "
+                "cmd_queues\n"))
         ierr = DataSymbol(
             "ierr", datatype=UnknownFortranType(
                 "integer(kind=c_int32_t) :: ierr\n"))
@@ -1768,18 +1769,18 @@ class GOKern(CodedKern):
         # Code goes here ...
 
         code = '''
+            cmd_queues => get_cmd_queues()
             offset_in_bytes = int(offset, kind=8) * 8_8
             size_in_bytes = int(ny*(nx+stride), kind=8) * 8_8
-            write(*,*) "Read", from, to, offset, nx, ny, stride
-            write(*,*) "in OCL", offset_in_bytes, size_in_bytes
-            !CALL read_buffer(from, to, int(nx*ny, kind=8))
-            ierr = clEnqueueReadBuffer( &
+            !write(*,*) "Write", from, to, offset, nx, ny, stride
+            !write(*,*) "in OCL", offset_in_bytes, size_in_bytes
+            ierr = clEnqueueWriteBuffer( &
                 cmd_queues(1), &
-                from, &
+                to, &
                 CL_BLOCKING, & ! Is blocking
                 offset_in_bytes, & ! Offset
                 size_in_bytes, &
-                to, &
+                from, &
                 0, C_NULL_PTR, & ! Wait list
                 C_NULL_PTR) ! event
         '''
