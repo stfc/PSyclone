@@ -46,8 +46,10 @@ then proceed to modify the tree and generate the modified code Fortran
 representation.
 
 '''
-from create import create_psyir_tree
+# Different pylint configurations don't agree in the order of this imports
+# pylint: disable=wrong-import-order
 from psyclone.psyir.backend.fortran import FortranWriter
+from create import create_psyir_tree
 
 
 def modify_psyir_tree():
