@@ -321,6 +321,14 @@
         parsing of invokes now that some kernel calls are identified
         as structure constructors instead of array accesses.
 
+        103) PR #1051 towards #817. Add field and operator data type
+        to kernel metadata in the LFRic tutorials.
+
+	104) PR #1059 for #960. Removed LFRic support for orientation as
+	this is not required.
+
+	105) PR #1079 for #363. Complete the PSyIR structure support.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
