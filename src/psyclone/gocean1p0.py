@@ -1867,39 +1867,55 @@ class GOKernelArgument(KernelArgument):
         KernelArgument.__init__(self, arg, arg_info, call)
 
     def psyir_expression(self):
+        '''
+        :returns: the PSyIR expression represented by this Argument.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises InternalError: if this Argument type is not "field" or \
+                               "scalar".
+
+        '''
         tag = "AlgArgs_" + self._text
         symbol = self._call.root.symbol_table.symbol_from_tag(tag)
 
+        # Gocean field arguments are StructureReferences to the %data attribute
         if self.argument_type == "field":
             return StructureReference.create(symbol, ["data"])
 
+        # Gocean scalar arguments are References to the variable
         if self.argument_type == "scalar":
             return Reference(symbol)
-        raise InternalError("")
+
+        raise InternalError("GOcean expects the Argument.argument_type() to be"
+                            " 'field' or 'scalar', but found '{0}'."
+                            "".format(self.argument_type))
 
     def infere_datatype(self):
-        # There are 3 places from where we can get the PSy-layer argument
-        # types:
-        #   - API rules and config file
-        #   - Kernel metadata
-        #   - Kernel signature
-        #
-        # This method uses the API rules but ideally we could check that the
-        # 3 type descriptions match.
+        ''' Infere the datatype of this argument using the API rules.
 
+        :returns: the datatype of this argument.
+        :rtype: :py:class::`psyclone.psyir.symbols.datatype`
+
+        :raises InternalError: if this Argument type is not "field" or \
+                               "scalar".
+
+        '''
+        # All GOcean fields are r2d_type.
         if self.argument_type == "field":
-            # All GOcean fields are r2d_type:
             # r2d_type can have DeferredType and UnresolvedInterface because
             # it is an unnamed import from a module.
             type_symbol = self._call.root.symbol_table.symbol_from_tag(
                 "r2d_type", symbol_type=TypeSymbol, datatype=DeferredType(),
                 interface=UnresolvedInterface())
             return type_symbol
+
+        # All GOcean scalars are integers
         if self.argument_type == "scalar":
-            # All GOcean scalars are integers
             return INTEGER_TYPE
-        raise InternalError("")
+
+        raise InternalError("GOcean expects the Argument.argument_type() to be"
+                            " 'field' or 'scalar', but found '{0}'."
+                            "".format(self.argument_type))
 
     @property
     def argument_type(self):
@@ -1962,6 +1978,7 @@ class GOKernelGridArgument(Argument):
         # This object always represents an argument that is a grid_property
         self._argument_type = "grid_property"
 
+        # Reference to the Call this argument belongs to
         self._call = kernel_call
 
     @property
@@ -1971,7 +1988,11 @@ class GOKernelGridArgument(Argument):
         return self._name
 
     def psyir_expression(self):
+        '''
+        :returns: the PSyIR expression represented by this Argument.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
+        '''
         # Find field from which to access grid properties
         base_field = self._call.arguments.find_grid_access().name
         tag = "AlgArgs_" + base_field

@@ -3742,6 +3742,7 @@ class Argument(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises NotImplementedError: this is an abstract method.
+
         '''
         raise NotImplementedError("Abstract method. Implement in the API.")
 
@@ -3752,6 +3753,7 @@ class Argument(object):
 
         :returns: the datatype of this argument.
         :rtype: :py:class::`psyclone.psyir.symbols.datatype`
+
         '''
         # pylint: disable=no-self-use
         return DeferredType()
