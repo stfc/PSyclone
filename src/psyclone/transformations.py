@@ -58,7 +58,7 @@ from psyclone.domain.lfric import FunctionSpace
 from psyclone.psyir.transformations import RegionTrans, TransformationError
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
-from psyclone.psyir.nodes import CodeBlock
+from psyclone.psyir.nodes import CodeBlock, Loop
 
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -191,7 +191,6 @@ class LoopFuseTrans(Transformation):
         '''
 
         # Check that the supplied Node is a Loop
-        from psyclone.psyir.nodes import Loop
         if not isinstance(node1, Loop) or not isinstance(node2, Loop):
             raise TransformationError("Error in {0} transformation. "
                                       "At least one of the nodes is not "
@@ -670,7 +669,7 @@ class ParallelLoopTrans(Transformation):
                 :py:class:`psyclone.psyir.nodes.Loop`.
         :raises TransformationError: if the \
                 :py:class:`psyclone.psyir.nodes.Loop` loop iterates over \
-                colours.
+                colours or is a 'null' loop.
         :raises TransformationError: if the target loop contains one of the \
                 node types specified in self.excluded_node_types.
         :raises TransformationError: if 'collapse' is supplied with an \
@@ -678,7 +677,6 @@ class ParallelLoopTrans(Transformation):
 
         '''
         # Check that the supplied node is a Loop
-        from psyclone.psyir.nodes import Loop
         if not isinstance(node, Loop):
             raise TransformationError(
                 "Cannot apply a parallel-loop directive to something that is "
@@ -689,6 +687,10 @@ class ParallelLoopTrans(Transformation):
             raise TransformationError("Error in "+self.name+" transformation. "
                                       "The target loop is over colours and "
                                       "must be computed serially.")
+        if node.loop_type == 'null':
+            raise TransformationError("Error in "+self.name+" transformation. "
+                                      "A 'null' loop cannot be parallelised.")
+
         # Check that there aren't any excluded node types within the supplied
         # loop
         bad_nodes = node.walk(self.excluded_node_types)
@@ -1146,7 +1148,6 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
          '''
         # Check that the supplied Node is a Loop
-        from psyclone.psyir.nodes import Loop
         if not isinstance(node, Loop):
             raise TransformationError("Error in {0} transformation. The "
                                       "node is not a loop.".format(self.name))
@@ -1400,7 +1401,6 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         # check node is a loop. Although this is not GOcean specific
         # it is required for the subsequent checks to function
         # correctly.
-        from psyclone.psyir.nodes import Loop
         if not isinstance(node, Loop):
             raise TransformationError("Error in "+self.name+" transformation."
                                       " The node is not a loop.")
@@ -1438,6 +1438,28 @@ class ColourTrans(Transformation):
     def name(self):
         ''' Returns the name of this transformation as a string.'''
         return "LoopColourTrans"
+
+    def validate(self, node, options=None):
+        '''
+
+        :param node: The target loop node to be coloured.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param options: a dictionary with options for transformations.
+        :type options: dict of string:values or None
+
+        :raises TransformationError: if the supplied node is not a Loop.
+        :raises TransformationError: if the supplied loop is of 'null' type.
+
+        '''
+        # TODO should we have a base LoopTransformation with these checks?
+        if not isinstance(node, Loop):
+            raise TransformationError(
+                "Target of a loop colouring transformation must be a sub-"
+                "class of Loop but got '{0}'".format(type(node).__name__))
+
+        if node.loop_type == "null":
+            raise TransformationError("Cannot apply a loop colouring "
+                                      "transformation to a null loop.")
 
     def apply(self, node, options=None):
         '''
@@ -1648,7 +1670,6 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
         '''
         # check node is a loop
-        from psyclone.psyir.nodes import Loop
         if not isinstance(node, Loop):
             raise TransformationError("Error in DynamoColour transformation. "
                                       "The supplied node is not a loop")
@@ -2446,9 +2467,8 @@ class GOLoopSwapTrans(Transformation):
 
         :raises TransformationError: if the supplied node does not\
                                      allow a loop swap to be done.
-         '''
 
-        from psyclone.psyir.nodes import Loop
+         '''
         if not isinstance(node_outer, Loop):
             raise TransformationError("Error in GOLoopSwap transformation. "
                                       "Given node '{0}' is not a loop."
@@ -3442,7 +3462,7 @@ class ACCKernelsTrans(RegionTrans):
         '''
         from psyclone.nemo import NemoInvokeSchedule
         from psyclone.dynamo0p3 import DynInvokeSchedule
-        from psyclone.psyir.nodes import Loop, Assignment
+        from psyclone.psyir.nodes import Assignment
 
         # Ensure we are always working with a list of nodes, even if only
         # one was supplied via the `nodes` argument.
