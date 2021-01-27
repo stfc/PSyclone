@@ -3704,33 +3704,51 @@ class Argument(object):
             # There are unit-tests where we create Arguments without an
             # associated call.
             if self._call:
+
+                # Keep original list of arguments
                 previous_arguments = \
                         self._call.root.symbol_table.argument_list
+
+                # Find the tag to use
                 tag = "AlgArgs_" + self._text
-                # TODO: Interface.Access should come from access
+
+                # Prepare the Argument Interface Access value
+                if access and access.name == "READ":
+                    argument_access = ArgumentInterface.Access.READ
+                elif access and access.name == "WRITE":
+                    argument_access = ArgumentInterface.Access.WRITE
+                else:
+                    # If access is READWRITE, INC, SUM, UNKNOWN or no access
+                    # is given, use a READWRITE argument interface.
+                    argument_access = ArgumentInterface.Access.READWRITE
+
+                # Find the tag or create a new symbol with expected attributes
                 new_argument = self._call.root.symbol_table.symbol_from_tag(
                     tag, root_name=self._orig_name, symbol_type=DataSymbol,
                     datatype=self.infere_datatype(),
-                    interface=ArgumentInterface(
-                        ArgumentInterface.Access.READWRITE))
+                    interface=ArgumentInterface(argument_access))
+                self._name = new_argument.name
 
                 # Unless the argument already exists with another interface
                 # (e.g. globals) they come from the invoke argument list
                 if isinstance(new_argument.interface, ArgumentInterface):
                     self._call.root.symbol_table.specify_argument_list(
                         previous_arguments + [new_argument])
-                self._name = new_argument.name
 
     @abc.abstractmethod
     def psyir_expression(self):
-        ''' Return PSyIR expression'''
-        raise NotImplementedError("")
+        '''
+        :returns: the PSyIR expression represented by this Argument.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises NotImplementedError: this is an abstract method.
+        '''
+        raise NotImplementedError("Abstract method. Implement in the API.")
 
     def infere_datatype(self):
         ''' Infere the datatype of this argument using the API rules. If no
         specialisation of this method has been provided make the type
-        DeferredType at this point.
+        DeferredType for now (it may be provided latter in the execution).
 
         :returns: the datatype of this argument.
         :rtype: :py:class::`psyclone.psyir.symbols.datatype`
