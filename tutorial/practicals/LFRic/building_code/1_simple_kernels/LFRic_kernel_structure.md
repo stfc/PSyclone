@@ -22,7 +22,9 @@ module setval_field_w0_kernel_mod
 
   use argument_mod,      only: arg_type,          &
                                GH_FIELD, GH_REAL, &
-                               GH_INC, GH_READ, CELLS
+                               GH_SCALAR,         &
+                               GH_INC, GH_READ,   &
+                               CELL_COLUMN
   use fs_continuity_mod, only: W0
   use constants_mod,     only: r_def, i_def
   use kernel_mod,        only: kernel_type
@@ -38,10 +40,10 @@ module setval_field_w0_kernel_mod
   type, public, extends(kernel_type) :: setval_field_w0_kernel_type
     private
     type(arg_type), dimension(2) :: meta_args = (/ &
-         arg_type(GH_FIELD, GH_INC, W0),           &
-         arg_type(GH_REAL,  GH_READ)               &
+         arg_type(GH_FIELD,  GH_REAL, GH_INC, W0), &
+         arg_type(GH_SCALAR, GH_REAL, GH_READ)     &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: code => setval_field_w0_code
   end type setval_field_w0_kernel_type
@@ -89,8 +91,8 @@ Here the `<base_name>` is `setval_field_w0`.
 The PSyclone metadata is stored as the *private* data within the definition
 of an individual kernel type. They come in two main forms: derived types
 (e.g. `arg_type` in the above example) and `integer` arguments (single-valued
-such as `iterates_over` above or arrays). Here we briefly explain the contents
-of `arg_type` and `iterates_over` metadata. For more information please refer
+such as `operates_on` above or arrays). Here we briefly explain the contents
+of the `arg_type` and `operates_on` metadata. For more information please refer
 to the [*Metadata* section](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#metadata)
 of the LFRic (Dynamo 0.3) API [user documentation](
@@ -98,11 +100,11 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
 
 The `arg_type` in this example describes the two (hence `dimension(2)`)
 arguments that this kernel operates on:
-* A field argument (`GH_FIELD`) with the degrees of freedom (DoFs) on the
- `W0` function space that is being updated in this kernel (`GH_INC` access
-  for updating fields on continuous function spaces);
-* A `real`-valued scalar (`GH_REAL`) whose value is read (`GH_READ`) and
-  used to update the field with.
+* A `real`-valued field argument (`GH_FIELD`, `GH_REAL`) with the degrees of
+  freedom (DoFs) on the `W0` function space that is being updated in this kernel
+  (`GH_INC` access for updating fields on continuous function spaces);
+* A `real`-valued scalar (`GH_SCALAR`, `GH_REAL`) that is read
+  (`GH_READ`) and used to update the field.
 
 The `GH_` prefix comes from "GungHo", the name of the dynamical core used in
 the LFRic model. Please refer to the documentation for more information on
@@ -112,12 +114,12 @@ and [function spaces](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces)
 for the LFRic data objects.
 
-The `iterates_over` metadata specifies how LFRic kernels are called
+The `operates_on` metadata specifies how LFRic kernels are called
 from the [LFRic PSy layer](../background/LFRic_structure.md#psy-layer).
 A user-defined kernel in LFRic is called from a PSy-layer loop over each
-cell in the horizontal domain, hence the metadata identifier for this way
-of looping, `CELLS`. This means that a kernel operates on a single,
-vertical column of cells.
+cell in the horizontal domain. This means that a kernel operates on a single,
+vertical column of cells, hence the metadata identifier for this way
+of looping, `CELL_COLUMN`.
 
 ## `use` statements and encapsulation
 
@@ -243,23 +245,3 @@ this looping may be moved up to the [PSy layer](
 better handle e.g. `i`-first fields.
 
 ---
-
-## Appendix
-
-LFRic field data are currently `real`-valued, however there is ongoing
-work to allow the field data of other intrinsic types, such as `integer`.
-This will be reflected in the metadata, with `GH_REAL` and `GH_INTEGER`
-marking the data type and `GH_SCALAR` denoting the scalar arguments. The
-above `arg_type` notation will change to
-
-```fortran
-    type(arg_type), dimension(2) :: meta_args = (/ &
-         arg_type(GH_FIELD,  GH_REAL, GH_INC, W0), &
-         arg_type(GH_SCALAR, GH_REAL, GH_READ)     &
-         /)
-```
-
-The kernel metadata for the iteration spaces are also changing to be
-clearer about the subset of domain the kernel operates on rather than
-the PSy-layer looping. In the next PSyclone release `iterates_over = CELLS`
-will become `operates_on = CELL_COLUMN`.
