@@ -539,8 +539,10 @@ def test_codedkern_lower_to_language_level():
     assert len(kern.children) == 0
     number_of_arguments = len(kern.arguments.raw_arg_list())
 
-    kern.lower_to_language_level()
+    with pytest.raises(NotImplementedError) as err:
+        kern.lower_to_language_level()
 
+    return
     # In language-level it is a Call with arguments as children
     call = schedule.children[0].loop_body[0]
     assert not isinstance(call, CodedKern)

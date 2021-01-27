@@ -1627,7 +1627,7 @@ def test08_kernel_invalid_grid_property():
             self.grid_prop = "does not exist"
     descriptor = DummyDescriptor()
     with pytest.raises(GenerationError) as err:
-        GOKernelGridArgument(descriptor)
+        GOKernelGridArgument(descriptor, None)
     assert re.search("Unrecognised grid property specified. Expected one "
                      "of.* but found 'does not exist'", str(err.value)) \
         is not None

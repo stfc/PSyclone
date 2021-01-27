@@ -762,27 +762,6 @@ class GOLoop(Loop):
                 "not begin with '{{0}}': '{0}'".format(grid_property))
 
         fld_sym = self.scope.symbol_table.lookup(self.field_name)
-        # TODO to be replaced with functionality from #935. May also be fixed
-        # by #1010 as that will result in fld_sym being of the correct type.
-        # pylint: disable=unidiomatic-typecheck
-        if type(fld_sym) == Symbol:
-            # We now know that this must be a DataSymbol.
-            # pylint: disable=protected-access
-            fld_sym.__class__ = DataSymbol
-            try:
-                fld_type = self.scope.symbol_table.lookup("r2d_field")
-            except KeyError:
-                # TODO 1010. The symbol table of the Container is not an
-                # ancestor of the local scope and therefore we have to
-                # explicitly get a reference to it.
-                fld_mod = self.root.invoke.invokes.psy.container.\
-                    symbol_table.lookup("field_mod")
-                fld_type = self.scope.symbol_table.new_symbol(
-                    "r2d_field", tag="field_type", symbol_type=TypeSymbol,
-                    datatype=DeferredType(),
-                    interface=GlobalInterface(fld_mod))
-            fld_sym.datatype = fld_type
-            fld_sym._constant_value = None
         return StructureReference.create(fld_sym, members[1:], parent=self)
 
     # -------------------------------------------------------------------------
