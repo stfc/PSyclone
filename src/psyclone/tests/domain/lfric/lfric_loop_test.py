@@ -41,11 +41,12 @@
 from __future__ import absolute_import, print_function
 import os
 import pytest
+from fparser import api as fpapi
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Schedule
 from psyclone.domain.lfric import FunctionSpace
-from psyclone.dynamo0p3 import DynLoop
+from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.configuration import Config
 from psyclone.tests.lfric_build import LFRicBuild
@@ -497,3 +498,36 @@ def test_dynloop_halo_read_access_error2(monkeypatch):
         loop._halo_read_access(field)
     assert ("Expecting arg 'f1' to be an operator, scalar or field, but "
             "found 'unsupported'." in str(info.value))
+
+
+def test_null_loop():
+    ''' Check that we can create a 'null'-type loop and that the validation
+    check in the load() method behaves as expected.
+    '''
+    loop = DynLoop(loop_type="null")
+    assert loop.loop_type == "null"
+    # Create a kernel by parsing some metadata
+    ast = fpapi.parse('''
+module testkern_mod
+  type, extends(kernel_type) :: testkern_type
+     type(arg_type), meta_args(2) =                   &
+          (/ arg_type(gh_scalar, gh_real, gh_read),   &
+             arg_type(gh_field, gh_readwrite, w3)     &
+           /)
+     integer :: operates_on = cell_column
+   contains
+     procedure, nopass :: code => testkern_code
+  end type testkern_type
+contains
+  subroutine testkern_code(a, b, c, d)
+  end subroutine testkern_code
+end module testkern_mod
+''', ignore_comments=False)
+    dkm = DynKernMetadata(ast, name="testkern_type")
+    kern = DynKern()
+    kern.load_meta(dkm)
+    with pytest.raises(GenerationError) as err:
+        loop.load(kern)
+    assert ("A DynLoop of type 'null' can only contain a kernel that "
+            "operates on the 'domain' but kernel 'testkern_code' operates "
+            "on 'cell_column'" in str(err.value))

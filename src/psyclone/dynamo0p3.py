@@ -6451,7 +6451,9 @@ class DynLoop(Loop):
         :param kern: Kernel object to use to populate state of Loop
         :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
 
-        :raises GenerationError: for an unexpected function space.
+        :raises GenerationError: if the field updated by the kernel has an \
+            unexpected function space or if the kernel's 'operates-on' is \
+            not consistent with the loop type.
 
         '''
         self._kern = kern
@@ -6459,6 +6461,12 @@ class DynLoop(Loop):
         self._field = kern.arguments.iteration_space_arg()
         self._field_name = self._field.name
         self._field_space = self._field.function_space
+
+        if self.loop_type == "null" and kern.iterates_over != "domain":
+            raise GenerationError(
+                "A DynLoop of type 'null' can only contain a kernel that "
+                "operates on the 'domain' but kernel '{0}' operates on "
+                "'{1}'.".format(kern.name, kern.iterates_over))
         self._iteration_space = kern.iterates_over  # cell_columns etc.
 
         # Loop bounds
