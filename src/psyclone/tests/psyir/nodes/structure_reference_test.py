@@ -165,21 +165,20 @@ def test_struc_ref_str():
     # Reference to scalar member of structure
     sref = nodes.StructureReference.create(ssym, ["nx"])
     assert (str(sref) == "StructureReference[name:'grid']\n"
-            "Member[name:'nx']\n")
+            "Member[name:'nx']")
 
 
 def test_reference_accesses():
-    ''' Test that the reference_accesses method raises a
-    NotImplementedError. This will be addressed by #1028. '''
+    ''' Test that the reference_accesses method does nothing. This will
+    be addressed by #1028. '''
     var_access_info = VariablesAccessInfo()
-    dref = nodes.StructureReference(
+    dref = nodes.StructureReference.create(
         symbols.DataSymbol(
             "grid",
-            symbols.TypeSymbol("grid_type", symbols.DeferredType())))
-    with pytest.raises(NotImplementedError) as err:
-        dref.reference_accesses(var_access_info)
-    assert ("Dependency analysis has not yet been implemented for "
-            "Structures." in str(err.value))
+            symbols.TypeSymbol("grid_type", symbols.DeferredType())),
+        ["data"])
+    dref.reference_accesses(var_access_info)
+    assert var_access_info.all_vars == []
 
 
 def test_struc_ref_semantic_nav():
@@ -195,5 +194,6 @@ def test_struc_ref_semantic_nav():
     sref._children = ["broken"]
     with pytest.raises(InternalError) as err:
         _ = sref.member
-    assert ("StructureReference malformed or incomplete. The first child "
-            "must be an instance of Member, but found 'str'" in str(err.value))
+    assert ("StructureReference malformed or incomplete. It must have a "
+            "single child that must be a (sub-class of) Member, but "
+            "found: ['broken']" in str(err.value))

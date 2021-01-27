@@ -41,7 +41,7 @@
 import re
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.errors import InternalError
 
@@ -145,8 +145,8 @@ class Assignment(Statement):
         self.lhs.reference_accesses(accesses_left)
 
         # Now change the (one) access to the assigned variable to be WRITE:
-        if isinstance(self.lhs, CodeBlock):
-            # TODO #363: Assignment to user defined type, not supported yet.
+        if isinstance(self.lhs, StructureReference):
+            # TODO #1028: Assignment to user defined type, not supported yet.
             # Here an absolute hack to get at least some information out
             # from the AST - though indices are just strings, which will
             # likely cause problems later as well.

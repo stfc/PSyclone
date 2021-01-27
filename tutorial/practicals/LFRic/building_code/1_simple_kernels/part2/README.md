@@ -29,16 +29,16 @@ setval_field_any_kernel_mod.f90) in an editor. The `arg_type` [metadata](
 ../LFRic_kernel_structure.md#kernel-metadata) of this kernel stub
 
 ```fortran
-    type(arg_type), dimension(2) :: meta_args = (/ &
-         arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),  &
-         arg_type(GH_REAL,  GH_READ)               &
+    type(arg_type), dimension(2) :: meta_args = (/          &
+         arg_type(GH_FIELD,  GH_REAL, GH_INC, ANY_SPACE_1), &
+         arg_type(GH_SCALAR, GH_REAL, GH_READ)              &
          /)
 ```
 
-describes two arguments: a field (`GH_FIELD`) with the degrees of freedom
-(DoFs) on a generic function space (`ANY_SPACE_1`) to be updated
-(`GH_INC`) and a `real`-valued scalar (`GH_REAL`) whose value is read
-(`GH_READ`) and used to update the field with.
+describes two arguments: a `real`-valued field (`GH_FIELD`, `GH_REAL`)
+with the degrees of freedom (DoFs) on a generic function space
+(`ANY_SPACE_1`) and a `real`-valued scalar (`GH_SCALAR`, `GH_REAL`). The
+field is to be updated (`GH_INC`) while the scalar is read only (`GH_READ`).
 
 ---
 **NOTE**
@@ -143,10 +143,10 @@ we have one updated field and two read-only fields as the kernel
 arguments:
 
 ```fortran
-    type(arg_type), dimension(3) :: meta_args = (/ &
-         arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1), &
-         arg_type(GH_FIELD, GH_READ, ANY_SPACE_1), &
-         arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)  &
+    type(arg_type), dimension(3) :: meta_args = (/          &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_1)  &
          /)
 ```
 
