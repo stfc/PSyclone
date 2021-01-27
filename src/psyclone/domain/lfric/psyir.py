@@ -102,9 +102,8 @@ for info in GENERIC_SCALAR_DATATYPES:
         "        super({0}DataSymbol, self).__init__(\n"
         "            name, {0}DataType(precision=precision),\n"
         "            interface=interface)\n"
-        "    def set_properties(self, other_symbol):\n"
-        "        # *** Update reference to DataType ***\n"
-        "        pass\n"
+        "    def _specialise_remote_symbol(self, other_symbol):\n"
+        "        other_symbol.datatype.__class__ = self.datatype.__class__\n"
         "".format(NAME))
 
 
@@ -176,8 +175,8 @@ for info in SPECIFIC_SCALAR_DATATYPES:
         "{3}\n"
         "        super({0}DataSymbol, self).__init__(\n"
         "            name, interface=interface)\n"
-        "    def set_properties(self, other_symbol):\n"
-        "        pass\n"
+        "    def _specialise_remote_symbol(self, other_symbol):\n"
+        "        other_symbol.datatype.__class__ = self.datatype.__class__\n"
         "{4}\n"
         "".format(NAME, TYPE, ", ".join(ARGS), "\n".join(VARS),
                   "\n".join(RVARS)))
@@ -288,8 +287,8 @@ for array_type in ARRAY_DATATYPES + FIELD_DATATYPES:
         "{2}\n"
         "        super({0}DataSymbol, self).__init__(\n"
         "            name, {0}DataType(dims), interface=interface)\n"
-        "    def set_properties(self, other_symbol):\n"
-        "        pass\n"
+        "    def _specialise_remote_symbol(self, other_symbol):\n"
+        "        other_symbol.datatype.__class__ = self.datatype.__class__\n"
         "{3}\n"
         "".format(NAME, ", ".join(ARGS), "\n".join(VARS),
                   "\n".join(RVARS)))

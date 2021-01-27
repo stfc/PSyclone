@@ -314,14 +314,16 @@ class DataSymbol(Symbol):
             raise InternalError("Not a subclass")
 
         # Check that other_symbol implements a set_properties method
-        if not (hasattr(other_symbol, "set_properties") and \
-                ismethod(other_symbol.set_properties)):
+        if not (hasattr(other_symbol, "_specialise_remote_symbol") and \
+                ismethod(other_symbol._specialise_remote_symbol)):
             raise InternalError(
-                "No set_properties method implemented in class '{0}'"
-                "".format(other_symbol.__class__.__name__))
+                "No _specialise_remote_symbol method implemented in class "
+                "'{0}'".format(other_symbol.__class__.__name__))
         
         # Make self an instance of the subclass
         self.__class__ = other_symbol.__class__
 
-        # update self with the additional properties specified by the subclass
-        other_symbol.set_properties(self)
+        # update self with any additional properties specified by the
+        # subclass. Defer to the subclass for this information as it
+        # knows what additional properties it has.
+        other_symbol._specialise_remote_properties(self)
