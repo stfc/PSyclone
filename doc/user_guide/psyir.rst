@@ -461,18 +461,23 @@ PSyclone ``examples/psyir`` directory.
 Modifying the PSyIR
 ===================
 
-Once we have a complete PSyIR AST created, the PSyIR also provides methods to
-modify the tree in a consistent way (e.g. without breaking its many internal
-references). Some complete examples of modifying the PSyIR can be found in the
+Once we have a complete PSyIR AST there are 2 ways to modify its contents
+and/or structure: by applying transformations (see next section
+:ref:`transformations`), or by direct PSyIR API methods. This section
+describes some of the methods that the PSyIR classes provide to
+modify the PSyIR AST in a consistent way (e.g. without breaking its many
+internal references). Some complete examples of modifying the PSyIR can be found in the
 PSyclone ``examples/psyir/modify.py`` script.
-Below there are examples of possible PSyIR modifications:
+
+The rest of this section introduces examples of the available direct PSyIR
+modification methods.
 
 Renaming symbols
 -----------------
 The symbol table provides the method ``rename_symbol()`` that given a symbol
-and a unused name it will rename the symbol an affect all the references in
-the PSyIR tree to that symbol. For example, the PSyIR representing the
-following Fortran code:
+and an unused name will rename the symbol. The symbol renaming will affect
+all the references in the PSyIR AST to that symbol. For example, the PSyIR
+representing the following Fortran code:
 
 .. code-block:: fortran
 
@@ -481,14 +486,14 @@ following Fortran code:
         psyir_tmp=0.0
     end subroutine
 
-Could be modified by PSyIR statements:
+could be modified by the following PSyIR statements:
 
 .. code-block:: python
 
     symbol = symbol_table.lookup("psyir_tmp")
     symbol_table.rename_symbol(tmp_symbol, "new_variable")
 
-To obtain the representation for:
+which would result in the following Fortran output code:
 
 .. code-block:: fortran
 

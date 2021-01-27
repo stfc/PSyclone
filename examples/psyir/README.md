@@ -69,7 +69,7 @@ To run this example:
 
 Demonstrates how to manipulate an existing PSyIR tree. This example
 imports the PSyIR created in Example 1, applies some modifications
-to it and then generated the new modified output code. This example may
+to it and then outputs the modified PSyIR as Fortran code. This example may
 be run by doing:
 
 ```sh
