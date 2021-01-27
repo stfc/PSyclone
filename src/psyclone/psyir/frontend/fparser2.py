@@ -1114,8 +1114,14 @@ class Fparser2Reader(object):
                     dim_name = dim.items[1].string.lower()
                     try:
                         sym = symbol_table.lookup(dim_name)
-                        if isinstance(sym.datatype, (UnknownType,
-                                                     DeferredType)):
+                        # pylint: disable=unidiomatic-typecheck
+                        if type(sym) == Symbol:
+                            # TODO #935 convert this to a DataSymbol
+                            sym.__class__ = DataSymbol
+                            sym.__init__(sym.name, DeferredType(),
+                                         interface=sym.interface)
+                        elif isinstance(sym.datatype, (UnknownType,
+                                                       DeferredType)):
                             # Allow symbols of Unknown/DeferredType.
                             pass
                         elif not (isinstance(sym.datatype, ScalarType) and
@@ -1435,7 +1441,7 @@ class Fparser2Reader(object):
             base_type = ScalarType(data_name, precision)
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
             # This is a variable of derived type
-            type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
+            type_name = str(walk(type_spec, Fortran2003.Type_Name)[0]).lower()
             # Do we already have a Symbol for this derived type?
             type_symbol = _find_or_create_imported_symbol(parent, type_name)
             # pylint: disable=unidiomatic-typecheck
@@ -2844,8 +2850,8 @@ class Fparser2Reader(object):
         # appropriate Reference subclass.
         if isinstance(node.children[0], Fortran2003.Name):
             # Base of reference is a scalar entity.
-            sym = _find_or_create_imported_symbol(parent,
-                                                  node.children[0].string)
+            sym = _find_or_create_imported_symbol(
+                parent, node.children[0].string.lower())
             return StructureReference.create(sym, members=members,
                                              parent=parent)
 
@@ -2853,8 +2859,9 @@ class Fparser2Reader(object):
             # Base of reference is an array access. Lookup the corresponding
             # symbol.
             part_ref = node.children[0]
-            sym = _find_or_create_imported_symbol(parent,
-                                                  part_ref.children[0].string)
+            sym = _find_or_create_imported_symbol(
+                parent, part_ref.children[0].string.lower(),
+                symbol_type=DataSymbol, datatype=DeferredType())
             # Processing the array-index expressions requires access to the
             # symbol table so create a fake ArrayReference node.
             sched = parent.ancestor(Schedule, include_self=True)
