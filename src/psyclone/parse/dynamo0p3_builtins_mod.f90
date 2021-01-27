@@ -44,8 +44,12 @@
 !!         this file).
 module dynamo0p3_builtins_mod
 
+! ******************************************************************* !
+! ************** Built-ins for real-valued fields ******************* !
+! ******************************************************************* !
+
 ! ------------------------------------------------------------------- !
-! ============== Adding (scaled) fields ============================= !
+! ============== Adding (scaled) real fields ======================== !
 ! ------------------------------------------------------------------- !
 
   !> field3 = field1 + field2
@@ -144,7 +148,7 @@ module dynamo0p3_builtins_mod
   end type inc_aX_plus_bY
 
 ! ------------------------------------------------------------------- !
-! ============== Subtracting (scaled) fields ======================== !
+! ============== Subtracting (scaled) real fields =================== !
 ! ------------------------------------------------------------------- !
 
   !> field3 = field1 - field2
@@ -214,7 +218,7 @@ module dynamo0p3_builtins_mod
   end type inc_X_minus_bY
 
 ! ------------------------------------------------------------------- !
-! ============== Multiplying (scaled) fields ======================== !
+! ============== Multiplying (scaled) real fields =================== !
 ! ------------------------------------------------------------------- !
 
   !> field3 = field1*field2
@@ -256,7 +260,7 @@ module dynamo0p3_builtins_mod
   end type inc_aX_times_Y
 
 ! ------------------------------------------------------------------- !
-! ============== Scaling fields ===================================== !
+! ============== Scaling real fields ================================ !
 ! ------------------------------------------------------------------- !
 
   !> field2 = scalar*field1
@@ -285,7 +289,7 @@ module dynamo0p3_builtins_mod
   end type inc_a_times_X
 
 ! ------------------------------------------------------------------- !
-! ============== Dividing (scaled) fields =========================== !
+! ============== Dividing (scaled) real fields ====================== !
 ! ------------------------------------------------------------------- !
 
   !> field3 = field1/field2
@@ -314,7 +318,7 @@ module dynamo0p3_builtins_mod
   end type inc_X_divideby_Y
 
 ! ------------------------------------------------------------------- !
-! ============== Raising field to a scalar ========================== !
+! ============== Raising real field to a scalar ===================== !
 ! ------------------------------------------------------------------- !
 
   !> field =  field**rscalar (real scalar)
@@ -342,7 +346,7 @@ module dynamo0p3_builtins_mod
   end type inc_X_powint_n
 
 ! ------------------------------------------------------------------- !
-! ============== Setting field elements to a value  ================= !
+! ============== Setting real field elements to a value  ============ !
 ! ------------------------------------------------------------------- !
 
   !> field = scalar
@@ -370,7 +374,7 @@ module dynamo0p3_builtins_mod
   end type setval_X
 
 ! ------------------------------------------------------------------- !
-! ============== Inner product of fields ============================ !
+! ============== Inner product of real fields ======================= !
 ! ------------------------------------------------------------------- !
 
   !> innprod = innprod + field1(i,j,..)*field2(i,j,...)
@@ -399,7 +403,7 @@ module dynamo0p3_builtins_mod
   end type X_innerproduct_X
 
 ! ------------------------------------------------------------------- !
-! ============== Sum field elements ================================= !
+! ============== Sum real field elements ============================ !
 ! ------------------------------------------------------------------- !
   !> sumfld = SUM(field(:,:,...))
   type, public, extends(kernel_type) :: sum_X
@@ -413,9 +417,71 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: sum_X_code
   end type sum_X
 
+! ******************************************************************* !
+! ************** Built-ins for integer-valued fields **************** !
+! ******************************************************************* !
+
+! ------------------------------------------------------------------- !
+! ============== Adding (scaled) integer fields ===================== !
+! ------------------------------------------------------------------- !
+
+  !> field3 = field1 + field2
+  type, public, extends(kernel_type) :: int_X_plus_Y
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD, GH_INTEGER, GH_WRITE, ANY_SPACE_1),      &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_SPACE_1),      &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_SPACE_1)       &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_X_plus_Y_code
+  end type int_X_plus_Y
+
+  !> field1 = field1 + field2
+  type, public, extends(kernel_type) :: int_inc_X_plus_Y
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READWRITE, ANY_SPACE_1),  &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READ,      ANY_SPACE_1)   &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_inc_X_plus_Y_code
+  end type int_inc_X_plus_Y
+
+! ------------------------------------------------------------------- !
+! ============== Setting integer field elements to a value  ========= !
+! ------------------------------------------------------------------- !
+
+  !> field = scalar
+  type, public, extends(kernel_type) :: int_setval_c
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_SPACE_1),     &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ              )      &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_setval_c_code
+  end type int_setval_c
+
+  !> field2 = field1
+  type, public, extends(kernel_type) :: int_setval_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD, GH_INTEGER, GH_WRITE, ANY_SPACE_1),      &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_SPACE_1)       &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_setval_X_code
+  end type int_setval_X
+
 contains
 
-  ! Adding (scaled) fields
+  ! ***** Real-valued fields ***** !
+  ! Adding (scaled) real fields
   subroutine X_plus_Y_code()
   end subroutine X_plus_Y_code
 
@@ -437,7 +503,7 @@ contains
   subroutine inc_aX_plus_bY_code()
   end subroutine inc_aX_plus_bY_code
 
-  ! Subtracting (scaled) fields
+  ! Subtracting (scaled) real fields
   subroutine X_minus_Y_code()
   end subroutine X_minus_Y_code
 
@@ -453,7 +519,7 @@ contains
   subroutine inc_X_minus_bY_code()
   end subroutine inc_X_minus_bY_code
 
-  ! Multiplying (scaled) fields
+  ! Multiplying (scaled) real fields
   subroutine X_times_Y_code()
   end subroutine X_times_Y_code
 
@@ -463,43 +529,58 @@ contains
   subroutine inc_aX_times_Y_code()
   end subroutine inc_aX_times_Y_code
 
-  ! Multiplying fields by a scalar (scaling fields)
+  ! Multiplying real fields by a scalar (scaling fields)
   subroutine a_times_X_code()
   end subroutine a_times_X_code
 
   subroutine inc_a_times_X_code()
   end subroutine inc_a_times_X_code
 
-  ! Dividing (scaled) fields
+  ! Dividing (scaled) real fields
   subroutine X_divideby_Y_code()
   end subroutine X_divideby_Y_code
 
   subroutine inc_X_divideby_Y_code()
   end subroutine inc_X_divideby_Y_code
 
-  ! Raising field to a scalar
+  ! Raising real field to a scalar
   subroutine inc_X_powreal_a_code()
   end subroutine inc_X_powreal_a_code
 
   subroutine inc_X_powint_n_code()
   end subroutine inc_X_powint_n_code
 
-  ! Setting field elements to scalar or other field's values
+  ! Setting real field elements to scalar or other field's values
   subroutine setval_c_code()
   end subroutine setval_c_code
 
   subroutine setval_X_code()
   end subroutine setval_X_code
 
-  ! Inner product of fields
+  ! Inner product of real fields
   subroutine X_innerproduct_Y_code()
   end subroutine X_innerproduct_Y_code
 
   subroutine X_innerproduct_X_code()
   end subroutine X_innerproduct_X_code
 
-  ! Sum values of a field
+  ! Sum values of a real field
   subroutine sum_X_code()
   end subroutine sum_X_code
+
+  ! ***** Integer-valued fields ***** !
+  ! Adding (scaled) integer fields
+  subroutine int_X_plus_Y_code()
+  end subroutine int_X_plus_Y_code
+
+  subroutine int_inc_X_plus_Y_code()
+  end subroutine int_inc_X_plus_Y_code
+
+  ! Setting integer field elements to scalar or other field's values
+  subroutine int_setval_c_code()
+  end subroutine int_setval_c_code
+
+  subroutine int_setval_X_code()
+  end subroutine int_setval_X_code
 
 end module dynamo0p3_builtins_mod
