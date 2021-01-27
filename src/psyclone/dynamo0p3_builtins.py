@@ -43,6 +43,7 @@
 from __future__ import absolute_import
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
+from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.f2pygen import AssignGen
@@ -56,9 +57,13 @@ BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
 VALID_BUILTIN_ARG_TYPES = LFRicArgDescriptor.VALID_FIELD_NAMES + \
     LFRicArgDescriptor.VALID_SCALAR_NAMES
 
-# The data types of field arguments that are valid for built-in
-# kernels in the LFRic API (only "gh_real")
-VALID_BUILTIN_FIELD_DATA_TYPES = ["gh_real"]
+# The data types of field arguments that are valid for built-in kernels
+# in the LFRic API (also valid LFRicArgDescriptor field data types)
+VALID_BUILTIN_FIELD_DATA_TYPES = LFRicArgDescriptor.VALID_FIELD_DATA_TYPES
+
+# The data types of scalar arguments that are valid for built-in kernels
+# in the LFRic API (also valid LFRicArgDescriptor scalar data types)
+VALID_BUILTIN_SCALAR_DATA_TYPES = LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES
 
 # Valid LFRic iteration spaces for built-in kernels
 # TODO #870 rm 'dofs' from list below.
@@ -192,8 +197,10 @@ class DynBuiltIn(BuiltIn):
         :raises ParseError: if a built-in call does not iterate over DoFs.
         :raises ParseError: if an argument to a built-in kernel is not \
                             one of valid argument types.
-        :raises ParseError: if a field argument to a built-in kernel has \
-                            an invalid data type.
+        :raises InternalError: if a field argument to a built-in kernel has \
+                               an invalid data type.
+        :raises InternalError: if a scalar argument to a built-in kernel has \
+                               an invalid data type.
         :raises ParseError: if a built-in kernel writes to more than \
                             one argument.
         :raises ParseError: if a built-in kernel does not have at least \
@@ -212,6 +219,29 @@ class DynBuiltIn(BuiltIn):
         field_count = 0  # We must have one or more fields as arguments
         spaces = set()   # All field arguments must be on the same space
         for arg in self.arg_descriptors:
+            # Check valid argument types
+            if arg.argument_type not in VALID_BUILTIN_ARG_TYPES:
+                raise ParseError(
+                    "In the LFRic API an argument to a built-in kernel "
+                    "must be one of {0} but kernel '{1}' has an argument of "
+                    "type '{2}'.".format(VALID_BUILTIN_ARG_TYPES, self.name,
+                                         arg.argument_type))
+            # Check valid data types (InternalError as the relevant ParseError
+            # is caught in LFRicArgDescriptor)
+            if (arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES and
+                    arg.data_type not in VALID_BUILTIN_FIELD_DATA_TYPES):
+                raise InternalError(
+                    "Found an unsupported data type '{0}' for a field "
+                    "argument in kernel '{1}'. Supported data types are {2}.".
+                    format(arg.data_type, self.name,
+                           VALID_BUILTIN_FIELD_DATA_TYPES))
+            if (arg.argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES and
+                    arg.data_type not in VALID_BUILTIN_SCALAR_DATA_TYPES):
+                raise InternalError(
+                    "Found an unsupported data type '{0}' for a scalar "
+                    "argument in kernel '{1}'. Supported data types are {2}.".
+                    format(arg.data_type, self.name,
+                           VALID_BUILTIN_SCALAR_DATA_TYPES))
             # Built-ins update fields DoF by DoF and therefore can have
             # WRITE/READWRITE access
             if arg.access in [AccessType.WRITE, AccessType.SUM,
@@ -220,20 +250,7 @@ class DynBuiltIn(BuiltIn):
             if arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
                 field_count += 1
                 spaces.add(arg.function_space)
-            if arg.argument_type not in VALID_BUILTIN_ARG_TYPES:
-                raise ParseError(
-                    "In the LFRic API an argument to a built-in kernel "
-                    "must be one of {0} but kernel '{1}' has an argument of "
-                    "type '{2}'.".format(VALID_BUILTIN_ARG_TYPES, self.name,
-                                         arg.argument_type))
-            if (arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES and
-                    arg.data_type not in VALID_BUILTIN_FIELD_DATA_TYPES):
-                raise ParseError(
-                    "In the LFRic API a field argument to a built-in kernel "
-                    "must have one of {0} as data type but kernel '{1}' has "
-                    "a field argument with data type '{2}'.".
-                    format(VALID_BUILTIN_FIELD_DATA_TYPES, self.name,
-                           arg.data_type))
+
         if write_count != 1:
             raise ParseError("A built-in kernel in the LFRic API must "
                              "have one and only one argument that is written "

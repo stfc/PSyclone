@@ -47,7 +47,7 @@ import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.configuration import Config
 from psyclone import dynamo0p3_builtins
 
@@ -271,30 +271,46 @@ def test_builtin_args_not_same_space():
             format(test_builtin_name.lower()) in str(excinfo.value))
 
 
-def test_builtin_integer_field_arg(monkeypatch):
+def test_builtin_invalid_field_data_type(monkeypatch):
     ''' Check that we raise appropriate error if we encounter a built-in
-    that takes a invalid field data type (here integer field). '''
+    that takes an invalid field data type (here "gh_double" field). '''
     from psyclone.dynamo0p3_builtins import VALID_BUILTIN_FIELD_DATA_TYPES
-    # Change the builtin-definitions file to point to one that has
-    # various invalid definitions
-    # Define the built-in name and test file
-    test_builtin_name = "X_minus_bY"
-    test_builtin_file = "15.2.4_" + test_builtin_name + "_builtin.f90"
-    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
-                        value=os.path.join(BASE_PATH,
-                                           "invalid_builtins_mod.f90"))
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     test_builtin_file),
-        api=API)
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory(API,
-                       distributed_memory=False).create(invoke_info)
-    assert ("In the LFRic API a field argument to a built-in kernel must "
-            "have one of {0} as data type but kernel '{1}' has a field "
-            "argument with data type 'gh_integer'.".
-            format(VALID_BUILTIN_FIELD_DATA_TYPES, test_builtin_name.lower())
-            in str(excinfo.value))
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.2.1_X_minus_Y_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API,
+                     distributed_memory=False).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    fld_arg = kern.arguments.args[0]
+    # Sabotage the field argument to make it have an invalid data type
+    fld_arg.descriptor._data_type = "gh_double"
+    with pytest.raises(InternalError) as excinfo:
+        dynamo0p3_builtins.DynXMinusYKern._validate(kern)
+    assert ("Found an unsupported data type 'gh_double' for a field "
+            "argument in kernel 'x_minus_y'. Supported data types are {0}".
+            format(VALID_BUILTIN_FIELD_DATA_TYPES) in str(excinfo.value))
+
+
+def test_builtin_invalid_scalar_data_type(monkeypatch):
+    ''' Check that we raise appropriate error if we encounter a built-in
+    that takes an invalid scalar data type (here "gh_float" scalar). '''
+    from psyclone.dynamo0p3_builtins import VALID_BUILTIN_SCALAR_DATA_TYPES
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.4.2_inc_a_times_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API,
+                     distributed_memory=False).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    scal_arg = kern.arguments.args[0]
+    # Sabotage the scalar argument to make it have an invalid data type
+    scal_arg.descriptor._data_type = "gh_float"
+    with pytest.raises(InternalError) as excinfo:
+        dynamo0p3_builtins.DynATimesXKern._validate(kern)
+    assert ("Found an unsupported data type 'gh_float' for a scalar argument "
+            "in kernel 'inc_a_times_x'. Supported data types are {0}".
+            format(VALID_BUILTIN_SCALAR_DATA_TYPES) in str(excinfo.value))
 
 
 def test_dynbuiltincallfactory_str():
