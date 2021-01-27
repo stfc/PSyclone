@@ -304,7 +304,6 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
     gen_code = str(psy.gen)
-    print(gen_code)
     expected = (
         "      END DO\n"
         "      !\n")
@@ -321,6 +320,9 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
         "ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
-        assert "CALL f1_proxy%set_dirty()\n" in gen_code
+        assert ("      ! Set halos dirty/clean for fields modified in the "
+                "above kernel\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)

@@ -138,8 +138,9 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
 
 
 # Valid LFRic loop types. The default is "" which is over cells (in the
-# horizontal plane).
-VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
+# horizontal plane). A "null" loop doesn't iterate over anything but is
+# required for the halo-exchange logic.
+VALID_LOOP_TYPES = ["dofs", "colours", "colour", "", "null"]
 
 # Valid LFRic iteration spaces for user-supplied kernels and built-in kernels
 # TODO #870 rm 'cells' from list below.
@@ -6328,13 +6329,6 @@ class HaloReadAccess(HaloDepth):
         call = halo_check_arg(field, AccessType.all_read_accesses())
 
         loop = call.ancestor(DynLoop)
-        if not loop:
-            # A Kernel call without a parent loop must be operating on
-            # the whole domain. Stencil accesses are not permitted for
-            # such kernels and all arguments must be on discontinuous
-            # function spaces so they have write rather than inc access.
-            self._needs_clean_outer = True
-            return
 
         # For GH_INC we accumulate contributions into the field being
         # modified. In order to get correct results for owned and
@@ -6462,17 +6456,20 @@ class DynLoop(Loop):
         elif self.loop_type == "dofs":
             tag = "dof_loop_idx"
             suggested_name = "df"
+        elif self.loop_type == "null":
+            tag = ""
         else:
             tag = "cell_loop_idx"
             suggested_name = "cell"
 
-        symtab = self.scope.symbol_table
-        try:
-            self.variable = symtab.lookup_with_tag(tag)
-        except KeyError:
-            self.variable = symtab.new_symbol(
-                suggested_name, tag, symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE)
+        if tag:
+            symtab = self.scope.symbol_table
+            try:
+                self.variable = symtab.lookup_with_tag(tag)
+            except KeyError:
+                self.variable = symtab.new_symbol(
+                    suggested_name, tag, symbol_type=DataSymbol,
+                    datatype=INTEGER_TYPE)
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
@@ -6501,6 +6498,9 @@ class DynLoop(Loop):
         :rtype: str
 
         '''
+        if self._loop_type == "null":
+            return "{0}[type='null']".format(self.coloured_name(colour))
+
         if self._upper_bound_halo_depth:
             upper_bound = "{0}({1})".format(self._upper_bound_name,
                                             self._upper_bound_halo_depth)
@@ -6645,6 +6645,9 @@ class DynLoop(Loop):
                                  for sequential code.
         :raises GenerationError: if self._lower_bound_name is unrecognised.
         '''
+        if self._loop_type == "null":
+            return ""
+
         if not Config.get().distributed_memory and \
            self._lower_bound_name != "start":
             raise GenerationError(
@@ -6680,9 +6683,12 @@ class DynLoop(Loop):
         ''' Create the associated fortran code for the type of upper bound
 
         :return: Fortran code for the upper bound of this loop
-        :rtype: String
+        :rtype: str
 
         '''
+        if self._loop_type == "null":
+            return ""
+
         # precompute halo_index as a string as we use it in more than
         # one of the if clauses
         halo_index = ""
@@ -7032,16 +7038,22 @@ class DynLoop(Loop):
                                   "colours within an OpenMP "
                                   "parallel region.")
 
-        # Generate the upper and lower loop bounds
-        # TODO: Issue #440. upper/lower_bound_fortran should generate PSyIR
-        # TODO: Issue #696. Add kind (precision) when the support in Literal
-        #                   class is implemented.
-        self.start_expr = Literal(self._lower_bound_fortran(),
-                                  INTEGER_TYPE, parent=self)
-        self.stop_expr = Literal(self._upper_bound_fortran(),
-                                 INTEGER_TYPE, parent=self)
+        if self._loop_type != "null":
+            # Generate the upper and lower loop bounds
+            # TODO: Issue #440. upper/lower_bound_fortran should generate PSyIR
+            # TODO: Issue #696. Add kind (precision) when the support in the
+            #                   Literal class is implemented.
+            self.start_expr = Literal(self._lower_bound_fortran(),
+                                      INTEGER_TYPE, parent=self)
+            self.stop_expr = Literal(self._upper_bound_fortran(),
+                                     INTEGER_TYPE, parent=self)
 
-        Loop.gen_code(self, parent)
+            super(DynLoop, self).gen_code(parent)
+        else:
+            # This is a 'null' loop and therefore we do not actually generate
+            # a loop - we go on down to the children instead.
+            for child in self.loop_body.children:
+                child.gen_code(parent)
 
         if Config.get().distributed_memory and self._loop_type != "colour":
 
@@ -7050,9 +7062,14 @@ class DynLoop(Loop):
 
             if fields:
                 parent.add(CommentGen(parent, ""))
-                parent.add(CommentGen(parent,
-                                      " Set halos dirty/clean for fields "
-                                      "modified in the above loop"))
+                if self._loop_type != "null":
+                    parent.add(CommentGen(parent,
+                                          " Set halos dirty/clean for fields "
+                                          "modified in the above loop"))
+                else:
+                    parent.add(CommentGen(parent,
+                                          " Set halos dirty/clean for fields "
+                                          "modified in the above kernel"))
                 parent.add(CommentGen(parent, ""))
                 from psyclone.psyGen import OMPParallelDoDirective
                 use_omp_master = False
@@ -8766,25 +8783,25 @@ class DynKernCallFactory(object):
         :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
-        # The kernel itself
-        kern = DynKern()
-
         if call.ktype.iterates_over == "domain":
-            # Kernel operates on whole domain so there is no loop
-            kern.load(call, parent=parent)
-            return kern
+            # Kernel operates on whole domain so there is no loop.
+            # We still need a loop object though as that is where the logic
+            # for handling halo exchanges is currently implemented.
+            cloop = DynLoop(parent=parent, loop_type="null")
         else:
             # Loop over cells
             cloop = DynLoop(parent=parent)
 
-            kern.load(call, cloop.loop_body)
+        # The kernel itself
+        kern = DynKern()
+        kern.load(call, cloop.loop_body)
 
-            # Add the kernel as a child of the loop
-            cloop.loop_body.addchild(kern)
+        # Add the kernel as a child of the loop
+        cloop.loop_body.addchild(kern)
 
-            # Set-up the loop now we have the kernel object
-            cloop.load(kern)
-            return cloop
+        # Set-up the loop now we have the kernel object
+        cloop.load(kern)
+        return cloop
 
 
 class DynACCEnterDataDirective(ACCEnterDataDirective):
