@@ -451,36 +451,6 @@ constant_value argument will be passed to the DataSymbol constructor.
 An example of using the ``new_symbol()`` method can be found in the
 PSyclone ``examples/psyir`` directory.
 
-Creating the PSyIR to represent a complicated access of a member of a
-structure is best performed using the ``create()`` method of the
-appropriate ``Reference`` subclass. For a relatively straightforward
-access such as (the Fortran) ``field1%region%nx``, this would be:
-
-.. code-block:: python
-
-  from psyclone.psyir.nodes import StructureReference
-  fld_sym = symbol_table.lookup("field1")
-  ref = StructureReference.create(fld_sym, ["region", "nx"])
-
-where ``symbol_table`` is assumed to be a pre-populated Symbol Table
-containing an entry for "field1".
-
-A more complicated access involving arrays of structures such as
-``field1%sub_grids(idx, 1)%nx`` would be constructed as:
-
-.. code-block:: python
-
-  from psyclone.psyir.symbols import INTEGER_TYPE
-  from psyclone.psyir.nodes import StructureReference, Reference, Literal
-  idx_sym = symbol_table.lookup("idx")
-  fld_sym = symbol_table.lookup("field1")
-  ref = StructureReference.create(fld_sym,
-      [("sub_grids", [Reference(idx_sym), Literal("1", INTEGER_TYPE)]),
-       "nx"])
-
-Note that the list of quantities passed to the ``create()`` method now
-contains a 2-tuple in order to describe the array access.
-
 Nodes
 -----
 
@@ -515,8 +485,38 @@ above example then becomes:
     reference = Reference(symbol)
     assignment = Assignment.create(reference, literal)
 
-More complete examples of using this approach can be found in the
-PSyclone ``examples/psyir`` directory.
+Creating the PSyIR to represent a complicated access of a member of a
+structure is best performed using the ``create()`` method of the
+appropriate ``Reference`` subclass. For a relatively straightforward
+access such as (the Fortran) ``field1%region%nx``, this would be:
+
+.. code-block:: python
+
+  from psyclone.psyir.nodes import StructureReference
+  fld_sym = symbol_table.lookup("field1")
+  ref = StructureReference.create(fld_sym, ["region", "nx"])
+
+where ``symbol_table`` is assumed to be a pre-populated Symbol Table
+containing an entry for "field1".
+
+A more complicated access involving arrays of structures such as
+``field1%sub_grids(idx, 1)%nx`` would be constructed as:
+
+.. code-block:: python
+
+  from psyclone.psyir.symbols import INTEGER_TYPE
+  from psyclone.psyir.nodes import StructureReference, Reference, Literal
+  idx_sym = symbol_table.lookup("idx")
+  fld_sym = symbol_table.lookup("field1")
+  ref = StructureReference.create(fld_sym,
+      [("sub_grids", [Reference(idx_sym), Literal("1", INTEGER_TYPE)]),
+       "nx"])
+
+Note that the list of quantities passed to the ``create()`` method now
+contains a 2-tuple in order to describe the array access.
+
+More examples of using this approach can be found in the PSyclone
+``examples/psyir`` directory.
 
 
 Modifying the PSyIR
