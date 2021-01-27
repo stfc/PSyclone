@@ -80,9 +80,9 @@ class StructureMember(Member):
         return smem
 
     def __str__(self):
-        result = super(StructureMember, self).__str__() + "\n"
-        if self._children[0]:
-            result += str(self._children[0]) + "\n"
+        result = super(StructureMember, self).__str__()
+        if self._children:
+            result += "\n" + str(self._children[0])
         return result
 
     @staticmethod
