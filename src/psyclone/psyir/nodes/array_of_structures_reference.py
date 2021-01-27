@@ -38,15 +38,13 @@
 node. '''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir import symbols
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.array_of_structures_mixin import \
+    ArrayOfStructuresMixin
 
 
-class ArrayOfStructuresReference(StructureReference, ArrayMixin):
+class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
     '''
     Node representing an access to a member of one or more elements of an
     array of structures. Since this access is to a member of the
@@ -59,22 +57,7 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
     _text_name = "ArrayOfStructuresReference"
 
     @staticmethod
-    def _validate_child(position, child):
-        '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        if position == 0:
-            return isinstance(child, Member)
-        return isinstance(child, (DataNode, Range))
-
-    @staticmethod
-    def create(symbol, indices=None, members=None, parent=None):
+    def create(symbol, indices, members, parent=None):
         '''
         Create a reference to a member of one or more elements of an array of
         structures.
@@ -120,10 +103,10 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
                     symbol.name, symbol.datatype))
         if not isinstance(indices, list) or not indices:
             raise TypeError(
-                "The 'children' argument to  ArrayOfStructuresReference."
-                "create() must be a list containing at least one array-index "
-                "expression but this is missing for symbol '{0}'".format(
-                    symbol.name))
+                "The 'indices' argument to "
+                "ArrayOfStructuresReference.create() must be a list "
+                "containing at least one array-index expression but this is "
+                "missing for symbol '{0}'".format(symbol.name))
 
         # First use the StructureReference _create class method to create a
         # reference to the base structure of the array.

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,10 +46,11 @@ from psyclone.configuration import Config
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import GOConstLoopBoundsTrans, \
+from psyclone.transformations import ACCKernelsTrans, GOConstLoopBoundsTrans, \
     LoopFuseTrans, GOLoopSwapTrans, OMPParallelTrans, \
     GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, KernelModuleInlineTrans, \
-    GOceanLoopFuseTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
+    GOceanLoopFuseTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, \
+    OCLTrans, OMPLoopTrans
 from psyclone.tests.gocean1p0_build import GOcean1p0Build, GOcean1p0OpenCLBuild
 from psyclone.tests.utilities import count_lines, get_invoke, Compile
 
@@ -853,7 +854,6 @@ def test_omp_loop_applied_to_non_loop():
                            dist_mem=False)
     schedule = invoke.schedule
 
-    from psyclone.transformations import OMPLoopTrans
     ompl = OMPLoopTrans()
     omp_schedule, _ = ompl.apply(schedule.children[0])
 
@@ -1389,15 +1389,15 @@ def test_loop_swap_correct(tmpdir):
     # First make sure to throw an early error if the source file
     # test27_loop_swap.f90 should have been changed
     expected = (
-        r".*Loop\[id:'', variable:'j'.*"
-        r".*Loop\[id:'', variable:'i'.*"
-        r".*kern call: bc_ssh_code.*"
-        r".*Loop\[id:'', variable:'j'.*"
-        r".*Loop\[id:'', variable:'i'.*"
-        r".*kern call: bc_solid_u_code .*"
-        r".*Loop\[id:'', variable:'j'.*"
-        r".*Loop\[id:'', variable:'i'.*"
-        r".*kern call: bc_solid_v_code.*")
+        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[id:'', variable:'i'.*?"
+        r"kern call: bc_ssh_code.*?"
+        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[id:'', variable:'i'.*?"
+        r"kern call: bc_solid_u_code .*?"
+        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[id:'', variable:'i'.*?"
+        r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))
 
@@ -1408,15 +1408,15 @@ def test_loop_swap_correct(tmpdir):
     schedule_str = str(swapped1)
 
     expected = (
-        r".*Loop\[id:'', variable:'i'.*"
-        r".*Loop\[id:'', variable:'j'.*"
-        r".*kern call: bc_ssh_code.*"
-        r".*Loop\[id:'', variable:'j'.*"
-        r".*Loop\[id:'', variable:'i'.*"
-        r".*kern call: bc_solid_u_code .*"
-        r".*Loop\[id:'', variable:'j'.*"
-        r".*Loop\[id:'', variable:'i'.*"
-        r".*kern call: bc_solid_v_code.*")
+        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[id:'', variable:'j'.*?"
+        r"kern call: bc_ssh_code.*?"
+        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[id:'', variable:'i'.*?"
+        r"kern call: bc_solid_u_code .*?"
+        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[id:'', variable:'i'.*?"
+        r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))
 
@@ -1426,15 +1426,15 @@ def test_loop_swap_correct(tmpdir):
     schedule_str = str(swapped2)
 
     expected = (
-        r".*Loop\[id:'', variable:'i'.*"
-        r".*Loop\[id:'', variable:'j'.*"
-        r".*kern call: bc_ssh_code.*"
-        r".*Loop\[id:'', variable:'i'.*"
-        r".*Loop\[id:'', variable:'j'.*"
-        r".*kern call: bc_solid_u_code .*"
-        r".*Loop\[id:'', variable:'j'.*"
-        r".*Loop\[id:'', variable:'i'.*"
-        r".*kern call: bc_solid_v_code.*")
+        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[id:'', variable:'j'.*?"
+        r"kern call: bc_ssh_code.*?"
+        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[id:'', variable:'j'.*?"
+        r"kern call: bc_solid_u_code .*?"
+        r"Loop\[id:'', variable:'j'.*?"
+        r"Loop\[id:'', variable:'i'.*?"
+        r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))
 
@@ -1444,15 +1444,15 @@ def test_loop_swap_correct(tmpdir):
     schedule_str = str(swapped3)
 
     expected = (
-        r".*Loop\[id:'', variable:'i'.*"
-        r".*Loop\[id:'', variable:'j'.*"
-        r".*kern call: bc_ssh_code.*"
-        r".*Loop\[id:'', variable:'i'.*"
-        r".*Loop\[id:'', variable:'j'.*"
-        r".*kern call: bc_solid_u_code .*"
-        r".*Loop\[id:'', variable:'i'.*"
-        r".*Loop\[id:'', variable:'j'.*"
-        r".*kern call: bc_solid_v_code.*")
+        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[id:'', variable:'j'.*?"
+        r"kern call: bc_ssh_code.*?"
+        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[id:'', variable:'j'.*?"
+        r"kern call: bc_solid_u_code .*?"
+        r"Loop\[id:'', variable:'i'.*?"
+        r"Loop\[id:'', variable:'j'.*?"
+        r"kern call: bc_solid_v_code")
 
     assert re.search(expected, schedule_str.replace("\n", " "))
 
@@ -1524,7 +1524,6 @@ def test_go_loop_swap_errors():
 
 def test_ocl_apply(kernel_outputdir):
     ''' Check that OCLTrans generates correct code '''
-    from psyclone.transformations import OCLTrans
     psy, invoke = get_invoke("test11_different_iterates_over_"
                              "one_invoke.f90", API, idx=0, dist_mem=False)
     schedule = invoke.schedule
@@ -1973,7 +1972,6 @@ def test_acc_loop_view(capsys):
 def test_acc_kernels_error():
     ''' Check that we refuse to allow the kernels transformation
     for this API. '''
-    from psyclone.transformations import ACCKernelsTrans
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                            name="invoke_0", dist_mem=False)
     schedule = invoke.schedule

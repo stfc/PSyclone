@@ -40,7 +40,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir import nodes
 from psyclone.psyir import symbols
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
 
@@ -107,7 +107,7 @@ def test_sm_can_be_printed():
                                                parent=assignment)
     structure_member_ref = grid_ref.children[0]
     assert ("StructureMember[name:'area']\n"
-            "Member[name:'nx']\n" in str(structure_member_ref))
+            "Member[name:'nx']" in str(structure_member_ref))
 
 
 def test_sm_child_validate():
@@ -124,3 +124,22 @@ def test_sm_child_validate():
     with pytest.raises(GenerationError) as err:
         smr.addchild(None)
     assert "'NoneType' can't be child 1 of" in str(err.value)
+
+
+def test_sm_member_property():
+    ''' Check the member property of StructureMember. '''
+    kschedule = nodes.KernelSchedule("kname")
+    grid_var = create_structure_symbol(kschedule.symbol_table)
+    assignment = nodes.Assignment(parent=kschedule)
+    grid_ref = nodes.StructureReference.create(grid_var, ['area', 'nx'],
+                                               parent=assignment)
+    smem_ref = grid_ref.member
+    assert isinstance(smem_ref, nodes.StructureMember)
+    assert isinstance(smem_ref.member, nodes.Member)
+    assert smem_ref.member.name == "nx"
+    # Break the node's children to check the exception
+    smem_ref._children = ["wrong"]
+    with pytest.raises(InternalError) as err:
+        _ = smem_ref.member
+    assert ("StructureMember malformed or incomplete. The first child must "
+            "be an instance of Member, but found 'str'" in str(err.value))

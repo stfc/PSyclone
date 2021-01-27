@@ -1852,14 +1852,14 @@ class LFRicMeshProperties(DynCollection):
                     in self._kernel.reference_element.properties)
                 if not has_nfaces:
                     name = self._symbol_table.symbol_from_tag(
-                            "nfaces_re_h").name
+                        "nfaces_re_h").name
                     arg_list.append(name)
                     if var_accesses is not None:
                         var_accesses.add_access(name, AccessType.READ,
                                                 self._kernel)
 
                 adj_face = self._symbol_table.symbol_from_tag(
-                        "adjacent_face").name
+                    "adjacent_face").name
                 if var_accesses is not None:
                     var_accesses.add_access(adj_face, AccessType.READ,
                                             self._kernel, [1])
@@ -1947,7 +1947,7 @@ class LFRicMeshProperties(DynCollection):
         for prop in self._properties:
             if prop == MeshPropertiesMetaData.Property.ADJACENT_FACE:
                 adj_face = self._symbol_table.symbol_from_tag(
-                        "adjacent_face").name
+                    "adjacent_face").name
                 # 'nfaces_re_h' will have been declared by the
                 # DynReferenceElement class.
                 parent.add(
@@ -2541,74 +2541,6 @@ class DynDofmaps(DynCollection):
                                kind=api_config.default_kind["integer"],
                                intent="in", dimension=dim_name,
                                entity_decls=[dmap]))
-
-
-class DynOrientations(DynCollection):
-    '''
-    Handle the declaration of any orientation arrays. Orientation arrays
-    are initialised on a per-cell basis (within the loop over cells) and
-    this is therefore handled by the kernel-call generation.
-
-    '''
-    # We use a named-tuple to manage the storage of the various quantities
-    # that we require. This is neater and more robust than a dict.
-    Orientation = namedtuple("Orientation", ["name", "field",
-                                             "function_space"])
-
-    def __init__(self, node):
-        super(DynOrientations, self).__init__(node)
-
-        self._orients = []
-
-        # Loop over each kernel call and check whether orientation is required.
-        # If it is then we create an Orientation object for it and store in
-        # our internal list.
-        for call in self._calls:
-            for unique_fs in call.arguments.unique_fss:
-                if call.fs_descriptors.exists(unique_fs):
-                    fs_descriptor = call.fs_descriptors.get_descriptor(
-                        unique_fs)
-                    if fs_descriptor.requires_orientation:
-                        field = call.arguments.get_arg_on_space(unique_fs)
-                        oname = unique_fs.orientation_name
-                        self._orients.append(
-                            self.Orientation(oname, field, unique_fs))
-
-    def _stub_declarations(self, parent):
-        '''
-        Insert declarations for any orientation quantities into a Kernel stub.
-
-        :param parent: the f2pygen node representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("dynamo0.3")
-
-        for orient in self._orients:
-            ndf_name = orient.function_space.ndf_name
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", dimension=ndf_name,
-                               entity_decls=[orient.name]))
-
-    def _invoke_declarations(self, parent):
-        '''
-        Insert declarations for any orientation quantities into a PSy-layer
-        routine.
-
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("dynamo0.3")
-
-        declns = [orient.name+"(:) => null()" for orient in self._orients]
-        # Remove duplicate orientation pointers by using OrderedDict
-        declns = list(OrderedDict.fromkeys(declns))
-        if declns:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True, entity_decls=declns))
 
 
 class DynFunctionSpaces(DynCollection):
@@ -3470,7 +3402,7 @@ class DynCMAOperators(DynCollection):
             # First create a pointer to the array containing the actual
             # matrix
             cma_name = self._symbol_table.symbol_from_tag(
-                    op_name+"_matrix").name
+                op_name+"_matrix").name
             parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
                                  rhs=self._cma_ops[op_name]["arg"].
                                  proxy_name_indexed+"%columnwise_matrix"))
@@ -3519,7 +3451,7 @@ class DynCMAOperators(DynCollection):
         for op_name in self._cma_ops:
             # Declare the operator matrix itself
             cma_name = self._symbol_table.symbol_from_tag(
-                    op_name+"_matrix").name
+                op_name+"_matrix").name
             dtype = self._cma_ops[op_name]["datatype"]
             parent.add(DeclGen(parent, datatype=dtype,
                                kind=api_config.default_kind[dtype],
@@ -3823,7 +3755,7 @@ class DynMeshes(object):
                 parent.add(CommentGen(parent, ""))
                 # Look-up variable names for colourmap and number of colours
                 colour_map = self._schedule.symbol_table.symbol_from_tag(
-                        "cmap").name
+                    "cmap").name
                 ncolour = \
                     self._schedule.symbol_table.symbol_from_tag("ncolour").name
                 # Get the number of colours
@@ -4662,7 +4594,7 @@ class DynBasisFunctions(DynCollection):
                         entity_decls=decl_list))
             # Get the quadrature proxy
             proxy_name = symbol_table.symbol_from_tag(
-                    qr_arg_name+"_proxy").name
+                qr_arg_name+"_proxy").name
             parent.add(
                 AssignGen(parent, lhs=proxy_name,
                           rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
@@ -5002,9 +4934,6 @@ class DynInvoke(Invoke):
         # Information required by kernels that operate on cell-columns
         self.cell_iterators = DynCellIterators(self)
 
-        # Information on any orientation arrays required by this invoke
-        self.orientation = DynOrientations(self)
-
         # Information on the required properties of the reference element
         self.reference_element_properties = DynReferenceElement(self)
 
@@ -5179,7 +5108,7 @@ class DynInvoke(Invoke):
 
         # Declare all quantities required by this PSy routine (invoke)
         for entities in [self.scalar_args, self.fields, self.lma_ops,
-                         self.stencil, self.orientation, self.meshes,
+                         self.stencil, self.meshes,
                          self.function_spaces, self.dofmaps, self.cma_ops,
                          self.boundary_conditions, self.evaluators,
                          self.proxies, self.cell_iterators,
@@ -5213,7 +5142,7 @@ class DynInvoke(Invoke):
 
         for entities in [self.proxies, self.run_time_checks,
                          self.cell_iterators, self.meshes,
-                         self.stencil, self.orientation, self.dofmaps,
+                         self.stencil, self.dofmaps,
                          self.cma_ops, self.boundary_conditions,
                          self.function_spaces, self.evaluators,
                          self.reference_element_properties,
@@ -7368,7 +7297,7 @@ class DynKern(CodedKern):
             if qr_arg.varname:
                 tag = "AlgArgs_" + qr_arg.text
                 qr_name = self.root.symbol_table.symbol_from_tag(
-                        tag, qr_arg.varname).name
+                    tag, qr_arg.varname).name
             else:
                 # If we don't have a name then we must be doing kernel-stub
                 # generation so create a suitable name.
@@ -7552,14 +7481,7 @@ class DynKern(CodedKern):
         ''' Returns the names used by the Kernel that vary from one
         invocation to the next and therefore require privatisation
         when parallelised. '''
-        lvars = []
-        # Orientation maps
-        for unique_fs in self.arguments.unique_fss:
-            if self._fs_descriptors.exists(unique_fs):
-                fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
-                if fs_descriptor.requires_orientation:
-                    lvars.append(unique_fs.orientation_name)
-        return lvars
+        return []
 
     @property
     def base_name(self):
@@ -7612,8 +7534,8 @@ class DynKern(CodedKern):
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
                          DynCMAOperators, DynScalarArgs, DynFields,
                          DynLMAOperators, DynStencils, DynBasisFunctions,
-                         DynOrientations, DynBoundaryConditions,
-                         DynReferenceElement, LFRicMeshProperties]:
+                         DynBoundaryConditions, DynReferenceElement,
+                         LFRicMeshProperties]:
             entities(self).declarations(sub_stub)
 
         # Create the arglist
@@ -7708,24 +7630,6 @@ class DynKern(CodedKern):
             cell_index = "cell"
 
         parent.add(CommentGen(parent, ""))
-
-        # Orientation array lookup is done for each cell
-        oname = ""
-        for unique_fs in self.arguments.unique_fss:
-            if self._fs_descriptors.exists(unique_fs):
-                fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
-                if fs_descriptor.requires_orientation:
-                    field = self.arguments.get_arg_on_space(unique_fs)
-                    oname = unique_fs.orientation_name
-                    parent.add(
-                        AssignGen(parent, pointer=True,
-                                  lhs=oname,
-                                  rhs=field.proxy_name_indexed + "%" +
-                                  field.ref_name(unique_fs) +
-                                  "%get_cell_orientation(" +
-                                  cell_index + ")"))
-        if oname:
-            parent.add(CommentGen(parent, ""))
 
         super(DynKern, self).gen_code(parent)
 
@@ -7899,13 +7803,6 @@ class FSDescriptor(object):
         associated with this function space, otherwise it returns
         False. '''
         return "gh_diff_basis" in self._descriptor.operator_names
-
-    @property
-    def requires_orientation(self):
-        ''' Returns True if an orientation function is
-        associated with this function space, otherwise it returns
-        False. '''
-        return "gh_orientation" in self._descriptor.operator_names
 
     @property
     def fs_name(self):
@@ -8792,7 +8689,6 @@ __all__ = [
     'DynCollection',
     'DynStencils',
     'DynDofmaps',
-    'DynOrientations',
     'DynFunctionSpaces',
     'DynFields',
     'DynProxies',

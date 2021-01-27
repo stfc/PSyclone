@@ -74,8 +74,5 @@ def trans(psy):
 
     print("")
     print("FortranWriter code:")
-    # TODO #1010 and #363: The following lines need backend support for
-    # structures.
-    sys.exit(0)
     fvisitor = FortranWriter()
     print(fvisitor(psy.container))

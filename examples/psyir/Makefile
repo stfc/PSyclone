@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@ include ../common.mk
 
 transform:
 	${PYTHON} create.py
-	${PYTHON} create_aggregate_types.py
+	${PYTHON} create_structure_types.py
 
 all: transform
 

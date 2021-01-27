@@ -38,6 +38,7 @@
 
 from __future__ import absolute_import
 from psyclone.psyir.nodes.member import Member
+from psyclone.errors import InternalError
 
 
 class StructureMember(Member):
@@ -79,9 +80,9 @@ class StructureMember(Member):
         return smem
 
     def __str__(self):
-        result = super(StructureMember, self).__str__() + "\n"
-        if self._children[0]:
-            result += str(self._children[0]) + "\n"
+        result = super(StructureMember, self).__str__()
+        if self._children:
+            result += "\n" + str(self._children[0])
         return result
 
     @staticmethod
@@ -100,6 +101,22 @@ class StructureMember(Member):
             return isinstance(child, Member)
         # Only one child is permitted
         return False
+
+    @property
+    def member(self):
+        '''
+        :returns: the member of the structure that is being accessed.
+        :rtype: (sub-class of) :py:class:`psyclone.psyir.nodes.Member`
+
+        :raises InternalError: if the first child of this node is not an \
+                               instance of Member.
+        '''
+        if not isinstance(self.children[0], Member):
+            raise InternalError(
+                "{0} malformed or incomplete. The first child "
+                "must be an instance of Member, but found '{1}'".format(
+                    type(self).__name__, type(self.children[0]).__name__))
+        return self.children[0]
 
 
 # For Sphinx AutoAPI documentation generation
