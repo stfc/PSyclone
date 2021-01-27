@@ -296,11 +296,11 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
+def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
     ''' Check the generation of the PSy layer for an invoke consisting of a
     kernel with operates_on=domain and another with operates_on=cell_column.
     '''
-    _, info = parse(os.path.join(BASE_PATH, "25.1_multikern_domain.f90"),
+    _, info = parse(os.path.join(BASE_PATH, "25.1_2kern_domain.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
     gen_code = str(psy.gen)
@@ -324,5 +324,57 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
                 "above kernel\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n" in gen_code)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
+    ''' Check the generation of the PSy layer for an invoke consisting of
+    several kernels, two with operates_on=domain and another with
+    operates_on=cell_column.
+    '''
+    _, info = parse(os.path.join(BASE_PATH, "25.2_multikern_domain.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    gen_code = str(psy.gen)
+    print(gen_code)
+    expected = ("      !\n"
+                "      !\n"
+                "      CALL testkern_domain_code(nlayers, b, f1_proxy%data, "
+                "ndf_w3, undf_w3, map_w3)\n")
+    if dist_mem:
+        expected += ("      !\n"
+                     "      ! Set halos dirty/clean for fields modified in "
+                     "the above kernel\n"
+                     "      !\n"
+                     "      CALL f1_proxy%set_dirty()\n"
+                     "      !\n")
+    else:
+        expected += "      DO cell=1,f2_proxy%vspace%get_ncell()\n"
+    assert expected in gen_code
+
+    expected = (
+        "      END DO\n"
+        "      !\n")
+    if dist_mem:
+        expected += (
+            "      ! Set halos dirty/clean for fields modified in the above "
+            "loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !\n"
+            "      !\n")
+    expected += (
+        "      CALL testkern_domain_code(nlayers, c, f1_proxy%data, "
+        "ndf_w3, undf_w3, map_w3)\n")
+    assert expected in gen_code
+    if dist_mem:
+        assert ("      ! Set halos dirty/clean for fields modified in the "
+                "above kernel\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n"
+                "      !\n"
+                "    END SUBROUTINE invoke_0" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
