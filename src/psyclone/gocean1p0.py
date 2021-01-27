@@ -66,7 +66,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, Symbol, \
     ContainerSymbol, DeferredType, TypeSymbol, GlobalInterface, \
-    UnresolvedInterface
+    UnresolvedInterface, REAL_TYPE
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -1898,6 +1898,8 @@ class GOKernelArgument(KernelArgument):
 
         :raises InternalError: if this Argument type is not "field" or \
                                "scalar".
+        :raises InternalError: if this argument is scalar but its space is \
+                               not 'go_r_scalar' or 'go_i_scalar'.
 
         '''
         # All GOcean fields are r2d_type.
@@ -1909,9 +1911,15 @@ class GOKernelArgument(KernelArgument):
                 interface=UnresolvedInterface())
             return type_symbol
 
-        # All GOcean scalars are integers
+        # Gocean scalars can be REAL or INTEGER
         if self.argument_type == "scalar":
-            return INTEGER_TYPE
+            if self.space.lower() == "go_r_scalar":
+                return REAL_TYPE
+            if self.space.lower() == "go_i_scalar":
+                return INTEGER_TYPE
+            raise InternalError("GOcean expects scalar arguments to be in the"
+                                " 'go_r_scalar' or 'go_i_scalar' spaces, but "
+                                "found '{0}'.".format(self.space.lower()))
 
         raise InternalError("GOcean expects the Argument.argument_type() to be"
                             " 'field' or 'scalar', but found '{0}'."

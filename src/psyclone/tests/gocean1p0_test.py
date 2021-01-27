@@ -56,8 +56,9 @@ from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.psyir.symbols import SymbolTable, DeferredType, \
     ContainerSymbol, DataSymbol, GlobalInterface, REAL_TYPE, INTEGER_TYPE, \
-    ArgumentInterface
-from psyclone.psyir.nodes import Node
+    ArgumentInterface, TypeSymbol
+from psyclone.psyir.nodes import Node, StructureReference, Member, \
+    StructureMember, Reference
 from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
 API = "gocean1.0"
@@ -1722,6 +1723,117 @@ def test_gokernelarguments_append():
            " var1, var2)" in generated_code
 
 
+def test_gokernelargument_infere_datatype():
+    ''' Check the GOcean specialisation of the infere_datatype work for each
+    possible type of KernelArgument. '''
+
+    # Parse an invoke with a scalar float and a field
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+
+    # The first argument is a scalar Real
+    assert argument_list.args[0].infere_datatype() == REAL_TYPE
+
+    # The second argument is a r2d_type (imported TypeSymbol)
+    assert isinstance(argument_list.args[1].infere_datatype(), TypeSymbol)
+    assert argument_list.args[1].infere_datatype().name == "r2d_type"
+
+    # Parse an invoke with a scalar int and a field
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_int_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+
+    # The first argument is a scalar Integer
+    assert argument_list.args[0].infere_datatype() == INTEGER_TYPE
+
+    # The second argument is a r2d_type (imported TypeSymbol)
+    assert isinstance(argument_list.args[1].infere_datatype(), TypeSymbol)
+    assert argument_list.args[1].infere_datatype().name == "r2d_type"
+
+    # Test an incompatible Kernel Argument
+    argument_list.args[0]._arg._space = "incompatible"
+    with pytest.raises(InternalError) as excinfo:
+        _ = argument_list.args[0].infere_datatype()
+    assert ("GOcean expects scalar arguments to be in the 'go_r_scalar' or "
+            "'go_i_scalar' spaces, but found 'incompatible'."
+            in str(excinfo.value))
+
+    argument_list.args[0]._arg._argument_type = "incompatible"
+    with pytest.raises(InternalError) as excinfo:
+        _ = argument_list.args[0].infere_datatype()
+    assert ("GOcean expects the Argument.argument_type() to be 'field' or "
+            "'scalar', but found 'incompatible'." in str(excinfo.value))
+
+
+def test_gokernelargument_psyir_expression():
+    ''' Check the GOcean specialisation of psyir_expression returns the
+    expected expression for any GOKernelArgument and GOKernelGridArguments'''
+
+    # Parse an invoke with grid properties
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_grid_props.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+
+    # The first argument is a field
+    expr1 = argument_list.args[0].psyir_expression()
+    assert isinstance(expr1, StructureReference)
+    assert isinstance(expr1.member, Member)
+    assert expr1.member.name == "data"
+
+    # Third argument is a tmask grid property
+    expr2 = argument_list.args[2].psyir_expression()
+    assert isinstance(expr2, StructureReference)
+    assert isinstance(expr2.member, StructureMember)
+    assert isinstance(expr2.member.member, Member)
+    assert expr2.member.name == "grid"
+    assert expr2.member.member.name == "tmask"
+
+    # Parse an invoke with a scalar int and a field
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_int_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+
+    # The first argument is a scalar
+    expr3 = argument_list.args[0].psyir_expression()
+    assert isinstance(expr3, Reference)
+
+    # Test an incompatible Kernel Argument
+    argument_list.args[0]._arg._argument_type = "incompatible"
+    with pytest.raises(InternalError) as excinfo:
+        _ = argument_list.args[0].infere_datatype()
+    assert ("GOcean expects the Argument.argument_type() to be 'field' or "
+            "'scalar', but found 'incompatible'." in str(excinfo.value))
+
+
 def test_gokernelargument_type(monkeypatch):
     ''' Check the type property of the GOKernelArgument'''
 
@@ -1730,7 +1842,7 @@ def test_gokernelargument_type(monkeypatch):
     dummy_node.symbol_table = SymbolTable()
 
     # Create a dummy GOKernelArgument
-    descriptor = Descriptor(None, "")
+    descriptor = Descriptor(None, "go_r_scalar")
     arg = Arg("variable", "arg", "arg")
     argument = GOKernelArgument(descriptor, arg, dummy_node)
 
