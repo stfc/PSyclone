@@ -41,12 +41,22 @@
 from __future__ import absolute_import, print_function
 
 import pytest
+
+from fparser.common.readfortran import FortranStringReader
+
+from psyclone.domain.nemo.transformations import NemoLoopFuseTrans
+from psyclone.psyGen import PSyFactory
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Literal, Loop, Schedule, Return
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import LoopFuseTrans
 
+# Constants
+API = "nemo"
 
+
+# ----------------------------------------------------------------------------
 def test_fusetrans_error_incomplete():
     ''' Check that we reject attempts to fuse loops which are incomplete. '''
     sch = Schedule()
@@ -85,6 +95,7 @@ def test_fusetrans_error_incomplete():
     fuse.validate(loop1, loop2)
 
 
+# ----------------------------------------------------------------------------
 def test_fusetrans_error_not_same_parent():
     ''' Check that we reject attempts to fuse loops which don't share the
     same parent '''
@@ -113,3 +124,146 @@ def test_fusetrans_error_not_same_parent():
         fuse.validate(loop1, loop2)
     assert "Error in LoopFuse transformation. Loops do not have the " \
         "same parent" in str(err.value)
+
+
+# ----------------------------------------------------------------------------
+def fuse_loops(parser=None, fortran_code=None):
+    '''Helper function that fuses the first two nodes in the given
+    Fortran code, and returns the fused Fortran code as string.
+
+    :param string fortran_code: the Fortran code to loop fuse.
+
+    :returns: String representation of fused code.
+    :rtype: str
+
+    :raises TransformationError: if the loop fuse transformation cannot
+        be applied.
+    '''
+    reader = FortranStringReader(fortran_code)
+    ast = parser(reader)
+    psy = PSyFactory(API).create(ast)
+    schedule = psy.invokes.get("sub").schedule
+
+    loop1 = schedule.children[0]
+    loop2 = schedule.children[1]
+    fuse = NemoLoopFuseTrans()
+    fuse.apply(loop1, loop2)
+    writer = FortranWriter()
+    return writer(schedule), schedule
+
+
+# ----------------------------------------------------------------------------
+def test_fuse_ok(parser):
+    '''This tests verifies that the valid loop fuse statements work
+    as expected.
+    '''
+
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+    out, schedule = fuse_loops(parser, code)
+    expected = """do jj = 1, n, 1
+  do ji = 1, 10, 1
+    s(ji,jj)=t(ji,jj) + 1
+  enddo
+  do ji = 1, 10, 1
+    s(ji,jj)=t(ji,jj) + 1
+  enddo
+enddo"""
+    assert expected in out
+
+    # Then fuse the inner ji loops. In sched schedule
+    fuse = NemoLoopFuseTrans()
+    fuse.apply(schedule[0].loop_body[0],
+               schedule[0].loop_body[1])
+    writer = FortranWriter()
+
+    out = writer(schedule)
+
+    expected = """do jj = 1, n, 1
+  do ji = 1, 10, 1
+    s(ji,jj)=t(ji,jj) + 1
+    s(ji,jj)=t(ji,jj) + 1
+  enddo
+enddo"""
+    assert expected in out
+
+
+# ----------------------------------------------------------------------------
+def test_fuse_incorrect_bounds(parser):
+    '''
+    Test that loop boundaries must be identical.
+    '''
+    reader = FortranStringReader('''subroutine sub()
+                                 integer :: ji, jj, n
+                                 integer, dimension(10,10) :: s, t
+                                 do jj=1, n
+                                    do ji=1, 10
+                                       s(ji, jj)=t(ji, jj)+1
+                                    enddo
+                                 enddo
+                                 do jj=2, n
+                                    do ji=1, 10
+                                       s(ji, jj)=t(ji, jj)+1
+                                    enddo
+                                 enddo
+                                 end subroutine sub''')
+    ast = parser(reader)
+    psy = PSyFactory(API).create(ast)
+    schedule = psy.invokes.get("sub").schedule
+
+    loop1 = schedule.children[0]
+    loop2 = schedule.children[1]
+    fuse = NemoLoopFuseTrans()
+    fuse.apply(loop1, loop2)
+    writer = FortranWriter()
+    out = writer(schedule)
+    print(out)
+
+    reader = FortranStringReader('''subroutine sub()
+                                 integer :: ji, jj, n
+                                 integer, dimension(10,10) :: s, t
+                                 do jj=1, n+1
+                                    do ji=1, 10
+                                       s(ji, jj)=t(ji, jj)+1
+                                    enddo
+                                 enddo
+                                 do jj=1, n
+                                    do ji=1, 10
+                                       s(ji, jj)=t(ji, jj)+1
+                                    enddo
+                                 enddo
+                                 end subroutine sub''')
+
+
+# ----------------------------------------------------------------------------
+def test_fuse_dimension_change(parser):
+    '''Test that inconsistent use of dimemsions are detected, e.g.:
+    loop1:  a(i,j)
+    loop2:  a(j,i)
+    '''
+    reader = FortranStringReader('''subroutine sub()
+                                 integer :: ji, jj, n
+                                 integer, dimension(10,10) :: s, t
+                                 do jj=1, n+1
+                                    do ji=1, 10
+                                       s(ji, jj)=t(ji, jj)+1
+                                    enddo
+                                 enddo
+                                 do jj=1, n
+                                    do ji=1, 10
+                                       s(jj, ji)=t(ji, jj)+1
+                                    enddo
+                                 enddo
+                                 end subroutine sub''')
