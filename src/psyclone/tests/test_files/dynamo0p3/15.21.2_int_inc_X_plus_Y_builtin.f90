@@ -35,8 +35,8 @@
 
 program single_invoke
 
-  ! Description: single built-in operation (increment an integer field)
-  ! specified in an invoke call.
+  ! Description: single built-in operation (increment an integer-valued
+  ! field) specified in an invoke call.
   use integer_field_mod, only: integer_field_type
 
   implicit none
