@@ -42,7 +42,6 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 '''
 
 from __future__ import absolute_import
-import six
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
@@ -51,7 +50,7 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol, \
     TypeSymbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
-    Routine, Reference, Literal, DataNode, CodeBlock, Member, Range, Schedule
+    Routine, Reference, Literal, DataNode, CodeBlock, Member, Range
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.errors import InternalError
 
@@ -657,6 +656,9 @@ class FortranWriter(PSyIRVisitor):
         for symbol in symbol_table.local_typesymbols:
             declarations += self.gen_typedecl(symbol)
 
+        # 5: Accessibility statements for routine symbols
+        declarations += self.gen_routine_access_stmts(symbol_table)
+
         return declarations
 
     def container_node(self, node):
@@ -695,9 +697,6 @@ class FortranWriter(PSyIRVisitor):
         # not allow argument declarations.
         declarations = self.gen_decls(node.symbol_table, args_allowed=False)
 
-        # Accessibility statements for routine symbols
-        declarations += self.gen_routine_access_stmts(node.symbol_table)
-
         # Get the subroutine statements.
         subroutines = ""
         for child in node.children:
@@ -705,7 +704,6 @@ class FortranWriter(PSyIRVisitor):
 
         result += (
             "{1}\n"
-            "{0}implicit none\n"
             "{0}contains\n"
             "{2}\n"
             "".format(self._nindent, declarations, subroutines))
@@ -741,22 +739,16 @@ class FortranWriter(PSyIRVisitor):
             "".format(self._nindent, node.name, ",".join(args)))
 
         self._depth += 1
-
-        # The PSyIR has nested scopes but Fortran only supports declaring
-        # variables at the routine level scope. For this reason, at this
-        # point we have to unify all declarations and resolve possible name
-        # clashes that appear when merging the scopes.
-        whole_routine_scope = SymbolTable()
-        for schedule in node.walk(Schedule):
-            for symbol in schedule.symbol_table.symbols:
-                try:
-                    whole_routine_scope.add(symbol)
-                except KeyError as err:
-                    six.raise_from("Name clash", err)
-
-        # Generate declaration statements
-        declarations = self.gen_decls(whole_routine_scope)
-
+        # Declare the kernel data.
+        declarations = self.gen_decls(node.symbol_table)
+        # Fortran declares all variables found in the inner nested scopes
+        # at the Routine level. There can be name clashes as PSyIR supports
+        # nested scopes.
+        # TODO #1010: Nested scopes name clashes can be resolved here as a
+        # Fortran-specific feature, or in the lower_to_language_level for
+        # a more generic solution.
+        # for schedule in node.walk(Schedule):
+        #     declarations += self.gen_decls(schedule.symbol_table)
         # Get the executable statements.
         exec_statements = ""
         for child in node.children:

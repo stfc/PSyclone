@@ -755,7 +755,6 @@ def test_fw_container_1(fort_writer, monkeypatch):
     result = fort_writer(container)
     assert (
         "module test\n\n"
-        "  implicit none\n"
         "  contains\n\n"
         "end module test\n" in result)
 
@@ -778,7 +777,6 @@ def test_fw_container_2(fort_writer):
         "module test\n"
         "use test2_mod, only : a,b\n"
         "real :: c,d\n"
-        "implicit none\n"
         "contains\n"
         "subroutine tmp()\n"
         "end subroutine tmp\n"
@@ -795,7 +793,6 @@ def test_fw_container_2(fort_writer):
         "  real :: c\n"
         "  real :: d\n\n"
         "  public :: tmp\n\n"
-        "  implicit none\n"
         "  contains\n"
         "  subroutine tmp()\n\n\n"
         "  end subroutine tmp\n\n"
