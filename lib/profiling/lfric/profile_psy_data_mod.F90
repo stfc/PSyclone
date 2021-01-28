@@ -81,7 +81,7 @@ contains
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
-    character*(*) :: module_name, region_name
+    character(len=*) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
     if (.not. this%initialised) then
