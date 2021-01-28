@@ -1724,7 +1724,7 @@ def test_gokernelarguments_append():
 
 
 def test_gokernelargument_infer_datatype():
-    ''' Check the GOcean specialisation of the infer_datatype work for each
+    ''' Check the GOcean specialisation of the infer_datatype works for each
     possible type of KernelArgument. '''
 
     # Parse an invoke with a scalar float and a field
@@ -1769,15 +1769,15 @@ def test_gokernelargument_infer_datatype():
     argument_list.args[0]._arg._space = "incompatible"
     with pytest.raises(InternalError) as excinfo:
         _ = argument_list.args[0].infer_datatype()
-    assert ("GOcean expects scalar arguments to be in the 'go_r_scalar' or "
-            "'go_i_scalar' spaces, but found 'incompatible'."
+    assert ("GOcean expects scalar arguments to be of 'go_r_scalar' or "
+            "'go_i_scalar' type but found 'incompatible'."
             in str(excinfo.value))
 
     argument_list.args[0]._arg._argument_type = "incompatible"
     with pytest.raises(InternalError) as excinfo:
         _ = argument_list.args[0].infer_datatype()
     assert ("GOcean expects the Argument.argument_type() to be 'field' or "
-            "'scalar', but found 'incompatible'." in str(excinfo.value))
+            "'scalar' but found 'incompatible'." in str(excinfo.value))
 
 
 def test_gokernelargument_psyir_expression():
@@ -1831,7 +1831,7 @@ def test_gokernelargument_psyir_expression():
     with pytest.raises(InternalError) as excinfo:
         _ = argument_list.args[0].psyir_expression()
     assert ("GOcean expects the Argument.argument_type() to be 'field' or "
-            "'scalar', but found 'incompatible'." in str(excinfo.value))
+            "'scalar' but found 'incompatible'." in str(excinfo.value))
 
 
 def test_gokernelargument_type(monkeypatch):

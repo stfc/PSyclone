@@ -64,9 +64,8 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, Symbol, \
-    ContainerSymbol, DeferredType, TypeSymbol, GlobalInterface, \
-    UnresolvedInterface, REAL_TYPE
+    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
+    ContainerSymbol, DeferredType, TypeSymbol, UnresolvedInterface, REAL_TYPE
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -1887,7 +1886,7 @@ class GOKernelArgument(KernelArgument):
             return Reference(symbol)
 
         raise InternalError("GOcean expects the Argument.argument_type() to be"
-                            " 'field' or 'scalar', but found '{0}'."
+                            " 'field' or 'scalar' but found '{0}'."
                             "".format(self.argument_type))
 
     def infer_datatype(self):
@@ -1898,8 +1897,8 @@ class GOKernelArgument(KernelArgument):
 
         :raises InternalError: if this Argument type is not "field" or \
                                "scalar".
-        :raises InternalError: if this argument is scalar but its space is \
-                               not 'go_r_scalar' or 'go_i_scalar'.
+        :raises InternalError: if this argument is scalar but its space \
+                               property is not 'go_r_scalar' or 'go_i_scalar'.
 
         '''
         # All GOcean fields are r2d_type.
@@ -1917,12 +1916,12 @@ class GOKernelArgument(KernelArgument):
                 return REAL_TYPE
             if self.space.lower() == "go_i_scalar":
                 return INTEGER_TYPE
-            raise InternalError("GOcean expects scalar arguments to be in the"
-                                " 'go_r_scalar' or 'go_i_scalar' spaces, but "
+            raise InternalError("GOcean expects scalar arguments to be of"
+                                " 'go_r_scalar' or 'go_i_scalar' type but "
                                 "found '{0}'.".format(self.space.lower()))
 
         raise InternalError("GOcean expects the Argument.argument_type() to be"
-                            " 'field' or 'scalar', but found '{0}'."
+                            " 'field' or 'scalar' but found '{0}'."
                             "".format(self.argument_type))
 
     @property
@@ -1961,6 +1960,8 @@ class GOKernelGridArgument(Argument):
 
     :param arg: the meta-data entry describing the required grid property.
     :type arg: :py:class:`psyclone.gocean1p0.GO1p0Descriptor`
+    :param kernel_call: the kernel call node that this Argument belongs to.
+    :type kernel_call: :py:class:`psyclone.gocean1p0.GOKern`
 
     :raises GenerationError: if the grid property is not recognised.
 
@@ -2009,7 +2010,7 @@ class GOKernelGridArgument(Argument):
         # Get aggregate grid type accessors without the base name
         access = self.dereference(base_field).split('%')[1:]
 
-        # Contstruct the PSyIR reference
+        # Construct the PSyIR reference
         return StructureReference.create(symbol, access)
 
     def dereference(self, fld_name):

@@ -53,7 +53,7 @@ from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
     ArgumentInterface, DeferredType
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
-    Routine, PSyDataNode, Call, Reference
+    Routine, PSyDataNode, Call
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 
@@ -3702,12 +3702,13 @@ class Argument(object):
             self._text = None
         else:
             # There are unit-tests where we create Arguments without an
-            # associated call.
-            if self._call:
+            # associated call or InvokeSchedule.
+            if self._call and self._call.ancestor(InvokeSchedule):
+
+                symtab = self._call.ancestor(InvokeSchedule).symbol_table
 
                 # Keep original list of arguments
-                previous_arguments = \
-                        self._call.root.symbol_table.argument_list
+                previous_arguments = symtab.argument_list
 
                 # Find the tag to use
                 tag = "AlgArgs_" + self._text
@@ -3723,7 +3724,7 @@ class Argument(object):
                     argument_access = ArgumentInterface.Access.READWRITE
 
                 # Find the tag or create a new symbol with expected attributes
-                new_argument = self._call.root.symbol_table.symbol_from_tag(
+                new_argument = symtab.symbol_from_tag(
                     tag, root_name=self._orig_name, symbol_type=DataSymbol,
                     datatype=self.infer_datatype(),
                     interface=ArgumentInterface(argument_access))
@@ -3732,8 +3733,8 @@ class Argument(object):
                 # Unless the argument already exists with another interface
                 # (e.g. globals) they come from the invoke argument list
                 if isinstance(new_argument.interface, ArgumentInterface):
-                    self._call.root.symbol_table.specify_argument_list(
-                        previous_arguments + [new_argument])
+                    symtab.specify_argument_list(previous_arguments +
+                                                 [new_argument])
 
     @abc.abstractmethod
     def psyir_expression(self):
@@ -3741,15 +3742,12 @@ class Argument(object):
         :returns: the PSyIR expression represented by this Argument.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises NotImplementedError: this is an abstract method.
-
         '''
-        raise NotImplementedError("Abstract method. Implement in the API.")
 
     def infer_datatype(self):
         ''' Infer the datatype of this argument using the API rules. If no
         specialisation of this method has been provided make the type
-        DeferredType for now (it may be provided latter in the execution).
+        DeferredType for now (it may be provided later in the execution).
 
         :returns: the datatype of this argument.
         :rtype: :py:class::`psyclone.psyir.symbols.datatype`

@@ -51,7 +51,7 @@ import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
-    Literal, Node, Schedule, KernelSchedule, Call, Reference
+    Literal, Node, Schedule, KernelSchedule, Call
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
     GlobalInterface, ContainerSymbol, Symbol
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
@@ -1068,14 +1068,6 @@ def test_argument_infer_datatype():
     ''' Check that a generic argument inferred datatype is a DeferredType. '''
     arg = Argument(None, None, None)
     assert isinstance(arg.infer_datatype(), DeferredType)
-
-
-def test_argument_psyir_expression():
-    ''' Check that a generic argument can't provide a PSyIR expression '''
-    arg = Argument(None, None, None)
-    with pytest.raises(NotImplementedError) as err:
-        _ = arg.psyir_expression()
-    assert "Abstract method. Implement in the API." in str(err.value)
 
 
 def test_argument_depends_on():
