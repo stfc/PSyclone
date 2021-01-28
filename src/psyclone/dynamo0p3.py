@@ -7653,10 +7653,6 @@ class DynKern(CodedKern):
             # Get the PSyIR Kernel Schedule
             psyir_schedule = super(DynKern, self).get_kernel_schedule()
 
-            # Before transforming, check the validity of the kernel
-            # arguments
-            self.validate_kernel_code_args()
-
             # Replace generic PSyIR symbols with LFRic-specific
             # symbols where possible.
             self.psyir_to_lfric(psyir_schedule)
@@ -7667,10 +7663,17 @@ class DynKern(CodedKern):
 
     def psyir_to_lfric(self, psyir_schedule):
         '''Replace the PSyIR kernel argument symbols with the equivalent LFRic
-        symbols. This method assumes that the kernel symbols conform
-        to kernel metadata and LFRic API.
+        symbols. This method also validates that the kernel symbols conform
+        to the kernel metadata and LFRic API.
 
-        ******
+        :param psyir_schedule: a PSyIR representation of an LFRic kernel.
+        :type psyir_schedule: \
+            :py:class:`psyclone.psyir.nodes.kernel_schedule.KernelSchedule`
+
+        :raises GenerationError: if the number of arguments in the \
+            kernel does not match the number of arguments implied by \
+            the kernel metadata.
+
         '''
         # Get the kernel code arguments
         symbol_table = psyir_schedule.symbol_table
@@ -7682,8 +7685,18 @@ class DynKern(CodedKern):
         interface_info.generate()
         interface_args = interface_info.arglist
 
+        actual_n_args = len(kern_code_args)
+        expected_n_args = len(interface_args)
+        if actual_n_args != expected_n_args:
+            raise GenerationError(
+                "In kernel '{0}' the number of arguments indicated by the "
+                "kernel metadata is {1} but the actual number of kernel "
+                "arguments found is {2}.".format(
+                    self.name, expected_n_args, actual_n_args))
+
         for idx, kern_code_arg in enumerate(kern_code_args):
             interface_arg = interface_args[idx]
+            self._validate_kernel_code_arg(kern_code_arg, interface_arg)
             kern_code_arg.specialise(interface_arg)
 
 
