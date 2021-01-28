@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,9 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
     ArrayType, UnknownFortranType, DataSymbol, StructureType, \
-    INTEGER_TYPE, REAL_TYPE, Symbol, TypeSymbol
-from psyclone.psyir.nodes import Literal, BinaryOperation, Reference
+    INTEGER_TYPE, REAL_TYPE, Symbol, TypeSymbol, SymbolTable
+from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
+    Container, KernelSchedule
 from psyclone.errors import InternalError
 
 
@@ -304,19 +305,18 @@ def test_arraytype_invalid_shape_dimension_2():
             in str(excinfo.value))
 
 
-@pytest.mark.xfail(reason="issue #948. Support for this check "
-                   "needs to be added")
 def test_arraytype_invalid_shape_dimension_3():
     '''Test that the ArrayType class raises an exception when one of the
-    dimensions of the shape list argument is a local datasymbol that does
-    not have a constant value (as this will not be initialised).'''
+    dimensions of the shape list argument is a reference to a local datasymbol
+    that does not have a constant value (as this will not be initialised).'''
 
     scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
     data_symbol = DataSymbol("var", scalar_type)
     with pytest.raises(TypeError) as info:
-        _ = ArrayType(scalar_type, [data_symbol])
-    assert ("If a local datasymbol is used to declare a dimension then it "
-            "should be a constant, but 'var' is not." in str(info.value))
+        _ = ArrayType(scalar_type, [Reference(data_symbol)])
+    assert ("If a local datasymbol is used as part of a dimension declaration "
+            "then it should be a constant, but 'var' is not." in
+            str(info.value))
 
 
 def test_arraytype_invalid_shape_dimension_4():
@@ -336,6 +336,21 @@ def test_arraytype_invalid_shape_dimension_4():
     assert ("If a local datasymbol is used as part of a dimension "
             "declaration then it should be a constant, but 'var' is "
             "not." in str(info.value))
+
+
+def test_arraytype_shape_dim_from_parent_scope():
+    ''' Check that the shape checking in the ArrayType class permits the
+    use of a reference to a symbol in a parent scope. '''
+    cont = Container("test_mod")
+    dim_sym = cont.symbol_table.new_symbol("dim1", symbol_type=DataSymbol,
+                                           datatype=INTEGER_TYPE)
+    kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
+    cont.addchild(kernel1)
+    kernel1.parent = cont
+    asym = kernel1.symbol_table.new_symbol(
+        "array1", symbol_type=DataSymbol,
+        datatype=ArrayType(INTEGER_TYPE, [Reference(dim_sym)]))
+    assert isinstance(asym, DataSymbol)
 
 
 def test_arraytype_str():
