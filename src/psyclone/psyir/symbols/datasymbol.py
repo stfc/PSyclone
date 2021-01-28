@@ -303,27 +303,43 @@ class DataSymbol(Symbol):
         self._interface = symbol_in.interface
 
     def specialise(self, other_symbol):
-        '''In-place specialisation of a class into a subclass. Done so any
-        references to self remain valid.
+        '''Specialises this class instance so it is the same class type and
+        has the same additional properties as the other_symbol subclass
+        instance. This method is equivalent to replacing this instance
+        with other_symbol (if all the other property values are the
+        same). It is done this way so that any references to this
+        modified instance remain valid.
 
-        ************
+        :param other_symbol: an instance of a subclass of this symbol.
+        :type other_symbol: subclass of \
+            :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises InternalError: if other_symbol is not a subclass of DataSymbol.
+        :raises InternalError: if other_symbol does not have a \
+            _specialise_remote_symbol method.
 
         '''
         # Check that the other_symbol is a sub-class of self
         if not isinstance(other_symbol, self.__class__):
-            raise InternalError("Not a subclass")
+            raise InternalError(
+                "The specialise method in the DataSymbol class expects the "
+                "other_symbol argument to be a subclass of symbol but found "
+                "'{0}'.".format(other_symbol.__class__.__name__))
 
-        # Check that other_symbol implements a set_properties method
+        # Check that other_symbol implements a
+        # _specialiase_remote_symbol method
         if not (hasattr(other_symbol, "_specialise_remote_symbol") and \
                 ismethod(other_symbol._specialise_remote_symbol)):
             raise InternalError(
-                "No _specialise_remote_symbol method implemented in class "
-                "'{0}'".format(other_symbol.__class__.__name__))
+                "The other_symbol argument (class '{0}') to the specialise "
+                "method in the DataSymbol class does not have a "
+                "_specialise_remote_symbol method."
+                "".format(other_symbol.__class__.__name__))
         
         # Make self an instance of the subclass
         self.__class__ = other_symbol.__class__
 
-        # update self with any additional properties specified by the
+        # Update self with any additional properties specified by the
         # subclass. Defer to the subclass for this information as it
         # knows what additional properties it has.
-        other_symbol._specialise_remote_properties(self)
+        other_symbol._specialise_remote_symbol(self)

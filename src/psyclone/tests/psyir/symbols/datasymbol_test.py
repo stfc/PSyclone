@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,8 @@ from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
     BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Symbol, TypeSymbol
 from psyclone.psyir.nodes import Literal, Reference, BinaryOperation, Return
+from psyclone.errors import InternalError
+from psyclone.domain.lfric import psyir as lfric_psyir
 
 
 def test_datasymbol_initialisation():
@@ -384,3 +386,45 @@ def test_datasymbol_str():
     assert (data_symbol.__str__() ==
             "a: <Scalar<INTEGER, 4>, Local, constant_value=Literal[value:'3', "
             "Scalar<INTEGER, 4>]>")
+
+
+def test_datasymbol_specialise():
+    '''Test that the specialise method in the DataSymbol class works as
+    expected.'''
+    data_type = ScalarType(ScalarType.Intrinsic.INTEGER, precision=4)
+    integer_scalar = DataSymbol("ndofs", data_type)
+    number_of_dofs = lfric_psyir.NumberOfDofsDataSymbol("ndofs", "w3")
+    reference = Reference(integer_scalar)
+    
+    assert type(integer_scalar) == DataSymbol
+    assert not hasattr(integer_scalar, "fs")
+    assert type(integer_scalar.datatype) == ScalarType
+    assert reference.symbol is integer_scalar
+
+    integer_scalar.specialise(number_of_dofs)
+
+    # The type of integer_scalar and its datatype have changed and an
+    # additional fs property has been added. Also check that
+    # references to integer_scalar are unaffected by the changes.
+    assert type(integer_scalar) == lfric_psyir.NumberOfDofsDataSymbol
+    assert hasattr(integer_scalar, "fs")
+    assert integer_scalar.fs == "w3"
+    assert (type(integer_scalar.datatype) ==
+            lfric_psyir.LfricIntegerScalarDataType)
+    assert reference.symbol is integer_scalar
+
+
+def test_datasymbol_specialise_error():
+    '''Test that tha DataSymbol.specialise method raises the expected
+    exceptions when the supplied argument is invalid.'''
+    data_symbol = DataSymbol("a", INTEGER4_TYPE, constant_value=3)
+    with pytest.raises(InternalError) as info:
+        data_symbol.specialise(None)
+    assert ("The specialise method in the DataSymbol class expects the "
+            "other_symbol argument to be a subclass of symbol but found "
+            "'NoneType'." in str(info.value))
+    with pytest.raises(InternalError) as info:
+        data_symbol.specialise(data_symbol)
+    assert ("The other_symbol argument (class 'DataSymbol') to the specialise "
+            "method in the DataSymbol class does not have a "
+            "_specialise_remote_symbol method." in str(info.value))
