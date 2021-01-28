@@ -738,7 +738,7 @@ class FortranWriter(PSyIRVisitor):
         args = [symbol.name for symbol in node.symbol_table.argument_list]
         result = (
             "{0}subroutine {1}({2})\n"
-            "".format(self._nindent, node.name, ",".join(args)))
+            "".format(self._nindent, node.name, ", ".join(args)))
 
         self._depth += 1
 
@@ -786,7 +786,7 @@ class FortranWriter(PSyIRVisitor):
         '''
         lhs = self._visit(node.lhs)
         rhs = self._visit(node.rhs)
-        result = "{0}{1}={2}\n".format(self._nindent, lhs, rhs)
+        result = "{0}{1} = {2}\n".format(self._nindent, lhs, rhs)
         return result
 
     def binaryoperation_node(self, node):

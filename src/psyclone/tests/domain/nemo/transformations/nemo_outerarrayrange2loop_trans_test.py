@@ -80,7 +80,7 @@ def test_transform_apply_mixed_implicit_do():
     expected = (
         "do jk = 1, jpk, 1\n"
         "  do jj = 1, jpj, 1\n"
-        "    umask(:,jj,jk)=vmask(:,jj,jk) + 1.0\n"
+        "    umask(:,jj,jk) = vmask(:,jj,jk) + 1.0\n"
         "  enddo\n"
         "enddo")
     assert expected in result
@@ -90,7 +90,7 @@ def test_transform_apply_mixed_implicit_do():
         "do jk = 1, jpk, 1\n"
         "  do jj = 1, jpj, 1\n"
         "    do ji = 1, jpi, 1\n"
-        "      umask(ji,jj,jk)=vmask(ji,jj,jk) + 1.0\n"
+        "      umask(ji,jj,jk) = vmask(ji,jj,jk) + 1.0\n"
         "    enddo\n"
         "  enddo\n"
         "enddo")

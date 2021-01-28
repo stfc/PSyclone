@@ -103,7 +103,7 @@ def test_create():
     result = writer(nemo_loop)
     assert (
         "do ji = 2, 10, 1\n"
-        "  X=3.0\n"
+        "  X = 3.0\n"
         "enddo" in result)
 
 

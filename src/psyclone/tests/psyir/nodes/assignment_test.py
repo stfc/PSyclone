@@ -100,7 +100,7 @@ def test_assignment_create():
     assignment = Assignment.create(lhs, rhs)
     check_links(assignment, [lhs, rhs])
     result = FortranWriter().assignment_node(assignment)
-    assert result == "tmp=0.0\n"
+    assert result == "tmp = 0.0\n"
 
 
 def test_assignment_children_validation():

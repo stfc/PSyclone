@@ -161,8 +161,8 @@ def test_ifblock_create():
     check_links(if_schedule, if_body)
     result = FortranWriter().ifblock_node(ifblock)
     assert result == ("if (.true.) then\n"
-                      "  tmp=0.0\n"
-                      "  tmp2=1.0\n"
+                      "  tmp = 0.0\n"
+                      "  tmp2 = 1.0\n"
                       "end if\n")
 
     # With an else clause.
@@ -182,11 +182,11 @@ def test_ifblock_create():
     check_links(else_schedule, else_body)
     result = FortranWriter().ifblock_node(ifblock)
     assert result == ("if (.true.) then\n"
-                      "  tmp=0.0\n"
-                      "  tmp2=1.0\n"
+                      "  tmp = 0.0\n"
+                      "  tmp2 = 1.0\n"
                       "else\n"
-                      "  tmp=1.0\n"
-                      "  tmp2=0.0\n"
+                      "  tmp = 1.0\n"
+                      "  tmp2 = 0.0\n"
                       "end if\n")
 
 
