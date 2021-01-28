@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# Authors: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
 include ../common.mk
 
@@ -43,5 +43,5 @@ transform:
 all: transform
 
 compile:
-	@echo "No compilation supported for the PSyIR creation examples"
+	@echo "No compilation supported for the PSyIR examples"
 
