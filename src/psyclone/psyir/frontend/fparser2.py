@@ -2849,9 +2849,10 @@ class Fparser2Reader(object):
         # Now we have the list of members, use the `create()` method of the
         # appropriate Reference subclass.
         if isinstance(node.children[0], Fortran2003.Name):
-            # Base of reference is a scalar entity.
+            # Base of reference is a scalar entity and must be a DataSymbol.
             sym = _find_or_create_imported_symbol(
-                parent, node.children[0].string.lower())
+                parent, node.children[0].string.lower(),
+                symbol_type=DataSymbol, datatype=DeferredType())
             return StructureReference.create(sym, members=members,
                                              parent=parent)
 
