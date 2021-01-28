@@ -357,7 +357,8 @@ class DynBuiltIn(BuiltIn):
 
 
 class DynXPlusYKern(DynBuiltIn):
-    ''' Add one field to another and return the result as a third field '''
+    ''' Add one real-valued field to another and return the result as
+    a third real-valued field '''
 
     def __str__(self):
         return "Built-in: Add real-valued fields"
@@ -381,7 +382,7 @@ class DynXPlusYKern(DynBuiltIn):
 
 
 class DynIncXPlusYKern(DynBuiltIn):
-    ''' Add the 2nd field to the first field and return it '''
+    ''' Add the second real-valued field to the first field and return it '''
 
     def __str__(self):
         return "Built-in: Increment a real-valued field"
@@ -404,8 +405,8 @@ class DynIncXPlusYKern(DynBuiltIn):
 
 
 class DynAXPlusYKern(DynBuiltIn):
-    ''' Z = a.X + Y where 'a' is a scalar and 'Z', 'X' and
-    'Y' are fields '''
+    ''' Z = a.X + Y where 'a' is a real scalar and 'Z', 'X' and
+    'Y' are real-valued fields '''
 
     def __str__(self):
         return "Built-in: aX_plus_Y (real-valued fields)"
@@ -432,7 +433,8 @@ class DynAXPlusYKern(DynBuiltIn):
 
 
 class DynIncAXPlusYKern(DynBuiltIn):
-    ''' X = a.X + Y where 'a' is a scalar and 'X' and 'Y' are fields '''
+    ''' X = a.X + Y where 'a' is a real scalar and 'X' and 'Y' are
+    real-valued fields '''
 
     def __str__(self):
         return "Built-in: inc_aX_plus_Y (real-valued fields)"
@@ -458,8 +460,8 @@ class DynIncAXPlusYKern(DynBuiltIn):
 
 
 class DynIncXPlusBYKern(DynBuiltIn):
-    ''' X = X + b.Y where 'b' is a scalar and 'X' and 'Y' are
-    fields '''
+    ''' X = X + b.Y where 'b' is a real scalar and 'X' and 'Y' are
+    real-valued fields '''
 
     def __str__(self):
         return "Built-in: inc_X_plus_bY (real-valued fields)"
@@ -484,8 +486,8 @@ class DynIncXPlusBYKern(DynBuiltIn):
 
 
 class DynAXPlusBYKern(DynBuiltIn):
-    ''' Z = a.X + b.Y where 'a' and 'b' are scalars and 'Z', 'X' and
-    'Y' are fields '''
+    ''' Z = a.X + b.Y where 'a' and 'b' are real scalars and 'Z', 'X' and
+    'Y' are real-valued fields '''
 
     def __str__(self):
         return "Built-in: aX_plus_bY (real-valued fields)"
@@ -515,8 +517,8 @@ class DynAXPlusBYKern(DynBuiltIn):
 
 
 class DynIncAXPlusBYKern(DynBuiltIn):
-    ''' X = a.X + b.Y where 'a' and 'b' are scalars and 'X' and 'Y' are
-    fields '''
+    ''' X = a.X + b.Y where 'a' and 'b' are real scalars and 'X' and 'Y'
+    are real-valued fields '''
 
     def __str__(self):
         return "Built-in: inc_aX_plus_bY (real-valued fields)"
@@ -549,8 +551,8 @@ class DynIncAXPlusBYKern(DynBuiltIn):
 
 
 class DynXMinusYKern(DynBuiltIn):
-    ''' Subtract one field from another and return the result as a
-    third field '''
+    ''' Subtract one real-valued field from another and return the
+    result as a third real-valued field '''
 
     def __str__(self):
         return "Built-in: Subtract real-valued fields"
@@ -575,7 +577,8 @@ class DynXMinusYKern(DynBuiltIn):
 
 
 class DynIncXMinusYKern(DynBuiltIn):
-    ''' Subtract the second field from the first field and return it '''
+    ''' Subtract the second real-valued field from the first field
+    and return it '''
 
     def __str__(self):
         return "Built-in: Decrement a real-valued field"
@@ -598,8 +601,8 @@ class DynIncXMinusYKern(DynBuiltIn):
 
 
 class DynAXMinusYKern(DynBuiltIn):
-    ''' Z = a.X - Y where 'a' is a scalar and 'Z', 'X' and
-    'Y' are fields '''
+    ''' Z = a.X - Y where 'a' is a real scalar and 'Z', 'X' and
+    'Y' are real-valued fields '''
 
     def __str__(self):
         return "Built-in: aX_minus_Y (real-valued fields)"
@@ -626,8 +629,8 @@ class DynAXMinusYKern(DynBuiltIn):
 
 
 class DynXMinusBYKern(DynBuiltIn):
-    ''' Z = X - b.Y where 'b' is a scalar and 'Z', 'X' and
-    'Y' are fields '''
+    ''' Z = X - b.Y where 'b' is a real scalar and 'Z', 'X' and
+    'Y' are real-valued fields '''
 
     def __str__(self):
         return "Built-in: X_minus_bY (real-valued fields)"
@@ -654,8 +657,8 @@ class DynXMinusBYKern(DynBuiltIn):
 
 
 class DynIncXMinusBYKern(DynBuiltIn):
-    ''' X = X - b.Y where 'b' is a scalar and 'X' and 'Y' are
-    fields '''
+    ''' X = X - b.Y where 'b' is a real scalar and 'X' and 'Y' are
+    real-valued fields '''
 
     def __str__(self):
         return "Built-in: inc_X_minus_bY (real-valued fields)"
@@ -685,8 +688,8 @@ class DynIncXMinusBYKern(DynBuiltIn):
 
 
 class DynXTimesYKern(DynBuiltIn):
-    ''' DoF-wise product of one field with another with the result
-    returned as a third field '''
+    ''' DoF-wise product of one real-valued field with another with
+    the result returned as a third real-valued field '''
 
     def __str__(self):
         return "Built-in: Multiply real-valued fields"
@@ -711,7 +714,7 @@ class DynXTimesYKern(DynBuiltIn):
 
 
 class DynIncXTimesYKern(DynBuiltIn):
-    ''' Multiply the first field by the second and return it '''
+    ''' Multiply the first real-valued field by the second and return it '''
 
     def __str__(self):
         return "Built-in: Multiply one real-valued field by another"
@@ -734,7 +737,8 @@ class DynIncXTimesYKern(DynBuiltIn):
 
 
 class DynIncAXTimesYKern(DynBuiltIn):
-    ''' X = a.X.Y where 'a' is a scalar and 'X' and 'Y' are fields '''
+    ''' X = a.X.Y where 'a' is a real scalar and 'X' and 'Y' are
+    real-valued fields '''
 
     def __str__(self):
         return "Built-in: inc_aX_times_Y (real-valued fields)"
@@ -764,8 +768,8 @@ class DynIncAXTimesYKern(DynBuiltIn):
 
 
 class DynATimesXKern(DynBuiltIn):
-    ''' Multiply the first field by a scalar and return the result as
-    a second field (Y = a.X) '''
+    ''' Multiply the first real-valued field by a real scalar and return
+    the result as a second real-valued field (Y = a.X) '''
 
     def __str__(self):
         return "Built-in: Copy a scaled real-valued field"
@@ -789,7 +793,7 @@ class DynATimesXKern(DynBuiltIn):
 
 
 class DynIncATimesXKern(DynBuiltIn):
-    ''' Multiply a field by a scalar and return it '''
+    ''' Multiply a real-valued field by a real scalar and return it '''
 
     def __str__(self):
         return "Built-in: Scale a real-valued field"
@@ -817,8 +821,8 @@ class DynIncATimesXKern(DynBuiltIn):
 
 
 class DynXDividebyYKern(DynBuiltIn):
-    ''' Divide the first field by the second and return the result as
-    a third field '''
+    ''' Divide the first real-valued field by the second and return the
+    result as real-valued a third field '''
 
     def __str__(self):
         return "Built-in: Divide real-valued fields"
@@ -842,7 +846,7 @@ class DynXDividebyYKern(DynBuiltIn):
 
 
 class DynIncXDividebyYKern(DynBuiltIn):
-    ''' Divide the first field by the second and return it '''
+    ''' Divide the first real-valued field by the second and return it '''
 
     def __str__(self):
         return "Built-in: Divide one real-valued field by another"
@@ -870,7 +874,7 @@ class DynIncXDividebyYKern(DynBuiltIn):
 
 
 class DynIncXPowrealAKern(DynBuiltIn):
-    ''' Raise a field to a real power and return it '''
+    ''' Raise a real-valued field to a real power and return it '''
 
     def __str__(self):
         return "Built-in: Raise a real-valued field to a real power"
@@ -893,7 +897,7 @@ class DynIncXPowrealAKern(DynBuiltIn):
 
 
 class DynIncXPowintNKern(DynBuiltIn):
-    ''' Raise a field to an integer power and return it '''
+    ''' Raise a real-valued field to an integer power and return it '''
 
     def __str__(self):
         return "Built-in: Raise a real-valued field to an integer power"
@@ -921,7 +925,7 @@ class DynIncXPowintNKern(DynBuiltIn):
 
 
 class DynSetvalCKern(DynBuiltIn):
-    ''' Set a field equal to a scalar value '''
+    ''' Set a real-valued field equal to a real scalar value '''
 
     def __str__(self):
         return "Built-in: Set a real-valued field to a real scalar value"
@@ -943,7 +947,7 @@ class DynSetvalCKern(DynBuiltIn):
 
 
 class DynSetvalXKern(DynBuiltIn):
-    ''' Set a field equal to another field '''
+    ''' Set a real-valued field equal to another real-valued field '''
 
     def __str__(self):
         return "Built-in: Set a real-valued field equal to another such field"
@@ -970,7 +974,7 @@ class DynSetvalXKern(DynBuiltIn):
 
 
 class DynXInnerproductYKern(DynBuiltIn):
-    ''' Calculates the inner product of two fields,
+    ''' Calculates the inner product of two real-valued fields,
     innprod = SUM( X(:)*Y(:) ) '''
 
     def __str__(self):
@@ -995,7 +999,7 @@ class DynXInnerproductYKern(DynBuiltIn):
 
 
 class DynXInnerproductXKern(DynBuiltIn):
-    ''' Calculates the inner product of one field by itself,
+    ''' Calculates the inner product of one real-valued field by itself,
     innprod = SUM( X(:)*X(:) ) '''
 
     def __str__(self):
@@ -1024,7 +1028,7 @@ class DynXInnerproductXKern(DynBuiltIn):
 
 
 class DynSumXKern(DynBuiltIn):
-    ''' Computes the sum of the elements of a field '''
+    ''' Computes the sum of the elements of a real-valued field '''
 
     def __str__(self):
         return "Built-in: Sum a real-valued field"
@@ -1055,7 +1059,8 @@ class DynSumXKern(DynBuiltIn):
 # ------------------------------------------------------------------- #
 
 class LFRicIntXPlusYKern(DynBuiltIn):
-    ''' Add one field to another and return the result as a third field '''
+    ''' Add one integer-valued field to another and return the result
+    as a third integer-valued field '''
 
     def __str__(self):
         return "Built-in: Add integer-valued fields"
@@ -1074,7 +1079,8 @@ class LFRicIntXPlusYKern(DynBuiltIn):
 
 
 class LFRicIntIncXPlusYKern(DynBuiltIn):
-    ''' Add the 2nd field to the first field and return it '''
+    ''' Add the second integer-valued field to the first field and
+    return it '''
 
     def __str__(self):
         return "Built-in: Increment an integer-valued field"
@@ -1090,6 +1096,51 @@ class LFRicIntIncXPlusYKern(DynBuiltIn):
         '''
         # Call the gen_code method from the real-valued equivalent
         DynIncXPlusYKern.gen_code(self, parent)
+
+
+# ------------------------------------------------------------------- #
+# ============== Setting integer field elements to a value  ========= #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntSetvalCKern(DynBuiltIn):
+    ''' Set an integer-valued field equal to an integer scalar value '''
+
+    def __str__(self):
+        return ("Built-in: Set an integer-valued field to an integer "
+                "scalar value")
+
+    def gen_code(self, parent):
+        '''
+        Generates Dynamo0.3 API specific PSy code for a call to the
+        int_setval_c Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # Call the gen_code method from the real-valued equivalent
+        DynSetvalCKern.gen_code(self, parent)
+
+
+class LFRicIntSetvalXKern(DynBuiltIn):
+    ''' Set an integer-valued field equal to another integer-valued field '''
+
+    def __str__(self):
+        return ("Built-in: Set an integer-valued field equal to another "
+                "such field")
+
+    def gen_code(self, parent):
+        '''
+        Generates Dynamo0.3 API specific PSy code for a call to the
+        int_setval_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # Call the gen_code method from the real-valued equivalent
+        DynSetvalXKern.gen_code(self, parent)
 
 
 # The built-in operations that we support for this API. The meta-data
@@ -1138,10 +1189,10 @@ REAL_BUILTIN_MAP_CAPITALISED = {
 INT_BUILTIN_MAP_CAPITALISED = {
     # Adding (scaled) integer fields
     "int_X_plus_Y": LFRicIntXPlusYKern,
-    "int_inc_X_plus_Y": LFRicIntIncXPlusYKern}
-###    # Setting an integer field elements to scalar or other field's values
-##    "setval_c": LFRicIntSetvalCKern,
-##    "setval_X": LFRicIntSetvalXKern}
+    "int_inc_X_plus_Y": LFRicIntIncXPlusYKern,
+    # Setting an integer field elements to scalar or other field's values
+    "int_setval_c": LFRicIntSetvalCKern,
+    "int_setval_X": LFRicIntSetvalXKern}
 
 # Built-in map dictionary for all built-ins
 BUILTIN_MAP_CAPITALISED = REAL_BUILTIN_MAP_CAPITALISED
