@@ -451,6 +451,36 @@ module dynamo0p3_builtins_mod
   end type int_inc_X_plus_Y
 
 ! ------------------------------------------------------------------- !
+! ============== Scaling integer fields ============================= !
+! ------------------------------------------------------------------- !
+
+  !> field2 = scalar*field1
+  type, public, extends(kernel_type) :: int_a_times_X
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_SPACE_1),     &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ              ),     &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_SPACE_1)      &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_a_times_X_code
+  end type int_a_times_X
+
+  !> field = scalar*field
+  type, public, extends(kernel_type) :: int_inc_a_times_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ                  ), &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READWRITE, ANY_SPACE_1)  &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_inc_a_times_X_code
+  end type int_inc_a_times_X
+
+
+! ------------------------------------------------------------------- !
 ! ============== Setting integer field elements to a value  ========= !
 ! ------------------------------------------------------------------- !
 
@@ -529,7 +559,8 @@ contains
   subroutine inc_aX_times_Y_code()
   end subroutine inc_aX_times_Y_code
 
-  ! Multiplying real fields by a scalar (scaling fields)
+  ! Multiplying real fields by a real scalar
+  ! (scaling fields)
   subroutine a_times_X_code()
   end subroutine a_times_X_code
 
@@ -550,7 +581,8 @@ contains
   subroutine inc_X_powint_n_code()
   end subroutine inc_X_powint_n_code
 
-  ! Setting real field elements to scalar or other field's values
+  ! Setting real field elements to a real scalar
+  ! or other real field's values
   subroutine setval_c_code()
   end subroutine setval_c_code
 
@@ -576,7 +608,16 @@ contains
   subroutine int_inc_X_plus_Y_code()
   end subroutine int_inc_X_plus_Y_code
 
-  ! Setting integer field elements to scalar or other field's values
+  ! Multiplying integer fields by an integer scalar
+  ! (scaling fields)
+  subroutine int_a_times_X_code()
+  end subroutine int_a_times_X_code
+
+  subroutine int_inc_a_times_X_code()
+  end subroutine int_inc_a_times_X_code
+
+  ! Setting integer field elements to an integer scalar
+  ! or other integer field's values
   subroutine int_setval_c_code()
   end subroutine int_setval_c_code
 

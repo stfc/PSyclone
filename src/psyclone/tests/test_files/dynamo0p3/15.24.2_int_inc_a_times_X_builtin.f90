@@ -35,18 +35,16 @@
 
 program single_invoke
 
-  ! Description: single point-wise operation (set an integer-valued field
-  ! values to an integer scalar) specified in an invoke call.
+  ! Description: single point-wise operation (scale an integer-valued field
+  by an integer scalar: X = aX) specified in an invoke call.
   use constants_mod,     only: i_def
   use integer_field_mod, only: integer_field_type
 
   implicit none
 
   type(integer_field_type) :: f1
-  integer(i_def)           :: c
+  integer(i_def)           :: a_scalar
 
-  c = 1.0_i_def
-  
-  call invoke( int_setval_c(f1, c) )
+  call invoke( int_inc_a_times_X(a_scalar, f1) )
 
 end program single_invoke
