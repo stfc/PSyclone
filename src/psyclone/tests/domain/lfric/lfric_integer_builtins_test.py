@@ -94,7 +94,7 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    # Check for the correct field data declarations
+    # Check for the correct field type declarations
     output = (
         "      TYPE(integer_field_type), intent(in) :: f3, f1, f2\n"
         "      INTEGER df\n"
@@ -138,3 +138,56 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             # Only compute owned dofs if _compute_annexed_dofs is False
             output_dm_2 = output_dm_2.replace("annexed", "owned")
         assert output_dm_2 in code
+
+
+def test_int_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicIntIncXPlusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    X = X + Y where X and Y are fields. Test with and without annexed
+    dofs being computed as this affects the generated code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "15.21.2_int_inc_X_plus_Y_builtin.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test string method
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].loop_body[0]
+    assert str(kern) == "Built-in: Increment an integer-valued field"
+    # Test code generation
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=1,undf_aspc1_f1\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) + "
+            "f2_proxy%data(df)\n"
+            "      END DO\n")
+        assert output in code
+    else:
+        output = (
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+            "        f1_proxy%data(df) = f1_proxy%data(df) + "
+            "f2_proxy%data(df)\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()")
+        if not annexed:
+            output = output.replace("dof_annexed", "dof_owned")
+        assert output in code
+
+

@@ -429,6 +429,13 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Check for the correct field type declarations
+    output = (
+        "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
+        "      INTEGER df\n"
+        "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n")
+    assert output in code
+
     if not dist_mem:
         # The value of _compute_annexed_dofs should make no difference
         output = (

@@ -1069,15 +1069,8 @@ class LFRicIntXPlusYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        """# We add each element of f2 to the corresponding element of f1
-        # and store the result in f3.
-        field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
-        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        parent.add(AssignGen(parent, lhs=field_name3,
-                             rhs=field_name1 + " + " + field_name2)) """
-        bcls = DynXPlusYKern()
-        bcls.gen_code(parent)
+        # Call the gen_code method from the real-valued equivalent"""
+        DynXPlusYKern.gen_code(self, parent)
 
 
 class LFRicIntIncXPlusYKern(DynBuiltIn):
@@ -1096,7 +1089,7 @@ class LFRicIntIncXPlusYKern(DynBuiltIn):
 
         '''
         # Call the gen_code method from the real-valued equivalent
-        DynIncXPlusYKern.gen_code(parent)
+        DynIncXPlusYKern.gen_code(self, parent)
 
 
 # The built-in operations that we support for this API. The meta-data
