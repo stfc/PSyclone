@@ -318,7 +318,7 @@ module dynamo0p3_builtins_mod
   end type inc_X_divideby_Y
 
 ! ------------------------------------------------------------------- !
-! ============== Raising real field to a scalar ===================== !
+! ============== Raising a real field to a scalar =================== !
 ! ------------------------------------------------------------------- !
 
   !> field =  field**rscalar (real scalar)
@@ -543,7 +543,7 @@ contains
   subroutine inc_X_divideby_Y_code()
   end subroutine inc_X_divideby_Y_code
 
-  ! Raising real field to a scalar
+  ! Raising a real field to a scalar
   subroutine inc_X_powreal_a_code()
   end subroutine inc_X_powreal_a_code
 

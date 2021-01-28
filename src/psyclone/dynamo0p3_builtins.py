@@ -865,7 +865,7 @@ class DynIncXDividebyYKern(DynBuiltIn):
 
 
 # ------------------------------------------------------------------- #
-# ============== Raising real field to a scalar ===================== #
+# ============== Raising a real field to a scalar =================== #
 # ------------------------------------------------------------------- #
 
 
@@ -1069,8 +1069,15 @@ class LFRicIntXPlusYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # Call the gen_code method from the real-valued equivalent
-        DynXPlusYKern.gen_code(parent)
+        """# We add each element of f2 to the corresponding element of f1
+        # and store the result in f3.
+        field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
+        parent.add(AssignGen(parent, lhs=field_name3,
+                             rhs=field_name1 + " + " + field_name2)) """
+        bcls = DynXPlusYKern()
+        bcls.gen_code(parent)
 
 
 class LFRicIntIncXPlusYKern(DynBuiltIn):
@@ -1096,8 +1103,9 @@ class LFRicIntIncXPlusYKern(DynBuiltIn):
 # describing these kernels is in dynamo0p3_builtins_mod.f90. This dictionary
 # can only be defined after all of the necessary 'class' statements have
 # been executed (happens when this module is imported into another).
-BUILTIN_MAP_CAPITALISED = {
-    # Adding (scaled) fields
+# Built-ins for real-valued fields
+REAL_BUILTIN_MAP_CAPITALISED = {
+    # Adding (scaled) real fields
     "X_plus_Y": DynXPlusYKern,
     "inc_X_plus_Y": DynIncXPlusYKern,
     "aX_plus_Y": DynAXPlusYKern,
@@ -1105,34 +1113,46 @@ BUILTIN_MAP_CAPITALISED = {
     "inc_X_plus_bY": DynIncXPlusBYKern,
     "aX_plus_bY": DynAXPlusBYKern,
     "inc_aX_plus_bY": DynIncAXPlusBYKern,
-    # Subtracting (scaled) fields
+    # Subtracting (scaled) real fields
     "X_minus_Y": DynXMinusYKern,
     "inc_X_minus_Y": DynIncXMinusYKern,
     "aX_minus_Y": DynAXMinusYKern,
     "X_minus_bY": DynXMinusBYKern,
     "inc_X_minus_bY": DynIncXMinusBYKern,
-    # Multiplying (scaled) fields
+    # Multiplying (scaled) real fields
     "X_times_Y": DynXTimesYKern,
     "inc_X_times_Y": DynIncXTimesYKern,
     "inc_aX_times_Y": DynIncAXTimesYKern,
-    # Multiplying fields by a scalar (scaling fields)
+    # Multiplying real fields by a scalar (scaling fields)
     "a_times_X": DynATimesXKern,
     "inc_a_times_X": DynIncATimesXKern,
-    # Dividing (scaled) fields
+    # Dividing (scaled) real fields
     "X_divideby_Y": DynXDividebyYKern,
     "inc_X_divideby_Y": DynIncXDividebyYKern,
-    # Raising field to a scalar
+    # Raising a real field to a scalar
     "inc_X_powreal_a": DynIncXPowrealAKern,
     "inc_X_powint_n": DynIncXPowintNKern,
-    # Setting field elements to scalar or other field's values
+    # Setting real field elements to scalar or other field's values
     "setval_c": DynSetvalCKern,
     "setval_X": DynSetvalXKern,
-    # Inner product of fields
+    # Inner product of real fields
     "X_innerproduct_Y": DynXInnerproductYKern,
     "X_innerproduct_X": DynXInnerproductXKern,
-    # Sum values of a field
+    # Sum values of a real field
     "sum_X": DynSumXKern}
 
+# Built-ins for integer-valued fields
+INT_BUILTIN_MAP_CAPITALISED = {
+    # Adding (scaled) integer fields
+    "int_X_plus_Y": LFRicIntXPlusYKern,
+    "int_inc_X_plus_Y": LFRicIntIncXPlusYKern}
+###    # Setting an integer field elements to scalar or other field's values
+##    "setval_c": LFRicIntSetvalCKern,
+##    "setval_X": LFRicIntSetvalXKern}
+
+# Built-in map dictionary for all built-ins
+BUILTIN_MAP_CAPITALISED = REAL_BUILTIN_MAP_CAPITALISED
+BUILTIN_MAP_CAPITALISED.update(INT_BUILTIN_MAP_CAPITALISED)
 
 # Built-in map dictionary in lowercase keys for invoke generation and
 # comparison purposes. This does not enforce case sensitivity to Fortran

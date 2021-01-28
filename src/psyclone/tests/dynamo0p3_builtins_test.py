@@ -403,7 +403,7 @@ def test_dynbuiltfactory_str():
     assert "Factory for a call to a Dynamo built-in" in str(factory)
 
 
-# ------------- Adding (scaled) fields ------------------------------------- #
+# ------------- Adding (scaled) real fields --------------------------------- #
 
 
 def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
@@ -874,7 +874,7 @@ def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-# ------------- Subtracting (scaled) fields --------------------------------- #
+# ------------- Subtracting (scaled) real fields ---------------------------- #
 
 
 def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1204,7 +1204,7 @@ def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-# ------------- Multiplying (scaled) fields --------------------------------- #
+# ------------- Multiplying (scaled) real fields ---------------------------- #
 
 
 def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1401,7 +1401,7 @@ def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-# ------------- Scaling fields (multiplying by a scalar --------------------- #
+# ------------- Scaling real fields (multiplying by a scalar) --------------- #
 
 
 def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1534,7 +1534,7 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-# ------------- Dividing (scaled) fields ------------------------------------ #
+# ------------- Dividing (scaled) real fields ------------------------------- #
 
 
 def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1654,7 +1654,7 @@ def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-# ------------- Raising field to a scalar ----------------------------------- #
+# ------------- Raising a real field to a scalar ---------------------------- #
 
 
 def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1762,7 +1762,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-# ------------- Setting field elements to a value --------------------------- #
+# ------------- Setting real field elements to a value ---------------------- #
 
 
 def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1895,7 +1895,7 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-# ------------- Inner product of fields ------------------------------------- #
+# ------------- Inner product of real fields -------------------------------- #
 
 
 def test_X_innerproduct_Y(tmpdir, dist_mem):
@@ -2037,7 +2037,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
         assert "      TYPE(scalar_type) global_sum\n" in code
 
 
-# ------------- Sum field elements ------------------------------------------ #
+# ------------- Sum real field elements ------------------------------------- #
 
 
 def test_sum_X(tmpdir, dist_mem):
