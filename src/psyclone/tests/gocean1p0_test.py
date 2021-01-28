@@ -1829,7 +1829,7 @@ def test_gokernelargument_psyir_expression():
     # Test an incompatible Kernel Argument
     argument_list.args[0]._arg._argument_type = "incompatible"
     with pytest.raises(InternalError) as excinfo:
-        _ = argument_list.args[0].infere_datatype()
+        _ = argument_list.args[0].psyir_expression()
     assert ("GOcean expects the Argument.argument_type() to be 'field' or "
             "'scalar', but found 'incompatible'." in str(excinfo.value))
 
