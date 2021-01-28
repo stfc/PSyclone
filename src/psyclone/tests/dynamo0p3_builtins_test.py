@@ -409,8 +409,8 @@ def test_dynbuiltfactory_str():
 def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynXPlusYKern returns the expected
     string and 2) we generate correct code for the built-in Z = X + Y
-    where X and Y are fields. Also check that we generate correct bounds
-    when Config.api_conf(API)._compute_annexed_dofs is False and True.
+    where X and Y are real-valued fields. Also check that we generate correct
+    bounds when Config.api_conf(API)._compute_annexed_dofs is False and True.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -478,8 +478,8 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynIncXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
-    X = X + Y where X and Y are fields. Test with and without annexed
-    dofs being computed as this affects the generated code.
+    X = X + Y where X and Y are real-valued fields. Test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -530,9 +530,9 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynAXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Z = a*X + Y where 'a' is a scalar and Z, X and Y are
-    fields. Test with and without annexed dofs being computed as this
-    affects the generated code.
+    operation Z = a*X + Y where 'a' is a real scalar and Z, X and Y
+    are real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -602,9 +602,9 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynIncAXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = a*X + Y where 'a' is a scalar and X and Y are
-    fields. Test with and without annexed dofs being computed as this
-    affects the generated code.
+    operation X = a*X + Y where 'a' is a real scalar and X and Y are
+    real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -672,9 +672,9 @@ def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynIncXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X + b*Y where 'b' is a scalar and X and Y are
-    fields. Test with and without annexed dofs being computed as this
-    affects the generated code.
+    operation X = X + b*Y where 'b' is a real scalar and X and Y are
+    real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -742,9 +742,9 @@ def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
 def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynAXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Z = a*X + b*Y where 'a' and 'b' are scalars and Z, X and
-    Y are fields. Test with and without annexed dofs being computed as
-    this affects the generated code.
+    operation Z = a*X + b*Y where 'a' and 'b' are real scalars and Z, X
+    and Y are real-valued fields. Test with and without annexed dofs
+    being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -813,9 +813,9 @@ def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
 def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynIncAXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = a*X + b*Y where 'a' and 'b' are scalars and X and Y
-    are fields. Test with and without annexed dofs being computed as
-    this affects the generated code.
+    operation X = a*X + b*Y where 'a' and 'b' are real scalars and X
+    and Y are real-valued fields. Test with and without annexed dofs
+    being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -887,8 +887,8 @@ def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
 def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynXMinusYKern returns the expected
     string and 2) we generate correct code for the built-in operation
-    Z = X - Y where Z, X and Y are fields. Test with and without annexed
-    dofs being computed as this affects the generated code.
+    Z = X - Y where Z, X and Y are real-valued fields. Test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -946,8 +946,8 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynIncXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X - Y where X and Y are fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    operation X = X - Y where X and Y are real-valued fields. Test with and
+    without annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1002,9 +1002,9 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynAXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Z = a*X - Y where 'a' is a scalar and Z, X and Y are
-    fields. Test with and without annexed dofs being computed as this
-    affects the generated code.
+    operation Z = a*X - Y where 'a' is a real scalar and Z, X and Y
+    are real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1073,9 +1073,9 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Z = X - b*Y where 'b' is a scalar and Z, X and Y are
-    fields. Test with and without annexed dofs being computed as this
-    affects the generated code.
+    operation Z = X - b*Y where 'b' is a real scalar and Z, X and Y
+    are real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1144,9 +1144,9 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
 def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynIncXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X - b*Y where 'b' is a scalar and X and Y are fields.
-    Test with and without annexed dofs being computed as this affects
-    the generated code.
+    operation X = X - b*Y where 'b' is a real scalar and X and Y are
+    real-valued  fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1217,8 +1217,8 @@ def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
 def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynXTimesYKern returns the expected
     string and 2) we generate correct code for the built-in operation
-    Z = X*Y where Z, X and Y are fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    Z = X*Y where Z, X and Y are real-valued fields. Test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1282,8 +1282,8 @@ def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
 def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynIncXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X*Y where X and Y are fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    operation X = X*Y where X and Y are real-valued fields. Test with and
+    without annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1341,9 +1341,9 @@ def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
 def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynIncAXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = a*X*Y where 'a' is a scalar and X and Y are
-    fields. Test with and without annexed dofs being computed as this
-    affects the generated code.
+    operation X = a*X*Y where 'a' is a real scalar and X and Y are
+    real-valued fields. Test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1408,14 +1408,15 @@ def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-# ------------- Scaling real fields (multiplying by a scalar) --------------- #
+# ------------- Scaling real fields (multiplying by a real scalar) ---------- #
 
 
 def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynATimesXKern returns the expected
     string and 2) we generate correct code for the built-in operation
-    Y = a*X where 'a' is a scalar and X and Y are fields. Test with and
-    without annexed dofs being computed as this affects the generated code.
+    Y = a*X where 'a' is a real scalar and X and Y are real-valued fields.
+    Test with and without annexed dofs being computed as this affects the
+    generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1471,9 +1472,9 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
 def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynIncATimesXKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = a*X where 'a' is a scalar and X is a field. Test
-    with and without annexed dofs being computed as this affects the
-    generated code.
+    operation X = a*X where 'a' is a real scalar and X is a real-valued
+    field. Test with and without annexed dofs being computed as this
+    affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1547,8 +1548,8 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
 def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Z = X/Y where Z, X and Y are fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    operation Z = X/Y where Z, X and Y are fields real-valued. Test with and
+    without annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1606,8 +1607,8 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
 def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynIncXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X/Y where X and Y are fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    operation X = X/Y where X and Y are real-valued fields. Test with and
+    without annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1668,8 +1669,8 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynIncXPowrealAKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**a where 'a' is a real scalar and X is a
-    field. Test with and without annexed dofs being computed as this
-    affects the generated code.
+    real-valued field. Test with and without annexed dofs being computed
+    as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1720,8 +1721,8 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynIncXPowintNKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**n where 'n' is an integer scalar and X is a
-    field. Also test with and without annexed dofs being computed as
-    this affects the generated code.
+    real-valued field. Also test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1769,14 +1770,15 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-# ------------- Setting real field elements to a value ---------------------- #
+# ------------- Setting real field elements to a real value ----------------- #
 
 
 def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynSetvalCKern returns the expected
     string and 2) we generate correct code for the built-in operation
-    X = c where 'c' is a constant scalar value and X is a field. Test with and
-    without annexed dofs being computed as this affects the generated code.
+    X = c where 'c' is a real constant scalar value and X is a real-valued
+    field. Test with and without annexed dofs being computed as this affects
+    the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1840,8 +1842,8 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
 def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that 1) the str method of DynSetvalXKern returns the expected
     string and 2) we generate correct code for the built-in operation
-    Y = X where X and Y are fields. Also test with and without annexed
-    dofs being computed as this affects the generated code.
+    Y = X where X and Y are real-valued fields. Also test with and without
+    annexed dofs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1908,8 +1910,8 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
 def test_X_innerproduct_Y(tmpdir, dist_mem):
     ''' Test that 1) the str method of DynXInnerproductYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation which calculates inner product of fields X and Y as
-    innprod = innprod + X(:)*Y(:).
+    operation which calculates inner product of real-valued fields X and Y
+    as innprod = innprod + X(:)*Y(:).
 
     '''
     _, invoke_info = parse(
@@ -1978,8 +1980,8 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
 def test_X_innerproduct_X(tmpdir, dist_mem):
     ''' Test that 1) the str method of DynXInnerproductXKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation which calculates inner product of a field X by itself as
-    innprod = innprod + X(:)*X(:).
+    operation which calculates inner product of a real-valued field X by
+    itself as innprod = innprod + X(:)*X(:).
 
     '''
     _, invoke_info = parse(
@@ -2050,7 +2052,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
 def test_sum_X(tmpdir, dist_mem):
     ''' Test that 1) the str method of DynSumXKern returns the expected
     string and 2) we generate correct code for the built-in operation which
-    sums elements of a field X as sumfld = sum(X(:)).
+    sums elements of a real-valued field X as sumfld = sum(X(:)).
 
     '''
     _, invoke_info = parse(

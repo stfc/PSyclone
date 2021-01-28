@@ -36,7 +36,7 @@
 program single_invoke
 
   ! Description: single point-wise operation (scale an integer-valued field
-  by an integer scalar: X = aX) specified in an invoke call.
+  ! by an integer scalar: X = aX) specified in an invoke call.
   use constants_mod,     only: i_def
   use integer_field_mod, only: integer_field_type
 
