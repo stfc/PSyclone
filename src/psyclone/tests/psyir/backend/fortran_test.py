@@ -49,7 +49,7 @@ from psyclone.psyir.backend.fortran import gen_intent, FortranWriter, \
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
-    StructureReference
+    StructureReference, Schedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -834,10 +834,10 @@ def test_fw_container_3(fort_writer, monkeypatch):
             "contains argument(s): '['a']'." in str(excinfo.value))
 
 
-def test_fw_kernelschedule(fort_writer, monkeypatch):
-    '''Check the FortranWriter class outputs correct code when a
-    KernelSchedule node is found. Also tests that an exception is
-    raised if KernelSchedule.name does not have a value.
+def test_fw_routine(fort_writer, monkeypatch):
+    '''Check the FortranWriter class outputs correct code when a routine node
+    is found. Also tests that an exception is raised if routine.name does not
+    have a value.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -849,9 +849,16 @@ def test_fw_kernelschedule(fort_writer, monkeypatch):
         "  real, intent(out) :: a(:)\n"
         "  real, intent(in) :: b(:)\n"
         "  integer, intent(in) :: c\n"
+        "  if(c > 3) then\n"
         "  a = b/c\n"
+        "  else\n"
+        "  a = b/c\n"
+        "  endif\n"
         "end subroutine tmp\n"
         "end module test")
+
+    # Create Schedule will instantiate a KernelSchedule which works for this
+    # test as it is a subclass of Routine and will use the routine visitor.
     schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
@@ -864,7 +871,63 @@ def test_fw_kernelschedule(fort_writer, monkeypatch):
         "  real, dimension(:), intent(in) :: b\n"
         "  integer, intent(in) :: c\n"
         "\n"
-        "  a=b / c\n"
+        "  if (c > 3) then\n"
+        "    a=b / c\n"
+        "  else\n"
+        "    a=b / c\n"
+        "  end if\n"
+        "\n"
+        "end subroutine tmp\n") in result
+
+    # Add distinctly named symbols in the routine sub-scopes
+    sub_scopes = schedule.walk(Schedule)[1:]
+    sub_scopes[0].symbol_table.new_symbol("symbol1", symbol_type=DataSymbol,
+                                          datatype=INTEGER_TYPE)
+    sub_scopes[1].symbol_table.new_symbol("symbol2", symbol_type=DataSymbol,
+                                          datatype=INTEGER_TYPE)
+    # They should be promoted to the routine-scope level
+    result = fort_writer(schedule)
+    assert(
+        "subroutine tmp(a,b,c)\n"
+        "  use my_mod, only : d\n"
+        "  real, dimension(:), intent(out) :: a\n"
+        "  real, dimension(:), intent(in) :: b\n"
+        "  integer, intent(in) :: c\n"
+        "  integer :: symbol1\n"
+        "  integer :: symbol2\n"
+        "\n"
+        "  if (c > 3) then\n"
+        "    a=b / c\n"
+        "  else\n"
+        "    a=b / c\n"
+        "  end if\n"
+        "\n"
+        "end subroutine tmp\n") in result
+
+    # Add symbols that will result in name clashes to sibling scopes
+    sub_scopes = schedule.walk(Schedule)[1:]
+    sub_scopes[0].symbol_table.new_symbol("symbol2", symbol_type=DataSymbol,
+                                          datatype=INTEGER_TYPE)
+    sub_scopes[1].symbol_table.new_symbol("symbol1", symbol_type=DataSymbol,
+                                          datatype=INTEGER_TYPE)
+    assert "symbol2" in sub_scopes[0].symbol_table
+    assert "symbol1" in sub_scopes[1].symbol_table
+    # They should be promoted to the routine-scope level with different names
+    # result = fort_writer(schedule)
+    assert(
+        "subroutine tmp(a,b,c)\n"
+        "  use my_mod, only : d\n"
+        "  real, dimension(:), intent(out) :: a\n"
+        "  real, dimension(:), intent(in) :: b\n"
+        "  integer, intent(in) :: c\n"
+        "  integer :: symbol1\n"
+        "  integer :: symbol2\n"
+        "\n"
+        "  if (c > 3) then\n"
+        "    a=b / c\n"
+        "  else\n"
+        "    a=b / c\n"
+        "  end if\n"
         "\n"
         "end subroutine tmp\n") in result
 
