@@ -1890,8 +1890,8 @@ class GOKernelArgument(KernelArgument):
                             " 'field' or 'scalar', but found '{0}'."
                             "".format(self.argument_type))
 
-    def infere_datatype(self):
-        ''' Infere the datatype of this argument using the API rules.
+    def infer_datatype(self):
+        ''' Infer the datatype of this argument using the API rules.
 
         :returns: the datatype of this argument.
         :rtype: :py:class::`psyclone.psyir.symbols.datatype`

@@ -1723,8 +1723,8 @@ def test_gokernelarguments_append():
            " var1, var2)" in generated_code
 
 
-def test_gokernelargument_infere_datatype():
-    ''' Check the GOcean specialisation of the infere_datatype work for each
+def test_gokernelargument_infer_datatype():
+    ''' Check the GOcean specialisation of the infer_datatype work for each
     possible type of KernelArgument. '''
 
     # Parse an invoke with a scalar float and a field
@@ -1740,11 +1740,11 @@ def test_gokernelargument_infere_datatype():
     argument_list = kernelcall.arguments
 
     # The first argument is a scalar Real
-    assert argument_list.args[0].infere_datatype() == REAL_TYPE
+    assert argument_list.args[0].infer_datatype() == REAL_TYPE
 
     # The second argument is a r2d_type (imported TypeSymbol)
-    assert isinstance(argument_list.args[1].infere_datatype(), TypeSymbol)
-    assert argument_list.args[1].infere_datatype().name == "r2d_type"
+    assert isinstance(argument_list.args[1].infer_datatype(), TypeSymbol)
+    assert argument_list.args[1].infer_datatype().name == "r2d_type"
 
     # Parse an invoke with a scalar int and a field
     _, invoke_info = parse(os.path.join(os.path.
@@ -1759,23 +1759,23 @@ def test_gokernelargument_infere_datatype():
     argument_list = kernelcall.arguments
 
     # The first argument is a scalar Integer
-    assert argument_list.args[0].infere_datatype() == INTEGER_TYPE
+    assert argument_list.args[0].infer_datatype() == INTEGER_TYPE
 
     # The second argument is a r2d_type (imported TypeSymbol)
-    assert isinstance(argument_list.args[1].infere_datatype(), TypeSymbol)
-    assert argument_list.args[1].infere_datatype().name == "r2d_type"
+    assert isinstance(argument_list.args[1].infer_datatype(), TypeSymbol)
+    assert argument_list.args[1].infer_datatype().name == "r2d_type"
 
     # Test an incompatible Kernel Argument
     argument_list.args[0]._arg._space = "incompatible"
     with pytest.raises(InternalError) as excinfo:
-        _ = argument_list.args[0].infere_datatype()
+        _ = argument_list.args[0].infer_datatype()
     assert ("GOcean expects scalar arguments to be in the 'go_r_scalar' or "
             "'go_i_scalar' spaces, but found 'incompatible'."
             in str(excinfo.value))
 
     argument_list.args[0]._arg._argument_type = "incompatible"
     with pytest.raises(InternalError) as excinfo:
-        _ = argument_list.args[0].infere_datatype()
+        _ = argument_list.args[0].infer_datatype()
     assert ("GOcean expects the Argument.argument_type() to be 'field' or "
             "'scalar', but found 'incompatible'." in str(excinfo.value))
 

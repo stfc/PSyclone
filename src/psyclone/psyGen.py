@@ -3725,7 +3725,7 @@ class Argument(object):
                 # Find the tag or create a new symbol with expected attributes
                 new_argument = self._call.root.symbol_table.symbol_from_tag(
                     tag, root_name=self._orig_name, symbol_type=DataSymbol,
-                    datatype=self.infere_datatype(),
+                    datatype=self.infer_datatype(),
                     interface=ArgumentInterface(argument_access))
                 self._name = new_argument.name
 
@@ -3746,8 +3746,8 @@ class Argument(object):
         '''
         raise NotImplementedError("Abstract method. Implement in the API.")
 
-    def infere_datatype(self):
-        ''' Infere the datatype of this argument using the API rules. If no
+    def infer_datatype(self):
+        ''' Infer the datatype of this argument using the API rules. If no
         specialisation of this method has been provided make the type
         DeferredType for now (it may be provided latter in the execution).
 

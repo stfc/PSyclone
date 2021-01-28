@@ -1064,10 +1064,10 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
         "integer".format(Config.get().filename) in str(excinfo.value))
 
 
-def test_argument_infere_datatype():
-    ''' Check that a generic argument infered datatype is a DeferredType. '''
+def test_argument_infer_datatype():
+    ''' Check that a generic argument inferred datatype is a DeferredType. '''
     arg = Argument(None, None, None)
-    assert isinstance(arg.infere_datatype(), DeferredType)
+    assert isinstance(arg.infer_datatype(), DeferredType)
 
 
 def test_argument_psyir_expression():
