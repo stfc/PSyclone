@@ -422,10 +422,10 @@ module dynamo0p3_builtins_mod
 ! ******************************************************************* !
 
 ! ------------------------------------------------------------------- !
-! ============== Adding (scaled) integer fields ===================== !
+! ============== Adding integer fields ============================== !
 ! ------------------------------------------------------------------- !
 
-  !> field3 = field1 + field2
+  !> ifield3 = ifield1 + ifield2
   type, public, extends(kernel_type) :: int_X_plus_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
@@ -438,7 +438,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: int_X_plus_Y_code
   end type int_X_plus_Y
 
-  !> field1 = field1 + field2
+  !> ifield1 = ifield1 + ifield2
   type, public, extends(kernel_type) :: int_inc_X_plus_Y
      private
      type(arg_type) :: meta_args(2) = (/                              &
@@ -451,10 +451,39 @@ module dynamo0p3_builtins_mod
   end type int_inc_X_plus_Y
 
 ! ------------------------------------------------------------------- !
+! ============== Subtracting integer fields ========================= !
+! ------------------------------------------------------------------- !
+
+  !> ifield3 = ifield1 - ifield2
+  type, public, extends(kernel_type) :: int_X_minus_Y
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD, GH_INTEGER, GH_WRITE, ANY_SPACE_1),      &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_SPACE_1),      &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_SPACE_1)       &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_X_minus_Y_code
+  end type int_X_minus_Y
+
+  !> ifield1 = ifield1 - ifield2
+  type, public, extends(kernel_type) :: int_inc_X_minus_Y
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READWRITE, ANY_SPACE_1),  &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READ,      ANY_SPACE_1)   &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_inc_X_minus_Y_code
+  end type int_inc_X_minus_Y
+
+! ------------------------------------------------------------------- !
 ! ============== Scaling integer fields ============================= !
 ! ------------------------------------------------------------------- !
 
-  !> field2 = scalar*field1
+  !> ifield2 = iscalar*ifield1
   type, public, extends(kernel_type) :: int_a_times_X
      private
      type(arg_type) :: meta_args(3) = (/                              &
@@ -467,7 +496,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: int_a_times_X_code
   end type int_a_times_X
 
-  !> field = scalar*field
+  !> ifield = iscalar*ifield
   type, public, extends(kernel_type) :: int_inc_a_times_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
@@ -484,7 +513,7 @@ module dynamo0p3_builtins_mod
 ! ============== Setting integer field elements to a value  ========= !
 ! ------------------------------------------------------------------- !
 
-  !> field = scalar
+  !> ifield = iscalar
   type, public, extends(kernel_type) :: int_setval_c
      private
      type(arg_type) :: meta_args(2) = (/                              &
@@ -496,7 +525,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: int_setval_c_code
   end type int_setval_c
 
-  !> field2 = field1
+  !> ifield2 = ifield1
   type, public, extends(kernel_type) :: int_setval_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
@@ -601,12 +630,19 @@ contains
   end subroutine sum_X_code
 
   ! ***** Integer-valued fields ***** !
-  ! Adding (scaled) integer fields
+  ! Adding integer fields
   subroutine int_X_plus_Y_code()
   end subroutine int_X_plus_Y_code
 
   subroutine int_inc_X_plus_Y_code()
   end subroutine int_inc_X_plus_Y_code
+
+  ! Subtracting integer fields
+  subroutine int_X_minus_Y_code()
+  end subroutine int_X_minus_Y_code
+
+  subroutine int_inc_X_minus_Y_code()
+  end subroutine int_inc_X_minus_Y_code
 
   ! Multiplying integer fields by an integer scalar
   ! (scaling fields)

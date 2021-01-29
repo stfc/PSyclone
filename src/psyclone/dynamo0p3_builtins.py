@@ -1060,7 +1060,7 @@ class DynSumXKern(DynBuiltIn):
 # ******************************************************************* #
 
 # ------------------------------------------------------------------- #
-# ============== Adding (scaled) integer fields ===================== #
+# ============== Adding integer fields ============================== #
 # ------------------------------------------------------------------- #
 
 class LFRicIntXPlusYKern(DynXPlusYKern):
@@ -1084,6 +1084,35 @@ class LFRicIntIncXPlusYKern(DynIncXPlusYKern):
     '''
     def __str__(self):
         return "Built-in: Increment an integer-valued field"
+
+
+# ------------------------------------------------------------------- #
+# ============== Subtracting integer fields ========================= #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntXMinusYKern(DynXMinusYKern):
+    ''' Subtract each element of an integer-valued field, `Y`, from
+    the corresponding element of another integer-valued field, `X`,
+    and return the result as a third integer-valued field, `Z`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynXMinusYKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Subtract integer-valued fields"
+
+
+class LFRicIntIncXMinusYKern(DynIncXMinusYKern):
+    ''' Subtract each element of an integer-valued field, `Y`, from
+    the corresponding element of another integer-valued field, `X`,
+    and store the result back in `X`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynXMinusYKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Decrement an integer-valued field"
 
 
 # ------------------------------------------------------------------- #
@@ -1190,9 +1219,12 @@ REAL_BUILTIN_MAP_CAPITALISED = {
 
 # Built-ins for integer-valued fields
 INT_BUILTIN_MAP_CAPITALISED = {
-    # Adding (scaled) integer fields
+    # Adding integer fields
     "int_X_plus_Y": LFRicIntXPlusYKern,
     "int_inc_X_plus_Y": LFRicIntIncXPlusYKern,
+    # Subtracting integer fields
+    "int_X_minus_Y": LFRicIntXMinusYKern,
+    "int_inc_X_minus_Y": LFRicIntIncXMinusYKern,
     # Multiplying integer fields by a integer scalar (scaling fields)
     "int_a_times_X": LFRicIntATimesXKern,
     "int_inc_a_times_X": LFRicIntIncATimesXKern,
