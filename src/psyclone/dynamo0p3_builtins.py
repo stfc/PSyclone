@@ -1063,7 +1063,7 @@ class DynSumXKern(DynBuiltIn):
 # ============== Adding (scaled) integer fields ===================== #
 # ------------------------------------------------------------------- #
 
-class LFRicIntXPlusYKern(DynBuiltIn):
+class LFRicIntXPlusYKern(DynXPlusYKern):
     ''' Add one integer-valued field to another and return the result
     as a third integer-valued field '''
 
