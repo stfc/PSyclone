@@ -1064,96 +1064,54 @@ class DynSumXKern(DynBuiltIn):
 # ------------------------------------------------------------------- #
 
 class LFRicIntXPlusYKern(DynXPlusYKern):
-    ''' Add one integer-valued field to another and return the result
-    as a third integer-valued field '''
+    ''' Add corresponding elements of two integer-valued fields, `X`
+    and `Y`, and return the result as a third integer-valued field, `Z`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynXPlusYKern`.
 
+    '''
     def __str__(self):
         return "Built-in: Add integer-valued fields"
 
-    def gen_code(self, parent):
-        '''
-        Generates LFRic API specific PSy code for a call to the
-        int_X_plus_Y Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+class LFRicIntIncXPlusYKern(DynIncXPlusYKern):
+    ''' Add each element of an integer-valued field, `X`, to the
+    corresponding element of another integer-valued field, `Y`, and
+    store the result back in `X`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynIncXPlusYKern`.
 
-        '''
-        # We add each element of f2 to the corresponding element of
-        # f1 and store the result in f3 (integer-valued fields).
-        # Call the gen_code method from the real-valued equivalent.
-        DynXPlusYKern.gen_code(self, parent)
-
-
-class LFRicIntIncXPlusYKern(DynBuiltIn):
-    ''' Add the second integer-valued field to the first field and
-    return it '''
-
+    '''
     def __str__(self):
         return "Built-in: Increment an integer-valued field"
 
-    def gen_code(self, parent):
-        '''
-        Generates LFRic API specific PSy code for a call to the
-        inc_X_plus_Y Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        # We add each element of f1 to the corresponding element of f2
-        # and store the result back in f1 (integer-valued fields).
-        # Call the gen_code method from the real-valued equivalent.
-        DynIncXPlusYKern.gen_code(self, parent)
-
 
 # ------------------------------------------------------------------- #
-# ============== Scaling integer fields ============================== #
+# ============== Scaling integer fields ============================= #
 # ------------------------------------------------------------------- #
 
 
-class LFRicIntATimesXKern(DynBuiltIn):
-    ''' Multiply the first integer-valued field by a real scalar and
-    return the result as a second integer-valued field (Y = a.X) '''
+class LFRicIntATimesXKern(DynATimesXKern):
+    ''' Multiply each element of the first integer-valued field, `X`,
+     by an integer scalar, `a`, and return the result as a second
+    integer-valued field `Y` (`Y = a*X`)
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynATimesXKern`.
 
+    '''
     def __str__(self):
         return "Built-in: Copy a scaled integer-valued field"
 
-    def gen_code(self, parent):
-        '''
-        Generates LFRic API specific PSy code for a call to the
-        int_a_times_X Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+class LFRicIntIncATimesXKern(DynIncATimesXKern):
+    ''' Multiply each element of an integer-valued field, `X` by
+    an integer scalar, `a`, and store the result back in `X`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynIncATimesXKern`.
 
-        '''
-        # We multiply each element of f1 by the integer scalar argument
-        # and store the result in f2 (integer-valued fields).
-        # Calls the gen_code method from the real-valued equivalent.
-        DynATimesXKern.gen_code(self, parent)
-
-
-class LFRicIntIncATimesXKern(DynBuiltIn):
-    ''' Multiply an integer-valued field by an integer scalar and
-    return it '''
-
+    '''
     def __str__(self):
         return "Built-in: Scale an integer-valued field"
-
-    def gen_code(self, parent):
-        '''
-        Generates LFRic API specific PSy code for a call to the
-        int_inc_a_times_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        # In this case we're multiplying each element of an
-        # integer-valued field by the supplied integer scalar value.
-        # Calls the gen_code method from the real-valued equivalent.
-        DynIncATimesXKern.gen_code(self, parent)
 
 
 # ------------------------------------------------------------------- #
@@ -1161,48 +1119,30 @@ class LFRicIntIncATimesXKern(DynBuiltIn):
 # ------------------------------------------------------------------- #
 
 
-class LFRicIntSetvalCKern(DynBuiltIn):
-    ''' Set an integer-valued field equal to an integer scalar value '''
+class LFRicIntSetvalCKern(DynSetvalCKern):
+    ''' Assign a single constant integer scalar value, `c`, to all
+    elements of an integer-valued field, `X`.
+    Set an integer-valued field equal to an integer scalar value
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynSetvalCKern`.
 
+    '''
     def __str__(self):
         return ("Built-in: Set an integer-valued field to an integer "
                 "scalar value")
 
-    def gen_code(self, parent):
-        '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
-        int_setval_c Built-in.
 
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+class LFRicIntSetvalXKern(DynSetvalXKern):
+    ''' Copy one element of an integer-valued field (second argument),
+    `X`, to the corresponding element of field of another integer-valued
+    field (first argument), `Y`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynSetvalXKern`.
 
-        '''
-        # In this case we're assigning a single integer scalar value to
-        # all elements of an integer-valued field.
-        # Call the gen_code method from the real-valued equivalent
-        DynSetvalCKern.gen_code(self, parent)
-
-
-class LFRicIntSetvalXKern(DynBuiltIn):
-    ''' Set an integer-valued field equal to another integer-valued field '''
-
+    '''
     def __str__(self):
         return ("Built-in: Set an integer-valued field equal to another "
                 "such field")
-
-    def gen_code(self, parent):
-        '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
-        int_setval_X Built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        # We copy one element of field X (second arg) to the corresponding
-        # element of field Y (first arg) (integer-valued fields).
-        # Call the gen_code method from the real-valued equivalent
-        DynSetvalXKern.gen_code(self, parent)
 
 
 # The built-in operations that we support for this API. The meta-data
