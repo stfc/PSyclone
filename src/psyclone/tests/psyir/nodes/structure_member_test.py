@@ -107,7 +107,7 @@ def test_sm_can_be_printed():
                                                parent=assignment)
     structure_member_ref = grid_ref.children[0]
     assert ("StructureMember[name:'area']\n"
-            "Member[name:'nx']\n" in str(structure_member_ref))
+            "Member[name:'nx']" in str(structure_member_ref))
 
 
 def test_sm_child_validate():

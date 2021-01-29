@@ -55,7 +55,7 @@
 !> arg_type type.
 
 !> A kernel may also require additional data associated with a particular
-!> function space (basis function, differential basis function and orientation
+!> function space (basis function and differential basis function
 !> information). This information is specified in the xxx type.
 !> the PSy layer needs to know how this is to be accessed.
 !> read, write etc and which function space it belongs. These are the three
@@ -127,7 +127,6 @@ module argument_mod
 ! Function space attributes
   integer, public, parameter :: GH_BASIS       = 751
   integer, public, parameter :: GH_DIFF_BASIS  = 767
-  integer, public, parameter :: GH_ORIENTATION = 397
   integer, public, parameter :: GH_COLUMN_BANDED_DOFMAP = 541
   integer, public, parameter :: GH_COLUMN_INDIRECTION_DOFMAP = 204
 
