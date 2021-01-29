@@ -329,6 +329,11 @@
 
 	105) PR #1079 for #363. Complete the PSyIR structure support.
 
+	106) PR #1070 for #703. Add the ability to rename PSyIR symbols
+
+        107) PR #847 for #846. Adds support for the LFRic timer to the
+        PSyData profiling wrapper.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
