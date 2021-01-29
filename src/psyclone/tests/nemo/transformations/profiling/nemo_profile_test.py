@@ -46,7 +46,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.configuration import Config
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import PSyDataNode, Loop, ProfileNode
+from psyclone.psyir.nodes import PSyDataNode, Loop, ProfileNode, Return
 from psyclone.psyir.transformations import ProfileTrans, TransformationError
 from psyclone.transformations import OMPParallelLoopTrans, ACCKernelsTrans
 from psyclone.profiler import Profiler
@@ -582,6 +582,52 @@ def test_profile_nemo_auto_kernels(parser):
     assert ("  type(profile_psydatatype), target, save :: profile_psy_data0\n"
             "  call profile_psy_data0 % prestart('do_loop', 'r0', 0, 0)\n"
             "  do ji = 1, jpj" in code)
+
+
+def test_profile_nemo_auto_invoke_return_last_stmt(parser):
+    ''' Check that using the auto-invoke profiling option avoids including
+    a return statement within the profiling region if it is the last statement
+    in the routine. '''
+    Profiler.set_options([Profiler.INVOKES])
+    _, schedule = get_nemo_schedule(parser,
+                                    "subroutine do_loop()\n"
+                                    "integer :: ji\n"
+                                    "integer, parameter :: jpj=32\n"
+                                    "real :: sto_tmp(jpj)\n"
+                                    "do ji = 1,jpj\n"
+                                    "  sto_tmp(ji) = 1.0d0\n"
+                                    "end do\n"
+                                    "return\n"
+                                    "end subroutine do_loop\n")
+    Profiler.add_profile_nodes(schedule, Loop)
+    # The Return should be a sibling of the ProfileNode rather than a child
+    assert isinstance(schedule[0], ProfileNode)
+    assert isinstance(schedule[1], Return)
+
+
+@pytest.mark.parametrize("body", ["do ji = 1,jpj\n"
+                                  "  sto_tmp(ji) = 1.0d0\n"
+                                  "  return\n"
+                                  "end do\n"
+                                  "return\n",
+                                  "do ji = 1,jpj\n"
+                                  "  sto_tmp(ji) = 1.0d0\n"
+                                  "  return\n"
+                                  "end do\n"])
+def test_profile_nemo_auto_invoke_no_return(parser, body):
+    ''' Check that using the auto-invoke profiling option does not add any
+    profiling if the invoke contains a Return anywhere other than as the
+    last statement. '''
+    Profiler.set_options([Profiler.INVOKES])
+    _, schedule = get_nemo_schedule(parser,
+                                    "subroutine do_loop()\n"
+                                    "integer :: ji\n"
+                                    "integer, parameter :: jpj=32\n"
+                                    "real :: sto_tmp(jpj)\n" + body +
+                                    "end subroutine do_loop\n")
+    Profiler.add_profile_nodes(schedule, Loop)
+    # No profiling should have been added
+    assert not schedule.walk(ProfileNode)
 
 
 def test_profile_nemo_loop_nests(parser):
