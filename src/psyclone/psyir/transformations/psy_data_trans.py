@@ -180,6 +180,10 @@ class PSyDataTrans(RegionTrans):
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.
         sched = node_list[0].ancestor(InvokeSchedule)
+        if not sched:
+            # Some tests construct PSyIR fragments that do not have an
+            # InvokeSchedule
+            return
         invoke = sched.invoke
         if not isinstance(invoke, NemoInvoke):
             return

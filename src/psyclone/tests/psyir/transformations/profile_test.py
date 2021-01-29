@@ -45,8 +45,10 @@ import pytest
 
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler
-from psyclone.psyir.nodes import (colored, Node, ProfileNode, Loop,
-                                  SCHEDULE_COLOUR_MAP)
+from psyclone.psyir.nodes import (colored, Node, ProfileNode, Loop, Literal,
+                                  SCHEDULE_COLOUR_MAP, Assignment, Return,
+                                  Reference, KernelSchedule)
+from psyclone.psyir.symbols import (SymbolTable, REAL_TYPE, DataSymbol)
 from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import ProfileTrans
@@ -814,3 +816,56 @@ def test_omp_transform():
       CALL profile_psy_data%PostEnd'''
 
     assert correct in code
+
+
+def test_auto_invoke_return_last_stmt(parser):
+    ''' Check that using the auto-invoke profiling option avoids including
+    a return statement within the profiling region if it is the last statement
+    in the routine. '''
+    symbol_table = SymbolTable()
+    arg1 = symbol_table.new_symbol(
+        symbol_type=DataSymbol, datatype=REAL_TYPE)
+    zero = Literal("0.0", REAL_TYPE)
+    assign1 = Assignment.create(Reference(arg1), zero)
+    kschedule = KernelSchedule.create(
+        "work", symbol_table, [assign1, Return()])
+
+    Profiler.set_options([Profiler.INVOKES])
+    Profiler.add_profile_nodes(kschedule, Loop)
+    # The Return should be a sibling of the ProfileNode rather than a child
+    assert isinstance(kschedule[0], ProfileNode)
+    assert isinstance(kschedule[1], Return)
+
+
+def test_auto_invoke_no_return(parser):
+    ''' Check that using the auto-invoke profiling option does not add any
+    profiling if the invoke contains a Return anywhere other than as the
+    last statement. '''
+    Profiler.set_options([Profiler.INVOKES])
+    symbol_table = SymbolTable()
+    arg1 = symbol_table.new_symbol(
+        symbol_type=DataSymbol, datatype=REAL_TYPE)
+    zero = Literal("0.0", REAL_TYPE)
+    assign1 = Assignment.create(Reference(arg1), zero)
+    assign2 = Assignment.create(Reference(arg1), zero)
+
+    # Create Schedule with Return at the start.
+    kschedule = KernelSchedule.create(
+        "work", symbol_table, [Return(), assign1, assign2])
+    Profiler.add_profile_nodes(kschedule, Loop)
+    # No profiling should have been added
+    assert not kschedule.walk(ProfileNode)
+
+    # Create Schedule with Return in the middle.
+    kschedule = KernelSchedule.create(
+        "work", symbol_table, [assign1, Return(), assign2])
+    Profiler.add_profile_nodes(kschedule, Loop)
+    # No profiling should have been added
+    assert not kschedule.walk(ProfileNode)
+
+    # Create Schedule with a Return at the end as well as in the middle.
+    kschedule = KernelSchedule.create(
+        "work", symbol_table, [assign1, Return(), assign2, Return()])
+    Profiler.add_profile_nodes(kschedule, Loop)
+    # No profiling should have been added
+    assert not kschedule.walk(ProfileNode)
