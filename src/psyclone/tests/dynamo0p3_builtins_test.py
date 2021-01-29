@@ -307,7 +307,7 @@ def test_builtin_invalid_scalar_data_type():
     # Sabotage the scalar argument to make it have an invalid data type
     scal_arg.descriptor._data_type = "gh_float"
     with pytest.raises(InternalError) as excinfo:
-        dynamo0p3_builtins.DynATimesXKern._validate(kern)
+        dynamo0p3_builtins.DynIncATimesXKern._validate(kern)
     assert ("Found an unsupported data type 'gh_float' for a scalar argument "
             "in kernel 'inc_a_times_x'. Supported data types are {0}".
             format(VALID_BUILTIN_SCALAR_DATA_TYPES) in str(excinfo.value))
