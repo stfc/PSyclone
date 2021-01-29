@@ -910,10 +910,14 @@ def test_fw_routine(fort_writer, monkeypatch):
                                           datatype=INTEGER_TYPE)
     sub_scopes[1].symbol_table.new_symbol("symbol1", symbol_type=DataSymbol,
                                           datatype=INTEGER_TYPE)
+    # Since the scopes are siblings they are alowed the same name
+    assert "symbol1" in sub_scopes[0].symbol_table
     assert "symbol2" in sub_scopes[0].symbol_table
     assert "symbol1" in sub_scopes[1].symbol_table
-    # They should be promoted to the routine-scope level with different names
-    # result = fort_writer(schedule)
+    assert "symbol2" in sub_scopes[1].symbol_table
+    # But the back-end will promote them to routine-scope level with different
+    # names
+    result = fort_writer(schedule)
     assert(
         "subroutine tmp(a, b, c)\n"
         "  use my_mod, only : d\n"
@@ -922,6 +926,8 @@ def test_fw_routine(fort_writer, monkeypatch):
         "  integer, intent(in) :: c\n"
         "  integer :: symbol1\n"
         "  integer :: symbol2\n"
+        "  integer :: symbol2_1\n"
+        "  integer :: symbol1_1\n"
         "\n"
         "  if (c > 3) then\n"
         "    a = b / c\n"

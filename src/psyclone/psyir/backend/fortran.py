@@ -752,7 +752,10 @@ class FortranWriter(PSyIRVisitor):
                 try:
                     whole_routine_scope.add(symbol)
                 except KeyError as err:
-                    six.raise_from("Name clash", err)
+                    schedule.symbol_table.rename_symbol(
+                        symbol,
+                        whole_routine_scope.next_available_name(symbol.name))
+                    whole_routine_scope.add(symbol)
 
         # Generate declaration statements
         declarations = self.gen_decls(whole_routine_scope)
