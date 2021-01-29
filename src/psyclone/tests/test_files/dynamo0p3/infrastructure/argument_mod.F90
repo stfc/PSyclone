@@ -217,7 +217,8 @@ module argument_mod
   !       PSyclone 2.0.0. Currently both options are supported for uninterrupted
   !       development, however the `CELLS` option will be removed in #870 or #874).
   integer, public, parameter :: CELL_COLUMN = 396
-  integer, public, parameter :: CELLS       = 945
+  integer, public, parameter :: CELLS       = 712
+  integer, public, parameter :: DOMAIN      = 945
   !> @}
 
   !> Metadata for the argument type description, stored in the `arg_type` type
