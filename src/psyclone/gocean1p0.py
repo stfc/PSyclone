@@ -643,11 +643,14 @@ class GOLoop(Loop):
         gocean1.0 API is for a certain offset type and field type. It defines
         the loop boundaries for the outer and inner loop. The format is a
         ":" separated tuple:
-        bound_info = offset-type:field-type:iteration-space:outer-start:
-                      outer-stop:inner-start:inner-stop
+
+        > bound_info = offset-type:field-type:iteration-space:outer-start:
+        >             outer-stop:inner-start:inner-stop``
+
         Example:
-        bound_info = go_offset_ne:go_ct:go_all_pts\
-                     :{start}-1:{stop}+1:{start}:{stop}
+
+        > bound_info = go_offset_ne:go_ct:go_all_pts:
+        >             {start}-1:{stop}+1:{start}:{stop}
 
         The expressions {start} and {stop} will be replaced with the loop
         indices that correspond to the inner points (i.e. non-halo or
@@ -655,11 +658,12 @@ class GOLoop(Loop):
         on the halo / boundary.
 
         :param str bound_info: A string that contains a ":" separated \
-               tuple with the iteration space definition.
+                               tuple with the iteration space definition.
+
         :raises ValueError: if bound_info is not a string.
         :raises ConfigurationError: if bound_info is not formatted correctly.
-        '''
 
+        '''
         if not isinstance(bound_info, str):
             raise InternalError("The parameter 'bound_info' must be a string, "
                                 "got '{0}' (type {1})"
@@ -2140,11 +2144,12 @@ class GOStencil():
         second dimension as "j" then the following directions are
         assumed:
 
-        j
-        ^
-        |
-        |
-        ---->i
+
+        > j
+        > ^
+        > |
+        > |
+        > ---->i
 
         For example a stencil access like:
 
@@ -2158,9 +2163,10 @@ class GOStencil():
 
         :param stencil_info: contains the appropriate part of the parser AST
         :type stencil_info: :py:class:`psyclone.expression.FunctionVar`
-        :param string kernel_name: the name of the kernel from where
-        this stencil information came from.
-        :raises ParseError: if the supplied stencil information is invalid
+        :param string kernel_name: the name of the kernel from where this \
+                                   stencil information came from.
+
+        :raises ParseError: if the supplied stencil information is invalid.
 
         '''
         self._initialised = True
@@ -2272,8 +2278,9 @@ class GOStencil():
         specifies 'pointwise' as this indicates that there is no
         stencil access.
 
-        :return Bool: True if this argument has stencil information
-        and False if not.
+        :returns: True if this argument has stencil information and False \
+                  if not.
+        :rtype: bool
 
         '''
         self._check_init()
@@ -2283,8 +2290,9 @@ class GOStencil():
     def name(self):
         '''Provides the stencil name if one is provided
 
-        :return string: the name of the type of stencil if this is
-        provided and 'None' if not.
+        :returns: the name of the type of stencil if this is provided \
+                  and 'None' if not.
+        :rtype: str
 
         '''
         self._check_init()
@@ -2306,14 +2314,16 @@ class GOStencil():
         depth(-1,0) = 9
         depth(1,1) = 4
 
-        :param int index0: the relative stencil offset for the first
-        index of the associated array. This value must be between -1
-        and 1
-        :param int index1: the relative stencil offset for the second
-        index of the associated array. This value must be between -1
-        and 1
-        :return int: the depth of the stencil in the specified direction
-        :raises GenerationError: if the indices are out-of-bounds
+        :param int index0: the relative stencil offset for the first \
+                           index of the associated array. This value \
+                           must be between -1 and 1.
+        :param int index1: the relative stencil offset for the second \
+                           index of the associated array. This value \
+                           must be between -1 and 1
+
+        :return int: the depth of the stencil in the specified direction.
+
+        :raises GenerationError: if the indices are out-of-bounds.
 
         '''
         self._check_init()
@@ -2653,3 +2663,12 @@ class GOHaloExchange(HaloExchange):
                 "%" + self._halo_exchange_name +
                 "(depth=1)"))
         parent.add(CommentGen(parent, ""))
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ['GOPSy', 'GOInvokes', 'GOInvoke', 'GOInvokeSchedule', 'GOLoop',
+           'GOBuiltInCallFactory', 'GOKernCallFactory', 'GOKern',
+           'GOFparser2Reader', 'GOKernelArguments', 'GOKernelArgument',
+           'GOKernelGridArgument', 'GOStencil', 'GO1p0Descriptor',
+           'GOKernelType1p0', 'GOACCEnterDataDirective', 'GOSymbolTable',
+           'GOKernelSchedule', 'GOHaloExchange']
