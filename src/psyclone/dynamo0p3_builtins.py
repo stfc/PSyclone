@@ -706,8 +706,8 @@ class DynXTimesYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We subtract each element of f2 from the corresponding element
-        # of f1 and store the result in f3 (real-valued fields).
+        # We multiply each element of f1 by the corresponding element
+        # of f2 and store the result in f3 (real-valued fields).
         field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -1109,10 +1109,38 @@ class LFRicIntIncXMinusYKern(DynIncXMinusYKern):
     and store the result back in `X`.
     Inherits the `gen_code` method from the real-valued built-in
     equivalent `DynXMinusYKern`.
-
     '''
     def __str__(self):
         return "Built-in: Decrement an integer-valued field"
+
+
+# ------------------------------------------------------------------- #
+# ============== Multiplying integer fields ========================= #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntXTimesYKern(DynXTimesYKern):
+    ''' Multiply each element of one integer-valued field, `X`, by
+    the corresponding element of another integer-valued field, `Y`,
+    and returne the result as a third integer-valued field, `Z`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynXTimesYKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Multiply integer-valued fields"
+
+
+class LFRicIntIncXTimesYKern(DynIncXTimesYKern):
+    ''' Multiply each element of one integer-valued field, `X`, by
+    the corresponding element of another integer-valued field, `Y`,
+    and store the result back in `X`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynIncXTimesYKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Multiply one integer-valued field by another"
 
 
 # ------------------------------------------------------------------- #
@@ -1225,11 +1253,14 @@ INT_BUILTIN_MAP_CAPITALISED = {
     # Subtracting integer fields
     "int_X_minus_Y": LFRicIntXMinusYKern,
     "int_inc_X_minus_Y": LFRicIntIncXMinusYKern,
-    # Multiplying integer fields by a integer scalar (scaling fields)
+    # Multiplying (scaled) real fields
+    "int_X_times_Y": LFRicIntXTimesYKern,
+    "int_inc_X_times_Y": LFRicIntIncXTimesYKern,
+    # Multiplying integer fields by an integer scalar (scaling fields)
     "int_a_times_X": LFRicIntATimesXKern,
     "int_inc_a_times_X": LFRicIntIncATimesXKern,
-    # Setting an integer field elements to scalar or other
-    # integer field's values
+    # Setting an integer field elements to an integer scalar
+    # or other integer field's values
     "int_setval_c": LFRicIntSetvalCKern,
     "int_setval_X": LFRicIntSetvalXKern}
 

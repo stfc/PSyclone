@@ -34,7 +34,7 @@
 ! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic, Met Office
 !
-!>@brief Meta-data for the Dynamo 0.3 built-in operations.
+!>@brief Meta-data for the LFRic (Dynamo 0.3) API built-in operations.
 !>@details This meta-data is purely to provide PSyclone with a
 !!         specification of each operation. This specification is used
 !!         for correctness checking as well as to enable optimisations
@@ -480,6 +480,35 @@ module dynamo0p3_builtins_mod
   end type int_inc_X_minus_Y
 
 ! ------------------------------------------------------------------- !
+! ============== Multiplying integer fields ========================= !
+! ------------------------------------------------------------------- !
+
+  !> ifield3 = ifield1*ifield2
+  type, public, extends(kernel_type) :: int_X_times_Y
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD, GH_INTEGER, GH_WRITE, ANY_SPACE_1),      &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_SPACE_1),      &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_SPACE_1)       &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_X_times_Y_code
+  end type int_X_times_Y
+
+  !> ifield1 = ifield1*ifield2
+  type, public, extends(kernel_type) :: int_inc_X_times_Y
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READWRITE, ANY_SPACE_1),  &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READ,      ANY_SPACE_1)   &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_inc_X_times_Y_code
+  end type int_inc_X_times_Y
+
+! ------------------------------------------------------------------- !
 ! ============== Scaling integer fields ============================= !
 ! ------------------------------------------------------------------- !
 
@@ -507,7 +536,6 @@ module dynamo0p3_builtins_mod
    contains
      procedure, nopass :: int_inc_a_times_X_code
   end type int_inc_a_times_X
-
 
 ! ------------------------------------------------------------------- !
 ! ============== Setting integer field elements to a value  ========= !
@@ -643,6 +671,13 @@ contains
 
   subroutine int_inc_X_minus_Y_code()
   end subroutine int_inc_X_minus_Y_code
+
+  ! Multiplying integer fields
+  subroutine int_X_times_Y_code()
+  end subroutine int_X_times_Y_code
+
+  subroutine int_inc_X_times_Y_code()
+  end subroutine int_inc_X_times_Y_code
 
   ! Multiplying integer fields by an integer scalar
   ! (scaling fields)
