@@ -731,7 +731,7 @@ class GOLoop(Loop):
              'inner': {'start': data[5], 'stop': data[6]}}
 
     # -------------------------------------------------------------------------
-    def _grid_property_reference(self, grid_property):
+    def _grid_property_psyir_expression(self, grid_property):
         '''
         Create a PSyIR reference expression using the supplied grid-property
         information (which will have been read from the config file).
@@ -823,7 +823,7 @@ class GOLoop(Loop):
             api_config = Config.get().api_conf("gocean1.0")
             # Use the data property to access the member of the field that
             # contains the actual grid points.
-            sref = self._grid_property_reference(
+            sref = self._grid_property_psyir_expression(
                 api_config.grid_properties["go_grid_data"].fortran)
             stop.addchild(sref)
             if self._loop_type == "inner":
@@ -850,7 +850,7 @@ class GOLoop(Loop):
         # key is 'internal' or 'whole', and _loop_type is either
         # 'inner' or 'outer'. The four possible combinations are
         # defined in the config file:
-        return self._grid_property_reference(
+        return self._grid_property_psyir_expression(
             props["go_grid_{0}_{1}_stop".format(key, self._loop_type)].fortran)
 
     # -------------------------------------------------------------------------
@@ -922,7 +922,7 @@ class GOLoop(Loop):
         # key is 'internal' or 'whole', and _loop_type is either
         # 'inner' or 'outer'. The four possible combinations are
         # defined in the config file:
-        return self._grid_property_reference(
+        return self._grid_property_psyir_expression(
             props["go_grid_{0}_{1}_start".format(key,
                                                  self._loop_type)].fortran)
 

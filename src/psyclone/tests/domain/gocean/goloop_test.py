@@ -140,15 +140,15 @@ def test_goloop_bounds_invalid_iteration_space():
     assert "Unrecognised iteration space, 'broken'." in str(err.value)
 
 
-def test_goloop_grid_prop_ref():
-    ''' Tests for the _grid_property_reference() method. '''
+def test_goloop_grid_property_psyir_expression():
+    ''' Tests for the _grid_property_psyir_expression() method. '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            API, idx=0)
     schedule = invoke.schedule
     loop = schedule.walk(GOLoop)[0]
     # A simple name should result in a new symbol and a suitable reference
     assert "hello" not in schedule.symbol_table
-    href = loop._grid_property_reference("hello")
+    href = loop._grid_property_psyir_expression("hello")
     hsym = schedule.symbol_table.lookup("hello")
     assert isinstance(hsym, DataSymbol)
     assert href.parent is loop
@@ -157,10 +157,10 @@ def test_goloop_grid_prop_ref():
     # A derived-type reference must be in the form of a format string with
     # "{0}" at the start.
     with pytest.raises(NotImplementedError) as err:
-        loop._grid_property_reference("wrong%one")
+        loop._grid_property_psyir_expression("wrong%one")
     assert ("Supplied grid property is a derived-type reference but does "
             "not begin with '{0}': 'wrong%one'" in str(err.value))
-    gref = loop._grid_property_reference("{0}%grid%xstart")
+    gref = loop._grid_property_psyir_expression("{0}%grid%xstart")
     assert isinstance(gref, StructureReference)
     assert gref.parent is loop
     assert gref.symbol.name == "cv_fld"
