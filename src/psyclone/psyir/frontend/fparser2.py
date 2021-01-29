@@ -162,7 +162,14 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
             try:
                 # If the name matches a Symbol in this SymbolTable then
                 # return the Symbol.
-                return symbol_table.lookup(name, scope_limit=test_node)
+                sym = symbol_table.lookup(name, scope_limit=test_node)
+                if "symbol_type" in kargs and type(sym) == Symbol:
+                    # The caller specified a sub-class of Symbol and we've
+                    # only found a generic Symbol.
+                    # TODO 935
+                    sym.__class__ = kargs.pop("symbol_type")
+                    sym.__init__(sym.name, **kargs)
+                return sym
             except KeyError:
                 # The supplied name does not match any Symbols in
                 # this SymbolTable. Does this SymbolTable have any
@@ -1722,12 +1729,28 @@ class Fparser2Reader(object):
                 parent.symbol_table.add(
                     TypeSymbol(name, dtype, visibility=dtype_symbol_vis))
 
-        except NotImplementedError:
+        except NotImplementedError as err:
             # Support for this declaration is not fully implemented so create
-            # a TypeSymbol of UnknownFortranType.
-            parent.symbol_table.add(
-                TypeSymbol(name, UnknownFortranType(str(decl)),
-                           visibility=dtype_symbol_vis))
+            # a TypeSymbol of UnknownFortranType. A derived type may contain
+            # pointers to variables of that derived type. Therefore, we may
+            # already have a TypeSymbol in the symbol table.
+            if name in parent.symbol_table:
+                sym = parent.symbol_table.lookup(name)
+                if type(sym) in [Symbol, TypeSymbol]:
+                    # TODO #935
+                    sym.__class__ = TypeSymbol
+                    sym.__init__(sym.name, UnknownFortranType(str(decl)),
+                                 visibility=dtype_symbol_vis)
+                else:
+                    six.raise_from(InternalError(
+                        "Error while processing declaration of '{0}' derived "
+                        "type. Symbol table already contains an entry with "
+                        "this name but it is of type '{1}'.".format(
+                            name, type(sym).__name__)), err)
+            else:
+                parent.symbol_table.add(
+                    TypeSymbol(name, UnknownFortranType(str(decl)),
+                               visibility=dtype_symbol_vis))
 
     def process_declarations(self, parent, nodes, arg_list,
                              default_visibility=None,
@@ -2111,8 +2134,9 @@ class Fparser2Reader(object):
         loop_var = str(ctrl[0].items[1][0])
         variable_name = str(loop_var)
         try:
-            data_symbol = _find_or_create_imported_symbol(parent,
-                                                          variable_name)
+            data_symbol = _find_or_create_imported_symbol(
+                parent, variable_name, symbol_type=DataSymbol,
+                datatype=DeferredType())
         except SymbolError:
             raise InternalError(
                 "Loop-variable name '{0}' is not declared and there are no "
@@ -2589,7 +2613,8 @@ class Fparser2Reader(object):
             for idx, child in enumerate(array.children):
                 if isinstance(child, Range):
                     symbol = _find_or_create_imported_symbol(
-                                array, loop_vars[range_idx])
+                        array, loop_vars[range_idx],
+                        symbol_type=DataSymbol, datatype=DeferredType())
                     array.children[idx] = Reference(symbol, parent=array)
                     range_idx += 1
 
@@ -2708,7 +2733,8 @@ class Fparser2Reader(object):
                                         parent=loop)
             loop.addchild(size_node)
             symbol = _find_or_create_imported_symbol(
-                        size_node, arrays[0].name)
+                size_node, arrays[0].name, symbol_type=DataSymbol,
+                datatype=DeferredType())
 
             size_node.addchild(Reference(symbol, parent=size_node))
             size_node.addchild(Literal(str(idx), integer_type,
@@ -3107,6 +3133,9 @@ class Fparser2Reader(object):
 
         '''
         reference_name = node.items[0].string.lower()
+        # We can't say for sure that the symbol we create here should be a
+        # DataSymbol as fparser2 often identifies function calls as
+        # part-references instead of function-references.
         symbol = _find_or_create_imported_symbol(parent, reference_name)
 
         array = ArrayReference(symbol, parent)
