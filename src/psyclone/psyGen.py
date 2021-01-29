@@ -2876,9 +2876,9 @@ class CodedKern(Kern):
         self.parent.children[self.position] = call_node
         call_node.parent = self.parent
 
-        # Add arguments PSyIR expressions as children
-        for argument in self.arguments.args:
-            call_node.addchild(argument.psyir_expression())
+        for argument in self.arguments.psyir_arguments_list():
+            call_node.addchild(argument)
+            argument.parent = call_node
 
         if not self.module_inline:
             # Import subroutine symbol
@@ -3444,6 +3444,14 @@ class Arguments(object):
         '''
         raise NotImplementedError("Arguments.raw_arg_list must be "
                                   "implemented in sub-class")
+
+    @abc.abstractmethod
+    def psyir_arguments_list(self):
+        '''
+        :returns: the PSyIR expressions representing this Arguments list.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
 
     def clear_cached_data(self):
         '''This function is called to clear all cached data, which

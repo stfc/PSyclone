@@ -62,7 +62,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
 from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
 from psyclone.psyir.symbols import INTEGER_TYPE, DeferredType
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
-    DynKernelArgument
+    DynKernelArguments
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
     DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans, \
@@ -535,18 +535,16 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     schedule.symbol_table.add(Symbol("undf_w3"))
     schedule.symbol_table.add(Symbol("map_w3"))
 
+    # TODO #1085 LFRic Arguments do not have a translation to PSyIR
+    # yet, we monkeypatch a dummy expression for now:
+    monkeypatch.setattr(DynKernelArguments, "psyir_arguments_list",
+                        lambda x: [Literal("1", INTEGER_TYPE)])
+
     # In DSL-level it is a CodedKern with no children
     assert isinstance(kern, CodedKern)
     assert len(kern.children) == 0
-    # TODO #1010: To generate the whole PSy-layer all kernel
-    # arguments must be there:
-    # number_of_arguments = len(kern.arguments.raw_arg_list())
-    number_of_arguments = len(kern.arguments.args)
+    number_of_arguments = len(kern.arguments.psyir_arguments_list())
 
-    # TODO #1085 LFRic Arguments do not have psyir translation
-    # yet, monkeypatch a dummy expression
-    monkeypatch.setattr(DynKernelArgument, "psyir_expression",
-                        lambda x: Literal("1", INTEGER_TYPE))
     kern.lower_to_language_level()
 
     # In language-level it is a Call with arguments as children

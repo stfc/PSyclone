@@ -1780,6 +1780,37 @@ def test_gokernelargument_infer_datatype():
             "'scalar' but found 'incompatible'." in str(excinfo.value))
 
 
+def test_gokernelarguments_psyir_arguments_list():
+    ''' Check the GOcean specialisation of psyir_arguments_list returns the
+    expected list of PSyIR expressions for each argument'''
+
+    # Parse an invoke with grid properties
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_grid_props.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments.psyir_arguments_list()
+
+    # It has 2 indices arguments plus the kernel arguments
+    assert len(argument_list) == len(kernelcall.arguments.args) + 2
+
+    # Second argument is a reference to the symbol tagged contiguous_kidx
+    assert isinstance(argument_list[0], Reference)
+    assert (argument_list[0].symbol is
+            kernelcall.scope.symbol_table.lookup_with_tag("contiguous_kidx"))
+
+    # Second argument is a reference to the symbol tagged noncontiguous_kidx
+    assert isinstance(argument_list[1], Reference)
+    assert (argument_list[1].symbol is
+            kernelcall.scope.symbol_table.lookup_with_tag(
+                "noncontiguous_kidx"))
+
+
 def test_gokernelargument_psyir_expression():
     ''' Check the GOcean specialisation of psyir_expression returns the
     expected expression for any GOKernelArgument and GOKernelGridArguments'''

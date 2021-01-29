@@ -471,10 +471,10 @@ class GOLoop(Loop):
         # available when we're determining which vars should be OpenMP
         # PRIVATE (which is done *before* code generation is performed)
         if self.loop_type == "inner":
-            tag = "inner_loop_idx"
+            tag = "contiguous_kidx"
             suggested_name = "i"
         elif self.loop_type == "outer":
-            tag = "outer_loop_idx"
+            tag = "noncontiguous_kidx"
             suggested_name = "j"
         else:
             raise GenerationError(
@@ -1741,6 +1741,18 @@ class GOKernelArguments(Arguments):
                                            arg.argument_type))
         self._raw_arg_list = arguments
         return self._raw_arg_list
+
+    def psyir_arguments_list(self):
+        '''
+        :returns: the PSyIR expressions representing this Arguments list.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        symtab = self._parent_call.scope.symbol_table
+        symbol1 = symtab.lookup_with_tag("contiguous_kidx")
+        symbol2 = symtab.lookup_with_tag("noncontiguous_kidx")
+        return ([Reference(symbol1), Reference(symbol2)] +
+                [arg.psyir_expression() for arg in self.args])
 
     def find_grid_access(self):
         '''
