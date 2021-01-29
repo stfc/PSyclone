@@ -43,7 +43,7 @@ import re
 from collections import OrderedDict
 import pytest
 from psyclone.psyir.nodes import Schedule, Container, KernelSchedule, \
-    Literal, Reference
+    Literal, Reference, Assignment
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
@@ -1373,3 +1373,61 @@ def test_symbol_from_tag():
 
     # TODO #1057: It should also fail the symbol is found but the properties
     # are different than the requested ones.
+
+
+def test_rename_symbol():
+    '''Test that the rename_symbol method renames a symbol and the change
+    affects all its references. Also check that it fails when the arguments
+    are not what the method expects.'''
+    # Prepare the symbol table hierarchy for the test
+    schedule_symbol_table, container_symbol_table = create_hierarchy()
+    symbol = schedule_symbol_table.lookup("symbol1")
+    symbol.constant_value = 3
+    symbol2 = schedule_symbol_table.lookup("symbol2")
+
+    # Create multiple references to the symbol
+    array_type = ArrayType(REAL_TYPE, [Reference(symbol)])
+    array = schedule_symbol_table.new_symbol("array", symbol_type=DataSymbol,
+                                             datatype=array_type)
+    sched = schedule_symbol_table.node
+    ref1 = Reference(symbol2)
+    ref2 = Reference(symbol)
+    assignment = Assignment.create(ref1, ref2)
+    sched.addchild(assignment)
+
+    # Check that the names are as expected before and after renaming
+    assert symbol.name == "symbol1"
+    assert symbol is schedule_symbol_table.lookup("symbol1")
+    assert sched[0].rhs.symbol.name == "symbol1"
+    assert array.datatype.shape[0].symbol.name == "symbol1"
+    schedule_symbol_table.rename_symbol(symbol, "other")
+    assert symbol.name == "other"
+    assert symbol is schedule_symbol_table.lookup("other")
+    assert sched[0].rhs.symbol.name == "other"
+    assert array.datatype.shape[0].symbol.name == "other"
+
+    # The previous name should fail the lookup now
+    with pytest.raises(KeyError) as err:
+        schedule_symbol_table.lookup("symbol1")
+    assert "Could not find 'symbol1' in the Symbol Table." in str(err.value)
+
+    # Check argument conditions
+    with pytest.raises(TypeError) as err:
+        schedule_symbol_table.rename_symbol("not_a_symbol", "other")
+    assert ("The symbol argument of rename_symbol() must be a Symbol, but "
+            "found: 'str'." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        schedule_symbol_table.rename_symbol(symbol, 3)
+    assert ("The name argument of rename_symbol() must be a str, but "
+            "found:" in str(err.value))
+
+    with pytest.raises(ValueError) as err:
+        container_symbol_table.rename_symbol(symbol, "somethingelse")
+    assert ("The symbol argument of rename_symbol() must belong to this "
+            "symbol_table instance, but " in str(err.value))
+
+    with pytest.raises(KeyError) as err:
+        schedule_symbol_table.rename_symbol(symbol, "array")
+    assert ("The name argument of rename_symbol() must not already exist in "
+            "this symbol_table instance, but 'array' does." in str(err.value))
