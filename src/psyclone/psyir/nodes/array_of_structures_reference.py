@@ -91,8 +91,6 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
             are not of the expected type.
 
         '''
-        # TODO #363 if a symbol is imported via a USE then it will be
-        # represented with a Symbol, not a DataSymbol.
         if not isinstance(symbol, symbols.DataSymbol):
             raise TypeError(
                 "The 'symbol' argument to ArrayOfStructuresReference.create() "
