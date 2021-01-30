@@ -49,7 +49,7 @@ from psyclone.parse.kernel import Descriptor
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import PSyFactory
-from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule, \
+from psyclone.gocean1p0 import GOKern, GOLoop, \
     GOKernelArgument, GOKernelArguments, GOKernelGridArgument, \
     GOBuiltInCallFactory, GOSymbolTable
 from psyclone.tests.utilities import get_invoke
@@ -57,7 +57,7 @@ from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.psyir.symbols import SymbolTable, DeferredType, \
     ContainerSymbol, DataSymbol, GlobalInterface, REAL_TYPE, INTEGER_TYPE, \
     ArgumentInterface
-from psyclone.psyir.nodes import Schedule, Node
+from psyclone.psyir.nodes import Node
 from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
 API = "gocean1.0"
@@ -1026,6 +1026,9 @@ def test_goschedule_view(capsys, dist_mem):
     call = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
     sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+    sref = colored("StructureReference", SCHEDULE_COLOUR_MAP["Reference"])
+    smem = colored("StructureMember", SCHEDULE_COLOUR_MAP["Reference"])
+    mem = colored("Member", SCHEDULE_COLOUR_MAP["Reference"])
     bop = colored("BinaryOperation", SCHEDULE_COLOUR_MAP["Operation"])
     haloex = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
 
@@ -1044,18 +1047,22 @@ def test_goschedule_view(capsys, dist_mem):
             "check_dirty=False]\n"
             "    1: " + loop + "[type='outer', field_space='go_cu', "
             "it_space='go_internal_pts']\n"
-            "        " + lit + "[value:'cu_fld%internal%ystart', "
-            "Scalar<INTEGER, UNDEFINED>]\n"
-            "        " + lit + "[value:'cu_fld%internal%ystop', "
-            "Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + sref + "[name:'cu_fld']\n"
+            "            " + smem + "[name:'internal']\n"
+            "                " + mem + "[name:'ystart']\n"
+            "        " + sref + "[name:'cu_fld']\n"
+            "            " + smem + "[name:'internal']\n"
+            "                " + mem + "[name:'ystop']\n"
             "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "        " + sched + "[]\n"
             "            0: " + loop + "[type='inner', field_space='go_cu', "
             "it_space='go_internal_pts']\n"
-            "                " + lit + "[value:'cu_fld%internal%xstart', "
-            "Scalar<INTEGER, UNDEFINED>]\n"
-            "                " + lit + "[value:'cu_fld%internal%xstop', "
-            "Scalar<INTEGER, UNDEFINED>]\n"
+            "                " + sref + "[name:'cu_fld']\n"
+            "                    " + smem + "[name:'internal']\n"
+            "                        " + mem + "[name:'xstart']\n"
+            "                " + sref + "[name:'cu_fld']\n"
+            "                    " + smem + "[name:'internal']\n"
+            "                        " + mem + "[name:'xstop']\n"
             "                " + lit + "[value:'1', Scalar<INTEGER, "
             "UNDEFINED>]\n"
             "                " + sched + "[]\n"
@@ -1066,8 +1073,8 @@ def test_goschedule_view(capsys, dist_mem):
             "it_space='go_internal_pts']\n"
             "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "        " + bop + "[operator:'SIZE']\n"
-            "            " + lit + "[value:'uold_fld%data', Scalar<INTEGER, "
-            "UNDEFINED>]\n"
+            "            " + sref + "[name:'uold_fld']\n"
+            "                " + mem + "[name:'data']\n"
             "            " + lit + "[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
             "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "        " + sched + "[]\n"
@@ -1076,10 +1083,10 @@ def test_goschedule_view(capsys, dist_mem):
             "                " + lit + "[value:'1', Scalar<INTEGER, "
             "UNDEFINED>]\n"
             "                " + bop + "[operator:'SIZE']\n"
-            "                    " + lit + "[value:'uold_fld%data', "
-            "Scalar<INTEGER, UNDEFINED>]\n"
-            "                    " + lit + "[value:'1', "
-            "Scalar<INTEGER, UNDEFINED>]\n"
+            "                    " + sref + "[name:'uold_fld']\n"
+            "                        " + mem + "[name:'data']\n"
+            "                    " + lit + "[value:'1', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
             "                " + lit + "[value:'1', Scalar<INTEGER, "
             "UNDEFINED>]\n"
             "                " + sched + "[]\n"
@@ -1161,17 +1168,21 @@ def test_goschedule_str(dist_mem):
             "HaloExchange[field='p_fld', type='None', depth=None, "
             "check_dirty=False]\n"
             "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-            "Literal[value:'cu_fld%internal%ystart', Scalar<INTEGER, "
-            "UNDEFINED>]\n"
-            "Literal[value:'cu_fld%internal%ystop', Scalar<INTEGER, "
-            "UNDEFINED>]\n"
+            "StructureReference[name:'cu_fld']\n"
+            "StructureMember[name:'internal']\n"
+            "Member[name:'ystart']\n"
+            "StructureReference[name:'cu_fld']\n"
+            "StructureMember[name:'internal']\n"
+            "Member[name:'ystop']\n"
             "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "Schedule:\n"
             "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-            "Literal[value:'cu_fld%internal%xstart', Scalar<INTEGER, "
-            "UNDEFINED>]\n"
-            "Literal[value:'cu_fld%internal%xstop', Scalar<INTEGER, "
-            "UNDEFINED>]\n"
+            "StructureReference[name:'cu_fld']\n"
+            "StructureMember[name:'internal']\n"
+            "Member[name:'xstart']\n"
+            "StructureReference[name:'cu_fld']\n"
+            "StructureMember[name:'internal']\n"
+            "Member[name:'xstop']\n"
             "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "Schedule:\n"
             "kern call: compute_cu_code\n"
@@ -1182,14 +1193,16 @@ def test_goschedule_str(dist_mem):
             "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
             "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "BinaryOperation[operator:'SIZE']\n"
-            "Literal[value:'uold_fld%data', Scalar<INTEGER, UNDEFINED>]\n"
+            "StructureReference[name:'uold_fld']\n"
+            "Member[name:'data']\n"
             "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
             "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "Schedule:\n"
             "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
             "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "BinaryOperation[operator:'SIZE']\n"
-            "Literal[value:'uold_fld%data', Scalar<INTEGER, UNDEFINED>]\n"
+            "StructureReference[name:'uold_fld']\n"
+            "Member[name:'data']\n"
             "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "Schedule:\n"
@@ -1259,97 +1272,6 @@ def test_gosched_ijstop():
     # Attempt to query the upper bound of the j loop
     with pytest.raises(GenerationError):
         _ = schedule.jloop_stop
-
-
-def test_goloop_no_parent():
-    ''' Attempt to generate code for a loop that has no GOInvokeSchedule
-    as a parent '''
-    # First create with a schedule as one is required to declare the
-    # loop variable
-    schedule = Schedule()
-    goloop = GOLoop(loop_type="inner", parent=schedule)
-    schedule.children = [goloop]
-    # Now remove parent and children
-    goloop.parent = None
-    goloop.children = None
-    # Try and generate the code for this loop even though it
-    # has no parent schedule and no children
-    with pytest.raises(GenerationError):
-        goloop.gen_code(None)
-
-
-def test_goloop_no_children():
-    ''' Attempt to generate code for a loop that has no child
-    kernel calls '''
-    gosched = GOInvokeSchedule('name', [])
-    gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
-    gosched.addchild(gojloop)
-    gojloop.loop_body.addchild(goiloop)
-    # Try and generate the code for this loop even though it
-    # has no children
-    with pytest.raises(GenerationError):
-        goiloop.gen_code(None)
-
-
-def test_goloop_unsupp_offset():
-    ''' Attempt to generate code for a loop with constant bounds with
-    an unsupported index offset '''
-    gosched = GOInvokeSchedule('name', [])
-    # This test expects constant loop bounds
-    gosched._const_loop_bounds = True
-    gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
-    gosched.addchild(gojloop)
-    gojloop.loop_body.addchild(goiloop)
-    gokern = GOKern()
-    # Set the index-offset of this kernel to a value that is not
-    # supported when using constant loop bounds
-    gokern._index_offset = "offset_se"
-    goiloop.loop_body.addchild(gokern)
-    with pytest.raises(GenerationError):
-        goiloop.gen_code(None)
-
-
-def test_goloop_unmatched_offsets():
-    ''' Attempt to generate code for a loop with constant bounds with
-    two different index offsets '''
-    gosched = GOInvokeSchedule('name', [])
-    gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
-    gosched.addchild(gojloop)
-    gojloop.loop_body.addchild(goiloop)
-    gokern1 = GOKern()
-    gokern2 = GOKern()
-    # Set the index-offset of this kernel to a value that is not
-    # supported when using constant loop bounds
-    gokern1._index_offset = "go_offset_ne"
-    gokern2._index_offset = "go_offset_sw"
-    goiloop.loop_body.addchild(gokern1)
-    goiloop.loop_body.addchild(gokern2)
-    with pytest.raises(GenerationError) as excinfo:
-        goiloop.gen_code(None)
-    # Note that the kernels do not have a name, so there is a double space
-    assert "All Kernels must expect the same grid offset but kernel  " \
-        "has offset go_offset_sw which does not match go_offset_ne" \
-        in str(excinfo.value)
-
-
-def test_goloop_bounds_invalid_iteration_space():
-    ''' Check that the _upper/lower_bound() methods raise the expected error
-    if the iteration space is not recognised. '''
-    gosched = GOInvokeSchedule('name', [])
-    gojloop = GOLoop(parent=gosched, loop_type="outer")
-    # Have to turn-off constant loop bounds to get to the error condition
-    gosched._const_loop_bounds = False
-    # Set the iteration space to something invalid
-    gojloop._iteration_space = "broken"
-    with pytest.raises(GenerationError) as err:
-        gojloop._upper_bound()
-    assert "Unrecognised iteration space, 'broken'." in str(err.value)
-    with pytest.raises(GenerationError) as err:
-        gojloop._lower_bound()
-    assert "Unrecognised iteration space, 'broken'." in str(err.value)
 
 
 def test_writetoread_dag(tmpdir, have_graphviz):
