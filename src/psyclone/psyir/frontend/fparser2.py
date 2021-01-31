@@ -3252,8 +3252,7 @@ class Fparser2Reader(object):
             "literal, but found '{0}' instead.".format(value))
 
     def _call_handler(self, node, parent):
-        '''
-        Transforms an fparser2 call statement into a PSyIR Call node.
+        '''Transforms an fparser2 call statement into a PSyIR Call node.
 
         :param node: node in fparser2 parse tree.
         :type node: \
@@ -3264,13 +3263,21 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Call`
 
+        :raises GenerationError: if the name of the call is already \
+        declared as something that is not a RoutineSymbol.
+
         '''
         call_name = node.items[0].string
-
         symbol_table = parent.scope.symbol_table
         try:
             routine_symbol = symbol_table.lookup(call_name)
-            # TODO Check it is a routinesymbol and raise an exception if not
+            if type(routine_symbol).__name__ == "Symbol":
+                # TODO issue #1094: Symbol should be specialised to a
+                # RoutineSymbol here (if the symbol is part of a use
+                # statement). Without specialising, the Call class
+                # constructor will raise an exception. As a temporary
+                # fix, just change the class name.
+                routine_symbol.__class__ = RoutineSymbol
         except KeyError:
             routine_symbol = RoutineSymbol(
                 call_name, interface=UnresolvedInterface())

@@ -45,7 +45,7 @@ from psyclone.psyir.frontend import fparser2
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     get_literal_precision
 from psyclone.psyir.symbols import ScalarType, DataSymbol, INTEGER_TYPE, \
-    RoutineSymbol, UnresolvedInterface
+    RoutineSymbol, UnresolvedInterface, GlobalInterface
 from psyclone.psyir.nodes import Node, Literal, CodeBlock, Schedule, Call, \
     Reference, BinaryOperation
 from psyclone.errors import InternalError
@@ -56,7 +56,7 @@ def test_call_noargs():
     '''Test that fparser2 transforms a Fortran subroutine call with no
     arguments into the equivalent PSyIR Call node. Also test that a
     new RoutineSymbol is added to the symbol table (with an unresolved
-    interface), if one does not already exist.
+    interface) when one does not already exist.
 
     '''
     reader = FortranStringReader(" call kernel()")
@@ -64,29 +64,55 @@ def test_call_noargs():
     fake_parent = Schedule()
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [astmt])
-    assert not fake_parent.walk(CodeBlock)
+
     call_node = fake_parent.children[0]
     assert isinstance(call_node, Call)
+    assert not call_node.children
+
     routine_symbol = call_node.routine
     assert isinstance(routine_symbol, RoutineSymbol)
     assert isinstance(routine_symbol.interface, UnresolvedInterface)
     assert routine_symbol.name == "kernel"
     assert routine_symbol in call_node.scope.symbol_table.symbols
-    assert not call_node.children
+
     assert (str(call_node)) == "Call[name='kernel']"
+
+
+def test_call_declared_routine(f2008_parser):
+    '''Test that fparser2 transforms a Fortran subroutine call into the
+     equivalent PSyIR Call node when the call name has already been
+     declared. The example includes the call twice as the first time
+     the symbol needs to be specialised to a RoutineSymbol and the
+     second time it should already be a RoutineSymbol.
+
+    '''
+    test_code = (
+        "subroutine test()\n"
+        "use my_mod, only : kernel\n"
+        "  call kernel()\n"
+        "  call kernel()\n"
+        "end subroutine")
+    reader = FortranStringReader(test_code)
+    ptree = f2008_parser(reader)
+    processor = Fparser2Reader()
+    sched = processor.generate_schedule("test", ptree)
+    for call_node in [sched.children[0], sched.children[1]]:
+        routine_symbol = call_node.routine
+        assert isinstance(routine_symbol, RoutineSymbol)
+        assert isinstance(routine_symbol.interface, GlobalInterface)
+        assert routine_symbol.name == "kernel"
+        assert routine_symbol in call_node.scope.symbol_table.symbols
+
 
 
 def test_call_args(f2008_parser):
     '''Test that fparser2 transforms a Fortran subroutine call with
-    arguments into the equivalent PSyIR Call node. Also test that an
-    existing RoutineSymbol is used if one with the same name as the
-    call name already exists in the symbol table.
+    arguments into the equivalent PSyIR Call node.
 
     '''
-
-    *** TEST EXISTING ROUTINESYMBOL AND EXISTING SYMBOL WITH WRONG TYPE ***
     test_code = (
         "subroutine test()\n"
+        "use my_mod, only : kernel\n"
         "real :: a,b\n"
         "  call kernel(1.0, a, (a+b)*2.0, name=\"roo\")\n"
         "end subroutine")
@@ -94,10 +120,9 @@ def test_call_args(f2008_parser):
     ptree = f2008_parser(reader)
     processor = Fparser2Reader()
     sched = processor.generate_schedule("test", ptree)
+
     call_node = sched.children[0]
     assert isinstance(call_node, Call)
-    assert call_node.routine.name == "kernel"
-    assert (str(call_node)) == "Call[name='kernel']"
     assert len(call_node.children) == 4
     assert isinstance(call_node.children[0], Literal)
     assert call_node.children[0].value == "1.0"
@@ -105,3 +130,11 @@ def test_call_args(f2008_parser):
     assert call_node.children[1].name == "a"
     assert isinstance(call_node.children[2], BinaryOperation)
     assert isinstance(call_node.children[3], CodeBlock)
+
+    routine_symbol = call_node.routine
+    assert isinstance(routine_symbol, RoutineSymbol)
+    assert call_node.routine.name == "kernel"
+    assert isinstance(routine_symbol.interface, GlobalInterface)
+    assert routine_symbol is call_node.scope.symbol_table.lookup("kernel")
+
+    assert (str(call_node)) == "Call[name='kernel']"
