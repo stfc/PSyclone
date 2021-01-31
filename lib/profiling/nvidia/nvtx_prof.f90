@@ -164,7 +164,7 @@ contains
                       num_post_vars)
     implicit none
     class(profile_PSyDataType), target, intent(inout) :: this
-    character*(*), intent(in) :: module_name, region_name
+    character(len=*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
     ! Locals
     type(nvtxEventAttributes) :: event
