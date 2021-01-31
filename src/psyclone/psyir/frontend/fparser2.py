@@ -3282,7 +3282,7 @@ class Fparser2Reader(object):
             routine_symbol = RoutineSymbol(
                 call_name, interface=UnresolvedInterface())
             symbol_table.add(routine_symbol)
-    
+
         call = Call(routine_symbol, parent=parent)
 
         args = []

@@ -41,14 +41,11 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyir.frontend import fparser2
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
-    get_literal_precision
-from psyclone.psyir.symbols import ScalarType, DataSymbol, INTEGER_TYPE, \
-    RoutineSymbol, UnresolvedInterface, GlobalInterface
-from psyclone.psyir.nodes import Node, Literal, CodeBlock, Schedule, Call, \
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.symbols import RoutineSymbol, UnresolvedInterface, \
+    GlobalInterface
+from psyclone.psyir.nodes import Literal, CodeBlock, Schedule, Call, \
     Reference, BinaryOperation
-from psyclone.errors import InternalError
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -102,7 +99,6 @@ def test_call_declared_routine(f2008_parser):
         assert isinstance(routine_symbol.interface, GlobalInterface)
         assert routine_symbol.name == "kernel"
         assert routine_symbol in call_node.scope.symbol_table.symbols
-
 
 
 def test_call_args(f2008_parser):
