@@ -43,7 +43,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, ArrayReference, \
-    Assignment, Literal, Reference, BinaryOperation, IfBlock
+    Assignment, Literal, Reference, BinaryOperation, IfBlock, Call
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
@@ -387,5 +387,5 @@ def test_where_ordering(parser):
     result = processor.generate_schedule("test", fparser2_tree)
     assert isinstance(result[0], Assignment)
     assert isinstance(result[1], Loop)
-    assert isinstance(result[2], CodeBlock)
+    assert isinstance(result[2], Call)
     assert isinstance(result[3], Loop)
