@@ -78,6 +78,7 @@ def test_call_noargs():
 
     assert call_node.ast == ast
 
+
 def test_call_declared_routine(f2008_parser):
     '''Test that fparser2 transforms a Fortran subroutine call into the
      equivalent PSyIR Call node when the call name has already been
