@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -254,6 +254,25 @@ class Symbol(object):
         # first positional argument.
         return type(self)(self.name, visibility=self.visibility,
                           interface=self.interface)
+
+    def specialise(self, subclass):
+        '''Specialise this class instance so that it becomes an instance of
+        the class provided in the subclass argument. This allows this
+        instance to become a subclass without any references to this
+        instance becoming invalid.
+
+        :param subclass: a subclass of the Symbol class.
+        :type subclass: the type of a class is `type` 
+
+        :raises TypeError: if subclass is not a subclass of Symbol.
+
+        '''
+        if not issubclass(subclass, self.__class__):
+            raise TypeError(
+                "The specialise method in the Symbol class expects the "
+                "subclass argument to be a subclass of symbol but found "
+                "'{0}'.".format(subclass.__name__))
+        self.__class__ = subclass
 
     def get_external_symbol(self):
         '''
