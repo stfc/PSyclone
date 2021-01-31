@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -102,8 +102,6 @@ for info in GENERIC_SCALAR_DATATYPES:
         "        super({0}DataSymbol, self).__init__(\n"
         "            name, {0}DataType(precision=precision),\n"
         "            interface=interface)\n"
-        "    def _specialise_remote_symbol(self, other_symbol):\n"
-        "        other_symbol.datatype.__class__ = self.datatype.__class__\n"
         "".format(NAME))
 
 
@@ -161,8 +159,6 @@ for info in SPECIFIC_SCALAR_DATATYPES:
     TYPE = "".join(info.generic_type.title().split())
     ARGS = ["self", "name"] + info.properties + ["interface=None"]
     VARS = ["        self.{0} = {0}".format(var) for var in info.properties]
-    RVARS = ["        other_symbol.{0} = self.{0}"
-             "".format(var) for var in info.properties]
     # Create the specific datatype
     exec(
         "class {0}DataType({1}DataType):\n"
@@ -175,11 +171,7 @@ for info in SPECIFIC_SCALAR_DATATYPES:
         "{3}\n"
         "        super({0}DataSymbol, self).__init__(\n"
         "            name, interface=interface)\n"
-        "    def _specialise_remote_symbol(self, other_symbol):\n"
-        "        other_symbol.datatype.__class__ = self.datatype.__class__\n"
-        "{4}\n"
-        "".format(NAME, TYPE, ", ".join(ARGS), "\n".join(VARS),
-                  "\n".join(RVARS)))
+        "".format(NAME, TYPE, ", ".join(ARGS), "\n".join(VARS)))
 
 # Define LFRic field datatypes and symbols
 
@@ -266,8 +258,6 @@ for array_type in ARRAY_DATATYPES + FIELD_DATATYPES:
             ["interface=None"])
     VARS = ["        self.{0} = {0}".format(var) for var in
             array_type.properties]
-    RVARS = ["        other_symbol.{0} = self.{0}"
-             "".format(var) for var in array_type.properties]
     # Create the specific datatype
     exec(
         "class {0}DataType(ArrayType):\n"
@@ -287,11 +277,7 @@ for array_type in ARRAY_DATATYPES + FIELD_DATATYPES:
         "{2}\n"
         "        super({0}DataSymbol, self).__init__(\n"
         "            name, {0}DataType(dims), interface=interface)\n"
-        "    def _specialise_remote_symbol(self, other_symbol):\n"
-        "        other_symbol.datatype.__class__ = self.datatype.__class__\n"
-        "{3}\n"
-        "".format(NAME, ", ".join(ARGS), "\n".join(VARS),
-                  "\n".join(RVARS)))
+        "".format(NAME, ", ".join(ARGS), "\n".join(VARS)))
 
 # Generate LFRic vector-field-data symbols as subclasses of field-data symbols
 for array_type in FIELD_DATATYPES:

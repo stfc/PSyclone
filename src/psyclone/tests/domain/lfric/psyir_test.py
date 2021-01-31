@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ import pytest
 from psyclone.domain.lfric import psyir as lfric_psyir
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     GlobalInterface, ScalarType, LocalInterface, ArgumentInterface, \
-    ArrayType, ScalarType
+    ArrayType
 from psyclone.psyir.nodes import Reference, Literal
 
 
@@ -97,13 +97,6 @@ def test_generic_scalars(data_type, symbol, intrinsic, precision):
     # precision can be set explicitly
     lfric_symbol = symbol("symbol", precision=4)
     assert lfric_symbol.datatype.precision == 4
-
-    psyir_type = ScalarType(intrinsic, precision=4)
-    psyir_symbol = DataSymbol("symbol_name", psyir_type)
-
-    assert type(psyir_symbol.datatype) == ScalarType
-    lfric_symbol._specialise_remote_symbol(psyir_symbol)
-    assert type(psyir_symbol.datatype) == data_type
 
 
 # Scalar literals
@@ -185,8 +178,8 @@ def test_specific_scalar_types(data_type, generic_type):
     (lfric_psyir.NumberOfQrPointsInEdgesDataSymbol,
      lfric_psyir.LfricIntegerScalarDataSymbol, {})])
 def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
-    '''Test the generated specific scalar symbols are created correctly
-    and that the _specialise_remote_symbol method works as expected.
+    '''Test the generated specific scalar symbols are
+    created correctly.
 
     '''
     args = ["symbol"] + list(attribute_map.values())
@@ -200,27 +193,6 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
         *args, interface=ArgumentInterface(ArgumentInterface.Access.READ))
     assert isinstance(lfric_symbol.interface, ArgumentInterface)
     assert lfric_symbol.interface.access == ArgumentInterface.Access.READ
-
-    # All specific LFRic scalars are currently integers
-    psyir_intrinsic = ScalarType.Intrinsic.INTEGER
-    psyir_type = ScalarType(psyir_intrinsic, precision=4)
-    psyir_symbol = DataSymbol("symbol_name", psyir_type)
-
-    # Now check the _specialise_remote_symbol method
-    assert type(psyir_symbol.datatype) == ScalarType
-    for attribute_name in attribute_map:
-        assert( not hasattr(psyir_symbol, attribute_name))
-    
-    lfric_symbol._specialise_remote_symbol(psyir_symbol)
-
-    # All specific LFRic scalars are currently integers
-    lfric_datatype = lfric_psyir.LfricIntegerScalarDataType
-    assert type(psyir_symbol.datatype) == lfric_datatype
-    for attribute_name in attribute_map:
-        attribute_value = attribute_map[attribute_name]
-        assert(hasattr(psyir_symbol, attribute_name))
-        method = getattr(psyir_symbol, attribute_name)
-        assert method == attribute_value
 
 
 # Specific scalar datatypes
@@ -274,8 +246,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
      (lfric_psyir.BasisFunctionQrXyozDataType,
       lfric_psyir.BasisFunctionQrXyozDataSymbol,
       lfric_psyir.LfricRealScalarDataType,
-      [lfric_psyir.LfricDimension("1"),
-       Reference(
+      [1, Reference(
           lfric_psyir.NumberOfDofsDataSymbol(
               "ndofs", "w0",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
@@ -291,8 +262,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
      (lfric_psyir.BasisFunctionQrFaceDataType,
       lfric_psyir.BasisFunctionQrFaceDataSymbol,
       lfric_psyir.LfricRealScalarDataType,
-      [lfric_psyir.LfricDimension("3"),
-       Reference(
+      [3, Reference(
           lfric_psyir.NumberOfDofsDataSymbol(
               "ndofs", "w1",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
@@ -308,8 +278,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
      (lfric_psyir.BasisFunctionQrEdgeDataType,
       lfric_psyir.BasisFunctionQrEdgeDataSymbol,
       lfric_psyir.LfricRealScalarDataType,
-      [lfric_psyir.LfricDimension("1"),
-       Reference(
+      [1, Reference(
           lfric_psyir.NumberOfDofsDataSymbol(
               "ndofs", "w2",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
@@ -324,8 +293,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
      (lfric_psyir.DiffBasisFunctionQrXyozDataType,
       lfric_psyir.DiffBasisFunctionQrXyozDataSymbol,
       lfric_psyir.LfricRealScalarDataType,
-      [lfric_psyir.LfricDimension("3"),
-       Reference(
+      [3, Reference(
           lfric_psyir.NumberOfDofsDataSymbol(
               "ndofs", "wtheta",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
@@ -341,8 +309,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
      (lfric_psyir.DiffBasisFunctionQrFaceDataType,
       lfric_psyir.DiffBasisFunctionQrFaceDataSymbol,
       lfric_psyir.LfricRealScalarDataType,
-      [lfric_psyir.LfricDimension("3"),
-       Reference(
+      [3, Reference(
           lfric_psyir.NumberOfDofsDataSymbol(
               "ndofs", "w1",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
@@ -357,8 +324,7 @@ def test_specific_scalar_symbols(symbol, generic_symbol, attribute_map):
      (lfric_psyir.DiffBasisFunctionQrEdgeDataType,
       lfric_psyir.DiffBasisFunctionQrEdgeDataSymbol,
       lfric_psyir.LfricRealScalarDataType,
-      [lfric_psyir.LfricDimension("1"),
-       Reference(
+      [1, Reference(
           lfric_psyir.NumberOfDofsDataSymbol(
               "ndofs", "w2v",
               interface=ArgumentInterface(ArgumentInterface.Access.READ))),
@@ -413,7 +379,7 @@ def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
     assert isinstance(lfric_datatype._datatype, scalar_type)
     for idx, dim in enumerate(lfric_datatype.shape):
         if isinstance(dim, Literal):
-            assert dim.value == dims[idx].value
+            assert dim.value == str(dims[idx])
         elif isinstance(dim, Reference):
             assert dim is dims[idx]
             assert dim.symbol is dims[idx].symbol
@@ -437,25 +403,6 @@ def test_arrays(data_type, symbol, scalar_type, dims, attribute_map):
         interface=ArgumentInterface(ArgumentInterface.Access.READ))
     assert isinstance(lfric_symbol.interface, ArgumentInterface)
     assert lfric_symbol.interface.access == ArgumentInterface.Access.READ
-
-    # Create a psyir symbol with equivalent properties to the lfric symbol
-    psyir_scalar_datatype = ScalarType(lfric_datatype.intrinsic, precision=4)
-    dims = [1]*len(lfric_symbol.shape)
-    psyir_array_datatype = ArrayType(psyir_scalar_datatype, dims)
-    psyir_symbol = DataSymbol("psyir_symbol", psyir_array_datatype) 
-    # Now check the _specialise_remote_symbol method
-    assert type(psyir_symbol.datatype) == ArrayType
-    for attribute_name in attribute_map:
-        assert( not hasattr(psyir_symbol, attribute_name))
-    lfric_symbol._specialise_remote_symbol(psyir_symbol)
-
-    assert type(psyir_symbol.datatype) == data_type
-
-    for attribute_name in attribute_map:
-        attribute_value = attribute_map[attribute_name]
-        assert(hasattr(psyir_symbol, attribute_name))
-        method = getattr(psyir_symbol, attribute_name)
-        assert method == attribute_value
 
 
 # Vector field-data data-symbols
@@ -492,22 +439,3 @@ def test_vector_fields(symbol, parent_symbol, dims, attribute_map):
     lfric_symbol = symbol("symbol", dims, *args)
     assert isinstance(lfric_symbol, parent_symbol)
     assert lfric_symbol.name == "symbol"
-
-    # Create a psyir symbol with equivalent properties to the lfric symbol
-    psyir_scalar_datatype = ScalarType(lfric_symbol.datatype.intrinsic, precision=4)
-    dims = [1]*len(lfric_symbol.shape)
-    psyir_array_datatype = ArrayType(psyir_scalar_datatype, dims)
-    psyir_symbol = DataSymbol("psyir_symbol", psyir_array_datatype) 
-    # Now check the _specialise_remote_symbol method
-    assert type(psyir_symbol.datatype) == ArrayType
-    for attribute_name in attribute_map:
-        assert( not hasattr(psyir_symbol, attribute_name))
-
-    lfric_symbol._specialise_remote_symbol(psyir_symbol)
-
-    assert type(psyir_symbol.datatype) == type(lfric_symbol.datatype)
-    for attribute_name in attribute_map:
-        attribute_value = attribute_map[attribute_name]
-        assert(hasattr(psyir_symbol, attribute_name))
-        method = getattr(psyir_symbol, attribute_name)
-        assert method == attribute_value
