@@ -69,7 +69,7 @@ NAME=profile_test
 .PHONY: default template simple_timing drhook dl_timer
 
 compile: template
-all: template simple_timing drhook dl_timer
+all: template simple_timing drhook dl_timer lfric
 
 template: PROFILE_DIR?=../../../lib/profiling/template
 template: PROFILE_LINK=-ldummy
@@ -97,6 +97,13 @@ dl_timer: PROFILE_DIR=../../../lib/profiling/dl_timer
 dl_timer: PROFILE_LINK=-ldl_timer_psy -L$(DL_TIMER_ROOT) -ldl_timer_omp -fopenmp
 dl_timer: F90FLAGS += -fopenmp   # apeg-dl_timer must be compiled with openmp!
 dl_timer: $(NAME).dl_timer
+
+# The LFRic timer can be used for gocean as well - the wrapper provides
+# a standalone library that contains all dependencies and can therefore be
+# used with any program.
+lfric: PROFILE_DIR=../../../lib/profiling/lfric
+lfric: PROFILE_LINK=-lpsy_lfric_timer_standalone
+lfric: $(NAME).lfric
 
 # Generic rule. It temporarily compiles a profile-wrapper-specific version
 # of psy (psy_template.o, psy_drhook.o, ...), which 'make' then deletes

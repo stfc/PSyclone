@@ -451,6 +451,40 @@ constant_value argument will be passed to the DataSymbol constructor.
 An example of using the ``new_symbol()`` method can be found in the
 PSyclone ``examples/psyir`` directory.
 
+Nodes
+-----
+
+PSyIR nodes are connected together via parent and child methods
+provided by the ``Node`` baseclass.
+
+These nodes can be created in isolation and then connected
+together. For example:
+
+.. code-block:: python
+
+    assignment = Assignment()
+    literal = Literal("0.0", REAL_TYPE)
+    reference = Reference(symbol)
+    literal.parent = assignment
+    reference.parent = assignment
+    assignment.children = [reference, literal]
+    
+However, as connections get more complicated, creating the correct
+connections can become difficult to manage and error prone. Further,
+in some cases children must be collected together within a
+``Schedule`` (e.g. for ``IfBlock`` and for ``Loop``).
+
+To simplify this complexity, each of the Kernel-layer nodes which
+contain other nodes have a static ``create`` method which helps
+construct the PSyIR using a bottom up approach. Using this method, the
+above example then becomes:
+
+.. code-block:: python
+
+    literal = Literal("0.0", REAL_TYPE)
+    reference = Reference(symbol)
+    assignment = Assignment.create(reference, literal)
+
 Creating the PSyIR to represent a complicated access of a member of a
 structure is best performed using the ``create()`` method of the
 appropriate ``Reference`` subclass. For a relatively straightforward
@@ -481,37 +515,50 @@ A more complicated access involving arrays of structures such as
 Note that the list of quantities passed to the ``create()`` method now
 contains a 2-tuple in order to describe the array access.
 
-Nodes
------
+More examples of using this approach can be found in the PSyclone
+``examples/psyir`` directory.
 
-PSyIR nodes are connected together via parent and child methods
-provided by the ``Node`` baseclass.
 
-These nodes can be created in isolation and then connected
-together. For example::
+Modifying the PSyIR
+===================
 
-    > ...
-    > assignment = Assignment()
-    > literal = Literal("0.0", REAL_TYPE)
-    > reference = Reference(symbol)
-    > literal.parent = assignment
-    > reference.parent = assignment
-    > assignment.children = [reference, literal]
-    
-However, as connections get more complicated, creating the correct
-connections can become difficult to manage and error prone. Further,
-in some cases children must be collected together within a
-``Schedule`` (e.g. for ``IfBlock`` and for ``Loop``).
+Once we have a complete PSyIR AST there are 2 ways to modify its contents
+and/or structure: by applying transformations (see next section
+:ref:`transformations`), or by direct PSyIR API methods. This section
+describes some of the methods that the PSyIR classes provide to
+modify the PSyIR AST in a consistent way (e.g. without breaking its many
+internal references). Some complete examples of modifying the PSyIR can be found in the
+PSyclone ``examples/psyir/modify.py`` script.
 
-To simplify this complexity, each of the Kernel-layer nodes which
-contain other nodes have a static ``create`` method which helps
-construct the PSyIR using a bottom up approach. Using this method, the
-above example then becomes::
+The rest of this section introduces examples of the available direct PSyIR
+modification methods.
 
-    > ...
-    > literal = Literal("0.0", REAL_TYPE)
-    > reference = Reference(symbol)
-    > assignment = Assignment.create(reference, literal)
+Renaming symbols
+-----------------
+The symbol table provides the method ``rename_symbol()`` that given a symbol
+and an unused name will rename the symbol. The symbol renaming will affect
+all the references in the PSyIR AST to that symbol. For example, the PSyIR
+representing the following Fortran code:
 
-More complete examples of using this approach can be found in the
-PSyclone ``examples/psyir`` directory.
+.. code-block:: fortran
+
+    subroutine work(psyir_tmp)
+        real, intent(inout) :: psyir_tmp
+        psyir_tmp=0.0
+    end subroutine
+
+could be modified by the following PSyIR statements:
+
+.. code-block:: python
+
+    symbol = symbol_table.lookup("psyir_tmp")
+    symbol_table.rename_symbol(tmp_symbol, "new_variable")
+
+which would result in the following Fortran output code:
+
+.. code-block:: fortran
+
+    subroutine work(new_variable)
+        real, intent(inout) :: new_variable
+        new_variable=0.0
+    end subroutine
