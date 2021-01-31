@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,27 +31,48 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Author: S. Siso, STFC Daresbury Lab
 
-F90=gfortran
-FFLAGS=-g
-LDFLAGS=
+'''A simple Python script showing how to modify a PSyIR tree. In order to use
+it you must first install PSyclone. See README.md in the top-level psyclone
+directory.
 
-# We don't build dl_timer, drhook and nvidia since they require
-# external libraries to be available.
-ALL_LIBS=template simple_timing lfric
+Once you have psyclone installed, this script may be run by doing:
 
-.PHONY: default all $(ALL_LIBS) clean
+>>> python modify.py
 
-default: all
+This will first create a tree as specified in the create.py file and
+then proceed to modify the tree and generate the modified code Fortran
+representation.
 
-all: $(ALL_LIBS)
+'''
+# Different pylint configurations don't agree in the order of this imports
+# pylint: disable=wrong-import-order
+from psyclone.psyir.backend.fortran import FortranWriter
+from create import create_psyir_tree
 
-# Invoke make in the corresponding subdirectory
-$(ALL_LIBS):
-		$(MAKE) -C $@
 
-clean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) clean; )
+def modify_psyir_tree():
+    ''' Apply modifications to the PSyIR tree created in create.py
 
+    :returns: a modified PSyIR tree.
+    :rtype: :py:class:`psyclone.psyir.nodes.Container`
+
+    '''
+    container = create_psyir_tree()
+    subroutine = container.children[0]
+
+    # Rename one of the subroutine local symbols.
+    tmp_symbol = subroutine.symbol_table.lookup("psyir_tmp")
+    subroutine.symbol_table.rename_symbol(tmp_symbol, "new_variable")
+
+    return container
+
+
+if __name__ == "__main__":
+    psyir_tree = modify_psyir_tree()
+
+    # Write out the modified code as Fortran.
+    writer = FortranWriter()
+    result = writer(psyir_tree)
+    print(result)
