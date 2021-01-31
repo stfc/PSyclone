@@ -3252,7 +3252,7 @@ class Fparser2Reader(object):
             "literal, but found '{0}' instead.".format(value))
 
     def _call_handler(self, node, parent):
-        '''Transforms an fparser2 call statement into a PSyIR Call node.
+        '''Transforms an fparser2 CALL statement into a PSyIR Call node.
 
         :param node: node in fparser2 parse tree.
         :type node: \
@@ -3286,5 +3286,8 @@ class Fparser2Reader(object):
         if node.items[1]:
             args = list(node.items[1].items)
         self.process_nodes(parent=call, nodes=args)
+
+        # Point to the original CALL statement in the parse tree.
+        call.ast = node
 
         return call

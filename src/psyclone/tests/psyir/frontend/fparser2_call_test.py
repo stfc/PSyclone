@@ -53,14 +53,16 @@ def test_call_noargs():
     '''Test that fparser2 transforms a Fortran subroutine call with no
     arguments into the equivalent PSyIR Call node. Also test that a
     new RoutineSymbol is added to the symbol table (with an unresolved
-    interface) when one does not already exist.
+    interface) when one does not already exist. Also test that the
+    Call node ast property is set to reference the original fparser2
+    call node.
 
     '''
     reader = FortranStringReader(" call kernel()")
-    astmt = Fortran2003.Call_Stmt(reader)
+    ast = Fortran2003.Call_Stmt(reader)
     fake_parent = Schedule()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [astmt])
+    processor.process_nodes(fake_parent, [ast])
 
     call_node = fake_parent.children[0]
     assert isinstance(call_node, Call)
@@ -74,6 +76,7 @@ def test_call_noargs():
 
     assert (str(call_node)) == "Call[name='kernel']"
 
+    assert call_node.ast == ast
 
 def test_call_declared_routine(f2008_parser):
     '''Test that fparser2 transforms a Fortran subroutine call into the
