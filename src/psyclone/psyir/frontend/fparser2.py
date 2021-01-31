@@ -3263,9 +3263,6 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Call`
 
-        :raises GenerationError: if the name of the call is already \
-        declared as something that is not a RoutineSymbol.
-
         '''
         call_name = node.items[0].string
         symbol_table = parent.scope.symbol_table
