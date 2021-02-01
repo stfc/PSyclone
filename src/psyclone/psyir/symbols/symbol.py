@@ -44,7 +44,6 @@ class and its subclasses and the generic Symbol class.
 from __future__ import absolute_import
 from enum import Enum
 import six
-import inspect
 
 
 class SymbolError(Exception):
