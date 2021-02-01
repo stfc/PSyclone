@@ -2876,7 +2876,7 @@ class CodedKern(Kern):
         self.parent.children[self.position] = call_node
         call_node.parent = self.parent
 
-        for argument in self.arguments.psyir_arguments_list():
+        for argument in self.arguments.psyir_expressions():
             call_node.addchild(argument)
             argument.parent = call_node
 
@@ -3446,9 +3446,9 @@ class Arguments(object):
                                   "implemented in sub-class")
 
     @abc.abstractmethod
-    def psyir_arguments_list(self):
+    def psyir_expressions(self):
         '''
-        :returns: the PSyIR expressions representing this Arguments list.
+        :returns: the PSyIR expressions representing this Argument list.
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''

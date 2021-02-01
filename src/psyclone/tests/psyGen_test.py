@@ -537,13 +537,13 @@ def test_codedkern_lower_to_language_level(monkeypatch):
 
     # TODO #1085 LFRic Arguments do not have a translation to PSyIR
     # yet, we monkeypatch a dummy expression for now:
-    monkeypatch.setattr(DynKernelArguments, "psyir_arguments_list",
+    monkeypatch.setattr(DynKernelArguments, "psyir_expressions",
                         lambda x: [Literal("1", INTEGER_TYPE)])
 
     # In DSL-level it is a CodedKern with no children
     assert isinstance(kern, CodedKern)
     assert len(kern.children) == 0
-    number_of_arguments = len(kern.arguments.psyir_arguments_list())
+    number_of_arguments = len(kern.arguments.psyir_expressions())
 
     kern.lower_to_language_level()
 

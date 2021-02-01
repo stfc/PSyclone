@@ -644,13 +644,13 @@ class GOLoop(Loop):
         the loop boundaries for the outer and inner loop. The format is a
         ":" separated tuple:
 
-        > bound_info = offset-type:field-type:iteration-space:outer-start:
-        >             outer-stop:inner-start:inner-stop``
+        >>> bound_info = offset-type:field-type:iteration-space:outer-start:
+                         outer-stop:inner-start:inner-stop
 
         Example:
 
-        > bound_info = go_offset_ne:go_ct:go_all_pts:
-        >             {start}-1:{stop}+1:{start}:{stop}
+        >>> bound_info = go_offset_ne:go_ct:go_all_pts:
+                         {start}-1:{stop}+1:{start}:{stop}
 
         The expressions {start} and {stop} will be replaced with the loop
         indices that correspond to the inner points (i.e. non-halo or
@@ -1746,9 +1746,9 @@ class GOKernelArguments(Arguments):
         self._raw_arg_list = arguments
         return self._raw_arg_list
 
-    def psyir_arguments_list(self):
+    def psyir_expressions(self):
         '''
-        :returns: the PSyIR expressions representing this Arguments list.
+        :returns: the PSyIR expressions representing this Argument list.
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
@@ -2321,7 +2321,8 @@ class GOStencil():
                            index of the associated array. This value \
                            must be between -1 and 1
 
-        :return int: the depth of the stencil in the specified direction.
+        :returns: the depth of the stencil in the specified direction.
+        :rtype: int
 
         :raises GenerationError: if the indices are out-of-bounds.
 

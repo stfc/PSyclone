@@ -1780,8 +1780,8 @@ def test_gokernelargument_infer_datatype():
             "'scalar' but found 'incompatible'." in str(excinfo.value))
 
 
-def test_gokernelarguments_psyir_arguments_list():
-    ''' Check the GOcean specialisation of psyir_arguments_list returns the
+def test_gokernelarguments_psyir_expressions():
+    ''' Check the GOcean specialisation of psyir_expressions returns the
     expected list of PSyIR expressions for each argument'''
 
     # Parse an invoke with grid properties
@@ -1794,7 +1794,7 @@ def test_gokernelarguments_psyir_arguments_list():
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     kernelcall = invoke.schedule.coded_kernels()[0]
-    argument_list = kernelcall.arguments.psyir_arguments_list()
+    argument_list = kernelcall.arguments.psyir_expressions()
 
     # It has 2 indices arguments plus the kernel arguments
     assert len(argument_list) == len(kernelcall.arguments.args) + 2
@@ -1809,6 +1809,12 @@ def test_gokernelarguments_psyir_arguments_list():
     assert (argument_list[1].symbol is
             kernelcall.scope.symbol_table.lookup_with_tag(
                 "noncontiguous_kidx"))
+
+    # Other arguments are also PSyIR expressions generated depending on the
+    # argument type. In this case it has 5 more arguments, all of them are
+    # structure references.
+    for argument in argument_list[2:7]:
+        assert isinstance(argument, StructureReference)
 
 
 def test_gokernelargument_psyir_expression():
