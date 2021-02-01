@@ -268,6 +268,7 @@ def test_symbol_copy():
 
 def test_symbol_specialise():
     '''Test the Symbol.specialise() method.'''
+    # pylint: disable = unidiomatic-typecheck
     asym = Symbol("a")
     assert type(asym) is Symbol
     assert str(asym) == "a"

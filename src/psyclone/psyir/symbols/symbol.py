@@ -262,7 +262,7 @@ class Symbol(object):
         instance becoming invalid.
 
         :param subclass: a subclass of the Symbol class.
-        :type subclass: the type of a class is `type` 
+        :type subclass: the type of a class is `type`
 
         :raises TypeError: if subclass is not a sub-class of Symbol.
 
@@ -273,6 +273,7 @@ class Symbol(object):
             message = ("The specialise method in the Symbol class expects the "
                        "subclass argument to be a class.")
             six.raise_from(TypeError(message), info)
+        # pylint: disable = unidiomatic-typecheck
         if not is_subclass or type(self) is subclass:
             raise TypeError(
                 "The specialise method in the Symbol class expects the "
