@@ -256,13 +256,13 @@ class Symbol(object):
                           interface=self.interface)
 
     def specialise(self, subclass):
-        '''Specialise this class instance so that it becomes an instance of
-        the class provided in the subclass argument. This allows this
-        instance to become a subclass without any references to this
-        instance becoming invalid.
+        '''Specialise this symbol so that it becomes an instance of the class
+        provided in the subclass argument. This allows this instance
+        to become a subclass without any references to it becoming
+        invalid.
 
-        :param subclass: a subclass of the Symbol class.
-        :type subclass: the type of a class is `type`
+        :param subclass: the class that this symbol will become.
+        :type subclass: `type` (as `type` is the type of all classes)
 
         :raises TypeError: if subclass is not a sub-class of Symbol.
 

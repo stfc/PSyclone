@@ -3268,12 +3268,9 @@ class Fparser2Reader(object):
         try:
             routine_symbol = symbol_table.lookup(call_name)
             if type(routine_symbol) is Symbol:
-                # TODO PR #1063: Symbol should be specialised to a
-                # RoutineSymbol here (if the symbol is part of a use
-                # statement). Without specialising, the Call class
-                # constructor will raise an exception. As a temporary
-                # fix, just change the class name.
-                routine_symbol.__class__ = RoutineSymbol
+                # Specialise routine_symbol from a Symbol to a
+                # RoutineSymbol
+                routine_symbol.specialise(RoutineSymbol)
         except KeyError:
             routine_symbol = RoutineSymbol(
                 call_name, interface=UnresolvedInterface())
