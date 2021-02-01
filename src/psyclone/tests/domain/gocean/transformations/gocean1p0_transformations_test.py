@@ -45,8 +45,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes import Loop, Literal
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import ACCKernelsTrans, GOConstLoopBoundsTrans, \
     LoopFuseTrans, GOLoopSwapTrans, OMPParallelTrans, \

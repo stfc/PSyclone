@@ -95,7 +95,9 @@ class LoopTrans(Transformation):
         if len(node.children) != 4:
             raise TransformationError(
                 "Error in {0} transformation. The target loop "
-                "does not have 4 children.".format(self.name))
+                "must have four children but found: {1}.".format(
+                    self.name,
+                    [type(child).__name__ for child in node.children]))
 
         if not options:
             options = {}

@@ -671,15 +671,6 @@ class ParallelLoopTrans(LoopTrans):
             raise TransformationError("Error in "+self.name+" transformation. "
                                       "The target loop is over colours and "
                                       "must be computed serially.")
-        # Check that there aren't any excluded node types within the supplied
-        # loop
-        bad_nodes = node.walk(self.excluded_node_types)
-        if bad_nodes:
-            raise TransformationError(
-                "Error in {0} transformation. The target loop contains one or "
-                "more node types ({1}) which cannot be enclosed in a thread-"
-                "parallel region.".format(
-                    self.name, [type(node).__name__ for node in bad_nodes]))
 
         if not options:
             options = {}
@@ -1123,22 +1114,17 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :raises TransformationError: if the nodes is not a Loop.
-        :raises TransformationError: if the nodes is over colours.
+        :raises TransformationError: if the node is a loop over colours.
 
-         '''
+        '''
         # Check that the supplied Node is a Loop
-        from psyclone.psyir.nodes import Loop
-        if not isinstance(node, Loop):
-            raise TransformationError("Error in {0} transformation. The "
-                                      "node is not a loop.".format(self.name))
+        super(OMPParallelLoopTrans, self).validate(node, options)
 
         # Check we are not a sequential loop
         if node.loop_type == 'colours':
             raise TransformationError("Error in "+self.name+" transformation. "
                                       "The requested loop is over colours and "
                                       "must be computed serially.")
-        super(OMPParallelLoopTrans, self).validate(node, options)
 
     def apply(self, node, options=None):
         ''' Apply an OMPParallelLoop Transformation to the supplied node
