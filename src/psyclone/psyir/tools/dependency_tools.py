@@ -180,13 +180,6 @@ class DependencyTools(object):
                     enumerate(list_of_indices):
                 accesses = VariablesAccessInfo()
 
-                # TODO #363: derived types are not supported, which
-                # atm have an index_expression of type str
-                if isinstance(index_expression, str):
-                    var_string = var_info.var_name + index_expression
-                    self._add_warning("Assignment to derived type '{0}' is "
-                                      "not supported yet.".format(var_string))
-                    return False
                 index_expression.reference_accesses(accesses)
                 if loop_variable not in accesses:
                     continue

@@ -136,7 +136,7 @@ Example 5: Profiling
 This example shows how to use the profiling support in PSyclone.
 It instruments two invoke statements and can link in with any
 of the following profiling wrapper libraries: template,
-simple_timer, apeg-dl_timer, and DrHook (see
+simple_timer, apeg-dl_timer, lfric, and DrHook (see
 :ref:`profiling_third_party_tools`). The ``README.md``
 file contains detailed instructions on how to build the
 different executables. By default (i.e. just using ``make``
@@ -455,8 +455,8 @@ Example 1: Constructing PSyIR and Generating Code
 ``create.py`` is a Python script that demonstrates the use of the various
 ``create`` methods to build a PSyIR tree from scratch.
 
-Example 2: Creating PSyIR for Aggregate Types
+Example 2: Creating PSyIR for Structure Types
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``create_aggregate_types.py`` demonstrates the representation of
-aggregate types (i.e. Fortran derived types or C structs) in the PSyIR.
+``create_structure_types.py`` demonstrates the representation of
+structure types (i.e. Fortran derived types or C structs) in the PSyIR.

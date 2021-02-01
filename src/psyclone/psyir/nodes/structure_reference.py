@@ -98,8 +98,6 @@ class StructureReference(Reference):
         :raises TypeError: if the supplied symbol is not a DataSymbol.
 
         '''
-        # TODO #363 if a symbol is imported via a USE then it will be
-        # represented with a Symbol, not a DataSymbol.
         if not isinstance(symbol, DataSymbol):
             raise TypeError(
                 "The 'symbol' argument to StructureReference.create() "
@@ -209,9 +207,9 @@ class StructureReference(Reference):
         return ref
 
     def __str__(self):
-        result = super(StructureReference, self).__str__() + "\n"
+        result = super(StructureReference, self).__str__()
         for entity in self._children:
-            result += str(entity) + "\n"
+            result += "\n" + str(entity)
         return result
 
     @property
@@ -223,27 +221,26 @@ class StructureReference(Reference):
         :raises InternalError: if the first child of this node is not an \
                                instance of Member.
         '''
-        if not isinstance(self.children[0], Member):
+        if not self.children or not isinstance(self.children[0], Member):
             raise InternalError(
-                "{0} malformed or incomplete. The first child "
-                "must be an instance of Member, but found '{1}'".format(
-                    type(self).__name__, type(self.children[0]).__name__))
+                "{0} malformed or incomplete. It must have a single child "
+                "that must be a (sub-class of) Member, but found: {1}".format(
+                    type(self).__name__, self.children))
         return self.children[0]
 
     def reference_accesses(self, var_accesses):
-        '''Get all variable access information. All variables used as indices
+        '''
+        TODO #1028 dependency analysis for structures needs to be
+        implemented.
+
+        Get all variable access information. All variables used as indices
         in the access of the array will be added as READ.
 
         :param var_accesses: variable access information.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
-        :raises NotImplementedError: TODO #1028 dependency analysis for \
-            structures needs to be implemented.
-
         '''
-        raise NotImplementedError(
-            "Dependency analysis has not yet been implemented for Structures.")
 
 
 # For AutoAPI documentation generation
