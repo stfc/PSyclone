@@ -59,7 +59,8 @@ from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
     TransformationError
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
-from psyclone.psyir.nodes import CodeBlock
+from psyclone.psyir.nodes import CodeBlock, Loop
+from psyclone.dynamo0p3 import DynInvokeSchedule
 
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -599,7 +600,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class ParallelLoopTrans(Transformation):
+class ParallelLoopTrans(LoopTrans):
     '''
     Adds an orphaned directive to a loop indicating that it should be
     parallelised. i.e. the directive must be inside the scope of some
@@ -652,8 +653,6 @@ class ParallelLoopTrans(Transformation):
         :param int options["collapse"]: number of nested loops to collapse \
                                         or None.
 
-        :raises TransformationError: if the node is not a \
-                :py:class:`psyclone.psyir.nodes.Loop`.
         :raises TransformationError: if the \
                 :py:class:`psyclone.psyir.nodes.Loop` loop iterates over \
                 colours.
@@ -664,11 +663,8 @@ class ParallelLoopTrans(Transformation):
 
         '''
         # Check that the supplied node is a Loop
-        from psyclone.psyir.nodes import Loop
-        if not isinstance(node, Loop):
-            raise TransformationError(
-                "Cannot apply a parallel-loop directive to something that is "
-                "not a loop")
+        super(ParallelLoopTrans, self).validate(node, options=options)
+
         # Check we are not a sequential loop
         # TODO add a list of loop types that are sequential
         if node.loop_type == 'colours':
@@ -1382,14 +1378,14 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
+        :raises TransformationError: if the loop_type of the supplied Loop is \
+                                     not "inner" or "outer".
         '''
-        # check node is a loop. Although this is not GOcean specific
+        # Check node is a loop. Although this is not GOcean specific
         # it is required for the subsequent checks to function
         # correctly.
-        from psyclone.psyir.nodes import Loop
-        if not isinstance(node, Loop):
-            raise TransformationError("Error in "+self.name+" transformation."
-                                      " The node is not a loop.")
+        self.validate(node, options=options)
+
         # Check we are either an inner or outer loop
         if node.loop_type not in ["inner", "outer"]:
             raise TransformationError("Error in "+self.name+" transformation."
@@ -1399,7 +1395,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         return OMPLoopTrans.apply(self, node, options)
 
 
-class ColourTrans(Transformation):
+class ColourTrans(LoopTrans):
     '''
     Apply a colouring transformation to a loop (in order to permit a
     subsequent parallelisation over colours). For example:
@@ -1440,6 +1436,8 @@ class ColourTrans(Transformation):
         :rtype: (:py:class:`psyclone.psyir.nodes.Schedule, \
                  :py:class:`psyclone.undoredo.Memento`)
         '''
+        self.validate(node, options=options)
+
         schedule = node.root
 
         # create a memento of the schedule and the proposed transformation
@@ -2131,7 +2129,7 @@ class MoveTrans(Transformation):
         return schedule, keep
 
 
-class Dynamo0p3RedundantComputationTrans(Transformation):
+class Dynamo0p3RedundantComputationTrans(LoopTrans):
     '''This transformation allows the user to modify a loop's bounds so
     that redundant computation will be performed. Redundant
     computation can result in halo exchanges being modified, new halo
@@ -2173,8 +2171,6 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         :param int options["depth"]: the depth of the stencil if the value \
                      is provided and None if not.
 
-        :raises TransformationError: if the node is not a\
-            :py:class:`psyclone.psyir.nodes.Loop`.
         :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyGen.Directive`.
         :raises TransformationError: if the parent of the loop is not a\
@@ -2215,11 +2211,9 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
 
         '''
         # check node is a loop
-        from psyclone.dynamo0p3 import DynInvokeSchedule
-        if not isinstance(node, nodes.Loop):
-            raise TransformationError(
-                "In the Dynamo0p3RedundantComputation transformation apply "
-                "method the first argument is not a Loop")
+        super(Dynamo0p3RedundantComputationTrans, self).validate(
+            node, options=options)
+
         # Check loop's parent is the InvokeSchedule, or that it is nested
         # in a colours loop and perform other colour(s) loop checks,
         # otherwise halo exchange placement might fail. The only
@@ -2380,7 +2374,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         return schedule, keep
 
 
-class GOLoopSwapTrans(Transformation):
+class GOLoopSwapTrans(LoopTrans):
     ''' Provides a loop-swap transformation, e.g.:
 
     .. code-block:: fortran
@@ -2416,11 +2410,13 @@ class GOLoopSwapTrans(Transformation):
 
     @property
     def name(self):
-        '''Returns the name of this transformation as a string.'''
+        '''
+        :returns the name of this transformation.
+        :rtype: str
+        '''
         return "GOLoopSwap"
 
     def validate(self, node_outer, options=None):
-        # pylint: disable=no-self-use
         '''Checks if the given node contains a valid Fortran structure
         to allow swapping loops. This means the node must represent
         a loop, and it must have exactly one child that is also a loop.
@@ -2428,17 +2424,13 @@ class GOLoopSwapTrans(Transformation):
         :param node_outer: a Loop node from an AST.
         :type node_outer: py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or None
 
         :raises TransformationError: if the supplied node does not\
                                      allow a loop swap to be done.
-         '''
 
-        from psyclone.psyir.nodes import Loop
-        if not isinstance(node_outer, Loop):
-            raise TransformationError("Error in GOLoopSwap transformation. "
-                                      "Given node '{0}' is not a loop."
-                                      .format(node_outer))
+        '''
+        super(GOLoopSwapTrans, self).validate(node_outer, options=options)
 
         from psyclone.gocean1p0 import GOLoop
         if not isinstance(node_outer, GOLoop):
@@ -3119,7 +3111,6 @@ class ACCEnterDataTrans(Transformation):
                 :py:class:`psyclone.undoredo.Memento`)
         '''
         from psyclone.gocean1p0 import GOInvokeSchedule
-        from psyclone.dynamo0p3 import DynInvokeSchedule
 
         # Ensure that the proposed transformation is valid
         self.validate(sched, options)
@@ -3164,7 +3155,6 @@ class ACCEnterDataTrans(Transformation):
         from psyclone.psyGen import Directive, \
             ACCDataDirective, ACCEnterDataDirective
         from psyclone.gocean1p0 import GOInvokeSchedule
-        from psyclone.dynamo0p3 import DynInvokeSchedule
 
         super(ACCEnterDataTrans, self).validate(sched, options)
 
@@ -3427,7 +3417,6 @@ class ACCKernelsTrans(RegionTrans):
 
         '''
         from psyclone.nemo import NemoInvokeSchedule
-        from psyclone.dynamo0p3 import DynInvokeSchedule
         from psyclone.psyir.nodes import Loop, Assignment
 
         # Ensure we are always working with a list of nodes, even if only

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -142,7 +142,7 @@ def test_fusetrans_error_incomplete():
     # Check first loop
     with pytest.raises(TransformationError) as err:
         fuse.validate(loop1, loop2)
-    assert "Error in LoopFuse transformation. The first loop does not have " \
+    assert "Error in LoopFuse transformation. The target loop does not have " \
         "4 children." in str(err.value)
 
     loop1.addchild(Literal("start", INTEGER_TYPE, parent=loop1))
@@ -154,7 +154,7 @@ def test_fusetrans_error_incomplete():
     # Check second loop
     with pytest.raises(TransformationError) as err:
         fuse.validate(loop1, loop2)
-    assert "Error in LoopFuse transformation. The second loop does not have " \
+    assert "Error in LoopFuse transformation. The target loop does not have " \
         "4 children." in str(err.value)
 
     loop2.addchild(Literal("start", INTEGER_TYPE, parent=loop2))
@@ -248,9 +248,8 @@ def test_parallellooptrans_refuse_codeblock():
                                     None)])
     with pytest.raises(TransformationError) as err:
         otrans.validate(parent)
-    assert ("OMPParallelLoopTrans transformation. The target loop contains "
-            "one or more node types (['CodeBlock']) which cannot be enclosed "
-            "in a thread-parallel region" in str(err.value))
+    assert ("Nodes of type 'CodeBlock' cannot be enclosed "
+            "by a OMPParallelLoopTrans transformation" in str(err.value))
 
 # Tests for ProfileTrans
 

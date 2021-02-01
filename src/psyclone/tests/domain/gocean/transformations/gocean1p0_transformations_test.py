@@ -1487,8 +1487,8 @@ def test_go_loop_swap_errors():
     # Not a loop: use the cal to bc_ssh_code node as example for this test:
     with pytest.raises(TransformationError) as error:
         swap.apply(schedule.children[0].loop_body[0].loop_body[0])
-    assert "Given node 'kern call: bc_ssh_code' is not a loop" in \
-        str(error.value)
+    assert ("Target of GOLoopSwap transformation must be a sub-class of Loop "
+            "but got 'GOKern'" in str(error.value))
 
     # Now create an outer loop with more than one inner statement
     # ... by fusing the first and second outer loops :(
@@ -1816,8 +1816,8 @@ def test_accloop(tmpdir):
 
     with pytest.raises(TransformationError) as err:
         _ = acclpt.apply(schedule)
-    assert ("Cannot apply a parallel-loop directive to something that is not "
-            "a loop" in str(err.value))
+    assert ("Target of ACCLoopTrans transformation must be a sub-class of "
+            "Loop but got 'GOInvokeSchedule'" in str(err.value))
 
     # Apply an OpenACC loop directive to each loop
     for child in schedule.children:

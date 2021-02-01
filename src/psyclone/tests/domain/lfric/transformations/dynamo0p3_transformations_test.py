@@ -387,8 +387,8 @@ def test_omp_not_a_loop(dist_mem):
     with pytest.raises(TransformationError) as excinfo:
         _, _ = otrans.apply(schedule)
 
-    assert ("Cannot apply a parallel-loop directive to something "
-            "that is not a loop" in str(excinfo.value))
+    assert ("Target of Dynamo0p3OMPLoopTrans transformation must be a sub-"
+            "class of Loop but got 'DynInvokeSchedule'" in str(excinfo.value))
 
 
 def test_omp_parallel_not_a_loop(dist_mem):
@@ -3863,8 +3863,8 @@ def test_rc_node_not_loop():
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[0])
-    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
-            "the first argument is not a Loop") in str(excinfo.value)
+    assert ("Target of RedundantComputation transformation must be a sub-"
+            "class of Loop but got \'DynHaloExchange\'") in str(excinfo.value)
 
 
 def test_rc_invalid_loop(monkeypatch):
