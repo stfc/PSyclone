@@ -55,7 +55,7 @@ class LoopTrans(Transformation):
     '''
     This abstract class is a base class for all transformations that act
     on a Loop node. It gives access to a validate function that
-    makes sure that the supplied node is a Loop and is not of 'null' type.
+    makes sure that the supplied node is a Loop.
     We also check that all nodes to be enclosed are valid for this
     transformation - this requires that the sub-class populate the
     `excluded_node_types` tuple.
@@ -66,7 +66,7 @@ class LoopTrans(Transformation):
     excluded_node_types = ()
 
     def validate(self, node, options=None):
-        '''Checks that the supplied node is a valid target for a
+        '''Checks that the supplied node is a valid target for a loop
         transformation.
 
         :param node: target PSyIR node.
@@ -77,8 +77,8 @@ class LoopTrans(Transformation):
                 type of the nodes enclosed in the loop should be tested \
                 to avoid including unsupported nodes in a transformation.
 
-        :raises TransformationError: if the supplied node is not a Loop or \
-                is of 'null' type.
+        :raises TransformationError: if the supplied node is not a (fully- \
+                formed) Loop.
         :raises TransformationError: if any of the nodes within the loop are \
                 of an unsupported type.
         :raises TransformationError: if the supplied options are not a \
@@ -90,12 +90,6 @@ class LoopTrans(Transformation):
             raise TransformationError(
                 "Target of {0} transformation must be a sub-class of Loop "
                 "but got '{1}'".format(self.name, type(node).__name__))
-
-        if node.loop_type == "null":
-            raise TransformationError(
-                "Cannot apply {0} transformation to a PSyIR loop of "
-                "'null' type since it does not represent an actual "
-                "computational loop.".format(self.name))
 
         # The loop must be fully-formed.
         if len(node.children) != 4:
