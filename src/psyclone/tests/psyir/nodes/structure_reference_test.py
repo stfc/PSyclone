@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir import symbols, nodes
 from psyclone.tests.utilities import check_links
 from psyclone.core.access_info import VariablesAccessInfo
@@ -165,18 +165,35 @@ def test_struc_ref_str():
     # Reference to scalar member of structure
     sref = nodes.StructureReference.create(ssym, ["nx"])
     assert (str(sref) == "StructureReference[name:'grid']\n"
-            "Member[name:'nx']\n")
+            "Member[name:'nx']")
 
 
 def test_reference_accesses():
-    ''' Test that the reference_accesses method raises a
-    NotImplementedError. This will be addressed by #1028. '''
+    ''' Test that the reference_accesses method does nothing. This will
+    be addressed by #1028. '''
     var_access_info = VariablesAccessInfo()
-    dref = nodes.StructureReference(
+    dref = nodes.StructureReference.create(
         symbols.DataSymbol(
             "grid",
-            symbols.TypeSymbol("grid_type", symbols.DeferredType())))
-    with pytest.raises(NotImplementedError) as err:
-        dref.reference_accesses(var_access_info)
-    assert ("Dependency analysis has not yet been implemented for "
-            "Structures." in str(err.value))
+            symbols.TypeSymbol("grid_type", symbols.DeferredType())),
+        ["data"])
+    dref.reference_accesses(var_access_info)
+    assert var_access_info.all_vars == []
+
+
+def test_struc_ref_semantic_nav():
+    ''' Test the 'member' property of the StructureReference. '''
+    grid_type = symbols.StructureType.create([
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+    grid_type_symbol = symbols.TypeSymbol("grid_type", grid_type)
+    ssym = symbols.DataSymbol("grid", grid_type_symbol)
+    # Reference to scalar member of structure
+    sref = nodes.StructureReference.create(ssym, ["nx"])
+    assert sref.member is sref.children[0]
+    # Break the first child to check that we get the expected error
+    sref._children = ["broken"]
+    with pytest.raises(InternalError) as err:
+        _ = sref.member
+    assert ("StructureReference malformed or incomplete. It must have a "
+            "single child that must be a (sub-class of) Member, but "
+            "found: ['broken']" in str(err.value))

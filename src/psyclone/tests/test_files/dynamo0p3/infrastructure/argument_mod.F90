@@ -10,7 +10,8 @@
 !-----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020, Science and Technology Facilities Council.
+! Modifications copyright (c) 2020-2021, Science and Technology
+! Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -54,7 +55,7 @@
 !> arg_type type.
 
 !> A kernel may also require additional data associated with a particular
-!> function space (basis function, differential basis function and orientation
+!> function space (basis function and differential basis function
 !> information). This information is specified in the xxx type.
 !> the PSy layer needs to know how this is to be accessed.
 !> read, write etc and which function space it belongs. These are the three
@@ -126,7 +127,6 @@ module argument_mod
 ! Function space attributes
   integer, public, parameter :: GH_BASIS       = 751
   integer, public, parameter :: GH_DIFF_BASIS  = 767
-  integer, public, parameter :: GH_ORIENTATION = 397
   integer, public, parameter :: GH_COLUMN_BANDED_DOFMAP = 541
   integer, public, parameter :: GH_COLUMN_INDIRECTION_DOFMAP = 204
 
@@ -161,7 +161,8 @@ module argument_mod
   integer, public, parameter :: X1D        = 2
   integer, public, parameter :: Y1D        = 3
   integer, public, parameter :: CROSS      = 4
-  integer, public, parameter :: CROSS2D    = 5
+  integer, public, parameter :: REGION     = 5
+  integer, public, parameter :: CROSS2D    = 6
 
   !> @}
 
@@ -174,7 +175,7 @@ module argument_mod
   !>       would remove the need for 1-based monotonically increasing
   !>       enumerator values but GFortran doesn't like that.
   !>
-  integer, public, parameter :: STENCIL(5) = -1
+  integer, public, parameter :: STENCIL(6) = -1
 
   !> @defgroup mesh_data_items Enumeration of mesh data items.
   !> @{
