@@ -183,7 +183,7 @@ def test_fuse_ok(parser):
 enddo"""
     assert expected in out
 
-    # Then fuse the inner ji loops. In sched schedule
+    # Then fuse the inner ji loops
     fuse = NemoLoopFuseTrans()
     fuse.apply(schedule[0].loop_body[0],
                schedule[0].loop_body[1])
@@ -199,71 +199,97 @@ enddo"""
 enddo"""
     assert expected in out
 
+    # Test more complex loop boundaries. Note that
+    # we might actually consider simplifying these
+    # expressions
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=2-1, n+1-1
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=2-1, n+1-1
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+    out, _ = fuse_loops(parser, code)
+    expected = """do jj = 2 - 1, n + 1 - 1, 1
+  do ji = 1, 10, 1
+    s(ji,jj)=t(ji,jj) + 1
+  enddo
+  do ji = 1, 10, 1
+    s(ji,jj)=t(ji,jj) + 1
+  enddo
+enddo"""
+    assert expected in out
+
 
 # ----------------------------------------------------------------------------
 def test_fuse_incorrect_bounds(parser):
     '''
     Test that loop boundaries must be identical.
     '''
-    reader = FortranStringReader('''subroutine sub()
-                                 integer :: ji, jj, n
-                                 integer, dimension(10,10) :: s, t
-                                 do jj=1, n
-                                    do ji=1, 10
-                                       s(ji, jj)=t(ji, jj)+1
-                                    enddo
-                                 enddo
-                                 do jj=2, n
-                                    do ji=1, 10
-                                       s(ji, jj)=t(ji, jj)+1
-                                    enddo
-                                 enddo
-                                 end subroutine sub''')
-    ast = parser(reader)
-    psy = PSyFactory(API).create(ast)
-    schedule = psy.invokes.get("sub").schedule
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=2, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+    with pytest.raises(TransformationError) as err:
+        fuse_loops(parser, code)
+    assert "Lower loop bounds must be identical, but are" in str(err.value)
 
-    loop1 = schedule.children[0]
-    loop2 = schedule.children[1]
-    fuse = NemoLoopFuseTrans()
-    fuse.apply(loop1, loop2)
-    writer = FortranWriter()
-    out = writer(schedule)
-    print(out)
-
-    reader = FortranStringReader('''subroutine sub()
-                                 integer :: ji, jj, n
-                                 integer, dimension(10,10) :: s, t
-                                 do jj=1, n+1
-                                    do ji=1, 10
-                                       s(ji, jj)=t(ji, jj)+1
-                                    enddo
-                                 enddo
-                                 do jj=1, n
-                                    do ji=1, 10
-                                       s(ji, jj)=t(ji, jj)+1
-                                    enddo
-                                 enddo
-                                 end subroutine sub''')
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=1, n+1
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+    with pytest.raises(TransformationError) as err:
+        fuse_loops(parser, code)
+    assert "Upper loop bounds must be identical, but are" in str(err.value)
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_dimension_change(parser):
-    '''Test that inconsistent use of dimemsions are detected, e.g.:
-    loop1:  a(i,j)
-    loop2:  a(j,i)
+@pytest.mark.xfail(reason="Needs evaluation of constant expressions")
+def test_fuse_correct_bounds(parser):
     '''
-    reader = FortranStringReader('''subroutine sub()
-                                 integer :: ji, jj, n
-                                 integer, dimension(10,10) :: s, t
-                                 do jj=1, n+1
-                                    do ji=1, 10
-                                       s(ji, jj)=t(ji, jj)+1
-                                    enddo
-                                 enddo
-                                 do jj=1, n
-                                    do ji=1, 10
-                                       s(jj, ji)=t(ji, jj)+1
-                                    enddo
-                                 enddo
-                                 end subroutine sub''')
+    Test that loop boundaries must be identical.
+    '''
+    # TODO: This test needs evaluation
+    # of constant expressions in PSyclone
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=2-1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=2, n+1-1
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+    fuse_loops(parser, code)
