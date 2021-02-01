@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2020, Science and Technology Facilities Council.
+! Copyright (c) 2018-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,8 @@
 
 SUBROUTINE tra_ldf_iso()
   INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+  INTEGER :: jn
+  INTEGER, PARAMETER :: wp=4
   LOGICAL :: l_ptr
   INTEGER, DIMENSION(jpi,jpj) :: tmask
   REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw

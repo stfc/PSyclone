@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,26 +32,46 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
 
-F90=gfortran
-FFLAGS=-g
-LDFLAGS=
+# This makefile compiles a PSyData profiling wrapper library using the LFRic
+# timer code. It can be used with any code, not only with LFRic.
 
-# We don't build dl_timer, drhook and nvidia since they require
-# external libraries to be available.
-ALL_LIBS=template simple_timing lfric
+# This defaults to the infrastructure library included in PSyclone
+LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_LIB=$(LFRIC_DIR)/liblfric.a
 
-.PHONY: default all $(ALL_LIBS) clean
+F90?=gfortran
+F90FLAGS?=-g
+F90FLAGS += -I$(LFRIC_DIR)
 
-default: all
+PSY_OBJS = profile_psy_data_mod.o
+LFRIC_OBJS = timer_mod.o log_mod.o scalar_mod.o mpi_mod.o io_utility_mod.o
+LFRIC_OBJS_FULL_PATH = $(patsubst %,$(LFRIC_DIR)/%,$(LFRIC_OBJS))
 
-all: $(ALL_LIBS)
+.phony: default clean
 
-# Invoke make in the corresponding subdirectory
-$(ALL_LIBS):
-		$(MAKE) -C $@
+default: libpsy_lfric_timer.a libpsy_lfric_timer_standalone.a
+
+# First target: this needs to be linked with the LFRic
+# infrastructure library.
+libpsy_lfric_timer.a: $(PSY_OBJS)
+	ar rs $@ $<
+
+# Second target: this library contains the required files
+# from the infrastructure library, and can be used by any
+# application, not only LFRic.
+libpsy_lfric_timer_standalone.a: $(LFRIC_LIB) $(PSY_OBJS)
+	ar rs $@ $(LFRIC_OBJS_FULL_PATH) $(PSY_OBJS)
+
+# Trigger recompilation if the infrastructure lib is changed
+$(OBJS): $(LFRIC_LIB)
+
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_DIR)
+
+%.o: %.F90
+	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) clean; )
+	rm -f libpsy_lfric_timer.a libpsy_lfric_timer_standalone.a *.mod *.o
 
