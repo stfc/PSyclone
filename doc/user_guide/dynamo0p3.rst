@@ -88,17 +88,20 @@ objects and their use are discussed in the following sections.
 
 ::
 
-  real(kind=r_def)           :: scalar1
+  real(kind=r_def)           :: rscalar
+  integer(kind=i_def)        :: iscalar
   integer(kind=i_def)        :: stencil_extent
   type(field_type)           :: field1, field2, field3
   type(field_type)           :: field5(3), field6(3)
+  type(integer_field_type)   :: field7
   type(quadrature_type)      :: qr
   type(operator_type)        :: operator1
   type(columnwise_operator_type) :: cma_op1
   ...
   call invoke( kernel1(field1, field2, operator1, qr),           &
-               builtin1(scalar1, field2, field3),                &
-               kernel2(field1, stencil_extent, field3, scalar1), &
+               builtin1(rscalar, field2, field3),                &
+               int_builtin2(iscalar, field7),                    &
+               kernel2(field1, stencil_extent, field3, rscalar), &
                assembly_kernel(cma_op1, operator1),              &
                name="some_calculation"                           &
              )
@@ -146,6 +149,10 @@ Points of evaluation are determined by a quadrature object
 the field is on. Placement of field data points, also called degrees of
 freedom (hereafter "DoFs"), is determined by the function space the field
 is on.
+LFRic fields can have ``real``-valued data or ``integer``-valued data.
+Properties of the ``real``-valued fields in the LFRic infrastructure
+are stored in the ``field_type`` class, and of the ``integer``-valued
+fields in the ``integer_field_type`` class.
 
 .. _dynamo0.3-field-vector:
 
@@ -169,7 +176,9 @@ Operator
 
 Represents a matrix constructed on a per-cell basis using Local
 Matrix Assembly (LMA) and is identified with ``GH_OPERATOR``
-metadata.
+metadata. Properties of the operators in the LFRic infrastructure
+are stored in the ``operator_type`` class. LFRic operators can only
+have ``real``-valued data.
 
 .. _dynamo0.3-cma-operator:
 
@@ -178,12 +187,16 @@ Column-Wise Operator
 
 The LFRic API has support for the construction and use of
 column-wise/Column Matrix Assembly (CMA) operators whose metadata
-identifier is ``GH_COLUMNWISE_OPERATOR``. As the name suggests,
-these are operators constructed for a whole column of the mesh.
-These are themselves constructed from the Local Matrix Assembly
-(LMA) operators of each cell in the column. The rules governing
-Kernels that have CMA operators as arguments are given in the
-:ref:`dynamo0.3-kernel` section below.
+identifier is ``GH_COLUMNWISE_OPERATOR``. Properties of the
+column-wise operators in the LFRic infrastructure are stored in
+the ``columnwise_operator_type`` class. LFRic column-wise
+operators can only have ``real``-valued data.
+
+As the name suggests, these are operators constructed for a whole
+column of the mesh. These are themselves constructed from the
+Local Matrix Assembly (LMA) operators of each cell in the column.
+The rules governing Kernels that have CMA operators as arguments
+are given in the :ref:`dynamo0.3-kernel` section below.
 
 There are three recognised Kernel types involving CMA operations;
 construction, application (including inverse application) and
@@ -473,6 +486,9 @@ types.
    beyond level 1. In this case PSyclone will check that the Kernel
    does not require values beyond the level-1 halo. If it does then
    PSyclone will abort.
+
+7) Any Kernel that takes an operator argument must not also take
+   an ``integer``-valued field as an argument.
 
 .. _lfric-no-cma-mdata-rules:
    
@@ -2185,7 +2201,6 @@ X_plus_Y
 
 **X_plus_Y** (*field3*, *field1*, *field2*)
 
-
 Sums two ``real``-valued fields and stores the result in the third
 ``real``-valued field (``Z = X + Y``)::
 
@@ -2615,6 +2630,192 @@ where:
 
 * ``real(r_def), intent(out) ::`` **sumfld**
 * ``type(field_type), intent(in) ::`` *field*
+
+.. _lfric-built-ins-int:
+
+Built-in operations on ``integer``-valued fields
+++++++++++++++++++++++++++++++++++++++++++++++++
+
+The number of supported Built-in operations on the ``integer``-valued
+fields is not as large as for their ``real`` counterparts as not all
+mathematical operations on ``integer``-valued fields make sense.
+
+Addition
+########
+
+Built-ins that add ``integer``-valued fields are denoted with the
+keyword **plus** and the prefix **int**.
+
+int_X_plus_Y
+^^^^^^^^^^^^
+
+**int_X_plus_Y** (*ifield3*, *ifield1*, *ifield2*)
+
+Sums two ``integer``-valued fields and stores the result in the third
+``integer``-valued field (``Z = X + Y``)::
+
+  ifield3(:) = ifield1(:) + ifield2(:)
+
+where:
+
+* ``type(integer_field_type), intent(in) ::`` **ifield3**, *ifield1*, *ifield2*
+
+int_inc_X_plus_Y
+^^^^^^^^^^^^^^^^
+
+**int_inc_X_plus_Y** (*ifield1*, *ifield2*)
+
+Adds the second ``integer``-valued field to the first ``integer``-valued
+field and returns it (``X = X + Y``)::
+
+  ifield1(:) = ifield1(:) + ifield2(:)
+
+where:
+
+* ``type(integer_field_type), intent(in) ::`` **ifield1**, *ifield2*
+
+Subtraction
+###########
+
+Built-ins which subtract ``integer``-valued  fields are denoted with
+the keyword **minus** and the prefix **int**.
+
+int_X_minus_Y
+^^^^^^^^^^^^^
+
+**int_X_minus_Y** (*ifield3*, *ifield1*, *ifield2*)
+
+Subtracts the second ``integer``-valued field from the first
+``integer``-valued field and stores the result in the third
+``integer``-valued field (``Z = X - Y``)::
+
+  ifield3(:) = ifield1(:) - ifield2(:)
+
+where:
+
+* ``type(integer_field_type), intent(in) ::`` **ifield3**, *ifield1*, *ifield2*
+
+int_inc_X_minus_Y
+^^^^^^^^^^^^^^^^^
+
+**int_inc_X_minus_Y** (*ifield1*, *ifield2*)
+
+Subtracts the second ``integer``-valued  field from the first
+``integer``-valued field and returns it (``X = X - Y``)::
+
+  ifield1(:) = ifield1(:) - ifield2(:)
+
+where:
+
+* ``type(integer_field_type), intent(in) ::`` **ifield1**, *ifield2*
+
+Multiplication
+##############
+
+Built-ins which multiply ``integer``-valued fields are denoted
+with the keyword **times** and the prefix **int**.
+
+int_X_times_Y
+^^^^^^^^^^^^^
+
+**int_X_times_Y** (*ifield3*, *ifield1*, *ifield2*)
+
+Multiplies two ``integer``-valued fields DoF by DoF and returns the
+result in a third ``integer``-valued field (``Z = X*Y``)::
+
+  ifield3(:) = ifield1(:)*ifield2(:)
+
+where:
+
+* ``type(integer_field_type), intent(in)`` :: **ifield3**, *ifield1*, *ifield2*
+
+int_inc_X_times_Y
+^^^^^^^^^^^^^
+
+**int_inc_X_times_Y** (*ifield1*, *ifield2*)
+
+Multiplies the first ``integer``-valued field by the second
+``integer``-valued field and returns it (``X = X*Y``)::
+
+  ifield1(:) = ifield1(:)*ifield2(:)
+
+where:
+
+* ``type(integer_field_type), intent(in) ::`` **ifield1**, *ifield2*
+
+Scaling
+#######
+
+As their ``real`` counterparts, Built-ins which scale ``integer``-valued
+fields are denoted with the keyword **times**. They are also prefixed
+by the keyword **int**.
+
+int_a_times_X
+^^^^^^^^^^^^^
+
+**int_a_times_X** (*ifield2*, *iscalar*, *ifield1*)
+
+Multiplies an ``integer``-valued field by an ``integer`` scalar and stores
+the result in a second ``integer``-valued field (``Y = a*X``)::
+
+  ifield2(:) = iscalar*ifield1(:)
+
+where:
+
+* ``integer(i_def), intent(in) ::`` *iscalar*
+* ``type(integer_field_type), intent(in) ::`` **ifield2**, *ifield1*
+
+int_inc_a_times_X
+^^^^^^^^^^^^^^^^^
+
+**int_inc_a_times_X** (*iscalar*, *ifield*)
+
+Multiplies an ``integer``-valued field by an ``integer`` scalar value
+and returns the field (``X = a*X``)::
+
+  ifield(:) = iscalar*ifield(:)
+
+where:
+
+* ``integer(i_def), intent(in) ::`` *iscalar*
+* ``type(integer_field_type), intent(in) ::`` **ifield**
+
+Setting to a value
+##################
+
+Built-ins which set ``integer``-valued field elements to some ``integer``
+value are denoted with the keyword **setval** and the prefix **int**.
+
+int_setval_c
+^^^^^^^^^^^^
+
+**int_setval_c** (*ifield*, *constant*)
+
+Sets all elements of an ``integer``-valued  field *ifield* to an
+``integer`` scalar *constant* (``X = c``)::
+
+  ifield(:) = constant
+
+where:
+
+* ``type(integer_field_type), intent(in) ::`` **ifield**
+* ``integer(i_def), intent(in) ::`` *constant*
+
+.. note:: The field may be on any function space.
+
+int_setval_X
+^^^^^^^^^^^^
+
+**int_setval_X** (*ifield2*, *ifield1*)
+
+Sets an ``integer``-valued field *ifield2* equal (DoF per DoF) to
+another ``integer``-valued field *ifield1* (``Y = X``)::
+
+  ifield2(:) = ifield1(:)
+
+where:
+
+* ``type(integer_field_type), intent(in) ::`` **ifield2**, *ifield1*
 
 Boundary Conditions
 -------------------

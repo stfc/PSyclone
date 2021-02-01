@@ -297,7 +297,7 @@ Adding new Built-in operations
     ``<built-in_name>`` follows the :ref:`Dynamo0.3 API Built-in naming
     scheme <lfric-built-ins-names>`.
  8. Document the new Built-in in the documentation of the
-    relevant API (*e.g.* ``doc/dynamo0p3.rst`` for Dynamo0.3 API).
+    relevant API (*e.g.* ``doc/dynamo0p3.rst`` for LFRic (Dynamo0.3) API).
 
 
 If the API being extended does not currently support any Built-ins
