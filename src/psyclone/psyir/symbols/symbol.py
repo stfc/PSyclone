@@ -44,6 +44,7 @@ class and its subclasses and the generic Symbol class.
 from __future__ import absolute_import
 from enum import Enum
 import six
+import inspect
 
 
 class SymbolError(Exception):
@@ -264,14 +265,20 @@ class Symbol(object):
         :param subclass: a subclass of the Symbol class.
         :type subclass: the type of a class is `type` 
 
-        :raises TypeError: if subclass is not a subclass of Symbol.
+        :raises TypeError: if subclass is not a sub-class of Symbol.
 
         '''
-        if not issubclass(subclass, self.__class__):
+        try:
+            is_subclass = issubclass(subclass, self.__class__)
+        except TypeError as info:
+            message = ("The specialise method in the Symbol class expects the "
+                       "subclass argument to be a class.")
+            six.raise_from(TypeError(message), info)
+        if not is_subclass or type(self) is subclass:
             raise TypeError(
                 "The specialise method in the Symbol class expects the "
-                "subclass argument to be a subclass of symbol but found "
-                "'{0}'.".format(subclass.__name__))
+                "subclass argument to be a class that is a sub-class of "
+                "Symbol.")
         self.__class__ = subclass
 
     def get_external_symbol(self):

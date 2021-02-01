@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,8 @@ import pytest
 from psyclone.psyir.symbols import Symbol, LocalInterface, GlobalInterface, \
                                    ArgumentInterface, UnresolvedInterface, \
                                    ContainerSymbol, DataSymbol, SymbolError, \
-                                   SymbolTable, INTEGER_SINGLE_TYPE
+                                   SymbolTable, INTEGER_SINGLE_TYPE, \
+                                   RoutineSymbol
 from psyclone.psyir.symbols.symbol import SymbolInterface
 from psyclone.psyir.nodes import Container, Literal, KernelSchedule
 
@@ -263,6 +264,44 @@ def test_symbol_copy():
     assert new_sym.name == asym.name
     assert new_sym.interface == asym.interface
     assert new_sym.visibility == asym.visibility
+
+
+def test_symbol_specialise():
+    '''Test the Symbol.specialise() method.'''
+    asym = Symbol("a")
+    assert type(asym) is Symbol
+    assert str(asym) == "a"
+    asym.specialise(RoutineSymbol)
+    assert type(asym) is RoutineSymbol
+    assert str(asym) == "a : RoutineSymbol"
+
+
+@pytest.mark.parametrize("arg", [str, Symbol])
+def test_symbol_specialise_class_error(arg):
+    '''Test the Symbol.specialise() method raises the expected
+    exception if the supplied argument is a class that is not a
+    subclass of Symbol.
+
+    '''
+    asym = Symbol("a")
+    with pytest.raises(TypeError) as info:
+        asym.specialise(arg)
+    assert ("The specialise method in the Symbol class expects the subclass "
+            "argument to be a class that is a sub-class of Symbol."
+            in str(info.value))
+
+
+def test_symbol_specialise_instance_error():
+    '''Test the Symbol.specialise() method raises the expected
+    exception if the supplied argument is not a class.
+
+    '''
+    asym = Symbol("a")
+    with pytest.raises(TypeError) as info:
+        asym.specialise(None)
+    assert ("The specialise method in the Symbol class expects the subclass "
+            "argument to be a class."
+            in str(info.value))
 
 
 def test_get_external_symbol(monkeypatch):
