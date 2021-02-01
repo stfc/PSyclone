@@ -55,7 +55,8 @@ from psyclone.psyir import nodes
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 from psyclone.domain.lfric import FunctionSpace
-from psyclone.psyir.transformations import RegionTrans, TransformationError
+from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
+    TransformationError
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
 from psyclone.psyir.nodes import CodeBlock
@@ -154,7 +155,7 @@ class KernelTrans(Transformation):
                     "kernel.".format(kern.name, var.name)), err)
 
 
-class LoopFuseTrans(Transformation):
+class LoopFuseTrans(LoopTrans):
     ''' Provides a generic loop-fuse transformation to two Nodes in the
     PSyIR of a Schedule after performing validity checks for the supplied
     Nodes. Examples are given in the descriptions of any children classes.
@@ -189,24 +190,9 @@ class LoopFuseTrans(Transformation):
         :raises TransformationError: if the two Loops do not have the same \
                                      iteration space.
         '''
-
-        # Check that the supplied Node is a Loop
-        from psyclone.psyir.nodes import Loop
-        if not isinstance(node1, Loop) or not isinstance(node2, Loop):
-            raise TransformationError("Error in {0} transformation. "
-                                      "At least one of the nodes is not "
-                                      "a loop.".format(self.name))
-
-        # If they are loops, they must be fully-formed.
-        if len(node1.children) != 4:
-            raise TransformationError(
-                "Error in {0} transformation. The first loop "
-                "does not have 4 children.".format(self.name))
-
-        if len(node2.children) != 4:
-            raise TransformationError(
-                "Error in {0} transformation. The second loop "
-                "does not have 4 children.".format(self.name))
+        # Check that the supplied Nodes are Loops
+        super(LoopFuseTrans, self).validate(node1, options=options)
+        super(LoopFuseTrans, self).validate(node2, options=options)
 
         # Check loop1 and loop2 have the same parent
         if not node1.sameParent(node2):

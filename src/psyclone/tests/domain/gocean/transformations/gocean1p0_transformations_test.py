@@ -43,8 +43,10 @@ import os
 import re
 import pytest
 from psyclone.configuration import Config
+from psyclone.undoredo import Memento
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Literal
+from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import ACCKernelsTrans, GOConstLoopBoundsTrans, \
     LoopFuseTrans, GOLoopSwapTrans, OMPParallelTrans, \
@@ -169,7 +171,7 @@ def test_loop_fuse_different_iterates_over():
     assert "Loops do not have the same iteration space" in str(err.value)
 
 
-def test_loop_fuse_error():
+def test_loop_fuse_error(monkeypatch):
     ''' Test that we catch various errors when loop fusing '''
     _, invoke = get_invoke("test14_module_inline_same_kernel.f90", API, idx=0,
                            dist_mem=False)
@@ -189,8 +191,11 @@ def test_loop_fuse_error():
                              schedule.children[1].children[0])
     assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
-    # cause an unexpected error
-    schedule.children[0].loop_body.children = None
+    # Cause an unexpected error. This is not easy so we resort to
+    # monkeypatching the constructor of the Memento class.
+    def raise_error(_1, _2, _3):
+        raise NotImplementedError("Test exception")
+    monkeypatch.setattr(Memento, "__init__", raise_error)
 
     # Attempt to fuse two loops that are iterating over different
     # things
