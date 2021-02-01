@@ -3268,8 +3268,8 @@ class Fparser2Reader(object):
         symbol_table = parent.scope.symbol_table
         try:
             routine_symbol = symbol_table.lookup(call_name)
-            if type(routine_symbol).__name__ == "Symbol":
-                # TODO issue #1094: Symbol should be specialised to a
+            if type(routine_symbol) is Symbol:
+                # TODO PR #1063: Symbol should be specialised to a
                 # RoutineSymbol here (if the symbol is part of a use
                 # statement). Without specialising, the Call class
                 # constructor will raise an exception. As a temporary
