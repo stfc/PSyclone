@@ -3255,8 +3255,7 @@ class Fparser2Reader(object):
         '''Transforms an fparser2 CALL statement into a PSyIR Call node.
 
         :param node: node in fparser2 parse tree.
-        :type node: \
-            :py:class:`fparser.two.Fortran2003.Call_Stmt`
+        :type node: :py:class:`fparser.two.Fortran2003.Call_Stmt`
         :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 

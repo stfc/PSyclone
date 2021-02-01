@@ -35,6 +35,7 @@
 SUBROUTINE tra_ldf_iso()
   INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
   INTEGER :: jn
+  INTEGER, PARAMETER :: wp=4
   LOGICAL :: l_ptr
   INTEGER, DIMENSION(jpi,jpj) :: tmask
   REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw
