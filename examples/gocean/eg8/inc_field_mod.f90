@@ -39,14 +39,17 @@ module inc_field_mod
   implicit none
 
   type, extends(kernel_type) :: inc_field
-     type(go_arg), dimension(4) :: meta_args =             &
+     type(go_arg), dimension(5) :: meta_args =             &
           (/ go_arg(GO_WRITE, GO_CT, GO_POINTWISE),        & ! field
              ! We have to pass in the extend of the field array as PGI
              ! does not support assumed-size arguments in accelerator
              ! regions. Ultimately PSyclone will do this for us.
              go_arg(GO_READ,  GO_I_SCALAR, GO_POINTWISE),  & ! nx
              go_arg(GO_READ,  GO_I_SCALAR, GO_POINTWISE),  & ! ny
-             go_arg(GO_READ,  GO_I_SCALAR, GO_POINTWISE)   & ! istp
+             go_arg(GO_READ,  GO_I_SCALAR, GO_POINTWISE),   & ! istp
+             ! Not used in the kernel but added here to test grid arguments
+             ! generation using the PSyIR backend
+             go_arg(GO_READ,  GO_GRID_AREA_T)         &
            /)
      !> This kernel writes only to internal points of the
      !! simulation domain.
@@ -67,9 +70,10 @@ module inc_field_mod
 
 contains
 
-  subroutine inc_field_code(ji, jj, fld1, nx, ny, istp)
+  subroutine inc_field_code(ji, jj, fld1, nx, ny, istp, areat_t)
     integer, intent(in) :: ji, jj, nx, ny
     real(go_wp), dimension(nx,ny), intent(inout) :: fld1
+    real(go_wp), dimension(nx,ny), intent(inout) :: area_t
     integer, intent(in) :: istp
 
     fld1(ji,jj) = fld1(ji,jj) + real(istp, go_wp)

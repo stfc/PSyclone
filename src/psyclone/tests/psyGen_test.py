@@ -51,17 +51,18 @@ import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
-    Literal, Node, Schedule, KernelSchedule, Call, Reference
+    Literal, Node, Schedule, KernelSchedule, Call
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
     GlobalInterface, ContainerSymbol, Symbol
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     OMPParallelDoDirective, InlinedKern, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
     ACCEnterDataDirective, ACCKernelsDirective, HaloExchange, Invoke, \
-    DataAccess, Kern, Arguments, CodedKern
+    DataAccess, Kern, Arguments, CodedKern, Argument
 from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
-from psyclone.psyir.symbols import INTEGER_TYPE
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
+from psyclone.psyir.symbols import INTEGER_TYPE, DeferredType
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
+    DynKernelArguments
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
     DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans, \
@@ -508,7 +509,7 @@ def test_codedkern_module_inline_gen_code_modified_kernels(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_codedkern_lower_to_language_level():
+def test_codedkern_lower_to_language_level(monkeypatch):
     ''' Check that a generic CodedKern can be lowered to a subroutine call
     with the appropriate arguments'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -534,10 +535,15 @@ def test_codedkern_lower_to_language_level():
     schedule.symbol_table.add(Symbol("undf_w3"))
     schedule.symbol_table.add(Symbol("map_w3"))
 
+    # TODO #1085 LFRic Arguments do not have a translation to PSyIR
+    # yet, we monkeypatch a dummy expression for now:
+    monkeypatch.setattr(DynKernelArguments, "psyir_expressions",
+                        lambda x: [Literal("1", INTEGER_TYPE)])
+
     # In DSL-level it is a CodedKern with no children
     assert isinstance(kern, CodedKern)
     assert len(kern.children) == 0
-    number_of_arguments = len(kern.arguments.raw_arg_list())
+    number_of_arguments = len(kern.arguments.psyir_expressions())
 
     kern.lower_to_language_level()
 
@@ -547,7 +553,7 @@ def test_codedkern_lower_to_language_level():
     assert isinstance(call, Call)
     assert call.routine.name == 'testkern_code'
     assert len(call.children) == number_of_arguments
-    assert isinstance(call.children[0], Reference)
+    assert isinstance(call.children[0], Literal)
 
     # A RoutineSymbol and the ContainerSymbol from where it is imported are
     # in the symbol table
@@ -1054,6 +1060,12 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
     assert (
         "REPROD_PAD_SIZE in {0} should be a positive "
         "integer".format(Config.get().filename) in str(excinfo.value))
+
+
+def test_argument_infer_datatype():
+    ''' Check that a generic argument inferred datatype is a DeferredType. '''
+    arg = Argument(None, None, None)
+    assert isinstance(arg.infer_datatype(), DeferredType)
 
 
 def test_argument_depends_on():
