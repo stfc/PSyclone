@@ -52,9 +52,6 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import LoopFuseTrans
 
-# Constants
-API = "nemo"
-
 
 # ----------------------------------------------------------------------------
 def test_fusetrans_error_incomplete():
@@ -141,7 +138,7 @@ def fuse_loops(parser=None, fortran_code=None):
     '''
     reader = FortranStringReader(fortran_code)
     ast = parser(reader)
-    psy = PSyFactory(API).create(ast)
+    psy = PSyFactory("nemo").create(ast)
     schedule = psy.invokes.get("sub").schedule
 
     loop1 = schedule.children[0]
@@ -293,3 +290,66 @@ def test_fuse_correct_bounds(parser):
               enddo
               end subroutine sub'''
     fuse_loops(parser, code)
+
+
+# ----------------------------------------------------------------------------
+def test_fuse_dimension_change(parser):
+    '''Test that inconsistent use of dimemsions are detected, e.g.:
+    loop1:  a(i,j)
+    loop2:  a(j,i)
+    when at least one operation is a write
+    '''
+
+    # The first example can be merged, since 't' is read-only
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=1, n+1
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=1, n+1
+                 do ji=1, 10
+                    s(ji, jj)=t(jj, ji)+1
+                    s(ji, jj)=s(ji, jj) + t(jj, jj) + t(ji, ji)
+                 enddo
+              enddo
+              end subroutine sub'''
+
+    fuse_loops(parser, code)
+
+    # This cannot be fused, since 's' is written in the
+    # first iteration and read in the second.
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t, u
+              do jj=1, n+1
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=1, n+1
+                 do ji=1, 10
+                    u(ji, jj)=s(jj, ji)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+
+    # This cannot be fused, since 's' is read in the
+    # first iteration and written in the second with
+    # different indices.
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t, u
+              do jj=1, n+1
+                 do ji=1, 10
+                    t(ji, jj)=s(ji, jj)+1
+                 enddo
+              enddo
+              do jj=1, n+1
+                 do ji=1, 10
+                    s(jj, ji)=t(ji, jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
