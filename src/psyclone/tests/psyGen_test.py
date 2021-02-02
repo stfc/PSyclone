@@ -309,10 +309,10 @@ FAKE_KERNEL_METADATA = '''
 module dummy_mod
   use argument_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =                    &
-          (/ arg_type(gh_field, gh_write,     w3),     &
-             arg_type(gh_field, gh_readwrite, wtheta), &
-             arg_type(gh_field, gh_inc,       w1)      &
+     type(arg_type), meta_args(3) =                             &
+          (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
+             arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
+             arg_type(gh_field, gh_real, gh_inc,       w1)      &
            /)
      integer :: operates_on = cell_column
    contains
