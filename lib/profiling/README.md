@@ -12,7 +12,7 @@ interfaces:
 
 will compile all profiling-library interfaces included in
 PSyclone. The command `make TARGET` where `TARGET` is one of
-`template`, `simple_timing`, `drhook`, `nvidia` or `dl_timer` will
+`template`, `simple_timing`, `drhook`, `lfric`, `nvidia` or `dl_timer` will
 only compile the corresponding library interface. The following
 makefile variables are used and can be overwritten on the command line
 (e.g. `make F90=mpif90`):
@@ -175,3 +175,16 @@ Example output (from nvprof):
           API calls:   59.10%  122.02us     34  3.5880us  2.4540us  14.057us  cuMemcpyHtoDAsync
                        34.73%  71.711us     10  7.1710us  4.6830us  25.625us  cuLaunchKernel
                         6.17%  12.729us      3  4.2430us  2.3700us  7.7330us  cuMemsetD32Async
+
+### LFRic Timer
+
+This wrapper library uses the LFRic timer object. It can not only be
+used with LFRic, but also with any other program - detailed linking instructions
+are in [``./lfric/README.md``](./lfric/README.md). The output is written to the
+file ``timer.txt``, which will be overwritten if it should already exist.
+
+Example output:
+
+    ||=           Routine            =||=   min time(s)     =||=   mean time(s)    =||=   max time(s)     =||=     No. calls     =||=       %time       =||= time per call(s)  =||
+    ||            psy_test:invoke_0:r0||                 0.00||                 0.00||                 0.00||                    1||               100.00||                 0.00||
+    ||psy_test:invoke_1_update_field:u||                 0.00||                 0.00||                 0.00||                    1||                44.47||                 0.00||
