@@ -34,7 +34,7 @@ This directory shows how to use the inline transformation.
 # Compiler Settings
 By default, all examples are using ``gfortran`` as compiler.
 If you want to change the compiler, use the environment
-variables F90 and F90FLAGS, e.g.:
+variables ``F90`` and ``F90FLAGS``, e.g.:
 
 ```shell
     F90=ifort F90FLAGS="-g -check bounds" make

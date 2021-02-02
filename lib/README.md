@@ -25,7 +25,7 @@ a kernel invocation.
 ## `nan_test`
 
 Contains PSyData libraries for checking that input and output parameters of kernels
-are valid number (i.e. not NAN or infinite).
+are valid numbers (i.e. not NaN or infinity).
 
 ## `profiling` directory
 

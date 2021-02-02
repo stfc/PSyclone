@@ -39,5 +39,5 @@ In order to use the Intel compiler, use the F90 and F90FLAGS
 environmnent variables, e.g.:
 
 ```shell
-F90=ifort F90FLAGS="-check bounds" make standalone
+F90=ifort F90FLAGS="-g -check bounds" make standalone
 ```

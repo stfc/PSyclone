@@ -54,12 +54,12 @@ program builtins_driver
   implicit none
 
   ! Global and local mesh data types
-  type(global_mesh_base_type), target  :: global_mesh
-  class(global_mesh_base_type), pointer :: global_mesh_ptr => null()
-  type(mesh_type), target         :: mesh
+  type(global_mesh_base_type), target       :: global_mesh
+  class(global_mesh_base_type), pointer     :: global_mesh_ptr => null()
+  type(mesh_type), target                   :: mesh
   ! Extrusion
-  type(uniform_extrusion_type), target  :: extrusion
-  type(uniform_extrusion_type), pointer :: extrusion_ptr => null()
+  type(uniform_extrusion_type), target      :: extrusion
+  type(uniform_extrusion_type), pointer     :: extrusion_ptr => null()
   ! Partition
   type(partition_type)                      :: partition
   procedure(partitioner_interface), pointer :: partitioner_ptr => null()
