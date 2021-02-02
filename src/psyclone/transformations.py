@@ -228,8 +228,8 @@ class LoopFuseTrans(LoopTrans):
                   the transformation.
         :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
                  :py:class:`psyclone.undoredo.Memento`).
-        '''
 
+        '''
         # Validity checks for the supplied nodes
         self.validate(node1, node2, options)
 
@@ -1618,10 +1618,8 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
         '''
         # check node is a loop
-        from psyclone.psyir.nodes import Loop
-        if not isinstance(node, Loop):
-            raise TransformationError("Error in DynamoColour transformation. "
-                                      "The supplied node is not a loop")
+        super(Dynamo0p3ColourTrans, self).validate(node, options)
+
         # Check we need colouring
         if node.field_space.orig_name in \
            FunctionSpace.VALID_DISCONTINUOUS_NAMES:
@@ -2607,7 +2605,7 @@ class OCLTrans(Transformation):
         # the kernels in this Schedule. Also check that none of them access
         # any form of global data (that is not a routine argument).
         for kern in sched.kernels():
-            KernelTrans.validate(kern)
+            KernelTrans.validate(kern, options)
             ksched = kern.get_kernel_schedule()
             global_variables = ksched.symbol_table.global_symbols
             if global_variables:
@@ -3627,7 +3625,7 @@ class KernelGlobalsToArguments(Transformation):
         '''
         from psyclone.psyir.symbols import ArgumentInterface
 
-        self.validate(node)
+        self.validate(node, options)
 
         kernel = node.get_kernel_schedule()
         symtab = kernel.symbol_table

@@ -339,8 +339,9 @@ def test_colouring_not_a_loop(dist_mem):
     # Erroneously attempt to colour the schedule rather than the loop
     with pytest.raises(TransformationError) as excinfo:
         _, _ = ctrans.apply(schedule)
-    assert "Error in DynamoColour transformation" in str(excinfo.value)
-    assert "The supplied node is not a loop" in str(excinfo.value)
+    assert ("Target of Dynamo0p3LoopColourTrans transformation must be a "
+            "sub-class of Loop but got 'DynInvokeSchedule'" in
+            str(excinfo.value))
 
 
 def test_no_colour_dofs(dist_mem):
