@@ -404,8 +404,8 @@ def test_omp_parallel_not_a_loop(dist_mem):
     # the loop
     with pytest.raises(TransformationError) as excinfo:
         _, _ = otrans.apply(schedule)
-    assert "Error in DynamoOMPParallelLoopTrans tra" in str(excinfo.value)
-    assert "The node is not a loop" in str(excinfo.value)
+    assert ("Target of DynamoOMPParallelLoopTrans transformation must be a "
+            "sub-class of Loop" in str(excinfo.value))
 
 
 def test_colour_name():
@@ -560,7 +560,7 @@ def test_check_seq_colours_omp_parallel_do(monkeypatch, annexed, dist_mem):
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = otrans.apply(cschedule.children[index])
     assert "Error in DynamoOMPParallelLoopTrans" in str(excinfo.value)
-    assert "requested loop is over colours" in str(excinfo.value)
+    assert "target loop is over colours" in str(excinfo.value)
     assert "must be computed serially" in str(excinfo.value)
 
 
