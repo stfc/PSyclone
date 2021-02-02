@@ -336,6 +336,9 @@
 
 	108) PR #1093 for #1088. Add fparser2reader support for Call statements.
 
+        109) PR #1084 for #1080. Introduces the use of PSyIR for GOcean
+        kernel arguments and loop limits.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
