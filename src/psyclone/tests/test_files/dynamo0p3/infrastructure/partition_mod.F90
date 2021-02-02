@@ -757,6 +757,7 @@ contains
     integer :: start_sort, end_sort ! range over which to sort cells
     integer :: depth        ! counter over the halo depths
     integer :: orig_num_in_list ! number of cells in list before halos are added
+    integer :: cell_next_by_value ! Required to pass in next cell by value
     integer(i_def) :: num_apply
     logical(l_def) :: periodic_x = .false. ! Periodic in the E-W direction
     logical(l_def) :: periodic_y = .false. ! Periodic in the N-S direction
@@ -798,7 +799,8 @@ contains
       ! meshes to determine number of cells in the x direction
       do while (cell_next(E) /= cell .and. cell_next(E) /= -1)
         num_cells_x=num_cells_x+1
-        call global_mesh%get_cell_next(cell_next(E), cell_next)
+        cell_next_by_value = cell_next(E)
+        call global_mesh%get_cell_next(cell_next_by_value, cell_next)
       end do
 
       ! Infer num_cells_y from the total domin size and num_cells_x
