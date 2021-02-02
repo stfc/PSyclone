@@ -38,11 +38,14 @@ have to test it using various sub-classes. '''
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.transformations import TransformationError
+import inspect
+from importlib import import_module
+from psyclone.psyir.transformations import TransformationError, LoopTrans
 from psyclone.psyir.nodes import Loop
 from psyclone.psyGen import CodedKern
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import OMPParallelLoopTrans
+from psyclone.transformations import OMPParallelLoopTrans, LoopFuseTrans
+from psyclone import transformations, psyir
 
 
 def test_loop_trans_validate():
@@ -100,3 +103,46 @@ def test_loop_trans_validate_nemo_specific(monkeypatch):
         trans.validate(loop)
     assert ("In the NEMO API a transformation cannot be applied to a PSyIR "
             "loop representing a WHERE construct." in str(err.value))
+
+
+def test_all_loop_trans_base_validate(monkeypatch):
+    ''' Check that all transformations that sub-class LoopTrans call the
+    base validate() method. '''
+    # First get a valid Loop object that we can pass in.
+    trans = OMPParallelLoopTrans()
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=1,
+                           dist_mem=False)
+    loop = invoke.schedule.walk(Loop)[0]
+
+    # Find all classes defined in our various possible locations for
+    # transformations. This highlights the problem of finding transformations
+    # which is the subject of TODO #978.
+    all_trans_classes = inspect.getmembers(psyir.transformations,
+                                           inspect.isclass)
+    all_trans_classes += inspect.getmembers(transformations, inspect.isclass)
+    # Domain-specific transformations
+    for api in ["gocean", "lfric", "nemo"]:
+        transmod = import_module("psyclone.domain.{0}.transformations".format(
+            api))
+        all_trans_classes += inspect.getmembers(transmod, inspect.isclass)
+    # To ensure that we identify that the validate() method in the LoopTrans
+    # base class has been called, we monkeypatch it to raise an exception.
+
+    def fake_validate(_1, _2, options=None):
+        raise NotImplementedError("validate test exception")
+    monkeypatch.setattr(LoopTrans, "validate", fake_validate)
+
+    for name, cls_type in all_trans_classes:
+        # We can't just instantiate every class as those that aren't
+        # transformations sometimes require arguments to the constructor.
+        if not inspect.isabstract(cls_type) and name.endswith("Trans"):
+            trans = cls_type()
+            if isinstance(trans, LoopTrans):
+                with pytest.raises(NotImplementedError) as err:
+                    if isinstance(trans, LoopFuseTrans):
+                        trans.validate(loop, loop)
+                    else:
+                        trans.validate(loop)
+                assert "validate test exception" in str(err.value), \
+                    "{0}.validate() does not call LoopTrans.validate()".format(
+                        name)
