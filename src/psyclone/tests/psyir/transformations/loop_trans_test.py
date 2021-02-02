@@ -37,9 +37,9 @@
 have to test it using various sub-classes. '''
 
 from __future__ import absolute_import
-import pytest
 import inspect
 from importlib import import_module
+import pytest
 from psyclone.psyir.transformations import TransformationError, LoopTrans
 from psyclone.psyir.nodes import Loop
 from psyclone.psyGen import CodedKern
