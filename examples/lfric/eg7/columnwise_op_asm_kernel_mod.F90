@@ -47,7 +47,6 @@ use argument_mod,            only : arg_type, func_type,                    &
                                     GH_OPERATOR, GH_COLUMNWISE_OPERATOR,    &
                                     GH_REAL, GH_READ, GH_WRITE,             &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
-                                    GH_COLUMN_BANDED_DOFMAP,                &
                                     CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
@@ -78,7 +77,7 @@ public columnwise_op_asm_kernel_code
 
 contains
 
-  !> @brief The subroutine which is called directly from the PSY layer and
+  !> @brief The subroutine which is called directly from the PSy layer and
   !> assembles the LMA into a CMA
   !> @details Given an LMA representation of the operator mapping between two
   !> horizontally discontinuous spaces, assemble the columnwise matrix
