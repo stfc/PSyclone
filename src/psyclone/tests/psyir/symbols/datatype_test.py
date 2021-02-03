@@ -305,39 +305,6 @@ def test_arraytype_invalid_shape_dimension_2():
             in str(excinfo.value))
 
 
-def test_arraytype_invalid_shape_dimension_3():
-    '''Test that the ArrayType class raises an exception when one of the
-    dimensions of the shape list argument is a reference to a local datasymbol
-    that does not have a constant value (as this will not be initialised).'''
-
-    scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
-    data_symbol = DataSymbol("var", scalar_type)
-    with pytest.raises(TypeError) as info:
-        _ = ArrayType(scalar_type, [Reference(data_symbol)])
-    assert ("If a local datasymbol is used as part of a dimension declaration "
-            "then it should be a constant, but 'var' is not." in
-            str(info.value))
-
-
-def test_arraytype_invalid_shape_dimension_4():
-    '''Test that the ArrayType class raises an exception when one of the
-    dimensions of the shape list argument is a DataNode that contains
-    a local datasymbol that does not have a constant value (as this
-    will not be initialised).
-
-    '''
-    scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
-    data_symbol = DataSymbol("var", scalar_type)
-    one = Literal("1", scalar_type)
-    var_plus_1 = BinaryOperation.create(
-        BinaryOperation.Operator.ADD, Reference(data_symbol), one)
-    with pytest.raises(TypeError) as info:
-        _ = ArrayType(scalar_type, [var_plus_1])
-    assert ("If a local datasymbol is used as part of a dimension "
-            "declaration then it should be a constant, but 'var' is "
-            "not." in str(info.value))
-
-
 def test_arraytype_shape_dim_from_parent_scope():
     ''' Check that the shape checking in the ArrayType class permits the
     use of a reference to a symbol in a parent scope. '''

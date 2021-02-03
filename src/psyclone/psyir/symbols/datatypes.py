@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -377,19 +377,6 @@ class ArrayType(DataType):
                             "declaration then it should be a scalar "
                             "integer or an unknown type, but '{0}' is a "
                             "'{1}'.".format(symbol.name, symbol.datatype))
-                # Check that any references are not to a local
-                # datasymbol that is not constant (as this would have
-                # no value).
-                references = dimension.walk(Reference)
-                if references:
-                    for reference in references:
-                        if reference.symbol.is_local and \
-                           not reference.symbol.is_constant:
-                            raise TypeError(
-                                "If a local datasymbol is used as part of a "
-                                "dimension declaration then it should be a "
-                                "constant, but '{0}' is not."
-                                "".format(reference.symbol.name))
             elif not isinstance(dimension, (self.Extent, int)):
                 raise TypeError(
                     "DataSymbol shape list elements can only be "
@@ -495,7 +482,7 @@ class StructureType(DataType):
         '''
         # This import has to be here to avoid circular dependencies
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols import Symbol, TypeSymbol
+        from psyclone.psyir.symbols import Symbol
         if not isinstance(name, str):
             raise TypeError(
                 "The name of a component of a StructureType must be a 'str' "
