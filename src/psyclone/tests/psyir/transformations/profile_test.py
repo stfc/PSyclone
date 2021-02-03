@@ -829,15 +829,18 @@ def test_auto_invoke_return_last_stmt(parser):
     assign1 = Assignment.create(Reference(arg1), zero)
     kschedule = KernelSchedule.create(
         "work", symbol_table, [assign1, Return()])
+    # Double-check that the tree is as we expect
+    assert isinstance(kschedule[-1], Return)
 
     Profiler.set_options([Profiler.INVOKES])
     Profiler.add_profile_nodes(kschedule, Loop)
     # The Return should be a sibling of the ProfileNode rather than a child
     assert isinstance(kschedule[0], ProfileNode)
+    assert isinstance(kschedule[0].children[0].children[0], Assignment)
     assert isinstance(kschedule[1], Return)
 
 
-def test_auto_invoke_no_return(parser):
+def test_auto_invoke_no_return(parser, capsys):
     ''' Check that using the auto-invoke profiling option does not add any
     profiling if the invoke contains a Return anywhere other than as the
     last statement. '''
@@ -851,21 +854,30 @@ def test_auto_invoke_no_return(parser):
 
     # Create Schedule with Return at the start.
     kschedule = KernelSchedule.create(
-        "work", symbol_table, [Return(), assign1, assign2])
+        "work1", symbol_table, [Return(), assign1, assign2])
     Profiler.add_profile_nodes(kschedule, Loop)
     # No profiling should have been added
     assert not kschedule.walk(ProfileNode)
+    _, err = capsys.readouterr()
+    assert ("Not adding profiling to routine 'work1' because it contains one "
+            "or more Return statements" in err)
 
     # Create Schedule with Return in the middle.
     kschedule = KernelSchedule.create(
-        "work", symbol_table, [assign1, Return(), assign2])
+        "work2", symbol_table, [assign1, Return(), assign2])
     Profiler.add_profile_nodes(kschedule, Loop)
     # No profiling should have been added
     assert not kschedule.walk(ProfileNode)
+    _, err = capsys.readouterr()
+    assert ("Not adding profiling to routine 'work2' because it contains one "
+            "or more Return statements" in err)
 
     # Create Schedule with a Return at the end as well as in the middle.
     kschedule = KernelSchedule.create(
-        "work", symbol_table, [assign1, Return(), assign2, Return()])
+        "work3", symbol_table, [assign1, Return(), assign2, Return()])
     Profiler.add_profile_nodes(kschedule, Loop)
     # No profiling should have been added
     assert not kschedule.walk(ProfileNode)
+    _, err = capsys.readouterr()
+    assert ("Not adding profiling to routine 'work3' because it contains one "
+            "or more Return statements" in err)
