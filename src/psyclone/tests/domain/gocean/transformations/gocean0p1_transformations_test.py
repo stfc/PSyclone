@@ -69,8 +69,8 @@ def test_loop_fuse_with_not_a_loop():
         schedule, _ = lftrans.apply(new_sched.children[0],
                                     new_sched.children[1])
     # Exercise the __str__ method of TransformationError
-    assert ("Target of LoopFuse transformation must be a sub-class of Loop "
-            "but got 'OMPParallelDoDirective'" in str(ex.value))
+    assert ("Target of LoopFuseTrans transformation must be a sub-class of "
+            "Loop but got 'OMPParallelDoDirective'" in str(ex.value))
 
 
 def test_loop_fuse_on_non_siblings():

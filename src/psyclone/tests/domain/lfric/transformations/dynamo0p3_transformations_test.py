@@ -339,7 +339,7 @@ def test_colouring_not_a_loop(dist_mem):
     # Erroneously attempt to colour the schedule rather than the loop
     with pytest.raises(TransformationError) as excinfo:
         _, _ = ctrans.apply(schedule)
-    assert ("Target of Dynamo0p3LoopColourTrans transformation must be a "
+    assert ("Target of Dynamo0p3ColourTrans transformation must be a "
             "sub-class of Loop but got 'DynInvokeSchedule'" in
             str(excinfo.value))
 
@@ -358,13 +358,6 @@ def test_no_colour_dofs(dist_mem):
     assert "Error in DynamoColour transformation" in val
     assert ("Only loops over cells may be coloured but this loop is over "
             "dofs" in val)
-
-
-def test_omp_name():
-    ''' Test the name property of the Dynamo0p3OMPLoopTrans class. '''
-    olooptrans = Dynamo0p3OMPLoopTrans()
-    oname = olooptrans.name
-    assert oname == "Dynamo0p3OMPLoopTrans"
 
 
 def test_omp_str():
@@ -407,13 +400,6 @@ def test_omp_parallel_not_a_loop(dist_mem):
         _, _ = otrans.apply(schedule)
     assert ("Target of DynamoOMPParallelLoopTrans transformation must be a "
             "sub-class of Loop" in str(excinfo.value))
-
-
-def test_colour_name():
-    ''' Test the name property of the Dynamo0p3ColourTrans class. '''
-    ctrans = Dynamo0p3ColourTrans()
-    cname = ctrans.name
-    assert cname == "Dynamo0p3LoopColourTrans"
 
 
 def test_colour_str():
@@ -2370,10 +2356,9 @@ def test_multi_reduction_real_fuse():
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
                                            schedule.children[1])
-            assert (
-                "Error in DynamoLoopFuse transformation: Cannot fuse loops "
-                "when each loop already contains a "
-                "reduction") in str(excinfo.value)
+            assert ("Error in DynamoLoopFuseTrans transformation: Cannot "
+                    "fuse loops when each loop already contains a "
+                    "reduction" in str(excinfo.value))
 
 
 def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
@@ -3851,8 +3836,6 @@ def test_rc_str():
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_name = str(rc_trans)
     assert rc_name == "Change iteration space to perform redundant computation"
-    name = rc_trans.name
-    assert name == "RedundantComputation"
 
 
 def test_rc_node_not_loop():
@@ -3864,8 +3847,9 @@ def test_rc_node_not_loop():
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[0])
-    assert ("Target of RedundantComputation transformation must be a sub-"
-            "class of Loop but got \'DynHaloExchange\'") in str(excinfo.value)
+    assert ("Target of Dynamo0p3RedundantComputationTrans transformation must "
+            "be a sub-class of Loop but got \'DynHaloExchange\'" in
+            str(excinfo.value))
 
 
 def test_rc_invalid_loop(monkeypatch):
@@ -5043,8 +5027,9 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
     f_trans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[index], schedule.children[index+1])
-    assert ("Error in DynamoLoopFuse transformation: The halo-depth indices "
-            "are not the same. Found '3' and '1'" in str(excinfo.value))
+    assert ("Error in DynamoLoopFuseTrans transformation: The halo-depth "
+            "indices are not the same. Found '3' and '1'" in
+            str(excinfo.value))
     # now redundantly compute to the full halo
     rc_trans.apply(schedule.children[index+1])
     if annexed:
@@ -5058,8 +5043,9 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
     f_trans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[index], schedule.children[index+1])
-    assert ("Error in DynamoLoopFuse transformation: The halo-depth indices "
-            "are not the same. Found '3' and 'None'" in str(excinfo.value))
+    assert ("Error in DynamoLoopFuseTrans transformation: The halo-depth "
+            "indices are not the same. Found '3' and 'None'" in
+            str(excinfo.value))
 
 
 def test_loop_fusion_different_loop_name(monkeypatch):
@@ -5077,8 +5063,8 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     with pytest.raises(TransformationError) as excinfo:
         # Indices of loops to fuse in the schedule
         f_trans.apply(schedule.children[2], schedule.children[3])
-    assert ("Error in DynamoLoopFuse transformation: The upper bound names "
-            "are not the same. Found 'cell_halo' and 'ncells'"
+    assert ("Error in DynamoLoopFuseTrans transformation: The upper bound "
+            "names are not the same. Found 'cell_halo' and 'ncells'"
             in str(excinfo.value))
     # Now test for f1 write to read dependency
     _, invoke = get_invoke("4.12_multikernel_invokes_w2v.f90",
@@ -5092,8 +5078,8 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     rc_trans.apply(schedule.children[0], {"depth": 3})
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[1], schedule.children[2])
-    assert ("Error in DynamoLoopFuse transformation: The upper bound names "
-            "are not the same. Found 'cell_halo' and 'ncells'"
+    assert ("Error in DynamoLoopFuseTrans transformation: The upper bound "
+            "names are not the same. Found 'cell_halo' and 'ncells'"
             in str(excinfo.value))
 
 

@@ -1471,7 +1471,6 @@ def test_go_loop_swap_errors():
 
     schedule = invoke_loop1.schedule
     swap = GOLoopSwapTrans()
-    assert swap.name == "GOLoopSwap"
     assert str(swap) == "Exchange the order of two nested loops: inner "\
         "becomes outer and vice versa"
 
@@ -1486,8 +1485,8 @@ def test_go_loop_swap_errors():
     # Not a loop: use the cal to bc_ssh_code node as example for this test:
     with pytest.raises(TransformationError) as error:
         swap.apply(schedule.children[0].loop_body[0].loop_body[0])
-    assert ("Target of GOLoopSwap transformation must be a sub-class of Loop "
-            "but got 'GOKern'" in str(error.value))
+    assert ("Target of GOLoopSwapTrans transformation must be a sub-class of "
+            "Loop but got 'GOKern'" in str(error.value))
 
     # Now create an outer loop with more than one inner statement
     # ... by fusing the first and second outer loops :(

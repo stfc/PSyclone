@@ -142,8 +142,8 @@ def test_fusetrans_error_incomplete():
     # Check first loop
     with pytest.raises(TransformationError) as err:
         fuse.validate(loop1, loop2)
-    assert "Error in LoopFuse transformation. The target loop must have " \
-        "four children but found: []" in str(err.value)
+    assert ("Error in LoopFuseTrans transformation. The target loop must have "
+            "four children but found: []" in str(err.value))
 
     loop1.addchild(Literal("start", INTEGER_TYPE, parent=loop1))
     loop1.addchild(Literal("stop", INTEGER_TYPE, parent=loop1))
@@ -154,8 +154,8 @@ def test_fusetrans_error_incomplete():
     # Check second loop
     with pytest.raises(TransformationError) as err:
         fuse.validate(loop1, loop2)
-    assert "Error in LoopFuse transformation. The target loop must have four" \
-        " children but found: []" in str(err.value)
+    assert ("Error in LoopFuseTrans transformation. The target loop must have "
+            "four children but found: []" in str(err.value))
 
     loop2.addchild(Literal("start", INTEGER_TYPE, parent=loop2))
     loop2.addchild(Literal("stop", INTEGER_TYPE, parent=loop2))
@@ -194,8 +194,8 @@ def test_fusetrans_error_not_same_parent():
     # Try to fuse loops with different parents
     with pytest.raises(TransformationError) as err:
         fuse.validate(loop1, loop2)
-    assert "Error in LoopFuse transformation. Loops do not have the " \
-        "same parent" in str(err.value)
+    assert ("Error in LoopFuseTrans transformation. Loops do not have the "
+            "same parent" in str(err.value))
 
 
 def test_regiontrans_wrong_children():

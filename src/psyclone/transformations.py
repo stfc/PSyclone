@@ -160,15 +160,10 @@ class LoopFuseTrans(LoopTrans):
     ''' Provides a generic loop-fuse transformation to two Nodes in the
     PSyIR of a Schedule after performing validity checks for the supplied
     Nodes. Examples are given in the descriptions of any children classes.
-    '''
 
+    '''
     def __str__(self):
         return "Fuse two adjacent loops together"
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "LoopFuse"
 
     def validate(self, node1, node2, options=None):
         # pylint: disable=arguments-differ
@@ -267,16 +262,11 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
     >>> ftrans = GOceanLoopFuseTrans()
     >>> new_schedule, memento = ftrans.apply(schedule[0], schedule[1])
     >>> new_schedule.view()
-    '''
 
+    '''
     def __str__(self):
         return ("Fuse two adjacent loops together with GOcean-specific "
                 "validity checks")
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "GOceanLoopFuse"
 
     def validate(self, node1, node2, options=None):
         '''Checks if it is valid to apply the GOceanLoopFuseTrans
@@ -378,8 +368,8 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
     >>> ftrans.same_space = True
 
     after the instance of the transformation is created.
-    '''
 
+    '''
     def __init__(self, same_space=False):
         # Creates the 'same_space' attribute. Its value is set in via
         # the setter method below.
@@ -390,11 +380,6 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
     def __str__(self):
         return ("Fuse two adjacent loops together with Dynamo-specific "
                 "validity checks")
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "DynamoLoopFuse"
 
     # TODO: Remove the 'same_space' property and the setter below and
     # reformulate the relevant tests and documentation when the suport for
@@ -616,13 +601,6 @@ class ParallelLoopTrans(LoopTrans):
     def __str__(self):
         return  # pragma: no cover
 
-    @abc.abstractproperty
-    def name(self):
-        '''
-        :returns: the name of this transformation as a string.
-        :rtype: str
-        '''
-
     @abc.abstractmethod
     def _directive(self, parent, children, collapse=None):
         '''
@@ -830,11 +808,6 @@ class OMPLoopTrans(ParallelLoopTrans):
         return "Adds an 'OpenMP DO' directive to a loop"
 
     @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "OMPLoopTrans"
-
-    @property
     def omp_schedule(self):
         ''' Returns the OpenMP schedule that will be specified by
             this transformation. The default schedule is 'static'.'''
@@ -1010,11 +983,6 @@ class ACCLoopTrans(ParallelLoopTrans):
     def __str__(self):
         return "Adds an 'OpenACC loop' directive to a loop"
 
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "ACCLoopTrans"
-
     def _directive(self, parent, children, collapse=None):
         '''
         Creates the ACCLoopDirective needed by this sub-class of
@@ -1097,12 +1065,6 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         >>> new_schedule.view()
 
     '''
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "OMPParallelLoopTrans"
-
     def __str__(self):
         return "Add an 'OpenMP PARALLEL DO' directive with no validity checks"
 
@@ -1187,12 +1149,6 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         :py:class:`base class <OMPParallelLoopTrans>`.
 
     '''
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "DynamoOMPParallelLoopTrans"
-
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a Dynamo loop"
 
@@ -1241,13 +1197,8 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
        :param omp_schedule: the omp schedule to be created. Must be one of
            'runtime', 'static', 'dynamic', 'guided' or 'auto'.
+
        '''
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "GOceanOMPParallelLoopTrans"
-
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a GOcean loop"
 
@@ -1287,12 +1238,6 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
     :py:class:`base class <OMPLoopTrans>`.
 
     '''
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "Dynamo0p3OMPLoopTrans"
-
     def __str__(self):
         return "Add an OpenMP DO directive to a Dynamo 0.3 loop"
 
@@ -1346,12 +1291,6 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
             'runtime', 'static', 'dynamic', 'guided' or 'auto'.
 
         '''
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "GOceanOMPLoopTrans"
-
     def __str__(self):
         return "Add an OpenMP DO directive to a GOcean loop"
 
@@ -1398,14 +1337,8 @@ class ColourTrans(LoopTrans):
     >>> csched.view()
 
     '''
-
     def __str__(self):
         return "Split a loop into colours"
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "LoopColourTrans"
 
     def apply(self, node, options=None):
         '''
@@ -1592,14 +1525,8 @@ class Dynamo0p3ColourTrans(ColourTrans):
       (if an invoke contains >1 kernel call)
 
     '''
-
     def __str__(self):
         return "Split a Dynamo 0.3 loop over cells into colours"
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "Dynamo0p3LoopColourTrans"
 
     def apply(self, node, options=None):
         '''Performs Dynamo0.3-specific error checking and then uses the parent
@@ -2134,14 +2061,8 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
       increased.
 
     '''
-
     def __str__(self):
         return "Change iteration space to perform redundant computation"
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "RedundantComputation"
 
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
@@ -2386,19 +2307,11 @@ class GOLoopSwapTrans(LoopTrans):
      >>> swap = GOLoopSwapTrans()
      >>> new_schedule, memento = swap.apply(schedule.children[0])
      >>> new_schedule.view()
-    '''
 
+    '''
     def __str__(self):
         return "Exchange the order of two nested loops: inner becomes " + \
                "outer and vice versa"
-
-    @property
-    def name(self):
-        '''
-        :returns the name of this transformation.
-        :rtype: str
-        '''
-        return "GOLoopSwap"
 
     def validate(self, node_outer, options=None):
         '''Checks if the given node contains a valid Fortran structure
@@ -3698,3 +3611,36 @@ class KernelGlobalsToArguments(Transformation):
 
         if count_global_vars_removed > 0:
             node.modified = True
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ["KernelTrans",
+           "LoopFuseTrans",
+           "GOceanLoopFuseTrans",
+           "DynamoLoopFuseTrans",
+           "ParallelLoopTrans",
+           "OMPLoopTrans",
+           "ACCLoopTrans",
+           "OMPParallelLoopTrans",
+           "DynamoOMPParallelLoopTrans",
+           "GOceanOMPParallelLoopTrans",
+           "Dynamo0p3OMPLoopTrans",
+           "GOceanOMPLoopTrans",
+           "ColourTrans",
+           "KernelModuleInlineTrans",
+           "Dynamo0p3ColourTrans",
+           "ParallelRegionTrans",
+           "OMPParallelTrans",
+           "ACCParallelTrans",
+           "GOConstLoopBoundsTrans",
+           "MoveTrans",
+           "Dynamo0p3RedundantComputationTrans",
+           "GOLoopSwapTrans",
+           "OCLTrans",
+           "Dynamo0p3AsyncHaloExchangeTrans",
+           "Dynamo0p3KernelConstTrans",
+           "ACCEnterDataTrans",
+           "ACCRoutineTrans",
+           "ACCKernelsTrans",
+           "ACCDataTrans",
+           "KernelGlobalsToArguments"]

@@ -131,3 +131,15 @@ class LoopTrans(Transformation):
             raise TransformationError(
                 "In the NEMO API a transformation cannot be applied to a "
                 "PSyIR loop representing a WHERE construct.")
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this class.
+        :rtype: str
+        '''
+        return self.__class__.__name__
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ["LoopTrans"]
