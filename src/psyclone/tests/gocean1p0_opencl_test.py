@@ -50,6 +50,8 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
 from psyclone.tests.utilities import Compile, get_invoke
 from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
+from psyclone.domain.gocean.transformations import \
+    GOMoveIterationBoundariesInsideKernelTrans
 
 
 API = "gocean1.0"
@@ -686,7 +688,8 @@ def test_opencl_prepared_kernel_code_generation():
     psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=False)
     sched = psy.invokes.invoke_list[0].schedule
     kernel = sched.children[0].loop_body[0].loop_body[0]  # compute_cu kernel
-    kernel._prepare_opencl_kernel_schedule()
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    trans.apply(kernel)
     kschedule = kernel.get_kernel_schedule()
 
     expected_code = (

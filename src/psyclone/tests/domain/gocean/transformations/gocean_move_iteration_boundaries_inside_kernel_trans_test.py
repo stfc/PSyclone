@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,19 +31,38 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
+# Author S. Siso, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''This module contains the transformations for GOcean.
+''' Module containing tests for PSyclone
+GOMoveIterationBoundariesInsideKernelTrans transformations.
 '''
 
-from psyclone.domain.gocean.transformations.gocean_extract_trans \
-    import GOceanExtractTrans
-from psyclone.domain.gocean.transformations. \
-    gocean_move_iteration_boundaries_inside_kernel_trans import \
+from __future__ import absolute_import
+from psyclone.tests.utilities import get_invoke
+from psyclone.domain.gocean.transformations import \
     GOMoveIterationBoundariesInsideKernelTrans
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.gocean.transformations import GOceanExtractTrans
+API = "gocean1.0"
 
-__all__ = ['GOceanExtractTrans', 'GOMoveIterationBoundariesInsideKernelTrans']
+
+def test_go_move_iteration_boundaries_inside_kernel_trans():
+    ''' Tests that the GOMoveIterationBoundariesInsideKernelTrans
+    transformation for the GOcean API adds the 4 boundary values as kernel
+    arguments and adds a masking statement at the beginning of the code.
+    '''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=False)
+    sched = psy.invokes.invoke_list[0].schedule
+    kernel = sched.children[0].loop_body[0].loop_body[0]  # compute_cu kernel
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    trans.apply(kernel)
+
+    kernel.view()
+
+    kschedule = kernel.get_kernel_schedule()
+    kschedule.view()
+    kschedule.symbol_table.view()
+
+    assert False
+
+
