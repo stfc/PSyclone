@@ -117,7 +117,8 @@ def test_asr_create_errors(component_symbol):
     scalar_symbol = symbols.DataSymbol("scalar", symbols.INTEGER_TYPE)
     with pytest.raises(TypeError) as err:
         _ = nodes.ArrayOfStructuresReference.create(scalar_symbol, [], [])
-    assert "ArrayType but symbol 'scalar' has type 'Scalar" in str(err.value)
+    assert ("ArrayType, DeferredType or UnknownType but symbol 'scalar' has "
+            "type 'Scalar" in str(err.value))
     # Missing children (for array-index expressions)
     with pytest.raises(TypeError) as err:
         _ = nodes.ArrayOfStructuresReference.create(component_symbol,
