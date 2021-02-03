@@ -48,6 +48,15 @@ from psyclone.transformations import OMPParallelLoopTrans, LoopFuseTrans
 from psyclone import transformations, psyir
 
 
+def test_loop_trans_name():
+    ''' Check that the name method works as expected. '''
+    # We have to use sub-classes of LoopTrans as it is virtual.
+    trans1 = OMPParallelLoopTrans()
+    assert trans1.name == "OMPParallelLoopTrans"
+    trans2 = LoopFuseTrans()
+    assert trans2.name == "LoopFuseTrans"
+
+
 def test_loop_trans_validate():
     ''' Test the validation checks on the loop node provided to the
     transformation. '''
