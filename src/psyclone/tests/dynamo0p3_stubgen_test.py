@@ -84,13 +84,13 @@ def test_kernel_stub_invalid_iteration_space():
             "'testkern_dofs_code'." in str(excinfo.value))
 
 
-def test_dynscalars_stub_err():
-    ''' Check that DynScalarArgs._stub_declarations() raises the
+def test_lfricscalars_stub_err():
+    ''' Check that LFRicScalarArgs._stub_declarations() raises the
     expected internal error if it encounters an unrecognised data
     type of a scalar argument when generating a kernel stub.
 
     '''
-    from psyclone.dynamo0p3 import DynScalarArgs
+    from psyclone.dynamo0p3 import LFRicScalarArgs
     from psyclone.f2pygen import ModuleGen
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
@@ -102,7 +102,7 @@ def test_dynscalars_stub_err():
     arg = kernel.arguments.args[1]
     arg.descriptor._data_type = "gh_invalid_scalar"
     with pytest.raises(InternalError) as err:
-        DynScalarArgs(kernel)._stub_declarations(ModuleGen(name="my_mod"))
+        LFRicScalarArgs(kernel)._stub_declarations(ModuleGen(name="my_mod"))
     assert ("Found an unsupported data type 'gh_invalid_scalar' for the "
             "scalar argument 'iscalar_2'. Supported types are {0}.".
             format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES)

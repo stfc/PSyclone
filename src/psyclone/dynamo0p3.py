@@ -3154,7 +3154,7 @@ class DynCellIterators(DynCollection):
                 self._first_var.ref_name() + "%get_nlayers()"))
 
 
-class DynScalarArgs(DynCollection):
+class LFRicScalarArgs(DynCollection):
     '''
     Handles the declarations of scalar kernel arguments appearing in either
     an Invoke or a Kernel stub.
@@ -3166,7 +3166,7 @@ class DynScalarArgs(DynCollection):
 
     '''
     def __init__(self, node):
-        super(DynScalarArgs, self).__init__(node)
+        super(LFRicScalarArgs, self).__init__(node)
 
         # Initialise dictionaries of real and integer scalar
         # arguments by data type and intent
@@ -3220,6 +3220,9 @@ class DynScalarArgs(DynCollection):
                            list(MAPPING_DATA_TYPES.keys())))
             # Check for unsupported data types
             scal_inv = scal - rscal.union(iscal)
+            print("all: ", intent, scal)
+            print("real: ", intent, rscal)
+            print("int: ", intent, iscal)
             if scal_inv:
                 for arg in scal_inv:
                     raise InternalError(
@@ -4951,7 +4954,7 @@ class DynInvoke(Invoke):
         # list. However, the base class currently ignores any stencil and qr
         # arguments so we need to add them in.
 
-        self.scalar_args = DynScalarArgs(self)
+        self.scalar_args = LFRicScalarArgs(self)
 
         # initialise our invoke stencil information
         self.stencil = DynStencils(self)
@@ -7592,7 +7595,7 @@ class DynKern(CodedKern):
 
         # Add all the declarations
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
-                         DynCMAOperators, DynScalarArgs, DynFields,
+                         DynCMAOperators, LFRicScalarArgs, DynFields,
                          DynLMAOperators, DynStencils, DynBasisFunctions,
                          DynBoundaryConditions, DynReferenceElement,
                          LFRicMeshProperties]:
@@ -8753,7 +8756,7 @@ __all__ = [
     'DynFields',
     'DynProxies',
     'DynCellIterators',
-    'DynScalarArgs',
+    'LFRicScalarArgs',
     'DynLMAOperators',
     'DynCMAOperators',
     'DynMeshes',
