@@ -43,13 +43,11 @@
 # This script first tests the various python commands return
 # by which (if any), then standard locations on linux. Note
 # we redirect to /dev/null in case that 'which' does not exist
-for p in $(which python python3 python2 2>/dev/null) \
-         /usr/bin/python  \
-         /usr/bin/python3 \
-         /usr/bin/python2; do
+for p in /usr/bin/python3 /usr/bin/python2 /usr/bin/python \
+         $(which python3 python2 python 2>/dev/null)  ; do
 
     # Necessary in case that 'python' is a directory
-    if [[ -f "$p" && -x $(realpath "$p") ]]; then
+    if [[ -f "$p" && -x $(readlink -f "$p") ]]; then
         echo $p;
         exit
     fi
