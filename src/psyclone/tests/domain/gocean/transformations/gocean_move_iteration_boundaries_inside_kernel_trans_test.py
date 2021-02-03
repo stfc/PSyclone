@@ -42,6 +42,9 @@ from __future__ import absolute_import
 from psyclone.tests.utilities import get_invoke
 from psyclone.domain.gocean.transformations import \
     GOMoveIterationBoundariesInsideKernelTrans
+from psyclone.psyir.nodes import Assignment, IfBlock, Return
+from psyclone.psyir.symbols import ArgumentInterface
+from psyclone.gocean1p0 import GOLoop
 
 API = "gocean1.0"
 
@@ -54,15 +57,59 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
     psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=False)
     sched = psy.invokes.invoke_list[0].schedule
     kernel = sched.children[0].loop_body[0].loop_body[0]  # compute_cu kernel
+    # Add some name conflicting symbols
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     trans.apply(kernel)
 
+    # Check that the kernel call have been transformed
     kernel.view()
+    # Immediately before the loop there are the boundaries assignments
+    assert isinstance(sched.children[0], Assignment)
+    assert sched.children[0].lhs.symbol.name == "xstart"
+    assert isinstance(sched.children[1], Assignment)
+    assert sched.children[1].lhs.symbol.name == "xstop"
+    assert isinstance(sched.children[2], Assignment)
+    assert sched.children[2].lhs.symbol.name == "ystart"
+    assert isinstance(sched.children[3], Assignment)
+    assert sched.children[3].lhs.symbol.name == "ystop"
 
+    # The loops have been transformed
+    assert isinstance(sched.children[4], GOLoop)
+    assert sched.children[4].field_space == "go_every"
+    assert sched.children[4].iteration_space == "go_all_pts"
+    assert isinstance(sched.children[4].loop_body[0], GOLoop)
+    assert sched.children[4].loop_body[0].field_space == "go_every"
+    assert sched.children[4].loop_body[0].iteration_space == "go_all_pts"
+
+    # Check that the kernel subroutine has been transformed
     kschedule = kernel.get_kernel_schedule()
-    kschedule.view()
-    kschedule.symbol_table.view()
 
-    assert False
+    # It has the boundary conditions mask
+    assert isinstance(kschedule.children[0], IfBlock)
+    assert str(kschedule.children[0].condition) == (
+        "BinaryOperation[operator:'OR']\n"
+        "BinaryOperation[operator:'OR']\n"
+        "BinaryOperation[operator:'LT']\n"
+        "Reference[name:'i']\n"
+        "Reference[name:'xstart']\n"
+        "BinaryOperation[operator:'GT']\n"
+        "Reference[name:'i']\n"
+        "Reference[name:'xstop']\n"
+        "BinaryOperation[operator:'OR']\n"
+        "BinaryOperation[operator:'LT']\n"
+        "Reference[name:'j']\n"
+        "Reference[name:'ystart']\n"
+        "BinaryOperation[operator:'GT']\n"
+        "Reference[name:'j']\n"
+        "Reference[name:'ystop']")
+    assert isinstance(kschedule.children[0].if_body[0], Return)
 
-
+    # It has the boundary symbol as kernel arguments
+    assert isinstance(kschedule.symbol_table.lookup("xstart").interface,
+                      ArgumentInterface)
+    assert isinstance(kschedule.symbol_table.lookup("xstop").interface,
+                      ArgumentInterface)
+    assert isinstance(kschedule.symbol_table.lookup("ystart").interface,
+                      ArgumentInterface)
+    assert isinstance(kschedule.symbol_table.lookup("ystop").interface,
+                      ArgumentInterface)

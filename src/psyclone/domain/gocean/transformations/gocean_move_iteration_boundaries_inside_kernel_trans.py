@@ -44,64 +44,114 @@ from psyclone.psyir.symbols import (INTEGER_TYPE, ArgumentInterface,
 
 
 class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
-    ''' Provides a ... '''
+    ''' Provides a transformation that moves iteration boundaries that are
+    encoded in the Loops _lower_bound() and _upper_bound() methods to a mask
+    inside the kernel with the boundaries passed as kernel arguments.
+
+    For example the following kernel call:
+
+    >>> do i = 2, N - 1
+    >>>   do j = 2, N - 1
+    >>>      kernel(i, j, field)
+    >>>   end do
+    >>> end do
+
+    will be translated to:
+
+    >>> startx = 2
+    >>> stopx = N - 1
+    >>> starty = 2
+    >>> stopy = N - 1
+    >>> do i = 1, size(field, 1)
+    >>>   do j = 1, size(field, 2)
+    >>>      kernel(i, j, startx, stopx, starty, stopx, field)
+    >>>   end do
+    >>> end do
+
+    additionally a mask like the following one will be introduced in the
+    kernel code:
+
+    >>> if (i < startx .or. i > stopx .or. j < starty .or. j > stopx) then
+    >>>    return
+    >>> end if
+
+    '''
     def __str__(self):
-        return "description"
+        return "Move kernel iteration boundaries inside the kernel code."
 
     @property
     def name(self):
         '''Returns the name of this transformation as a string.'''
-        return "FuseKern"
+        return "GOMoveIterationBoundariesInsideKernelTrans"
 
-    def validate(self, kernel):
-        '''Checks ...
+    def validate(self, node, options=None):
+        '''Ensure that it is valid to apply this transformation to the
+        supplied node.
 
-        :raises TransformationError: if ....
+        :param node: the node to validate.
+        :type node: :py:class:`psyclone.psyGen.CodedKern`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: if the node is not a CodedKern.
          '''
 
-        if not isinstance(kernel, CodedKern):
-            raise TransformationError("Not CodedKerns")
+        if not isinstance(node, CodedKern):
+            raise TransformationError("Error in {0} transformation. "
+                                      "This transformation can only be applied"
+                                      "to CodedKern".format(self.name))
 
-    def apply(self, kernel):
-        self.validate(kernel)
+    def apply(self, node, options=None):
+        '''Apply this transformation to the supplied node.
+
+        :param node: the node to transform.
+        :type node: :py:class:`psyclone.psyGen.CodedKern`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :returns: 2-tuple of new schedule and memento of transform.
+        :rtype: (:py:class:`psyclone.gocean1p0.GOInvokeSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        self.validate(node)
 
         # Get useful references
-        invoke_st = kernel.ancestor(InvokeSchedule).symbol_table
-        inner_loop = kernel.parent.parent
+        invoke_st = node.ancestor(InvokeSchedule).symbol_table
+        inner_loop = node.parent.parent
         outer_loop = inner_loop.parent.parent
         cursor = outer_loop.position
 
-        # Update Kernel Call
-        if False:
-            # Create new symbols and initialise them with
-            inv_xstart = invoke_st.new_symbol(
-                "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-            inv_xstop = invoke_st.new_symbol(
-                "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-            inv_ystart = invoke_st.new_symbol(
-                "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-            inv_ystop = invoke_st.new_symbol(
-                "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        # Create new symbols in the PSylayer and initialise them with
+        inv_xstart = invoke_st.new_symbol(
+            "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        inv_xstop = invoke_st.new_symbol(
+            "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        inv_ystart = invoke_st.new_symbol(
+            "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        inv_ystop = invoke_st.new_symbol(
+            "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
-            arguments = kernel.arguments.raw_arg_list()
-            arguments.extend([inv_xstart.name, inv_xstop.name,
-                              inv_ystart.name, inv_ystop.name])
+        assign1 = Assignment.create(Reference(inv_xstart),
+                                    inner_loop._lower_bound())
+        outer_loop.parent.children.insert(cursor, assign1)
+        cursor = cursor + 1
+        assign2 = Assignment.create(Reference(inv_xstop),
+                                    inner_loop._upper_bound())
+        outer_loop.parent.children.insert(cursor, assign2)
+        cursor = cursor + 1
+        assign3 = Assignment.create(Reference(inv_ystart),
+                                    outer_loop._lower_bound())
+        outer_loop.parent.children.insert(cursor, assign3)
+        cursor = cursor + 1
+        assign4 = Assignment.create(Reference(inv_ystop),
+                                    outer_loop._upper_bound())
+        outer_loop.parent.children.insert(cursor, assign4)
 
-            assign1 = Assignment.create(Reference(inv_xstart),
-                                        inner_loop._lower_bound())
-            outer_loop.parent.children.insert(cursor, assign1)
-            cursor = cursor + 1
-            assign2 = Assignment.create(Reference(inv_xstop),
-                                        inner_loop._upper_bound())
-            outer_loop.parent.children.insert(cursor, assign2)
-            cursor = cursor + 1
-            assign3 = Assignment.create(Reference(inv_ystart),
-                                        outer_loop._lower_bound())
-            outer_loop.parent.children.insert(cursor, assign3)
-            cursor = cursor + 1
-            assign4 = Assignment.create(Reference(inv_ystop),
-                                        outer_loop._upper_bound())
-            outer_loop.parent.children.insert(cursor, assign4)
+        # Update Kernel Call (only works with f2pygen)
+        arguments = node.arguments.raw_arg_list()
+        arguments.extend([inv_xstart.name, inv_xstop.name,
+                          inv_ystart.name, inv_ystop.name])
 
         # Now that the boundaries are inside the kernel, the looping should go
         # trough all the field points
@@ -111,7 +161,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         outer_loop.iteration_space = "go_all_pts"
 
         # Update Kernel
-        kschedule = kernel.get_kernel_schedule()
+        kschedule = node.get_kernel_schedule()
         kernel_st = kschedule.symbol_table
         iteration_indices = kernel_st.iteration_indices
         data_arguments = kernel_st.data_arguments
@@ -131,9 +181,8 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
             "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
             interface=ArgumentInterface(ArgumentInterface.Access.READ))
         kernel_st.specify_argument_list(
-            iteration_indices +
-            [xstart_symbol, xstop_symbol, ystart_symbol, ystop_symbol] +
-            data_arguments)
+            iteration_indices + data_arguments +
+            [xstart_symbol, xstop_symbol, ystart_symbol, ystop_symbol])
 
         # Create boundaries masking condition
         condition1 = BinaryOperation.create(
@@ -169,3 +218,5 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         if_statement = IfBlock.create(condition, [Return()])
         kschedule.children.insert(0, if_statement)
         if_statement.parent = kschedule
+
+        return node.root, None

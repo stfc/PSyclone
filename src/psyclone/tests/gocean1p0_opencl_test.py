@@ -694,13 +694,13 @@ def test_opencl_prepared_kernel_code_generation():
 
     expected_code = (
         "__kernel void compute_cu_code(\n"
+        "  __global double * restrict cu,\n"
+        "  __global double * restrict p,\n"
+        "  __global double * restrict u,\n"
         "  int xstart,\n"
         "  int xstop,\n"
         "  int ystart,\n"
-        "  int ystop,\n"
-        "  __global double * restrict cu,\n"
-        "  __global double * restrict p,\n"
-        "  __global double * restrict u\n"
+        "  int ystop\n"
         "  ){\n"
         "  int cuLEN1 = get_global_size(0);\n"
         "  int cuLEN2 = get_global_size(1);\n"
