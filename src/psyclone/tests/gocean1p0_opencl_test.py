@@ -42,7 +42,8 @@ import os
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.transformations import OCLTrans, TransformationError
+from psyclone.transformations import TransformationError
+from psyclone.domain.gocean.transformations import OCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
 from psyclone.errors import GenerationError
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \

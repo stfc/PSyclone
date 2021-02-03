@@ -50,7 +50,8 @@ from psyclone.transformations import ACCKernelsTrans, GOConstLoopBoundsTrans, \
     LoopFuseTrans, GOLoopSwapTrans, OMPParallelTrans, \
     GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, KernelModuleInlineTrans, \
     GOceanLoopFuseTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, \
-    OCLTrans, OMPLoopTrans
+    OMPLoopTrans
+from psyclone.domain.gocean.transformations import OCLTrans
 from psyclone.tests.gocean1p0_build import GOcean1p0Build, GOcean1p0OpenCLBuild
 from psyclone.tests.utilities import count_lines, get_invoke, Compile
 
