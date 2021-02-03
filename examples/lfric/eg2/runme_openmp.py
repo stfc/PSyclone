@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ print(PSY.invokes.names)
 TRANS = TransInfo()
 print(TRANS.list)
 
-LOOP_FUSE = TRANS.get_trans_name('LoopFuse')
+LOOP_FUSE = TRANS.get_trans_name('LoopFuseTrans')
 OMP_PAR = TRANS.get_trans_name('OMPParallelLoopTrans')
 
 SCHEDULE = PSY.invokes.get('invoke_0').schedule

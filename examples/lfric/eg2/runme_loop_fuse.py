@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ schedule.view()
 t = TransInfo()
 print(t.list)
 
-lf = t.get_trans_name('LoopFuse')
+lf = t.get_trans_name('LoopFuseTrans')
 
 schedule.view()
 new_schedule, memento = lf.apply(schedule.children[0], schedule.children[1])
