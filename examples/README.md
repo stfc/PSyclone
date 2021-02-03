@@ -14,7 +14,7 @@ Various examples related to the GOCean API.
 Various examples related to the NEMO API.
 
 ## [lfric](./lfric)
-Various examples related to the LFric API.
+Various examples related to the LFRic API.
 
 ## [line_length](./line_length)
 This example demonstrates the use of the line length option.

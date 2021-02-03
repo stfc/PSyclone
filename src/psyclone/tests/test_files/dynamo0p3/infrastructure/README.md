@@ -35,7 +35,7 @@ detect the required settings. When this library is used you
 have to link in NetCDF after ``liblfric_netcdf.a``.
 
 ## Using the Intel Compiler
-In order to use the Intel compiler, use the F90 and F90FLAGS
+In order to use the Intel compiler, use the ``F90`` and ``F90FLAGS``
 environmnent variables, e.g.:
 
 ```shell
