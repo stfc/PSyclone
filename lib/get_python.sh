@@ -40,11 +40,18 @@
 # certain platforms that have only python3 installed,
 # 'python' is not found.
 
-# This script first tests the various python commands return
-# by which (if any), then standard locations on linux. Note
-# we redirect to /dev/null in case that 'which' does not exist
-for p in /usr/bin/python3 /usr/bin/python2 /usr/bin/python \
-         $(which python3 python2 python 2>/dev/null)  ; do
+# This script first tests the python versions installed in /usr/bin
+# (this helps in case that e.g. an Intel-specific python version
+# is first in PATH, but which would not be able to use additional
+# python packages since it might be an older version). Then it tests
+# for the various versions returned by ``which``. It tests for
+# ``python`` itself last, since on one machine by default
+# ``python`` only prints a message to use ``python2`` or ``python3``
+# instead. Note we redirect to /dev/null in case that 'which' does
+# not exist.
+for p in /usr/bin/python3 /usr/bin/python2           \
+         $(which python3 python2 python 2>/dev/null) \
+         /usr/bin/python ; do
 
     # Necessary in case that 'python' is a directory
     if [[ -f "$p" && -x $(readlink -f "$p") ]]; then
