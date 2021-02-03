@@ -46,7 +46,8 @@ from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
-    KernelSchedule, StructureReference, ArrayOfStructuresReference
+    KernelSchedule, StructureReference, ArrayOfStructuresReference, \
+    Call
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
@@ -730,6 +731,7 @@ class Fparser2Reader(object):
             Fortran2003.Intrinsic_Function_Reference: self._intrinsic_handler,
             Fortran2003.Where_Construct: self._where_construct_handler,
             Fortran2003.Where_Stmt: self._where_construct_handler,
+            Fortran2003.Call_Stmt: self._call_handler,
         }
 
     @staticmethod
@@ -3248,3 +3250,43 @@ class Fparser2Reader(object):
         raise GenerationError(
             "Expected to find '.true.' or '.false.' as fparser2 logical "
             "literal, but found '{0}' instead.".format(value))
+
+    def _call_handler(self, node, parent):
+        '''Transforms an fparser2 CALL statement into a PSyIR Call node.
+
+        :param node: node in fparser2 parse tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Call_Stmt`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: PSyIR representation of node.
+        :rtype: :py:class:`psyclone.psyir.nodes.Call`
+
+        '''
+        call_name = node.items[0].string
+        symbol_table = parent.scope.symbol_table
+        try:
+            routine_symbol = symbol_table.lookup(call_name)
+            if type(routine_symbol) is Symbol:
+                # TODO PR #1063: Symbol should be specialised to a
+                # RoutineSymbol here (if the symbol is part of a use
+                # statement). Without specialising, the Call class
+                # constructor will raise an exception. As a temporary
+                # fix, just change the class name.
+                routine_symbol.__class__ = RoutineSymbol
+        except KeyError:
+            routine_symbol = RoutineSymbol(
+                call_name, interface=UnresolvedInterface())
+            symbol_table.add(routine_symbol)
+
+        call = Call(routine_symbol, parent=parent)
+
+        args = []
+        if node.items[1]:
+            args = list(node.items[1].items)
+        self.process_nodes(parent=call, nodes=args)
+
+        # Point to the original CALL statement in the parse tree.
+        call.ast = node
+
+        return call
