@@ -31,7 +31,7 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+Authors: R. W. Ford, A. R. Porter and S. Siso STFC Daresbury Lab
 -->
 
 # PSyclone PSyIR Examples
@@ -61,4 +61,15 @@ To run this example:
 
 ```sh
 > python create_structure_types.py
+```
+
+## Example 3:
+
+Demonstrates how to manipulate an existing PSyIR tree. This example
+imports the PSyIR created in Example 1, applies some modifications
+to it and then outputs the modified PSyIR as Fortran code. This example may
+be run by doing:
+
+```sh
+> python modify.py
 ```
