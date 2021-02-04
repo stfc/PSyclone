@@ -689,7 +689,7 @@ class FortranWriter(PSyIRVisitor):
         # Generate module imports
         imports = ""
         for symbol in node.symbol_table.containersymbols:
-            imports = self.gen_use(symbol, node.symbol_table)
+            imports += self.gen_use(symbol, node.symbol_table)
 
         # Declare the Container's data and specify that Containers do
         # not allow argument declarations.

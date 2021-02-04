@@ -834,6 +834,29 @@ def test_fw_container_3(fort_writer, monkeypatch):
             "contains argument(s): '['a']'." in str(excinfo.value))
 
 
+def test_fw_container_4(fort_writer):
+    '''Check the FortranWriter class outputs correct code when a Container
+    symbol table has multiple imported modules.
+
+    '''
+    container = Container("test")
+    container.symbol_table.add(ContainerSymbol("mod1"))
+    container.symbol_table.lookup("mod1").wildcard_import = True
+    container.symbol_table.add(ContainerSymbol("mod2"))
+    container.symbol_table.lookup("mod2").wildcard_import = True
+    container.symbol_table.add(ContainerSymbol("mod3"))
+    container.symbol_table.lookup("mod3").wildcard_import = True
+    result = fort_writer(container)
+    assert (
+        "module test\n"
+        "  use mod1\n"
+        "  use mod2\n"
+        "  use mod3\n"
+        "  implicit none\n\n"
+        "  contains\n\n"
+        "end module test\n" in result)
+
+
 def test_fw_routine(fort_writer, monkeypatch, tmpdir):
     '''Check the FortranWriter class outputs correct code when a routine node
     is found. Also tests that an exception is raised if routine.name does not
