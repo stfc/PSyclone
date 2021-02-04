@@ -111,24 +111,43 @@ def test_name_clash_derived_type_def(f2008_parser):
     of a derived type with a name that clashes with another symbol. '''
     fake_parent = KernelSchedule("dummy_schedule")
     symtab = fake_parent.symbol_table
-    # Add a RoutineSymbol to the symbol table that clashes with the name
+    # Add a RoutineSymbol to the symbol table that will clash with the name
     # of the derived type.
     symtab.add(RoutineSymbol("my_type"))
+    # Add a TypeSymbol to the symbol table. Make it appear that we've already
+    # seen a definition of this symbol by making it of UnknownFortranType.
+    symtab.new_symbol("my_type2", symbol_type=TypeSymbol,
+                      datatype=UnknownFortranType("huh"))
     processor = Fparser2Reader()
-    reader = FortranStringReader("subroutine my_sub()\n"
-                                 "  type :: my_type\n"
-                                 "    integer :: flag\n"
-                                 "  end type my_type\n"
-                                 "end subroutine my_sub\n")
-    fparser2spec = f2008_parser(reader)
+    fparser2spec = f2008_parser(
+        FortranStringReader("subroutine my_sub()\n"
+                            "  type :: my_type\n"
+                            "    integer :: flag\n"
+                            "  end type my_type\n"
+                            "end subroutine my_sub\n"))
     # This should raise an error because the Container symbol table will
     # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, fparser2spec.content, [])
-    assert ("SymbolTable already contains an entry for 'my_type' but it is a "
-            "'RoutineSymbol' when it should be a 'TypeSymbol' (for the "
+    assert ("Error processing definition of derived type 'my_type'. The "
+            "symbol table already contains an entry with this name but it is a"
+            " 'RoutineSymbol' when it should be a 'TypeSymbol' (for the "
             "derived-type definition 'TYPE :: my_type\n  INTEGER :: flag\n"
             "END TYPE my_type')" in str(err.value))
+    # Repeat but with a derived-type name that will clash with our existing
+    # TypeSymbol
+    fparser2spec = f2008_parser(
+        FortranStringReader("subroutine my_sub2()\n"
+                            "  type :: my_type2\n"
+                            "    integer :: flag\n"
+                            "  end type my_type2\n"
+                            "end subroutine my_sub2\n"))
+    with pytest.raises(SymbolError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert ("Error processing definition of derived type 'my_type2'. The "
+            "symbol table already contains a TypeSymbol with this name but it "
+            "is of type 'UnknownFortranType' when it should be of "
+            "'DeferredType'" in str(err.value))
 
 
 @pytest.mark.usefixtures("f2008_parser")

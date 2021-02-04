@@ -1688,7 +1688,8 @@ class Fparser2Reader(object):
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility` values
 
         :raises SymbolError: if a Symbol already exists with the same name \
-            as the derived type being defined and it is not a TypeSymbol.
+            as the derived type being defined and it is not a TypeSymbol or \
+            is not of DeferredType.
 
         '''
         name = str(walk(decl.children[0], Fortran2003.Type_Name)[0])
@@ -1715,10 +1716,20 @@ class Fparser2Reader(object):
             tsymbol = parent.symbol_table.lookup(name)
             if not isinstance(tsymbol, TypeSymbol):
                 raise SymbolError(
-                    "SymbolTable already contains an entry for '{0}' but "
-                    "it is a '{1}' when it should be a 'TypeSymbol' (for "
+                    "Error processing definition of derived type '{0}'. The "
+                    "symbol table already contains an entry with this name but"
+                    " it is a '{1}' when it should be a 'TypeSymbol' (for "
                     "the derived-type definition '{2}')".format(
                         name, type(tsymbol).__name__, str(decl)))
+            # Since we are processing the definition of this symbol, the only
+            # permitted type for an existing symbol of this name is 'deferred'.
+            if not isinstance(tsymbol.datatype, DeferredType):
+                raise SymbolError(
+                    "Error processing definition of derived type '{0}'. The "
+                    "symbol table already contains a TypeSymbol with this name"
+                    " but it is of type '{1}' when it should be of "
+                    "'DeferredType'".format(
+                        name, type(tsymbol.datatype).__name__))
         else:
             # We don't already have an entry for this type so create one
             tsymbol = TypeSymbol(name, dtype, visibility=dtype_symbol_vis)
@@ -3317,3 +3328,7 @@ class Fparser2Reader(object):
         call.ast = node
 
         return call
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ["Fparser2Reader"]
