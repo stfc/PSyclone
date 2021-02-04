@@ -598,8 +598,8 @@ class FortranWriter(PSyIRVisitor):
         :rtype: str
 
         :raises VisitorError: if one of the symbols is a RoutineSymbol \
-            which does not have a GlobalInterface or LocalInterface as this \
-            is not supported by this backend.
+            which does not have a GlobalInterface or LocalInterface (and is \
+            not a Fortran intrinsic) as this is not supported by this backend.
         :raises VisitorError: if args_allowed is False and one or more \
                               argument declarations exist in symbol_table.
         :raises VisitorError: if any symbols representing variables (i.e. \
@@ -608,14 +608,17 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         declarations = ""
-
-        if not all([isinstance(symbol.interface, (LocalInterface,
-                                                  GlobalInterface))
-                    for symbol in symbol_table.symbols
-                    if isinstance(symbol, RoutineSymbol)]):
-            raise VisitorError(
-                "Routine symbols without a global or local interface are not "
-                "supported by the Fortran back-end.")
+        routine_symbols = [symbol for symbol in symbol_table.symbols
+                           if isinstance(symbol, RoutineSymbol)]
+        for sym in routine_symbols:
+            if not isinstance(sym.interface, (LocalInterface,
+                                              GlobalInterface)):
+                if sym.name.upper() not in FORTRAN_INTRINSICS:
+                    raise VisitorError(
+                        "Routine symbol '{0}' does not have a global or local"
+                        "interface and is not a Fortran intrinsic. This is "
+                        "not supported by the Fortran back-end.".format(
+                            sym.name))
 
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope) that
@@ -1201,24 +1204,6 @@ class FortranWriter(PSyIRVisitor):
             raise VisitorError(
                 ("Unsupported CodeBlock Structure '{0}' found."
                  "".format(node.structure)))
-        return result
-
-    def nemoinvokeschedule_node(self, node):
-        '''A NEMO invoke schedule is the top level node in a PSyIR
-        representation of a NEMO program unit (program, subroutine
-        etc). It does not represent any code itself so all it needs to
-        to is call its children and return the result.
-
-        :param node: a NemoInvokeSchedule PSyIR node.
-        :type node: :py:class:`psyclone.nemo.NemoInvokeSchedule`
-
-        :returns: the Fortran code as a string.
-        :rtype: str
-
-        '''
-        result = ""
-        for child in node.children:
-            result += self._visit(child)
         return result
 
     def nemokern_node(self, node):
