@@ -342,6 +342,9 @@
         110) PR #1052 for #817. Add LFRic field datatype metadata for fields
         and operators in remaining test modules.
 
+        111) PR #1092 for #1091. Auto-invoke profiling does not include
+        Return nodes anymore.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
