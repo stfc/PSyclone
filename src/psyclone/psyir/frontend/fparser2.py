@@ -1085,13 +1085,16 @@ class Fparser2Reader(object):
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
         :param symbol_table: Symbol table of the declaration context.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
         :returns: Shape of the attribute in column-major order (leftmost \
-                  index is contiguous in memory). Each entry represents \
-                  an array dimension. If it is 'None' the extent of that \
-                  dimension is unknown, otherwise it holds an integer \
-                  with the extent. If it is an empty list then the symbol \
-                  represents a scalar.
+            index is contiguous in memory). Each entry represents an array \
+            dimension. If it is 'None' the extent of that dimension is \
+            unknown, otherwise it holds an integer with the extent. If it is \
+            an empty list then the symbol represents a scalar.
         :rtype: list
+
+        :raises NotImplementedError: if anything other than scalar, integer \
+            literals or symbols are encounted in the dimensions list.
         '''
         shape = []
 
@@ -1703,6 +1706,23 @@ class Fparser2Reader(object):
         # The visibility of the symbol representing this derived type
         dtype_symbol_vis = visibility_map.get(name, default_visibility)
 
+        # We have to create the symbol for this type before processing its
+        # components as they may refer to it (e.g. for a linked list).
+        if name in parent.symbol_table:
+            # An entry already exists for this type.
+            # Check that it is a TypeSymbol
+            tsymbol = parent.symbol_table.lookup(name)
+            if not isinstance(tsymbol, TypeSymbol):
+                raise SymbolError(
+                    "SymbolTable already contains an entry for '{0}' but "
+                    "it is a '{1}' when it should be a 'TypeSymbol' (for "
+                    "the derived-type definition '{2}')".format(
+                        name, type(tsymbol).__name__, str(decl)))
+        else:
+            # We don't already have an entry for this type so create one
+            tsymbol = TypeSymbol(name, dtype, visibility=dtype_symbol_vis)
+            parent.symbol_table.add(tsymbol)
+
         # Populate this StructureType by processing the components of
         # the derived type
         try:
@@ -1714,45 +1734,14 @@ class Fparser2Reader(object):
             # Convert from Symbols to type information
             for symbol in local_table.symbols:
                 dtype.add(symbol.name, symbol.datatype, symbol.visibility)
-            if name in parent.symbol_table:
-                # An entry already exists for this type.
-                # Check that it is a TypeSymbol
-                tsymbol = parent.symbol_table.lookup(name)
-                if not isinstance(tsymbol, TypeSymbol):
-                    raise SymbolError(
-                        "SymbolTable already contains an entry for '{0}' but "
-                        "it is a '{1}' when it should be a 'TypeSymbol' (for "
-                        "the derived-type definition '{2}')".format(
-                            name, type(tsymbol).__name__, str(decl)))
-                # Update its type with the definition we've found
-                tsymbol.datatype = dtype
-            else:
-                # We don't already have an entry for this type so create one
-                parent.symbol_table.add(
-                    TypeSymbol(name, dtype, visibility=dtype_symbol_vis))
 
-        except NotImplementedError as err:
-            # Support for this declaration is not fully implemented so create
-            # a TypeSymbol of UnknownFortranType. A derived type may contain
-            # pointers to variables of that derived type. Therefore, we may
-            # already have a TypeSymbol in the symbol table.
-            if name in parent.symbol_table:
-                sym = parent.symbol_table.lookup(name)
-                if type(sym) in [Symbol, TypeSymbol]:
-                    # TODO #935
-                    sym.__class__ = TypeSymbol
-                    sym.__init__(sym.name, UnknownFortranType(str(decl)),
-                                 visibility=dtype_symbol_vis)
-                else:
-                    six.raise_from(InternalError(
-                        "Error while processing declaration of '{0}' derived "
-                        "type. Symbol table already contains an entry with "
-                        "this name but it is of type '{1}'.".format(
-                            name, type(sym).__name__)), err)
-            else:
-                parent.symbol_table.add(
-                    TypeSymbol(name, UnknownFortranType(str(decl)),
-                               visibility=dtype_symbol_vis))
+            # Update its type with the definition we've found
+            tsymbol.datatype = dtype
+
+        except NotImplementedError:
+            # Support for this declaration is not fully implemented so
+            # set the datatype of the TypeSymbol to UnknownFortranType.
+            tsymbol.datatype = UnknownFortranType(str(decl))
 
     def process_declarations(self, parent, nodes, arg_list,
                              default_visibility=None,

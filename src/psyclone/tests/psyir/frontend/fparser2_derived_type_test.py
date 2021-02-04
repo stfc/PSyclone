@@ -43,7 +43,8 @@ from psyclone.psyir.nodes import KernelSchedule, CodeBlock, Assignment, \
     ArrayOfStructuresReference, StructureReference, Member, StructureMember, \
     ArrayOfStructuresMember, ArrayMember, Literal, Reference, Range
 from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
-    TypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType
+    TypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType, \
+    UnknownFortranType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from fparser.two import Fortran2003
 from fparser.common.readfortran import FortranStringReader
@@ -162,6 +163,27 @@ def test_parse_derived_type(use_stmt):
     assert isinstance(posn.datatype, ArrayType)
     var = symtab.lookup("var")
     assert var.datatype is sym
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_derived_type_self_ref():
+    ''' Test that we can parse a derived type that contains a pointer
+    reference of that same type. The 'pointer' attribute is not supported
+    so we get a TypeSymbol of UnknownFortranType. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    processor = Fparser2Reader()
+    reader = FortranStringReader("type :: my_type\n"
+                                 "  type(my_type), pointer :: next => null()\n"
+                                 "  integer :: flag\n"
+                                 "end type my_type\n"
+                                 "type(my_type) :: var\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    sym = symtab.lookup("my_type")
+    assert isinstance(sym, TypeSymbol)
+    assert isinstance(sym.datatype, UnknownFortranType)
+    assert symtab.lookup("var").datatype is sym
 
 
 @pytest.mark.usefixtures("f2008_parser")
