@@ -279,7 +279,8 @@ def test_globalstoarguments_multiple_kernels(monkeypatch):
     expected = [
         ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt)",
          "real, intent(inout) :: rdt"],
-        ["subroutine kernel_with_use2_code(ji, jj, istep, ssha, tmask, cbfr, rdt)",
+        ["subroutine kernel_with_use2_code(ji, jj, istep, ssha, tmask, cbfr,"
+         "rdt)",
          "real, intent(inout) :: cbfr\n  real, intent(inout) :: rdt"],
         ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt)",
          "real, intent(inout) :: rdt"]]

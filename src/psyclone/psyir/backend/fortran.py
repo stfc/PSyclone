@@ -42,7 +42,6 @@ PSy-layer PSyIR already has a gen() method to generate Fortran.
 '''
 
 from __future__ import absolute_import
-import six
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
