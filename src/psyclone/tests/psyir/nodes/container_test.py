@@ -109,8 +109,8 @@ def test_container_create():
     result = FortranWriter().container_node(container)
     assert result == (
         "module container_name\n"
-        "  real :: tmp\n\n"
         "  implicit none\n"
+        "  real :: tmp\n\n"
         "  contains\n"
         "  subroutine mod_1()\n\n\n"
         "  end subroutine mod_1\n"

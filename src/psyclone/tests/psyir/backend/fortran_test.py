@@ -667,7 +667,6 @@ def test_gen_decls(fort_writer):
     symbol_table.add(grid_variable)
     result = fort_writer.gen_decls(symbol_table)
     assert (result ==
-            "use my_module, only : grid_type, my_use\n"
             "integer :: arg\n"
             "integer :: local\n"
             "type(grid_type) :: grid\n"
@@ -754,8 +753,8 @@ def test_fw_container_1(fort_writer, monkeypatch):
     container = Container("test")
     result = fort_writer(container)
     assert (
-        "module test\n\n"
-        "  implicit none\n"
+        "module test\n"
+        "  implicit none\n\n"
         "  contains\n\n"
         "end module test\n" in result)
 
@@ -792,14 +791,14 @@ def test_fw_container_2(fort_writer):
     assert (
         "module test\n"
         "  use test2_mod, only : a, b\n"
+        "  implicit none\n"
         "  real :: c\n"
         "  real :: d\n\n"
         "  public :: tmp\n\n"
-        "  implicit none\n"
         "  contains\n"
         "  subroutine tmp()\n\n\n"
         "  end subroutine tmp\n\n"
-        "end module test\n" in result)
+        "end module test\n" == result)
 
     container.children.append(Container("child", parent=container))
     with pytest.raises(VisitorError) as excinfo:

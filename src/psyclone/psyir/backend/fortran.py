@@ -635,11 +635,7 @@ class FortranWriter(PSyIRVisitor):
         # variable declarations. As a convention, this method also
         # declares any argument variables before local variables.
 
-        # 1: Use statements
-        for symbol in symbol_table.containersymbols:
-            declarations += self.gen_use(symbol, symbol_table)
-
-        # 2: Argument variable declarations
+        # 1: Argument variable declarations
         if symbol_table.argument_datasymbols and not args_allowed:
             raise VisitorError(
                 "Arguments are not allowed in this context but this symbol "
@@ -649,11 +645,11 @@ class FortranWriter(PSyIRVisitor):
         for symbol in symbol_table.argument_datasymbols:
             declarations += self.gen_vardecl(symbol)
 
-        # 3: Local variable declarations
+        # 2: Local variable declarations
         for symbol in symbol_table.local_datasymbols:
             declarations += self.gen_vardecl(symbol)
 
-        # 4: Derived-type declarations
+        # 3: Derived-type declarations
         for symbol in symbol_table.local_typesymbols:
             declarations += self.gen_typedecl(symbol)
 
@@ -691,6 +687,11 @@ class FortranWriter(PSyIRVisitor):
 
         self._depth += 1
 
+        # Generate module imports
+        imports = ""
+        for symbol in node.symbol_table.containersymbols:
+            imports = self.gen_use(symbol, node.symbol_table)
+
         # Declare the Container's data and specify that Containers do
         # not allow argument declarations.
         declarations = self.gen_decls(node.symbol_table, args_allowed=False)
@@ -704,11 +705,12 @@ class FortranWriter(PSyIRVisitor):
             subroutines += self._visit(child)
 
         result += (
-            "{1}\n"
+            "{1}"
             "{0}implicit none\n"
-            "{0}contains\n"
             "{2}\n"
-            "".format(self._nindent, declarations, subroutines))
+            "{0}contains\n"
+            "{3}\n"
+            "".format(self._nindent, imports, declarations, subroutines))
 
         self._depth -= 1
         result += "{0}end module {1}\n".format(self._nindent, node.name)
@@ -717,10 +719,6 @@ class FortranWriter(PSyIRVisitor):
     def routine_node(self, node):
         '''This method is called when a Routine node is found in
         the PSyIR tree.
-
-        The constants_mod module is currently hardcoded into the
-        output as it is required for LFRic code. When issue #375 has
-        been addressed this module can be added only when required.
 
         :param node: a KernelSchedule PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.KernelSchedule`
@@ -751,11 +749,16 @@ class FortranWriter(PSyIRVisitor):
             for symbol in schedule.symbol_table.symbols:
                 try:
                     whole_routine_scope.add(symbol)
-                except KeyError as err:
+                except KeyError:
                     schedule.symbol_table.rename_symbol(
                         symbol,
                         whole_routine_scope.next_available_name(symbol.name))
                     whole_routine_scope.add(symbol)
+
+        # Generate module imports
+        imports = ""
+        for symbol in whole_routine_scope.containersymbols:
+            imports += self.gen_use(symbol, whole_routine_scope)
 
         # Generate declaration statements
         declarations = self.gen_decls(whole_routine_scope)
@@ -765,9 +768,10 @@ class FortranWriter(PSyIRVisitor):
         for child in node.children:
             exec_statements += self._visit(child)
         result += (
-            "{0}\n"
+            "{0}"
             "{1}\n"
-            "".format(declarations, exec_statements))
+            "{2}\n"
+            "".format(imports, declarations, exec_statements))
 
         self._depth -= 1
         result += (
