@@ -66,8 +66,8 @@ class Call(Statement):
 
         self._routine = routine
 
-    @staticmethod
-    def create(routine, arguments):
+    @classmethod
+    def create(cls, routine, arguments):
         '''Create a Call instance given valid instances of a routine symbol,
         and a list of child nodes for its arguments.
 
@@ -90,7 +90,7 @@ class Call(Statement):
                 "Call create arguments argument should be a list but found "
                 "'{0}'.".format(type(arguments).__name__))
 
-        call = Call(routine)
+        call = cls(routine)
         call.children = arguments
         for child in call.children:
             child.parent = call

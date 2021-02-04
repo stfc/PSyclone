@@ -234,6 +234,18 @@ def generate(filename, api="", kernel_path="", script_name=None,
             Profiler.add_profile_nodes(invoke.schedule, Loop)
 
         if api not in API_WITHOUT_ALGORITHM:
+            alg_psyir_devel = True
+            if alg_psyir_devel:
+                # Add a use statement to the ast to declare builtins
+                add_use(ast, "psyclone_builtins")
+                # Create psyir from fparser2 ast
+                psyir = fparser2psyir(ast)
+                psyir.view()
+                # Transform psyir to algpsyir
+                from psyclone.algorithm import psyir_to_algpsyir
+                psyir_to_algpsyir(psyir)
+                psyir.view()
+                exit(1)
             alg_gen = Alg(ast, psy).gen
         else:
             alg_gen = None
@@ -241,6 +253,28 @@ def generate(filename, api="", kernel_path="", script_name=None,
         raise
 
     return alg_gen, psy.gen
+
+
+def add_use(parse_tree, name):
+    ''' xxx '''
+    from fparser.two.Fortran2003 import Use_Stmt
+    # Needs type checking (see alg_gen.py.adduse())
+    use = Use_Stmt("use {0}".format(name))
+    spec_part = parse_tree.children[0].children[1]
+    spec_part.content.insert(0, use)
+
+
+def fparser2psyir(parse_tree):
+    ''' xxx '''
+    from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+    from psyclone.psyir.symbols import RoutineSymbol
+    processor = Fparser2Reader()
+    container = processor.generate_container(parse_tree)
+    for symbol in container.symbol_table.symbols:
+        if isinstance(symbol, RoutineSymbol):
+            schedule = processor.generate_schedule(
+                symbol.name, parse_tree, container=container)
+    return container
 
 
 def main(args):
