@@ -45,7 +45,7 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicArgDescriptor, FunctionSpace
-from psyclone.dynamo0p3 import DynKernMetadata, DynFields
+from psyclone.dynamo0p3 import DynKernMetadata, LFRicFields
 from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -181,8 +181,8 @@ def test_arg_descriptor_invalid_fs():
             in str(excinfo.value))
 
 
-def test_dynfields_call_err():
-    ''' Check that the DynFields constructor raises the expected internal
+def test_lfricfields_call_err():
+    ''' Check that the LFRicFields constructor raises the expected internal
     error if it encounters an unrecognised intrinsic type of a field
     argument when generating a kernel call.
 
@@ -200,7 +200,7 @@ def test_dynfields_call_err():
     fld_arg = kernel.arguments.args[0]
     fld_arg._intrinsic_type = "triple-type"
     with pytest.raises(InternalError) as err:
-        DynFields(invoke)._invoke_declarations(invoke_sub)
+        LFRicFields(invoke)._invoke_declarations(invoke_sub)
     assert ("Found an unsupported intrinsic type 'triple-type' in Invoke "
             "declarations for the field argument 'f1'. Supported types "
             "are ['real', 'integer']." in str(err.value))

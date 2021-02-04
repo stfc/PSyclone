@@ -2669,7 +2669,7 @@ class DynFunctionSpaces(DynCollection):
                                          "%get_undf()"))
 
 
-class DynFields(DynCollection):
+class LFRicFields(DynCollection):
     '''
     Manages the declarations for all field arguments required by an Invoke
     or Kernel stub.
@@ -4967,7 +4967,7 @@ class DynInvoke(Invoke):
         self.dofmaps = DynDofmaps(self)
 
         # Initialise information on all of the fields accessed in this Invoke.
-        self.fields = DynFields(self)
+        self.fields = LFRicFields(self)
 
         # Initialise info. on all of the LMA operators used in this Invoke.
         self.lma_ops = DynLMAOperators(self)
@@ -7595,7 +7595,7 @@ class DynKern(CodedKern):
 
         # Add all the declarations
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
-                         DynCMAOperators, LFRicScalarArgs, DynFields,
+                         DynCMAOperators, LFRicScalarArgs, LFRicFields,
                          DynLMAOperators, DynStencils, DynBasisFunctions,
                          DynBoundaryConditions, DynReferenceElement,
                          LFRicMeshProperties]:
@@ -8753,7 +8753,7 @@ __all__ = [
     'DynStencils',
     'DynDofmaps',
     'DynFunctionSpaces',
-    'DynFields',
+    'LFRicFields',
     'DynProxies',
     'DynCellIterators',
     'LFRicScalarArgs',
