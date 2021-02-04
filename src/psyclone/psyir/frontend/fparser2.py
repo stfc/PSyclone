@@ -80,6 +80,53 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
                   "inout": ArgumentInterface.Access.READWRITE}
 
 
+def fparser2psyir(parse_tree):
+    '''Takes an fparser2 parse tree and converts it to PSyIR
+
+    :param parse_tree: ...
+    :type parse_tree: ...
+
+    :returns: ..
+    :rtype: ...
+
+    '''
+    if not isinstance(parse_tree, Fortran2003.Program):
+        raise TypeError(
+            "Expected the parse_tree argument to be an fparser2 program but "
+            "found '{0}'.".format(type(parse_tree).__name__))
+    if not len(parse_tree.children) == 1:
+        raise NotImplementedError(
+            "The PSyIR is currently limited to a single top level "
+            "module/subroutine/program/function, but {0} were found."
+            "".format(len(parse_tree.children)))
+
+    processor = Fparser2Reader()
+    if isinstance(parse_tree.children[0], Fortran2003.Module):
+        container = processor.generate_container(parse_tree)
+        if not container:
+            raise InternalError("Unexpected Error")
+        for symbol in container.symbol_table.symbols:
+            if isinstance(symbol, RoutineSymbol):
+                schedule = processor.generate_schedule(
+                    symbol.name, parse_tree, container=container)
+                if not schedule:
+                    raise InternalError("Unexpected Error")
+        return container
+    elif isinstance(parse_tree.children[0], Fortran2003.Subroutine_Subprogram):
+        # Determine the name
+        subroutine = parse_tree.children[0]
+        subroutine_statement = subroutine.children[0]
+        name = subroutine_statement.children[1]
+        name_str = name.string
+        schedule = processor.generate_schedule(name_str, parse_tree)
+        return schedule
+    else:
+        raise NotImplementedError(
+            "The PSyIR currently only supports a module or a subroutine as "
+            "its top level concept, but found '{0}'."
+            "".format(type(parse_tree.children[0]).__name__))
+
+
 def _find_or_create_imported_symbol(location, name, scope_limit=None,
                                     **kargs):
     '''Returns the symbol with the name 'name' from a symbol table
