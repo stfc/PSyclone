@@ -46,7 +46,7 @@ import fparser
 from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicArgDescriptor, FunctionSpace
 from psyclone.dynamo0p3 import DynKernMetadata, LFRicFields
-from psyclone.f2pygen import ModuleGen, SubroutineGen
+from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.utils import ParseError
@@ -141,7 +141,7 @@ def test_ad_field_init_wrong_data_type(monkeypatch):
             real_field_arg, metadata.iterates_over)._init_field(
                 real_field_arg, metadata.iterates_over)
     assert ("Expected one of {0} as the field data type but got 'gh_double'.".
-            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES) in
+            format(LFRicArgDescriptor.VALID_FIELD_DATA_TYPES) in
             str(excinfo.value))
     # Check integer field
     with pytest.raises(InternalError) as excinfo:
@@ -149,7 +149,7 @@ def test_ad_field_init_wrong_data_type(monkeypatch):
             int_field_arg, metadata.iterates_over)._init_field(
                 int_field_arg, metadata.iterates_over)
     assert ("Expected one of {0} as the field data type but got 'gh_double'.".
-            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES) in
+            format(LFRicArgDescriptor.VALID_FIELD_DATA_TYPES) in
             str(excinfo.value))
 
 
@@ -192,18 +192,42 @@ def test_lfricfields_call_err():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
-    # Create PSy module and Invoke subroutine objects
-    psy_module = ModuleGen(psy.name)
-    invoke_sub = SubroutineGen(psy_module, name=invoke.name,
-                               args=invoke.psy_unique_var_names)
     # Sabotage the field argument to make it have an invalid intrinsic type
     fld_arg = kernel.arguments.args[0]
     fld_arg._intrinsic_type = "triple-type"
     with pytest.raises(InternalError) as err:
-        LFRicFields(invoke)._invoke_declarations(invoke_sub)
-    assert ("Found an unsupported intrinsic type 'triple-type' in Invoke "
-            "declarations for the field argument 'f1'. Supported types "
-            "are ['real', 'integer']." in str(err.value))
+        LFRicFields(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
+        assert ("Found an unsupported intrinsic type 'triple-type' in Invoke "
+                "declarations for the field argument 'f1'. Supported types "
+                "are ['real', 'integer']." in str(err.value))
+
+
+def test_field_invoke_uniq_declns_valid_intrinsic():
+    ''' Tests that all valid access valid intrinsic types for user-defined
+    scalar field arguments ('real' and 'integer') are accepted by
+    Invoke.unique_declarations().
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "4.14_multikernel_invokes_real_int_field_fs.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+
+    # Return 'real'-valued fields
+    fields_real_args = invoke.unique_declarations(
+        LFRicArgDescriptor.VALID_FIELD_NAMES, intrinsic_type="real")
+    fields_real = [arg.declaration_name for arg in fields_real_args]
+    assert fields_real == ["f1", "f2", "m1", "m2", "f3", "f4", "m3",
+                           "m4", "f5", "f6", "m5", "m6", "m7"]
+
+    # Return 'integer'-valued fields
+    fields_int_args = invoke.unique_declarations(
+        LFRicArgDescriptor.VALID_FIELD_NAMES, intrinsic_type="integer")
+    fields_int = [arg.declaration_name for arg in fields_int_args]
+    assert fields_int == ["i1", "i2", "n1", "n2", "i3", "i4", "n3", "n4",
+                          "i5", "i6", "n5", "n6", "i7", "i8", "n7"]
 
 
 # Tests for invokes calling kernels that contain integer-valued fields

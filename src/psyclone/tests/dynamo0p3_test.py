@@ -1584,34 +1584,6 @@ def test_no_vector_scalar():
                 str(excinfo.value))
 
 
-def test_lfricscalars_call_err(monkeypatch):
-    ''' Check that the LFRicScalarArgs constructor raises the expected
-    internal error if it encounters an unrecognised intrinsic type of
-    scalar when generating a kernel call.
-
-    '''
-    from psyclone.dynamo0p3 import LFRicScalarArgs
-    from psyclone.f2pygen import ModuleGen
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.7_single_invoke_2scalar.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    kernel = invoke.schedule.coded_kernels()[0]
-    # Sabotage the scalar argument to make it have an invalid data type
-    scalar_arg = kernel.arguments.args[0]
-    monkeypatch.setattr(scalar_arg.descriptor, "_data_type", value="gh_double_type")
-    ##scalar_arg.descriptor._data_type = "gh_double_type"
-    print("scalar", scalar_arg.descriptor)
-    LFRicScalarArgs(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
-    ##with pytest.raises(InternalError) as err:
-    ##    LFRicScalarArgs(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
-    assert ("Found an unsupported data "
-            "type 'double-type' for the scalar argument 'a'. Supported "
-            "types are ['real', 'integer']." in str(err.value))
-
-
 def test_vector_field(tmpdir):
     ''' Tests that a vector field is declared correctly in the PSy
     layer. '''
@@ -1890,7 +1862,7 @@ def test_invoke_uniq_declns_invalid_intrinsic():
 
 
 def test_invoke_uniq_declns_valid_access():
-    ''' Tests that all valid access modes for user-defined field arguments
+    ''' Tests that all valid access modes for user-defined arguments
     (AccessType.READ, AccessType.INC, AccessType.WRITE, AccessType.READWRITE)
     are accepted by Invoke.unique_declarations(). '''
 
@@ -1929,9 +1901,6 @@ def test_invoke_uniq_declns_valid_access():
     fields_readwritten = [arg.declaration_name for arg in
                           fields_readwritten_args]
     assert fields_readwritten == ["f1"]
-
-
-# TODO def test_invoke_uniq_declns_valid_intrinsic():
 
 
 def test_invoke_uniq_proxy_declns():

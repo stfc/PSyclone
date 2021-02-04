@@ -3000,7 +3000,8 @@ class DynProxies(DynCollection):
         '''
         # Declarations of real and integer field proxies
         real_field_proxy_decs = self._invoke.unique_proxy_declarations(
-            LFRicArgDescriptor.VALID_FIELD_NAMES, intrinsic_type="real")
+            LFRicArgDescriptor.VALID_FIELD_NAMES,
+            intrinsic_type=MAPPING_DATA_TYPES["gh_real"])
         if real_field_proxy_decs:
             dtype = "field_proxy_type"
             parent.add(TypeDeclGen(parent,
@@ -3009,7 +3010,8 @@ class DynProxies(DynCollection):
             (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
              add(dtype))
         int_field_proxy_decs = self._invoke.unique_proxy_declarations(
-            LFRicArgDescriptor.VALID_FIELD_NAMES, intrinsic_type="integer")
+            LFRicArgDescriptor.VALID_FIELD_NAMES,
+            intrinsic_type=MAPPING_DATA_TYPES["gh_integer"])
         if int_field_proxy_decs:
             dtype = "integer_field_proxy_type"
             parent.add(TypeDeclGen(parent,
@@ -3202,7 +3204,7 @@ class LFRicScalarArgs(DynCollection):
         self._int_scalars = self._invoke.unique_declns_by_intent(
             LFRicArgDescriptor.VALID_SCALAR_NAMES,
             intrinsic_type=MAPPING_DATA_TYPES["gh_integer"])
-        # TODO: Check for invalid intrinsic types
+
         for intent in FORTRAN_INTENT_NAMES:
             scal = set(self._scalar_args[intent])
             rscal = set(self._real_scalars[intent])
@@ -3218,18 +3220,16 @@ class LFRicScalarArgs(DynCollection):
                     "This is invalid.".
                     format(list(scal_mtype), self._invoke.name,
                            list(MAPPING_DATA_TYPES.keys())))
-            # Check for unsupported data types
+            # Check for unsupported intrinsic types
             scal_inv = scal - rscal.union(iscal)
-            print("all: ", intent, scal)
-            print("real: ", intent, rscal)
-            print("int: ", intent, iscal)
             if scal_inv:
                 for arg in scal_inv:
                     raise InternalError(
-                        "Found an unsupported data type '{0}' for the "
-                        "scalar argument '{1}'. Supported types are {2}.".
-                        format(arg.descriptor.data_type, arg.declaration_name,
-                               LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES))
+                        "Found an unsupported intrinsic type '{0}' in "
+                        "Invoke declarations for the scalar argument '{1}'. "
+                        "Supported types are {2}.".
+                        format(arg.intrinsic_type, arg.declaration_name,
+                               list(MAPPING_DATA_TYPES.values())))
 
         # Create declarations
         self._create_declarations(parent)
@@ -3260,10 +3260,10 @@ class LFRicScalarArgs(DynCollection):
                     self._int_scalars[intent].append(arg)
                 else:
                     raise InternalError(
-                         "Found an unsupported data type '{0}' for the "
-                         "scalar argument '{1}'. Supported types are {2}.".
-                         format(arg.descriptor.data_type, arg.declaration_name,
-                                LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES))
+                        "Found an unsupported data type '{0}' for the "
+                        "scalar argument '{1}'. Supported types are {2}.".
+                        format(arg.descriptor.data_type, arg.declaration_name,
+                               LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES))
 
         # Create declarations
         self._create_declarations(parent)
