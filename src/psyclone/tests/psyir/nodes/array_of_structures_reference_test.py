@@ -104,6 +104,13 @@ def test_asr_create(component_symbol):
     assert isinstance(asref.children[1], nodes.Range)
     check_links(asref, asref.children)
     check_links(asref.children[1], asref.children[1].children)
+    # Reference to a symbol of DeferredType
+    ssym = symbols.DataSymbol("grid", symbols.DeferredType())
+    asref = nodes.ArrayOfStructuresReference.create(
+        ssym, [int_one], ["region", "startx"])
+    assert isinstance(asref.symbol.datatype, symbols.DeferredType)
+    assert isinstance(asref.children[0], nodes.StructureMember)
+    assert isinstance(asref.children[0].children[0], nodes.Member)
 
 
 def test_asr_create_errors(component_symbol):
