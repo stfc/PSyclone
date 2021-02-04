@@ -268,6 +268,30 @@ def test_fuse_incorrect_bounds(parser):
 
 
 # ----------------------------------------------------------------------------
+def test_fuse_different_loop_vars(parser):
+    '''
+    Test that loop variables are identicla
+    '''
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do ji=1, n
+                 do jj=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+    with pytest.raises(TransformationError) as err:
+        fuse_loops(parser, code)
+    assert "Loop variables must be the same, but are 'jj' and 'ji'" \
+        in str(err.value)
+
+# ----------------------------------------------------------------------------
 @pytest.mark.xfail(reason="Needs evaluation of constant expressions")
 def test_fuse_correct_bounds(parser):
     '''

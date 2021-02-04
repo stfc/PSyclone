@@ -38,7 +38,6 @@
 '''
 
 from psyclone.psyir.transformations import TransformationError
-
 from psyclone.transformations import LoopFuseTrans
 
 
@@ -75,3 +74,10 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                                       "but are '{0}'' and '{1}'"
                                       .format(node1.stop_expr,
                                               node2.stop_expr))
+        loop_var_1 = node1.variable.name
+        loop_var_2 = node2.variable.name
+
+        if loop_var_1 != loop_var_2:
+            raise TransformationError("Loop variables must be the same, "
+                                      "but are '{0}' and '{1}'".
+                                      format(loop_var_1, loop_var_2))
