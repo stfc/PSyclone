@@ -1472,7 +1472,8 @@ class Fparser2Reader(object):
                         type_name, str(decl), type(type_symbol).__name__))
             base_type = type_symbol
         else:
-            # Not a supported declaration.
+            # Not a supported declaration. This will result in a symbol of
+            # UnknownFortranType.
             raise NotImplementedError()
 
         # Parse declaration attributes:

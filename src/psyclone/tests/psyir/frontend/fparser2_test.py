@@ -1026,6 +1026,15 @@ def test_process_not_supported_declarations():
     assert "An array with defined extent cannot have the ALLOCATABLE" \
         in str(err.value)
 
+    reader = FortranStringReader("integer :: l11")
+    fparser2spec = Specification_Part(reader).content[0]
+    # Break the parse tree
+    fparser2spec.items = ("hello", fparser2spec.items[1],
+                          fparser2spec.items[2])
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    l11sym = fake_parent.symbol_table.lookup("l11")
+    assert isinstance(l11sym.datatype, UnknownFortranType)
+
 
 def test_module_function_symbol(parser):
     ''' Check that the frontend correctly creates a new, local symbol for
@@ -1400,6 +1409,7 @@ def test_parse_array_dimensions_attributes():
     fparser2spec = Dimension_Attr_Spec(reader)
     csym = sym_table.new_symbol("some_mod", symbol_type=ContainerSymbol)
     vsym = sym_table.new_symbol("var3", interface=GlobalInterface(csym))
+    # pylint: disable=unidiomatic-typecheck
     assert type(vsym) == Symbol
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
