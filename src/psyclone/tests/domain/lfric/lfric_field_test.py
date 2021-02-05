@@ -195,11 +195,13 @@ def test_lfricfields_call_err():
     # Sabotage the field argument to make it have an invalid intrinsic type
     fld_arg = kernel.arguments.args[0]
     fld_arg._intrinsic_type = "triple-type"
+    LFRicFields(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
     with pytest.raises(InternalError) as err:
         LFRicFields(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
-        assert ("Found an unsupported intrinsic type 'triple-type' in Invoke "
-                "declarations for the field argument 'f1'. Supported types "
-                "are ['real', 'integer']." in str(err.value))
+    assert ("Found unsupported intrinsic types in Invoke "
+            "'invoke_0_testkern_fs_type' declarations for the field "
+            "argument 'f1'. Supported types are ['real', 'integer']."
+            in str(err.value))
 
 
 def test_field_invoke_uniq_declns_valid_intrinsic():

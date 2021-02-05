@@ -85,7 +85,9 @@ def test_lfricscalars_call_err():
 
 def test_int_real_scalar_invalid():
     ''' Tests that the same scalar cannot have different data types
-    in different kernels within the same Invoke. '''
+    in different kernels within the same Invoke.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "4.16_multikernel_invokes_real_int_scalar_invalid.f90"),
