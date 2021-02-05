@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council.
+! Copyright (c) 2019-2020, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,11 +30,12 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
+! Modified by R. W. Ford, STFC Daresbury Lab
 
 ! Test code with example include statement
 program include_eg
   implicit none
-  integer :: jpi, jpj, jpk
+  integer, parameter :: jpi=21, jpj=32, jpk=43
   real, dimension(jpi,jpj,jpk) :: umask
 
   include 'local_mpi.h'

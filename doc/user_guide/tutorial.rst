@@ -38,13 +38,13 @@
 Tutorial
 ========
 
-PSyclone provides a tutorial which uses Jupyter notebooks. This can be
+PSyclone provides a tutorial, part of which uses Jupyter notebooks. This can be
 launched from a browser using binder:
-`<https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=tutorial%2Fintroduction.ipynb/>`_.
+`<https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=tutorial%2Fnotebooks%2Fintroduction.ipynb/>`_.
 
 If PSyclone is installed on your system then you can run the tutorial
 locally. First find the tutorial. If you have installed PSyclone using
-pip then the examples may be found in ``share/psyclone/tutorial``
+pip then the examples may be found in ``share/psyclone/tutorial/notebooks``
 under your Python installation (e.g. ``~/.local`` for a user-local
 installation). Next copy the tutorial to a local writable space (as
 the notebooks will be modified as you go through the tutorial) and

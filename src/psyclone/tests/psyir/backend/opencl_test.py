@@ -41,8 +41,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.opencl import OpenCLWriter
-from psyclone.psyGen import KernelSchedule
-from psyclone.psyir.nodes import Return
+from psyclone.psyir.nodes import Return, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, \
     ArgumentInterface, UnresolvedInterface, ArrayType, REAL_TYPE, \
     INTEGER_TYPE

@@ -44,12 +44,16 @@ from __future__ import absolute_import
 
 import pytest
 
-from psyclone.domain.lfric.transformations import LFRicExtractTrans
-from psyclone.psyir.nodes import ExtractNode, Loop
-from psyclone.psyir.transformations import TransformationError
-from psyclone.tests.utilities import get_invoke
-from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.configuration import Config
+from psyclone.domain.lfric.transformations import LFRicExtractTrans
+from psyclone.domain.lfric import FunctionSpace
+from psyclone.psyir.nodes import (colored, ExtractNode, Loop,
+                                  SCHEDULE_COLOUR_MAP)
+from psyclone.psyir.transformations import TransformationError
+from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
+from psyclone.transformations import (Dynamo0p3ColourTrans,
+                                      DynamoOMPParallelLoopTrans)
 
 # API names
 DYNAMO_API = "dynamo0.3"
@@ -175,8 +179,9 @@ def test_kern_builtin_no_loop():
     builtin_call = schedule.children[1].loop_body[0]
     with pytest.raises(TransformationError) as excinfo:
         _, _ = dynetrans.apply(builtin_call)
-    assert ("Extraction of a Kernel or a Built-in call without its "
-            "parent Loop is not allowed.") in str(excinfo.value)
+    assert "Error in LFRicExtractTrans: Application to a Kernel or a " \
+           "Built-in call without its parent Loop is not allowed." \
+           in str(excinfo.value)
 
 
 def test_loop_no_directive_dynamo0p3():
@@ -184,8 +189,6 @@ def test_loop_no_directive_dynamo0p3():
     parent Directive when optimisations are applied in Dynamo0.3 API
     raises a TransformationError. '''
     etrans = LFRicExtractTrans()
-
-    from psyclone.transformations import DynamoOMPParallelLoopTrans
 
     # Test a Loop nested within the OMP Parallel DO Directive
     _, invoke = get_invoke("4.13_multikernel_invokes_w3_anyd.f90",
@@ -198,16 +201,14 @@ def test_loop_no_directive_dynamo0p3():
     # Try extracting the Loop inside the OMP Parallel DO region
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(loop)
-    assert ("Extraction of a Loop without its parent Directive is not "
-            "allowed.") in str(excinfo.value)
+    assert "Error in LFRicExtractTrans: Application to a Loop without its " \
+           "parent Directive is not allowed." in str(excinfo.value)
 
 
 def test_no_colours_loop_dynamo0p3():
     ''' Test that applying LFRicExtractTrans on a Loop over cells
     in a colour without its parent Loop over colours in Dynamo0.3 API
     raises a TransformationError. '''
-    from psyclone.transformations import Dynamo0p3ColourTrans, \
-        DynamoOMPParallelLoopTrans
 
     etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
@@ -265,7 +266,6 @@ def test_extract_node_position():
 def test_extract_node_representation(capsys):
     ''' Test that representation properties and methods of the ExtractNode
     class: view, dag_name and __str__ produce the correct results. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
     etrans = LFRicExtractTrans()
     _, invoke = get_invoke("4.8_multikernel_invokes.f90", DYNAMO_API,
@@ -479,8 +479,6 @@ def test_extract_single_builtin_dynamo0p3():
     correct result in Dynamo0.3 API without and with optimisations.
 
     '''
-    from psyclone.transformations import DynamoOMPParallelLoopTrans
-
     etrans = LFRicExtractTrans()
 
     otrans = DynamoOMPParallelLoopTrans()
@@ -621,9 +619,6 @@ def test_extract_colouring_omp_dynamo0p3():
     ''' Test that extraction of a Kernel in an Invoke after applying
     colouring and OpenMP optimisations produces the correct result
     in Dynamo0.3 API. '''
-    from psyclone.transformations import Dynamo0p3ColourTrans, \
-        DynamoOMPParallelLoopTrans
-    from psyclone.domain.lfric import FunctionSpace
 
     etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
@@ -639,7 +634,7 @@ def test_extract_colouring_omp_dynamo0p3():
     for child in schedule.children:
         if isinstance(child, Loop) and child.field_space.orig_name \
            not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
-           and child.iteration_space == "cells":
+           and child.iteration_space == "cell_column":
             cschedule, _ = ctrans.apply(child)
     # Then apply OpenMP to each of the colour loops
     schedule = cschedule

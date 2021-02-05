@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modifications: R. W. Ford, STFC Daresbury Lab
+#                A. R. Porter, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
@@ -40,18 +41,25 @@ from __future__ import absolute_import
 
 import pytest
 
-from psyclone.psyir.nodes import PSyDataNode
+from psyclone.psyir.nodes import colored, PSyDataNode, SCHEDULE_COLOUR_MAP
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyGen import Loop
 from psyclone.tests.utilities import get_invoke
 
 
 # -----------------------------------------------------------------------------
+def test_psy_data_trans_empty_list():
+    ''' Check that the transformation rejects an empty list of nodes. '''
+    data_trans = PSyDataTrans()
+    with pytest.raises(TransformationError) as err:
+        data_trans.apply([])
+    assert "Cannot apply transformation to an empty list" in str(err.value)
+
+
+# -----------------------------------------------------------------------------
 def test_psy_data_trans_basic(capsys):
-    # pylint: disable=too-many-locals
     '''Check basic functionality: node names, schedule view.
     '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
     schedule = invoke.schedule
@@ -59,7 +67,9 @@ def test_psy_data_trans_basic(capsys):
     schedule._const_loop_bounds = True
 
     data_trans = PSyDataTrans()
-    assert "Insert a PSyData node" in str(data_trans)
+    assert "Create a sub-tree of the PSyIR that has a node of type " \
+           "PSyDataNode at its root" in str(data_trans)
+
     assert data_trans.name == "PSyDataTrans"
     data_trans.apply(schedule)
 

@@ -48,8 +48,8 @@
 module v1_kernel_mod
 use gaussian_quadrature_mod, only: gaussian_quadrature_type, &
                                    ngp_h, ngp_v ! parameter for how many GQ points
-use argument_mod,            only: arg_type, &          ! the type
-                                   gh_inc, v1, fe, cells ! the enums
+use argument_mod,            only: arg_type, &                 ! the type
+                                   gh_inc, v1, fe, cell_column ! the enums
 use kernel_mod,              only: kernel_type
 use constants_mod,           only: dp
 
@@ -66,7 +66,7 @@ type, public, extends(kernel_type) :: v1_kernel_type
   type(arg_type) :: meta_args(1) = (/ &
        arg_type(gh_inc,v1,fe, .true., .false., .false., .true.) &
        /)
-  integer :: iterates_over = cells
+  integer :: operates_on = cell_column
 
 contains
   procedure, nopass :: rhs_v1_code

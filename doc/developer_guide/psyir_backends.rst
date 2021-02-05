@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2017-2020, Science and Technology Facilities Council.
+   Copyright (c) 2017-2021, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -43,12 +43,14 @@ or OpenCL). Until recently this back-end support has been implemented
 within the PSyIR `Node` classes themselves via various `gen*`
 methods. However, this approach is getting a little unwieldy.
 
-Therefore a `Visitor` pattern has been used in the latest back-end
-implementation (translating PSyIR kernel code to Fortran). This
-approach separates the code to traverse a tree from the tree being
-visited. It is expected that the existing back-ends will migrate to
-this new approach over time. The back-end visitor code is stored in
-`psyclone/psyir/backend`.
+Therefore PSyclone is transitioning into a `Visitor` pattern approach.
+Visitor backends are already being used in the back-end implementations
+that translate PSyIR kernel code. This approach separates the code to
+traverse a tree from the tree being visited. It is expected that the
+existing back-ends (used in the PSy-layer) will migrate to this new
+approach over time (more information about the PSy-layer migration
+can be found in :ref:`psy_layer_backends`). The back-end visitor code
+is stored in `psyclone/psyir/backend`.
 
 Visitor Base code
 =================
@@ -118,7 +120,8 @@ called in the order that they appear in the tree.
 
 PSyIR nodes might not be direct subclasses of `Node`. For example,
 `GOKernelSchedule` subclasses `KernelSchedule` which subclasses
-`Schedule` which subclasses `Node`. This can cause a problem as a
+`Routine` which subclasses `Schedule` which subclasses `Node`. This can
+cause a problem as a
 back-end would need to have a different method for each class e.g. both
 a `gokernelschedule_node` and a `kernelschedule_node` method, even if the
 required behaviour is the same. Even worse, expecting someone to have
@@ -320,4 +323,42 @@ as fields). A limitation of the current translation from PSyIR to SIR
 is that all PSyIR scalars are assumed to be local and all PSyIR arrays
 are assumed to be global, which may not be the case. This limitation
 is captured in issue #521.
+
+
+.. _psy_layer_backends:
+
+Back-ends for the PSy-layer
+===========================
+
+The additional complexity of the PSy-layer comes from the fact that it
+contains multiple domain-specific concepts and parallel concepts that are not
+part of the target languages. Instead of dealing with these concepts in the
+visitors we require that any domain-specific concept introduced on top
+of the core PSyIR constructs contains the logic to lower this concept
+into language level constructs. The reasons for choosing a method instead
+of a visitor for this transformation are:
+
+- Each concept introduced by the API-developer will need lowering instructions,
+  and this is better implied by an abstract class in the node that needs to
+  be filled.
+- The lowering is done in-place. A method fits better with modifying the AST
+  in-place because it can use and modify the nodes private fields.
+
+The current proposed solution is to create a 2-phase generation workflow where
+a domain-specific PSyIR is first lowered to a language-level version of the
+PSyIR using the ``lower_to_language_level`` node method and then processed by
+the Visitor to generate the target language.
+The language-level PSyIR is still the same IR but restricted to the subset
+of Nodes that have a direct translation into target language concepts.
+
+.. image:: 2level_psyir.png
+
+.. note::
+ Using the language backends to generate the PSy-layer code is still under
+ development and not used by PSyclone by default.
+ However, it is triggered manually by some PSyclone examples to inform
+ its development, these are:
+
+ - gocean/eg8
+ - lfric/eg4 (backends target)
 

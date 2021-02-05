@@ -1,51 +1,20 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2020,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-! -----------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 
-! BSD 3-Clause License
-!
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
-! All rights reserved.
-!
-! Redistribution and use in source and binary forms, with or without
-! modification, are permitted provided that the following conditions are met:
-!
-! * Redistributions of source code must retain the above copyright notice, this
-!   list of conditions and the following disclaimer.
-!
-! * Redistributions in binary form must reproduce the above copyright notice,
-!   this list of conditions and the following disclaimer in the documentation
-!   and/or other materials provided with the distribution.
-!
-! * Neither the name of the copyright holder nor the names of its
-!   contributors may be used to endorse or promote products derived from
-!   this software without specific prior written permission.
-!
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! -----------------------------------------------------------------------------
-! Modified: I. Kavcic, Met Office
-!
-!> @brief A module providing scalar-related classes.
-!
-! Notes: In LFRic infrastructure this module relies on mpi_mod.f90 which
-!        performs the operations of finding a global sum, minimum, maximum
-!        and reduction finish on a scalar. Here we only set dummy values for
-!        the PSyclone compilation checks.
-!
+
+!> @brief A module providing scalar related classes.
+!>
+!> @details A representation of a scalar which provides both easy access to the
+!> scalar data and a method by which the PSy layer can access the distributed
+!> memory aspects of the scalar
+
+
 module scalar_mod
 
   use constants_mod,      only: r_def, i_def
@@ -115,42 +84,48 @@ contains
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
 
-  !! Global sum of a scalar
+  !! Start performing a global sum operation on a scalar
+  !!
   function get_sum(self) result (g_sum)
 
+    use mpi_mod, only: global_sum
     implicit none
 
     class(scalar_type), intent(in) :: self
 
-    real(kind=r_def) :: g_sum
+    real(r_def) :: g_sum
 
-    g_sum = 0.0_r_def
+    call global_sum( self%value, g_sum )
 
   end function get_sum
 
-  !! Global minimum of a scalar
+  !! Start the calculation of the global minimum of a scalar
+  !!
   function get_min(self) result (g_min)
 
+    use mpi_mod, only: global_min
     implicit none
 
     class(scalar_type), intent(in) :: self
 
-    real(kind=r_def) :: g_min
+    real(r_def) :: g_min
 
-    g_min = 0.0_r_def
+    call global_min( self%value, g_min )
 
   end function get_min
 
-  !! Global maximum of a scalar
+  !! Start the calculation of the global maximum of a scalar
+  !!
   function get_max(self) result (g_max)
 
+    use mpi_mod, only: global_max
     implicit none
 
     class(scalar_type), intent(in) :: self
 
-    real(kind=r_def) :: g_max
+    real(r_def) :: g_max
 
-    g_max = 0.0_r_def
+    call global_max( self%value, g_max )
 
   end function get_max
 
@@ -165,7 +140,7 @@ contains
 
     class(scalar_type), intent(in) :: self
 
-    real(kind=r_def) ::  value_tmp
+    real(r_def)    ::  value_tmp
 
     value_tmp=self%value            ! reduction_finish currently does nothing.
                                     ! The "self" that is passed in automatically

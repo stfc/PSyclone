@@ -96,7 +96,7 @@ def setup_psyclone_config():
     import os
     config_file = Config.get_repository_config_file()
 
-    # In case that PSyclone is installed and tested (e.g. travis),
+    # In case that PSyclone is installed and tested (e.g. GitHub Actions),
     # the 'repository' config file does not exist (since it is
     # installed in a different directory). In that case the standard
     # search path of the Configuration object will find the right

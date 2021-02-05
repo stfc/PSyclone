@@ -18,7 +18,7 @@ right syntax to allow for syntax highlighting. The option
 for all text following the directive (until the end of the current file).
 It is recommended to have at most one ``highlight`` directive in
 a file and to avoid switching default languages several times within a file.
-Having a default language set in a file allow use of the very convenient
+Having a default language set in a file allows use of the very convenient
 shortcut notation "::". Note that the "::" will be replaced with a
 single ":" if the previous character is not a space::
 
@@ -89,7 +89,7 @@ removing one variable, or refactoring the code to create two functions.
 Additional rules that apply:
 
   #) All setter and getter functions must be declared as property and
-     setter to allow using them without parenthesis::
+     setter to allow them to be used without parentheses::
 
         @property
         def ast_end(self):
@@ -114,6 +114,27 @@ Additional rules that apply:
   #) Any new line of code must be covered by at least one test case,
      see :ref:`test_suite` and especially :ref:`test_coverage`.
 
+Exceptions
+----------
+
+When raising an exception, every effort must be made to ensure that
+the associated message is clear and provides as much information as
+possible. However, it should *not* contain the name of the current
+routine/class etc. as this is provided in the Python stack trace.
+Where it makes sense to do so, the past tense should be used,
+e.g. "expected a str but got an object of type 'blah'."
+
+In the event that code that is handling an exception then needs to
+raise a new exception, the `raise_from` routine provided by the `six`
+Python 2/3 interoperability package must be used. (This ensures that
+contextual information about the source of the error is
+retained.). For example::
+
+    import six
+    try:
+        something()
+    except KeyError as err:
+        six.raise_from(InternalError("Useful message here"), err)
 
 .. _interface_description:
 
@@ -133,9 +154,9 @@ Some important details:
 
   #) There are up to four major sections in each interface description: function
      description, parameter description and type, return value and type, and
-     exceptions. The function description is required, all other sections only
-     need be provided if they are applicable for the code being documented.
-     The formatting for each section is slightly different:
+     raises (exceptions). The function description is required, all other
+     sections only need be provided if they are applicable for the code being
+     documented. The formatting for each section is slightly different:
 
          .. tabularcolumns:: |l|L|
          

@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: I. Kavcic, Met Office.
 #          A. R. Porter, STFC Daresbury Laboratory.
+#          J. Henrichs, Bureau of Meteorology
 
 '''This module contains the base class for extracting extracting a region
 of an Invoke into a stand-alone application."
@@ -40,11 +41,12 @@ of an Invoke into a stand-alone application."
 
 from __future__ import absolute_import
 from psyclone.configuration import Config
+from psyclone.psyGen import (BuiltIn, Directive, Kern, OMPParallelDirective,
+                             ACCParallelDirective, HaloExchange, GlobalSum)
+from psyclone.psyir.nodes import CodeBlock, ExtractNode, Loop, Schedule
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.psyir import nodes
-from psyclone import psyGen
 
 
 class ExtractTrans(PSyDataTrans):
@@ -70,20 +72,11 @@ class ExtractTrans(PSyDataTrans):
 
     '''
     # The types of node that this transformation cannot enclose
-    excluded_node_types = (nodes.CodeBlock, nodes.ExtractNode,
-                           psyGen.HaloExchange, psyGen.GlobalSum)
+    excluded_node_types = (CodeBlock, ExtractNode,
+                           HaloExchange, GlobalSum)
 
-    def __init__(self, node_class=nodes.ExtractNode):
+    def __init__(self, node_class=ExtractNode):
         super(ExtractTrans, self).__init__(node_class=node_class)
-
-    def __str__(self):
-        return ("Create a sub-tree of the PSyIR that has ExtractNode "
-                "at its root.")
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "ExtractTrans"
 
     def validate(self, node_list, options=None):
         '''Performs validation checks specific to extract-based
@@ -120,10 +113,6 @@ class ExtractTrans(PSyDataTrans):
 
         # Check constraints not covered by excluded_node_types for
         # individual Nodes in node_list.
-        from psyclone.psyir.nodes import Loop
-        from psyclone.psyGen import BuiltIn, Directive, Kern, \
-            OMPParallelDirective, ACCParallelDirective
-
         for node in node_list:
 
             # Check that ExtractNode is not inserted between a Kernel or
@@ -131,7 +120,7 @@ class ExtractTrans(PSyDataTrans):
             if isinstance(node, (Kern, BuiltIn)) and \
                isinstance(node.parent.parent, Loop):
                 raise TransformationError(
-                    "Error in {0}: Extraction of a Kernel or a Built-in "
+                    "Error in {0}: Application to a Kernel or a Built-in "
                     "call without its parent Loop is not allowed."
                     .format(str(self.name)))
 
@@ -139,11 +128,10 @@ class ExtractTrans(PSyDataTrans):
             # parent Directive when optimisations are applied, as this may
             # result in including the end Directive for extraction but
             # not the beginning.
-            if isinstance(node, Loop) and isinstance(node.parent,
-                                                     nodes.Schedule) \
-               and isinstance(node.parent.parent, Directive):
+            if isinstance(node, Loop) and isinstance(node.parent, Schedule) \
+                    and isinstance(node.parent.parent, Directive):
                 raise TransformationError(
-                    "Error in {0}: Extraction of a Loop without its parent "
+                    "Error in {0}: Application to a Loop without its parent "
                     "Directive is not allowed.".format(str(self.name)))
 
             # Check that ExtractNode is not inserted within a thread
@@ -153,7 +141,7 @@ class ExtractTrans(PSyDataTrans):
             # Parallel Directive) or within an OMPParallelDoDirective.
             if node.ancestor((OMPParallelDirective, ACCParallelDirective)):
                 raise TransformationError(
-                    "Error in {0}: Extraction of Nodes enclosed within "
+                    "Error in {0}: Application to Nodes enclosed within "
                     "a thread-parallel region is not allowed."
                     .format(str(self.name)))
 

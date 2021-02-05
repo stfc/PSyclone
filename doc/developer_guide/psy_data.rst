@@ -207,10 +207,10 @@ should include implementations of these routines, even if they are
 empty.
 
  .. note::
-    Currently only the NVIDIA profiling wrapper library and all
+    Currently only the profiling wrapper libraries and
     read-only-verification libraries implement the Start and Stop
     routines. Wider support for all PSyData-based APIs will be addressed
-    in Issue #832.
+    in Issue #824.
 
 
 Init and Shutdown Functions
@@ -241,7 +241,7 @@ Start and Stop Functions
 ++++++++++++++++++++++++
 .. method:: PREFIX_PSyDataStart()
 
-   Currently only implemented in the NVIDIA profiling wrapper.
+   Currently not implemented in the kernel extraction wrapper.
 
    Starts or enables the PSyData library so that subsequent calls to
    the API cause data to be output. For instance, if we have a time-stepping
@@ -260,7 +260,7 @@ Start and Stop Functions
 
 .. method:: PREFIX_PSyDataStop()
 
-   Currently only implemented in the NVIDIA profiling wrapper.
+   Currently not implemented in the kernel extraction wrapper.
 
    Stops or disables the PSyData library so that subsequent calls to
    the PSyData API have no effect. Continuing the above time-stepping
@@ -282,7 +282,7 @@ called ``PREFIX_PSyDataType``. It is up to the application how this variable is
 used. PSyclone will declare the variables to be static, meaning that they
 can be used to accumulate data from call to call. An example of
 the PSyDataType can be found in the NetCDF example extraction code
-(see ``lib/extract/dl_esm_inf/netcdf``, or :ref:`user_guide:psyke_netcdf` for
+(see ``lib/extract/netcdf/dl_esm_inf``, or :ref:`user_guide:psyke_netcdf` for
 a detailed description), any of the profiling wrapper libraries
 (all contained in ``lib/profiling``) or the read_only wrappers
 (in ``lib/read_only``).
@@ -412,10 +412,6 @@ a detailed description), any of the profiling wrapper libraries
     This method is the last call after an instrumented region. It indicates
     that all variables have been provided. It will always be created,
     even if no variables are to be provided.
-
-    An example of a library using PSyData is included in PSyclone in the
-    directory ``.../lib/extract/netcdf``. This library is used to extract
-    kernel input- and output-parameters and store them in a NetCDF file.
 
     .. note::
 
@@ -656,6 +652,52 @@ takes the following parameters:
     emtpy (i.e. no prefix). If you specify a prefix, you have to
     add the ``_`` between the prefix and name explicitly.
 
+-generic-declare:
+    If this flag is specified, the processed template will also
+    declare a generic subroutine with all ``declareXXX`` functions
+    (see :ref:`generic_interfaces` for details).  
+
+-generic-provide:
+    If this flag is specified, the processed template will also
+    declare a generic subroutine with all ``provideXXX`` functions
+    (see :ref:`generic_interfaces` for details).
+
+.. _generic_interfaces:
+
+Details About Generic Interfaces
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The Fortran standard requires that a generic subroutine is declared
+in the same program unit in which it is defined. Therefore, if a
+derived class falls back to the implementation of a function in the
+base class, the generic subroutine must be declared in the base class,
+not in the derived class (though some compilers, e.g. gfortran 9
+accept it). The two options ``-generic-declare`` and ``-generic-provide``
+are supported so that a derived class can control where the generic
+subroutines should be declared: if the derived class does not implement
+say the 'declaration' functions itself, the ``-generic-declare`` command
+line option guarantees that the base class defines the declaration
+functions all as one generic subroutine. The derived class can of
+course extend this generic subroutine with API-specific implementations.
+On the other hand, if the
+derived class implements the 'declaration' functions (potentially
+calling their implementation in the base class), then the derived class
+must declare the generic subroutine, and the base class must not
+declare them as well. The same approach is used for the 'provide'
+functions. As an example, the ReadOnly verification library for
+LFRic in ``lib/read_only/lfric/`` uses ``-generic-declare`` when
+processing the PSyData base class (i.e. all declaration functions
+are implemented in the PSyData base class), and uses
+``-generic-provide`` when processing the ReadOnly base class (i.e.
+all provide functions are implemented in the ReadOnly base class).
+The LFRic-specific implementation extends the generic subroutine
+with two new subroutines: ``DeclareFieldDouble`` and
+``DeclareFieldVectorDouble`` (and the same for the corresponding
+'provide' functions). 
+
+
+Explanation of Jinja Use
+~~~~~~~~~~~~~~~~~~~~~~~~
+
 For each specified type name the Jinja template will create methods called
 ``DeclareScalar{{type}}`` and ``ProvideScalar{{type}}`` for handling
 scalar parameters. For array parameters, the functions
@@ -695,7 +737,7 @@ needs to be adjusted as well.
 
 Below is a short excerpt that shows how these variables are defined by
 default, and how they are used to create subroutines and declare their
-parameters in ``lib/read_only_base.jinja``:
+parameters in ``lib/read_only/read_only_base.jinja``:
 
 .. code-block:: jinja
 
@@ -709,8 +751,8 @@ parameters in ``lib/read_only_base.jinja``:
        The second entry is the Fortran declaration. The third entry
        is the number of bits. There is slightly different code
        required for 32 and 64 bit values (due to the fact that the
-       Fortran transfer(value, mould) function leaves undefined bits
-       when mould is larger than value.) #}
+       Fortran ``transfer(value, mould)`` function leaves undefined
+       bits when mould is larger than value.) #}
 
     {% if ALL_TYPES is not defined %}
        {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
@@ -909,6 +951,9 @@ with existing profiling tools - for example by storing
 an index used by the profiling tool in ``profile_PSyDataType``, or
 by storing pointers to the profiling data to be able to
 print all results in a ProfileFinalise() subroutine.
+Some of the wrapper libraries use the PSyData base class (e.g. dl_timer,
+simple_timing, template), others do not (e.g. NVIDIA profiling,
+DrHook wrapper).
 
 
 Kernel Extraction (PSyKE)

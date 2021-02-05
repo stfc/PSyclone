@@ -98,16 +98,42 @@ module psy_data_base_mod
         contains
             procedure :: PreStart, PreEndDeclaration, PreEnd
             procedure :: PostStart, PostEnd, Abort
+
+            {# Collect the various procedures for the same generic interface -#}
+            {# ------------------------------------------------------------- -#}
+            {% set all_declares=[] -%}
+            {% set all_provides=[] -%}
             {% for name, type, bits in ALL_TYPES %}
-            procedure :: DeclareScalar{{name}}
             procedure :: ProvideScalar{{name}}
-                {% for dim in ALL_DIMS %}
-                {# This indentation makes it easier to read the output #}
-                procedure :: DeclareArray{{dim}}d{{name}}
-                procedure :: ProvideArray{{dim}}d{{name}}
-                {% endfor %}
+            procedure :: DeclareScalar{{name}}
+              {{- all_declares.append("DeclareScalar"~name) or "" -}}
+              {{- all_provides.append("ProvideScalar"~name) or "" }}
+              {% for dim in ALL_DIMS %}
+            procedure :: ProvideArray{{dim}}d{{name}}
+            procedure :: DeclareArray{{dim}}d{{name}}
+                {{- all_declares.append("DeclareArray"~dim~"d"~name) or "" -}}
+                {{ all_provides.append("ProvideArray"~dim~"d"~name) or "" }}
+              {% endfor %}
             {% endfor %}
 
+            {% set indent="                " %}
+            {% if GENERIC_DECLARE %}
+            !> Declare generic interface for PreDeclareVariable. The generic
+            !! interface is only added if explicitly requested. This allows
+            !! a derived class to provide its own implementation of a function
+            !! to be part of this generic interface.
+            generic, public :: PreDeclareVariable => &
+                {{all_declares|join(", &\n"+indent) }}
+            {% endif %}
+
+            {% if GENERIC_PROVIDE %}
+            !> The generic interface for providing the value of variables.
+            !! It is only added if explicitly requested. This allows a
+            !! derived class to provide its own implementation of a function
+            !! to be part of this generic interface.
+            generic, public :: ProvideVariable => &
+                {{all_provides|join(", &\n"+indent) }}
+            {% endif %}
     end type PSyDataBaseType
 
 contains
@@ -184,13 +210,11 @@ contains
     ! -------------------------------------------------------------------------
     !> This subroutine is called after the instrumented region has been
     !! executed. After this call the value of variables after the instrumented
-    !! region will be provided. This subroutine resets the next variable index
-    !! to 1  again.
+    !! region will be provided. Nothing is done here.
     !! @param[inout] this The instance of the PSyDataBaseType.
     subroutine PostStart(this)
         implicit none
         class(PSyDataBaseType), intent(inout), target :: this
-        this%next_var_index = 1
     end subroutine PostStart
 
     ! -------------------------------------------------------------------------
@@ -218,7 +242,8 @@ contains
         class(PSyDataBaseType), intent(inout), target :: this
         character(*) :: message
 
-        stop message
+        write(stderr, *) "PSyData Error:", message
+        stop "PSyData: Aborting"
     end subroutine Abort
 
     ! -------------------------------------------------------------------------
@@ -322,7 +347,7 @@ contains
     ! -------------------------------------------------------------------------
     !> This subroutine handles a provide call for a {{dim}}d {{type}} array.
     !! This base implementation only increases next_var_index.
-    !! @param[inout] this The instance of the read_only_verify_PSyDataType.
+    !! @param[inout] this The instance of the PSyDataBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideArray{{dim}}d{{name}}(this, name, value)

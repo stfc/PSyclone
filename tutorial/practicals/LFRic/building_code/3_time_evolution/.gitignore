@@ -1,0 +1,9 @@
+*.o
+*.mod
+*_alg_mod.f90
+*_alg_mod_psy.f90
+*.txt
+*.png
+prop_perturbation_kernel_mod.f90
+time_evolution
+solutions/time_evolution

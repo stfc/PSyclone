@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -50,10 +50,11 @@
 module sample_poly_adv_kernel_mod
 
 use argument_mod,          only: arg_type, func_type,         &
-                                 GH_FIELD, GH_WRITE, GH_READ, &
+                                 GH_FIELD, GH_REAL,           &
+                                 GH_WRITE, GH_READ,           &
                                  ANY_SPACE_1, STENCIL, CROSS, &
                                  GH_BASIS, GH_DIFF_BASIS,     &
-                                 CELLS, GH_EVALUATOR
+                                 CELL_COLUMN, GH_EVALUATOR
 use fs_continuity_mod,     only: W2, Wtheta
 use constants_mod,         only: r_def, i_def
 use kernel_mod,            only: kernel_type
@@ -82,19 +83,19 @@ real(kind=r_def), allocatable,    private :: coeff_matrix_v(:,:,:)
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: sample_poly_adv_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/                                  &
-       arg_type(GH_FIELD,   GH_WRITE, Wtheta),                         &
-       arg_type(GH_FIELD,   GH_READ,  Wtheta, STENCIL(CROSS)),         &
-       arg_type(GH_FIELD,   GH_READ,  W2),                             &
-       arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1, STENCIL(CROSS)),    &
-       arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1),                    &
-       arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1)                     &
+  type(arg_type) :: meta_args(6) = (/                                      &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta),                      &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta, STENCIL(CROSS)),      &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W2),                          &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1, STENCIL(CROSS)), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1),                 &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)                  &
        /)
-  type(func_type) :: meta_funcs(2) = (/                                &
-       func_type(W2,          GH_BASIS),                               &
-       func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS)                 &
+  type(func_type) :: meta_funcs(2) = (/                                    &
+       func_type(W2,          GH_BASIS),                                   &
+       func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS)                     &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_EVALUATOR
 contains
   procedure, nopass :: sample_poly_adv_code

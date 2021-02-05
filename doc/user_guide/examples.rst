@@ -57,8 +57,8 @@ This is most easily done by following the links from the top-level
 `README <https://github.com/stfc/PSyclone#try-it-on-binder>`_.
 
 For the purposes of correctness checking, the whole suite of examples
-may be executed using Gnu ``make`` (this functionality is used by Travis
-alongside the test suite). The default target is ``transform`` which
+may be executed using Gnu ``make`` (this functionality is used by GitHub
+Actions alongside the test suite). The default target is ``transform`` which
 just performs the PSyclone code transformation steps for each
 example. For those examples that support it, the ``compile`` target
 also requests that the generated code be compiled. The ``notebook``
@@ -127,10 +127,8 @@ support is being implemented. Although there is support for converting
 global-data accesses into kernel arguments, PSyclone does not yet support
 nested ``use`` of modules (i.e. data accessed via a module that in turn
 imports that symbol from another module) and kernels that call other
-kernels (Issue #342). In addition, the transformation that adds
-``!$ACC ROUTINE`` to kernel code is written to work with the fparser2
-parse tree and therefore does not inter-operate with the other kernel
-transformations that work on the PSyIR (Issue #490).
+kernels (Issue #342).
+
 
 Example 5: Profiling
 ^^^^^^^^^^^^^^^^^^^^
@@ -138,7 +136,7 @@ Example 5: Profiling
 This example shows how to use the profiling support in PSyclone.
 It instruments two invoke statements and can link in with any
 of the following profiling wrapper libraries: template,
-simple_timer, apeg-dl_timer, and DrHook (see
+simple_timer, apeg-dl_timer, lfric, and DrHook (see
 :ref:`profiling_third_party_tools`). The ``README.md``
 file contains detailed instructions on how to build the
 different executables. By default (i.e. just using ``make``
@@ -157,7 +155,7 @@ This example shows the use of kernel data extraction in PSyclone.
 It instruments each of the two invokes in the example program
 with the PSyData-based kernel extraction code.
 It uses the dl_esm_inf-specific extraction library 'netcdf'
-(``lib/extract/dl_esm_inf/netcdf``), and needs NetCDF to be
+(``lib/extract/netcdf/dl_esm_inf``), and needs NetCDF to be
 available (including ``nf-config`` to detect installation-specific
 paths). You need to compile the NetCDF extraction library
 (see :ref:`psyke_netcdf`).
@@ -391,6 +389,24 @@ code that is output is the same as the original (but looks different
 as it has been translated to PSyIR and then output by the PSyIR
 fortran back-end).
 
+Example 16: Kernel Extraction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The subdirectory ``full_example_extract`` contains a runnable example
+of LFRic code that creates a NetCDF file with the input and output
+parameters of a simple kernel. This example requires the installation
+of a Fortran compiler and NetCDF development environment. After compilation
+of the code, you can run the example. which will produce a NetCDF file:
+
+.. code-block:: bash
+
+    cd full_example_extraction
+    make
+    ./extract
+    ncdump ./main-update.nc | less
+
+
+
 NEMO
 ----
 
@@ -431,10 +447,16 @@ PSyIR
 -----
 
 Examples may all be found in the ``example/psyir`` directory. Read the
-``README.md`` file in this directory for details.
+``README.md`` file in this directory for full details.
 
-create.py: Constructing PSyIR
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example 1: Constructing PSyIR and Generating Code
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A Python script that demonstrates the use of ``create`` methods to
-build a PSyIR tree from scratch.
+``create.py`` is a Python script that demonstrates the use of the various
+``create`` methods to build a PSyIR tree from scratch.
+
+Example 2: Creating PSyIR for Structure Types
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``create_structure_types.py`` demonstrates the representation of
+structure types (i.e. Fortran derived types or C structs) in the PSyIR.

@@ -33,6 +33,6 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 
-EXAMPLES=$(wildcard eg*) scripts
+EXAMPLES=$(wildcard eg*) scripts $(wildcard full_example*)
 
 include ../top_level.mk

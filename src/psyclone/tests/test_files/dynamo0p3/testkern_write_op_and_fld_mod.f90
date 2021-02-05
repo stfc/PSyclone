@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -46,11 +46,11 @@ module testkern_write_op_and_fld_mod
 
   type, extends(kernel_type) :: testkern_write_op_and_fld_type
      type(arg_type), dimension(3) :: meta_args =                 &
-          (/ arg_type(gh_field*3,              gh_write, w3),    &
+          (/ arg_type(gh_field*3,  gh_real,    gh_write, w3),    &
              arg_type(gh_scalar,   gh_integer, gh_read),         &
-             arg_type(gh_operator,             gh_write, w0, w0) &
+             arg_type(gh_operator, gh_real,    gh_write, w0, w0) &
           /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_write_op_and_fld_code
   end type testkern_write_op_and_fld_type

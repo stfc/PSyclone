@@ -40,18 +40,30 @@ DL_TIMER_ROOT?=../../../../apeg-dl_timer
 DL_TIMER_INCLUDE?=$(DL_TIMER_ROOT)/src
 
 F90?=gfortran
-FFLAGS?=-g
-FFLAGS += -I$(DL_TIMER_INCLUDE)
+F90FLAGS?=
+F90FLAGS += -I$(DL_TIMER_INCLUDE)
 
-name=dl_timer
+OBJS = dl_timer.o psy_data_base.o
+PROCESS_ARGS = -prefix=profile_ -types= -dims=
+PROCESS=$$(../../get_python.sh) ../../process.py
+
+name=dl_timer_psy
 libname=lib$(name).a
 
 default: $(libname)
 
-$(libname): $(name).f90
-	$(F90) -c $(FFLAGS) $<
-	ar rs $(libname) $(name).o
+$(libname): $(OBJS)
+	ar rs $(libname) $(OBJS)
+
+dl_timer.o:	psy_data_base.o
+
+psy_data_base.f90: ../../psy_data_base.jinja
+	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f $(libname) $(name).o profile_mod.mod
+	rm -f $(libname) $(OBJS) profile_psy_data_mod.mod \
+		psy_data_base_mod.mod psy_data_base.f90
 

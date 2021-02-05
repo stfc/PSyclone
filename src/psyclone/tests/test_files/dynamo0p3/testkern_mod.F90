@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council.
+! Copyright (c) 2017-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -44,11 +44,12 @@ module testkern_mod
   type, extends(kernel_type) :: testkern_type
      type(arg_type), dimension(5) :: meta_args =        &
           (/ arg_type(gh_scalar, gh_real, gh_read),     &
-             arg_type(gh_field,           gh_inc,  w1), &
-             arg_type(gh_field,           gh_read, w2), &
-             arg_type(gh_field,           gh_read, w2), &
-             arg_type(gh_field,           gh_read, w3)  &
+             arg_type(gh_field,  gh_real, gh_inc,  w1), &
+             arg_type(gh_field,  gh_real, gh_read, w2), &
+             arg_type(gh_field,  gh_real, gh_read, w2), &
+             arg_type(gh_field,  gh_real, gh_read, w3)  &
            /)
+     ! TODO #870 change this metadata to operates_on
      integer :: iterates_over = cells
    contains
      procedure, nopass :: code => testkern_code
@@ -72,7 +73,7 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
     real(kind=r_def), intent(in) :: ascalar
-    real(kind=r_def), intent(out), dimension(undf_w1) :: fld1
+    real(kind=r_def), intent(inout), dimension(undf_w1) :: fld1
     real(kind=r_def), intent(in), dimension(undf_w2)  :: fld2
     real(kind=r_def), intent(in), dimension(undf_w2)  :: fld3
     real(kind=r_def), intent(in), dimension(undf_w3)  :: fld4

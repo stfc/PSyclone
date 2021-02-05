@@ -9,7 +9,7 @@
 !
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -46,11 +46,12 @@ module restrict_kernel_mod
 
 use constants_mod,           only: i_def, r_def
 use kernel_mod,              only: kernel_type
-use argument_mod,            only: arg_type,                     &
-                                   GH_FIELD,                     &
-                                   GH_READ, GH_READWRITE, CELLS, &
-                                   ANY_DISCONTINUOUS_SPACE_1,    &
-                                   ANY_DISCONTINUOUS_SPACE_2,    &
+use argument_mod,            only: arg_type,                  &
+                                   GH_FIELD, GH_REAL,         &
+                                   CELL_COLUMN,               &
+                                   GH_READ, GH_READWRITE,     &
+                                   ANY_DISCONTINUOUS_SPACE_1, &
+                                   ANY_DISCONTINUOUS_SPACE_2, &
                                    GH_COARSE, GH_FINE
 
 implicit none
@@ -59,11 +60,13 @@ private
 
 type, public, extends(kernel_type) :: restrict_kernel_type
    private
-   type(arg_type) :: meta_args(2) = (/                                                   &
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, mesh_arg=GH_COARSE), &
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, mesh_arg=GH_FINE   ) &
+   type(arg_type) :: meta_args(2) = (/                                       &
+        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, &
+                                                  mesh_arg=GH_COARSE),       &
+        arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, &
+                                                  mesh_arg=GH_FINE)          &
         /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: restrict_kernel_code
 end type restrict_kernel_type

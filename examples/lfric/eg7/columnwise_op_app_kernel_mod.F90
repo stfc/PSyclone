@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -45,10 +45,9 @@ module columnwise_op_app_kernel_mod
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,                    &
                                     GH_FIELD, GH_COLUMNWISE_OPERATOR,       &
-                                    GH_READ, GH_INC,                        &
+                                    GH_REAL, GH_READ, GH_INC,               &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
-                                    GH_COLUMN_INDIRECTION_DOFMAP,           &
-                                    CELLS
+                                    CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
 
@@ -62,12 +61,12 @@ private
 
 type, public, extends(kernel_type) :: columnwise_op_app_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                                      &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                        &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
+  type(arg_type) :: meta_args(3) = (/                                               &
+       arg_type(GH_FIELD,               GH_REAL, GH_INC,  ANY_SPACE_1),             &
+       arg_type(GH_FIELD,               GH_REAL, GH_READ, ANY_SPACE_2),             &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: columnwise_op_app_kernel_code
 end type columnwise_op_app_kernel_type
@@ -82,26 +81,26 @@ contains
   !> @brief The subroutine which is called directly from the PSY layer and
   !> applies the operator as lhs += A.x
   !>
-  !> @param [in] cell the horizontal cell index
-  !> @param [in] ncell_2d number of cells in 2d grid
+  !> @param [in] cell Horizontal cell index
+  !> @param [in] ncell_2d Number of cells in 2d grid
   !> @param [in,out] lhs Resulting field lhs += A.x
-  !> @param [in] x input field
-  !> @param [in] columnwise_matrix banded matrix to assemble into
-  !> @param [in] nrow number of rows in the banded matrix
-  !> @param [in] ncol number of columns in the banded matrix
-  !> @param [in] bandwidth bandwidth of the banded matrix
-  !> @param [in] alpha banded matrix parameter \f$\alpha\f$
-  !> @param [in] beta banded matrix parameter \f$\beta\f$
-  !> @param [in] gamma_m banded matrix parameter \f$\gamma_-\f$
-  !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
-  !> @param [in] ndf1 number of degrees of freedom per cell for the to-space
-  !> @param [in] undf1 unique number of degrees of freedom  for the to-space
-  !> @param [in] map1 dofmap for the to-space
-  !> @param [in] indirection_dofmap_to indirection map for to-space
-  !> @param [in] ndf2 number of degrees of freedom per cell for the from-space
-  !> @param [in] undf2 unique number of degrees of freedom for the from-space
-  !> @param [in] map2 dofmap for the from-space
-  !> @param [in] indirection_dofmap_from indirection map for from-space
+  !> @param [in] x Input field
+  !> @param [in] columnwise_matrix Banded matrix to assemble into
+  !> @param [in] nrow Number of rows in the banded matrix
+  !> @param [in] ncol Number of columns in the banded matrix
+  !> @param [in] bandwidth Bandwidth of the banded matrix
+  !> @param [in] alpha Banded matrix parameter \f$\alpha\f$
+  !> @param [in] beta Banded matrix parameter \f$\beta\f$
+  !> @param [in] gamma_m Banded matrix parameter \f$\gamma_-\f$
+  !> @param [in] gamma_p Banded matrix parameter \f$\gamma_+\f$
+  !> @param [in] ndf1 Number of degrees of freedom per cell for the to-space
+  !> @param [in] undf1 Unique number of degrees of freedom  for the to-space
+  !> @param [in] map1 Dofmap for the to-space
+  !> @param [in] indirection_dofmap_to Indirection map for to-space
+  !> @param [in] ndf2 Number of degrees of freedom per cell for the from-space
+  !> @param [in] undf2 Unique number of degrees of freedom for the from-space
+  !> @param [in] map2 Dofmap for the from-space
+  !> @param [in] indirection_dofmap_from Indirection map for from-space
   subroutine columnwise_op_app_kernel_code(cell,                  &
                                            ncell_2d,              &
                                            lhs, x,                &

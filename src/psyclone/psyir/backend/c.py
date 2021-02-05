@@ -124,12 +124,12 @@ class CWriter(PSyIRVisitor):
         result = "{0}{1} = {2};\n".format(self._nindent, lhs, rhs)
         return result
 
-    def array_node(self, node):
-        '''This method is called when an Array instance is found in the PSyIR
-        tree.
+    def arrayreference_node(self, node):
+        '''This method is called when an ArrayReference instance is found
+        in the PSyIR tree.
 
         :param node: An Array PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Array`
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         :returns: The C code as a string.
         :rtype: str

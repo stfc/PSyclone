@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,8 @@ use fs_continuity_mod,       only : W2
 use argument_mod,            only : arg_type, func_type,   &
                                     GH_OPERATOR, GH_FIELD, &
                                     GH_READ, GH_WRITE,     &
-                                    ANY_SPACE_9, CELLS,    &
+                                    GH_REAL, ANY_SPACE_9,  &
+                                    CELL_COLUMN,           &
                                     GH_BASIS, GH_DIFF_BASIS
 use constants_mod,           only : r_def, i_def
 
@@ -64,14 +65,14 @@ private
 type, public, extends(kernel_type) :: weighted_proj_theta2_kernel_type
   private
   type(arg_type) :: meta_args(2) = (/                                  &
-       arg_type(GH_OPERATOR, GH_WRITE, ANY_SPACE_9, W2),               &
-       arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_9)                    &
+       arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_9, W2),      &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_SPACE_9)           &
        /)
   type(func_type) :: meta_funcs(2) = (/                                &
        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS),                &
        func_type(W2, GH_BASIS)                                         &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_QUADRATURE_XYoZ
 contains
   procedure, nopass :: weighted_proj_theta2_code
@@ -91,7 +92,7 @@ contains
 !! @param[in, out] projection Locally assembled projection operator
 !! @param[in] theta Potential temperature array
 !! @param[in] ndf_wtheta Number of degrees of freedom per cell for wtheta
-!! @param[in] undf_wtheta Number of unique degrees of freedom  for wtheta
+!! @param[in] undf_wtheta Number of unique degrees of freedom for wtheta
 !! @param[in] map_wtheta Dofmap for the cell at the base of the column for wtheta
 !! @param[in] wtheta_basis Basis functions evaluated at gaussian quadrature points
 !! @param[in] wtheta_diff_basis Differential basis functions evaluated at gaussian quadrature points

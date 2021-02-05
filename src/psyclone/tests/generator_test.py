@@ -35,6 +35,7 @@
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 
 '''
@@ -54,8 +55,8 @@ from psyclone.configuration import Config
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
-NEMO_BASE_PATH =  os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "nemo", "test_files")
+NEMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "nemo", "test_files")
 DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "dynamo0p3")
 
@@ -816,10 +817,9 @@ def test_write_utf_file(tmpdir, monkeypatch):
         # pylint: disable=undefined-variable
         test_str = u"This contains UTF: "+unichr(1200)
         # pylint: enable=undefined-variable
-        encoding = {'encoding': 'utf-8'}
     else:
         test_str = "This contains UTF: "+chr(1200)
-        encoding = {}
+    encoding = {'encoding': 'utf-8'}
     write_unicode_file(test_str, out_file2)
 
     with io.open(out_file2, mode="r", **encoding) as infile:
@@ -838,13 +838,15 @@ def test_write_utf_file(tmpdir, monkeypatch):
 def test_utf_char(tmpdir):
     ''' Test that the generate method works OK when both the Algorithm and
     Kernel code contain utf-encoded chars. '''
+    import io
     algfile = os.path.join(str(tmpdir), "alg.f90")
     main([os.path.join(BASE_PATH, "gocean1p0", "test29_utf_chars.f90"),
           "-api", "gocean1.0", "-oalg", algfile])
     # We only check the algorithm layer since we generate the PSy
     # layer from scratch in this API (and thus it contains no
     # non-ASCII characters).
-    with open(algfile, "r") as afile:
+    encoding = {'encoding': 'utf-8'}
+    with io.open(algfile, "r", **encoding) as afile:
         alg = afile.read().lower()
         assert "max reachable coeff" in alg
         assert "call invoke_0_kernel_utf" in alg

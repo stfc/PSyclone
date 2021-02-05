@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,13 +45,15 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
-    Container, Assignment, Return, Array, Node, Range
+    Container, Assignment, Return, ArrayReference, Node, Range, \
+    KernelSchedule, StructureReference, ArrayOfStructuresReference, \
+    Call
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyGen import Directive, KernelSchedule
+from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
-    Symbol, RoutineSymbol, GlobalInterface, ArgumentInterface, \
-    UnresolvedInterface, LocalInterface, \
-    ScalarType, ArrayType, DeferredType, UnknownType
+    Symbol, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
+    LocalInterface, ScalarType, ArrayType, DeferredType, UnknownType, \
+    UnknownFortranType, StructureType, TypeSymbol, RoutineSymbol, SymbolTable
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -72,33 +74,126 @@ CONSTANT_TYPE_MAP = {
     Fortran2003.Char_Literal_Constant: ScalarType.Intrinsic.CHARACTER,
     Fortran2003.Int_Literal_Constant: ScalarType.Intrinsic.INTEGER}
 
+# Mapping from Fortran intent to PSyIR access type
+INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
+                  "out": ArgumentInterface.Access.WRITE,
+                  "inout": ArgumentInterface.Access.READWRITE}
 
-def _get_symbol_table(node):
-    '''Find a symbol table associated with an ancestor of Node 'node' (or
-    the node itself). If there is more than one symbol table, then the
-    symbol table closest in ancestory to 'node' is returned. If no
-    symbol table is found then None is returned.
 
-    :param node: a PSyIR Node.
-    :type node: :py:class:`psyclone.psyir.nodes.Node`
+def _find_or_create_imported_symbol(location, name, scope_limit=None,
+                                    **kargs):
+    '''Returns the symbol with the name 'name' from a symbol table
+    associated with this node or one of its ancestors.  If the symbol
+    is not found and there are no ContainerSymbols with wildcard imports
+    then an exception is raised. However, if there are one or more
+    ContainerSymbols with wildcard imports (which could therefore be
+    bringing the symbol into scope) then a new Symbol with the
+    specified visibility but of unknown interface is created and
+    inserted in the most local SymbolTable that has such an import.
+    The scope_limit variable further limits the symbol table search so
+    that the search through ancestor nodes stops when the scope_limit node
+    is reached i.e. ancestors of the scope_limit node are not searched.
 
-    :returns: a symbol table associated with node or one of its \
-        ancestors or None if one is not found.
-    :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
+    :param location: PSyIR node from which to operate.
+    :type location: :py:class:`psyclone.psyir.nodes.Node`
+    :param str name: the name of the symbol.
+    :param scope_limit: optional Node which limits the symbol \
+        search space to the symbol tables of the nodes within the \
+        given scope. If it is None (the default), the whole \
+        scope (all symbol tables in ancestor nodes) is searched \
+        otherwise ancestors of the scope_limit node are not \
+        searched.
+    :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
+        `NoneType`
 
-    :raises TypeError: if the node argument is not a Node.
+    :returns: the matching symbol.
+    :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+    :raises TypeError: if the supplied scope_limit is not a Node.
+    :raises ValueError: if the supplied scope_limit node is not an \
+        ancestor of the supplied node.
+    :raises SymbolError: if no matching symbol is found and there are \
+        no ContainerSymbols from which it might be brought into scope.
 
     '''
-    if not isinstance(node, Node):
+    if not isinstance(location, Node):
         raise TypeError(
-            "node argument to _get_symbol_table() should be of type Node, but "
-            "found '{0}'.".format(type(node).__name__))
-    current = node
-    while current:
-        if hasattr(current, "symbol_table"):
-            return current.symbol_table
-        current = current.parent
-    return None
+            "The location argument '{0}' provided to _find_or_create_imported"
+            "_symbol() is not of type `Node`.".format(str(location)))
+
+    if scope_limit is not None:
+        # Validate the supplied scope_limit
+        if not isinstance(scope_limit, Node):
+            raise TypeError(
+                "The scope_limit argument '{0}' provided to _find_or_"
+                "create_imported_symbol() is not of type `Node`."
+                "".format(str(scope_limit)))
+
+        # Check that the scope_limit Node is an ancestor of this
+        # Reference Node and raise an exception if not.
+        mynode = location.parent
+        while mynode is not None:
+            if mynode is scope_limit:
+                # The scope_limit node is an ancestor of the
+                # supplied node.
+                break
+            mynode = mynode.parent
+        else:
+            # The scope_limit node is not an ancestor of the
+            # supplied node so raise an exception.
+            raise ValueError(
+                "The scope_limit node '{0}' provided to _find_or_create"
+                "_imported_symbol() is not an ancestor of this "
+                "node '{1}'.".format(str(scope_limit), str(location)))
+
+    # Keep a reference to the most local SymbolTable with a wildcard
+    # import in case we need to create a Symbol.
+    first_symbol_table = None
+    test_node = location
+
+    # Iterate over ancestor Nodes of this Node.
+    while test_node:
+        # For simplicity, test every Node for the existence of a
+        # SymbolTable (rather than checking for the particular
+        # Node types which we know to have SymbolTables).
+        if hasattr(test_node, 'symbol_table'):
+            # This Node does have a SymbolTable.
+            symbol_table = test_node.symbol_table
+
+            try:
+                # If the name matches a Symbol in this SymbolTable then
+                # return the Symbol.
+                return symbol_table.lookup(name, scope_limit=test_node)
+            except KeyError:
+                # The supplied name does not match any Symbols in
+                # this SymbolTable. Does this SymbolTable have any
+                # wildcard imports?
+                if first_symbol_table is None:
+                    for csym in symbol_table.containersymbols:
+                        if csym.wildcard_import:
+                            first_symbol_table = symbol_table
+                            break
+
+        if test_node is scope_limit:
+            # The ancestor scope/top-level Node has been reached and
+            # nothing has matched.
+            break
+
+        # Move on to the next ancestor.
+        test_node = test_node.parent
+
+    if first_symbol_table:
+        # No symbol found but there are one or more Containers from which
+        # it may be being brought into scope. Therefore create a generic
+        # Symbol with a deferred interface and add it to the most
+        # local SymbolTable with a wildcard import.
+        return first_symbol_table.new_symbol(
+                name, interface=UnresolvedInterface(), **kargs)
+
+    # All requested Nodes have been checked but there has been no
+    # match and there are no wildcard imports so raise an exception.
+    raise SymbolError(
+        "No Symbol found for name '{0}'.".format(name))
 
 
 def _check_args(array, dim):
@@ -120,10 +215,11 @@ def _check_args(array, dim):
         supplied array argument.
 
     '''
-    if not isinstance(array, Array):
+    if not isinstance(array, ArrayReference):
         raise TypeError(
             "method _check_args 'array' argument should be an "
-            "Array type but found '{0}'.".format(type(array).__name__))
+            "ArrayReference type but found '{0}'.".format(
+                type(array).__name__))
 
     if not isinstance(dim, int):
         raise TypeError(
@@ -161,8 +257,8 @@ def _is_bound_full_extent(array, dim, operator):
     bound Fortran code is captured as longhand lbound and/or
     ubound functions as expected in the PSyIR.
 
-    The supplied "array" argument is assumed to be an Array node and
-    the contents of the specified dimension "dim" is assumed to be a
+    The supplied "array" argument is assumed to be an ArrayReference node
+    and the contents of the specified dimension "dim" is assumed to be a
     Range node.
 
     This routine is only in fparser2.py until #717 is complete as it
@@ -234,7 +330,7 @@ def _is_array_range_literal(array, dim, index, value):
     different context.
 
     :param array: the node to check.
-    :type array: :py:class:`pysclone.psyir.node.Array`
+    :type array: :py:class:`pysclone.psyir.node.ArrayReference`
     :param int dim: the dimension index to check.
     :param int index: the index of the range to check (0 is the \
         lower bound, 1 is the upper bound and 2 is the step).
@@ -315,6 +411,82 @@ def _is_range_full_extent(my_range):
     # Check step (index 2 is the step index for the range function)
     is_step = _is_array_range_literal(array, dim, 2, 1)
     return is_lower and is_upper and is_step
+
+
+def _kind_symbol_from_name(name, symbol_table):
+    '''
+    Utility method that returns a Symbol representing the named KIND
+    parameter. If the supplied Symbol Table (or one of its ancestors)
+    does not contain an appropriate entry then one is created. If it does
+    contain a matching entry then it must be either a Symbol or a
+    DataSymbol. If it is a DataSymbol then it must have a datatype of
+    'integer' or 'deferred'. If it is deferred then the fact that we now
+    know that this Symbol represents a KIND
+    parameter means that we can change the datatype to be 'integer'.
+    If the existing symbol is a generic Symbol then it is replaced with
+    a new DataSymbol of type 'integer'.
+
+    :param str name: the name of the variable holding the KIND value.
+    :param symbol_table: the Symbol Table associated with the code being\
+                         processed.
+    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+    :returns: the Symbol representing the KIND parameter.
+    :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :raises TypeError: if the symbol table already contains an entry for \
+            `name` but it is not an instance of Symbol or DataSymbol.
+    :raises TypeError: if the symbol table already contains a DataSymbol \
+            for `name` and its datatype is not 'integer' or 'deferred'.
+
+    '''
+    lower_name = name.lower()
+    try:
+        kind_symbol = symbol_table.lookup(lower_name)
+        # pylint: disable=unidiomatic-typecheck
+        if type(kind_symbol) == Symbol:
+            # There is an existing entry but it's only a generic Symbol
+            # so we need to replace it with a DataSymbol of integer type.
+            # Since the lookup() above looks through *all* ancestor symbol
+            # tables, we have to find precisely which table the existing
+            # Symbol is in.
+            table = kind_symbol.find_symbol_table(symbol_table.node)
+            new_symbol = DataSymbol(lower_name,
+                                    default_integer_type(),
+                                    visibility=kind_symbol.visibility,
+                                    interface=kind_symbol.interface)
+            table.swap(kind_symbol, new_symbol)
+            kind_symbol = new_symbol
+        elif isinstance(kind_symbol, DataSymbol):
+
+            if not (isinstance(kind_symbol.datatype,
+                               (UnknownType, DeferredType)) or
+                    (isinstance(kind_symbol.datatype, ScalarType) and
+                     kind_symbol.datatype.intrinsic ==
+                     ScalarType.Intrinsic.INTEGER)):
+                raise TypeError(
+                    "SymbolTable already contains a DataSymbol for "
+                    "variable '{0}' used as a kind parameter but it is not"
+                    "a 'deferred', 'unknown' or 'scalar integer' type.".
+                    format(lower_name))
+            # A KIND parameter must be of type integer so set it here
+            # (in case it was previously 'deferred'). We don't know
+            # what precision this is so set it to the default.
+            kind_symbol.datatype = default_integer_type()
+        else:
+            raise TypeError(
+                "A symbol representing a kind parameter must be an "
+                "instance of either a Symbol or a DataSymbol. However, "
+                "found an entry of type '{0}' for variable '{1}'.".format(
+                    type(kind_symbol).__name__, lower_name))
+    except KeyError:
+        # The SymbolTable does not contain an entry for this kind parameter
+        # so create one. We specify an UnresolvedInterface as we don't
+        # currently know how this symbol is brought into scope.
+        kind_symbol = DataSymbol(lower_name, default_integer_type(),
+                                 interface=UnresolvedInterface())
+        symbol_table.add(kind_symbol)
+    return kind_symbol
 
 
 def default_precision(_):
@@ -428,25 +600,16 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         # PSyIR stores names as lower case.
         precision_name = precision_name.lower()
         # Find the closest symbol table
-        symbol_table = _get_symbol_table(psyir_literal_parent)
-        if not symbol_table:
+        try:
+            symbol_table = psyir_literal_parent.scope.symbol_table
+        except SymbolError as err:
             # No symbol table found. This should never happen in
             # normal usage but could occur if a test constructs a
             # PSyIR without a Schedule.
-            raise InternalError(
+            six.raise_from(InternalError(
                 "Failed to find a symbol table to which to add the kind "
-                "symbol '{0}'.".format(precision_name))
-        # Lookup the precision symbol
-        try:
-            symbol = symbol_table.lookup(precision_name)
-        except KeyError:
-            # The symbol is not found so create a data
-            # symbol with deferred type and add it to the
-            # symbol table then return the symbol.
-            symbol = DataSymbol(precision_name, DeferredType(),
-                                interface=UnresolvedInterface())
-            symbol_table.add(symbol)
-        return symbol
+                "symbol '{0}'.".format(precision_name)), err)
+        return _kind_symbol_from_name(precision_name, symbol_table)
 
 
 def _process_routine_symbols(module_ast, symbol_table,
@@ -546,6 +709,7 @@ class Fparser2Reader(object):
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
             Fortran2003.Assignment_Stmt: self._assignment_handler,
+            Fortran2003.Data_Ref: self._data_ref_handler,
             Fortran2003.Name: self._name_handler,
             Fortran2003.Parenthesis: self._parenthesis_handler,
             Fortran2003.Part_Ref: self._part_ref_handler,
@@ -567,6 +731,7 @@ class Fparser2Reader(object):
             Fortran2003.Intrinsic_Function_Reference: self._intrinsic_handler,
             Fortran2003.Where_Construct: self._where_construct_handler,
             Fortran2003.Where_Stmt: self._where_construct_handler,
+            Fortran2003.Call_Stmt: self._call_handler,
         }
 
     @staticmethod
@@ -706,8 +871,8 @@ class Fparser2Reader(object):
                         break
                 if not found:
                     raise InternalError(
-                        "Array '{0}' present in source code ('{1}') but not "
-                        "identified as being read or written.".
+                        "ArrayReference '{0}' present in source code ('{1}') "
+                        "but not identified as being read or written.".
                         format(name, str(node)))
         # Now we check for any arrays that are both read and written
         readwrites = readers & writers
@@ -733,7 +898,7 @@ class Fparser2Reader(object):
         :param str name: Name of the subroutine represented by the kernel.
 
         :returns: New KernelSchedule empty object.
-        :rtype: py:class:`psyclone.psyGen.KernelSchedule`
+        :rtype: py:class:`psyclone.psyir.nodes.KernelSchedule`
 
         '''
         return KernelSchedule(name)
@@ -810,7 +975,7 @@ class Fparser2Reader(object):
         :type container: :py:class:`psyclone.psyir.nodes.Container`
 
         :returns: PSyIR schedule representing the kernel.
-        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+        :rtype: :py:class:`psyclone.psyir.nodes.KernelSchedule`
 
         :raises GenerationError: unable to generate a kernel schedule from \
                                  the provided fpaser2 parse tree.
@@ -968,7 +1133,7 @@ class Fparser2Reader(object):
                         sym = DataSymbol(dim_name, default_integer_type(),
                                          interface=UnresolvedInterface())
                         symbol_table.add(sym)
-                    shape.append(sym)
+                    shape.append(Reference(sym))
                 else:
                     _unsupported_type_error(dimensions)
 
@@ -1093,7 +1258,7 @@ class Fparser2Reader(object):
         appropriate interfaces.
 
         :param parent: PSyIR node in which to insert the symbols found.
-        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
+        :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
         :param nodes: fparser2 AST nodes to search for use statements.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
 
@@ -1128,9 +1293,7 @@ class Fparser2Reader(object):
             if mod_name not in parent.symbol_table:
                 new_container = True
                 container = ContainerSymbol(mod_name)
-                # It is OK if a parent symbol table also has a
-                # reference to this module so do not check ancestors.
-                parent.symbol_table.add(container, check_ancestors=False)
+                parent.symbol_table.add(container)
             else:
                 new_container = False
                 container = parent.symbol_table.lookup(mod_name)
@@ -1141,7 +1304,7 @@ class Fparser2Reader(object):
                         "({1}). This is invalid Fortran.".format(
                             mod_name, str(container)))
 
-            # Create a 'deferred' symbol for each element in the ONLY clause.
+            # Create a generic Symbol for each element in the ONLY clause.
             if isinstance(decl.items[4], Fortran2003.Only_List):
                 if not new_container and not container.wildcard_import \
                    and not parent.symbol_table.imported_symbols(container):
@@ -1149,18 +1312,21 @@ class Fparser2Reader(object):
                     # will replace a previous import with an empty only-list.
                     pass
                 for name in decl.items[4].items:
-                    # The DataSymbol adds itself to the list of symbols
-                    # imported by the Container referenced in the
-                    # GlobalInterface.
                     sym_name = str(name).lower()
                     if sym_name not in parent.symbol_table:
+                        # We're dealing with a symbol named in a use statement
+                        # in the *current* scope therefore we do not check
+                        # any ancestor symbol tables; we just create a
+                        # new symbol. Since we don't yet know anything about
+                        # this symbol apart from its name we create a generic
+                        # Symbol.
                         parent.symbol_table.add(
-                            DataSymbol(sym_name,
-                                       DeferredType(),
-                                       interface=GlobalInterface(container)))
+                            Symbol(sym_name,
+                                   interface=GlobalInterface(container)))
                     else:
                         # There's already a symbol with this name
-                        existing_symbol = parent.symbol_table.lookup(sym_name)
+                        existing_symbol = parent.symbol_table.lookup(
+                            sym_name)
                         if not existing_symbol.is_global:
                             raise SymbolError(
                                 "Symbol '{0}' is imported from module '{1}' "
@@ -1196,15 +1362,17 @@ class Fparser2Reader(object):
                 raise NotImplementedError("Found unsupported USE statement: "
                                           "'{0}'".format(str(decl)))
 
-    def _process_decln(self, parent, decl, default_visibility,
+    def _process_decln(self, parent, symbol_table, decl, default_visibility,
                        visibility_map=None):
         '''
         Process the supplied fparser2 parse tree for a declaration. For each
-        entity that is declared, a symbol is added to the symbol table
-        associated with the parent node.
+        entity that is declared, a symbol is added to the supplied symbol
+        table.
 
         :param parent: PSyIR node in which to insert the symbols found.
-        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
+        :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+        :param symbol_table: the symbol table to which to add new symbols.
+        :type symbol_table: py:class:`psyclone.psyir.symbols.SymbolTable`
         :param decl: fparser2 parse tree of declaration to process.
         :type decl: :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
         :param default_visibility: the default visibility of symbols in the \
@@ -1242,8 +1410,11 @@ class Fparser2Reader(object):
         '''
         (type_spec, attr_specs, entities) = decl.items
 
-        # Parse type_spec, currently just 'real', 'double precision',
-        # 'integer', 'logical' and 'character' intrinsic types are supported.
+        base_type = None
+        precision = None
+
+        # Parse the type_spec
+
         if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
             fort_type = str(type_spec.items[0]).lower()
             try:
@@ -1261,8 +1432,31 @@ class Fparser2Reader(object):
             else:
                 # Check for precision being specified.
                 precision = self._process_precision(type_spec, parent)
+            if not precision:
+                precision = default_precision(data_name)
+            base_type = ScalarType(data_name, precision)
+        elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
+            # This is a variable of derived type
+            type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
+            # Do we already have a Symbol for this derived type?
+            type_symbol = _find_or_create_imported_symbol(parent, type_name)
+            # pylint: disable=unidiomatic-typecheck
+            if type(type_symbol) == Symbol:
+                # We do but we didn't know what kind of symbol it was. Create
+                # a TypeSymbol to replace it.
+                new_symbol = TypeSymbol(type_name, DeferredType(),
+                                        interface=type_symbol.interface)
+                table = type_symbol.find_symbol_table(parent)
+                table.swap(type_symbol, new_symbol)
+                type_symbol = new_symbol
+            elif not isinstance(type_symbol, TypeSymbol):
+                raise SymbolError(
+                    "Search for a TypeSymbol named '{0}' (required by "
+                    "declaration '{1}') found a '{2}' instead.".format(
+                        type_name, str(decl), type(type_symbol).__name__))
+            base_type = type_symbol
         else:
-            # Not an intrinsic type so not yet supported.
+            # Not a supported declaration.
             raise NotImplementedError()
 
         # Parse declaration attributes:
@@ -1314,23 +1508,20 @@ class Fparser2Reader(object):
                     (_, intent) = attr.items
                     normalized_string = \
                         intent.string.lower().replace(' ', '')
-                    if normalized_string == "in":
+                    try:
                         interface = ArgumentInterface(
-                            ArgumentInterface.Access.READ)
-                    elif normalized_string == "out":
-                        interface = ArgumentInterface(
-                            ArgumentInterface.Access.WRITE)
-                    elif normalized_string == "inout":
-                        interface = ArgumentInterface(
-                            ArgumentInterface.Access.READWRITE)
-                    else:
-                        raise InternalError(
+                            INTENT_MAPPING[normalized_string])
+                    except KeyError as info:
+                        message = (
                             "Could not process {0}. Unexpected intent "
                             "attribute '{1}'.".format(decl.items,
                                                       str(attr)))
-                elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
+                        six.raise_from(InternalError(message), info)
+                elif isinstance(attr,
+                                (Fortran2003.Dimension_Attr_Spec,
+                                 Fortran2003.Dimension_Component_Attr_Spec)):
                     attribute_shape = \
-                        self._parse_dimensions(attr, parent.symbol_table)
+                        self._parse_dimensions(attr, symbol_table)
                 elif isinstance(attr, Fortran2003.Access_Spec):
                     if attr.string.lower() == 'public':
                         decln_access_spec = Symbol.Visibility.PUBLIC
@@ -1347,9 +1538,6 @@ class Fparser2Reader(object):
                         "Unrecognised attribute type '{1}'.".format(
                             str(decl), str(type(attr).__name__)))
 
-        if not precision:
-            precision = default_precision(data_name)
-
         # Parse declarations RHS and declare new symbol into the
         # parent symbol table for each entity found.
         for entity in entities.items:
@@ -1360,7 +1548,7 @@ class Fparser2Reader(object):
             # Otherwise use the declaration attribute shape.
             if array_spec is not None:
                 entity_shape = \
-                    self._parse_dimensions(array_spec, parent.symbol_table)
+                    self._parse_dimensions(array_spec, symbol_table)
             else:
                 entity_shape = attribute_shape
 
@@ -1392,7 +1580,7 @@ class Fparser2Reader(object):
                     # If it is a parameter parse its initialization into
                     # a dummy Assignment inside a Schedule which temporally
                     # hijacks the parent's node symbol table
-                    tmp_sch = Schedule(symbol_table=parent.symbol_table)
+                    tmp_sch = Schedule(symbol_table=symbol_table)
                     dummynode = Assignment(parent=tmp_sch)
                     tmp_sch.addchild(dummynode)
                     expr = initialisation.items[1]
@@ -1424,34 +1612,118 @@ class Fparser2Reader(object):
 
             if entity_shape:
                 # array
-                datatype = ArrayType(ScalarType(data_name, precision),
-                                     entity_shape)
+                datatype = ArrayType(base_type, entity_shape)
             else:
                 # scalar
-                datatype = ScalarType(data_name, precision)
+                datatype = base_type
 
-            if sym_name not in parent.symbol_table:
-                try:
-                    sym = DataSymbol(sym_name, datatype,
-                                     visibility=visibility,
-                                     constant_value=ct_expr,
-                                     interface=interface)
-                except ValueError:
-                    # Error setting initial value
-                    raise NotImplementedError()
-                # We don't want to check ancestor symbol tables as we're
-                # currently processing a *local* variable declaration.
-                parent.symbol_table.add(sym, check_ancestors=False)
-            else:
-                # The symbol table already contains an entry with this name
-                # so update its interface information.
-                sym = parent.symbol_table.lookup(sym_name)
+            # Make sure the declared symbol exists in the SymbolTable
+            try:
+                sym = symbol_table.lookup(sym_name, scope_limit=parent)
+                if sym is symbol_table.lookup_with_tag("own_routine_symbol"):
+                    # In case it is its own function routine symbol, Fortran
+                    # will declare it inside the function as a DataSymbol.
+                    # Remove the RoutineSymbol in order to free the exact name
+                    # for the DataSymbol.
+                    symbol_table.remove(sym)
+                    # And trigger the exception path
+                    raise KeyError
                 if not sym.is_unresolved:
                     raise SymbolError(
                         "Symbol '{0}' already present in SymbolTable with "
                         "a defined interface ({1}).".format(
                             sym_name, str(sym.interface)))
-                sym.interface = interface
+            except KeyError:
+                try:
+                    sym = DataSymbol(sym_name, datatype,
+                                     visibility=visibility,
+                                     constant_value=ct_expr)
+                except ValueError:
+                    # Error setting initial value have to be raised as
+                    # NotImplementedError in order to create an UnknownType
+                    # Therefore, the Error doesn't need raise_from or message
+                    # pylint: disable=raise-missing-from
+                    raise NotImplementedError()
+
+                symbol_table.add(sym)
+
+            # The Symbol must have the interface given by the declaration
+            sym.interface = interface
+
+    def _process_derived_type_decln(self, parent, decl, default_visibility,
+                                    visibility_map):
+        '''
+        Process the supplied fparser2 parse tree for a derived-type
+        declaration. A TypeSymbol representing the derived-type is added to
+        the symbol table associated with the parent node.
+
+        :param parent: PSyIR node in which to insert the symbols found.
+        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
+        :param decl: fparser2 parse tree of declaration to process.
+        :type decl: :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
+        :param default_visibility: the default visibility of symbols in the \
+                                   current declaration section.
+        :type default_visibility: \
+            :py:class:`psyclone.symbols.Symbol.Visibility`
+        :param visibility_map: mapping of symbol name to visibility (for \
+            those symbols listed in an accessibility statement).
+        :type visibility_map: dict with str keys and \
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility` values
+
+        :raises SymbolError: if a Symbol already exists with the same name \
+            as the derived type being defined and it is not a TypeSymbol.
+
+        '''
+        name = str(walk(decl.children[0], Fortran2003.Type_Name)[0])
+        # Create a new StructureType for this derived type
+        dtype = StructureType()
+
+        # Look for any private-components-stmt (R447) within the type
+        # decln. In the absence of this, the default visibility of type
+        # components is public.
+        private_stmts = walk(decl, Fortran2003.Private_Components_Stmt)
+        if private_stmts:
+            default_compt_visibility = Symbol.Visibility.PRIVATE
+        else:
+            default_compt_visibility = Symbol.Visibility.PUBLIC
+
+        # The visibility of the symbol representing this derived type
+        dtype_symbol_vis = visibility_map.get(name, default_visibility)
+
+        # Populate this StructureType by processing the components of
+        # the derived type
+        try:
+            # Re-use the existing code for processing symbols
+            local_table = SymbolTable()
+            for child in walk(decl, Fortran2003.Data_Component_Def_Stmt):
+                self._process_decln(parent, local_table, child,
+                                    default_compt_visibility)
+            # Convert from Symbols to type information
+            for symbol in local_table.symbols:
+                dtype.add(symbol.name, symbol.datatype, symbol.visibility)
+            if name in parent.symbol_table:
+                # An entry already exists for this type.
+                # Check that it is a TypeSymbol
+                tsymbol = parent.symbol_table.lookup(name)
+                if not isinstance(tsymbol, TypeSymbol):
+                    raise SymbolError(
+                        "SymbolTable already contains an entry for '{0}' but "
+                        "it is a '{1}' when it should be a 'TypeSymbol' (for "
+                        "the derived-type definition '{2}')".format(
+                            name, type(tsymbol).__name__, str(decl)))
+                # Update its type with the definition we've found
+                tsymbol.datatype = dtype
+            else:
+                # We don't already have an entry for this type so create one
+                parent.symbol_table.add(
+                    TypeSymbol(name, dtype, visibility=dtype_symbol_vis))
+
+        except NotImplementedError:
+            # Support for this declaration is not fully implemented so create
+            # a TypeSymbol of UnknownFortranType.
+            parent.symbol_table.add(
+                TypeSymbol(name, UnknownFortranType(str(decl)),
+                           visibility=dtype_symbol_vis))
 
     def process_declarations(self, parent, nodes, arg_list,
                              default_visibility=None,
@@ -1465,7 +1737,7 @@ class Fparser2Reader(object):
         it defaults to PUBLIC (the Fortran default).
 
         :param parent: PSyIR node in which to insert the symbols found.
-        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
+        :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
         :param nodes: fparser2 AST nodes to search for declaration statements.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
         :param arg_list: fparser2 AST node containing the argument list.
@@ -1503,9 +1775,19 @@ class Fparser2Reader(object):
         # Look at any USE statements
         self._process_use_stmts(parent, nodes)
 
+        # Handle any derived-type declarations/definitions before we look
+        # at general variable declarations in case any of the latter use
+        # the former.
+        for decl in walk(nodes, Fortran2003.Derived_Type_Def):
+            self._process_derived_type_decln(parent, decl,
+                                             default_visibility,
+                                             visibility_map)
+
+        # Now we've captured any derived-type definitions, proceed to look
+        # at the variable declarations.
         for decl in walk(nodes, Fortran2003.Type_Declaration_Stmt):
             try:
-                self._process_decln(parent, decl,
+                self._process_decln(parent, parent.symbol_table, decl,
                                     default_visibility,
                                     visibility_map)
             except NotImplementedError:
@@ -1526,7 +1808,8 @@ class Fparser2Reader(object):
                     # successfully and thus be in the symbol table.
                     try:
                         parent.symbol_table.add(
-                            DataSymbol(symbol_name, UnknownType(str(decl))))
+                            DataSymbol(symbol_name,
+                                       UnknownFortranType(str(decl))))
                     except KeyError:
                         if len(orig_children) == 1:
                             raise SymbolError(
@@ -1543,13 +1826,12 @@ class Fparser2Reader(object):
             # into scope by an unqualified use statement.
             for name, vis in visibility_map.items():
                 if name not in parent.symbol_table:
-                    # TODO #876 find_or_create_symbol() always creates a
-                    # DataSymbol if no matching symbol already exists and there
-                    # is at least one possible Container from which it may be
-                    # imported. This will be wrong if the symbol is actually
-                    # the name of a routine.
                     try:
-                        parent.find_or_create_symbol(name, visibility=vis)
+                        # If a suitable unqualified use statement is found then
+                        # this call creates a Symbol and inserts it in the
+                        # appropriate symbol table.
+                        _find_or_create_imported_symbol(parent, name,
+                                                        visibility=vis)
                     except SymbolError as err:
                         # Improve the error message with context-specific info
                         six.raise_from(SymbolError(
@@ -1599,7 +1881,7 @@ class Fparser2Reader(object):
                     parent.addchild(assignment)
 
                     # Build lhs
-                    lhs = Array(symbol, parent=assignment)
+                    lhs = ArrayReference(symbol, parent=assignment)
                     self.process_nodes(parent=lhs, nodes=array_subscript)
                     assignment.addchild(lhs)
 
@@ -1641,7 +1923,7 @@ class Fparser2Reader(object):
             a valid variable name.
 
         '''
-        symbol_table = _get_symbol_table(psyir_parent)
+        symbol_table = psyir_parent.scope.symbol_table
 
         if not isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
             # No precision is specified
@@ -1683,55 +1965,8 @@ class Fparser2Reader(object):
             raise NotImplementedError(
                 "Failed to find valid Name in Fortran Kind "
                 "Selector: '{0}'".format(str(kind_selector)))
-        return Fparser2Reader._kind_symbol_from_name(str(kind_names[0]),
-                                                     symbol_table)
 
-    @staticmethod
-    def _kind_symbol_from_name(name, symbol_table):
-        '''
-        Utility method that returns a Symbol representing the named KIND
-        parameter. If the supplied Symbol Table does not contain an appropriate
-        entry then one is created. If it does contain a matching entry then
-        its datatype must be 'integer' or 'deferred'. If the latter then the
-        fact that we now know that this Symbol represents a KIND parameter
-        means that we can change the datatype to be 'integer'.
-
-        :param str name: the name of the variable holding the KIND value.
-        :param symbol_table: the Symbol Table associated with the code being\
-                             processed.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-        :returns: the Symbol representing the KIND parameter.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-        :raises TypeError: if the Symbol Table already contains an entry for \
-                       `name` and its datatype is not 'integer' or 'deferred'.
-        '''
-        lower_name = name.lower()
-        try:
-            kind_symbol = symbol_table.lookup(lower_name)
-            if not (isinstance(kind_symbol.datatype,
-                               (UnknownType, DeferredType)) or
-                    (isinstance(kind_symbol.datatype, ScalarType) and
-                     kind_symbol.datatype.intrinsic ==
-                     ScalarType.Intrinsic.INTEGER)):
-                raise TypeError(
-                    "SymbolTable already contains an entry for "
-                    "variable '{0}' used as a kind parameter but it "
-                    "is not a 'deferred', 'unknown' or 'scalar integer' type.".
-                    format(lower_name))
-            # A KIND parameter must be of type integer so set it here
-            # (in case it was previously 'deferred'). We don't know
-            # what precision this is so set it to the default.
-            kind_symbol.datatype = default_integer_type()
-        except KeyError:
-            # The SymbolTable does not contain an entry for this kind parameter
-            # so create one. We specify an UnresolvedInterface as we don't
-            # currently know how this symbol is brought into scope.
-            kind_symbol = DataSymbol(lower_name, default_integer_type(),
-                                     interface=UnresolvedInterface())
-            symbol_table.add(kind_symbol)
-        return kind_symbol
+        return _kind_symbol_from_name(str(kind_names[0]), symbol_table)
 
     def process_nodes(self, parent, nodes):
         '''
@@ -1872,7 +2107,8 @@ class Fparser2Reader(object):
         loop_var = str(ctrl[0].items[1][0])
         variable_name = str(loop_var)
         try:
-            data_symbol = parent.find_or_create_symbol(variable_name)
+            data_symbol = _find_or_create_imported_symbol(parent,
+                                                          variable_name)
         except SymbolError:
             raise InternalError(
                 "Loop-variable name '{0}' is not declared and there are no "
@@ -2269,7 +2505,7 @@ class Fparser2Reader(object):
         "a(:, 2, :)" the rank of the sub-section is 2.
 
         :param array: the array reference to check.
-        :type array: :py:class:`psyclone.psyir.nodes.Array`
+        :type array: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         :returns: rank of the sub-section of the array.
         :rtype: int
@@ -2304,9 +2540,9 @@ class Fparser2Reader(object):
 
     def _array_syntax_to_indexed(self, parent, loop_vars):
         '''
-        Utility function that modifies each Array object in the supplied PSyIR
-        fragment so that they are indexed using the supplied loop variables
-        rather than having colon array notation.
+        Utility function that modifies each ArrayReference object in the
+        supplied PSyIR fragment so that they are indexed using the supplied
+        loop variables rather than having colon array notation.
 
         :param parent: root of PSyIR sub-tree to search for Array \
                        references to modify.
@@ -2328,7 +2564,7 @@ class Fparser2Reader(object):
         # PSyIR (using e.g. the Fortran backend) will not
         # compile. We need to implement robust identification of the
         # types of all symbols in the PSyIR fragment.
-        arrays = parent.walk(Array)
+        arrays = parent.walk(ArrayReference)
         first_rank = None
         for array in arrays:
             # Check that this is a supported array reference and that
@@ -2348,7 +2584,8 @@ class Fparser2Reader(object):
             range_idx = 0
             for idx, child in enumerate(array.children):
                 if isinstance(child, Range):
-                    symbol = array.find_or_create_symbol(loop_vars[range_idx])
+                    symbol = _find_or_create_imported_symbol(
+                                array, loop_vars[range_idx])
                     array.children[idx] = Reference(symbol, parent=array)
                     range_idx += 1
 
@@ -2426,7 +2663,7 @@ class Fparser2Reader(object):
         # parent for this logical expression we will repeat the processing.
         fake_parent = Assignment(parent=parent)
         self.process_nodes(fake_parent, logical_expr)
-        arrays = fake_parent.walk(Array)
+        arrays = fake_parent.walk(ArrayReference)
         if not arrays:
             # If the PSyIR doesn't contain any Arrays then that must be
             # because the code doesn't use explicit array syntax. At least one
@@ -2450,11 +2687,10 @@ class Fparser2Reader(object):
         new_parent = parent
         for idx in range(rank, 0, -1):
 
-            loop_vars[idx-1] = symbol_table.new_symbol_name(
-                "widx{0}".format(idx))
-
-            data_symbol = DataSymbol(loop_vars[idx-1], integer_type)
-            symbol_table.add(data_symbol)
+            data_symbol = symbol_table.new_symbol(
+                "widx{0}".format(idx), symbol_type=DataSymbol,
+                datatype=integer_type)
+            loop_vars[idx-1] = data_symbol.name
 
             loop = Loop(parent=new_parent, variable=data_symbol,
                         annotations=annotations)
@@ -2467,7 +2703,8 @@ class Fparser2Reader(object):
             size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
                                         parent=loop)
             loop.addchild(size_node)
-            symbol = size_node.find_or_create_symbol(arrays[0].name)
+            symbol = _find_or_create_imported_symbol(
+                        size_node, arrays[0].name)
 
             size_node.addchild(Reference(symbol, parent=size_node))
             size_node.addchild(Literal(str(idx), integer_type,
@@ -2564,6 +2801,77 @@ class Fparser2Reader(object):
         self.process_nodes(parent=assignment, nodes=[node.items[2]])
 
         return assignment
+
+    def _data_ref_handler(self, node, parent):
+        '''
+        Create the PSyIR for an fparser2 Data_Ref (representing an access
+        to a derived type).
+
+        :param node: node in fparser2 parse tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Data_Ref`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
+
+        :raises NotImplementedError: if the parse tree contains unsupported \
+                                     elements.
+        '''
+        # First we construct the full list of 'members' making up the
+        # derived-type reference. e.g. for "var%region(1)%start" this
+        # will be [("region", [Literal("1")]), "start"].
+        members = []
+        for child in node.children[1:]:
+            if isinstance(child, Fortran2003.Name):
+                # Members of a structure do not refer to symbols
+                members.append(child.string)
+            elif isinstance(child, Fortran2003.Part_Ref):
+                # In order to use process_nodes() we need a fake parent node
+                # through which we can access the symbol table. This is
+                # because array-index expressions must refer to symbols.
+                sched = parent.ancestor(Schedule, include_self=True)
+                fake_parent = ArrayReference(parent=sched,
+                                             symbol=Symbol("fake"))
+                array_name = child.children[0].string
+                subscript_list = child.children[1].children
+                self.process_nodes(parent=fake_parent, nodes=subscript_list)
+                members.append((array_name, fake_parent.children))
+            else:
+                # Found an unsupported entry in the parse tree. This will
+                # result in a CodeBlock.
+                raise NotImplementedError(str(node))
+
+        # Now we have the list of members, use the `create()` method of the
+        # appropriate Reference subclass.
+        if isinstance(node.children[0], Fortran2003.Name):
+            # Base of reference is a scalar entity.
+            sym = _find_or_create_imported_symbol(parent,
+                                                  node.children[0].string)
+            return StructureReference.create(sym, members=members,
+                                             parent=parent)
+
+        if isinstance(node.children[0], Fortran2003.Part_Ref):
+            # Base of reference is an array access. Lookup the corresponding
+            # symbol.
+            part_ref = node.children[0]
+            sym = _find_or_create_imported_symbol(parent,
+                                                  part_ref.children[0].string)
+            # Processing the array-index expressions requires access to the
+            # symbol table so create a fake ArrayReference node.
+            sched = parent.ancestor(Schedule, include_self=True)
+            fake_parent = ArrayReference(parent=sched,
+                                         symbol=Symbol("fake"))
+            # The children of the fake node represent the indices of the
+            # ArrayOfStructuresReference.
+            self.process_nodes(parent=fake_parent,
+                               nodes=part_ref.children[1].children)
+            ref = ArrayOfStructuresReference.create(
+                sym, fake_parent.children, members, parent=parent)
+            return ref
+
+        # Not a Part_Ref or a Name so this will result in a CodeBlock.
+        raise NotImplementedError(str(node))
 
     def _unary_op_handler(self, node, parent):
         '''
@@ -2753,7 +3061,7 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
 
         '''
-        symbol = parent.find_or_create_symbol(node.string)
+        symbol = _find_or_create_imported_symbol(parent, node.string)
         return Reference(symbol, parent)
 
     def _parenthesis_handler(self, node, parent):
@@ -2789,13 +3097,13 @@ class Fparser2Reader(object):
             unsupported PSyIR features and should be placed in a CodeBlock.
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyir.nodes.Array`
+        :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         '''
         reference_name = node.items[0].string.lower()
-        symbol = parent.find_or_create_symbol(reference_name)
+        symbol = _find_or_create_imported_symbol(parent, reference_name)
 
-        array = Array(symbol, parent)
+        array = ArrayReference(symbol, parent)
         self.process_nodes(parent=array, nodes=node.items[1].items)
         return array
 
@@ -2813,7 +3121,7 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
 
         '''
-        # The PSyIR stores array dimension information for the Array
+        # The PSyIR stores array dimension information for the ArrayReference
         # class in an ordered list. As we are processing the
         # dimensions in order, the number of children already added to
         # our parent indicates the current array dimension being
@@ -2942,3 +3250,43 @@ class Fparser2Reader(object):
         raise GenerationError(
             "Expected to find '.true.' or '.false.' as fparser2 logical "
             "literal, but found '{0}' instead.".format(value))
+
+    def _call_handler(self, node, parent):
+        '''Transforms an fparser2 CALL statement into a PSyIR Call node.
+
+        :param node: node in fparser2 parse tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Call_Stmt`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: PSyIR representation of node.
+        :rtype: :py:class:`psyclone.psyir.nodes.Call`
+
+        '''
+        call_name = node.items[0].string
+        symbol_table = parent.scope.symbol_table
+        try:
+            routine_symbol = symbol_table.lookup(call_name)
+            if type(routine_symbol) is Symbol:
+                # TODO PR #1063: Symbol should be specialised to a
+                # RoutineSymbol here (if the symbol is part of a use
+                # statement). Without specialising, the Call class
+                # constructor will raise an exception. As a temporary
+                # fix, just change the class name.
+                routine_symbol.__class__ = RoutineSymbol
+        except KeyError:
+            routine_symbol = RoutineSymbol(
+                call_name, interface=UnresolvedInterface())
+            symbol_table.add(routine_symbol)
+
+        call = Call(routine_symbol, parent=parent)
+
+        args = []
+        if node.items[1]:
+            args = list(node.items[1].items)
+        self.process_nodes(parent=call, nodes=args)
+
+        # Point to the original CALL statement in the parse tree.
+        call.ast = node
+
+        return call

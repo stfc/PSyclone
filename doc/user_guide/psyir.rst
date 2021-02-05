@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -91,13 +91,22 @@ prescriptive and are independent of a particular PSyclone
 frontend. These nodes are designed to be used with PSyIR backends. Two
 PSy-layer classes (``Loop`` and ``Schedule``) can also be used as
 Kernel-layer classes. Additionally, the ``Schedule`` class is further
-subclassed into a kernel-layer ``KernelSchedule``. In addition to
-``KernelSchedule``, Kernel-layer PSyIR nodes are: ``Loop``,
-``IfBlock``, ``CodeBlock``, ``Assignment``, ``Range``, ``Reference``,
-``Operation``, ``Literal``, ``Call``, ``Return`` and
-``Container``. The ``Reference`` class is further subclassed into
-``Array`` and the ``Operation`` class is further subclassed into
-``UnaryOperation``, ``BinaryOperation`` and ``NaryOperation``.
+subclassed into a ``Routine`` and then a kernel-layer
+``KernelSchedule``.  In addition to ``KernelSchedule``, Kernel-layer
+PSyIR nodes are: ``Loop``, ``IfBlock``, ``CodeBlock``, ``Assignment``,
+``Range``, ``Reference``, ``Operation``, ``Literal``, ``Call``,
+``Return`` and ``Container``. The ``Reference`` class is further
+subclassed into ``ArrayReference``, ``StructureReference`` and
+``ArrayOfStructuresReference`` and the ``Operation`` class is further
+subclassed into ``UnaryOperation``, ``BinaryOperation`` and
+``NaryOperation``. Those nodes representing references to structures
+(derived types in Fortran) have a ``Member`` child node representing
+the member of the structure being accessed. The ``Member`` class is
+further subclassed into ``StructureMember`` (representing a member of
+a structure that is itself a structure), ``ArrayMember`` (a member of
+a structure that is an array of primitive types) and
+``ArrayOfStructuresMember`` (a member of a structure this is itself an
+array of structures).
 
 
 Node Descriptions
@@ -159,8 +168,12 @@ To solve this issue some Nodes also provide methods for semantic navigation:
    .. automethod:: psyclone.psyir.nodes.IfBlock.if_body()
 
    .. automethod:: psyclone.psyir.nodes.IfBlock.else_body()
+- ``Array`` nodes (e.g. ``ArrayReference``, ``ArrayOfStructuresReference``):
+   .. automethod:: psyclone.psyir.nodes.ArrayReference.indices()
 - ``Directive``:
    .. automethod:: psyclone.psyGen.Directive.dir_body()
+- Nodes representing accesses of data within a structure (e.g. ``StructureReference``, ``StructureMember``):
+   .. automethod:: psyclone.psyir.nodes.StructureReference.member()
 
 These are the recommended methods to navigate the tree for analysis or
 operations that depend on the Node type.
@@ -176,13 +189,16 @@ information about the exact location.
 DataTypes
 =========
 
-The PSyIR supports scalar, array and unknown datatypes. These datatypes are
-used when creating instances of DataSymbol and Literal. The 'unknown' type
-is used when an unsupported declaration is encountered when processing
-existing code.
+The PSyIR supports scalar, array, structure, deferred and unknown
+datatypes. These datatypes are used when creating instances of
+DataSymbol and Literal. The 'deferred' and 'unknown' types are both
+used when processing existing code. The former is used when a symbol
+is being imported from some other scope (e.g. via a USE statement in
+Fortran) that hasn't yet been resolved and the latter is used when an
+unsupported form of declaration is encountered.
 
-Scalar DataTypes
-----------------
+Scalar DataType
+---------------
 
 A Scalar datatype consists of an intrinsic and a precision.
 
@@ -220,13 +236,13 @@ and ``INTEGER_DOUBLE_TYPE``;
 ``REAL4_TYPE``, ``REAL8_TYPE``, ``INTEGER4_TYPE`` and
 ``INTEGER8_TYPE``.
 
-Array DataTypes
-----------------
+Array DataType
+--------------
 
-An Array datatype has a scalar datatype specifying the type of its
-elements and a shape. The shape can have an arbitrary number of
-dimensions. Each dimension captures what is known about its extent. It
-is necessary to distinguish between four cases:
+An Array datatype itself has another datatype (or TypeSymbol)
+specifying the type of its elements and a shape. The shape can have an
+arbitrary number of dimensions. Each dimension captures what is known
+about its extent. It is necessary to distinguish between four cases:
 
 .. tabularcolumns:: |p{9cm}|L|
 
@@ -254,17 +270,49 @@ yet been allocated any memory (for example the declaration of an
 allocatable array in Fortran) so the extents may have not been defined
 yet.
 
-For example::
+For example:
 
-   > array_type = ArrayType(REAL4_TYPE, [5, 10])
-   >
-   > n_var = DataSymbol("n", INTEGER_TYPE)
-   > array_type = ArrayType(INTEGER_TYPE, [n_var, n_var])
-   >
-   > array_type = ArrayType(REAL8_TYPE, [ArrayType.Extent.ATTRIBUTE,
-   >                                     ArrayType.Extent.ATTRIBUTE])
-   >
-   > array_type = ArrayType(LOGICAL_TYPE, [ArrayType.Extent.DEFERRED])
+.. code-block:: python
+
+   array_type = ArrayType(REAL4_TYPE, [5, 10])
+
+   n_var = DataSymbol("n", INTEGER_TYPE)
+   array_type = ArrayType(INTEGER_TYPE, [n_var, n_var])
+
+   array_type = ArrayType(REAL8_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                       ArrayType.Extent.ATTRIBUTE])
+
+   array_type = ArrayType(LOGICAL_TYPE, [ArrayType.Extent.DEFERRED])
+
+Structure Datatype
+------------------
+
+A Structure datatype consists of a dictionary of components where the
+name of each component is used as the corresponding key. Each component
+is stored as a named tuple with ``name``, ``datatype`` and ``visibility``
+members.
+
+For example:
+
+.. code-block:: python
+
+  # Shorthand for a scalar type with REAL_KIND precision
+  SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
+
+  # Structure-type definition
+  GRID_TYPE = StructureType.create([
+      ("dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC),
+      ("dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC)])
+
+  GRID_TYPE_SYMBOL = TypeSymbol("grid_type", GRID_TYPE)
+
+  # A structure-type containing other structure types
+  FIELD_TYPE_DEF = StructureType.create(
+      [("data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC),
+       ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC),
+       ("sub_meshes", ArrayType(GRID_TYPE_SYMBOL, [3]),
+        Symbol.Visibility.PUBLIC),
+       ("flag", INTEGER4_TYPE, Symbol.Visibility.PUBLIC)])
 
 Unknown DataType
 ----------------
@@ -294,12 +342,10 @@ from all symbol tables.
 The ``SymbolTable`` has the following interface:
 
 .. autoclass:: psyclone.psyir.symbols.SymbolTable
-    :members:
 
 Where each element is a ``Symbol`` with an immutable name:
 
 .. autoclass:: psyclone.psyir.symbols.Symbol
-    :members:
 
 There are several ``Symbol`` sub-classes to represent different
 labeled entities in the PSyIR. At the moment the available symbols
@@ -311,6 +357,9 @@ are:
 
 - .. autoclass:: psyclone.psyir.symbols.RoutineSymbol
 
+See the reference guide for the full API documentation of the
+`SymbolTable <https://psyclone-ref.readthedocs.io/en/latest/autogenerated/psyclone.psyir.symbols.html#psyclone.psyir.symbols.SymbolTable>`_ 
+and the `Symbol types <https://psyclone-ref.readthedocs.io/en/latest/autogenerated/psyclone.psyir.symbols.html#psyclone.psyir.symbols>`_.
 
 Creating PSyIR
 ==============
@@ -318,33 +367,34 @@ Creating PSyIR
 Symbol names
 ------------
 
-PSyIR symbol names can be specified by a user. For example::
+PSyIR symbol names can be specified by a user. For example:
 
-   > var_name = "my_name"
-   > symbol_table = SymbolTable()
-   > data = DataSymbol(var_name, REAL_TYPE)
-   > symbol_table.add(data)
-   > reference = Reference(data)
+.. code-block:: python
+
+   var_name = "my_name"
+   symbol_table = SymbolTable()
+   data = DataSymbol(var_name, REAL_TYPE)
+   symbol_table.add(data)
+   reference = Reference(data)
 
 However, the ``SymbolTable`` ``add()`` method will raise an exception if a
 user tries to add a symbol with the same name as a symbol already existing
-in the symbol table. Therefore it is the responsibility of the user to
-determine unique names when manually specifying them.
+in the symbol table.
 
-The ``SymbolTable`` class also provides the ``new_symbol_name()`` method (see
-Section :ref:`symbol-label` for more details) to avoid this
-problem. The method provides a name that is guaranteed to be distinct
-from any existing names in the symbol table. The name returned is the
-value of the ``PSYIR_ROOT_NAME`` variable specified in the ``DEFAULT``
+Alternatively, the ``SymbolTable`` also provides the ``new_symbol()`` method
+(see Section :ref:`symbol-label` for more details) that uses a new distinct
+name from any existing names in the symbol table. By default the generated
+name is the value ``PSYIR_ROOT_NAME`` variable specified in the ``DEFAULT``
 section of the PSyclone config file, followed by an optional "_" and
-an integer. For example, the following code::
+an integer. For example, the following code:
 
-  > from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL4_TYPE
-  > symbol_table = SymbolTable()
-  > for i in range(0, 3):
-  >     var_name = symbol_table.new_symbol_name()
-  >     symbol_table.add(DataSymbol(var_name, REAL4_TYPE))
-  >     print (var_name)
+.. code-block:: python
+
+  from psyclone.psyir.symbols import SymbolTable
+  symbol_table = SymbolTable()
+  for i in range(0, 3):
+      var_name = symbol_table.new_symbol().name
+      print(var_name)
 
 gives the following output::
   
@@ -362,16 +412,17 @@ PSyclone's config file it can be set to whatever the user wants.
 A user might want to create a name that has some meaning in the
 context in which it is used e.g. ``idx`` for an index, ``i`` for an
 iterator, or ``temp`` for a temperature field. To support more
-readable names, the ``new_symbol_name()`` method allows the user to specify a
+readable names, the ``new_symbol()`` method allows the user to specify a
 root name as an argument to the method which then takes the place of
-the default root name. For example, the following code::
+the default root name. For example, the following code:
   
-  > from psyclone.psyir.symbols import DataSymbol, SymbolTable, REAL_SINGLE_TYPE
-  > symbol_table = SymbolTable()
-  > for i in range(0, 3):
-  >     var_name = symbol_table.new_symbol_name(root_name="something")
-  >     symbol_table.add(DataSymbol(var_name, REAL_SINGLE_TYPE))
-  >     print (var_name)
+.. code-block:: python
+
+  from psyclone.psyir.symbols import SymbolTable
+  symbol_table = SymbolTable()
+  for i in range(0, 3):
+      var_name = symbol_table.new_symbol(root_name="something")
+      print(var_name)
 
 gives the following output::
   
@@ -379,7 +430,25 @@ gives the following output::
   something_0
   something_1
 
-An example of using the ``new_symbol_name()`` method can be found in the
+By default, ``new_symbol()`` creates generic symbols, but often the user
+will want to specify a Symbol subclass with some given parameters. The
+``new_symbol()`` method accepts a ``symbol_type`` parameter to specify the
+subclass.  Arguments for the constructor of that subclass may be supplied
+as keyword arguments. For example, the following code:
+ 
+.. code-block:: python
+
+  from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE
+  symbol_table = SymbolTable()
+  symbol_table.new_symbol(root_name="something",
+                          symbol_type=DataSymbol,
+                          datatype=REAL_TYPE,
+                          constant_value=3)
+
+declares a symbol named "something" of REAL_TYPE datatype where the
+constant_value argument will be passed to the DataSymbol constructor.
+
+An example of using the ``new_symbol()`` method can be found in the
 PSyclone ``examples/psyir`` directory.
 
 Nodes
@@ -389,15 +458,16 @@ PSyIR nodes are connected together via parent and child methods
 provided by the ``Node`` baseclass.
 
 These nodes can be created in isolation and then connected
-together. For example::
+together. For example:
 
-    > ...
-    > assignment = Assignment()
-    > literal = Literal("0.0", REAL_TYPE)
-    > reference = Reference(symbol)
-    > literal.parent = assignment
-    > reference.parent = assignment
-    > assignment.children = [reference, literal]
+.. code-block:: python
+
+    assignment = Assignment()
+    literal = Literal("0.0", REAL_TYPE)
+    reference = Reference(symbol)
+    literal.parent = assignment
+    reference.parent = assignment
+    assignment.children = [reference, literal]
     
 However, as connections get more complicated, creating the correct
 connections can become difficult to manage and error prone. Further,
@@ -407,12 +477,88 @@ in some cases children must be collected together within a
 To simplify this complexity, each of the Kernel-layer nodes which
 contain other nodes have a static ``create`` method which helps
 construct the PSyIR using a bottom up approach. Using this method, the
-above example then becomes::
+above example then becomes:
 
-    > ...
-    > literal = Literal("0.0", REAL_TYPE)
-    > reference = Reference(symbol)
-    > assignment = Assignment.create(reference, literal)
+.. code-block:: python
 
-A more complete example of using this approach can be found in the
-PSyclone ``examples/psyir`` directory.
+    literal = Literal("0.0", REAL_TYPE)
+    reference = Reference(symbol)
+    assignment = Assignment.create(reference, literal)
+
+Creating the PSyIR to represent a complicated access of a member of a
+structure is best performed using the ``create()`` method of the
+appropriate ``Reference`` subclass. For a relatively straightforward
+access such as (the Fortran) ``field1%region%nx``, this would be:
+
+.. code-block:: python
+
+  from psyclone.psyir.nodes import StructureReference
+  fld_sym = symbol_table.lookup("field1")
+  ref = StructureReference.create(fld_sym, ["region", "nx"])
+
+where ``symbol_table`` is assumed to be a pre-populated Symbol Table
+containing an entry for "field1".
+
+A more complicated access involving arrays of structures such as
+``field1%sub_grids(idx, 1)%nx`` would be constructed as:
+
+.. code-block:: python
+
+  from psyclone.psyir.symbols import INTEGER_TYPE
+  from psyclone.psyir.nodes import StructureReference, Reference, Literal
+  idx_sym = symbol_table.lookup("idx")
+  fld_sym = symbol_table.lookup("field1")
+  ref = StructureReference.create(fld_sym,
+      [("sub_grids", [Reference(idx_sym), Literal("1", INTEGER_TYPE)]),
+       "nx"])
+
+Note that the list of quantities passed to the ``create()`` method now
+contains a 2-tuple in order to describe the array access.
+
+More examples of using this approach can be found in the PSyclone
+``examples/psyir`` directory.
+
+
+Modifying the PSyIR
+===================
+
+Once we have a complete PSyIR AST there are 2 ways to modify its contents
+and/or structure: by applying transformations (see next section
+:ref:`transformations`), or by direct PSyIR API methods. This section
+describes some of the methods that the PSyIR classes provide to
+modify the PSyIR AST in a consistent way (e.g. without breaking its many
+internal references). Some complete examples of modifying the PSyIR can be found in the
+PSyclone ``examples/psyir/modify.py`` script.
+
+The rest of this section introduces examples of the available direct PSyIR
+modification methods.
+
+Renaming symbols
+-----------------
+The symbol table provides the method ``rename_symbol()`` that given a symbol
+and an unused name will rename the symbol. The symbol renaming will affect
+all the references in the PSyIR AST to that symbol. For example, the PSyIR
+representing the following Fortran code:
+
+.. code-block:: fortran
+
+    subroutine work(psyir_tmp)
+        real, intent(inout) :: psyir_tmp
+        psyir_tmp=0.0
+    end subroutine
+
+could be modified by the following PSyIR statements:
+
+.. code-block:: python
+
+    symbol = symbol_table.lookup("psyir_tmp")
+    symbol_table.rename_symbol(tmp_symbol, "new_variable")
+
+which would result in the following Fortran output code:
+
+.. code-block:: fortran
+
+    subroutine work(new_variable)
+        real, intent(inout) :: new_variable
+        new_variable=0.0
+    end subroutine

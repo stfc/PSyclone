@@ -44,11 +44,16 @@ from __future__ import absolute_import
 
 import pytest
 
+from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.psyir.nodes import ExtractNode
 from psyclone.psyGen import Loop
 from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import GOConstLoopBoundsTrans
+from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
+                                      ACCLoopTrans, GOConstLoopBoundsTrans,
+                                      GOceanOMPLoopTrans,
+                                      GOceanOMPParallelLoopTrans,
+                                      OMPParallelTrans)
 from psyclone.tests.utilities import get_invoke
 
 # API names
@@ -82,8 +87,8 @@ def ordered_lines_in_text(lines, text):
 def test_gocean_extract_trans():
     '''Tests basic functions in ExtractTrans.'''
     etrans = GOceanExtractTrans()
-    assert str(etrans) == "Create a sub-tree of the PSyIR that has " \
-                          "GOceanExtractNode at its root."
+    assert str(etrans) == "Create a sub-tree of the PSyIR that has a " \
+                          "node of type GOceanExtractNode at its root."
     assert etrans.name == "GOceanExtractTrans"
 
 
@@ -100,8 +105,9 @@ def test_kern_builtin_no_loop():
     kernel_call = schedule.children[0].loop_body[0].loop_body[0]
     with pytest.raises(TransformationError) as excinfo:
         _, _ = gocetrans.apply(kernel_call)
-    assert ("Extraction of a Kernel or a Built-in call without its "
-            "parent Loop is not allowed.") in str(excinfo.value)
+    assert "Error in GOceanExtractTrans: Application to a Kernel or a " \
+           "Built-in call without its parent Loop is not allowed." \
+           in str(excinfo.value)
 
 
 # -----------------------------------------------------------------------------
@@ -117,8 +123,9 @@ def test_no_outer_loop_gocean1p0():
     inner_loop = schedule[0].loop_body
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(inner_loop)
-    assert ("GOcean1.0 API: Extraction of an inner Loop without its "
-            "ancestor outer Loop is not allowed.") in str(excinfo.value)
+    assert "Error in GOceanExtractTrans: Application to an inner Loop " \
+           "without its ancestor outer Loop is not allowed." \
+           in str(excinfo.value)
 
 
 # -----------------------------------------------------------------------------
@@ -126,8 +133,6 @@ def test_no_parent_accdirective():
     ''' Test that applying Extract Transformation on an orphaned
     ACCLoopDirective without its ancestor ACCParallelDirective
     when optimisations are applied raises a TransformationError. '''
-    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans, \
-        ACCLoopTrans
 
     etrans = GOceanExtractTrans()
     acclpt = ACCLoopTrans()
@@ -150,8 +155,9 @@ def test_no_parent_accdirective():
     orphaned_directive = schedule.children[1].children[0]
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(orphaned_directive)
-    assert ("Extraction of Nodes enclosed within a thread-parallel "
-            "region is not allowed.") in str(excinfo.value)
+    assert "Error in GOceanExtractTrans: Application to Nodes enclosed " \
+           "within a thread-parallel region is not allowed." \
+           in str(excinfo.value)
 
 # --------------------------------------------------------------------------- #
 # ================== ExtractNode tests ====================================== #
@@ -189,7 +195,6 @@ def test_single_node_ompparalleldo_gocean1p0():
     ''' Test that applying Extract Transformation on a Node enclosed
     within an OMP Parallel DO Directive produces the correct result
     in GOcean1.0 API. '''
-    from psyclone.transformations import GOceanOMPParallelLoopTrans
 
     etrans = GOceanExtractTrans()
     otrans = GOceanOMPParallelLoopTrans()
@@ -244,7 +249,6 @@ def test_node_list_ompparallel_gocean1p0():
     ''' Test that applying Extract Transformation on a list of Nodes
     enclosed within an OMP Parallel Region produces the correct result
     in GOcean1.0 API. '''
-    from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
 
     etrans = GOceanExtractTrans()
     ltrans = GOceanOMPLoopTrans()
@@ -712,7 +716,6 @@ def test_change_prefix(tmpdir, monkeypatch):
 
     # In order to use a different prefix, this prefix needs to be valid.
     # So monkeypatch the valid prefix names in the config object:
-    from psyclone.configuration import Config
     config = Config.get()
     monkeypatch.setattr(config, "_valid_psy_data_prefixes", ["NEW"])
 

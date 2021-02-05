@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -71,11 +71,17 @@ def test_kernel_stub_invalid_iteration_space():
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
-    assert ("DynKern.gen_stub(): Expected one of ['cells'] as iteration "
-            "space but found 'dofs' in kernel 'testkern_dofs_code'."
-            in str(excinfo.value))
+    assert ("supports kernels that operate on one of "
+            "['cells', 'cell_column'] but found 'dof' in kernel "
+            "'testkern_dofs_code'." in str(excinfo.value))
+    kernel._iterates_over = "domain"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = kernel.gen_stub
+    assert ("supports kernels that operate on one of "
+            "['cells', 'cell_column'] but found 'domain' in kernel "
+            "'testkern_dofs_code'." in str(excinfo.value))
 
 
 def test_dynscalars_stub_err():
@@ -95,10 +101,10 @@ def test_dynscalars_stub_err():
     arg = kernel.arguments.args[1]
     arg._intrinsic_type = "invalid-scalar-type"
     with pytest.raises(InternalError) as err:
-        _ = DynScalarArgs(kernel)
-    assert ("DynScalarArgs.__init__(): Found an unsupported intrinsic type "
-            "'invalid-scalar-type' for the scalar argument 'iscalar_2'. "
-            "Supported types are ['real', 'integer']." in str(err.value))
+        DynScalarArgs(kernel)
+    assert ("Found an unsupported intrinsic type 'invalid-scalar-type' "
+            "for the scalar argument 'iscalar_2'. Supported types are "
+            "['real', 'integer']." in str(err.value))
 
 
 def test_stub_generate_with_anyw2():
@@ -214,12 +220,12 @@ def test_stub_generate_with_scalar_sums():
 INTENT = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =            &
-          (/ arg_type(gh_field, gh_write, w3), &
-             arg_type(gh_field, gh_inc,   w1), &
-             arg_type(gh_field, gh_read,  w1)  &
+     type(arg_type), meta_args(3) =                     &
+          (/ arg_type(gh_field, gh_real, gh_write, w3), &
+             arg_type(gh_field, gh_real, gh_inc,   w1), &
+             arg_type(gh_field, gh_real, gh_read,  w1)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -282,21 +288,21 @@ def test_intent():
 SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(12) =                 &
-          (/ arg_type(gh_field, gh_inc,   w0),       &
-             arg_type(gh_field, gh_inc,   w1),       &
-             arg_type(gh_field, gh_inc,   w2),       &
-             arg_type(gh_field, gh_write, w2broken), &
-             arg_type(gh_field, gh_inc,   w2trace),  &
-             arg_type(gh_field, gh_write, w3),       &
-             arg_type(gh_field, gh_write, wtheta),   &
-             arg_type(gh_field, gh_inc,   w2h),      &
-             arg_type(gh_field, gh_write, w2v),      &
-             arg_type(gh_field, gh_inc,   w2htrace), &
-             arg_type(gh_field, gh_write, w2vtrace), &
-             arg_type(gh_field, gh_read,  wchi)      &
+     type(arg_type), meta_args(12) =                          &
+          (/ arg_type(gh_field, gh_real, gh_inc,   w0),       &
+             arg_type(gh_field, gh_real, gh_inc,   w1),       &
+             arg_type(gh_field, gh_real, gh_inc,   w2),       &
+             arg_type(gh_field, gh_real, gh_write, w2broken), &
+             arg_type(gh_field, gh_real, gh_inc,   w2trace),  &
+             arg_type(gh_field, gh_real, gh_write, w3),       &
+             arg_type(gh_field, gh_real, gh_write, wtheta),   &
+             arg_type(gh_field, gh_real, gh_inc,   w2h),      &
+             arg_type(gh_field, gh_real, gh_write, w2v),      &
+             arg_type(gh_field, gh_real, gh_inc,   w2htrace), &
+             arg_type(gh_field, gh_real, gh_write, w2vtrace), &
+             arg_type(gh_field, gh_real, gh_read,  wchi)      &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -401,12 +407,14 @@ def test_spaces():
 ANY_SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =                                       &
-          (/ arg_type(gh_field, gh_read,      any_discontinuous_space_1), &
-             arg_type(gh_field, gh_inc,       any_space_7),               &
-             arg_type(gh_field, gh_readwrite, any_discontinuous_space_4)  &
+     type(arg_type), meta_args(3) =                                  &
+          (/ arg_type(gh_field, gh_real, gh_read,                    &
+                                         any_discontinuous_space_1), &
+             arg_type(gh_field, gh_real, gh_inc,       any_space_7), &
+             arg_type(gh_field, gh_real, gh_readwrite,               &
+                                         any_discontinuous_space_4)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -465,10 +473,10 @@ def test_any_spaces():
 VECTORS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =           &
-          (/ arg_type(gh_field*3, gh_inc, w0) &
+     type(arg_type), meta_args(1) =                    &
+          (/ arg_type(gh_field*3, gh_real, gh_inc, w0) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -524,62 +532,6 @@ def test_arg_descriptor_vec_str():
         "  access_descriptor[2]='gh_inc'\n"
         "  function_space[3]='w0'")
     assert expected_output in result
-
-
-# Orientation : spaces
-ORIENTATION_OUTPUT = (
-    "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
-    "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
-    "undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, "
-    "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3)\n"
-    "      USE constants_mod, ONLY: r_def, i_def\n"
-    "      IMPLICIT NONE\n"
-    "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-    "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
-    "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
-    "      INTEGER(KIND=i_def), intent(in) :: "
-    "undf_w0, ndf_w1, undf_w2, ndf_w3\n"
-    "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
-    "field_1_w0\n"
-    "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-    "field_3_w2\n"
-    "      INTEGER(KIND=i_def), intent(in) :: cell\n"
-    "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
-    "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
-    "op_2_ncell_3d) :: op_2\n"
-    "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
-    "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
-    "op_4_ncell_3d) :: op_4\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: "
-    "orientation_w0\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: "
-    "orientation_w1\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: "
-    "orientation_w2\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: "
-    "orientation_w3\n"
-    "    END SUBROUTINE dummy_orientation_code\n"
-    "  END MODULE dummy_orientation_mod")
-
-
-def test_orientation_stubs():
-    ''' Test that orientation is handled correctly for kernel
-    stubs '''
-    # Read-in the meta-data from file (it's in a file because it's also
-    # used when testing the genkernelstub script from the command
-    # line).
-    with open(os.path.join(BASE_PATH, "dummy_orientation_mod.f90"),
-              "r") as myfile:
-        orientation = myfile.read()
-
-    ast = fpapi.parse(orientation, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    generated_code = kernel.gen_stub
-    assert ORIENTATION_OUTPUT in str(generated_code)
 
 
 def test_enforce_bc_kernel_stub_gen():
@@ -739,10 +691,10 @@ def test_qr_plus_eval_stub_gen():
 SUB_NAME = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =         &
-          (/ arg_type(gh_field, gh_inc, w1) &
+     type(arg_type), meta_args(1) =                  &
+          (/ arg_type(gh_field, gh_real, gh_inc, w1) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy
   end type dummy_type
@@ -806,10 +758,10 @@ def test_kernel_stub_gen_cmd_line():
     # We use the Popen constructor here rather than check_output because
     # the latter is only available in Python 2.7 onwards.
     out = Popen(["genkernelstub",
-                 os.path.join(BASE_PATH, "dummy_orientation_mod.f90")],
+                 os.path.join(BASE_PATH, "simple_with_scalars.f90")],
                 stdout=PIPE).communicate()[0]
 
-    assert ORIENTATION_OUTPUT in out.decode('utf-8')
+    assert SIMPLE_WITH_SCALARS in out.decode('utf-8')
 
 
 def test_stub_stencil_extent():

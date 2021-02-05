@@ -40,7 +40,7 @@
 from __future__ import print_function, absolute_import
 import pytest
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import Node, Reference, Array
+from psyclone.psyir.nodes import Node, Reference, ArrayReference
 from psyclone.psyir.symbols import DataSymbol, ArrayType, REAL_TYPE
 
 
@@ -257,7 +257,7 @@ def test_psyirvisitor_visit_return_node():
         _ = test_visitor(return_node)
     assert ("Visitor Error: Unsupported node 'Return' found: method names "
             "attempted were ['return_node', 'statement_node', 'node_node']."
-            ""in str(excinfo.value))
+            in str(excinfo.value))
 
 
 def test_reference():
@@ -271,9 +271,9 @@ def test_reference():
     result = test_visitor(reference)
     assert result == "a"
 
-    # Generate PSyIR Array
-    reference2 = Array.create(DataSymbol('b', ArrayType(REAL_TYPE, shape=[1])),
-                              [reference])
+    # Generate PSyIR ArrayReference
+    reference2 = ArrayReference.create(
+        DataSymbol('b', ArrayType(REAL_TYPE, shape=[1])), [reference])
     with pytest.raises(VisitorError) as err:
         result = test_visitor(reference2)
     assert "Expecting a Reference with no children but found: " \

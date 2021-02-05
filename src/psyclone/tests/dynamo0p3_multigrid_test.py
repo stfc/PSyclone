@@ -67,11 +67,11 @@ RESTRICT_MDATA = '''
 module restrict_mod
 type, public, extends(kernel_type) :: restrict_kernel_type
    private
-   type(arg_type) :: meta_args(2) = (/                               &
-       arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1, mesh_arg=GH_COARSE), &
-       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, mesh_arg=GH_FINE  )  &
+   type(arg_type) :: meta_args(2) = (/                                        &
+       arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_1, mesh_arg=GH_COARSE), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2, mesh_arg=GH_FINE  )  &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = cell_column
 contains
   procedure, nopass :: restrict_kernel_code
 end type restrict_kernel_type
@@ -153,11 +153,11 @@ def test_all_fields_have_mesh():
     arguments are missing a mesh specifier '''
     # Add a field argument that is missing a mesh_arg specifier
     code = RESTRICT_MDATA.replace(
-        "       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, "
+        "       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2, "
         "mesh_arg=GH_FINE  )  &",
-        "       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, "
+        "       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2, "
         "mesh_arg=GH_FINE  ), &\n"
-        "       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2) &\n", 1)
+        "       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2) &\n", 1)
     code = code.replace("(2)", "(3)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
@@ -193,9 +193,9 @@ def test_only_field_args():
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Add a scalar argument to the kernel
     code = RESTRICT_MDATA.replace(
-        "       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, "
+        "       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2, "
         "mesh_arg=GH_FINE  )  &",
-        "       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, "
+        "       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2, "
         "mesh_arg=GH_FINE  ),  &\n"
         "       arg_type(GH_SCALAR, GH_REAL, GH_READ) &", 1)
     code = code.replace("(2)", "(3)", 1)

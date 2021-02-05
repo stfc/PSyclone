@@ -40,7 +40,8 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import ScalarType, ArrayType, DataSymbol, \
     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE
-from psyclone.psyir.nodes import Range, Literal, Reference, Node
+from psyclone.psyir.nodes import Range, Literal, Reference, Node, \
+    ArrayReference
 from psyclone.errors import InternalError, GenerationError
 
 
@@ -145,8 +146,7 @@ def test_range_literals_props():
 def test_range_references_props():
     ''' Test that the properties of a Range return what we expect
     when the start, stop and step are references or expressions. '''
-    from psyclone.psyGen import KernelSchedule
-    from psyclone.psyir.nodes import BinaryOperation
+    from psyclone.psyir.nodes import BinaryOperation, KernelSchedule
     sched = KernelSchedule("test_sched")
     sym_table = sched.symbol_table
     start_symbol = DataSymbol("istart", INTEGER_SINGLE_TYPE)
@@ -220,15 +220,14 @@ def test_range_str():
 def test_range_view(capsys):
     ''' Check that calling view() on an array with a child Range works
     as expected. '''
-    from psyclone.psyir.nodes import Array
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     # Create the PSyIR for 'my_array(1, 1:10)'
     erange = Range.create(Literal("1", INTEGER_SINGLE_TYPE),
                           Literal("10", INTEGER_SINGLE_TYPE))
     array_type = ArrayType(REAL_SINGLE_TYPE, [10, 10])
-    array = Array.create(DataSymbol("my_array", array_type),
-                         [Literal("1", INTEGER_SINGLE_TYPE),
-                          erange])
+    array = ArrayReference.create(DataSymbol("my_array", array_type),
+                                  [Literal("1", INTEGER_SINGLE_TYPE),
+                                   erange])
     array.view()
     stdout, _ = capsys.readouterr()
     arrayref = colored("ArrayReference",

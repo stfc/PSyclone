@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2020, Science and Technology Facilities Council
+.. Copyright (c) 2017-2021, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -171,8 +171,6 @@ generation from the ``<PSYCLONEHOME>/src/psyclone`` directory):
     tests/test_files/dynamo0p3/testkern_coord_w0_mod.F90
     tests/test_files/dynamo0p3/testkern_operator_mod.f90
     tests/test_files/dynamo0p3/testkern_operator_nofield_mod.f90
-    tests/test_files/dynamo0p3/testkern_orientation_mod.F90
-    tests/test_files/dynamo0p3/testkern_operator_orient_mod.f90
     tests/test_files/dynamo0p3/ru_kernel_mod.f90
     tests/test_files/dynamo0p3/simple.f90
 
@@ -197,8 +195,8 @@ is shown below:
 
     type, extends(kernel_type) :: simple_type
       type(arg_type), dimension(1) :: meta_args = &
-           (/ arg_type(gh_field, gh_inc, w1) /)
-      integer :: iterates_over = cells
+           (/ arg_type(gh_field, gh_real, gh_inc, w1) /)
+      integer :: operates_on = cell_column
     contains
       procedure, nopass :: code => simple_code
     end type simple_type
@@ -302,19 +300,19 @@ Kernel, excluding the subroutine body, is given below.
   type, public, extends(kernel_type) :: ru_kernel_type
     private
     type(arg_type) :: meta_args(6) = (/                                  &
-         arg_type(GH_FIELD,               GH_INC,  W2),                  &
-         arg_type(GH_FIELD,               GH_READ, W3),                  &
+         arg_type(GH_FIELD,   GH_REAL,    GH_INC,  W2),                  &
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ, W3),                  &
          arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                      &
          arg_type(GH_SCALAR,  GH_REAL,    GH_READ),                      &
-         arg_type(GH_FIELD,               GH_READ, W0),                  &
-         arg_type(GH_FIELD*3,             GH_READ, W0)                   &
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ, W0),                  &
+         arg_type(GH_FIELD*3, GH_REAL,    GH_READ, W0)                   &
          /)
     type(func_type) :: meta_funcs(3) = (/                                &
          func_type(W2, GH_BASIS, GH_DIFF_BASIS),                         &
          func_type(W3, GH_BASIS),                                        &
          func_type(W0, GH_BASIS, GH_DIFF_BASIS)                          &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
     procedure, nopass :: ru_code
@@ -329,13 +327,11 @@ Kernel, excluding the subroutine body, is given below.
 
   end module ru_kernel_mod
 
-If we run the kernel stub generator on this example:
-::
+If we run the kernel stub generator on this example::
 
   > genkernelstub tests/test_files/dynamo0p3/ru_kernel_mod.f90
 
-we obtain the following output:
-::
+we obtain the following output::
 
    MODULE ru_mod
     IMPLICIT NONE
@@ -431,8 +427,8 @@ appropriate errors. Two examples are below:
     Error: 'Parse Error: Kernel type testkern_type does not exist'
 
 ``testkern_dofs_mod.f90`` is an example with an unsupported feature, as the
-``iterates_over`` metadata specifies ``dofs``. Currently only kernels with
-``iterates_over=CELLS`` are supported by the stub generator.
+``operates_on`` metadata specifies ``dof``. Currently only kernels with
+``operates_on=CELL_COLUMN`` are supported by the stub generator.
 
 Generic function space metadata ``any_space`` and ``any_discontinuous_space``
 (see Section :ref:`Supported Function Spaces <dynamo0.3-function-space>`

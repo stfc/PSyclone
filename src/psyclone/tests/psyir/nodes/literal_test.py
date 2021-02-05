@@ -44,6 +44,7 @@ from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import ScalarType, ArrayType, \
     REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
 
 def test_literal_init():
@@ -57,7 +58,19 @@ def test_literal_init():
     assert isinstance(literal.datatype, ArrayType)
     assert literal.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert literal.datatype.precision == ScalarType.Precision.DOUBLE
-    assert literal.datatype.shape == [10, 10]
+    assert len(literal.datatype.shape) == 2
+    assert isinstance(literal.datatype.shape[0], Literal)
+    assert literal.datatype.shape[0].value == '10'
+    assert (literal.datatype.shape[0].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (literal.datatype.shape[0].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
+    assert isinstance(literal.datatype.shape[1], Literal)
+    assert literal.datatype.shape[1].value == '10'
+    assert (literal.datatype.shape[1].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (literal.datatype.shape[1].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
 
     literal = Literal("true", BOOLEAN_TYPE)
     assert literal.value == "true"
@@ -146,8 +159,6 @@ def test_literal_value():
 
 def test_literal_node_str():
     ''' Check the node_str method of the Literal class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-
     # scalar literal
     literal = Literal("1", INTEGER_SINGLE_TYPE)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
@@ -159,7 +170,9 @@ def test_literal_node_str():
     literal = Literal("1", array_type)
     coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
     assert (coloredtext+"[value:'1', Array<Scalar<REAL, DOUBLE>, "
-            "shape=[10, 10]>]" in literal.node_str())
+            "shape=[Literal[value:'10', Scalar<INTEGER, UNDEFINED>], "
+            "Literal[value:'10', Scalar<INTEGER, UNDEFINED>]]>]"
+            in literal.node_str())
 
 
 def test_literal_can_be_printed():
@@ -168,7 +181,9 @@ def test_literal_can_be_printed():
     array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
     literal = Literal("1", array_type)
     assert ("Literal[value:'1', Array<Scalar<REAL, DOUBLE>, "
-            "shape=[10, 10]>]" in str(literal))
+            "shape=[Literal[value:'10', Scalar<INTEGER, UNDEFINED>], "
+            "Literal[value:'10', Scalar<INTEGER, UNDEFINED>]]>]"
+            in str(literal))
 
 
 def test_literal_children_validation():

@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,10 @@
 module conservative_flux_kernel_mod
 
 use constants_mod,     only : r_def, i_def
-use argument_mod,      only : arg_type, GH_FIELD, &
-                              GH_INC, GH_READ,    &
-                              STENCIL, XORY1D, CELLS
+use argument_mod,      only : arg_type,          &
+                              GH_FIELD, GH_REAL, &
+                              GH_INC, GH_READ,   &
+                              STENCIL, XORY1D, CELL_COLUMN
 use fs_continuity_mod, only : W2, W3
 use kernel_mod,        only : kernel_type
 
@@ -61,15 +62,15 @@ private
 type, public, extends(kernel_type) :: conservative_flux_kernel_type
   private
   type(arg_type) :: meta_args(7) = (/                                  &
-       arg_type(GH_FIELD,   GH_INC,   W2),                             &
-       arg_type(GH_FIELD,   GH_READ,  W2),                             &
-       arg_type(GH_FIELD,   GH_READ,  W2),                             &
-       arg_type(GH_FIELD,   GH_READ,  W3, STENCIL(XORY1D)),            &
-       arg_type(GH_FIELD,   GH_READ,  W3, STENCIL(XORY1D)),            &
-       arg_type(GH_FIELD,   GH_READ,  W3, STENCIL(XORY1D)),            &
-       arg_type(GH_FIELD,   GH_READ,  W3, STENCIL(XORY1D))             &
+       arg_type(GH_FIELD,  GH_REAL,  GH_INC,   W2),                    &
+       arg_type(GH_FIELD,  GH_REAL,  GH_READ,  W2),                    &
+       arg_type(GH_FIELD,  GH_REAL,  GH_READ,  W2),                    &
+       arg_type(GH_FIELD,  GH_REAL,  GH_READ,  W3, STENCIL(XORY1D)),   &
+       arg_type(GH_FIELD,  GH_REAL,  GH_READ,  W3, STENCIL(XORY1D)),   &
+       arg_type(GH_FIELD,  GH_REAL,  GH_READ,  W3, STENCIL(XORY1D)),   &
+       arg_type(GH_FIELD,  GH_REAL,  GH_READ,  W3, STENCIL(XORY1D))    &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: conservative_flux_code
 end type
@@ -82,24 +83,32 @@ public conservative_flux_code
 contains
 
 !> @brief Computes the fluxes for the split advection scheme
-!! @param[in] nlayers Integer the number of layers
-!! @param[in] undf_w3 Integer the number of unique degrees of freedom
-!! @param[in] ndf_w3 Integer the number of degrees of freedom per cell
-!! @param[in] map_w3 Integer array holding the dofmap for the cell at the base of the column
-!! @param[in] rho Real array, the density values in W3
-!! @param[in] a0_coeffs Real array, the coefficients for the subgrid approximation of density
-!! @param[in] a1_coeffs Real array, the coefficients for the subgrid approximation of density
-!! @param[in] a2_coeffs Real array, the coefficients for the subgrid approximation of density
-!! @param[in] undf_w2 Integer, the number of unique degrees of freedom
-!! @param[in] ndf_w2 Integer, the number of degrees of freedom per cell
-!! @param[in] map_w2 Integer array holding the dofmap for the cell at the base of the column
-!! @param[in,out] flux Real array, the flux values which are calculated
-!! @param[in] dep_pts Real array, the departure points
-!! @param[in] u_piola Real array, the Piola winds
-!! @param[in] stencil_length Integer The length of the 1D stencil
-!! @param[in] stencil_map Integer array holding the dofmaps for the stencil
-!! @param[in] direction Integer the direction in which to calculate the fluxes
-
+!! @param[in] nlayers Number of layers
+!! @param[in,out] flux Flux values which are calculated
+!! @param[in] dep_pts Departure points
+!! @param[in] u_piola Piola winds
+!! @param[in] rho Density values in W3
+!! @param[in] rho_stencil_length Length of the 1D stencil for density
+!! @param[in] rho_direction Direction in which to calculate the fluxes for density
+!! @param[in] rho_stencil_map Dofmaps for the stencil for density
+!! @param[in] a0_coeffs Coefficients for the subgrid approximation of density
+!! @param[in] a0_stencil_length Length of the 1D stencil for a0
+!! @param[in] a0_direction Direction in which to calculate the fluxes for a0
+!! @param[in] a0_stencil_map Dofmaps for the stencil for a0
+!! @param[in] a1_coeffs Coefficients for the subgrid approximation of density
+!! @param[in] a1_stencil_length Length of the 1D stencil for a1
+!! @param[in] a1_direction Direction in which to calculate the fluxes for a1
+!! @param[in] a1_stencil_map Dofmaps for the stencil for a1
+!! @param[in] a2_coeffs Coefficients for the subgrid approximation of density
+!! @param[in] a2_stencil_length Length of the 1D stencil for a2
+!! @param[in] a2_direction Direction in which to calculate the fluxes for a2
+!! @param[in] a2_stencil_map Dofmaps for the stencil for a2
+!! @param[in] ndf_w2 Number of degrees of freedom per cell
+!! @param[in] undf_w2 Number of unique degrees of freedom
+!! @param[in] map_w2 Dofmap for the cell at the base of the column
+!! @param[in] ndf_w3 Number of degrees of freedom per cell
+!! @param[in] undf_w3 Number of unique degrees of freedom
+!! @param[in] map_w3 Dofmap for the cell at the base of the column
 subroutine conservative_flux_code( nlayers,              &
                                    flux,                 &
                                    dep_pts,              &

@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,7 @@ use argument_mod,            only : arg_type, func_type,                 &
                                     GH_READ, GH_WRITE,                   &
                                     ANY_DISCONTINUOUS_SPACE_1,           &
                                     ANY_DISCONTINUOUS_SPACE_2,           &
-                                    GH_COLUMN_BANDED_DOFMAP,             &
-                                    CELLS 
+                                    CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
 
@@ -61,6 +60,7 @@ private
 ! Public types
 !-------------------------------------------------------------------------------
 
+! TODO #874 change this metadata to include data type
 type, public, extends(kernel_type) :: columnwise_op_asm_kernel_type
   private
   type(arg_type) :: meta_args(2) = (/                                         &
@@ -69,7 +69,7 @@ type, public, extends(kernel_type) :: columnwise_op_asm_kernel_type
        arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1,  &
                                                   ANY_DISCONTINUOUS_SPACE_2)  &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: columnwise_op_asm_kernel_code
 end type
@@ -83,7 +83,7 @@ contains
 
   !> @brief The subroutine which is called directly from the PSy layer and
   !> assembles the LMA into a CMA
-  !> @detail Given an LMA representation of the operator mapping between two
+  !> @details Given an LMA representation of the operator mapping between two
   !> horizontally discontinuous spaces, assemble the columnwise matrix
   !> representation of the operator.
   !>

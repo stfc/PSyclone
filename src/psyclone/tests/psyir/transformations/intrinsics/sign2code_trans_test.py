@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the sign2code transformation.'''
 
@@ -41,9 +41,8 @@ from psyclone.psyir.transformations import Sign2CodeTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
     ArgumentInterface, REAL_TYPE
 from psyclone.psyir.nodes import Reference, BinaryOperation, Assignment, \
-    Literal
+    Literal, KernelSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyGen import KernelSchedule
 from psyclone.configuration import Config
 from psyclone.tests.utilities import Compile
 
@@ -74,17 +73,13 @@ def example_psyir(create_expression):
 
     '''
     symbol_table = SymbolTable()
-    name1 = symbol_table.new_symbol_name("arg")
-    arg1 = DataSymbol(name1, REAL_TYPE, interface=ArgumentInterface(
-        ArgumentInterface.Access.READWRITE))
-    symbol_table.add(arg1)
-    name2 = symbol_table.new_symbol_name("arg")
-    arg2 = DataSymbol(name2, REAL_TYPE, interface=ArgumentInterface(
-        ArgumentInterface.Access.READWRITE))
-    symbol_table.add(arg2)
-    name3 = symbol_table.new_symbol_name()
-    arg3 = DataSymbol(name3, REAL_TYPE)
-    symbol_table.add(arg3)
+    arg1 = symbol_table.new_symbol(
+        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
+    arg2 = symbol_table.new_symbol(
+        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
+    arg3 = symbol_table.new_symbol(symbol_type=DataSymbol, datatype=REAL_TYPE)
     symbol_table.specify_argument_list([arg1, arg2])
     var1 = Reference(arg1)
     var2 = Reference(arg2)

@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,8 @@ use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type,                                   &
                                     GH_REAL, GH_COLUMNWISE_OPERATOR, GH_SCALAR, &
                                     GH_READ, GH_WRITE, GH_READWRITE,            &
-                                    ANY_SPACE_1, ANY_SPACE_2, ANY_SPACE_3, CELLS 
+                                    ANY_SPACE_1, ANY_SPACE_2, ANY_SPACE_3,      &
+                                    CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
 
@@ -65,13 +66,13 @@ private
 type, public, extends(kernel_type) :: columnwise_op_mul_2scalars_kernel_type
    private
   type(arg_type) :: meta_args(5) = (/                                                     &
-       arg_type(GH_COLUMNWISE_OPERATOR,          GH_READ,      ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ,      ANY_SPACE_1, ANY_SPACE_2), &
        arg_type(GH_SCALAR,              GH_REAL, GH_READ),                                &
-       arg_type(GH_COLUMNWISE_OPERATOR,          GH_READ,      ANY_SPACE_2, ANY_SPACE_3), &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ,      ANY_SPACE_2, ANY_SPACE_3), &
        arg_type(GH_SCALAR,              GH_REAL, GH_READ),                                &
-       arg_type(GH_COLUMNWISE_OPERATOR,          GH_READWRITE, ANY_SPACE_1, ANY_SPACE_3)  &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_3)  &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: columnwise_op_mul_2scalars_kernel_code
 end type columnwise_op_mul_2scalars_kernel_type

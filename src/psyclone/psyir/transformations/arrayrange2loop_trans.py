@@ -45,8 +45,8 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-from psyclone.psyir.nodes import Loop, Range, Reference, Array, Assignment, \
-    Node, Operation, BinaryOperation
+from psyclone.psyir.nodes import Loop, Range, Reference, ArrayReference, \
+    Assignment, Node, Operation, BinaryOperation
 
 
 class ArrayRange2LoopTrans(Transformation):
@@ -118,11 +118,11 @@ class ArrayRange2LoopTrans(Transformation):
         would raise a runtime exception if this were not the case).
 
         :param array1: an array node containing a range node at index idx1.
-        :type array1: py:class:`psyclone.psyir.node.Array`
+        :type array1: py:class:`psyclone.psyir.node.ArrayReference`
         :param int idx1: an index indicating the location of a range \
             node in array1 (in its children list).
         :param array2: an array node containing a range node at index idx2.
-        :type array2: py:class:`psyclone.psyir.node.Array`
+        :type array2: py:class:`psyclone.psyir.node.ArrayReference`
         :param int idx2: an index indicating the location of a range \
             node in array2 (in its children list).
 
@@ -134,18 +134,20 @@ class ArrayRange2LoopTrans(Transformation):
             wrong type.
 
         '''
-        if not isinstance(array1, Array):
+        if not isinstance(array1, ArrayReference):
             raise TypeError(
                 "The first argument to the same_range() method should be an "
-                "Array but found '{0}'.".format(type(array1).__name__))
+                "ArrayReference but found '{0}'.".format(
+                    type(array1).__name__))
         if not isinstance(idx1, int):
             raise TypeError(
                 "The second argument to the same_range() method should be an "
                 "int but found '{0}'.".format(type(idx1).__name__))
-        if not isinstance(array2, Array):
+        if not isinstance(array2, ArrayReference):
             raise TypeError(
                 "The third argument to the same_range() method should be an "
-                "Array but found '{0}'.".format(type(array2).__name__))
+                "ArrayReference but found '{0}'.".format(
+                    type(array2).__name__))
         if not isinstance(idx2, int):
             raise TypeError(
                 "The fourth argument to the same_range() method should be an "
@@ -248,33 +250,32 @@ class ArrayRange2LoopTrans(Transformation):
 
         parent = node.parent
         symbol_table = node.scope.symbol_table
-        loop_variable_name = symbol_table.new_symbol_name(root_name="idx")
-        loop_variable_symbol = DataSymbol(loop_variable_name, INTEGER_TYPE)
-        symbol_table.add(loop_variable_symbol)
+        loop_variable = symbol_table.new_symbol("idx", symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE)
 
         # Replace the rightmost range found in all arrays with the
         # iterator and use the range from the LHS range for the loop
         # iteration space.
-        for array in node.walk(Array):
+        for array in node.walk(ArrayReference):
             for idx, child in reversed(list(enumerate(array.children))):
                 if isinstance(child, Range):
                     if array is node.lhs:
                         # Save this range to determine indexing
                         lhs_range = child
                     array.children[idx] = Reference(
-                        loop_variable_symbol, parent=array)
+                        loop_variable, parent=array)
                     break
         position = node.position
         # Issue #806: If Loop bounds were a Range we would just
         # need to provide the range node which would be simpler.
-        loop = Loop.create(loop_variable_symbol, lhs_range.children[0],
+        loop = Loop.create(loop_variable, lhs_range.children[0],
                            lhs_range.children[1], lhs_range.children[2],
                            [node])
         parent.children[position] = loop
         loop.parent = parent
 
     def __str__(self):
-        return ("Convert a PSyIR assignment to an Array Range into a "
+        return ("Convert a PSyIR assignment to an array Range into a "
                 "PSyIR Loop.")
 
     @property
@@ -296,10 +297,10 @@ class ArrayRange2LoopTrans(Transformation):
         :raises TransformationError: if the node argument is not an \
             Assignment.
         :raises TransformationError: if the node argument is an \
-            Assignment whose left had side is not an Array.
+            Assignment whose left hand side is not an ArrayReference.
         :raises TransformationError: if the node argument is an \
-            Assignment whose left hand side is an Array that does not \
-            have Range specifying the access to at least one of its \
+            Assignment whose left hand side is an ArrayReference that does \
+            not have Range specifying the access to at least one of its \
             dimensions.
         :raises TransformationError: if two or more of the loop ranges \
             in the assignment are different or are not known to be the \
@@ -312,18 +313,18 @@ class ArrayRange2LoopTrans(Transformation):
                 "should be a PSyIR Assignment, but found '{1}'."
                 "".format(self.name, type(node).__name__))
 
-        if not isinstance(node.lhs, Array):
+        if not isinstance(node.lhs, ArrayReference):
             raise TransformationError(
                 "Error in {0} transformation. The lhs of the supplied "
-                "Assignment node should be a PSyIR Array, but found '{1}'."
-                "".format(self.name, type(node.lhs).__name__))
+                "Assignment node should be a PSyIR ArrayReference, but "
+                "found '{1}'.".format(self.name, type(node.lhs).__name__))
 
         if not [dim for dim in node.lhs.children if isinstance(dim, Range)]:
             raise TransformationError(
                 "Error in {0} transformation. The lhs of the supplied "
-                "Assignment node should be a PSyIR Array with at least one "
-                "of its dimensions being a Range, but found None in '{1}'."
-                "".format(self.name, str(node.lhs)))
+                "Assignment node should be a PSyIR ArrayReference with at "
+                "least one of its dimensions being a Range, but found None "
+                "in '{1}'.".format(self.name, str(node.lhs)))
 
         # If an operator on the rhs only returns an array then we are
         # not able to turn the assignment into an explicit loop. At
@@ -351,7 +352,7 @@ class ArrayRange2LoopTrans(Transformation):
         # For each array on the rhs of the assignment find the
         # outermost range if there is one, then compare this range
         # with the one on the lhs.
-        for array in node.walk(Array):
+        for array in node.walk(ArrayReference):
             for idx, child in reversed(list(enumerate(array.children))):
                 if isinstance(child, Range):
                     # Issue #814 We should add support for adding

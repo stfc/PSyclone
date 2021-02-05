@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -47,13 +47,14 @@ module testkern_any_space_2_mod
   ! 4) any_space used with an operator.
   type, public, extends(kernel_type) ::testkern_any_space_2_type
     private
-    type(arg_type) :: meta_args(4) = (/                                        &
-         arg_type(GH_FIELD,                GH_INC,  ANY_SPACE_1),              &
-         arg_type(GH_FIELD,                GH_READ, ANY_SPACE_1),              &
-         arg_type(GH_OPERATOR,             GH_READ, ANY_SPACE_1, ANY_SPACE_1), &
-         arg_type(GH_SCALAR,   GH_INTEGER, GH_READ)                            &
+    type(arg_type) :: meta_args(4) = (/                           &
+         arg_type(GH_FIELD,    GH_REAL,    GH_INC,  ANY_SPACE_1), &
+         arg_type(GH_FIELD,    GH_REAL,    GH_READ, ANY_SPACE_1), &
+         arg_type(GH_OPERATOR, GH_REAL,    GH_READ, ANY_SPACE_1,  &
+                                                    ANY_SPACE_1), &
+         arg_type(GH_SCALAR,   GH_INTEGER, GH_READ)               &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, public, nopass :: testkern_any_space_2_code
   end type testkern_any_space_2_type

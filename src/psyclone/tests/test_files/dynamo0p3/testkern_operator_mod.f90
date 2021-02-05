@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,14 +43,14 @@ module testkern_operator_mod
 
   type, extends(kernel_type) :: testkern_operator_type
      type(arg_type), dimension(3) :: meta_args =                  &
-          (/ arg_type(gh_operator,             gh_write, w0, w0), &
-             arg_type(gh_field*3,              gh_read,  w0),     &
+          (/ arg_type(gh_operator, gh_real,    gh_write, w0, w0), &
+             arg_type(gh_field*3,  gh_real,    gh_read,  w0),     &
              arg_type(gh_scalar,   gh_integer, gh_read)           &
           /)
      type(func_type) :: meta_funcs(1) =                           &
           (/ func_type(w0, gh_basis, gh_diff_basis)               &
           /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => testkern_operator_code

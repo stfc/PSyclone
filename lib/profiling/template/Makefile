@@ -35,14 +35,25 @@
 
 
 F90?=gfortran
-FFLAGS?=-g
+FFLAGS?=
+
+OBJS = dummy_lib.o psy_data_base.o
+PROCESS_ARGS = -prefix=profile_ -types= -dims=
+PROCESS=$$(../../get_python.sh) ../../process.py
 
 default: libdummy.a
 
-libdummy.a: dummy_lib.f90
-	$(F90) -c $(FFLAGS) dummy_lib.f90
-	ar rs libdummy.a dummy_lib.o
+libdummy.a: $(OBJS)
+	ar rs libdummy.a $(OBJS)
+
+dummy_lib.o:	psy_data_base.o
+
+psy_data_base.f90: ../../psy_data_base.jinja
+	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f libdummy.a dummy_lib.o profile_psy_data_mod.mod
+	rm -f libdummy.a $(OBJS) *.mod psy_data_base.f90
 

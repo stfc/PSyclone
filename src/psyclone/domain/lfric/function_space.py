@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -114,7 +114,7 @@ class FunctionSpace(object):
     VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
 
     # Meta functions
-    VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
+    VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES
 
     def __init__(self, name, kernel_args):
         self._orig_name = name
@@ -298,14 +298,6 @@ class FunctionSpace(object):
         '''
         return "undf_" + self.mangled_name
 
-    @property
-    def orientation_name(self):
-        ''':returns: an orientation name for a function space with the \
-        supplied name.
-        :rtype: str
-        '''
-        return "orientation" + "_" + self.mangled_name
-
     def get_basis_name(self, qr_var=None, on_space=None):
         '''
         Returns a name for the basis function on this FunctionSpace. If
@@ -358,20 +350,20 @@ class FunctionSpace(object):
 
     def get_operator_name(self, operator_name, qr_var=None, on_space=None):
         '''
-        Returns the name of the specified operator (orientation, basis or
-        differential basis) for this FunctionSpace.
+        Returns the name of the specified operator (basis or differential
+        basis) for this FunctionSpace.
+
         :param str operator_name: name (type) of the operator.
-        :param str qr_var: the name of the Quadrature Object for which the
+        :param str qr_var: the name of the Quadrature Object for which the \
                            operator is required.
         :param on_space: the function space at which the operator is required.
         :type on_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :returns: name for the Fortran arry holding the named operator
+
+        :returns: name for the Fortran arry holding the named operator \
                   for the specified function space.
         :rtype: str
 
         '''
-        if operator_name == "gh_orientation":
-            return self.orientation_name
         if operator_name == "gh_basis":
             return self.get_basis_name(qr_var=qr_var, on_space=on_space)
         if operator_name == "gh_diff_basis":

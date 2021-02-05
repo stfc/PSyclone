@@ -40,17 +40,22 @@
 
 from __future__ import print_function, absolute_import
 import pytest
-from psyclone.psyGen import PSyFactory
-from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import ACCKernelsTrans, ACCLoopTrans
+
 from fparser.common.readfortran import FortranStringReader
+
+from psyclone.psyGen import ACCKernelsDirective, Loop, PSyFactory
+from psyclone.psyir.transformations import TransformationError, ProfileTrans
+from psyclone.transformations import ACCKernelsTrans, ACCLoopTrans
+from psyclone.psyir.nodes import Assignment
+from psyclone.errors import GenerationError
 
 
 # The PSyclone API under test
 API = "nemo"
 
 EXPLICIT_LOOP = ("program do_loop\n"
-                 "integer :: ji, jpj\n"
+                 "integer :: ji\n"
+                 "integer, parameter :: jpj=32\n"
                  "real(kind=wp) :: sto_tmp(jpj)\n"
                  "do ji = 1,jpj\n"
                  "  sto_tmp(ji) = 1.0d0\n"
@@ -64,7 +69,7 @@ def test_kernels_view(parser, capsys):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
-    schedule, _ = acc_trans.apply(schedule.children[0:2],
+    schedule, _ = acc_trans.apply(schedule.children,
                                   {"default_present": True})
     schedule.view()
     output, _ = capsys.readouterr()
@@ -78,9 +83,20 @@ def test_kernels_dag_name(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
-    schedule, _ = acc_trans.apply(schedule.children[0:2],
+    schedule, _ = acc_trans.apply(schedule.children,
                                   {"default_present": True})
     assert schedule.children[0].dag_name == "ACC_kernels_1"
+
+
+def test_kernels_single_node(parser):
+    ''' Check that we can apply the ACCKernelsTrans to a single node
+    instead of to a list of nodes. '''
+    code = parser(FortranStringReader(EXPLICIT_LOOP))
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = ACCKernelsTrans()
+    acc_trans.apply(schedule[0], {"default_present": True})
+    assert isinstance(schedule[0], ACCKernelsDirective)
 
 
 def test_no_kernels_error(parser):
@@ -249,7 +265,6 @@ def test_no_default_present(parser):
 
 def test_kernels_around_where_construct(parser):
     ''' Check that we can put a WHERE construct inside a KERNELS region. '''
-    from psyclone.psyGen import Loop, ACCKernelsDirective
     reader = FortranStringReader("program where_test\n"
                                  "  integer :: flag\n"
                                  "  real :: a(:,:), b(:,:)\n"
@@ -375,3 +390,29 @@ def test_loop_after_implicit_kernels(parser):
     assert ("  end do\n"
             "  !$acc end kernels\n"
             "end program" in output)
+
+
+def test_no_psydata_in_kernels(parser, monkeypatch):
+    ''' Check that we refuse to generate code when a kernels region
+    contains PSyData calls. '''
+    code = parser(FortranStringReader(EXPLICIT_LOOP))
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    ptrans = ProfileTrans()
+    acc_trans = ACCKernelsTrans()
+    acc_trans.apply(schedule[0])
+    # Attempt to put a profiling call within the loop
+    assign = schedule.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as err:
+        ptrans.apply(assign)
+    assert ("A PSyData node cannot be inserted inside an OpenACC region"
+            in str(err.value))
+    # Monkeypatch the validate() method so as to avoid the checking
+    # that it does
+    monkeypatch.setattr(ptrans, "validate", lambda x, y: None)
+    ptrans.apply(assign)
+    # Check that an appropriate error is raised at code-generation time
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("Cannot include calls to PSyData routines within OpenACC "
+            "regions" in str(err.value))

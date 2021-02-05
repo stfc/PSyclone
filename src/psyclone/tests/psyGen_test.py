@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,25 +50,26 @@ import os
 import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
-from psyclone.psyir.nodes import Assignment, Reference, BinaryOperation, \
-    Literal, Node, Schedule
+from psyclone.psyir.nodes import Assignment, BinaryOperation, \
+    Literal, Node, Schedule, KernelSchedule, Call
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
+    GlobalInterface, ContainerSymbol, Symbol
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
-    OMPParallelDoDirective, KernelSchedule, InlinedKern, \
+    OMPParallelDoDirective, InlinedKern, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
     ACCEnterDataDirective, ACCKernelsDirective, HaloExchange, Invoke, \
-    DataAccess, Kern, Arguments, CodedKern
+    DataAccess, Kern, Arguments, CodedKern, Argument
 from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, \
-    REAL_TYPE, INTEGER_TYPE
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
+from psyclone.psyir.symbols import INTEGER_TYPE, DeferredType
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
+    DynKernelArguments
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
     DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans, \
     ACCEnterDataTrans, ACCParallelTrans, ACCLoopTrans, ACCKernelsTrans
 from psyclone.generator import generate
 from psyclone.configuration import Config
-from psyclone.tests.utilities import get_invoke, check_links
+from psyclone.tests.utilities import get_invoke
 from psyclone.tests.lfric_build import LFRicBuild
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -306,13 +307,14 @@ def test_derived_type_deref_naming(tmpdir):
 
 FAKE_KERNEL_METADATA = '''
 module dummy_mod
+  use argument_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =                    &
-          (/ arg_type(gh_field, gh_write,     w3),     &
-             arg_type(gh_field, gh_readwrite, wtheta), &
-             arg_type(gh_field, gh_inc,       w1)      &
+     type(arg_type), meta_args(3) =                             &
+          (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
+             arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
+             arg_type(gh_field, gh_real, gh_inc,       w1)      &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -335,7 +337,7 @@ def test_invokeschedule_node_str():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     # Create a plain InvokeSchedule
-    sched = InvokeSchedule(None, None)
+    sched = InvokeSchedule('name', None, None)
     # Manually supply it with an Invoke object created with the Dynamo API.
     sched._invoke = psy.invokes.invoke_list[0]
     output = sched.node_str()
@@ -374,12 +376,13 @@ def test_invokeschedule_can_be_printed():
 def test_kern_get_kernel_schedule():
     ''' Tests the get_kernel_schedule method in the Kern class.
     '''
-    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    schedule = my_kern.get_kernel_schedule()
-    assert isinstance(schedule, KernelSchedule)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.children[0].loop_body[0]
+    kern_schedule = kern.get_kernel_schedule()
+    assert isinstance(kern_schedule, KernelSchedule)
 
 
 def test_codedkern_node_str():
@@ -397,11 +400,176 @@ def test_codedkern_node_str():
     assert expected_output in out
 
 
+def test_codedkern_module_inline_getter_and_setter():
+    ''' Check that the module_inline setter changes the module inline
+    attribute to all the same kernels in the invoke'''
+    # Use LFRic example with a repeated CodedKern
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    coded_kern_1 = schedule.children[0].loop_body[0]
+    coded_kern_2 = schedule.children[1].loop_body[0]
+
+    # By default they are not module-inlined
+    assert not coded_kern_1.module_inline
+    assert not coded_kern_2.module_inline
+    assert "module_inline=False" in coded_kern_1.node_str()
+    assert "module_inline=False" in coded_kern_2.node_str()
+
+    # It can be turned on (and both kernels change)
+    coded_kern_1.module_inline = True
+    assert coded_kern_1.module_inline
+    assert coded_kern_2.module_inline
+    assert "module_inline=True" in coded_kern_1.node_str()
+    assert "module_inline=True" in coded_kern_2.node_str()
+
+    # It can be turned off (and both kernels change)
+    coded_kern_2.module_inline = False
+    assert not coded_kern_1.module_inline
+    assert not coded_kern_2.module_inline
+
+
+def test_codedkern_module_inline_gen_code(tmpdir):
+    ''' Check that a CodedKern with module-inline gets copied into the
+    local module appropriately when the PSy-layer is generated'''
+    # Use LFRic example with a repeated CodedKern
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    coded_kern = schedule.children[0].loop_body[0]
+    gen = str(psy.gen)
+
+    # Without module-inline the subroutine is used by a module import
+    assert "USE ru_kernel_mod, ONLY: ru_code" in gen
+    assert "SUBROUTINE ru_code(" not in gen
+
+    # With module-inline the subroutine is copied locally only once
+    # even though this kernel has 2 callees.
+    coded_kern.module_inline = True
+    gen = str(psy.gen)
+    assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
+    assert "SUBROUTINE ru_code(" in gen
+    assert gen.count("SUBROUTINE ru_code(") == 1
+    # And the generated code is valid
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Check that name clashes which are not subroutines are detected
+    schedule.symbol_table.add(DataSymbol("ru_code", REAL_TYPE))
+    with pytest.raises(NotImplementedError) as err:
+        gen = str(psy.gen)
+    assert ("Can not module-inline subroutine 'ru_code' because symbol"
+            "'ru_code: <Scalar<REAL, UNDEFINED>, Local>' with the same name "
+            "already exists and changing names of module-inlined subroutines "
+            "is not implemented yet.") in str(err.value)
+
+    # TODO # 898. Manually force removal of previous symbol as
+    # symbol_table.remove() for DataSymbols is not implemented yet.
+    schedule.symbol_table._symbols.pop("ru_code")
+
+    # Check that if a subroutine with the same name already exists and it is
+    # not identical, it fails.
+    schedule.symbol_table.add(RoutineSymbol("ru_code"))
+    with pytest.raises(NotImplementedError) as err:
+        gen = str(psy.gen)
+    assert ("Can not inline subroutine 'ru_code' because another subroutine "
+            "with the same name already exists and versioning of "
+            "module-inlined subroutines is not implemented "
+            "yet.") in str(err.value)
+
+
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_codedkern_module_inline_gen_code_modified_kernels(tmpdir):
+    ''' Check that a CodedKern marked as modified can still be
+    module-inlined. '''
+    # Use LFRic example with a repeated CodedKern
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    coded_kern = schedule.children[0].loop_body[0]
+
+    # Set modified and module-inline at the same time
+    coded_kern.modified = True
+    coded_kern.module_inline = True
+
+    # In this case the code generation still works but ...
+    gen = str(psy.gen)
+    assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
+    # ... since this subroutine is modified the kernel has now a new suffix
+    assert "SUBROUTINE ru_0_code(" in gen
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_codedkern_lower_to_language_level(monkeypatch):
+    ''' Check that a generic CodedKern can be lowered to a subroutine call
+    with the appropriate arguments'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.children[0].loop_body[0]
+
+    # TODO 1010: LFRic still needs psy.gen to create symbols. But these must
+    # eventually be created automatically before the gen() call, for now we
+    # manually create the symbols that appear in the PSyIR tree.
+    schedule.symbol_table.add(Symbol("f1_proxy"))
+    schedule.symbol_table.add(Symbol("f2_proxy"))
+    schedule.symbol_table.add(Symbol("m1_proxy"))
+    schedule.symbol_table.add(Symbol("m2_proxy"))
+    schedule.symbol_table.add(Symbol("ndf_w1"))
+    schedule.symbol_table.add(Symbol("undf_w1"))
+    schedule.symbol_table.add(Symbol("map_w1"))
+    schedule.symbol_table.add(Symbol("ndf_w2"))
+    schedule.symbol_table.add(Symbol("undf_w2"))
+    schedule.symbol_table.add(Symbol("map_w2"))
+    schedule.symbol_table.add(Symbol("ndf_w3"))
+    schedule.symbol_table.add(Symbol("undf_w3"))
+    schedule.symbol_table.add(Symbol("map_w3"))
+
+    # TODO #1085 LFRic Arguments do not have a translation to PSyIR
+    # yet, we monkeypatch a dummy expression for now:
+    monkeypatch.setattr(DynKernelArguments, "psyir_expressions",
+                        lambda x: [Literal("1", INTEGER_TYPE)])
+
+    # In DSL-level it is a CodedKern with no children
+    assert isinstance(kern, CodedKern)
+    assert len(kern.children) == 0
+    number_of_arguments = len(kern.arguments.psyir_expressions())
+
+    kern.lower_to_language_level()
+
+    # In language-level it is a Call with arguments as children
+    call = schedule.children[0].loop_body[0]
+    assert not isinstance(call, CodedKern)
+    assert isinstance(call, Call)
+    assert call.routine.name == 'testkern_code'
+    assert len(call.children) == number_of_arguments
+    assert isinstance(call.children[0], Literal)
+
+    # A RoutineSymbol and the ContainerSymbol from where it is imported are
+    # in the symbol table
+    rsymbol = call.scope.symbol_table.lookup('testkern_code')
+    assert isinstance(rsymbol, RoutineSymbol)
+    assert isinstance(rsymbol.interface, GlobalInterface)
+    csymbol = rsymbol.interface.container_symbol
+    assert isinstance(csymbol, ContainerSymbol)
+    assert csymbol.name == "testkern_mod"
+
+
 def test_kern_coloured_text():
     ''' Check that the coloured_name method of both CodedKern and
     BuiltIn return what we expect. '''
     from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    # Use a Dynamo example that has both a CodedKern and a BuiltIn
+    # Use LFRic example with both a CodedKern and a BuiltIn
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
@@ -892,6 +1060,12 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
     assert (
         "REPROD_PAD_SIZE in {0} should be a positive "
         "integer".format(Config.get().filename) in str(excinfo.value))
+
+
+def test_argument_infer_datatype():
+    ''' Check that a generic argument inferred datatype is a DeferredType. '''
+    arg = Argument(None, None, None)
+    assert isinstance(arg.infer_datatype(), DeferredType)
 
 
 def test_argument_depends_on():
@@ -1724,8 +1898,8 @@ def test_acc_datadevice_virtual():
 def test_accenterdatadirective_gencode_1():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, raises the expected exception as there is no
-    following OpenACC Parallel directive and at least one is
-    required. This test uses the dynamo0.3 API.
+    following OpenACC Parallel or OpenACC Kernels directive as at
+    least one is required. This test uses the dynamo0.3 API.
 
     '''
     acc_enter_trans = ACCEnterDataTrans()
@@ -1736,16 +1910,16 @@ def test_accenterdatadirective_gencode_1():
     with pytest.raises(GenerationError) as excinfo:
         str(psy.gen)
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
-            "there are no ACCParallel directives within the region."
-            in str(excinfo.value))
+            "there are no ACCParallel or ACCKernels directives within the "
+            "region." in str(excinfo.value))
 
 
 # (2/4) Method gen_code
 def test_accenterdatadirective_gencode_2():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with multiple loops, raises the expected exception, as there is no
-    following OpenACC Parallel directive and at least one is
-    required. This test uses the dynamo0.3 API.
+    following OpenACC Parallel or OpenACCKernels directive and at
+    least one is required. This test uses the dynamo0.3 API.
 
     '''
     acc_enter_trans = ACCEnterDataTrans()
@@ -1756,24 +1930,25 @@ def test_accenterdatadirective_gencode_2():
     with pytest.raises(GenerationError) as excinfo:
         str(psy.gen)
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
-            "there are no ACCParallel directives within the region."
-            in str(excinfo.value))
+            "there are no ACCParallel or ACCKernels directives within the "
+            "region." in str(excinfo.value))
 
 
 # (3/4) Method gen_code
-def test_accenterdatadirective_gencode_3():
+@pytest.mark.parametrize("trans", [ACCParallelTrans, ACCKernelsTrans])
+def test_accenterdatadirective_gencode_3(trans):
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, produces the expected code (there should be
-    "copy in" data as there is a following OpenACC parallel
+    "copy in" data as there is a following OpenACC parallel or kernels
     directive). This test uses the dynamo0.3 API.
 
     '''
-    acc_par_trans = ACCParallelTrans()
+    acc_trans = trans()
     acc_enter_trans = ACCEnterDataTrans()
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
-    _ = acc_par_trans.apply(sched.children)
+    _ = acc_trans.apply(sched.children)
     _ = acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
@@ -1784,21 +1959,27 @@ def test_accenterdatadirective_gencode_3():
 
 
 # (4/4) Method gen_code
-def test_accenterdatadirective_gencode_4():
+@pytest.mark.parametrize("trans1,trans2",
+                         [(ACCParallelTrans, ACCParallelTrans),
+                          (ACCParallelTrans, ACCKernelsTrans),
+                          (ACCKernelsTrans, ACCParallelTrans),
+                          (ACCKernelsTrans, ACCKernelsTrans)])
+def test_accenterdatadirective_gencode_4(trans1, trans2):
     '''Test that an OpenACC Enter Data directive, when added to a schedule
-    with multiple loops and multiple OpenACC parallel directives,
-    produces the expected code (when the same argument is used in
-    multiple loops there should only be one entry). This test uses the
-    dynamo0.3 API.
+    with multiple loops and multiple OpenACC parallel and/or Kernel
+    directives, produces the expected code (when the same argument is
+    used in multiple loops there should only be one entry). This test
+    uses the dynamo0.3 API.
 
     '''
-    acc_par_trans = ACCParallelTrans()
+    acc_trans1 = trans1()
+    acc_trans2 = trans2()
     acc_enter_trans = ACCEnterDataTrans()
     _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0').schedule
-    _ = acc_par_trans.apply(sched.children[1])
-    _ = acc_par_trans.apply(sched.children[0])
+    _ = acc_trans1.apply([sched.children[1]])
+    _ = acc_trans2.apply([sched.children[0]])
     _ = acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
@@ -1844,10 +2025,11 @@ def test_haloexchange_vector_index_depend():
 
 
 def test_find_write_arguments_for_write():
-    ''' When backward_write_dependencies is called from a field argument
-    that does not read then we should return an empty list. This test
-    checks this functionality. We use the LFRic (Dynamo0.3) API to create
-    the required objects.
+    '''When backward_write_dependencies or forward_write_dependencies in
+    class Argument are called from a field argument that does not read
+    then we should return an empty list. This test checks this
+    functionality. We use the LFRic (Dynamo0.3) API to create the
+    required objects.
 
     '''
     _, invoke_info = parse(
@@ -1862,15 +2044,18 @@ def test_find_write_arguments_for_write():
     field_writer = kernel.arguments.args[7]
     node_list = field_writer.backward_write_dependencies()
     assert node_list == []
+    node_list = field_writer.forward_write_dependencies()
+    assert node_list == []
 
 
 def test_find_w_args_hes_no_vec(monkeypatch, annexed):
-    ''' When backward_write_dependencies, or forward_read_dependencies, are
-    called and a dependence is found between two halo exchanges, then
-    the field must be a vector field. If the field is not a vector
-    then an exception is raised. This test checks that the exception
-    is raised correctly. Also test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''When backward_write_dependencies, forward_read_dependencies, or
+    forward_write_dependencies are called and a dependence is found
+    between two halo exchanges, then the field must be a vector
+    field. If the field is not a vector then an exception is
+    raised. This test checks that the exception is raised
+    correctly. Also test with and without annexed dofs being computed
+    as this affects the generated code.
 
     '''
     config = Config.get()
@@ -1894,16 +2079,26 @@ def test_find_w_args_hes_no_vec(monkeypatch, annexed):
         _ = field_e_v3.backward_write_dependencies()
     assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
             "halo exchange calls. Found '1' and '3'" in str(excinfo.value))
+    halo_exchange_e_v2 = schedule.children[index-1]
+    field_e_v2 = halo_exchange_e_v2.field
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_read_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
+            "halo exchange calls. Found '3' and '1'" in str(excinfo.value))
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_write_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
+            "halo exchange calls. Found '3' and '1'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
-    ''' When backward_write_dependencies, or forward_read_dependencies, are
-    called and a dependence is found between two halo exchanges, then
-    the associated fields must be equal size vectors . If the fields
-    are not vectors of equal size then an exception is raised. This
-    test checks that the exception is raised correctly. Also test with
-    and without annexed dofs being computed as this affects the
-    generated code.
+    '''When backward_write_dependencies, forward_read_dependencies, or
+    forward_write_dependencies are called and a dependence is found
+    between two halo exchanges, then the associated fields must be
+    equal size vectors. If the fields are not vectors of equal size
+    then an exception is raised. This test checks that the exception
+    is raised correctly. Also test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
     config = Config.get()
@@ -1927,16 +2122,26 @@ def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
         _ = field_e_v3.backward_write_dependencies()
     assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
             "halo exchange calls. Found '2' and '3'" in str(excinfo.value))
+    halo_exchange_e_v2 = schedule.children[index-1]
+    field_e_v2 = halo_exchange_e_v2.field
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_read_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
+            "halo exchange calls. Found '3' and '2'" in str(excinfo.value))
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_write_dependencies()
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'e' in two "
+            "halo exchange calls. Found '3' and '2'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
-    ''' When backward_write_dependencies, or forward_read_dependencies are
-    called, and a dependence is found between two halo exchanges, then
-    the vector indices of the two halo exchanges must be different. If
-    the vector indices have the same value then an exception is
-    raised. This test checks that the exception is raised
-    correctly. Also test with and without annexed dofs being computed
-    as this affects the generated code.
+    '''When backward_write_dependencies, forward_read_dependencies or
+    forward_write_dependencies are called, and a dependence is found
+    between two halo exchanges, then the vector indices of the two
+    halo exchanges must be different. If the vector indices have the
+    same value then an exception is raised. This test checks that the
+    exception is raised correctly. Also test with and without annexed
+    dofs being computed as this affects the generated code.
 
     '''
     config = Config.get()
@@ -1962,15 +2167,31 @@ def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
     assert ("DataAccess:update_coverage() The halo exchange vector indices "
             "for 'e' are the same. This should never happen"
             in str(excinfo.value))
+    halo_exchange_e_v2 = schedule.children[index-1]
+    field_e_v2 = halo_exchange_e_v2.field
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_read_dependencies()
+    assert ("DataAccess:update_coverage() The halo exchange vector indices "
+            "for 'e' are the same. This should never happen"
+            in str(excinfo.value))
+    with pytest.raises(InternalError) as excinfo:
+        _ = field_e_v2.forward_write_dependencies()
+    assert ("DataAccess:update_coverage() The halo exchange vector indices "
+            "for 'e' are the same. This should never happen"
+            in str(excinfo.value))
 
 
-def test_find_w_args_hes_vec_no_dep():
+def test_find_w_args_hes_vec_no_dep(monkeypatch, annexed):
     ''' When _find_write_arguments, or _find_read_arguments, are called,
     halo exchanges with the same field but a different index should
     not depend on each other. This test checks that this behaviour is
-    working correctly
-    '''
+    working correctly. Also test with and without annexed
+    dofs being computed as this affects the generated code.
 
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         api="dynamo0.3")
@@ -1978,11 +2199,28 @@ def test_find_w_args_hes_vec_no_dep():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    halo_exchange_e_v3 = schedule.children[5]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    halo_exchange_e_v3 = schedule.children[index]
     field_e_v3 = halo_exchange_e_v3.field
-    # there are two halo exchanges before d_v3 which should not count
-    # as dependencies
+    # There are two halo exchanges before e_v3 which should not count
+    # as dependencies.
     node_list = field_e_v3.backward_write_dependencies()
+    assert node_list == []
+    halo_exchange_e_v1 = schedule.children[index-2]
+    field_e_v1 = halo_exchange_e_v1.field
+    # There are two halo exchanges after e_v1 which should not count
+    # as dependencies. We should only get the read access from a
+    # kernel.
+    node_list = field_e_v1.forward_read_dependencies()
+    assert len(node_list) == 1
+    assert isinstance(node_list[0].call, DynKern)
+    # There are two halo exchanges after e_v1 which should not count
+    # as dependencies and a read access from a kernel, so there should
+    # be no write dependencies.
+    node_list = field_e_v1.forward_write_dependencies()
     assert node_list == []
 
 
@@ -2262,107 +2500,6 @@ def test_dataaccess_same_vector_indices(monkeypatch):
     assert (
         "The halo exchange vector indices for 'e' are the same. This should "
         "never happen" in str(excinfo.value))
-
-
-# Test KernelSchedule Class
-
-def test_kernelschedule_view(capsys):
-    '''Test the view method of the KernelSchedule part.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    symbol_table = SymbolTable()
-    symbol = DataSymbol("x", INTEGER_TYPE)
-    symbol_table.add(symbol)
-    lhs = Reference(symbol)
-    rhs = Literal("1", INTEGER_TYPE)
-    assignment = Assignment.create(lhs, rhs)
-    kschedule = KernelSchedule.create("kname", symbol_table, [assignment])
-    kschedule.view()
-    coloredtext = colored("Schedule",
-                          SCHEDULE_COLOUR_MAP["Schedule"])
-    output, _ = capsys.readouterr()
-    assert coloredtext+"[name:'kname']" in output
-    assert "Assignment" in output  # Check child view method is called
-
-
-def test_kernelschedule_can_be_printed():
-    '''Test that a KernelSchedule instance can always be printed (i.e. is
-    initialised fully)'''
-    symbol = DataSymbol("x", INTEGER_TYPE)
-    symbol_table = SymbolTable()
-    symbol_table.add(symbol)
-    lhs = Reference(symbol)
-    rhs = Literal("1", INTEGER_TYPE)
-    assignment = Assignment.create(lhs, rhs)
-    kschedule = KernelSchedule.create("kname", symbol_table, [assignment])
-    assert "Schedule[name:'kname']:\n" in str(kschedule)
-    assert "Assignment" in str(kschedule)  # Check children are printed
-    assert "End KernelSchedule" in str(kschedule)
-
-
-def test_kernelschedule_name_setter():
-    '''Test that the name setter changes the kernel name attribute.'''
-    kschedule = KernelSchedule("kname")
-    assert kschedule.name == "kname"
-    kschedule.name = "newname"
-    assert kschedule.name == "newname"
-
-
-def test_kernelschedule_create():
-    '''Test that the create method in the KernelSchedule class correctly
-    creates a KernelSchedule instance.
-
-    '''
-    symbol_table = SymbolTable()
-    symbol = DataSymbol("tmp", REAL_TYPE)
-    symbol_table.add(symbol)
-    assignment = Assignment.create(Reference(symbol),
-                                   Literal("0.0", REAL_TYPE))
-    kschedule = KernelSchedule.create("mod_name", symbol_table, [assignment])
-    check_links(kschedule, [assignment])
-    assert kschedule.symbol_table is symbol_table
-    result = FortranWriter().kernelschedule_node(kschedule)
-    assert result == (
-        "subroutine mod_name()\n"
-        "  real :: tmp\n\n"
-        "  tmp=0.0\n\n"
-        "end subroutine mod_name\n")
-
-
-def test_kernelschedule_create_invalid():
-    '''Test that the create method in a KernelSchedule class raises the
-    expected exception if the provided input is invalid.
-
-    '''
-    symbol_table = SymbolTable()
-    symbol = DataSymbol("x", REAL_TYPE)
-    symbol_table.add(symbol)
-    children = [Assignment.create(Reference(symbol),
-                                  Literal("1", REAL_TYPE))]
-
-    # name is not a string.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create(1, symbol_table, children)
-    assert ("name argument in create method of KernelSchedule class "
-            "should be a string but found 'int'.") in str(excinfo.value)
-
-    # symbol_table not a SymbolTable.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create("mod_name", "invalid", children)
-    assert ("symbol_table argument in create method of KernelSchedule class "
-            "should be a SymbolTable but found 'str'.") in str(excinfo.value)
-
-    # children not a list.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create("mod_name", symbol_table, "invalid")
-    assert ("children argument in create method of KernelSchedule class "
-            "should be a list but found 'str'." in str(excinfo.value))
-
-    # contents of children list are not Node.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = KernelSchedule.create("mod_name", symbol_table, ["invalid"])
-    assert (
-        "child of children argument in create method of KernelSchedule class "
-        "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
 
 def test_modified_kern_line_length(kernel_outputdir, monkeypatch):

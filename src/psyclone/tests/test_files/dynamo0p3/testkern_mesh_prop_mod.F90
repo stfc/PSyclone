@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -45,10 +45,10 @@ module testkern_mesh_prop_mod
   type, extends(kernel_type) :: testkern_mesh_prop_type
      type(arg_type), dimension(2) :: meta_args =    &
           (/ arg_type(gh_scalar, gh_real, gh_read), &
-             arg_type(gh_field,           gh_inc,   w1) /)
+             arg_type(gh_field,  gh_real, gh_inc,   w1) /)
      type(mesh_data_type), dimension(1) :: meta_mesh = &
           (/ mesh_data_type(adjacent_face) /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_mesh_prop_code
   end type testkern_mesh_prop_type

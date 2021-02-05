@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -255,9 +255,9 @@ def test_get_stencil():
 MDATA = '''
 module testkern_eval_mod
   type, extends(kernel_type) :: testkern_eval_type
-    type(arg_type) :: meta_args(2) = (/       &
-         arg_type(GH_FIELD,   GH_WRITE,  W0), &
-         arg_type(GH_FIELD,   GH_READ, W1)    &
+    type(arg_type) :: meta_args(2) = (/            &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W0), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W1)  &
          /)
     type(func_type) :: meta_funcs(2) = (/     &
          func_type(W0, GH_BASIS),             &

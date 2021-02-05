@@ -40,9 +40,8 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Container, Return
+from psyclone.psyir.nodes import Container, Return, KernelSchedule
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
-from psyclone.psyGen import KernelSchedule
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -151,7 +150,7 @@ def test_container_create_invalid():
         _ = Container.create("mod_name", symbol_table, ["invalid"])
     assert ("Item 'str' can't be child 0 of 'Container'. The valid format is:"
             " '[Container | KernelSchedule | InvokeSchedule]*'."
-            ""in str(excinfo.value))
+            in str(excinfo.value))
 
 
 def test_container_children_validation():

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Lab
+# Modifications: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 
 ''' Module containing tests for the dependency tools.'''
 
@@ -80,7 +80,8 @@ def test_nested_loop_detection(parser):
     '''Tests if nested loop are handled correctly.
     '''
     reader = FortranStringReader('''program test
-                                 integer :: ji, jk, jpi, jpk
+                                 integer :: ji, jk
+                                 integer, parameter :: jpi=10, jpk=10
                                  real, dimension(jpi,jpi,jpk) :: umask, xmask
                                  do jk = 1, jpk   ! loop 0
                                    umask(1,1,jk) = -1.0d0
@@ -111,7 +112,8 @@ def test_loop_type(parser):
     '''Tests general functionality of can_loop_be_parallelised.
     '''
     reader = FortranStringReader('''program test
-                                 integer ji, jpi
+                                 integer ji
+                                 integer, parameter :: jpi=10
                                  real, dimension(jpi,1,1) :: xmask
                                  do ji = 1, jpi
                                    xmask(ji,1,1) = -1.0d0
@@ -133,7 +135,8 @@ def test_arrays_parallelise(parser):
     '''Tests the array checks of can_loop_be_parallelised.
     '''
     reader = FortranStringReader('''program test
-                                 integer ji, jj, jk, jpi, jpj
+                                 integer ji, jj, jk
+                                 integer, parameter :: jpi=5, jpj=10
                                  real, dimension(jpi,jpi) :: mask, umask
                                  do jj = 1, jpj   ! loop 0
                                     do ji = 1, jpi
@@ -192,7 +195,8 @@ def test_scalar_parallelise(parser):
     '''Tests the scalar checks of can_loop_be_parallelised.
     '''
     reader = FortranStringReader('''program test
-                                 integer :: ji, jj, jpi, jpj, b
+                                 integer :: ji, jj, b
+                                 integer, parameter :: jpi=7, jpj=9
                                  integer, dimension(jpi,jpj) :: a, c
                                  do jj = 1, jpj   ! loop 0
                                     do ji = 1, jpi
@@ -243,10 +247,13 @@ def test_scalar_parallelise(parser):
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="#363 PSyIR does not yet support derived types")
+@pytest.mark.xfail(reason="#1028 dependency analysis for structures needs "
+                   "to be implemented")
 def test_derived_type(parser):
     ''' Tests assignment to derived type variables. '''
     reader = FortranStringReader('''program test
+                                 use my_mod, only: my_type
+                                 type(my_type) :: a, b
                                  integer :: ji, jj, jpi, jpj
                                  do jj = 1, jpj   ! loop 0
                                     do ji = 1, jpi

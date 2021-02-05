@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -41,10 +41,10 @@ module dynamo0p3_builtins_mod
      private
      type(arg_type) :: meta_args(3) = (/                            &
           arg_type(GH_SCALAR, GH_INTEGER, GH_SUM),                  &
-          arg_type(GH_FIELD,              GH_READ, ANY_SPACE_1),    &
-          arg_type(GH_FIELD,              GH_READ, ANY_SPACE_1)     &
+          arg_type(GH_FIELD,  GH_REAL,    GH_READ, ANY_SPACE_1),    &
+          arg_type(GH_FIELD,  GH_REAL,    GH_READ, ANY_SPACE_1)     &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: X_innerproduct_Y_code
   end type X_innerproduct_Y

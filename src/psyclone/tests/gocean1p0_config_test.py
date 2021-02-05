@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified S. Siso, STFC Daresbury Lab
 
 ''' Module containing tests for gocean1.0 specific config files.'''
 
@@ -243,6 +244,69 @@ def test_invalid_config_files(tmpdir):
         # The config file {0} does not contain values for "..."
         assert "does not contain values for the following, mandatory grid " \
             "property: \"go_grid_xstop\"" in str(err.value)
+
+
+def test_debug_mode(tmpdir):
+    '''Test creation of GOcean debug_mode congifuration.
+    '''
+    _CONFIG_CONTENT = '''\
+    [DEFAULT]
+    DEFAULTAPI = dynamo0.3
+    DEFAULTSTUBAPI = dynamo0.3
+    DISTRIBUTED_MEMORY = true
+    REPRODUCIBLE_REDUCTIONS = false
+    REPROD_PAD_SIZE = 8
+    [gocean1.0]
+    '''
+
+    # Test with invalid debug mode
+    content = _CONFIG_CONTENT + "DEBUG_MODE = 4"
+    config_file = tmpdir.join("config1")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(str(config_file))
+        assert ("error while parsing DEBUG_MODE in the [gocean1p0] section "
+                "of the config file: Not a boolean") in str(err.value)
+
+    # Test with debug mode True
+    content = _CONFIG_CONTENT + "DEBUG_MODE = true"
+    config_file = tmpdir.join("config2")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        config.load(str(config_file))
+        api_config = config.api_conf("gocean1.0")
+        assert api_config.debug_mode is True
+
+    # Test with debug mode False
+    content = _CONFIG_CONTENT + "DEBUG_MODE = false"
+    config_file = tmpdir.join("config3")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        config.load(str(config_file))
+        api_config = config.api_conf("gocean1.0")
+        assert api_config.debug_mode is False
+
+    # Test that if DEBUG_MODE key desn't exist it defaults to False
+    content = _CONFIG_CONTENT
+    config_file = tmpdir.join("config4")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        config.load(str(config_file))
+        api_config = config.api_conf("gocean1.0")
+        assert api_config.debug_mode is False
 
 
 # =============================================================================

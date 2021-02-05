@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -49,13 +49,13 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: aX_plus_bY
      private
      type(arg_type) :: meta_args(5) = (/                              &
-          arg_type(GH_FIELD,           GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1)         &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: aX_plus_bY_code
   end type blah ! BROKEN
@@ -64,12 +64,12 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: aX_plus_Y
      private
      type(arg_type) :: meta_args(4) = (/                              &
-          arg_type(GH_FIELD,           GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1),        &
-          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1)         &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
           /)
-     integer :: iterates_over = DOFS
+     integer :: operates_on = DOF
    contains
      procedure, nopass :: aX_plus_Y_code
   end type aX_plus_Y

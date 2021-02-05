@@ -42,7 +42,7 @@ gen() method to generate Fortran.
 
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import Reference, BinaryOperation, Literal, \
-    Array, UnaryOperation
+    ArrayReference, UnaryOperation
 from psyclone.nemo import NemoLoop, NemoKern
 from psyclone.psyir.symbols import ScalarType
 
@@ -65,7 +65,7 @@ def gen_stencil(node):
     stencil access.
 
     :param node: an array access.
-    :type node: :py:class:`psyclone.psyir.nodes.Array`
+    :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
     :returns: the SIR stencil access format for the array access.
     :rtype: str
@@ -74,9 +74,9 @@ def gen_stencil(node):
     array access is not in a recognised stencil form.
 
     '''
-    if not isinstance(node, Array):
+    if not isinstance(node, ArrayReference):
         raise VisitorError(
-            "gen_stencil expected an Array as input but found '{0}'."
+            "gen_stencil expected an ArrayReference as input but found '{0}'."
             "".format(type(node)))
     dims = []
     for child in node.children:
@@ -246,7 +246,7 @@ class SIRWriter(PSyIRVisitor):
         in the PSyIR tree.
 
         :param node: a KernelSchedule PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.KernelSchedule`
+        :type node: :py:class:`psyclone.psyir.nodes.KernelSchedule`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -383,12 +383,12 @@ class SIRWriter(PSyIRVisitor):
         return "{0}make_field_access_expr(\"{1}\")".format(self._nindent,
                                                            node.name)
 
-    def array_node(self, node):
-        '''This method is called when an Array instance is found in the PSyIR
-        tree.
+    def arrayreference_node(self, node):
+        '''This method is called when an ArrayReference instance is found in
+        the PSyIR tree.
 
-        :param node: an Array PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Array`
+        :param node: an ArrayReference PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         :returns: the SIR Python code.
         :rtype: str

@@ -1,7 +1,7 @@
 <!--
 BSD 3-Clause License
 
-Copyright (c) 2019, Science and Technology Facilities Council.
+Copyright (c) 2019-2021, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-Author R. W. Ford, STFC Daresbury Lab
+Authors: R. W. Ford, A. R. Porter and S. Siso STFC Daresbury Lab
 -->
 
 # PSyclone PSyIR Examples
@@ -40,14 +40,36 @@ This directory contains examples of how to create and/or modify
 instances of PSyIR and how to use backends to transform them into
 code.
 
+All of these examples require PSyclone to be installed.
+
 ## Example 1:
 
 Create an instance of PSyIR using many of the generic PSyIR nodes and
 output the resultant tree as Fortran and C. Currently the C
 backend does not support all of the node types so it only outputs a
-subset of the tree. First, ensure that PSyclone is installed,
-then run:
+subset of the tree. This example may be run by doing:
 
 ```sh
 > python create.py
+```
+
+## Example 2:
+
+Demonstrates how to create and manipulate structure types (a.k.a.
+derived types in Fortran) within the PSyIR.
+To run this example:
+
+```sh
+> python create_structure_types.py
+```
+
+## Example 3:
+
+Demonstrates how to manipulate an existing PSyIR tree. This example
+imports the PSyIR created in Example 1, applies some modifications
+to it and then outputs the modified PSyIR as Fortran code. This example may
+be run by doing:
+
+```sh
+> python modify.py
 ```

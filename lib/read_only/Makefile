@@ -45,17 +45,22 @@ F90FLAGS ?=
 # double scalars and 2-dimension arrays
 PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
 		       -dims=2
+PROCESS=$$(../get_python.sh) ../process.py
 
 default: read_only_base.o psy_data_base.o
 process: read_only_base.f90
 
-.PHONY: default process clean
+.PHONY: default process clean all
+
+all:
+	$(MAKE) -C dl_esm_inf
+	$(MAKE) -C lfric
 
 %.f90:	%.jinja
-	../process.py $< > $*.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > $*.f90
 
 psy_data_base.f90:	../psy_data_base.jinja
-	../process.py $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 read_only_base.o: psy_data_base.o
 

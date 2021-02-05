@@ -1,8 +1,10 @@
 
 module profile_psy_data_mod
-  type :: profile_PSyDataType
-      character(:), allocatable :: module_name
-      character(:), allocatable :: region_name
+
+    use psy_data_base_mod, only : PSyDataBaseType, profile_PSyDataStart, &
+                                  profile_PSyDataStop, is_enabled
+
+  type, extends(PSyDataBaseType) :: profile_PSyDataType
   contains
       ! The profiling API uses only the two following calls:
       procedure :: PreStart, PostEnd
@@ -18,7 +20,11 @@ contains
   !> from ProfileStart.
   subroutine profile_PSyDataInit()
     implicit none
-    print *,"profile_PSyDataInit called"
+    if (is_enabled) then
+        print *,"profile_PSyDataInit called"
+    else
+        print *,"profile_PSyDataInit called, but profiling is disabled"
+    endif
     has_been_initialised = .true.
   end subroutine profile_PSyDataInit
 
@@ -39,16 +45,21 @@ contains
                       num_post_vars)
     implicit none
     class(profile_PSyDataType), intent(inout), target :: this
-    character*(*), intent(in) :: module_name, region_name
+    character(len=*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
     if ( .not. has_been_initialised ) then
        call profile_PSyDataInit()
     endif
-    print *, "PreStart called for module '", module_name,  &
-         "' region '", region_name, "'"
-    this%module_name = module_name
-    this%region_name = region_name
+
+    call this%PSyDataBaseType%PreStart(module_name, region_name, 0, 0)
+    if (is_enabled) then
+        print *, "PreStart called for module '", module_name,  &
+                 "' region '", region_name, "'"
+    else
+        print *, "PreStart called for module '", module_name,  &
+                 "' region '", region_name, "', but profiling is disabled"
+    endif
   end subroutine PreStart
 
   ! ---------------------------------------------------------------------------
@@ -60,8 +71,13 @@ contains
     implicit none
     class(profile_PSyDataType), intent(inout), target :: this
     
-    print *,"PostEnd called for module '", this%module_name, &
-         "' region '", this%region_name, "'"
+    if (is_enabled) then
+        print *,"PostEnd called for module '", trim(this%module_name), &
+                "' region '", trim(this%region_name), "'"
+    else
+        print *,"PostEnd called for module '", trim(this%module_name), &
+                "' region '", trim(this%region_name), "', but profiling is disabled"
+    endif
   end subroutine PostEnd
 
   ! ---------------------------------------------------------------------------

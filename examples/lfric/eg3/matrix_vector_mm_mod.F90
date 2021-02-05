@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -46,10 +46,11 @@
 
 module matrix_vector_mm_mod
 
-use argument_mod,            only : arg_type,                               &
-                                    GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
-                                    ANY_SPACE_1,                            &
-                                    CELLS
+use argument_mod,            only : arg_type,                 &
+                                    GH_FIELD, GH_OPERATOR,    &
+                                    GH_REAL, GH_READ, GH_INC, &
+                                    ANY_SPACE_1,              &
+                                    CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
@@ -63,12 +64,12 @@ private
 
 type, public, extends(kernel_type) :: matrix_vector_kernel_mm_type
   private
-  type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_1),                    &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1)        &
+  type(arg_type) :: meta_args(3) = (/                                    &
+       arg_type(GH_FIELD,    GH_REAL, GH_INC,  ANY_SPACE_1),             &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, ANY_SPACE_1),             &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_1) &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: matrix_vector_mm_code
 end type
@@ -81,15 +82,15 @@ public matrix_vector_mm_code
 contains
 
 !> @brief The subroutine which is called directly by the Psy layer, computes mass_matrix*x
-!> @param[in]  cell the horizontal cell index
-!! @param[in] nlayers Integer the number of layers
-!! @param[in] ndf The number of degrees of freedom per cell
-!! @param[in] undf The unique number of degrees of freedom
-!! @param[in] map Integer array holding the dofmap for the cell at the base of the column
-!! @param[in] x Real array the data
-!> @param[in,out] lhs Real array, the output lhs (A*x)
-!! @param[in] ncell_3d total number of cells
-!! @param[in] mass_matrix Real: Array holding mass matrix values
+!> @param[in] cell Horizontal cell index
+!! @param[in] nlayers Number of layers
+!! @param[in,out] lhs The output lhs (A*x)
+!! @param[in] x The data
+!! @param[in] ncell_3d Total number of cells
+!! @param[in] mass_matrix Array holding mass matrix values
+!! @param[in] ndf Number of degrees of freedom per cell
+!! @param[in] undf Unique number of degrees of freedom
+!! @param[in] map Dofmap for the cell at the base of the column
 subroutine matrix_vector_mm_code(cell,        &
                                  nlayers,     &
                                  lhs, x,      &

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
-#          J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
+#          J. Henrichs, Bureau of Meteorology,
+#          I. Kavcic, Met Office
 
 ''' Module containing configuration required to build code generated
 for the LFRic domain. '''
 
 from __future__ import absolute_import
+import os
+
 from psyclone.tests.utilities import CompileError, Compile
 
 
@@ -60,18 +62,42 @@ class LFRicBuild(Compile):
     # order can be important, they will be compiled in the order
     # specified here.
     INFRASTRUCTURE_MODULES = ["constants_mod",
+                              "log_mod",
                               "fs_continuity_mod",
                               "linked_list_data_mod",
                               "argument_mod",
+                              "reference_element_mod",
+                              "global_mesh_base_mod",
                               "kernel_mod",
+                              "mpi_mod",
+                              "linked_list_int_mod",
+                              "linked_list_mod",
                               "partition_mod",
                               "reference_element_mod",
                               "mesh_map_mod",
+                              "extrusion_mod",
+                              "mesh_colouring_mod",
+                              "domain_size_config_mod",
+                              "matrix_invert_mod",
+                              "cross_product_mod",
+                              "coord_transform_mod",
+                              "mesh_constructor_helper_functions_mod",
                               "mesh_mod",
+                              "master_dofmap_mod",
+                              "stencil_dofmap_helper_functions_mod",
                               "stencil_dofmap_mod",
+                              "stencil_2D_dofmap_mod",
+                              "function_space_constructor_helper_"
+                              "functions_mod",
+                              "polynomial_mod",
                               "function_space_mod",
                               "scalar_mod",
+                              "pure_abstract_field_mod",
+                              "field_parent_mod",
+                              "count_mod",
                               "field_mod",
+                              "integer_field_mod",
+                              "quadrature_rule_mod",
                               "quadrature_mod",
                               "quadrature_xyz_mod",
                               "quadrature_xyoz_mod",
@@ -79,8 +105,8 @@ class LFRicBuild(Compile):
                               "quadrature_edge_mod",
                               "quadrature_face_mod",
                               "operator_mod",
-                              "flux_direction_mod",
-                              "log_mod"]
+                              "flux_direction_mod"
+                              ]
 
     def __init__(self, tmpdir):
         '''Constructor for the LFRic-specific compilation class.
@@ -92,7 +118,6 @@ class LFRicBuild(Compile):
         '''
         super(LFRicBuild, self).__init__(tmpdir)
 
-        import os
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3")
         self.base_path = base_path

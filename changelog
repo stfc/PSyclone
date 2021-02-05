@@ -31,7 +31,7 @@
 
 	13) #807 for #805. Put fparser2 bare DO constructs inside CodeBlocks.
 
- 	14) #816 for #810 (fix GOcean examples to build dl_esm_inf if
+	14) #816 for #810 (fix GOcean examples to build dl_esm_inf if
 	required) and #730 (bring GOcean/eg5 up-to-date with latest dl_timer).
 
 	15) #811 for #783. Removes potential duplication of orientation
@@ -72,19 +72,19 @@
 	implementations (in different precisions) of a single kernel
 	may now be specified through an interface block.
 
-        26) #854 for #848. Adds a tutorial in the form of Jupyter
-        notebooks. Covers fparser2, the NEMO API and PSyIR navigation.
+	26) #854 for #848. Adds a tutorial in the form of Jupyter
+	notebooks. Covers fparser2, the NEMO API and PSyIR navigation.
 
-        27) #839 for #836. Improves the separation between the metadata
-        parsing and type information in the LFRic API.
+	27) #839 for #836. Improves the separation between the metadata
+	parsing and type information in the LFRic API.
 
 	28) #862 for #860. Fixes error when building documentation using
 	windows filesystems (removes symbolic links).
 
-        29) #812 towards #199. Adds PSyclone support for read-only
+	29) #812 towards #199. Adds PSyclone support for read-only
 	verification for LFRic and GOcean.
 
-        30) #829 for #827. Removes the NemoImplicitLoop node and the
+	30) #829 for #827. Removes the NemoImplicitLoop node and the
 	associated NemoExplicitLoopTrans (now that the PSyIR has support
 	for assignments to array ranges).
 
@@ -98,26 +98,252 @@
 	33) #884 for #883. Restructure psyclone user guide to move
 	psyclone command section nearer the front of the document.
 
-        34) #823 for #471. Updates the access from INC to READWRITE for
-        those kernels that loop over DoFs.
-	
+	34) #823 for #471. Updates the access from INC to READWRITE for
+	those kernels that loop over DoFs.
+
 	35) #872 for #736 and #858. Routine Symbols are captured by the Fortran
 	front-end when parsing a Container.
 
-        36) #850 for #849 - basic support for distributed memory in GOcean.
-        N.B. dl_esm_inf does not yet have support for set_dirty/clean.
+	36) #850 for #849 - basic support for distributed memory in GOcean.
+	N.B. dl_esm_inf does not yet have support for set_dirty/clean.
 
-        37) #875 for #774. Add support for new metadata format for scalar
-        arguments to LFRic kernels - sepecify the intrinsic type
-        separately.
+	37) #875 for #774. Add support for new metadata format for scalar
+	arguments to LFRic kernels - sepecify the intrinsic type
+	separately.
 
-        38) #895 towards #871. Updates to HEAD of dl_esm_inf, introduces
-        FortCL as a submodule and alters the OpenCL code generation for gocean
-        in order to create a read_from_device function.
+	38) #895 towards #871. Updates to HEAD of dl_esm_inf, introduces
+	FortCL as a submodule and alters the OpenCL code generation for gocean
+	in order to create a read_from_device function.
 
-        39) #865 for #832. Use Jinja to generate Fortran code for the
-        PSyData read-only verification library plus the dl_esm_inf
-        implementation of this.
+	39) #865 for #832. Use Jinja to generate Fortran code for the
+	PSyData read-only verification library plus the dl_esm_inf
+	implementation of this.
+
+	40) #893 towards #866. Introduce support for "operates_on" instead of
+	"iterates_over" in LFRic kernel metadata.
+
+	41) #887 for #876. Create a generic symbol when no better information is
+	provided about a symbol and replace the symbol later on if more
+	information is found.
+
+	42) #904 for #903. Fixed an error in handling use statements (a
+	symbol clash when there should not be one).
+
+	43) #877 for #867. Bug fix to enable dependencies on HaloExchange
+	objects to be ignored while updating the dependency information.
+
+	44) #907 for #906. Refactor PSyDataTrans and subclasses to reduce
+	code duplication (especially in the __str__ and name methods).
+
+	45) #902 for #866. Update (virtually) all LFRic test kernels and
+	examples to use "operates_on" instead of "iterates_over" metadata.
+
+	46) #914 for #897. Update Coding Style in Dev guide with details
+	on raising Exceptions.
+
+	47) #878 for #832. Use Jinja and the PSyDataBase class for building
+	most of the PSyData profiling wrapper libraries.
+
+	48) #915 for #908. Alters the module generation for the LFRic PSy
+	layer so that use statements for LFRic field and operator modules are
+	only generated if required.
+
+	49) #922 for #921. Fixes pycodestyle errors in the code base.
+
+	50) #899 for #896. Adds a new PSyIR Routine Node that subclasses
+	Schedule and is subclassed by KernelSchedule.
+
+	51) #932 for #931. Fixes the dependency analysis in the case
+	that no existing Symbol is found for an array access. This is
+	a workaround until the NEMO API has a fully-functioning symbol
+	table enabling the dependency analysis to be based upon Symbol
+	information (#845).
+
+	52) #930 for #885. Bug fix for missing halo exchange before a
+	Builtin Kernel with a field argument with read-write access.
+
+	53) #919 for #916. Fixes errors in docstrings which show up when
+	generating the reference guide.
+
+	54) #938 for #937. Correct erroneous use of str(err) instead of
+	str(err.value) in symboltable_test.py.
+
+	55) #940 for #939. Bug fix to ensure utf-8 encoding is set in both
+	Python 2 and 3 when reading files. (Required when running in
+	non-Unicode locales.)
+
+	56) #942 for #941. Bug fix so that an exception is raised if a
+	directive is placed around a loop or code region containing a
+	codeblock.
+
+	57) #912 for #781. Adds support for '2D cross' stencils (i.e.
+	cross stencils where the directions of the arms is encoded
+	and their lengths may vary).
+
+	58) #956 towards #955. Changes the directory structure for
+	the dl_esm_inf netcdf PSyData wrapper library.
+
+	59) #954 for #745. Update PSyclone copy of the LFRic infrastructure
+	to create compilable and runnable LFRIc examples.
+
+	60) #943 for #923. Adds generation of an in-kernel boundary mask
+	when generating OpenCL kernels for GOcean. (Fixes failures seen
+	for arbitrary problem sizes.)
+
+	61) #911 for #363. Add support for derived/structure types.
+
+	62) #953 for #952. Make RegionTrans and its subclasses accept a
+	node as input as well as a list of nodes.
+
+	63) PR #965. Add github actions for CI - runs flake8, pytest,
+	codecov and examples for python 2.7, 3.5 and 3.8.
+
+	64) PR #975 for #972 - correct use of str(err) with str(err.value)
+	in a couple of recently-added tests.
+
+	65) PR #983 for #982 - Improve 'kernels' auto-profiling for NEMO API.
+
+	66) PR #977 for #976. Fix dimension parameter for Jinja templates
+	in the PSyData libraries.
+
+	67) PR #981 for #980. Move jupyter notebooks into a notebooks
+	subfolder of the tutorial directory ready for the addition of
+	"practicals" tutorials
+
+	68) PR #958 for #957. Add checks that raise an exception at code
+	generation time if there are any orphan OpenACC or OpenMP
+	directives e.g. OpenMP loop should be within OpenMP parallel.
+
+	69) PR #970 for #955. Use Jinja to generate the netcdf extraction
+	library for the GOcean API.
+
+	70) PR #986 for #819. Adds support for NetCDF data extraction
+	for the LFRic API.
+
+	71) PR #964 for #933. Adds nemo practical 'hands-on' tutorial
+	documentation and examples.
+
+	72) PR #905 for #989. Adds PSyData wrapper libraries for dl_esm_inf
+	and LFRic that provide NAN/infinity checking for real inputs/outputs
+	to a kernel. Also adds the NanTestNode and a NanTestTrans (which
+	inserts an instance of the former).
+
+	73) PR #961 for #936. Add hands-on tutorial for distributed memory
+	with the LFRic API.
+
+	74) PR #985 for #979. Hands-on tutorial for single-node optimisations
+	with the LFRic API.
+
+	75) PR #962 for #952. Hands-on tutorial for building an LFRic
+	application.
+
+	76) PR #995 for #971. Hands-on tutorial for using PSyData
+	functionality with the LFRic API.
+
+	77) PR #1000 for #988. Add missing dependencies in gungho_lib/Makefile
+	in LFRic building_code tutorials 3 and 4.
+
+	78) PR #1012 for #1001. Adds a wrapper script to find a python
+	executable when building any of the PSyData wrapper libraries. (Required
+	because some distributions now only ship with 'python3').
+
+	79) PR #947 for #946. Array shape elements are DataNodes (References,
+	Literals or expressions). If an int is provided, it is transformed to
+	a Literal.
+
+	80) PR #1020 towards #363. Rename the PSyIR node Array to ArrayReference.
+
+	81) PR #1011 for #1008. Auto kernel profiling can fail after OpenMP
+	transformations.
+
+	82) PR #951 for #950. Adds f2pygen support for generating code from
+	PSyIR nodes.
+
+	83) PR #1026 for #1025. Removes code associated with, and
+	reference to, travis as we have migrated to github actions.
+
+	84) PR #944 towards #925. Added metadata support and constraints
+	tests for operates_on=domain kernels.
+
+	85) PR #901 towards #873. Adds PSyIR support for recognised quantities
+	in LFRic kernels. Currently only used for argument validation.
+
+	86) PR #1034 for #1037. Final fixes for problems found when
+	running with LOCALE=C.
+
+	87) PR #974 for #974. Support skip ci with GitHub Actions.
+
+	88) PR #1021 towards #363. Add PSyIR nodes for structure references and
+	its accessors, also the associated Fortran back-end visitors.
+
+	89) PR #1036 for #1033. Fix bug in coluring adjacent_face array with
+	OpenMP in LFRic API.
+
+	90) PR #1023 for #1017. Update and improve PSyData LFRic tutorial.
+
+        91) PR #894 towards #817. Adds support for LFRic kernel metadata
+        specifying the intrinsic type (real and integer) of fields and
+        operators.
+
+        92) PR #1029 towards #1010. Sets up initial API and examples for
+        generating PSy-layer code using the PSyIR backends.
+
+        93) PR #1032 for #1019. Adds OpenCL configuration parameters to
+        enable profiling and out-of-order execution of kernels. Also adds
+        an 'OpenCL devices per node' configuration option.
+
+        94) PR #1044 towards #817. Updates the metadata in LFRic test
+        kernels to specify the type of field and operator arguments.
+
+        95) PR #1038 for #999. Changes to the PSyData wrapper libraries
+        so that they build with Intel. (Ensures that generic interfaces
+        to various routines are declared in the correct locations.)
+
+        96) PR #1024 for #843. Implements the ArrayRange2LoopTrans for
+        the NEMO API.
+
+        97) PR #1045 towards #817. Updates the LFRic kernel metadata
+        in the examples to specify the type of field and operator args.
+
+        98) PR #1042 for #1039. Adds new method to SymbolTable that
+        supports the creation of symbols of particular types.
+
+	99) PR #1053 towards #363. Add frontend support and semantic navigation
+	methods for PSyIR structures.
+
+        100) PR #1060 (and #1046) for #194. Enables the support for region
+        stencils in LFRic.
+
+        101) PR #1071 for #1069. Modifies the regex used in a couple of
+        tests in order to reduce run-time.
+
+        102) PR #1068 for #1064. Updates to latest fparser and fixes
+        parsing of invokes now that some kernel calls are identified
+        as structure constructors instead of array accesses.
+
+        103) PR #1051 towards #817. Add field and operator data type
+        to kernel metadata in the LFRic tutorials.
+
+	104) PR #1059 for #960. Removed LFRic support for orientation as
+	this is not required.
+
+	105) PR #1079 for #363. Complete the PSyIR structure support.
+
+	106) PR #1070 for #703. Add the ability to rename PSyIR symbols
+
+        107) PR #847 for #846. Adds support for the LFRic timer to the
+        PSyData profiling wrapper.
+
+	108) PR #1093 for #1088. Add fparser2reader support for Call statements.
+
+        109) PR #1084 for #1080. Introduces the use of PSyIR for GOcean
+        kernel arguments and loop limits.
+
+        110) PR #1052 for #817. Add LFRic field datatype metadata for fields
+        and operators in remaining test modules.
+
+        111) PR #1092 for #1091. Auto-invoke profiling does not include
+        Return nodes anymore.
 
 release 1.9.0 20th May 2020
 

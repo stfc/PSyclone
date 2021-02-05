@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2019-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2019-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -41,10 +41,11 @@
 !
 module matrix_vector_kernel_mod
 
-  use argument_mod,            only : arg_type,                               &
-                                      GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
-                                      ANY_SPACE_1, ANY_SPACE_2,               &
-                                      CELLS
+  use argument_mod,            only : arg_type,                 &
+                                      GH_FIELD, GH_OPERATOR,    &
+                                      GH_REAL, GH_READ, GH_INC, &
+                                      ANY_SPACE_1, ANY_SPACE_2, &
+                                      CELL_COLUMN
   use constants_mod,           only : r_def, i_def
   use kernel_mod,              only : kernel_type
 
@@ -58,12 +59,12 @@ module matrix_vector_kernel_mod
 
   type, public, extends(kernel_type) :: matrix_vector_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                                  &
-         arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &
-         arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                    &
-         arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)        &
+    type(arg_type) :: meta_args(3) = (/                                    &
+         arg_type(GH_FIELD,    GH_REAL, GH_INC,  ANY_SPACE_1),             &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ, ANY_SPACE_2),             &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: matrix_vector_kernel_code
   end type
@@ -85,11 +86,11 @@ contains
 !! @param[in] ndf1 Number of degrees of freedom per cell for the output field
 !! @param[in] undf1 Unique number of degrees of freedom  for the output field
 !! @param[in] map1 Dofmap for the cell at the base of the column for the
-!!            output field
+!!                 output field
 !! @param[in] ndf2 Number of degrees of freedom per cell for the input field
 !! @param[in] undf2 Unique number of degrees of freedom for the input field
 !! @param[in] map2 Dofmap for the cell at the base of the column for the
-!!            input field
+!!                 input field
 subroutine matrix_vector_kernel_code(cell,              &
                                      nlayers,           &
                                      lhs, x,            &

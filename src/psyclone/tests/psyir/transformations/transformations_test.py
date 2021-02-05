@@ -41,11 +41,12 @@ API-agnostic tests for various transformation classes.
 from __future__ import absolute_import, print_function
 import pytest
 from psyclone.psyir.nodes import Literal, Loop, Node, Reference, Schedule, \
-    Statement
+    Statement, CodeBlock
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
-from psyclone.transformations import ACCParallelTrans
+from psyclone.transformations import ACCParallelTrans, OMPParallelLoopTrans, \
+    OMPParallelTrans
 
 
 def test_accloop():
@@ -215,17 +216,41 @@ def test_regiontrans_wrong_children():
             "is a Schedule" in str(err.value))
 
 
-def test_regiontrans_wrong_options():
-    '''Check that the validate method raises the expected error if passed
-        options that are not contained in a dictionary.
+def test_parallelregion_refuse_codeblock():
+    ''' Check that ParallelRegionTrans.validate() rejects a loop nest that
+    encloses a CodeBlock. We use OMPParallelTrans as ParallelRegionTrans
+    is abstract. '''
+    otrans = OMPParallelTrans()
+    # Construct a valid Loop in the PSyIR with a CodeBlock in its body
+    parent = Loop.create(DataSymbol("ji", INTEGER_TYPE),
+                         Literal("1", INTEGER_TYPE),
+                         Literal("10", INTEGER_TYPE),
+                         Literal("1", INTEGER_TYPE),
+                         [CodeBlock([], CodeBlock.Structure.STATEMENT,
+                                    None)])
+    with pytest.raises(TransformationError) as err:
+        otrans.validate([parent])
+    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
+            "OMPParallelTrans transformation" in str(err.value))
 
-    '''
-    # RegionTrans is abstract so use a concrete sub-class
-    region_trans = ACCParallelTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        RegionTrans.validate(region_trans, None, options="invalid")
-    assert ("Transformation apply method options argument must be a "
-            "dictionary but found 'str'." in str(excinfo.value))
+
+def test_parallellooptrans_refuse_codeblock():
+    ''' Check that ParallelLoopTrans.validate() rejects a loop nest that
+    encloses a CodeBlock. We have to use OMPParallelLoopTrans as
+    ParallelLoopTrans is abstract. '''
+    otrans = OMPParallelLoopTrans()
+    # Construct a valid Loop in the PSyIR with a CodeBlock in its body
+    parent = Loop.create(DataSymbol("ji", INTEGER_TYPE),
+                         Literal("1", INTEGER_TYPE),
+                         Literal("10", INTEGER_TYPE),
+                         Literal("1", INTEGER_TYPE),
+                         [CodeBlock([], CodeBlock.Structure.STATEMENT,
+                                    None)])
+    with pytest.raises(TransformationError) as err:
+        otrans.validate(parent)
+    assert ("OMPParallelLoopTrans transformation. The target loop contains "
+            "one or more node types (['CodeBlock']) which cannot be enclosed "
+            "in a thread-parallel region" in str(err.value))
 
 # Tests for ProfileTrans
 

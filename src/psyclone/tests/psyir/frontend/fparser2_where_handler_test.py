@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,8 +42,8 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Array, \
-    Assignment, Literal, Reference, BinaryOperation, IfBlock
+from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, ArrayReference, \
+    Assignment, Literal, Reference, BinaryOperation, IfBlock, Call
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
@@ -137,7 +137,7 @@ def test_where_array_notation_rank():
     '''
     array_type = ArrayType(REAL_TYPE, [10])
     symbol = DataSymbol("my_array", array_type)
-    my_array = Array(symbol)
+    my_array = ArrayReference(symbol)
     processor = Fparser2Reader()
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
@@ -145,9 +145,10 @@ def test_where_array_notation_rank():
             "'my_array'" in str(err.value))
     from psyclone.psyir.nodes import Range
     array_type = ArrayType(REAL_TYPE, [10])
-    my_array = Array.create(DataSymbol("my_array", array_type),
-                            [Range.create(Literal("1", INTEGER_TYPE),
-                                          Literal("10", INTEGER_TYPE))])
+    my_array = ArrayReference.create(
+        DataSymbol("my_array", array_type),
+        [Range.create(Literal("1", INTEGER_TYPE),
+                      Literal("10", INTEGER_TYPE))])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
     assert ("Only array notation of the form my_array(:, :, ...) is "
@@ -312,7 +313,7 @@ def test_elsewhere():
     # Check that this IF block has an else body
     assert ifblock.else_body is not None
     assert isinstance(ifblock.else_body[0], Assignment)
-    assert isinstance(ifblock.else_body[0].lhs, Array)
+    assert isinstance(ifblock.else_body[0].lhs, ArrayReference)
     assert ifblock.else_body[0].lhs.name == "z1_st"
 
 
@@ -386,5 +387,5 @@ def test_where_ordering(parser):
     result = processor.generate_schedule("test", fparser2_tree)
     assert isinstance(result[0], Assignment)
     assert isinstance(result[1], Loop)
-    assert isinstance(result[2], CodeBlock)
+    assert isinstance(result[2], Call)
     assert isinstance(result[3], Loop)

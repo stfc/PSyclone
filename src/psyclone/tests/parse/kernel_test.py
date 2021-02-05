@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,12 +52,15 @@ from psyclone.errors import InternalError
 # pylint: disable=invalid-name
 
 # Code fragment for testing standard kernel setup with
-# a type-bound procedure.
-CODE = (
+# a type-bound procedure. This uses the 'iterates_over'
+# metadata rather than 'operates_on'.
+# TODO #870 remove this metadata fragment and update all tests to use CODE
+# below instead.
+ITERATES_OVER_CODE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
-    "    type(arg_type), dimension(1) :: meta_args =    &\n"
-    "          (/ arg_type(gh_field, gh_inc, w1) /)\n"
+    "    type(arg_type), dimension(1) :: meta_args =       &\n"
+    "          (/ arg_type(gh_field, gh_real, gh_inc, w1) /)\n"
     "     integer :: iterates_over = cells\n"
     "   contains\n"
     "     procedure, nopass :: code => test_code\n"
@@ -66,7 +69,22 @@ CODE = (
     "  subroutine test_code()\n"
     "  end subroutine test_code\n"
     "end module test_mod\n"
+    )
 
+# Same code fragment but with the 'operates_on' metadata member.
+CODE = (
+    "module test_mod\n"
+    "  type, extends(kernel_type) :: test_type\n"
+    "    type(arg_type), dimension(1) :: meta_args =       &\n"
+    "          (/ arg_type(gh_field, gh_real, gh_inc, w1) /)\n"
+    "     integer :: operates_on = cell_column\n"
+    "   contains\n"
+    "     procedure, nopass :: code => test_code\n"
+    "  end type test_type\n"
+    "contains\n"
+    "  subroutine test_code()\n"
+    "  end subroutine test_code\n"
+    "end module test_mod\n"
     )
 
 # Code fragment for testing kernel which uses an interface
@@ -74,9 +92,9 @@ CODE = (
 CODE_INTERFACE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
-    "    type(arg_type), dimension(1) :: meta_args =    &\n"
-    "          (/ arg_type(gh_field,gh_inc,w1) /)\n"
-    "     integer :: iterates_over = cells\n"
+    "    type(arg_type), dimension(1) :: meta_args =       &\n"
+    "          (/ arg_type(gh_field, gh_real, gh_inc, w1) /)\n"
+    "     integer :: operates_on = cell_column\n"
     "   contains\n"
     "  end type test_type\n"
     "  interface test_code\n"
@@ -94,9 +112,9 @@ CODE_INTERFACE = (
 CODE_DOUBLE_INTERFACE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
-    "    type(arg_type), dimension(1) :: meta_args =    &\n"
-    "          (/ arg_type(gh_field,gh_inc,w1) /)\n"
-    "     integer :: iterates_over = cells\n"
+    "    type(arg_type), dimension(1) :: meta_args =       &\n"
+    "          (/ arg_type(gh_field, gh_real, gh_inc, w1) /)\n"
+    "     integer :: operates_on = cell_column\n"
     "   contains\n"
     "  end type test_type\n"
     "  interface test_code\n"
@@ -115,9 +133,9 @@ CODE_DOUBLE_INTERFACE = (
 CODE_DOUBLE_PROCEDURE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
-    "    type(arg_type), dimension(1) :: meta_args =    &\n"
-    "          (/ arg_type(gh_field,gh_inc,w1) /)\n"
-    "     integer :: iterates_over = cells\n"
+    "    type(arg_type), dimension(1) :: meta_args =       &\n"
+    "          (/ arg_type(gh_field, gh_real, gh_inc, w1) /)\n"
+    "     integer :: operates_on = cell_column\n"
     "   contains\n"
     "  end type test_type\n"
     "  interface test_code\n"
@@ -478,26 +496,75 @@ def test_kerneltype_nargs():
 
 def test_kerneltype_repr():
     '''Test that the __repr__ method in KernelType() behaves as expected.'''
-
+    # With operates_on set
     parse_tree = parse(CODE)
 
     tmp = KernelType(parse_tree)
+    assert repr(tmp) == "KernelType(test_type, cell_column)"
+
+    # With iterates_over set
+    parse_tree = parse(ITERATES_OVER_CODE)
+
+    tmp = KernelType(parse_tree)
     assert repr(tmp) == "KernelType(test_type, cells)"
+
+
+@pytest.mark.parametrize('operates', ["cell_column", "dof"])
+def test_kerneltype_operates_on(operates):
+    ''' Test the parsing of the 'operates_on' metadata element. '''
+    code = CODE.replace("cell_column", operates)
+    parse_tree = parse(code)
+    ktype = KernelType(parse_tree)
+    assert ktype.iterates_over == operates
+    # Check that the parsing is not case sensitive
+    code = CODE.replace("cell_column", operates.upper())
+    parse_tree = parse(code)
+    ktype = KernelType(parse_tree)
+    assert ktype.iterates_over == operates
+
+
+@pytest.mark.parametrize("iterates", ["cells", "dofs"])
+def test_kerneltype_iterates_over(iterates):
+    ''' Test the parsing of the 'iterates_over' metadata element.
+        TODO #870 remove this test. '''
+    code = ITERATES_OVER_CODE.replace("cells", iterates)
+    parse_tree = parse(code)
+    ktype = KernelType(parse_tree)
+    assert ktype.iterates_over == iterates
+    # Check that the parsing is not case sensitive
+    code = ITERATES_OVER_CODE.replace("cells", iterates.upper())
+    parse_tree = parse(code)
+    ktype = KernelType(parse_tree)
+    assert ktype.iterates_over == iterates
+
+
+def test_kerneltype_both_operates_on_iterates_over():
+    ''' Check that KernelType raises the expected error if the kernel
+    metadata specifies *both* operates_on and iterates_over. '''
+    code = ITERATES_OVER_CODE.replace(
+        "   contains\n",
+        "     integer :: operates_on = cell_column\n"
+        "   contains\n")
+    parse_tree = parse(code)
+    with pytest.raises(ParseError) as err:
+        KernelType(parse_tree)
+    assert ("kernel 'test_type' contains both 'operates_on' and "
+            "'iterates_over'" in str(err.value))
 
 
 # Meta-data specifying quadrature
 DIFF_BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(2) =                         &
-          (/ arg_type(gh_field,    gh_inc,       w0),       &
-             arg_type(gh_operator, gh_readwrite, w1, w1)    &
+     type(arg_type), meta_args(2) =                               &
+          (/ arg_type(gh_field,    gh_real, gh_inc,       w0),    &
+             arg_type(gh_operator, gh_real, gh_readwrite, w1, w1) &
            /)
      type(func_type), meta_funcs(2) =          &
           (/ func_type(w0, gh_diff_basis),     &
              func_type(w1, gh_basis)           &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
      integer :: gh_shape(2) = (/gh_quadrature_XYoZ, gh_quadrature_edge/)
    contains
      procedure, nopass :: code => dummy_code
@@ -530,11 +597,11 @@ def test_get_integer_variable():
 def test_get_integer_variable_err():
     ''' Tests that we raise the expected error if the meta-data contains
     an integer literal instead of a name. '''
-    mdata = DIFF_BASIS.replace("= cells", "= 1")
+    mdata = DIFF_BASIS.replace("= cell_column", "= 1")
     ast = parse(mdata, ignore_comments=False)
     with pytest.raises(ParseError) as err:
         _ = KernelType(ast)
-    assert ("RHS of assignment is not a variable name: 'iterates_over = 1'" in
+    assert ("RHS of assignment is not a variable name: 'operates_on = 1'" in
             str(err.value))
 
 

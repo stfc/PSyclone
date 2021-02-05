@@ -42,7 +42,7 @@ import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
-    CHARACTER_TYPE
+    CHARACTER_TYPE, Symbol
 from psyclone.transformations import KernelGlobalsToArguments, \
     TransformationError
 
@@ -89,7 +89,7 @@ def test_globalstoargumentstrans_no_outer_module_import():
             str(err.value))
 
 
-def test_globalstoargumentstrans_no_wildcard_import(monkeypatch):
+def test_globalstoargumentstrans_no_wildcard_import():
     ''' Check that the transformation rejects kernels with wildcard
     imports. '''
     trans = KernelGlobalsToArguments()
@@ -192,6 +192,7 @@ def test_globalstoargumentstrans_constant(monkeypatch):
     ''' Check the GlobalsToArguments transformation when the global is
     also a constant value, in this case the argument should be read-only.'''
     from psyclone.psyir.backend.fortran import FortranWriter
+    from psyclone.psyir.nodes import Literal
 
     trans = KernelGlobalsToArguments()
 
@@ -205,10 +206,14 @@ def test_globalstoargumentstrans_constant(monkeypatch):
 
     # Monkeypatch resolve_deferred to avoid module searching and importing
     # in this test. In this case we assume it is a constant INTEGER
-    def set_to_const_int(variable):
-        variable._datatype = INTEGER_TYPE
-        variable.constant_value = 1
-    monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_const_int)
+    def create_data_symbol(arg):
+        symbol = DataSymbol(arg.name, INTEGER_TYPE,
+                            interface=arg.interface,
+                            constant_value=Literal("1", INTEGER_TYPE))
+        return symbol
+
+    monkeypatch.setattr(DataSymbol, "resolve_deferred", create_data_symbol)
+    monkeypatch.setattr(Symbol, "resolve_deferred", create_data_symbol)
 
     # Test transforming a single kernel
     trans.apply(kernel)
@@ -237,9 +242,11 @@ def test_globalstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
 
     # In this case we set it to be of type CHARACTER as that is not supported
     # in the GOcean infrastructure.
-    def set_to_char(variable):
-        variable._datatype = CHARACTER_TYPE
-    monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_char)
+    def create_data_symbol(arg):
+        symbol = DataSymbol(arg.name, CHARACTER_TYPE,
+                            interface=arg.interface)
+        return symbol
+    monkeypatch.setattr(Symbol, "resolve_deferred", create_data_symbol)
 
     # Test transforming a single kernel
     with pytest.raises(TypeError) as err:
@@ -251,7 +258,7 @@ def test_globalstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
-def test_globalstoarguments_multiple_kernels():
+def test_globalstoarguments_multiple_kernels(monkeypatch):
     ''' Check the KernelGlobalsToArguments transformation with an invoke with
     three kernel calls, two of them duplicated and the third one sharing the
     same imported module'''
@@ -267,6 +274,8 @@ def test_globalstoarguments_multiple_kernels():
     invoke = psy.invokes.invoke_list[0]
     trans = KernelGlobalsToArguments()
 
+    # The kernels are checked before the psy.gen, so they don't include the
+    # modified suffix.
     expected = [
         ["subroutine kernel_with_use_code(ji,jj,istep,ssha,tmask,rdt)",
          "real, intent(inout) :: rdt"],
@@ -275,14 +284,17 @@ def test_globalstoarguments_multiple_kernels():
         ["subroutine kernel_with_use_code(ji,jj,istep,ssha,tmask,rdt)",
          "real, intent(inout) :: rdt"]]
 
+    # Monkeypatch the resolve_deferred() methods to avoid searching and
+    # importing of module during this test.
+    def create_data_symbol(arg):
+        symbol = DataSymbol(arg.name, REAL_TYPE,
+                            interface=arg.interface)
+        return symbol
+    monkeypatch.setattr(Symbol, "resolve_deferred", create_data_symbol)
+    monkeypatch.setattr(DataSymbol, "resolve_deferred", create_data_symbol)
+
     for num, kernel in enumerate(invoke.schedule.coded_kernels()):
         kschedule = kernel.get_kernel_schedule()
-
-        # In this case we hardcode all global variables to REAL to
-        # avoid searching and importing of modules during this test.
-        for var in kschedule.symbol_table.global_symbols:
-            if isinstance(var, DataSymbol):
-                var._datatype = REAL_TYPE
 
         trans.apply(kernel)
 
@@ -294,18 +306,21 @@ def test_globalstoarguments_multiple_kernels():
     generated_code = str(psy.gen)
 
     # The following assert checks that globals from the same module are
-    # imported in a single use statement and that duplicated globals are
-    # just imported once
+    # imported, since the kernels are marked as modified, new suffixes are
+    # given in order to differentiate each of them.
     assert "SUBROUTINE invoke_0(oldu_fld, cu_fld)\n" \
-           "      USE kernel_with_use2_mod, ONLY: kernel_with_use2_code\n" \
-           "      USE kernel_with_use_mod, ONLY: kernel_with_use_code\n" \
-           "      USE model_mod, ONLY: rdt, cbfr\n" \
-           "      TYPE(r2d_field), intent(inout) :: cu_fld\n" in generated_code
+           "      USE kernel_with_use_1_mod, ONLY: kernel_with_use_1_code\n" \
+           "      USE kernel_with_use2_0_mod, ONLY:" \
+           " kernel_with_use2_0_code\n" \
+           "      USE kernel_with_use_0_mod, ONLY:" \
+           " kernel_with_use_0_code\n" in generated_code
 
     # Check the kernel calls have the global passed as last argument
-    assert "CALL kernel_with_use_code(i, j, oldu_fld, cu_fld%data, " \
+    assert "CALL kernel_with_use_0_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, rdt)" in generated_code
-    assert "CALL kernel_with_use2_code(i, j, oldu_fld, cu_fld%data, " \
+    assert "CALL kernel_with_use_1_code(i, j, oldu_fld, cu_fld%data, " \
+           "cu_fld%grid%tmask, rdt)" in generated_code
+    assert "CALL kernel_with_use2_0_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, cbfr, rdt)" in generated_code
 
 
@@ -343,11 +358,13 @@ def test_globalstoargumentstrans_clash_symboltable(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monkeypatch resolve_deferred to avoid module searching and importing
-    # in this test. In this case we assume it is a REAL
-    def set_to_real(variable):
-        variable._datatype = REAL_TYPE
-    monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_real)
+    # Monkeypatch Symbol.resolve_deferred to avoid module searching and
+    # importing in this test. In this case we assume the symbol is a
+    # DataSymbol of REAL type.
+    def create_real(variable):
+        return DataSymbol(variable.name, REAL_TYPE,
+                          interface=variable.interface)
+    monkeypatch.setattr(Symbol, "resolve_deferred", create_real)
 
     # Add 'rdt' into the symbol table
     kernel.root.symbol_table.add(DataSymbol("rdt", REAL_TYPE))

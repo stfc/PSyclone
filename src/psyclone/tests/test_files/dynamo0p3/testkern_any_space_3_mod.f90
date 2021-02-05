@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -45,10 +45,11 @@ module testkern_any_space_3_mod
   ! 2) no other arguments.
   type, public, extends(kernel_type) ::testkern_any_space_3_type
     private
-    type(arg_type) :: meta_args(1) = (/                                &
-         arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2) &
+    type(arg_type) :: meta_args(1) = (/                  &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READWRITE,    &
+                               ANY_SPACE_1, ANY_SPACE_2) &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, public, nopass :: testkern_any_space_3_code
   end type testkern_any_space_3_type

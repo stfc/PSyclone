@@ -36,16 +36,17 @@
 !> of the dl_timer library (https://bitbucket.org/apeg/dl_timer).
 
 module profile_psy_data_mod
-  type :: profile_PSyDataType
-     character(:), allocatable :: module_name
-     character(:), allocatable :: region_name
+
+  use psy_data_base_mod, only : PSyDataBaseType, profile_PSyDataStart, &
+                                profile_PSyDataStop, is_enabled
+
+  type, extends(PSyDataBaseType):: profile_PSyDataType
      integer                   :: timer_index
      logical                   :: registered = .false.
   contains
       ! The profiling API uses only the two following calls:
       procedure :: PreStart, PostEnd
   end type profile_PSyDataType
-
 
 contains
   ! ---------------------------------------------------------------------------
@@ -80,15 +81,17 @@ contains
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
-    character*(*) :: module_name, region_name
+    character(*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
     if( .not. this%registered) then
+       call this%PSyDataBaseType%PreStart(module_name, region_name, &
+                                          num_pre_vars, num_post_vars) 
        call timer_register(this%timer_index, &
                            label=module_name//":"//region_name)
        this%registered = .true.
     endif
-    call timer_start(this%timer_index)
+    if (is_enabled) call timer_start(this%timer_index)
   end subroutine PreStart
 
   ! ---------------------------------------------------------------------------
@@ -102,7 +105,7 @@ contains
 
     class(profile_PSyDataType), intent(inout), target :: this
     
-    call timer_stop(this%timer_index)
+    if (is_enabled) call timer_stop(this%timer_index)
   end subroutine PostEnd
 
   ! ---------------------------------------------------------------------------

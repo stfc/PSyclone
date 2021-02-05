@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,13 @@
 '''Contains the PSyData transformation.
 '''
 
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
 from psyclone.configuration import Config
+from psyclone.nemo import NemoInvoke
 from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
-from psyclone.psyGen import InvokeSchedule
+from psyclone.psyGen import InvokeSchedule, OMPDoDirective, ACCDirective, \
+    ACCLoopDirective
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -79,7 +83,6 @@ class PSyDataTrans(RegionTrans):
     '''
     # Unlike other transformations we can be fairly relaxed about the nodes
     # that a region can contain as we don't have to understand them.
-    # TODO: #415 Support different classes of PSyData calls.
     excluded_node_types = (Return,)
 
     def __init__(self, node_class=PSyDataNode):
@@ -87,14 +90,23 @@ class PSyDataTrans(RegionTrans):
         self._node_class = node_class
 
     def __str__(self):
-        return "Insert a PSyData node."
+        return ("Create a sub-tree of the PSyIR that has a node of type "
+                "{0} at its root.").format(self._node_class.__name__)
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
-        return "PSyDataTrans"
+        '''This function returns the name of the transformation.
+        It uses the Python 2/3 compatible way of returning the
+        class name as a string, which means that the same function can
+        be used for all derived classes.
 
-    def validate(self, node_list, options=None):
+        :returns: the name of this transformation as a string.
+        :rtype: str
+        '''
+
+        return self.__class__.__name__
+
+    def validate(self, nodes, options=None):
         '''
         Calls the validate method of the base class and then checks that,
         for the NEMO API, the routine that will contain the instrumented
@@ -102,9 +114,9 @@ class PSyDataTrans(RegionTrans):
         implemented the necessary support if it doesn't).
         TODO: #435
 
-        :param node_list: a list of nodes to be instrumented with \
+        :param nodes: a node or list of nodes to be instrumented with \
             PSyData API calls.
-        :type node_list: :py:class:`psyclone.psyir.nodes.Loop`
+        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Loop`
 
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
@@ -123,11 +135,13 @@ class PSyDataTrans(RegionTrans):
         :raises TransformationError: if the PSyData node is inserted \
             between an OpenMP/ACC directive and the loop(s) to which it \
             applies.
+
         '''
-        from fparser.two import Fortran2003
-        from fparser.two.utils import walk
-        from psyclone.nemo import NemoInvoke
-        from psyclone.psyGen import OMPDoDirective, ACCLoopDirective
+        node_list = self.get_node_list(nodes)
+
+        if not node_list:
+            raise TransformationError("Cannot apply transformation to an "
+                                      "empty list of nodes.")
 
         node_parent = node_list[0].parent
         if isinstance(node_parent, Schedule) and \
@@ -135,6 +149,10 @@ class PSyDataTrans(RegionTrans):
             raise TransformationError("A PSyData node cannot be inserted "
                                       "between an OpenMP/ACC directive and "
                                       "the loop(s) to which it applies!")
+
+        if node_list[0].ancestor(ACCDirective):
+            raise TransformationError("A PSyData node cannot be inserted "
+                                      "inside an OpenACC region.")
 
         if options:
             if "region_name" in options:
@@ -162,6 +180,10 @@ class PSyDataTrans(RegionTrans):
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.
         sched = node_list[0].ancestor(InvokeSchedule)
+        if not sched:
+            # Some tests construct PSyIR fragments that do not have an
+            # InvokeSchedule
+            return
         invoke = sched.invoke
         if not isinstance(invoke, NemoInvoke):
             return

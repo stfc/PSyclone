@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic and A. Coughtrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements a class that manages the argument for a kernel
@@ -98,18 +98,18 @@ class KernCallArgList(ArgOrdering):
         fargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_fine"])
         farg = fargs[0]
         base_name = "cell_map_" + carg.name
-        map_name = symtab.name_from_tag(base_name)
+        map_name = symtab.symbol_from_tag(base_name).name
         # Add the cell map to our argument list
         self.append("{0}(:,{1})".format(map_name,
                                         self._cell_ref_name(var_accesses)),
                     var_accesses=var_accesses)
         # No. of fine cells per coarse cell
         base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
-        ncellpercell = symtab.name_from_tag(base_name)
+        ncellpercell = symtab.symbol_from_tag(base_name).name
         self.append(ncellpercell, var_accesses)
         # No. of columns in the fine mesh
         base_name = "ncell_{0}".format(farg.name)
-        ncell_fine = symtab.name_from_tag(base_name)
+        ncell_fine = symtab.symbol_from_tag(base_name).name
         self.append(ncell_fine, var_accesses)
 
     def mesh_height(self, var_accesses=None):
@@ -123,7 +123,7 @@ class KernCallArgList(ArgOrdering):
 
         '''
         nlayers_name = \
-            self._kern.root.symbol_table.name_from_tag("nlayers")
+            self._kern.root.symbol_table.symbol_from_tag("nlayers").name
         self.append(nlayers_name, var_accesses)
         self._nlayers_positions.append(self.num_args)
 
@@ -147,7 +147,7 @@ class KernCallArgList(ArgOrdering):
 
         '''
         ncell2d_name = \
-            self._kern.root.symbol_table.name_from_tag("ncell_2d")
+            self._kern.root.symbol_table.symbol_from_tag("ncell_2d").name
         self.append(ncell2d_name, var_accesses)
 
     def cma_operator(self, arg, var_accesses=None):
@@ -165,14 +165,14 @@ class KernCallArgList(ArgOrdering):
         '''
         components = ["matrix"]
         from psyclone.dynamo0p3 import DynCMAOperators
-        if arg.function_space_to.orig_name != \
-           arg.function_space_from.orig_name:
+        if arg.function_space_to.orig_name != (arg.function_space_from.
+                                               orig_name):
             components += DynCMAOperators.cma_diff_fs_params
         else:
             components += DynCMAOperators.cma_same_fs_params
         for component in components:
-            name = self._kern.root.symbol_table.\
-                name_from_tag(arg.name + "_" + component)
+            name = self._kern.root.symbol_table.symbol_from_tag(
+                arg.name + "_" + component).name
             # Matrix is an output parameter, the rest are input
             if component == "matrix":
                 mode = AccessType.WRITE
@@ -196,7 +196,7 @@ class KernCallArgList(ArgOrdering):
         # the range function below returns values from
         # 1 to the vector size which is what we
         # require in our Fortran code
-        for idx in range(1, argvect.vector_size+1):
+        for idx in range(1, argvect.vector_size + 1):
             text = argvect.proxy_name + "(" + str(idx) + ")%data"
             self.append(text)
         if var_accesses is not None:
@@ -236,8 +236,57 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # The extent is not specified in the metadata so pass the value in
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.dofmap_size_name(self._kern.root.symbol_table, arg)
+        var_name = DynStencils.dofmap_size_name(self._kern.root.symbol_table,
+                                                arg)
+        name = "{0}({1})".format(var_name, self._cell_ref_name(var_accesses))
+        self.append(name, var_accesses, var_access_name=var_name)
+
+    def stencil_2d_unknown_extent(self, arg, var_accesses=None):
+        '''Add 2D stencil information to the argument list associated with the
+        argument 'arg' if the extent is unknown. If supplied it also stores
+        this access in var_accesses.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        # The extent is not specified in the metadata so pass the value in
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.dynamo0p3 import DynStencils
+        var_name = DynStencils.dofmap_size_name(self._kern.root.symbol_table,
+                                                arg)
+        name = "{0}(:,{1})".format(var_name,
+                                   self._cell_ref_name(var_accesses))
+        self.append(name, var_accesses, var_access_name=var_name)
+
+    def stencil_2d_max_extent(self, arg, var_accesses=None):
+        '''Add the maximum branch extent for a 2D stencil associated with the
+        argument 'arg' to the argument list. If supplied it also stores this
+        in var_accesses.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`pclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariableAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:1psyclone.core.access_info.VariableAccessInfo`
+
+        '''
+        # The maximum branch extent is not specified in the metadata so pass
+        # the value in.
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.dynamo0p3 import DynStencils
+        name = DynStencils.max_branch_length_name(
+            self._kern.root.symbol_table, arg)
         self.append(name, var_accesses)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
@@ -273,10 +322,41 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # add in stencil dofmap
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
         name = "{0}(:,:,{1})".format(var_name,
                                      self._cell_ref_name(var_accesses))
+        self.append(name, var_accesses, var_access_name=var_name)
+
+    def stencil_2d(self, arg, var_accesses=None):
+        '''Add general 2D stencil information associated with the argument
+        'arg' to the argument list. If supplied it also stores this access in
+        var_accesses.
+
+        :param arg: the meta-data description of the kernel \
+            argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        # The stencil_2D differs from the stencil in that the direction
+        # of the branch is baked into the stencil_dofmap array.
+        # The array dimensions are thus (dof_in_cell, cell_in_branch,
+        # branch_in_stencil) where the branch_in_stencil is always ordered
+        # West, South, East, North which is standard in LFRic. This allows
+        # for knowledge of what direction a stencil cell is in relation
+        # to the center even when the stencil is truncated at boundaries.
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.dynamo0p3 import DynStencils
+        var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
+        name = "{0}(:,:,:,{1})".format(var_name,
+                                       self._cell_ref_name(var_accesses))
         self.append(name, var_accesses, var_access_name=var_name)
 
     def operator(self, arg, var_accesses=None):
@@ -293,9 +373,9 @@ class KernCallArgList(ArgOrdering):
         '''
         # TODO we should only be including ncell_3d once in the argument
         # list but this adds it for every operator
-        self.append(arg.proxy_name_indexed+"%ncell_3d", var_accesses,
+        self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
-        self.append(arg.proxy_name_indexed+"%local_stencil", var_accesses,
+        self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
                     mode=AccessType.WRITE)
 
     def fs_common(self, function_space, var_accesses=None):
@@ -457,7 +537,7 @@ class KernCallArgList(ArgOrdering):
                        self._kern.name, farg.argument_type))
 
         base_name = "boundary_dofs_" + farg.name
-        name = self._kern.root.symbol_table.name_from_tag(base_name)
+        name = self._kern.root.symbol_table.symbol_from_tag(base_name).name
         self.append(name, var_accesses)
 
     def operator_bcs_kernel(self, function_space, var_accesses=None):
@@ -476,8 +556,8 @@ class KernCallArgList(ArgOrdering):
         # This kernel has only a single LMA operator as argument.
         # Checks for this are performed in ArgOrdering.generate()
         op_arg = self._kern.arguments.args[0]
-        base_name = "boundary_dofs_"+op_arg.name
-        name = self._kern.root.symbol_table.name_from_tag(base_name)
+        base_name = "boundary_dofs_" + op_arg.name
+        name = self._kern.root.symbol_table.symbol_from_tag(base_name).name
         self.append(name, var_accesses)
 
     def mesh_properties(self, var_accesses=None):

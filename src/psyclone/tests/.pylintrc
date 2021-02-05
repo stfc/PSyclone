@@ -23,3 +23,5 @@ disable=print-statement,suppressed-message,duplicate-code,no-self-use,too-many-l
 # This will limit the names to 80 characters, at which stage we
 # will also hit the line length limit anyway :)
 function-rgx=[a-z_][a-z0-9_]{2,80}$
+
+generated-members=lfric_psyir

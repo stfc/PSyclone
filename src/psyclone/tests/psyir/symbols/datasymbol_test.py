@@ -41,13 +41,12 @@
 from __future__ import absolute_import
 import pytest
 
-from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
+from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
     LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, \
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
-    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Symbol
-from psyclone.psyir.nodes import Container, Literal, Reference, \
-    BinaryOperation, Return
+    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Symbol, TypeSymbol
+from psyclone.psyir.nodes import Literal, Reference, BinaryOperation, Return
 
 
 def test_datasymbol_initialisation():
@@ -85,11 +84,12 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
     assert isinstance(DataSymbol('a', REAL_SINGLE_TYPE), DataSymbol)
     assert isinstance(DataSymbol('a', REAL8_TYPE), DataSymbol)
-    dim = DataSymbol('dim', INTEGER_SINGLE_TYPE)
-    array_type = ArrayType(REAL_SINGLE_TYPE, [dim])
+    dim = DataSymbol('dim', INTEGER_SINGLE_TYPE,
+                     interface=UnresolvedInterface())
+    array_type = ArrayType(REAL_SINGLE_TYPE, [Reference(dim)])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
     array_type = ArrayType(REAL_SINGLE_TYPE,
-                           [3, dim, ArrayType.Extent.ATTRIBUTE])
+                           [3, Reference(dim), ArrayType.Extent.ATTRIBUTE])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
     assert isinstance(
         DataSymbol('a', REAL_SINGLE_TYPE,
@@ -98,6 +98,9 @@ def test_datasymbol_initialisation():
     assert isinstance(
         DataSymbol('a', REAL_SINGLE_TYPE,
                    visibility=Symbol.Visibility.PRIVATE), DataSymbol)
+    assert isinstance(DataSymbol('field', TypeSymbol("field_type",
+                                                     DeferredType())),
+                      DataSymbol)
 
 
 def test_datasymbol_init_errors():
@@ -111,13 +114,13 @@ def test_datasymbol_init_errors():
 
     with pytest.raises(TypeError) as error:
         DataSymbol('a', 'invalidtype')
-    assert ("datatype of a DataSymbol must be specified using a DataType "
-            "but got: 'str'" in str(error.value))
+    assert ("datatype of a DataSymbol must be specified using either a "
+            "DataType or a TypeSymbol but got: 'str'" in str(error.value))
 
     with pytest.raises(TypeError) as error:
         DataSymbol('a', 3)
-    assert ("datatype of a DataSymbol must be specified using a DataType "
-            "but got:" in str(error.value))
+    assert ("datatype of a DataSymbol must be specified using either a "
+            "DataType or a TypeSymbol but got:" in str(error.value))
 
 
 def test_datasymbol_can_be_printed():
@@ -126,14 +129,16 @@ def test_datasymbol_can_be_printed():
     symbol = DataSymbol("sname", REAL_SINGLE_TYPE)
     assert "sname: <Scalar<REAL, SINGLE>, Local>" in str(symbol)
 
-    sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE)
-    assert "s1: <Scalar<INTEGER, SINGLE>, Local>" in str(sym1)
+    sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE,
+                      interface=UnresolvedInterface())
+    assert "s1: <Scalar<INTEGER, SINGLE>, Unresolved>" in str(sym1)
 
     array_type = ArrayType(REAL_SINGLE_TYPE,
-                           [ArrayType.Extent.ATTRIBUTE, 2, sym1])
+                           [ArrayType.Extent.ATTRIBUTE, 2, Reference(sym1)])
     sym2 = DataSymbol("s2", array_type)
-    assert ("s2: <Array<Scalar<REAL, SINGLE>, shape=['ATTRIBUTE', 2, s1]>, "
-            "Local>" in str(sym2))
+    assert ("s2: <Array<Scalar<REAL, SINGLE>, shape=['ATTRIBUTE', "
+            "Literal[value:'2', Scalar<INTEGER, UNDEFINED>], "
+            "Reference[name:'s1']]>, Local>" in str(sym2))
 
     my_mod = ContainerSymbol("my_mod")
     sym3 = DataSymbol("s3", REAL_SINGLE_TYPE,
@@ -249,9 +254,10 @@ def test_datasymbol_scalar_array():
     is_array returns True if the DataSymbol is an array and False if not.
 
     '''
-    sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE)
+    sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE,
+                      interface=UnresolvedInterface())
     array_type = ArrayType(REAL_SINGLE_TYPE,
-                           [ArrayType.Extent.ATTRIBUTE, 2, sym1])
+                           [ArrayType.Extent.ATTRIBUTE, 2, Reference(sym1)])
     sym2 = DataSymbol("s2", array_type)
     assert sym1.is_scalar
     assert not sym1.is_array
@@ -289,13 +295,28 @@ def test_datasymbol_copy():
     assert symbol.name == "myname"
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
-    assert symbol.datatype.shape == [1, 2]
+    assert len(symbol.shape) == 2
+    assert isinstance(symbol.shape[0], Literal)
+    assert symbol.shape[0].value == "1"
+    assert symbol.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert symbol.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert isinstance(symbol.shape[1], Literal)
+    assert symbol.shape[1].value == "2"
+    assert symbol.shape[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert symbol.shape[1].datatype.precision == ScalarType.Precision.UNDEFINED
     assert not symbol.constant_value
 
     # Now check constant_value
     new_symbol.constant_value = 3
 
-    assert symbol.shape == [1, 2]
+    assert isinstance(symbol.shape[0], Literal)
+    assert symbol.shape[0].value == "1"
+    assert symbol.shape[0].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert symbol.shape[0].datatype.precision == ScalarType.Precision.UNDEFINED
+    assert isinstance(symbol.shape[1], Literal)
+    assert symbol.shape[1].value == "2"
+    assert symbol.shape[1].datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert symbol.shape[1].datatype.precision == ScalarType.Precision.UNDEFINED
     assert not symbol.constant_value
 
 
@@ -329,69 +350,26 @@ def test_datasymbol_copy_properties():
             symbol.datatype.precision)
 
 
-def test_datasymbol_resolve_deferred():
+def test_datasymbol_resolve_deferred(monkeypatch):
     ''' Test the datasymbol resolve_deferred method '''
-
-    container = Container("dummy_module")
-    container.symbol_table.add(DataSymbol('a', INTEGER_SINGLE_TYPE))
-    container.symbol_table.add(DataSymbol('b', REAL_SINGLE_TYPE))
-    container.symbol_table.add(DataSymbol('c', REAL_DOUBLE_TYPE,
-                                          constant_value=3.14))
-    container.symbol_table.add(DataSymbol(
-        'f', INTEGER_SINGLE_TYPE, visibility=Symbol.Visibility.PRIVATE))
+    symbola = DataSymbol('a', INTEGER_SINGLE_TYPE)
+    new_sym = symbola.resolve_deferred()
+    # For a DataSymbol (unlike a Symbol), resolve_deferred should always
+    # return the object on which it was called.
+    assert new_sym is symbola
     module = ContainerSymbol("dummy_module")
-    module._reference = container  # Manually linking the container
-
-    symbol = DataSymbol('a', DeferredType(),
-                        interface=GlobalInterface(module))
-    symbol.resolve_deferred()
-    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert symbol.datatype.precision == ScalarType.Precision.SINGLE
-
-    symbol = DataSymbol('b', DeferredType(),
-                        interface=GlobalInterface(module))
-    symbol.resolve_deferred()
-    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    assert symbol.datatype.precision == ScalarType.Precision.SINGLE
-
-    symbol = DataSymbol('c', DeferredType(),
-                        interface=GlobalInterface(module))
-    symbol.resolve_deferred()
-    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    assert symbol.datatype.precision == ScalarType.Precision.DOUBLE
-    assert isinstance(symbol.constant_value, Literal)
-    assert (symbol.constant_value.datatype.intrinsic ==
-            symbol.datatype.intrinsic)
-    assert (symbol.constant_value.datatype.precision ==
-            symbol.datatype.precision)
-    assert symbol.constant_value.value == "3.14"
-
-    # Test with a symbol not defined in the linked container
-    symbol = DataSymbol('d', DeferredType(),
-                        interface=GlobalInterface(module))
-    with pytest.raises(SymbolError) as err:
-        symbol.resolve_deferred()
-    assert ("Error trying to resolve the properties of symbol 'd'. The "
-            "interface points to module 'dummy_module' but could not find the"
-            " definition of 'd' in that module." in str(err.value))
-
-    # Test with a symbol which does not have a Global interface
-    symbol = DataSymbol('e', DeferredType(), interface=LocalInterface())
-    with pytest.raises(NotImplementedError) as err:
-        symbol.resolve_deferred()
-    assert ("Error trying to resolve symbol 'e' properties, the lazy "
-            "evaluation of 'Local' interfaces is not supported."
-            in str(err.value))
-
-    # Test with a symbol that is private to the linked container
-    symbol = DataSymbol('f', DeferredType(), interface=GlobalInterface(module))
-    with pytest.raises(SymbolError) as err:
-        symbol.resolve_deferred()
-    assert ("Error trying to resolve the properties of symbol 'f' in module "
-            "'dummy_module': PSyclone " in str(err.value))
-    assert ("'f' exists in the Symbol Table but has visibility 'PRIVATE' "
-            "which does not match with the requested visibility: ['PUBLIC']"
-            in str(err.value))
+    symbolb = DataSymbol('b', visibility=Symbol.Visibility.PRIVATE,
+                         datatype=DeferredType(),
+                         interface=GlobalInterface(module))
+    # Monkeypatch the get_external_symbol() method so that it just returns
+    # a new DataSymbol
+    monkeypatch.setattr(symbolb, "get_external_symbol",
+                        lambda: DataSymbol("b", INTEGER_SINGLE_TYPE))
+    new_sym = symbolb.resolve_deferred()
+    assert new_sym is symbolb
+    assert new_sym.datatype == INTEGER_SINGLE_TYPE
+    assert new_sym.visibility == Symbol.Visibility.PRIVATE
+    assert isinstance(new_sym.interface, GlobalInterface)
 
 
 def test_datasymbol_shape():

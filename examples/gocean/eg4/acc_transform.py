@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone's generate()
 function via the -s option. Transforms all kernels in the invoke
@@ -43,11 +43,12 @@ def trans(psy):
     to the schedule of the first invoke and return the new psy object '''
     from psyclone.transformations import ACCParallelTrans, \
         ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, \
-        KernelGlobalsToArguments
+        KernelGlobalsToArguments, KernelModuleInlineTrans
     ptrans = ACCParallelTrans()
     ltrans = ACCLoopTrans()
     dtrans = ACCEnterDataTrans()
     ktrans = ACCRoutineTrans()
+    itrans = KernelModuleInlineTrans()
     g2localtrans = KernelGlobalsToArguments()
 
     invoke = psy.invokes.invoke_list[0]
@@ -68,19 +69,13 @@ def trans(psy):
     # Add an enter-data directive
     newschedule, _ = dtrans.apply(schedule)
 
-    # Convert any accesses to global data into kernel arguments and then
-    # put an 'acc routine' directive inside each kernel
+    # Convert any accesses to global data into kernel arguments, put an
+    # 'acc routine' directive inside, and module-inline each kernel
     for kern in schedule.coded_kernels():
         if kern.name == "kern_use_var_code":
-            # TODO #490 and #663. This currently won't work because the
-            # KernelGlobalsToArguments transformation works on the PSyIR but
-            # the subsequent ACCRoutineTrans works on the fparser2 parse tree.
             g2localtrans.apply(kern)
         _, _ = ktrans.apply(kern)
-        # Ideally we would module-inline the kernel here (to save having to
-        # rely on the compiler to do it) but this does not currently work
-        # for the fparser2 AST (issue #229).
-        # _, _ = itrans.apply(kern)
+        _, _ = itrans.apply(kern)
 
     invoke.schedule = newschedule
     newschedule.view()

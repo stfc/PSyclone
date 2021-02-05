@@ -44,9 +44,9 @@ by the template to provide functions for each scalar type listed in
 ALL_TYPES, and for arrays with any number of dimension specified
 in DIMENSIONS and each type listed in ALL_TYPES. PREFIX can be
 used to add a prefix to static functions defined in the template.
+
 '''
-
-
+from __future__ import print_function
 import argparse
 import sys
 from jinja2 import Environment
@@ -68,6 +68,34 @@ parser.add_argument("-dims", help="Comma-separated list of dimensions, "
 parser.add_argument("-prefix", help="Prefix to add to the generated PSyData "
                                     "function names",
                     default="")
+# A certain implementation of a generic subroutine can only be
+# specified once to be generic. So if a derived class wants to overwrite
+# say `ProvideScalarInt`, this subroutine must be added to the generic
+# subroutine in the derived class, not in the base class. On the
+# other hand, many derived classes will not overwrite many (if any)
+# functions in the base class, so in this case it is convenient to declare
+# these functions in the base class. This can often avoid the need to use
+# Jinja for a derived class. For example, a GOcean library will only
+# implement functions for the the GOCean-specific field type, and rely on
+# the base class to provide the implementations for all standard Fortran
+# types).
+# In order to support this, the `process.py` sript provides two options
+# to control the creation of the `DeclareXXX` and `ProvideXXX` generic
+# interfaces, which control if a base class specifies that the `declareXXX`
+# and `provideXXX` functions are part of the generic interface or not.
+# As example, if a derived class relies on a Jinja base class to provide
+# implementations for the `declareXXX` functions, it should process the
+# Jinja template with the option `-generic-declare`. This will then
+# add the generic interface for all `DeclareXXX` functions.
+# The process script will pass the options as GENERIC_DECLARE and
+# GENERIC_PROVIDE variables to the Jinja template.
+
+parser.add_argument("-generic-declare", action="store_true",
+                    help="Declare generic interfaces for "
+                    "PreDeclareVariable functions.", default=False)
+parser.add_argument("-generic-provide", action="store_true",
+                    help="Declare generic interfaces for "
+                    "ProvideVariable functions.", default=False)
 
 args = parser.parse_args()
 
@@ -82,6 +110,12 @@ TYPE_DATA = {"real": ("Real", "real(kind=real32)", 32),
 # ---------------------------------------------------------
 # Check type information:
 types = [type.lower() for type in args.types.split(",")]
+
+# If types is empty (e.g. in profiling no types are actually
+# required), the parsers assigns ['']. Convert to an empty list:
+if types == ['']:
+    types = []
+
 for my_type in types:
     if my_type not in TYPE_DATA:
         print("Type '{0}' is not supported.".format(my_type), file=sys.stderr)
@@ -93,6 +127,11 @@ all_types = [TYPE_DATA[my_type] for my_type in types]
 # ---------------------------------------------------------
 # check dimension
 dims = args.dims.split(",")
+
+# Convert to empty list if an empty dims argument was given:
+if dims == ['']:
+    dims = []
+
 for dim in dims:
     try:
         int_dim = int(dim)
@@ -113,5 +152,7 @@ with open(args.template_name, "r") as file:
 env = Environment(trim_blocks=True, lstrip_blocks=True)
 template = env.from_string(template_string)
 
-print(template.render(ALL_TYPES=all_types, DIMENSIONS=dims,
-                      PREFIX=args.prefix))
+print(template.render(ALL_TYPES=all_types, ALL_DIMS=dims,
+                      PREFIX=args.prefix,
+                      GENERIC_DECLARE=args.generic_declare,
+                      GENERIC_PROVIDE=args.generic_provide))

@@ -34,6 +34,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified A. J. Voysey, Met Office
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 
 '''
@@ -445,12 +446,10 @@ def write_unicode_file(contents, filename):
         if not isinstance(contents, unicode):
             contents = unicode(contents, 'utf-8')
         # pylint: enable=undefined-variable
-        encoding = {}
-    elif six.PY3:
-        encoding = {'encoding': 'utf-8'}
-    else:
+    elif not six.PY3:
         raise InternalError("Unrecognised Python version!")
 
+    encoding = {'encoding': 'utf-8'}
     with io.open(filename, mode='w', **encoding) as file_object:
         file_object.write(contents)
 

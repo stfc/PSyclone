@@ -118,6 +118,24 @@ libraries that come with PSyclone:
     to the NVIDIA Tools Extension library (NVTX). This library is
     available from ``https://developer.nvidia.com/cuda-toolkit``.
 
+``lib/profiling/lfric``
+    This profile wrapper uses the timer functionality provided by
+    LFRic, and it comes in two different versions:
+
+    - ``libpsy_lfric_timer.a``
+      This library just contains the PSyData wrapper, but not the
+      actual timer code. It must therefore be linked with the LFRic
+      infrastructure library. It is meant to be used by LFRic only.
+    - ``libpsy_lfric_timer_standalone.a``
+      This library contains the LFRic timer object and its dependencies.
+      It can be used standalone (i.e. without LFRic) with any program.
+      A runnable example using a gocean code is included in
+      ``examples/gocean/eg5``.
+
+    The LFRic timer writes its output to a file called ``timer.txt``
+    in the current directory, and will overwrite this file if it
+    should already exist.
+
 
 Any user can create similar wrapper libraries for
 other profiling tools by providing a corresponding Fortran
@@ -192,6 +210,12 @@ created by PSyclone with start and end profiling calls.
           memory) additional minor code might get included in a
           profiled kernel section, for example setDirty() calls
           (expensive calls like HaloExchange are excluded).
+
+.. note:: If the ``kernels`` option is used in combination with an
+	  optimisation script that introduces OpenACC then profiling
+	  calls are automatically excluded from within OpenACC
+	  regions (since the PSyData wrappers are not compiled for
+	  GPU execution).
 
 .. note:: It is still the responsibility of the user to manually
     add the calls to ``profile_PSyDataInit`` and 

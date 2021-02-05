@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,8 +56,13 @@ BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
 VALID_BUILTIN_ARG_TYPES = LFRicArgDescriptor.VALID_FIELD_NAMES + \
     LFRicArgDescriptor.VALID_SCALAR_NAMES
 
+# The data types of field arguments that are valid for built-in
+# kernels in the LFRic API (only "gh_real")
+VALID_BUILTIN_FIELD_DATA_TYPES = ["gh_real"]
+
 # Valid LFRic iteration spaces for built-in kernels
-BUILTIN_ITERATION_SPACES = ["dofs"]
+# TODO #870 rm 'dofs' from list below.
+BUILTIN_ITERATION_SPACES = ["dofs", "dof"]
 
 
 # Function to return the built-in operations that we support for this API.
@@ -176,7 +181,7 @@ class DynBuiltIn(BuiltIn):
         self._func_descriptors = call.ktype.func_descriptors
         self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
         self._idx_name = \
-            self.root.symbol_table.name_from_tag("dof_loop_idx", root="df")
+            self.root.symbol_table.symbol_from_tag("dof_loop_idx", "df").name
         # Check that this built-in kernel is valid
         self._validate()
 
@@ -187,6 +192,8 @@ class DynBuiltIn(BuiltIn):
         :raises ParseError: if a built-in call does not iterate over DoFs.
         :raises ParseError: if an argument to a built-in kernel is not \
                             one of valid argument types.
+        :raises ParseError: if a field argument to a built-in kernel has \
+                            an invalid data type.
         :raises ParseError: if a built-in kernel writes to more than \
                             one argument.
         :raises ParseError: if a built-in kernel does not have at least \
@@ -197,7 +204,7 @@ class DynBuiltIn(BuiltIn):
         # Check that our assumption that we're looping over DoFs is valid
         if self.iterates_over not in BUILTIN_ITERATION_SPACES:
             raise ParseError(
-                "In the LFRic API built-in calls must iterate over "
+                "In the LFRic API built-in calls must operate on "
                 "DoFs but found '{0}' for {1}.".
                 format(self.iterates_over, str(self)))
         # Check write count, field arguments and spaces
@@ -219,6 +226,14 @@ class DynBuiltIn(BuiltIn):
                     "must be one of {0} but kernel '{1}' has an argument of "
                     "type '{2}'.".format(VALID_BUILTIN_ARG_TYPES, self.name,
                                          arg.argument_type))
+            if (arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES and
+                    arg.data_type not in VALID_BUILTIN_FIELD_DATA_TYPES):
+                raise ParseError(
+                    "In the LFRic API a field argument to a built-in kernel "
+                    "must have one of {0} as data type but kernel '{1}' has "
+                    "a field argument with data type '{2}'.".
+                    format(VALID_BUILTIN_FIELD_DATA_TYPES, self.name,
+                           arg.data_type))
         if write_count != 1:
             raise ParseError("A built-in kernel in the LFRic API must "
                              "have one and only one argument that is written "

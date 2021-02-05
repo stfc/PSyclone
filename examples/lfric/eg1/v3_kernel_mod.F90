@@ -46,8 +46,8 @@
 
 module v3_kernel_mod
 use lfric
-use argument_mod,            only: arg_type, &          ! the type
-                                   gh_rw, v3, fe, cells ! the enums
+use argument_mod,            only: arg_type, &                ! the type
+                                   gh_rw, v3, fe, cell_column ! the enums
 
 
 implicit none
@@ -63,7 +63,7 @@ type, public, extends(kernel_type) :: v3_kernel_type
   type(arg_type) :: meta_args(1) = (/ &
        arg_type(gh_rw,v3,fe,.true.,.false.,.true.) &
        /)
-  integer :: iterates_over = cells
+  integer :: operates_on = CELL_COLUMN
 
 contains
   procedure, nopass :: rhs_v3_code

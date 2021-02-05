@@ -64,8 +64,13 @@ Access Verification:
   is not modified during a kernel call (either because of an incorrect
   declaration, or because memory is overwritten). The implementation
   included in PSyclone uses a simple 64-bit checksum to detect changes
-  to a field (and scalar values). See :ref:`psydata_read_validation`
+  to a field (and scalar values). See :ref:`psydata_read_verification`
   for details.
+
+NAN Test:
+  The callbacks can be used to make sure that all floating point input
+  and output parameters of a kernel are not a NAN (not-a-number) or
+  infinite. See :ref:`psydata_nan_test` for the full description.
 
 In-situ Visualisation:
   By giving access to output fields of a kernel, an in-situ visualisation
@@ -84,7 +89,7 @@ and corresponding runtime libraries for additional functionality.
 Refer to :ref:`dev_guide:psy_data` for full details about the PSyData API.
 
 
-.. _psydata_read_validation:
+.. _psydata_read_verification:
 
 Read-Only Verification
 ----------------------
@@ -208,3 +213,24 @@ An executable example for using the GOcean read-only-verification
 library is included in ``examples/gocean/eg7``, see
 :ref:`gocean_example_7`.
 
+.. _psydata_nan_test:
+
+NAN Test
+--------
+This transformation can be used for both LFRic and GOcean APIs. It will
+test all input- and output-parameter of a kernel to make sure they are not
+NAN or infinite. If they are, an error message like the following
+is printed, but the program is not aborted::
+
+     PSYDATA: Variable perturbation has the invalid value
+                           NaN  at index/indices          351
+
+Is uses the function ``IEEE_IS_FINITE`` from the ieee_arithmetic module
+for this test. Note that only floating point numbers will be tested.
+Integer numbers do not have a bit pattern for 'infinity' or NAN.
+
+The runtime libraries for GOcean and LFRic are based on a jinja-template
+contained in the directory ``<PSYCLONEHOME>/lib/nan_test``.
+The respective API-specific libraries map the internal field structures
+to Fortran basic types and call the functions from the base class to
+handle those.

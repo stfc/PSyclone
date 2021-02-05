@@ -49,14 +49,13 @@ class ProfileTrans(PSyDataTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory, GenerationError
+    >>> from psyclone.psyir.transformations import ProfileTrans
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
     >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> p_trans = t.get_trans_name('ProfileTrans')
+    >>> p_trans = ProfileTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
@@ -76,11 +75,3 @@ class ProfileTrans(PSyDataTrans):
 
     def __init__(self):
         super(ProfileTrans, self).__init__(ProfileNode)
-
-    def __str__(self):
-        return "Insert a profile start and end call."
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string '''
-        return "ProfileTrans"

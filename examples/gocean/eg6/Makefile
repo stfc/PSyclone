@@ -41,7 +41,7 @@
 # The dl_esm_inf infrastructure library:
 #     export INF_DIR=../../../external/dl_esm_inf/finite_difference/src
 # The dl_esm_inf extract wrapper library:
-#     export EXTRACT_DIR = ../../../lib/extract/dl_esm_inf/netcdf
+#     export EXTRACT_DIR = ../../../lib/extract/netcdf/dl_esm_inf
 
 include ../../common.mk
 
@@ -58,7 +58,7 @@ SHARED_DIR ?= ../../../external
 INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
-EXTRACT_DIR ?= ../../../lib/extract/dl_esm_inf/netcdf
+EXTRACT_DIR ?= ../../../lib/extract/netcdf/dl_esm_inf
 
 # The two kernels used in the application.
 KERNELS = init_field_mod.o update_field_mod.o

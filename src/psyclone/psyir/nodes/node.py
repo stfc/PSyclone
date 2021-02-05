@@ -36,16 +36,19 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the abstract Node implementation.'''
+'''
+This module contains the abstract Node implementation.
+
+'''
 
 import abc
-from psyclone.psyir.symbols import SymbolError, Symbol, DataSymbol, \
-    UnresolvedInterface, DeferredType
+from psyclone.psyir.symbols import SymbolError
 from psyclone.errors import GenerationError, InternalError
 
-# Colour map to use when writing Invoke schedule to terminal. (Requires
-# that the termcolor package be installed. If it isn't then output is not
-# coloured.) See https://pypi.python.org/pypi/termcolor for details.
+
+#: Colour map to use when writing Invoke schedule to terminal. (Requires
+#: that the termcolor package be installed. If it isn't then output is not
+#: coloured.) See https://pypi.python.org/pypi/termcolor for details.
 SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Loop": "red",
                        "GlobalSum": "cyan",
@@ -60,17 +63,18 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Profile": "green",
                        "Extract": "green",
                        "ReadOnlyVerify": "green",
+                       "NanTest": "green",
                        "If": "red",
                        "Assignment": "blue",
                        "Range": "white",
                        "Reference": "yellow",
+                       "Member": "yellow",
                        "Operation": "blue",
                        "Literal": "yellow",
                        "Return": "yellow",
                        "CodeBlock": "red",
                        "Container": "green",
                        "Call": "cyan"}
-
 
 # Default indentation string
 INDENTATION_STRING = "    "
@@ -88,12 +92,12 @@ except ImportError:
         Returns the supplied text argument unchanged. This is a swap-in
         replacement for when termcolor.colored is not available.
 
-        :param text: Text to return
-        :type text: string
-        :param _: Fake argument, only required to match interface
-                  provided by termcolor.colored
-        :returns: The supplied text, unchanged
-        :rtype: string
+        :param str text: text to return.
+        :param _: fake argument, only required to match interface \
+                  provided by termcolor.colored.
+
+        :returns: the supplied text, unchanged.
+        :rtype: str
         '''
         return text
 
@@ -904,7 +908,7 @@ class Node(object):
         :param my_type: the class(es) for which the instances are collected.
         :type my_type: either a single :py:class:`psyclone.Node` class \
             or a tuple of such classes
-        :param stop_type: class(es) at which recursion is halted (optional)."
+        :param stop_type: class(es) at which recursion is halted (optional).
 
         :type stop_type: None or a single :py:class:`psyclone.Node` \
             class or a tuple of such classes
@@ -1058,6 +1062,17 @@ class Node(object):
             return True
         return False
 
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of DSL or high-level concepts into generic
+        PSyIR constructs. The generic implementation only recurses down
+        to its children, but this method must be re-implemented by Nodes
+        that represent high-level concepts.
+
+        '''
+        for child in self.children:
+            child.lower_to_language_level()
+
     def gen_code(self, parent):
         '''Abstract base class for code generation function.
 
@@ -1120,145 +1135,24 @@ class Node(object):
         :returns: the closest ancestor Schedule or Container node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
-        :raises InternalError: if there is no Schedule or Container \
-            ancestor.
+        :raises SymbolError: if there is no Schedule or Container ancestor.
 
         '''
+        # These imports have to be local to this method to avoid circular
+        # dependencies.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Schedule, Container
-        current = self
-        while current:
-            if isinstance(current, (Container, Schedule)):
-                return current
-            current = current.parent
-        raise InternalError(
+        node = self.ancestor((Container, Schedule), include_self=True)
+        if node:
+            return node
+        raise SymbolError(
             "Unable to find the scope of node '{0}' as none of its ancestors "
             "are Container or Schedule nodes.".format(self))
 
-    def find_or_create_symbol(self, name, scope_limit=None,
-                              visibility=Symbol.DEFAULT_VISIBILITY):
-        '''Returns the symbol with the name 'name' from a symbol table
-        associated with this node or one of its ancestors.  If the symbol
-        is not found and there are no ContainerSymbols with wildcard imports
-        then an exception is raised. However, if there are one or more
-        ContainerSymbols with wildcard imports (which could therefore be
-        bringing the symbol into scope) then a new DataSymbol with the
-        specified visibility but of unknown type and interface is created and
-        inserted in the most local SymbolTable that has such an import.
-        The scope_limit variable further limits the symbol table search so
-        that the search through ancestor nodes stops when the scope_limit node
-        is reached i.e. ancestors of the scope_limit node are not searched.
 
-        :param str name: the name of the symbol.
-        :param scope_limit: optional Node which limits the symbol \
-            search space to the symbol tables of the nodes within the \
-            given scope. If it is None (the default), the whole \
-            scope (all symbol tables in ancestor nodes) is searched \
-            otherwise ancestors of the scope_limit node are not \
-            searched.
-        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
-            `NoneType`
-        :param visibility: the visibility to give to any new symbol.
-        :type visibility: :py:class:`psyclone.Symbol.Visbility`
-
-        :returns: the matching symbol.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
-
-        :raises TypeError: if the supplied scope_limit is not a Node.
-        :raises ValueError: if the supplied scope_limit node is not an \
-            ancestor of the supplied node.
-        :raises TypeError: if the supplied visibility is not of \
-            `Symbol.Visibility` type.
-        :raises SymbolError: if no matching symbol is found and there are \
-            no ContainerSymbols from which it might be brought into scope.
-
-        '''
-        if scope_limit:
-            # Validate the supplied scope_limit
-            if not isinstance(scope_limit, Node):
-                raise TypeError(
-                    "The scope_limit argument '{0}' provided to the "
-                    "find_or_create_symbol method, is not of type `Node`."
-                    "".format(str(scope_limit)))
-
-            # Check that the scope_limit Node is an ancestor of this
-            # Reference Node and raise an exception if not.
-            mynode = self.parent
-            while mynode is not None:
-                if mynode is scope_limit:
-                    # The scope_limit node is an ancestor of the
-                    # supplied node.
-                    break
-                mynode = mynode.parent
-            else:
-                # The scope_limit node is not an ancestor of the
-                # supplied node so raise an exception.
-                raise ValueError(
-                    "The scope_limit node '{0}' provided to the "
-                    "find_or_create_symbol method, is not an ancestor of this "
-                    "node '{1}'.".format(str(scope_limit), str(self)))
-
-        # Validate supplied visibility
-        if not isinstance(visibility, Symbol.Visibility):
-            raise TypeError(
-                "The visibility argument '{0}' provided to the "
-                "find_or_create_symbol method should be of `Symbol."
-                "Visibility` type but instead is: '{1}'."
-                "".format(str(visibility), type(visibility).__name__))
-
-        # Keep a list of (symbol table, container) tuples for containers that
-        # have wildcard imports into the current scope and therefore may
-        # contain the symbol we're searching for.
-        possible_containers = []
-        # Keep a reference to the most local SymbolTable with a wildcard
-        # import in case we need to create a Symbol.
-        first_symbol_table = None
-        test_node = self
-
-        # Iterate over ancestor Nodes of this Node.
-        while test_node:
-            # For simplicity, test every Node for the existence of a
-            # SymbolTable (rather than checking for the particular
-            # Node types which we know to have SymbolTables).
-            if hasattr(test_node, 'symbol_table'):
-                # This Node does have a SymbolTable.
-                symbol_table = test_node.symbol_table
-
-                try:
-                    # If the reference matches a Symbol in this
-                    # SymbolTable then return the Symbol.
-                    return symbol_table.lookup(name, check_ancestors=False)
-                except KeyError:
-                    # The Reference Node does not match any Symbols in
-                    # this SymbolTable. Does this SymbolTable have any
-                    # wildcard imports?
-                    for csym in symbol_table.containersymbols:
-                        if csym.wildcard_import:
-                            possible_containers.append((symbol_table, csym))
-                            if not first_symbol_table:
-                                first_symbol_table = symbol_table
-
-            if test_node is scope_limit:
-                # The ancestor scope/top-level Node has been reached and
-                # nothing has matched.
-                break
-
-            # Move on to the next ancestor.
-            test_node = test_node.parent
-
-        if possible_containers:
-            # No symbol found but there are one or more Containers from which
-            # it may be being brought into scope. Therefore create a DataSymbol
-            # of unknown type and deferred interface and add it to the most
-            # local SymbolTable.
-            # TODO #876 - this should not always be a DataSymbol since
-            # sometimes the name will refer to a routine.
-            symbol = DataSymbol(name, DeferredType(),
-                                interface=UnresolvedInterface(),
-                                visibility=visibility)
-            first_symbol_table.add(symbol)
-            return symbol
-
-        # All requested Nodes have been checked but there has been no
-        # match and there are no wildcard imports so raise an exception.
-        raise SymbolError(
-            "No Symbol found for name '{0}'.".format(name))
+# For automatic documentation generation
+# TODO #913 the 'colored' routine shouldn't be in this module.
+__all__ = ["colored",
+           "SCHEDULE_COLOUR_MAP",
+           "ChildrenList",
+           "Node"]

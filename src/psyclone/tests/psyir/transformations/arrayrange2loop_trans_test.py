@@ -41,8 +41,8 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
-    Range, Array, Assignment, Node, DataNode
-from psyclone.psyGen import KernelSchedule, Transformation
+    Range, ArrayReference, Assignment, Node, DataNode, KernelSchedule
+from psyclone.psyGen import Transformation
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
     INTEGER_TYPE, REAL_TYPE
 from psyclone.psyir.transformations import ArrayRange2LoopTrans, \
@@ -118,12 +118,12 @@ def create_array_x(symbol_table):
 
     :returns: an array reference that accesses all elements of the \
         array "x".
-    :rtype: :py:class:`psyclone.psyir.nodes.Array`
+    :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
     '''
     array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
     symbol_table.add(array_symbol)
-    return Array.create(array_symbol, [create_range(array_symbol, 1)])
+    return ArrayReference.create(array_symbol, [create_range(array_symbol, 1)])
 
 
 def create_array_y(symbol_table):
@@ -140,13 +140,14 @@ def create_array_y(symbol_table):
     :returns: an array reference that accesses all elements of the \
         2nd dimension of array "y" and the n'th element of its 1st \
         dimension.
-    :rtype: :py:class:`psyclone.psyir.nodes.Array`
+    :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
     '''
     array_symbol = DataSymbol("y", ArrayType(REAL_TYPE, [10, 10]))
     symbol_table.add(array_symbol)
-    return Array.create(array_symbol, [Reference(symbol_table.lookup("n")),
-                                       create_range(array_symbol, 2)])
+    return ArrayReference.create(array_symbol,
+                                 [Reference(symbol_table.lookup("n")),
+                                  create_range(array_symbol, 2)])
 
 
 def create_array_y_2d_slice(symbol_table):
@@ -161,13 +162,13 @@ def create_array_y_2d_slice(symbol_table):
 
     :returns: an array reference that accesses all elements of the 1st \
         and 2nd dimensions of the "y" array.
-    :rtype: :py:class:`psyclone.psyir.nodes.Array`
+    :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
     '''
     array_symbol = DataSymbol("y2", ArrayType(REAL_TYPE, [20, 10]))
     symbol_table.add(array_symbol)
-    return Array.create(array_symbol, [create_range(array_symbol, 1),
-                                       create_range(array_symbol, 2)])
+    return ArrayReference.create(array_symbol, [create_range(array_symbol, 1),
+                                                create_range(array_symbol, 2)])
 
 
 def create_array_z(symbol_table):
@@ -184,14 +185,15 @@ def create_array_z(symbol_table):
     :returns: an array reference that accesses all elements of the 1st \
         and 3rd dimensions of array "z" and the n'th element of its \
         second dimension.
-    :rtype: :py:class:`psyclone.psyir.nodes.Array`
+    :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
     '''
     array_symbol = DataSymbol("z", ArrayType(REAL_TYPE, [20, 10, 10]))
     symbol_table.add(array_symbol)
-    return Array.create(array_symbol, [create_range(array_symbol, 1),
-                                       Reference(symbol_table.lookup("n")),
-                                       create_range(array_symbol, 3)])
+    return ArrayReference.create(array_symbol,
+                                 [create_range(array_symbol, 1),
+                                  Reference(symbol_table.lookup("n")),
+                                  create_range(array_symbol, 3)])
 
 
 def create_array_y_slice_subset(symbol_table):
@@ -208,14 +210,15 @@ def create_array_y_slice_subset(symbol_table):
     :returns: an array reference that accesses elements 2 to "n" step \
         2 in the array "y"'s 2nd dimension and the n'th element of its \
         1st dimension.
-    :rtype: :py:class:`psyclone.psyir.nodes.Array`
+    :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
     '''
     array_symbol = DataSymbol("y3", ArrayType(REAL_TYPE, [10, 10]))
     symbol_table.add(array_symbol)
     symbol_n = symbol_table.lookup("n")
-    return Array.create(array_symbol, [Reference(symbol_n),
-                                       create_stepped_range(symbol_n)])
+    return ArrayReference.create(array_symbol,
+                                 [Reference(symbol_n),
+                                  create_stepped_range(symbol_n)])
 
 
 def create_expr(symbol_table):
@@ -237,13 +240,15 @@ def create_expr(symbol_table):
     array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
     symbol_table.add(array_symbol)
     symbol_n = symbol_table.lookup("n")
-    array_x = Array.create(array_symbol, [create_stepped_range(symbol_n)])
+    array_x = ArrayReference.create(array_symbol,
+                                    [create_stepped_range(symbol_n)])
     array_symbol = DataSymbol("z", ArrayType(REAL_TYPE, [10, 10]))
     symbol_table.add(array_symbol)
-    array_z = Array.create(array_symbol, [Literal("1", INTEGER_TYPE),
-                                          create_stepped_range(symbol_n)])
+    array_z = ArrayReference.create(array_symbol,
+                                    [Literal("1", INTEGER_TYPE),
+                                     create_stepped_range(symbol_n)])
     array_symbol = DataSymbol("a", ArrayType(REAL_TYPE, [10]))
-    array_a = Array.create(array_symbol, [Literal("1", INTEGER_TYPE)])
+    array_a = ArrayReference.create(array_symbol, [Literal("1", INTEGER_TYPE)])
     symbol_table.add(array_symbol)
     mult = BinaryOperation.create(
         BinaryOperation.Operator.MUL, array_x, array_z)
@@ -292,13 +297,13 @@ def test_same_range():
     with pytest.raises(TypeError) as info:
         ArrayRange2LoopTrans.same_range(None, None, None, None)
     assert ("The first argument to the same_range() method should be an "
-            "Array but found 'NoneType'." in str(info.value))
+            "ArrayReference but found 'NoneType'." in str(info.value))
 
     array_type = ArrayType(REAL_TYPE, [10])
-    array_value = Array.create(
-        DataSymbol("dummy", array_type), children=[DataNode("x")])
-    array_range = Array.create(
-        DataSymbol("dummy", array_type), children=[Range()])
+    array_value = ArrayReference.create(
+        DataSymbol("dummy", array_type), [DataNode("x")])
+    array_range = ArrayReference.create(
+        DataSymbol("dummy", array_type), [Range()])
 
     with pytest.raises(TypeError) as info:
         ArrayRange2LoopTrans.same_range(array_value, None, None, None)
@@ -308,7 +313,7 @@ def test_same_range():
     with pytest.raises(TypeError) as info:
         ArrayRange2LoopTrans.same_range(array_value, 1, None, None)
     assert ("The third argument to the same_range() method should be an "
-            "Array but found 'NoneType'." in str(info.value))
+            "ArrayReference but found 'NoneType'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         ArrayRange2LoopTrans.same_range(array_value, 1, array_value, None)
@@ -500,7 +505,7 @@ def test_str():
 
     '''
     assert (str(ArrayRange2LoopTrans()) == "Convert a PSyIR assignment to an "
-            "Array Range into a PSyIR Loop.")
+            "array Range into a PSyIR Loop.")
 
 
 def test_name():
@@ -528,21 +533,22 @@ def test_validate():
         trans.validate(Assignment.create(DataNode(), DataNode()))
     assert (
         "Error in ArrayRange2LoopTrans transformation. The lhs of the "
-        "supplied Assignment node should be a PSyIR Array, but found "
+        "supplied Assignment node should be a PSyIR ArrayReference, but found "
         "'DataNode'." in str(info.value))
 
     array_symbol = DataSymbol("x", ArrayType(INTEGER_TYPE, [10, 10]))
     one = Literal("1", INTEGER_TYPE)
-    array_assignment = Array.create(array_symbol, [one, one])
+    array_assignment = ArrayReference.create(array_symbol, [one, one])
     with pytest.raises(TransformationError) as info:
         trans.validate(Assignment.create(array_assignment, DataNode()))
     assert (
         "Error in ArrayRange2LoopTrans transformation. The lhs of the "
-        "supplied Assignment node should be a PSyIR Array with at least one "
+        "supplied Assignment node should be a PSyIR ArrayReference with at "
+        "least one "
         "of its dimensions being a Range, but found None in "
-        "'ArrayArrayReference[name:'x']\\nLiteral[value:'1', Scalar<INTEGER, "
-        "UNDEFINED>]\\nLiteral[value:'1', Scalar<INTEGER, UNDEFINED>]\\n'."
-        in str(info.value))
+        "'ArrayReference[name:'x']\\nLiteral[value:'1', "
+        "Scalar<INTEGER, UNDEFINED>]\\nLiteral[value:'1', Scalar<INTEGER, "
+        "UNDEFINED>]\\n'." in str(info.value))
 
     array_x = create_array_x(SymbolTable())
     assignment = Assignment.create(
@@ -556,8 +562,9 @@ def test_validate():
         "The ArrayRange2LoopTrans transformation only supports ranges that "
         "are known to be the same as each other but array access 'x' "
         "dimension 0 and 'x' dimension 0 are either different or can't be "
-        "determined in the assignment 'Assignment[]\\nArrayArrayReference["
-        "name:'x']\\nRange[]\\nArrayArrayReference[name:'x']\\nRange[]\\n'."
+        "determined in the assignment 'Assignment[]\\n"
+        "ArrayReference[name:'x']\\nRange[]\\n"
+        "ArrayReference[name:'x']\\nRange[]\\n'."
         in str(info.value))
 
 
@@ -581,6 +588,7 @@ def test_validate_intrinsic():
     assert (
         "Error in ArrayRange2LoopTrans transformation. The rhs of the "
         "supplied Assignment node 'BinaryOperation[operator:'MATMUL']\\n"
-        "ArrayArrayReference[name:'y2']\\nRange[]\\nRange[]\\n\\n"
-        "ArrayArrayReference[name:'x']\\nRange[]\\n' contains the MATMUL "
-        "operator which can't be performed elementwise." in str(info.value))
+        "ArrayReference[name:'y2']\\nRange[]\\nRange[]\\n\\n"
+        "ArrayReference[name:'x']\\nRange[]\\n' contains the "
+        "MATMUL operator which can't be performed elementwise." in
+        str(info.value))

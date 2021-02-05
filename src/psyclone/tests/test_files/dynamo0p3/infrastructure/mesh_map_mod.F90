@@ -1,14 +1,15 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017-2020,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 !-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!-------------------------------------------------------------------------------
-!
+
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology
-! Facilities Council
+! Copyright (c) 2020, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,118 +37,252 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by: A. R. Porter, STFC
+! Modified by J. Henrichs, Bureau of Meteorology
 
+!> Mesh map
+!>
 module mesh_map_mod
 
-  use constants_mod,         only: i_def, str_def
-  use linked_list_data_mod,  only: linked_list_data_type
-  implicit none
+use constants_mod,         only: i_def, str_def
+use linked_list_data_mod,  only: linked_list_data_type
+use log_mod,               only: log_event, log_scratch_space, &
+                                 LOG_LEVEL_ERROR, LOG_LEVEL_TRACE
+implicit none
+
+private
+public :: generate_mesh_map_id
+
+!> Stores mesh cell mappings in local ids (LID) between two mesh objects.
+!> Cell mappings are from a LID of a cell in the source mesh to LIDs of
+!> overlapping cells in the target mesh object.
+!>
+!===============================================================================
+type, extends(linked_list_data_type), public :: mesh_map_type
 
   private
 
-  type, extends(linked_list_data_type), public :: mesh_map_type
-     private
-
-     integer(i_def), allocatable :: mesh_map(:,:) ! In LIDs
-
-   contains
-
-     procedure, public :: get_nsource_cells
-     procedure, public :: get_ntarget_cells_per_source_cell
-     procedure, public :: get_ncell_map_ratio => get_ntarget_cells_per_source_cell
-     procedure, public :: get_map_from_cell
-     procedure, public :: get_map_from_cells
-     procedure, public :: get_cell_map
-     procedure, public :: get_whole_cell_map
-     procedure, public :: get_full_map
-  end type mesh_map_type
+  integer(i_def), allocatable :: mesh_map(:,:) ! In LIDs
 
 contains
-  
-  function get_nsource_cells(self) result(nsource_cells)
 
-    implicit none
-    class(mesh_map_type) :: self
-    integer(i_def)       :: nsource_cells
+  !> Gets the ID of the source mesh object for this mesh map object.
+  !> @return Id of source mesh object
+  procedure, public :: get_source_id
+  !>
+  !> Gets the ID of the target mesh object for this mesh map object.
+  !> @return Id of target mesh object
+  procedure, public :: get_target_id
+  !>
+  !> Gets the number of source cells in this mesh map object.
+  !> @return Number of cells in source mesh
+  procedure, public :: get_nsource_cells
+  !>
+  !> Gets the number of target cells for each source cell in this
+  !> mesh map object.
+  !> @return Number of target cells per source cell
+  procedure, public :: get_ntarget_cells_per_source_cell
+  !>
+  !> Gets the target cells ids mapped to the requested source cell
+  !> @param [in]  source_lid Local ID of requested source cell
+  !> @return map  Pointer to array of local IDs of cells in target
+  !>              mesh which overlap with the requested local ID
+  !>              in source mesh. Argument should be of rank-1 array
+  procedure, public :: get_cell_map
+  !>
+  !> Gets the target cells ids mapped to all source cells.
+  !> @return  map  Pointer to array of local IDs of cells in
+  !>               target mesh which overlap with the requested
+  !>               local IDs in source mesh. Argument should be
+  !>               a rank-2 array
+  procedure, public :: get_whole_cell_map
 
-    nsource_cells = 0
+  !>
+  !> Forced clear of this oject from memory.
+  !> This routine should not need to be called manually except
+  !> (possibly) in pfunit tests
+  procedure, public :: clear
 
-  end function get_nsource_cells
+  !> Finalizer routine, should be called automatically by code when
+  !> the object is out of scope
+  final :: mesh_map_destructor
 
-  function get_ntarget_cells_per_source_cell(self) result(ratio)
+end type mesh_map_type
 
-    implicit none
-    class(mesh_map_type) :: self
-    integer(i_def)       :: ratio
+interface mesh_map_type
+  module procedure mesh_map_constructor
+end interface
 
-    ratio = 0
+contains
 
-  end function get_ntarget_cells_per_source_cell
+!> Instantiates a mesh map object
+!> @param[in] source_mesh_id  ID of source mesh object
+!> @param[in] target_mesh_id  ID of target mesh object
+!> @param[in] map             LID-LID cell map. Dimensions
+!>                            of [ntarget_cells_per_source_cell, nsource_cells]
+!> @return    mesh_map_type
+!===============================================================================
+function mesh_map_constructor( source_mesh_id, target_mesh_id, map ) &
+                       result( instance )
 
-  subroutine get_map_from_cell(self, source_lid, map)
+implicit none
 
-    implicit none
-    class(mesh_map_type), intent(in)  :: self
-    integer(i_def),       intent(in)  :: source_lid
-    integer(i_def),       intent(out) :: map(:)
+integer(i_def), intent(in) :: source_mesh_id
+integer(i_def), intent(in) :: target_mesh_id
+integer(i_def), intent(in) :: map(:,:)
 
-    map(:) = self%mesh_map(:,source_lid)
+type(mesh_map_type) :: instance
 
-  end subroutine get_map_from_cell
+integer(i_def) :: mesh_map_id
+integer(i_def) :: nsource_cells
+integer(i_def) :: ntarget_cells_per_source_cell
 
-  function get_cell_map(self, cell) result(map)
-    class(mesh_map_type), target, intent(in) :: self
-    integer(kind=i_def),  intent(in) :: cell  
-    integer(kind=i_def), pointer :: map(:)
+mesh_map_id = generate_mesh_map_id(source_mesh_id, target_mesh_id)
 
-    map => null()
+! Set the map id
+!-------------------------------------------------
+call instance%set_id( mesh_map_id )
 
-  end function get_cell_map
+ntarget_cells_per_source_cell =  size(map,1)
+nsource_cells                 =  size(map,2)
+allocate( instance%mesh_map ( ntarget_cells_per_source_cell, nsource_cells) )
 
-  function get_whole_cell_map(self) result(map)
-    class(mesh_map_type), target, intent(in) :: self
+instance%mesh_map(:,:) = map(:,:)
 
-    integer(kind=i_def), pointer :: map(:,:)
-    nullify(map)
+return
+end function mesh_map_constructor
 
-    map => null()
 
-  end function get_whole_cell_map
+!==============================================================================
+function get_source_id(self) result(source_mesh_id)
 
-  subroutine get_map_from_cells(self, source_lids, map)
+implicit none
+class(mesh_map_type) :: self
+integer(i_def)       :: source_mesh_id, mesh_map_id
 
-    implicit none
-    class(mesh_map_type), intent(in)  :: self
-    integer(i_def),       intent(in)  :: source_lids(:)
-    integer(i_def),       intent(out) :: map(:,:)
+mesh_map_id = self%get_id()
 
-    integer(i_def) :: ncells
-    integer(i_def) :: i
+source_mesh_id = floor(real(mesh_map_id/10000))
 
-    ncells = size(source_lids)
+return
+end function get_source_id
 
-    do i=1, ncells
-       call self%get_map_from_cell(source_lids(i),map(:,i))
-    end do
 
-  end subroutine get_map_from_cells
+!==============================================================================
+function get_target_id(self) result(target_mesh_id)
 
-  subroutine get_full_map(self, map)
+implicit none
+class(mesh_map_type) :: self
+integer(i_def)       :: target_mesh_id, mesh_map_id
 
-    implicit none
-    class(mesh_map_type), intent(in)  :: self
-    integer(i_def),       intent(out) :: map(:,:)
+mesh_map_id = self%get_id()
+target_mesh_id = mesh_map_id - self%get_source_id()*10000
 
-    integer(i_def) :: ncells
-    integer(i_def) :: i
+return
+end function get_target_id
 
-    ncells = size(self%mesh_map,2)
 
-    do i=1, ncells
-       call self%get_map_from_cell( i, map(:,i) )
-    end do
+!==============================================================================
+function get_nsource_cells(self) result(nsource_cells)
 
-  end subroutine get_full_map
+implicit none
+class(mesh_map_type) :: self
+integer(i_def)       :: nsource_cells
+
+nsource_cells = size(self%mesh_map,2)
+
+return
+end function get_nsource_cells
+
+
+!==============================================================================
+function get_ntarget_cells_per_source_cell(self) result(ratio)
+
+implicit none
+class(mesh_map_type) :: self
+integer(i_def)       :: ratio
+
+ratio = size(self%mesh_map,1)
+
+return
+end function get_ntarget_cells_per_source_cell
+
+
+function get_cell_map(self, cell) result(map)
+
+  implicit none
+
+  class(mesh_map_type), target, intent(in) :: self
+
+  integer(i_def), intent(in) :: cell
+  integer(i_def), pointer  :: map(:)
+
+  nullify(map)
+  map => self%mesh_map(:,cell)
+
+  return
+end function get_cell_map
+
+
+function get_whole_cell_map(self) result(map)
+
+  implicit none
+
+  class(mesh_map_type), target, intent(in) :: self
+
+  integer(i_def), pointer :: map(:,:)
+
+  nullify(map)
+  map => self%mesh_map(:,:)
+
+  return
+end function get_whole_cell_map
+
+
+!==============================================================================
+subroutine clear(self)
+
+implicit none
+
+class (mesh_map_type), intent(inout) :: self
+
+if (allocated(self%mesh_map)) deallocate( self%mesh_map)
+
+return
+end subroutine clear
+
+
+!==============================================================================
+subroutine mesh_map_destructor(self)
+
+implicit none
+
+type (mesh_map_type), intent(inout) :: self
+
+call self%clear()
+
+return
+end subroutine mesh_map_destructor
+
+
+!> Returns a mesh map id using the ids of source and target meshes.
+!> @param[in] source_mesh_id  ID of source mesh object
+!> @param[in] target_mesh_id  ID of target mesh object
+!> @return    mesh_map_id
+!==============================================================================
+function generate_mesh_map_id( source_mesh_id,  &
+                               target_mesh_id ) &
+                       result( mesh_map_id )
+
+implicit none
+
+integer(i_def), intent(in) :: source_mesh_id
+integer(i_def), intent(in) :: target_mesh_id
+
+integer(i_def) :: mesh_map_id
+
+mesh_map_id = 10000*source_mesh_id + target_mesh_id
+
+return
+end function generate_mesh_map_id
 
 end module mesh_map_mod

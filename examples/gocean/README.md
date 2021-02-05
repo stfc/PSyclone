@@ -1,6 +1,6 @@
 # PSyclone GOCean Examples
 
-**Authors:** A. R. Porter, STFC Daresbury Lab
+**Authors:** A. R. Porter and S. Siso, STFC Daresbury Lab
 
 The sub-directories present in the directory containing this README provide
 examples of the use of PSyclone with the GOcean 1.0 API.
@@ -27,7 +27,7 @@ a four-kernel invoke and an OpenCL version of each of the kernels.
 
 Examples of the application of kernel transforms to kernels that access
 data and/or routines from other Fortran modules. Note that this is not
-yet fully supported and is the subject of Issues #490 and #342.
+yet fully supported and is the subject of Issue #342.
 
 ## Example 5
 
@@ -44,6 +44,11 @@ resulting code may be compiled and executed (requires a netcdf installation).
 Illustrates the use of the read-only verification in PSyclone. The
 resulting code may be compiled and executed to show warnings printed
 by the read-only verification.
+
+## Example 8
+
+Informs the development of the code generation of PSy-layer code using the
+PSyIR language backends.
 
 ## Licence
 

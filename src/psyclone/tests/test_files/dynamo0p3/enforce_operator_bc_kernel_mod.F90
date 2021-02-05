@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,8 @@ module enforce_operator_bc_kernel_mod
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,               &
                                     GH_OPERATOR, GH_READWRITE,         &
-                                    ANY_SPACE_1, ANY_SPACE_2,          &
-                                    CELLS
+                                    GH_REAL, ANY_SPACE_1, ANY_SPACE_2, &
+                                    CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 
 implicit none
@@ -62,10 +62,10 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: enforce_operator_bc_kernel_type
   private
-  type(arg_type) :: meta_args(1) = (/                                  &
-       arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2)   &
+  type(arg_type) :: meta_args(1) = (/                                         &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2) &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: enforce_operator_bc_code
 end type

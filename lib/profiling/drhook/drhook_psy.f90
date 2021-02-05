@@ -36,7 +36,9 @@
 
 module profile_psy_data_mod
 
+  ! The DrHook  handle type
   use parkind1, only : jprb
+
   type :: profile_PSyDataType
      ! The opaque DrHook handle for a specific region
      real(kind=jprb) :: zhook_handle
@@ -82,10 +84,12 @@ contains
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
-    character*(*), intent(in) :: module_name, region_name
+    character(len=*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
     if (lhook .and. .not. this%initialised) then
+      ! DrHook only supports a single name, so we store the concatenated
+      ! strings to reduce runtime overhead
       this%name = module_name//":"//region_name
       this%initialised = .true.
     endif
@@ -111,5 +115,19 @@ contains
   !! all output for the profiling library. Not required in the case of Dr Hook.
   subroutine profile_PSyDataShutdown()
   end subroutine profile_PSyDataShutdown
+
+  ! ---------------------------------------------------------------------------
+  !> Enable DrHook by setting the lhook variable in DrHook
+  subroutine profile_PSyDataStart()
+    use yomhook, only : lhook
+    lhook = .true.
+  end subroutine profile_PSyDataStart
+
+  ! ---------------------------------------------------------------------------
+  !> Disable DrHook by setting the lhook variable in DrHook
+  subroutine profile_PSyDataStop()
+    use yomhook, only : lhook
+    lhook = .false.
+  end subroutine profile_PSyDataStop
 
 end module profile_psy_data_mod

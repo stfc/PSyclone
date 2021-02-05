@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -62,9 +62,10 @@
 !>         the relevant dofmaps.
 module subgrid_coeffs_kernel_mod
 
-use argument_mod,       only : arg_type, GH_FIELD, &
-                               GH_READ, GH_WRITE,  &
-                               STENCIL, CROSS, CELLS
+use argument_mod,       only : arg_type,          &
+                               GH_FIELD, GH_REAL, &
+                               GH_READ, GH_WRITE, &
+                               STENCIL, CROSS, CELL_COLUMN
 use fs_continuity_mod,  only : W3
 use constants_mod,      only : r_def, i_def, l_def
 use subgrid_config_mod, only : subgrid_rho_approximation_constant_subgrid,     &
@@ -89,12 +90,12 @@ private
 type, public, extends(kernel_type) :: subgrid_coeffs_kernel_type
   private
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_FIELD, GH_WRITE, W3),                               &
-       arg_type(GH_FIELD, GH_WRITE, W3),                               &
-       arg_type(GH_FIELD, GH_WRITE, W3),                               &
-       arg_type(GH_FIELD, GH_READ,  W3, STENCIL(CROSS))                &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                      &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                      &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                      &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3, STENCIL(CROSS))       &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: subgrid_coeffs_code
 end type
@@ -106,14 +107,17 @@ public subgrid_coeffs_code
 
 contains
 
-!> @brief The subroutine which is called directly by the Psy layer
-!! @param[in] nlayers Integer the number of layers
-!! @param[in] subgridrho_option Integer Option for which approximation to use
-!! @param[in] undf_w3 Integer The number unique of degrees of freedom for W3
-!! @param[in] rho Real array The density
-!! @param[in] stencil_length Integer The local length of a stencil (5 for PPM)
-!! @param[in] local_dofmap Integer array Local array containg dofmaps of the local stencil
-!! @param[out] coeffs Real array Array containing the three coefficients, a0,a1,a2
+!> @brief Compute the subgrid reconstruction coeffiecients for a density field
+!! @param[in] nlayers Number of layers
+!! @param[out] a0 Coefficient a0
+!! @param[out] a1 Coefficient a1
+!! @param[out] a2 Coefficient a2
+!! @param[in] rho Density
+!! @param[in] stencil_length Local length of a stencil (5 for PPM)
+!! @param[in] stencil_map Dofmap for the stencil
+!! @param[in] ndf_w3 Number of degrees of freedom for W3 per cell
+!! @param[in] undf_w3 Number of unique degrees of freedom for W3
+!! @param[in] map_w3 Dofmap for the cell at the base of the column for W3
 subroutine subgrid_coeffs_code(                                               &
                                 nlayers,                                      &
                                 a0,                                           &

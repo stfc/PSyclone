@@ -39,7 +39,8 @@
 ''' This module contains the DataSymbol and its interfaces.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.symbols.symbol import Symbol, SymbolError
+from psyclone.psyir.symbols.symbol import Symbol
+from psyclone.psyir.symbols.typesymbol import TypeSymbol
 
 
 class DataSymbol(Symbol):
@@ -81,41 +82,26 @@ class DataSymbol(Symbol):
         ''' If the symbol has a deferred datatype, find where it is defined
         (i.e. an external container) and obtain the properties of the symbol.
 
-        :raises SymbolError: if the module pointed to by the symbol interface \
-                             does not contain the symbol (or the symbol is \
-                             not public).
-        :raises NotImplementedError: if the deferred symbol is not a Global.
+        :returns: this DataSymbol with its properties updated. This is for \
+                  consistency with the equivalent method in the Symbol \
+                  class which returns a new Symbol object.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
+        # This import has to be local to this method to avoid circular
+        # dependencies.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols.datatypes import DeferredType
         if isinstance(self.datatype, DeferredType):
-            if self.is_global:
-                # Copy all the symbol properties but the interface and
-                # visibility (the latter is determined by the current
-                # scoping unit)
-                tmp = self.interface
-                module = self.interface.container_symbol
-                try:
-                    extern_symbol = module.container.symbol_table.lookup(
-                        self.name, visibility=Symbol.Visibility.PUBLIC)
-                except KeyError:
-                    raise SymbolError(
-                        "Error trying to resolve the properties of symbol "
-                        "'{0}'. The interface points to module '{1}' but "
-                        "could not find the definition of '{0}' in that "
-                        "module.".format(self.name, module.name))
-                except SymbolError as err:
-                    raise SymbolError(
-                        "Error trying to resolve the properties of symbol "
-                        "'{0}' in module '{1}': {2}".format(
-                            self.name, module.name, str(err.value)))
-                self.copy_properties(extern_symbol)
-                self.interface = tmp
-            else:
-                raise NotImplementedError(
-                    "Error trying to resolve symbol '{0}' properties, the lazy"
-                    " evaluation of '{1}' interfaces is not supported."
-                    "".format(self.name, self.interface))
+            # Copy all the symbol properties but the interface and
+            # visibility (the latter is determined by the current
+            # scoping unit)
+            tmp = self.interface
+            extern_symbol = self.get_external_symbol()
+            self.copy_properties(extern_symbol)
+            self.interface = tmp
+
+        return self
 
     @property
     def datatype(self):
@@ -130,16 +116,22 @@ class DataSymbol(Symbol):
         ''' Setter for DataSymbol datatype.
 
         :param value: new value for datatype.
-        :type value: :py:class:`psyclone.psyir.symbols.DataType`
+        :type value: :py:class:`psyclone.psyir.symbols.DataType` or \
+                     :py:class:`psyclone.psyir.symbols.TypeSymbol`
 
         :raises TypeError: if value is not of the correct type.
         :raises NotImplementedError: if the specified data type is invalid.
+
         '''
+        # We can't do this import at the toplevel as we get a circular
+        # dependency with the datatypes module.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols import DataType
-        if not isinstance(value, DataType):
+        if not isinstance(value, (DataType, TypeSymbol)):
             raise TypeError(
-                "The datatype of a DataSymbol must be specified using a "
-                "DataType but got: '{0}'".format(type(value).__name__))
+                "The datatype of a DataSymbol must be specified using either "
+                "a DataType or a TypeSymbol but got: '{0}'".format(
+                    type(value).__name__))
         self._datatype = value
 
     @property
@@ -282,14 +274,13 @@ class DataSymbol(Symbol):
         original will not be affected so the copy will not be referred
         to by any other object.
 
-        :returns: A symbol object with the same properties as this \
-                  symbol object.
+        :returns: An object with the same properties as this symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
-        return DataSymbol(self.name, self.datatype,
-                          constant_value=self.constant_value,
-                          interface=self.interface)
+        return DataSymbol(self.name, self.datatype, visibility=self.visibility,
+                          interface=self.interface,
+                          constant_value=self.constant_value)
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from

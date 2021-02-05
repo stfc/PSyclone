@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides tools that are based on the code
@@ -179,13 +180,6 @@ class DependencyTools(object):
                     enumerate(list_of_indices):
                 accesses = VariablesAccessInfo()
 
-                # TODO #363: derived types are not supported, which
-                # atm have an index_expression of type str
-                if isinstance(index_expression, str):
-                    var_string = var_info.var_name + index_expression
-                    self._add_warning("Assignment to derived type '{0}' is "
-                                      "not supported yet.".format(var_string))
-                    return False
                 index_expression.reference_accesses(accesses)
                 if loop_variable not in accesses:
                     continue
@@ -295,7 +289,7 @@ class DependencyTools(object):
                                  test_all_variables=False,
                                  variables_to_ignore=None,
                                  var_accesses=None):
-        # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-arguments, too-many-branches
         '''This function analyses a loop in the PsyIR to see if
         it can be safely parallelised over the specified variable.
 
@@ -350,7 +344,7 @@ class DependencyTools(object):
             variables_to_ignore = []
 
         # Collect all variables used as loop variable:
-        loop_vars = [l.variable.name for l in loop.walk(Loop)]
+        loop_vars = [loop.variable.name for loop in loop.walk(Loop)]
 
         result = True
         # Now check all variables used in the loop
@@ -361,10 +355,22 @@ class DependencyTools(object):
                 continue
             if var_name in variables_to_ignore:
                 continue
-            # Find the symbol for this variable
-            symbol = loop.find_or_create_symbol(var_name)
+
             var_info = var_accesses[var_name]
-            if symbol.is_array:
+            symbol_table = loop.scope.symbol_table
+            if var_name not in symbol_table:
+                # TODO #845: Once we have symbol tables, any variable should
+                # be in a symbol table, so we have to raise an exception here.
+                # We need to fall-back to the old-style test, since we do not
+                # have information in a symbol table. So check if the access
+                # information stored an index:
+                is_array = var_info[0].indices is not None
+            else:
+                # Find the symbol for this variable
+                symbol = symbol_table.lookup(var_name)
+                is_array = symbol.is_array
+
+            if is_array:
                 # Handle arrays
                 par_able = self.is_array_parallelisable(loop_variable,
                                                         var_info)
@@ -372,9 +378,12 @@ class DependencyTools(object):
                 # Handle scalar variable
                 par_able = self.is_scalar_parallelisable(var_info)
             if not par_able:
-                result = False
                 if not test_all_variables:
                     return False
+                # The user might have requested to continue in order to get
+                # all messages for all variables preventing parallelisation,
+                # not just the first one
+                result = False
 
         return result
 

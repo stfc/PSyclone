@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019-2020, Science and Technology Facilities Council
+! Copyright (c) 2019-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -44,14 +44,14 @@ module testkern_different_any_dscnt_space_stencil_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_different_any_dscnt_space_stencil_type
-     type(arg_type), dimension(3) :: meta_args = (/               &
-          arg_type(gh_field, gh_write, wtheta),                   &
-          arg_type(gh_field, gh_read,  any_discontinuous_space_1, &
-                                       stencil(cross)),           &
-          arg_type(gh_field, gh_read,  any_discontinuous_space_2, &
-                                       stencil(cross))            &
+     type(arg_type), dimension(3) :: meta_args = (/                        &
+          arg_type(gh_field, gh_real, gh_write, wtheta),                   &
+          arg_type(gh_field, gh_real, gh_read,  any_discontinuous_space_1, &
+                                                stencil(cross)),           &
+          arg_type(gh_field, gh_real, gh_read,  any_discontinuous_space_2, &
+                                                stencil(cross))            &
           /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_different_any_dscnt_space_stencil_code
   end type testkern_different_any_dscnt_space_stencil_type

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -43,11 +43,11 @@ module testkern_stencil_w3_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_stencil_w3_type
-     type(arg_type), dimension(2) :: meta_args =              &
-          (/ arg_type(gh_field, gh_write, w3),                &
-             arg_type(gh_field, gh_read,  w2, stencil(cross)) &
+     type(arg_type), dimension(2) :: meta_args =                       &
+          (/ arg_type(gh_field, gh_real, gh_write, w3),                &
+             arg_type(gh_field, gh_real, gh_read,  w2, stencil(cross)) &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_stencil_w3_code
   end type testkern_stencil_w3_type

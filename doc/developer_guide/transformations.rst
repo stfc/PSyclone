@@ -74,10 +74,10 @@ The naming convention used for the PSyIR front-ends is
 .. autoclass:: psyclone.psyir.frontend.fparser2.Fparser2Reader
     :members:
 
-The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a
-`psyclone.psyGen.KernelSchedule` which has the same functionality as
-a PSyIR Schedule but with the addition of a Symbol Table
-(see :ref:`kernel_schedule-label`).
+The result of `psyclone.psyGen.Kern.get_kernel_schedule` is a
+`psyclone.psyir.nodes.KernelSchedule` which is a specialisation of the
+`Routine` class with the `is_program` and `return_type` properties set to
+`False` and `None`, respectively.
 
 OpenACC
 =======

@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council.
+! Copyright (c) 2017-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -47,17 +47,17 @@ module testkern_any_space_1_mod
    ! 3) func_type basis functions on any_space.
   type, extends(kernel_type) :: testkern_any_space_1_type
     type(arg_type) :: meta_args(4) = (/                       &
-         arg_type(GH_FIELD,            GH_INC,  ANY_SPACE_1), &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  ANY_SPACE_1), &
          arg_type(GH_SCALAR,  GH_REAL, GH_READ),              &
-         arg_type(GH_FIELD,            GH_READ, ANY_SPACE_2), &
-         arg_type(GH_FIELD*3,          GH_READ, W0)           &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_SPACE_2), &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)           &
          /)
     type(func_type) :: meta_funcs(3) = (/                     &
          func_type(ANY_SPACE_1, GH_BASIS),                    &
          func_type(ANY_SPACE_2, GH_BASIS),                    &
          func_type(W0,          GH_DIFF_BASIS)                &
        /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
     procedure, nopass :: testkern_any_space_1_code

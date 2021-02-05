@@ -43,7 +43,8 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import ContainerSymbol, SymbolError
-from psyclone.psyGen import KernelSchedule, GenerationError
+from psyclone.psyir.nodes import KernelSchedule
+from psyclone.psyGen import GenerationError
 
 
 @pytest.mark.usefixtures("f2008_parser")

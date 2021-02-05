@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -47,21 +47,21 @@ module testkern_write_w2broken_w1_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_write_w2broken_w1_type
-     type(arg_type), dimension(12) :: meta_args = (/ &
-          arg_type(gh_field,   gh_read,  w3),        &
-          arg_type(gh_field,   gh_read,  w0),        &
-          arg_type(gh_field,   gh_read,  w2),        &
-          arg_type(gh_field,   gh_inc,   w1),        &
-          arg_type(gh_field*3, gh_read,  wchi),      &
-          arg_type(gh_field,   gh_read,  wtheta),    &
-          arg_type(gh_field,   gh_read,  w2h),       &
-          arg_type(gh_field,   gh_write, w2broken),  &
-          arg_type(gh_field,   gh_read,  w2v),       &
-          arg_type(gh_field,   gh_read,  w2trace),   &
-          arg_type(gh_field,   gh_read,  w2htrace),  &
-          arg_type(gh_field,   gh_read,  w2vtrace)   &
+     type(arg_type), dimension(12) :: meta_args = (/          &
+          arg_type(gh_field,   gh_real, gh_read,  w3),        &
+          arg_type(gh_field,   gh_real, gh_read,  w0),        &
+          arg_type(gh_field,   gh_real, gh_read,  w2),        &
+          arg_type(gh_field,   gh_real, gh_inc,   w1),        &
+          arg_type(gh_field*3, gh_real, gh_read,  wchi),      &
+          arg_type(gh_field,   gh_real, gh_read,  wtheta),    &
+          arg_type(gh_field,   gh_real, gh_read,  w2h),       &
+          arg_type(gh_field,   gh_real, gh_write, w2broken),  &
+          arg_type(gh_field,   gh_real, gh_read,  w2v),       &
+          arg_type(gh_field,   gh_real, gh_read,  w2trace),   &
+          arg_type(gh_field,   gh_real, gh_read,  w2htrace),  &
+          arg_type(gh_field,   gh_real, gh_read,  w2vtrace)   &
           /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_write_w2broken_w1_code
   end type testkern_write_w2broken_w1_type

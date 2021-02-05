@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council.
+! Copyright (c) 2017-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -46,12 +46,12 @@ module testkern
   type, extends(kernel_type) :: testkern_type
      type(arg_type), dimension(5) :: meta_args =        &
           (/ arg_type(gh_scalar, gh_real, gh_read),     &
-             arg_type(gh_field,           gh_inc,  w1), &
-             arg_type(gh_field,           gh_read, w2), &
-             arg_type(gh_field,           gh_read, w2), &
-             arg_type(gh_field,           gh_read, w3)  &
+             arg_type(gh_field,  gh_real, gh_inc,  w1), &
+             arg_type(gh_field,  gh_real, gh_read, w2), &
+             arg_type(gh_field,  gh_real, gh_read, w2), &
+             arg_type(gh_field,  gh_real, gh_read, w3)  &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_code
   end type testkern_type

@@ -42,7 +42,7 @@ from __future__ import print_function, absolute_import
 import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyGen import PSyFactory, TransInfo, ACCDataDirective
 from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke, Compile
@@ -57,7 +57,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # Test code with explicit NEMO-style do loop
 EXPLICIT_DO = ("program explicit_do\n"
                "  REAL :: r\n"
-               "  INTEGER :: ji, jj, jk, jpi, jpj, jpk\n"
+               "  INTEGER :: ji, jj, jk\n"
+               "  INTEGER, PARAMETER :: jpi=3, jpj=5, jpk=7\n"
                "  REAL, DIMENSION(jpi, jpj, jpk) :: umask\n"
                "  DO jk = 1, jpk\n"
                "     DO jj = 1, jpj\n"
@@ -90,6 +91,18 @@ def test_explicit(parser):
     assert ("  END DO\n"
             "  !$ACC END DATA\n"
             "END PROGRAM explicit_do") in gen_code
+
+
+def test_data_single_node(parser):
+    ''' Check that the ACCDataTrans works if passed a single node rather
+    than a list. '''
+    reader = FortranStringReader(EXPLICIT_DO)
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.get('explicit_do').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    acc_trans.apply(schedule[0])
+    assert isinstance(schedule[0], ACCDataDirective)
 
 
 def test_data_no_gen_code():
@@ -271,27 +284,39 @@ def test_replicated_loop(parser, tmpdir):
     assert Compile(tmpdir).string_compiles(gen_code)
 
 
-@pytest.mark.xfail(reason="PSyIR does not support derived types (#363) and "
-                   "so we have a CodeBlock instead of a NemoKern")
-def test_data_ref():
+def test_data_ref(parser):
     '''Check code generation with an array accessed via a derived type.
 
     '''
-    psy, invoke_info = get_invoke("data_ref.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
+    reader = FortranStringReader('''subroutine data_ref()
+  use some_mod, only: prof_type
+  INTEGER, parameter :: n=16
+  INTEGER :: ji
+  real :: a(n), fconst
+  type(prof_type) :: prof
+  do ji = 1, n
+     prof%npind(ji) = 2.0*a(ji) + fconst
+  end do
+END subroutine data_ref
+''')
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
     assert "!$ACC DATA COPYIN(a) COPYOUT(prof,prof%npind)" in gen_code
 
 
-@pytest.mark.xfail(reason="PSyIR does not support derived types (#363) and "
-                   "so we have a CodeBlock instead of a NemoKern")
 def test_no_data_ref_read(parser):
     ''' Check that we reject code that reads from a derived type. This
-    limitation will be addressed in #309. '''
+    limitation will be addressed in #1028. '''
     reader = FortranStringReader("program dtype_read\n"
+                                 "use field_mod, only: fld_type\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
+                                 "integer :: ji\n"
+                                 "integer, parameter :: jpj = 10\n"
+                                 "type(fld_type) :: fld\n"
                                  "do ji = 1,jpj\n"
                                  "sto_tmp(ji) = fld%data(ji) + 1._wp\n"
                                  "end do\n"
@@ -517,5 +542,5 @@ def test_missed_array_case(parser):
     acc_trans.apply(schedule.children)
     with pytest.raises(InternalError) as err:
         _ = str(psy.gen)
-    assert ("Array 'ice_mask' present in source code ('ice_mask(ji, jj)') "
-            "but not identified" in str(err.value))
+    assert ("ArrayReference 'ice_mask' present in source code ("
+            "'ice_mask(ji, jj)') but not identified" in str(err.value))

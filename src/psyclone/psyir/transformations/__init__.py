@@ -39,6 +39,7 @@ transformations and base classes.
 '''
 
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
+from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.read_only_verify_trans \
@@ -61,6 +62,7 @@ from psyclone.psyir.transformations.transformation_error \
 # from psyclone.psyir.transformations import ExtractTrans
 
 __all__ = ['ExtractTrans',
+           'NanTestTrans',
            'ProfileTrans',
            'PSyDataTrans',
            'ReadOnlyVerifyTrans',

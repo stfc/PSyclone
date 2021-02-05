@@ -41,9 +41,8 @@ from psyclone.psyir.transformations import Matmul2CodeTrans, \
     TransformationError
 from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
     _get_array_bound
-from psyclone.psyir.nodes import BinaryOperation, Literal, Array, Assignment, \
-    Reference, Range
-from psyclone.psyGen import KernelSchedule
+from psyclone.psyir.nodes import BinaryOperation, Literal, ArrayReference, \
+    Assignment, Reference, Range, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArrayType, \
     ScalarType, INTEGER_TYPE, REAL_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -73,8 +72,8 @@ def create_matmul():
     ubound2 = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND, Reference(mat_symbol), two)
     my_mat_range2 = Range.create(lbound2, ubound2, one)
-    matrix = Array.create(mat_symbol, [my_mat_range1, my_mat_range2,
-                                       Reference(index)])
+    matrix = ArrayReference.create(mat_symbol, [my_mat_range1, my_mat_range2,
+                                                Reference(index)])
     array_type = ArrayType(REAL_TYPE, [10, 20])
     vec_symbol = DataSymbol("y", array_type)
     symbol_table.add(vec_symbol)
@@ -83,7 +82,8 @@ def create_matmul():
     ubound = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND, Reference(vec_symbol), one)
     my_vec_range = Range.create(lbound, ubound, one)
-    vector = Array.create(vec_symbol, [my_vec_range, Reference(index)])
+    vector = ArrayReference.create(vec_symbol, [my_vec_range,
+                                                Reference(index)])
     matmul = BinaryOperation.create(
         BinaryOperation.Operator.MATMUL, matrix, vector)
     lhs_type = ArrayType(REAL_TYPE, [10])
@@ -186,8 +186,8 @@ def test_validate5():
     '''
     trans = Matmul2CodeTrans()
     array_type = ArrayType(REAL_TYPE, [10])
-    array = Array.create(DataSymbol("x", array_type),
-                         [Literal("10", INTEGER_TYPE)])
+    array = ArrayReference.create(DataSymbol("x", array_type),
+                                  [Literal("10", INTEGER_TYPE)])
     mult = BinaryOperation.create(
         BinaryOperation.Operator.MUL, array, array)
     matmul = BinaryOperation.create(
@@ -442,14 +442,15 @@ def test_apply3(tmpdir):
     matrix = matmul.children[0]
     matrix_symbol = matrix.symbol
     matmul.children[0] = Reference(matrix_symbol)
-    matrix_symbol.datatype._shape = [10, 20]
+    matrix_symbol.datatype._shape = [Literal("10", INTEGER_TYPE),
+                                     Literal("20", INTEGER_TYPE)]
     rhs_vector = matmul.children[1]
     rhs_vector_symbol = rhs_vector.symbol
-    rhs_vector_symbol.datatype._shape = [20]
+    rhs_vector_symbol.datatype._shape = [Literal("20", INTEGER_TYPE)]
     matmul.children[1] = Reference(rhs_vector_symbol)
     lhs_vector = matrix.parent.parent.lhs
     lhs_vector_symbol = lhs_vector.symbol
-    lhs_vector_symbol._shape = [10]
+    lhs_vector_symbol._shape = [Literal("10", INTEGER_TYPE)]
     matrix.parent.parent.children[0] = Reference(lhs_vector_symbol)
     trans.apply(matmul)
     writer = FortranWriter()
@@ -494,7 +495,7 @@ def test_get_array_bound():
 
     '''
     scalar_symbol = DataSymbol("n", INTEGER_TYPE, constant_value=20)
-    array_type = ArrayType(REAL_TYPE, [10, scalar_symbol,
+    array_type = ArrayType(REAL_TYPE, [10, Reference(scalar_symbol),
                                        ArrayType.Extent.DEFERRED,
                                        ArrayType.Extent.ATTRIBUTE])
     array_symbol = DataSymbol("x", array_type)

@@ -42,9 +42,8 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyir.nodes import Container
+from psyclone.psyir.nodes import Container, KernelSchedule
 from psyclone.psyir.symbols import Symbol, RoutineSymbol, SymbolError
-from psyclone.psyGen import KernelSchedule
 
 
 def test_generate_container(parser):

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,8 +43,8 @@ module testkern_operator_2_mod
 
   type, extends(kernel_type) :: testkern_operator_2_type
      type(arg_type), dimension(1) :: meta_args = &
-          (/ arg_type(gh_operator, gh_write, w2, w3) /)
-     integer :: iterates_over = cells
+          (/ arg_type(gh_operator, gh_real, gh_write, w2, w3) /)
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_operator_2_code
   end type testkern_operator_2_type

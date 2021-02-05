@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019-2020, Science and Technology Facilities Council
+! Copyright (c) 2019-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -50,18 +50,18 @@ module testkern_any_discontinuous_space_op_2_mod
 
   type, public, extends(kernel_type) :: testkern_any_discontinuous_space_op_2_type
     private
-    type(arg_type) :: meta_args(3) = (/                                  &
-         arg_type(GH_FIELD,    GH_READ,      ANY_DISCONTINUOUS_SPACE_4), &
-         arg_type(GH_OPERATOR, GH_READ,      ANY_DISCONTINUOUS_SPACE_1,  &
-                                             ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_OPERATOR, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4,  &
-                                             ANY_DISCONTINUOUS_SPACE_1)  &
+    type(arg_type) :: meta_args(3) = (/                                           &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_4), &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1,  &
+                                                      ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4,  &
+                                                      ANY_DISCONTINUOUS_SPACE_1)  &
          /)
-    type(func_type) :: meta_funcs(2) = (/                                &
-         func_type(ANY_DISCONTINUOUS_SPACE_1, GH_BASIS),                 &
-         func_type(ANY_DISCONTINUOUS_SPACE_4, GH_BASIS, GH_DIFF_BASIS)   &
+    type(func_type) :: meta_funcs(2) = (/                                         &
+         func_type(ANY_DISCONTINUOUS_SPACE_1, GH_BASIS),                          &
+         func_type(ANY_DISCONTINUOUS_SPACE_4, GH_BASIS, GH_DIFF_BASIS)            &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = gh_quadrature_XYoZ
   contains
     procedure, public, nopass :: testkern_any_discontinuous_space_op_2_code

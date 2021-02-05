@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,24 +38,29 @@
 ''' Performs py.test tests on the fparser2 PSyIR front-end '''
 
 from __future__ import absolute_import
+import os
 import pytest
-from fparser.common.readfortran import FortranStringReader
+import fparser
+from fparser.common.readfortran import FortranStringReader, FortranFileReader
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part, \
-    Type_Declaration_Stmt, Execution_Part, Name
+    Type_Declaration_Stmt, Execution_Part, Name, Stmt_Function_Stmt, \
+    Dimension_Attr_Spec, Assignment_Stmt, Return_Stmt, Subroutine_Subprogram
 from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference, \
-    Array, Container, Literal, Range
-from psyclone.psyGen import PSyFactory, Directive, KernelSchedule
+    ArrayReference, Container, Literal, Range, KernelSchedule
+from psyclone.psyGen import PSyFactory, Directive, Kern
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol,
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE,
-    REAL_TYPE, UnknownType, DeferredType, Symbol, UnresolvedInterface)
+    REAL_TYPE, UnknownFortranType, DeferredType, Symbol, UnresolvedInterface)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
-    _get_symbol_table, _is_array_range_literal, _is_bound_full_extent, \
+    _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
-    default_integer_type, default_real_type
+    default_integer_type, default_real_type, _kind_symbol_from_name, \
+    _find_or_create_imported_symbol
+from psyclone.tests.utilities import get_invoke
 
 
 def process_declarations(code):
@@ -66,7 +71,7 @@ def process_declarations(code):
 
     :returns: a 2-tuple consisting of a KernelSchedule with populated Symbol \
               Table and the parse tree for the specification part.
-    :rtype: (:py:class:`psyclone.psyGen.KernelSchedule`, \
+    :rtype: (:py:class:`psyclone.psyir.nodes.KernelSchedule`, \
              :py:class:`fparser.two.Fortran2003.Specification_Part`)
     '''
     sched = KernelSchedule("dummy_schedule")
@@ -81,13 +86,14 @@ def process_declarations(code):
 
 FAKE_KERNEL_METADATA = '''
 module dummy_mod
+  use argument_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type) meta_args(3) =                     &
-          (/ arg_type(gh_field, gh_write,     w3),     &
-             arg_type(gh_field, gh_readwrite, wtheta), &
-             arg_type(gh_field, gh_inc,       w1)      &
+     type(arg_type) meta_args(3) =                              &
+          (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
+             arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
+             arg_type(gh_field, gh_real, gh_inc,       w1)      &
            /)
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => dummy_code
   end type dummy_type
@@ -103,13 +109,13 @@ def test_check_args():
 
     with pytest.raises(TypeError) as excinfo:
         _check_args(None, None)
-    assert ("'array' argument should be an Array type but found 'NoneType'."
-            in str(excinfo.value))
+    assert ("'array' argument should be an ArrayReference type but found "
+            "'NoneType'." in str(excinfo.value))
 
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
     symbol = DataSymbol('a', array_type)
-    array_reference = Array.create(symbol, [one])
+    array_reference = ArrayReference.create(symbol, [one])
 
     with pytest.raises(TypeError) as excinfo:
         _check_args(array_reference, None)
@@ -138,14 +144,14 @@ def test_is_bound_full_extent():
     # Check that _is_bound_full_extent calls the check_args function.
     with pytest.raises(TypeError) as excinfo:
         _is_bound_full_extent(None, None, None)
-    assert ("'array' argument should be an Array type but found 'NoneType'."
-            in str(excinfo.value))
+    assert ("'array' argument should be an ArrayReference type but found "
+            "'NoneType'." in str(excinfo.value))
 
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
     symbol = DataSymbol('a', array_type)
     my_range = Range.create(one, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     with pytest.raises(TypeError) as excinfo:
         _is_bound_full_extent(array_reference, 1, None)
@@ -159,7 +165,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND, one, one)
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting operator to be Operator.LBOUND, but found
     # Operator.UBOUND
@@ -169,7 +175,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND, one, one)
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference but found Literal
     assert not _is_bound_full_extent(array_reference, 1,
@@ -179,7 +185,7 @@ def test_is_bound_full_extent():
         BinaryOperation.Operator.LBOUND,
         Reference(DataSymbol("x", INTEGER_TYPE)), one)
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference symbol x to be the same as array symbol a
     assert not _is_bound_full_extent(array_reference, 1,
@@ -189,7 +195,7 @@ def test_is_bound_full_extent():
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1.0", REAL_TYPE))
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting integer but found real
     assert not _is_bound_full_extent(array_reference, 1,
@@ -199,7 +205,7 @@ def test_is_bound_full_extent():
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("2", INTEGER_TYPE))
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting literal value 2 to be the same as the current array
     # dimension 1
@@ -210,7 +216,7 @@ def test_is_bound_full_extent():
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1", INTEGER_TYPE))
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # valid
     assert _is_bound_full_extent(array_reference, 1,
@@ -223,8 +229,8 @@ def test_is_array_range_literal():
     # Check that _is_array_range_literal calls the _check_args function.
     with pytest.raises(TypeError) as excinfo:
         _is_array_range_literal(None, None, None, None)
-    assert ("'array' argument should be an Array type but found 'NoneType'."
-            in str(excinfo.value))
+    assert ("'array' argument should be an ArrayReference type but found "
+            "'NoneType'." in str(excinfo.value))
 
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
@@ -233,7 +239,7 @@ def test_is_array_range_literal():
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1", INTEGER_TYPE))
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     with pytest.raises(TypeError) as excinfo:
         _is_array_range_literal(array_reference, 1, None, None)
@@ -267,14 +273,14 @@ def test_is_array_range_literal():
     # Range.create checks for valid datatype. Therefore change to
     # invalid after creation.
     my_range.children[1] = Literal("1.0", REAL_TYPE)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
 
     # 1st dimension, second argument to range is a real literal,
     # not an integer literal.
     assert not _is_array_range_literal(array_reference, 1, 1, 1)
 
     my_range = Range.create(operator, one)
-    array_reference = Array.create(symbol, [my_range])
+    array_reference = ArrayReference.create(symbol, [my_range])
     # 1st dimension, second argument to range has an unexpected
     # value.
     assert not _is_array_range_literal(array_reference, 1, 1, 2)
@@ -293,23 +299,23 @@ def test_is_range_full_extent():
         Reference(symbol), Literal("1", INTEGER_TYPE))
 
     my_range = Range.create(lbound_op, ubound_op, one)
-    _ = Array.create(symbol, [my_range])
+    _ = ArrayReference.create(symbol, [my_range])
     # Valid structure
     _is_range_full_extent(my_range)
 
     # Invalid start (as 1st argument should be lower bound)
     my_range = Range.create(ubound_op, ubound_op, one)
-    _ = Array.create(symbol, [my_range])
+    _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
     # Invalid stop (as 2nd argument should be upper bound)
     my_range = Range.create(lbound_op, lbound_op, one)
-    _ = Array.create(symbol, [my_range])
+    _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
     # Invalid step (as 3rd argument should be Literal)
     my_range = Range.create(lbound_op, ubound_op, ubound_op)
-    _ = Array.create(symbol, [my_range])
+    _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
 
@@ -352,7 +358,7 @@ def test_array_notation_rank():
     # An array with no dimensions raises an exception
     array_type = ArrayType(REAL_TYPE, [10])
     symbol = DataSymbol("a", array_type)
-    array = Array(symbol, [])
+    array = ArrayReference(symbol, [])
     with pytest.raises(NotImplementedError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
     assert ("An Array reference in the PSyIR must have at least one child but "
@@ -378,14 +384,14 @@ def test_array_notation_rank():
     range1 = Range.create(lbound_op1, ubound_op1)
     range2 = Range.create(lbound_op3, ubound_op3)
     one = Literal("1", INTEGER_TYPE)
-    array = Array.create(symbol, [range1, one, range2])
+    array = ArrayReference.create(symbol, [range1, one, range2])
     result = Fparser2Reader._array_notation_rank(array)
     # Two array dimensions use array notation.
     assert result == 2
 
     # Make one of the array notation dimensions differ from what is required.
     range2 = Range.create(lbound_op3, one)
-    array = Array.create(symbol, [range1, one, range2])
+    array = ArrayReference.create(symbol, [range1, one, range2])
     with pytest.raises(NotImplementedError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
     assert ("Only array notation of the form my_array(:, :, ...) is "
@@ -409,9 +415,8 @@ def test_generate_schedule_empty_subroutine(parser):
     assert len(container.children) == 1
     assert container.children[0] is schedule
     assert container.name == "dummy_mod"
-    assert len(container.symbol_table.symbols) == 1
-    assert isinstance(container.symbol_table.symbols[0], RoutineSymbol)
-    assert container.symbol_table.symbols[0].name == "dummy_code"
+    rsym = container.symbol_table.lookup("dummy_code")
+    assert isinstance(rsym, RoutineSymbol)
 
     # Test that we get an error for a nonexistant subroutine name
     with pytest.raises(GenerationError) as error:
@@ -443,11 +448,9 @@ def test_generate_schedule_module_decls(parser):
     schedule = processor.generate_schedule("dummy_code", ast)
     symbol_table = schedule.parent.symbol_table
     assert isinstance(symbol_table, SymbolTable)
-    # Two variables and one subroutine
-    assert len(symbol_table.symbols) == 3
-    assert symbol_table.lookup("scalar1")
-    assert symbol_table.lookup("array1")
-    assert symbol_table.lookup("dummy_code")
+    assert isinstance(symbol_table.lookup("scalar1"), DataSymbol)
+    assert isinstance(symbol_table.lookup("array1"), DataSymbol)
+    assert isinstance(symbol_table.lookup("dummy_code"), RoutineSymbol)
 
 
 def test_generate_schedule_dummy_subroutine(parser):
@@ -456,13 +459,14 @@ def test_generate_schedule_dummy_subroutine(parser):
     '''
     dummy_kernel_metadata = '''
     module dummy_mod
+      use argument_mod
       type, extends(kernel_type) :: dummy_type
-         type(arg_type) meta_args(3) =                     &
-              (/ arg_type(gh_field, gh_write,     w3),     &
-                 arg_type(gh_field, gh_readwrite, wtheta), &
-                 arg_type(gh_field, gh_inc,       w1)      &
+         type(arg_type) meta_args(3) =                              &
+              (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
+                 arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
+                 arg_type(gh_field, gh_real, gh_inc,       w1)      &
                /)
-         integer :: iterates_over = cells
+         integer :: operates_on = cell_column
        contains
          procedure, nopass :: code => dummy_code
       end type dummy_type
@@ -500,13 +504,14 @@ def test_generate_schedule_no_args_subroutine(parser):
     '''
     dummy_kernel_metadata = '''
     module dummy_mod
+      use argument_mod
       type, extends(kernel_type) :: dummy_type
-         type(arg_type) meta_args(3) =                      &
-              (/ arg_type(gh_field, gh_write,     w3),     &
-                 arg_type(gh_field, gh_readwrite, wtheta), &
-                 arg_type(gh_field, gh_inc,       w1)      &
+         type(arg_type) meta_args(3) =                              &
+              (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
+                 arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
+                 arg_type(gh_field, gh_real, gh_inc,       w1)      &
                /)
-         integer :: iterates_over = cells
+         integer :: operates_on = cell_column
        contains
          procedure, nopass :: code => dummy_code
       end type dummy_type
@@ -533,13 +538,14 @@ def test_generate_schedule_unmatching_arguments(parser):
     '''
     dummy_kernel_metadata = '''
     module dummy_mod
+      use kernel_mod
       type, extends(kernel_type) :: dummy_type
-         type(arg_type) meta_args(3) =                     &
-              (/ arg_type(gh_field, gh_write,     w3),     &
-                 arg_type(gh_field, gh_readwrite, wtheta), &
-                 arg_type(gh_field, gh_inc,       w1)      &
+         type(arg_type) meta_args(3) =                              &
+              (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
+                 arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
+                 arg_type(gh_field, gh_real, gh_inc,       w1)      &
                /)
-         integer :: iterates_over = cells
+         integer :: operates_on = cell_column
        contains
          procedure, nopass :: code => dummy_code
       end type dummy_type
@@ -703,7 +709,7 @@ def test_process_declarations_accessibility():
 
 def test_process_unsupported_declarations(f2008_parser):
     ''' Check that the frontend handles unsupported declarations by
-    creating symbols of UnknownType. '''
+    creating symbols of UnknownFortranType. '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
@@ -713,17 +719,17 @@ def test_process_unsupported_declarations(f2008_parser):
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     asym = fake_parent.symbol_table.lookup("a")
-    assert isinstance(asym.datatype, UnknownType)
+    assert isinstance(asym.datatype, UnknownFortranType)
     assert asym.datatype.declaration == "REAL :: a = 1.1"
 
     reader = FortranStringReader("real:: b = 1.1, c = 2.2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     bsym = fake_parent.symbol_table.lookup("b")
-    assert isinstance(bsym.datatype, UnknownType)
+    assert isinstance(bsym.datatype, UnknownFortranType)
     assert bsym.datatype.declaration == "REAL :: b = 1.1"
     csym = fake_parent.symbol_table.lookup("c")
-    assert isinstance(csym.datatype, UnknownType)
+    assert isinstance(csym.datatype, UnknownFortranType)
     assert csym.datatype.declaration == "REAL :: c = 2.2"
 
     # Multiple symbols with a single attribute
@@ -731,10 +737,10 @@ def test_process_unsupported_declarations(f2008_parser):
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     dsym = fake_parent.symbol_table.lookup("d")
-    assert isinstance(dsym.datatype, UnknownType)
+    assert isinstance(dsym.datatype, UnknownFortranType)
     assert dsym.datatype.declaration == "INTEGER, PRIVATE :: d = 1"
     esym = fake_parent.symbol_table.lookup("e")
-    assert isinstance(esym.datatype, UnknownType)
+    assert isinstance(esym.datatype, UnknownFortranType)
     assert esym.datatype.declaration == "INTEGER, PRIVATE :: e = 2"
 
     # Multiple attributes
@@ -743,11 +749,11 @@ def test_process_unsupported_declarations(f2008_parser):
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     fsym = fake_parent.symbol_table.lookup("f")
-    assert isinstance(fsym.datatype, UnknownType)
+    assert isinstance(fsym.datatype, UnknownFortranType)
     assert (fsym.datatype.declaration ==
             "INTEGER, PRIVATE, DIMENSION(3) :: f = 2")
     gsym = fake_parent.symbol_table.lookup("g")
-    assert isinstance(gsym.datatype, UnknownType)
+    assert isinstance(gsym.datatype, UnknownFortranType)
     assert (gsym.datatype.declaration ==
             "INTEGER, PRIVATE, DIMENSION(3) :: g = 3")
 
@@ -757,16 +763,8 @@ def test_process_unsupported_declarations(f2008_parser):
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     c2sym = fake_parent.symbol_table.lookup("c2")
-    assert isinstance(c2sym.datatype, UnknownType)
+    assert isinstance(c2sym.datatype, UnknownFortranType)
     assert c2sym.datatype.declaration == "COMPLEX :: c2"
-
-    # Derived type
-    reader = FortranStringReader("type(my_type) :: var")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    vsym = fake_parent.symbol_table.lookup("var")
-    assert isinstance(vsym.datatype, UnknownType)
-    assert vsym.datatype.declaration == "TYPE(my_type) :: var"
 
     # Char lengths are not supported
     # TODO: It would be simpler to do just a Specification_Part(reader) instead
@@ -777,7 +775,7 @@ def test_process_unsupported_declarations(f2008_parser):
     fparser2spec = program.content[0].content[1].content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert isinstance(fake_parent.symbol_table.lookup("l").datatype,
-                      UnknownType)
+                      UnknownFortranType)
 
     # Unsupported initialisation of a parameter which comes after a valid
     # initialisation
@@ -786,7 +784,7 @@ def test_process_unsupported_declarations(f2008_parser):
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     fbsym = fake_parent.symbol_table.lookup("fbsp")
-    assert isinstance(fbsym.datatype, UnknownType)
+    assert isinstance(fbsym.datatype, UnknownFortranType)
     assert (fbsym.datatype.declaration ==
             "INTEGER, PARAMETER :: fbsp = SELECTED_REAL_KIND(6, 37)")
     # The first parameter should have been handled correctly
@@ -805,7 +803,8 @@ def test_unsupported_decln_duplicate_symbol():
     fake_parent = KernelSchedule("dummy_schedule")
     fake_parent.symbol_table.add(Symbol("var"))
     processor = Fparser2Reader()
-    reader = FortranStringReader("type(my_type) :: var")
+    # Note leading white space to ensure fparser doesn't identify a comment
+    reader = FortranStringReader(" complex var")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, [fparser2spec], [])
@@ -892,15 +891,43 @@ def test_process_array_declarations():
     reader = FortranStringReader("integer :: l5(2), l6(3)")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l5").datatype.shape == [2]
-    assert fake_parent.symbol_table.lookup("l6").datatype.shape == [3]
+    l5_datatype = fake_parent.symbol_table.lookup("l5").datatype
+    assert len(l5_datatype.shape) == 1
+    assert isinstance(l5_datatype.shape[0], Literal)
+    assert l5_datatype.shape[0].value == '2'
+    assert (l5_datatype.shape[0].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l5_datatype.shape[0].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
+    l6_datatype = fake_parent.symbol_table.lookup("l6").datatype
+    assert len(l6_datatype.shape) == 1
+    assert isinstance(l6_datatype.shape[0], Literal)
+    assert l6_datatype.shape[0].value == '3'
+    assert (l6_datatype.shape[0].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l6_datatype.shape[0].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
 
     # Test that component-array-spec has priority over dimension attribute
     reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("l7").name == 'l7'
-    assert fake_parent.symbol_table.lookup("l7").shape == [3, 2]
+    l7_datasymbol = fake_parent.symbol_table.lookup("l7")
+    assert l7_datasymbol.name == 'l7'
+    assert len(l7_datasymbol.shape) == 2
+    l7_datatype = l7_datasymbol.datatype
+    assert isinstance(l7_datatype.shape[0], Literal)
+    assert l7_datatype.shape[0].value == '3'
+    assert (l7_datatype.shape[0].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l7_datatype.shape[0].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
+    assert isinstance(l7_datatype.shape[1], Literal)
+    assert l7_datatype.shape[1].value == '2'
+    assert (l7_datatype.shape[1].datatype.intrinsic ==
+            ScalarType.Intrinsic.INTEGER)
+    assert (l7_datatype.shape[1].datatype.precision ==
+            ScalarType.Precision.UNDEFINED)
 
     # Allocatable
     reader = FortranStringReader("integer, allocatable :: l8(:)")
@@ -928,8 +955,9 @@ def test_process_array_declarations():
     assert symbol.shape == [ArrayType.Extent.ATTRIBUTE,
                             ArrayType.Extent.ATTRIBUTE]
 
-    # Extent given by variable with UnknownType
-    udim = DataSymbol("udim", UnknownType("integer :: udim"))
+    # Extent given by variable with UnknownFortranType
+    udim = DataSymbol("udim", UnknownFortranType("integer :: udim"),
+                      interface=UnresolvedInterface())
     fake_parent.symbol_table.add(udim)
     reader = FortranStringReader("integer :: l11(udim)")
     fparser2spec = Specification_Part(reader).content[0]
@@ -938,9 +966,11 @@ def test_process_array_declarations():
     assert symbol.name == "l11"
     assert len(symbol.shape) == 1
     # Extent symbol should be udim
-    assert symbol.shape[0].name == "udim"
-    assert symbol.shape[0] is udim
-    assert isinstance(symbol.shape[0].datatype, UnknownType)
+    reference = symbol.shape[0]
+    assert isinstance(reference, Reference)
+    assert reference.name == "udim"
+    assert reference.symbol is udim
+    assert isinstance(reference.symbol.datatype, UnknownFortranType)
 
     # Extent given by variable with DeferredType
     ddim = DataSymbol("ddim", DeferredType(),
@@ -953,9 +983,10 @@ def test_process_array_declarations():
     assert symbol.name == "l12"
     assert len(symbol.shape) == 1
     # Extent symbol should now be ddim
-    assert symbol.shape[0].name == "ddim"
-    assert symbol.shape[0] is ddim
-    assert isinstance(symbol.shape[0].datatype, DeferredType)
+    reference = symbol.shape[0]
+    assert reference.name == "ddim"
+    assert reference.symbol is ddim
+    assert isinstance(reference.symbol.datatype, DeferredType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -970,13 +1001,13 @@ def test_process_not_supported_declarations():
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert isinstance(fake_parent.symbol_table.lookup("arg1").datatype,
-                      UnknownType)
+                      UnknownFortranType)
 
     reader = FortranStringReader("real, allocatable :: p3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert isinstance(fake_parent.symbol_table.lookup("p3").datatype,
-                      UnknownType)
+                      UnknownFortranType)
 
     # Allocatable but with specified extent. This is invalid Fortran but
     # fparser2 doesn't spot it (see fparser/#229).
@@ -1026,7 +1057,7 @@ def test_module_function_symbol(parser):
     # This should result in a new, *local* symbol named "modvar1"
     sched = processor.generate_schedule("modvar1", ast, container)
     # Check that the resulting Schedule has a local symbol
-    sym = sched.scope.symbol_table.lookup("modvar1", check_ancestors=False)
+    sym = sched.scope.symbol_table.lookup("modvar1", scope_limit=sched)
     assert isinstance(sym, DataSymbol)
     assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
@@ -1045,14 +1076,14 @@ def test_process_save_attribute_declarations(parser):
     fparser2spec = Type_Declaration_Stmt(reader)
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert isinstance(fake_parent.symbol_table.lookup("var1").datatype,
-                      UnknownType)
+                      UnknownFortranType)
 
     # Test with no context about where the declaration is.
     reader = FortranStringReader("integer, save :: var2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert isinstance(fake_parent.symbol_table.lookup("var2").datatype,
-                      UnknownType)
+                      UnknownFortranType)
 
     # Test with a subroutine.
     reader = FortranStringReader(
@@ -1062,7 +1093,7 @@ def test_process_save_attribute_declarations(parser):
     fparser2spec = parser(reader).content[0].content[1]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert isinstance(fake_parent.symbol_table.lookup("var3").datatype,
-                      UnknownType)
+                      UnknownFortranType)
 
     # Test with a module.
     reader = FortranStringReader(
@@ -1149,7 +1180,7 @@ def test_process_declarations_kind_new_param():
     processor.process_declarations(fake_parent, fp2spec[0], [])
     sym = fake_parent.symbol_table.lookup("var3")
     assert isinstance(sym, DataSymbol)
-    assert isinstance(sym.datatype, UnknownType)
+    assert isinstance(sym.datatype, UnknownFortranType)
 
 
 @pytest.mark.xfail(reason="Kind parameter declarations not supported - #569")
@@ -1186,13 +1217,25 @@ def test_process_declarations_kind_use():
 @pytest.mark.usefixtures("f2008_parser")
 def test_wrong_type_kind_param():
     ''' Check that we raise the expected error if a variable used as a KIND
-    specifier has already been declared with non-integer type.
+    specifier is not a DataSymbol or has already been declared with non-integer
+    type.
 
     '''
+    fake_parent, _ = process_declarations("integer :: r_def\n"
+                                          "real(kind=r_def) :: var2")
+    r_def = fake_parent.symbol_table.lookup("r_def")
+    # Monkeypatch this DataSymbol so that it appears to be a RoutineSymbol
+    r_def.__class__ = RoutineSymbol
+    with pytest.raises(TypeError) as err:
+        _kind_symbol_from_name("r_def", fake_parent.symbol_table)
+    assert ("found an entry of type 'RoutineSymbol' for variable 'r_def'" in
+            str(err.value))
+    # Repeat but declare r_def as real
     with pytest.raises(TypeError) as err:
         process_declarations("real :: r_def\n"
                              "real(kind=r_def) :: var2")
-    assert "already contains an entry for variable 'r_def'" in str(err.value)
+    assert ("already contains a DataSymbol for variable 'r_def'" in
+            str(err.value))
 
 
 @pytest.mark.parametrize("vartype, kind, precision",
@@ -1234,7 +1277,8 @@ def test_unsupported_kind(vartype, kind):
     '''
     sched, _ = process_declarations("{0}(kind=KIND({1})) :: var".format(
         vartype, kind))
-    assert isinstance(sched.symbol_table.lookup("var").datatype, UnknownType)
+    assert isinstance(sched.symbol_table.lookup("var").datatype,
+                      UnknownFortranType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1242,7 +1286,6 @@ def test_process_declarations_stmt_functions():
     '''Test that process_declarations method handles statement functions
     appropriately.
     '''
-    from fparser.two.Fortran2003 import Stmt_Function_Stmt
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
@@ -1265,7 +1308,7 @@ def test_process_declarations_stmt_functions():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
-    assert isinstance(array, Array)
+    assert isinstance(array, ArrayReference)
     assert array.name == "a"
 
     # Test that it works with multi-dimensional arrays
@@ -1280,7 +1323,7 @@ def test_process_declarations_stmt_functions():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
-    assert isinstance(array, Array)
+    assert isinstance(array, ArrayReference)
     assert array.name == "b"
 
     # Test that if symbol is not an array, it raises GenerationError
@@ -1298,7 +1341,6 @@ def test_parse_array_dimensions_attributes():
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
-    from fparser.two.Fortran2003 import Dimension_Attr_Spec
 
     sym_table = SymbolTable()
     reader = FortranStringReader("dimension(:)")
@@ -1321,7 +1363,7 @@ def test_parse_array_dimensions_attributes():
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
-    assert shape[0] == sym_table.lookup('var1')
+    assert shape[0].symbol == sym_table.lookup('var1')
 
     # Assumed size arrays not supported
     reader = FortranStringReader("dimension(*)")
@@ -1359,13 +1401,11 @@ def test_parse_array_dimensions_attributes():
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec],
                                    [Name("array3")])
-    assert fake_parent.symbol_table.lookup("array3").name == "array3"
-    assert fake_parent.symbol_table.lookup("array3").datatype.intrinsic == \
-        ScalarType.Intrinsic.REAL
-    assert fake_parent.symbol_table.lookup("array3").shape == \
-        [ArrayType.Extent.ATTRIBUTE]
-    assert fake_parent.symbol_table.lookup("array3").interface.access is \
-        ArgumentInterface.Access.READ
+    array3 = fake_parent.symbol_table.lookup("array3")
+    assert array3.name == "array3"
+    assert array3.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert array3.shape == [ArrayType.Extent.ATTRIBUTE]
+    assert array3.interface.access is ArgumentInterface.Access.READ
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1400,7 +1440,7 @@ def test_unresolved_array_size():
     reader = FortranStringReader("real, dimension(N) :: array4")
     fparser2spec = Specification_Part(reader).content
     processor.process_declarations(fake_parent, fparser2spec, [])
-    assert fake_parent.symbol_table.lookup("array4").shape[0] is dim_sym
+    assert fake_parent.symbol_table.lookup("array4").shape[0].symbol is dim_sym
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1453,7 +1493,7 @@ def test_use_stmt_error(monkeypatch):
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations_unrecognised_attribute():
     ''' Check that a declaration with an unrecognised attribute results in
-    a symbol with UnknownType. '''
+    a symbol with UnknownFortranType. '''
     fake_parent = KernelSchedule("dummy")
     processor = Fparser2Reader()
     reader = FortranStringReader("integer, private :: idx1\n")
@@ -1462,7 +1502,7 @@ def test_process_declarations_unrecognised_attribute():
     fparser2spec.children[0].children[1].items = ("not-a-spec",)
     processor.process_declarations(fake_parent, fparser2spec.children, [])
     assert isinstance(fake_parent.symbol_table.lookup("idx1").datatype,
-                      UnknownType)
+                      UnknownFortranType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1470,8 +1510,6 @@ def test_parse_array_dimensions_unhandled(monkeypatch):
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
-    from fparser.two.Fortran2003 import Dimension_Attr_Spec
-    import fparser
 
     def walk_ast_return(_1, _2, _3=None, _4=None):
         '''Function that returns a unique object that will not be part
@@ -1584,7 +1622,7 @@ def test_handling_part_ref():
     assignment = fake_parent.children[0]
     assert len(assignment.children) == 2
     new_node = assignment.children[0]
-    assert isinstance(new_node, Array)
+    assert isinstance(new_node, ArrayReference)
     assert new_node.name == "x"
     assert len(new_node.children) == 1  # Array dimensions
 
@@ -1602,7 +1640,7 @@ def test_handling_part_ref():
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent[0].lhs
-    assert isinstance(new_node, Array)
+    assert isinstance(new_node, ArrayReference)
     assert new_node.name == "x"
     assert len(new_node.children) == 3  # Array dimensions
 
@@ -1799,11 +1837,11 @@ def test_array_section():
         has the expected number of dimensions.
 
         :param node: the node to check.
-        :type node: :py:class:`psyclone.psyir.nodes.Array`
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
         :param int ndims: the number of expected array dimensions.
 
         '''
-        assert isinstance(node, Array)
+        assert isinstance(node, ArrayReference)
         assert len(node.children) == ndims
 
     def _check_range(array, dim):
@@ -1812,7 +1850,7 @@ def test_array_section():
         argument "array" is an array.
 
         :param array: the node to check.
-        :type array: :py:class:`psyclone.psyir.nodes.Array`
+        :type array: :py:class:`psyclone.psyir.nodes.ArrayReference`
         :param int dim: the array dimension index to check.
 
         '''
@@ -1832,7 +1870,7 @@ def test_array_section():
         range index is valid.
 
         :param array: the node to check.
-        :type array: :py:class:`pysclone.psyir.node.Array`
+        :type array: :py:class:`pysclone.psyir.node.ArrayReference`
         :param int dim: the dimension index to check.
         :param int index: the index of the range to check (0 is the \
             lower bound, 1 is the upper bound).
@@ -2196,7 +2234,6 @@ def test_case_default():
     TODO #754 fix test so that 'disable_declaration_check' fixture is not
     required.
     '''
-    from fparser.two.Fortran2003 import Assignment_Stmt
     case_clauses = ["CASE default\nbranch3 = 1\nbranch3 = branch3 * 2\n",
                     "CASE (label1)\nbranch1 = 1\n",
                     "CASE (label2)\nbranch2 = 1\n"]
@@ -2534,7 +2571,6 @@ def test_handling_return_stmt():
     ''' Test that fparser2 Return_Stmt is converted to the expected PSyIR
     tree structure.
     '''
-    from fparser.two.Fortran2003 import Return_Stmt
     reader = FortranStringReader("return")
     return_stmt = Execution_Part.match(reader)[0][0]
     assert isinstance(return_stmt, Return_Stmt)
@@ -2552,7 +2588,6 @@ def test_handling_return_stmt():
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_end_subroutine_stmt():
     ''' Test that fparser2 End_Subroutine_Stmt are ignored.'''
-    from fparser.two.Fortran2003 import Subroutine_Subprogram
     reader = FortranStringReader('''
         subroutine dummy_code()
         end subroutine dummy_code
@@ -2565,7 +2600,7 @@ def test_handling_end_subroutine_stmt():
     assert not fake_parent.children  # No new children created
 
 
-# (1/4) fparser2reader::nodes_to_code_block
+# (1/3) fparser2reader::nodes_to_code_block
 def test_nodes_to_code_block_1(f2008_parser):
     '''Check that a statement codeblock that is at the "top level" in the
     PSyIR has the structure property set to statement (as it has a
@@ -2586,7 +2621,7 @@ def test_nodes_to_code_block_1(f2008_parser):
     assert schedule[0].structure == CodeBlock.Structure.STATEMENT
 
 
-# (2/4) fparser2reader::nodes_to_code_block
+# (2/3) fparser2reader::nodes_to_code_block
 def test_nodes_to_code_block_2(f2008_parser):
     '''Check that a statement codeblock that is within another statement
     in the PSyIR has the structure property set to statement (as it
@@ -2609,33 +2644,9 @@ def test_nodes_to_code_block_2(f2008_parser):
     assert schedule[0].if_body[0].structure == CodeBlock.Structure.STATEMENT
 
 
-# (3/4) fparser2reader::nodes_to_code_block
-@pytest.mark.usefixtures("disable_declaration_check")
-def test_nodes_to_code_block_3(f2008_parser):
-    '''Check that a codeblock that contains an expression has the
-    structure property set to expression.
-
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-    '''
-    # The derived-type reference is currently a code block in the PSyIR
-    reader = FortranStringReader('''
-        program test
-        if (a%text == "HELLO") then
-        end if
-        end program test
-        ''')
-    prog = f2008_parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
-    code_block = schedule[0].condition.children[0]
-    assert isinstance(code_block, CodeBlock)
-    assert code_block.structure == CodeBlock.Structure.EXPRESSION
-
-
-# (4/4) fparser2reader::nodes_to_code_block
+# (3/3) fparser2reader::nodes_to_code_block
 @pytest.mark.usefixtures("f2008_parser")
-def test_nodes_to_code_block_4():
+def test_nodes_to_code_block_3():
     '''Check that a codeblock that has a directive as a parent causes the
     expected exception.
 
@@ -2644,38 +2655,6 @@ def test_nodes_to_code_block_4():
         _ = Fparser2Reader.nodes_to_code_block(Directive(), "hello")
     assert ("A CodeBlock with a Directive as parent is not yet supported."
             in str(excinfo.value))
-
-
-def test_get_symbol_table():
-    '''Test that the utility function _get_symbol_table() works and fails
-    as expected. '''
-    # invalid argument
-    with pytest.raises(TypeError) as excinfo:
-        _ = _get_symbol_table("invalid")
-    assert ("node argument to _get_symbol_table() should be of type Node, "
-            "but found 'str'." in str(excinfo.value))
-
-    # no symbol table
-    lhs = Reference(DataSymbol("x", REAL_TYPE))
-    rhs = Literal("1.0", REAL_TYPE)
-    assignment = Assignment.create(lhs, rhs)
-    for node in [lhs, rhs, assignment]:
-        assert not _get_symbol_table(node)
-
-    # symbol table
-    symbol_table = SymbolTable()
-    kernel_schedule = KernelSchedule.create("test", symbol_table, [assignment])
-    for node in [lhs, rhs, assignment, kernel_schedule]:
-        assert _get_symbol_table(node) is symbol_table
-
-    # expected symbol table
-    symbol_table2 = SymbolTable()
-    container = Container.create("test_container", symbol_table2,
-                                 [kernel_schedule])
-    assert symbol_table is not symbol_table2
-    for node in [lhs, rhs, assignment, kernel_schedule]:
-        assert _get_symbol_table(node) is symbol_table
-    assert _get_symbol_table(container) is symbol_table2
 
 
 def test_loop_var_exception(parser):
@@ -2699,3 +2678,180 @@ def test_loop_var_exception(parser):
         "Loop-variable name 'i' is not declared and there are no unqualified "
         "use statements. This is currently unsupported."
         in str(excinfo.value))
+
+
+def test_named_and_wildcard_use_var(f2008_parser):
+    ''' Check that we handle the case where a variable is accessed first by
+    a wildcard import and then by a named import. '''
+    reader = FortranStringReader('''
+        module test_mod
+          use some_mod
+        contains
+          subroutine test_sub1()
+            ! a_var here must be being brought into scope by the
+            ! `use some_mod` in the module.
+            a_var = 1.0
+          end subroutine test_sub1
+          subroutine test_sub2()
+            use some_mod, only: a_var
+            a_var = 2.0
+          end subroutine test_sub2
+        end module test_mod
+        ''')
+    prog = f2008_parser(reader)
+    psy = PSyFactory(api="nemo").create(prog)
+    # We should have an entry for "a_var" in the Container symbol table
+    # due to the access in "test_sub1".
+    container = psy.invokes.container
+    avar1 = container.symbol_table.lookup("a_var")
+    # It must be a generic Symbol since we don't know anything about it
+    # pylint: disable=unidiomatic-typecheck
+    assert type(avar1) == Symbol
+    # There should be no entry for "a_var" in the symbol table for the
+    # "test_sub1" routine as it is not declared there.
+    schedule = psy.invokes.invoke_list[0].schedule
+    assert "a_var" not in schedule.symbol_table
+    # There should be another, distinct entry for "a_var" in the symbol table
+    # for "test_sub2" as it has a use statement that imports it.
+    schedule = psy.invokes.invoke_list[1].schedule
+    avar2 = schedule.symbol_table.lookup("a_var")
+    assert type(avar2) == Symbol
+    assert avar2 is not avar1
+
+
+def test_find_or_create_imported_symbol():
+    '''Test that the find_or_create_imported_symbol method in a Node instance
+    returns the associated symbol if there is one and raises an exception if
+    not. Also test for an incorrect scope argument.'''
+
+    _, invoke = get_invoke("single_invoke_kern_with_global.f90",
+                           api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    kernel_schedule = kernels[0].get_kernel_schedule()
+    references = kernel_schedule.walk(Reference)
+
+    # Symbol in KernelSchedule SymbolTable
+    field_old = references[0]
+    assert field_old.name == "field_old"
+    assert isinstance(field_old.symbol, DataSymbol)
+    assert field_old.symbol in kernel_schedule.symbol_table.symbols
+
+    # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
+    assert isinstance(_find_or_create_imported_symbol(
+        field_old, field_old.name, scope_limit=kernel_schedule), DataSymbol)
+    assert field_old.symbol.name == field_old.name
+
+    # Symbol in KernelSchedule SymbolTable with parent scope, so
+    # the symbol should not be found as we limit the scope to the
+    # immediate parent of the reference
+    with pytest.raises(SymbolError) as excinfo:
+        _ = _find_or_create_imported_symbol(field_old, field_old.name,
+                                            scope_limit=field_old.parent)
+    assert "No Symbol found for name 'field_old'." in str(excinfo.value)
+
+    # Symbol in Container SymbolTable
+    alpha = references[6]
+    assert alpha.name == "alpha"
+    assert isinstance(_find_or_create_imported_symbol(alpha, alpha.name),
+                      DataSymbol)
+    container = kernel_schedule.root
+    assert isinstance(container, Container)
+    assert (_find_or_create_imported_symbol(alpha, alpha.name) in
+            container.symbol_table.symbols)
+
+    # Symbol in Container SymbolTable with KernelSchedule scope, so
+    # the symbol should not be found as we limit the scope to the
+    # kernel so do not search the container symbol table.
+    with pytest.raises(SymbolError) as excinfo:
+        _ = _find_or_create_imported_symbol(alpha, alpha.name,
+                                            scope_limit=kernel_schedule)
+    assert "No Symbol found for name 'alpha'." in str(excinfo.value)
+
+    # Symbol in Container SymbolTable with Container scope
+    assert (_find_or_create_imported_symbol(
+        alpha, alpha.name, scope_limit=container).name == alpha.name)
+
+    # Test _find_or_create_impored_symbol with invalid location
+    with pytest.raises(TypeError) as excinfo:
+        _ = _find_or_create_imported_symbol("hello", alpha.name)
+    assert ("The location argument 'hello' provided to "
+            "_find_or_create_imported_symbol() is not of type `Node`."
+            in str(excinfo.value))
+
+    # Test _find_or_create_impored_symbol with invalid scope type
+    with pytest.raises(TypeError) as excinfo:
+        _ = _find_or_create_imported_symbol(alpha, alpha.name,
+                                            scope_limit="hello")
+    assert ("The scope_limit argument 'hello' provided to "
+            "_find_or_create_imported_symbol() is not of type `Node`."
+            in str(excinfo.value))
+
+    # find_or_create_symbol method with invalid scope location
+    with pytest.raises(ValueError) as excinfo:
+        _ = _find_or_create_imported_symbol(alpha, alpha.name,
+                                            scope_limit=alpha)
+    assert ("The scope_limit node 'Reference[name:'alpha']' provided to "
+            "_find_or_create_imported_symbol() is not an ancestor of this "
+            "node 'Reference[name:'alpha']'." in str(excinfo.value))
+
+    # With a visibility parameter
+    sym = _find_or_create_imported_symbol(alpha, "very_private",
+                                          visibility=Symbol.Visibility.PRIVATE)
+    assert sym.name == "very_private"
+    assert sym.visibility == Symbol.Visibility.PRIVATE
+    assert sym is container.symbol_table.lookup("very_private",
+                                                scope_limit=container)
+
+
+def test_find_or_create_imported_symbol_2():
+    ''' Check that the _find_or_create_imported_symbol() method creates new
+    symbols when appropriate. '''
+    # Create some suitable PSyIR from scratch
+    symbol_table = SymbolTable()
+    symbol_table.add(DataSymbol("tmp", REAL_TYPE))
+    kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
+    container = Container.create("container_name", symbol_table,
+                                 [kernel1])
+    xvar = DataSymbol("x", REAL_TYPE)
+    xref = Reference(xvar)
+    assign = Assignment.create(xref, Literal("1.0", REAL_TYPE))
+    kernel1.addchild(assign)
+    assign.parent = kernel1
+    # We have no wildcard imports so there can be no symbol named 'undefined'
+    with pytest.raises(SymbolError) as err:
+        _ = _find_or_create_imported_symbol(assign, "undefined")
+    assert "No Symbol found for name 'undefined'" in str(err.value)
+    # We should be able to find the 'tmp' symbol in the parent Container
+    sym = _find_or_create_imported_symbol(assign, "tmp")
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    # Add a wildcard import to the SymbolTable of the KernelSchedule
+    new_container = ContainerSymbol("some_mod")
+    new_container.wildcard_import = True
+    kernel1.symbol_table.add(new_container)
+    # Symbol not in any container but we do have wildcard imports so we
+    # get a new symbol back
+    new_symbol = _find_or_create_imported_symbol(assign, "undefined")
+    assert new_symbol.name == "undefined"
+    assert isinstance(new_symbol.interface, UnresolvedInterface)
+    # pylint: disable=unidiomatic-typecheck
+    assert type(new_symbol) == Symbol
+    assert "undefined" not in container.symbol_table
+    assert kernel1.symbol_table.lookup("undefined") is new_symbol
+
+
+def test_nemo_find_container_symbol(parser):
+    ''' Check that find_or_create_symbol() works for the NEMO API when the
+    searched-for symbol is declared in the parent module. '''
+    reader = FortranFileReader(
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__)))),
+            "test_files", "gocean1p0", "kernel_with_global_mod.f90"))
+    prog = parser(reader)
+    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
+    # Get a node from the schedule
+    bops = psy._invokes.invoke_list[0].schedule.walk(BinaryOperation)
+    # Use it as the starting point for the search
+    symbol = _find_or_create_imported_symbol(bops[0], "alpha")
+    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL

@@ -109,15 +109,31 @@ module read_only_base_mod
         procedure :: PreStart, PreEndDeclaration
         procedure :: PostStart
 
-        {# Declare the jinja created procedures #}
-        {# ------------------------------------ #}
-        {% for name, type, bits in ALL_TYPES %}
+        {# Collect the various procedures for the same generic interface -#}
+        {# ------------------------------------------------------------- -#}
+        {% set all_provides=[] -%}
+        {%- for name, type, bits in ALL_TYPES %}
         procedure :: ProvideScalar{{name}}
+          {{- all_provides.append("ProvideScalar"~name) or "" }}
           {% for dim in ALL_DIMS %}
         procedure :: ProvideArray{{dim}}d{{name}}
+            {{- all_provides.append("ProvideArray"~dim~"d"~name) or "" }}
           {% endfor %}
         {% endfor %}
 
+        {% set indent="            " %}
+
+        {% if GENERIC_PROVIDE %}
+        !> The generic interface for providing the value of variables,
+        !! which in case of the read-only verification either computes
+        !! the checksum (before a kernel), or compares a checksum (after
+        !! a kernel call). The generic interface is only defined if
+        !! explicitly requested. This allows a derived class to implement
+        !! its own functions and provide them as part of the generic
+        !! interface.
+        generic, public :: ProvideVariable => &
+            {{all_provides|join(", &\n"+indent) }}
+        {% endif %}
     end type ReadOnlyBaseType
 
     {# Create a generic interface for all ComputeChecksum functions #}
@@ -169,7 +185,7 @@ Contains
         if (.not. is_enabled) return
 
         if (num_pre_vars /= num_post_vars) then
-            write(stderr, *) "PSYDATA: The same number of variables must be provided before"
+            write(stderr, *) "PSyData: The same number of variables must be provided before"
             write(stderr, *) "and after the instrumented region. But the values are:"
             write(stderr, *) "Before: ", num_pre_vars, " after: ", num_post_vars
             call this%Abort("PreStart: Inconsistent parameters")
@@ -216,6 +232,9 @@ Contains
         class(ReadOnlyBaseType), intent(inout), target :: this
 
         call this%PSyDataBaseType%PostStart()
+        ! The pointer mst be reset to 1 to make sure we compare
+        ! with the previously computed checksums
+        this%next_var_index = 1
         this%verify_checksums = .true.
     end subroutine PostStart
 
@@ -286,7 +305,7 @@ Contains
                 write(stderr,*) "New value:      ", value
                 write(stderr,*) "------------- PSyData -------------------------"
             else if(this%verbosity>1) then
-                write(stderr,*) "PSYDATA: checked variable ", trim(name)
+                write(stderr,*) "PSyData: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
@@ -326,7 +345,7 @@ Contains
                 write(stderr,*) "New checksum:      ", checksum
                 write(stderr,*) "------------- PSyData -------------------------"
             else if(this%verbosity>1) then
-                write(stderr,*) "PSYDATA: checked variable ", trim(name)
+                write(stderr,*) "PSyData: checked variable ", trim(name)
             endif
         else
             this%checksums(this%next_var_index) = checksum
@@ -355,7 +374,7 @@ Contains
         {# The spaces take care of proper indentation #}
         checksum = 0
         {% for j in range(dim, 0, -1) %}
-        {{+" "*3*(dim-j)}}do i{{j}}=1, size(field, {{j}})
+        {{" "*3*(dim-j)}}do i{{j}}=1, size(field, {{j}})
         {% endfor %}
         {% if bits == 32 %}
         {{indent}}! transfer leaves undefined bits in a 64-bit target

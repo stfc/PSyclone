@@ -1,5 +1,5 @@
 !-------------------------------------------------------------------------------
-! Copyright (c) 2018-2020, Science and Technology Facilities Council
+! Copyright (c) 2018-2021, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -37,14 +37,14 @@ module testkern_eval_2fs_mod
   use kernel_mod
 
   type, extends(kernel_type) :: testkern_eval_2fs_type
-     type(arg_type)  :: meta_args(2) =  (/ &
-       arg_type(GH_FIELD, GH_INC,  W0),    &
-       arg_type(GH_FIELD, GH_READ, W1)     &
+     type(arg_type)  :: meta_args(2) =  (/       &
+       arg_type(GH_FIELD, GH_REAL, GH_INC,  W0), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W1)  &
        /)
-     type(func_type) :: meta_funcs(1) = (/ &
-       func_type(W1, GH_DIFF_BASIS)        &
+     type(func_type) :: meta_funcs(1) = (/       &
+       func_type(W1, GH_DIFF_BASIS)              &
        /)
-     integer :: iterates_over = cells
+     integer :: operates_on = CELL_COLUMN
      integer :: gh_shape = gh_evaluator
      integer :: gh_evaluator_targets(2) = (/W0, W1/)
    contains

@@ -36,12 +36,11 @@
 !> profiling API.
 module profile_psy_data_mod
 
+  use psy_data_base_mod, only : PSyDataBaseType, profile_PSyDataStart, &
+                                profile_PSyDataStop, is_enabled
+
   !> The datatype to store information about a region.
-  type :: profile_PSyDataType
-     !> Name of the module.
-     character(:), allocatable :: module_name
-     !> Name of the region.
-     character(:), allocatable :: region_name
+  type, extends(PSyDataBaseType) :: profile_PSyDataType
      !> Counts how often this region was executed.
      integer                   :: count
      !> Time at whith PreStart was called.
@@ -90,8 +89,10 @@ contains
   !> call to this subroutine. But the simple timing library will
   !> actually call this function itself if it has not been called previously.
   subroutine profile_PSyDataInit()
+    use psy_data_base_mod, only : base_PSyDataInit => profile_PsyDataInit
     implicit none
 
+    call base_PSyDataInit()
     used_entries         = 0
     has_been_initialised = .true.
 
@@ -116,19 +117,21 @@ contains
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
-    character*(*)       :: module_name, region_name
-    integer             :: count, count_rate
-    integer, intent(in) :: num_pre_vars, num_post_vars
+    character(len=*), intent(in) :: module_name, region_name
+    integer                   :: count, count_rate
+    integer, intent(in)       :: num_pre_vars, num_post_vars
 
     if ( .not. has_been_initialised ) then
        call profile_PSyDataInit()
     endif
 
-    ! Note that the actual initialisation of this
+    if (.not. is_enabled) return
+
+    call this%PSyDataBaseType%PreStart(module_name, region_name,  &
+                                       num_pre_vars, num_post_vars)
+    ! Note that the actual initialisation of "this"
     ! happens in PostEnd, which is when min, sum and
     ! max are properly initialised
-    this%module_name = module_name
-    this%region_name = region_name
     call system_clock(count, count_rate)
     this%start  = real(count) / count_rate
 
@@ -146,6 +149,7 @@ contains
     integer :: count, count_rate
     real *4 :: now, duration
     
+    if (.not. is_enabled) return
     call system_clock(count, count_rate)
     now = real(count) / count_rate
     duration = now - this%start
@@ -170,12 +174,14 @@ contains
        this%count = this%count + 1
     endif
 
+    call this%PSyDataBaseType%PostEnd()
   end subroutine PostEnd
 
   ! ---------------------------------------------------------------------------
   !> The finalise function prints the results. This subroutine must be called,
   !> otherwise no results will be printed.
   subroutine profile_PSyDataShutdown()
+    use psy_data_base_mod, only : base_PSyDataShutdown => profile_PsyDataShutdown
     implicit none
     integer                    :: i
     integer                    :: max_len, this_len
@@ -184,13 +190,14 @@ contains
     character(:), allocatable  :: heading
     character(:), allocatable  :: spaces
 
+    call base_PSyDataShutdown()
     heading = "module::region"
     ! Determine maximum header length to get proper alignment
     max_len = len(heading)
     do i=1, used_entries
        p => all_data(i)%p    ! to abbreviate code a bit
-       if (len(p%module_name) + len(p%region_name) > max_len) then
-          max_len = len(p%module_name) + len(p%region_name)
+       if (len(trim(p%module_name)) + len(trim(p%region_name)) > max_len) then
+          max_len = len(trim(p%module_name)) + len(trim(p%region_name))
        endif
     enddo
 
@@ -205,13 +212,14 @@ contains
     print *
     print *,"==========================================="
     print *, heading, spaces(1:max_len - len(heading)),                       &
-             tab, "count", tab, tab, "sum", tab, tab, tab, "min", tab, tab,   &
+             tab, tab, "count", tab, tab, "sum", tab, tab, tab, "min", tab, tab,   &
              "average", tab, tab, tab, "max"
     do i=1, used_entries
        p => all_data(i)%p    ! to abbreviate code a bit
-       this_len = len(p%module_name) + len(p%region_name)+3
-       print *, p%module_name,"::",p%region_name, spaces(1:max_len-this_len), &
-                p%count, tab, p%sum, tab,                                     &
+       this_len = len(trim(p%module_name)) + len(trim(p%region_name))+3
+       print *, trim(p%module_name),"::",trim(p%region_name),   &
+                spaces(1:max_len-this_len),                     &
+                p%count, tab, p%sum, tab,                       &
                 p%min, tab, p%sum/p%count, tab, p%max
     end do
     print *,"==========================================="
