@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
     KernelSchedule, StructureReference, ArrayOfStructuresReference, \
-    Call
+    Call, Routine
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
@@ -80,51 +80,18 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
                   "inout": ArgumentInterface.Access.READWRITE}
 
 
-def fparser2psyir(parse_tree):
-    '''Takes an fparser2 parse tree and converts it to PSyIR
-
-    :param parse_tree: ...
-    :type parse_tree: ...
-
-    :returns: ..
-    :rtype: ...
-
+def first_type_match(nodelist, typekind):
     '''
-    if not isinstance(parse_tree, Fortran2003.Program):
-        raise TypeError(
-            "Expected the parse_tree argument to be an fparser2 program but "
-            "found '{0}'.".format(type(parse_tree).__name__))
-    if not len(parse_tree.children) == 1:
-        raise NotImplementedError(
-            "The PSyIR is currently limited to a single top level "
-            "module/subroutine/program/function, but {0} were found."
-            "".format(len(parse_tree.children)))
+    Returns the first instance of the specified type in the given
+    node list.
 
-    processor = Fparser2Reader()
-    if isinstance(parse_tree.children[0], Fortran2003.Module):
-        container = processor.generate_container(parse_tree)
-        if not container:
-            raise InternalError("Unexpected Error")
-        for symbol in container.symbol_table.symbols:
-            if isinstance(symbol, RoutineSymbol):
-                schedule = processor.generate_schedule(
-                    symbol.name, parse_tree, container=container)
-                if not schedule:
-                    raise InternalError("Unexpected Error")
-        return container
-    elif isinstance(parse_tree.children[0], Fortran2003.Subroutine_Subprogram):
-        # Determine the name
-        subroutine = parse_tree.children[0]
-        subroutine_statement = subroutine.children[0]
-        name = subroutine_statement.children[1]
-        name_str = name.string
-        schedule = processor.generate_schedule(name_str, parse_tree)
-        return schedule
-    else:
-        raise NotImplementedError(
-            "The PSyIR currently only supports a module or a subroutine as "
-            "its top level concept, but found '{0}'."
-            "".format(type(parse_tree.children[0]).__name__))
+    :param list nodelist: List of fparser2 nodes.
+    :param type typekind: The fparse2 Type we are searching for.
+    '''
+    for node in nodelist:
+        if isinstance(node, typekind):
+            return node
+    raise ValueError  # Type not found
 
 
 def _find_or_create_imported_symbol(location, name, scope_limit=None,
@@ -954,8 +921,7 @@ class Fparser2Reader(object):
         return KernelSchedule(name)
 
     def generate_psyir(self, parse_tree):
-        '''
-        Translate the supplied fparser2 parse_tree into PSyIR.
+        '''Translate the supplied fparser2 parse_tree into PSyIR.
 
         :param parse_tree: the supplied fparser2 parse tree
         :type parse_tree: :py:class:`fparser.two.Fortran2003.Program`
@@ -964,9 +930,19 @@ class Fparser2Reader(object):
         :rtype: :py:class:`psyclone.psyir.nodes.Container` or \
             :py:class:`psyclone.psyir.nodes.Routine`
 
+        :raises GenerationError: if the root of the supplied fparser2 \
+            parse tree is not a Program
+
         '''
-        # TODO Should we check that parse_tree is a program or just try to match???
-        # TODO process_nodes should code with a None parent for top level of tree???
+        if not isinstance(parse_tree, Fortran2003.Program):
+            raise GenerationError(
+                "The Fparser2Reader generate_psyir method expects root the "
+                "supplied fparser2 tree to be a Program, but found '{0}'"
+                "".format(type(parse_tree).__name__))
+        
+        # TODO process_nodes should probably be modified so that it
+        # allows a node without a parent, rather than having to create
+        # a dummy parent here.
         node = Container("dummy")
         self.process_nodes(node, [parse_tree])
         result = node.children[0]
@@ -1051,19 +1027,6 @@ class Fparser2Reader(object):
                                  the provided fpaser2 parse tree.
 
         '''
-        def first_type_match(nodelist, typekind):
-            '''
-            Returns the first instance of the specified type in the given
-            node list.
-
-            :param list nodelist: List of fparser2 nodes.
-            :param type typekind: The fparse2 Type we are searching for.
-            '''
-            for node in nodelist:
-                if isinstance(node, typekind):
-                    return node
-            raise ValueError  # Type not found
-
         new_schedule = self._create_schedule(name)
 
         routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
@@ -3367,95 +3330,79 @@ class Fparser2Reader(object):
 
         :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram`
-        :param parent: parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param parent: parent node of the PSyIR node being constructed.
+        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
         '''
-        def first_type_match(nodelist, typekind):
-            '''
-            Returns the first instance of the specified type in the given
-            node list.
-
-            :param list nodelist: List of fparser2 nodes.
-            :param type typekind: The fparse2 Type we are searching for.
-            '''
-            for node in nodelist:
-                if isinstance(node, typekind):
-                    return node
-            raise ValueError  # Type not found
         name = node.children[0].children[1].string
-        subroutine = node
-        # We should really create a Routine, not a Schedule
-        new_schedule = self._create_schedule(name)
+        routine = Routine(name)
 
         try:
-            sub_spec = first_type_match(subroutine.content,
+            sub_spec = first_type_match(node.content,
                                         Fortran2003.Specification_Part)
             decl_list = sub_spec.content
             # TODO this if test can be removed once fparser/#211 is fixed
             # such that routine arguments are always contained in a
             # Dummy_Arg_List, even if there's only one of them.
             from fparser.two.Fortran2003 import Dummy_Arg_List
-            if isinstance(subroutine, Fortran2003.Subroutine_Subprogram) and \
-               isinstance(subroutine.children[0].children[2], Dummy_Arg_List):
-                arg_list = subroutine.children[0].children[2].children
+            if isinstance(node, Fortran2003.Subroutine_Subprogram) and \
+               isinstance(node.children[0].children[2], Dummy_Arg_List):
+                arg_list = node.children[0].children[2].children
             else:
                 # Routine has no arguments
                 arg_list = []
         except ValueError:
-            # Subroutine without declarations, continue with empty lists.
+            # Subroutine has no Specification_Part so has no
+            # declarations. Continue with empty lists.
             decl_list = []
             arg_list = []
         finally:
-            self.process_declarations(new_schedule, decl_list, arg_list)
+            self.process_declarations(routine, decl_list, arg_list)
 
         try:
-            sub_exec = first_type_match(subroutine.content,
+            sub_exec = first_type_match(node.content,
                                         Fortran2003.Execution_Part)
         except ValueError:
             pass
         else:
-            self.process_nodes(new_schedule, sub_exec.content)
+            self.process_nodes(routine, sub_exec.content)
 
-        return new_schedule
+        return routine
 
     def _module_handler(self, node, parent):
         '''Transforms an fparser2 Module statement into a PSyIR Container node.
 
-        :param node: node in fparser2 parse tree.
+        :param node: fparser2 representation of a module.
         :type node: :py:class:`fparser.two.Fortran2003.Module`
-        :param parent: parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param parent: parent node of the PSyIR node being constructed.
+        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: PSyIR representation of node.
+        :returns: PSyIR representation of module.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         '''
-        module_ast = node
-        module = node
-        mod_name = str(node.children[0].children[1])
-
         # Create a container to capture the module information
-        new_container = Container(mod_name)
+        mod_name = str(node.children[0].children[1])
+        container = Container(mod_name)
 
         # Search for any accessibility statements (e.g. "PUBLIC :: my_var") to
         # determine the default accessibility of symbols as well as identifying
         # those that are explicitly declared as public or private.
         (default_visibility, visibility_map) = self._parse_access_statements(
-            module)
+            node)
 
         # Create symbols for all routines defined within this module
-        _process_routine_symbols(module_ast, new_container.symbol_table,
+        _process_routine_symbols(node, container.symbol_table,
                                  default_visibility, visibility_map)
 
         # Parse the declarations if it has any
-        for child in module.children:
+        for child in node.children:
             if isinstance(child, Fortran2003.Specification_Part):
                 try:
-                    self.process_declarations(new_container, child.children,
+                    self.process_declarations(container, child.children,
                                               [], default_visibility,
                                               visibility_map)
                 except SymbolError as err:
@@ -3463,19 +3410,18 @@ class Fparser2Reader(object):
                         "Error when generating Container for module '{0}': "
                         "{1}".format(mod_name, err.args[0])), err)
                 break
+
         # Parse any module subprograms (subroutine or function)
         # skipping the contains node
-        for child in module.children:
+        for child in node.children:
             if isinstance(child, Fortran2003.Module_Subprogram_Part):
                 module_subprograms = \
                     [subprogram for subprogram in child.children
                      if not isinstance(subprogram, Fortran2003.Contains_Stmt)]
                 if module_subprograms:
-                     self.process_nodes(parent=new_container, nodes=module_subprograms)
+                     self.process_nodes(parent=container, nodes=module_subprograms)
 
-        return new_container
-        # result = self.generate_container(node)
-        # return result
+        return container
 
     def _program_handler(self, node, parent):
         '''Processes an fparser2 Program statement. Program is the top level
@@ -3492,9 +3438,6 @@ class Fparser2Reader(object):
         :type node: :py:class:`fparser.two.Fortran2003.Program`
         :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: PSyIR representation of the tree.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises NotImplementedError: if more than one program-unit is \
             found in the fparser2 parse tree.
