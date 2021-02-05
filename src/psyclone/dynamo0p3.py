@@ -2687,54 +2687,53 @@ class LFRicFields(DynCollection):
                        routine to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
-        :raises InternalError: for an unsupported intrinsic type of field \
+        :raises InternalError: for unsupported intrinsic types of field \
                                argument data.
         :raises GenerationError: if the same field has different data \
                                  types in different kernel calls within \
                                  the same Invoke.
 
         '''
-        # Add the Invoke subroutine argument declarations for fields
-        fld_args = []
-        for kern in self._invoke.schedule.kernels():
-            fld_args.extend(psyGen.args_filter(
-                kern.arguments.args,
-                arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES))
+        # Create dict of all field arguments for checks
+        fld_args = self._invoke.unique_declarations(
+            argument_types=LFRicArgDescriptor.VALID_FIELD_NAMES)
+        # Filter field arguments by intent and intrinsic type
+        real_fld_args = self._invoke.unique_declarations(
+            argument_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
+            intrinsic_type=MAPPING_DATA_TYPES["gh_real"])
+        int_fld_args = self._invoke.unique_declarations(
+            argument_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
+            intrinsic_type=MAPPING_DATA_TYPES["gh_integer"])
+
         # Create lists of field names for real- and integer-valued fields
-        # TODO in #1047: Improve implementation of argument lists creation
-        # and intrinsic type checks.
-        real_fld_arg_list = []
-        int_fld_arg_list = []
-        for fld in fld_args:
-            declname = fld.declaration_name
-            if fld.intrinsic_type == "real":
-                real_fld_arg_list.append(declname)
-            elif fld.intrinsic_type == "integer":
-                int_fld_arg_list.append(declname)
-            else:
-                raise InternalError(
-                    "Found an unsupported intrinsic type '{0}' in "
-                    "Invoke declarations for the field argument '{1}'. "
-                    "Supported types are {2}.".
-                    format(fld.intrinsic_type, declname,
-                           list(MAPPING_DATA_TYPES.values())))
-        # Remove duplicates using OrderedDict
-        real_fld_arg_list = list(OrderedDict.fromkeys(real_fld_arg_list))
-        int_fld_arg_list = list(OrderedDict.fromkeys(int_fld_arg_list))
+        fld_arg_list = [arg.declaration_name for arg in fld_args]
+        real_fld_arg_list = [arg.declaration_name for arg in real_fld_args]
+        int_fld_arg_list = [arg.declaration_name for arg in int_fld_args]
+        # Check for unsupported intrinsic types
+        fld_inv = (set(fld_arg_list) -
+                   set(real_fld_arg_list).union(set(int_fld_arg_list)))
+        if fld_inv:
+            raise InternalError(
+                "Found unsupported intrinsic types in Invoke '{0}' "
+                "declarations for the field arguments {1}. "
+                "Supported types are {2}.".
+                format(self._invoke.name, list(fld_inv),
+                       list(MAPPING_DATA_TYPES.values())))
         # Check that the same field name is not found in both real and
         # integer field lists (for instance if passed to one kernel as a
         # real-valued and to another kernel as an integer-valued field)
-        flds_multi_type_list = list(
-            set(real_fld_arg_list).intersection(set(int_fld_arg_list)))
-        if flds_multi_type_list:
+        fld_multi_type = \
+            set(real_fld_arg_list).intersection(set(int_fld_arg_list))
+        if fld_multi_type:
             raise GenerationError(
                 "At least one field ({0}) in Invoke '{1}' has different "
                 "metadata for data type ({2}) in different kernels. "
                 "This is invalid.".
-                format(flds_multi_type_list, self._invoke.name,
+                format(list(fld_multi_type), self._invoke.name,
                        list(MAPPING_DATA_TYPES.keys())))
 
-        # Declare real and integer fields
+        # Add the Invoke subroutine argument declarations for real
+        # and integer fields
         if real_fld_arg_list:
             dtype = "field_type"
             parent.add(TypeDeclGen(parent, datatype=dtype,
@@ -3186,7 +3185,7 @@ class LFRicScalarArgs(DynCollection):
         in an Invoke.
 
         :param parent: the f2pygen node representing the PSy-layer routine \
-                       in which to insert declarations.
+                       to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         :raises InternalError: for unsupported argument intrinsic types.
@@ -3224,13 +3223,13 @@ class LFRicScalarArgs(DynCollection):
             # Check that the same scalar name is not found in both real and
             # integer scalar lists (for instance if passed to one kernel as
             # a real and to another kernel as an integer scalar)
-            scal_mtype = set(rscal).intersection(set(iscal))
-            if scal_mtype:
+            scal_multi_type = set(rscal).intersection(set(iscal))
+            if scal_multi_type:
                 raise GenerationError(
                     "At least one scalar ({0}) in Invoke '{1}' has different "
                     "metadata for data type ({2}) in different kernels. "
                     "This is invalid.".
-                    format(list(scal_mtype), self._invoke.name,
+                    format(list(scal_multi_type), self._invoke.name,
                            list(MAPPING_DATA_TYPES.keys())))
 
         # Create declarations

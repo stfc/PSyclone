@@ -385,7 +385,7 @@ class Invokes(object):
                 # The enable_profiling option must be equal in all invokes
                 if ocl_enable_profiling is not None and \
                    ocl_enable_profiling != isch.get_opencl_option(
-                        'enable_profiling'):
+                           'enable_profiling'):
                     raise_unmatching_options('enable_profiling')
                 ocl_enable_profiling = isch.get_opencl_option(
                     'enable_profiling')
