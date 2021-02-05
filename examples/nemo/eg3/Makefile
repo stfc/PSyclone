@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -77,9 +77,15 @@ kernels:
 	${PSYCLONE} -l all -api "nemo" -s ./kernels_trans.py -opsy psy.f90 \
    ../code/tra_adv.F90
 
+# Example of using the more sophisticated script in ../scripts to
+# transform for OpenACC assuming the use of managed memory.
+# TODO #852 - simplify that script and merge it with the functionality of
+# the scripts in this directory.
 managed_mem:
-	${PSYCLONE} -l all -api "nemo" -s ./kernels_managed_mem_trans.py \
+	${PSYCLONE} -l all -api "nemo" -s ../scripts/kernels_trans.py \
    ../code/tra_adv.F90
+	${PSYCLONE} -l all -api "nemo" -s ../scripts/kernels_trans.py \
+   ../code/traldf_iso.F90
 
 # Compilation uses the 'kernels' transformed code
 psy.f90: kernels
