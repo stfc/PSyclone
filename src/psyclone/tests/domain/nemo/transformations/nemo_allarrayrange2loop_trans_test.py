@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the NemoAllArrayRange2LoopTrans
 transformation.'''
@@ -77,7 +77,7 @@ def test_transform_apply_mixed_implicit_do():
         "do jk = 1, jpk, 1\n"
         "  do jj = 1, jpj, 1\n"
         "    do ji = 1, jpi, 1\n"
-        "      umask(ji,jj,jk)=vmask(ji,jj,jk) + 1.0\n"
+        "      umask(ji,jj,jk) = vmask(ji,jj,jk) + 1.0\n"
         "    enddo\n"
         "  enddo\n"
         "enddo")
@@ -100,7 +100,7 @@ def test_apply_multi_assignments():
         "do jk = 1, jpk, 1\n"
         "  do jj = 1, jpj, 1\n"
         "    do ji = 1, jpi, 1\n"
-        "      zftv(ji,jj,jk)=0.0e0\n"
+        "      zftv(ji,jj,jk) = 0.0e0\n"
         "    enddo\n"
         "  enddo\n"
         "enddo\n"
@@ -110,12 +110,12 @@ def test_apply_multi_assignments():
         "call dia_ptr_hst(jn, ''ldf'', -zftv(:,:,:))\n"
         "do jj = 1, jpj, 1\n"
         "  do ji = 1, jpi, 1\n"
-        "    zftu(ji,jj,1)=1.0e0\n"
+        "    zftu(ji,jj,1) = 1.0e0\n"
         "  enddo\n"
         "enddo\n"
         "do jj = 1, jpj, 1\n"
         "  do ji = 1, jpi, 1\n"
-        "    tmask(ji,jj)=jpi\n"
+        "    tmask(ji,jj) = jpi\n"
         "  enddo\n"
         "enddo\n")
     assert expected in result

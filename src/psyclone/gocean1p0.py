@@ -59,7 +59,8 @@ from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
-    KernelSchedule, StructureReference
+    KernelSchedule, StructureReference, BinaryOperation, Reference, \
+    Return, IfBlock
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     AccessType, ACCEnterDataDirective, HaloExchange, Routine
@@ -67,11 +68,10 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, Symbol, \
     ContainerSymbol, DeferredType, TypeSymbol, GlobalInterface, \
-    UnknownFortranType
+    UnknownFortranType, UnresolvedInterface, REAL_TYPE
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import BinaryOperation, Reference, Return, IfBlock
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
     IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen
 
@@ -119,12 +119,12 @@ class GOPSy(PSy):
         PSy.__init__(self, invoke_info)
 
         # Add GOcean infrastructure-specific libraries
-        kind_params_sym = ContainerSymbol("kind_params_mod")
-        kind_params_sym.wildcard_import = True
-        self.container.symbol_table.add(kind_params_sym)
         field_sym = ContainerSymbol("field_mod")
         field_sym.wildcard_import = True
         self.container.symbol_table.add(field_sym)
+        kind_params_sym = ContainerSymbol("kind_params_mod")
+        kind_params_sym.wildcard_import = True
+        self.container.symbol_table.add(kind_params_sym)
 
         # Create invokes
         self._invokes = GOInvokes(invoke_info.calls, self)
@@ -474,10 +474,10 @@ class GOLoop(Loop):
         # available when we're determining which vars should be OpenMP
         # PRIVATE (which is done *before* code generation is performed)
         if self.loop_type == "inner":
-            tag = "inner_loop_idx"
+            tag = "contiguous_kidx"
             suggested_name = "i"
         elif self.loop_type == "outer":
-            tag = "outer_loop_idx"
+            tag = "noncontiguous_kidx"
             suggested_name = "j"
         else:
             raise GenerationError(
@@ -646,11 +646,14 @@ class GOLoop(Loop):
         gocean1.0 API is for a certain offset type and field type. It defines
         the loop boundaries for the outer and inner loop. The format is a
         ":" separated tuple:
-        bound_info = offset-type:field-type:iteration-space:outer-start:
-                      outer-stop:inner-start:inner-stop
+
+        >>> bound_info = offset-type:field-type:iteration-space:outer-start:
+                         outer-stop:inner-start:inner-stop
+
         Example:
-        bound_info = go_offset_ne:go_ct:go_all_pts\
-                     :{start}-1:{stop}+1:{start}:{stop}
+
+        >>> bound_info = go_offset_ne:go_ct:go_all_pts:
+                         {start}-1:{stop}+1:{start}:{stop}
 
         The expressions {start} and {stop} will be replaced with the loop
         indices that correspond to the inner points (i.e. non-halo or
@@ -658,11 +661,12 @@ class GOLoop(Loop):
         on the halo / boundary.
 
         :param str bound_info: A string that contains a ":" separated \
-               tuple with the iteration space definition.
+                               tuple with the iteration space definition.
+
         :raises ValueError: if bound_info is not a string.
         :raises ConfigurationError: if bound_info is not formatted correctly.
-        '''
 
+        '''
         if not isinstance(bound_info, str):
             raise InternalError("The parameter 'bound_info' must be a string, "
                                 "got '{0}' (type {1})"
@@ -734,7 +738,7 @@ class GOLoop(Loop):
              'inner': {'start': data[5], 'stop': data[6]}}
 
     # -------------------------------------------------------------------------
-    def _grid_property_reference(self, grid_property):
+    def _grid_property_psyir_expression(self, grid_property):
         '''
         Create a PSyIR reference expression using the supplied grid-property
         information (which will have been read from the config file).
@@ -764,27 +768,6 @@ class GOLoop(Loop):
                 "not begin with '{{0}}': '{0}'".format(grid_property))
 
         fld_sym = self.scope.symbol_table.lookup(self.field_name)
-        # TODO to be replaced with functionality from #935. May also be fixed
-        # by #1010 as that will result in fld_sym being of the correct type.
-        # pylint: disable=unidiomatic-typecheck
-        if type(fld_sym) == Symbol:
-            # We now know that this must be a DataSymbol.
-            # pylint: disable=protected-access
-            fld_sym.__class__ = DataSymbol
-            try:
-                fld_type = self.scope.symbol_table.lookup("r2d_field")
-            except KeyError:
-                # TODO 1010. The symbol table of the Container is not an
-                # ancestor of the local scope and therefore we have to
-                # explicitly get a reference to it.
-                fld_mod = self.root.invoke.invokes.psy.container.\
-                    symbol_table.lookup("field_mod")
-                fld_type = self.scope.symbol_table.new_symbol(
-                    "r2d_field", tag="field_type", symbol_type=TypeSymbol,
-                    datatype=DeferredType(),
-                    interface=GlobalInterface(fld_mod))
-            fld_sym.datatype = fld_type
-            fld_sym._constant_value = None
         return StructureReference.create(fld_sym, members[1:], parent=self)
 
     # -------------------------------------------------------------------------
@@ -847,7 +830,7 @@ class GOLoop(Loop):
             api_config = Config.get().api_conf("gocean1.0")
             # Use the data property to access the member of the field that
             # contains the actual grid points.
-            sref = self._grid_property_reference(
+            sref = self._grid_property_psyir_expression(
                 api_config.grid_properties["go_grid_data"].fortran)
             stop.addchild(sref)
             if self._loop_type == "inner":
@@ -874,7 +857,7 @@ class GOLoop(Loop):
         # key is 'internal' or 'whole', and _loop_type is either
         # 'inner' or 'outer'. The four possible combinations are
         # defined in the config file:
-        return self._grid_property_reference(
+        return self._grid_property_psyir_expression(
             props["go_grid_{0}_{1}_stop".format(key, self._loop_type)].fortran)
 
     # -------------------------------------------------------------------------
@@ -946,7 +929,7 @@ class GOLoop(Loop):
         # key is 'internal' or 'whole', and _loop_type is either
         # 'inner' or 'outer'. The four possible combinations are
         # defined in the config file:
-        return self._grid_property_reference(
+        return self._grid_property_psyir_expression(
             props["go_grid_{0}_{1}_start".format(key,
                                                  self._loop_type)].fortran)
 
@@ -1892,7 +1875,7 @@ class GOKernelArguments(Arguments):
             # arg is a GO1p0Descriptor object
             if arg.argument_type == "grid_property":
                 # This is an argument supplied by the psy layer
-                self._args.append(GOKernelGridArgument(arg))
+                self._args.append(GOKernelGridArgument(arg, parent_call))
             elif arg.argument_type == "scalar" or arg.argument_type == "field":
                 # This is a kernel argument supplied by the Algorithm layer
                 self._args.append(GOKernelArgument(arg, call.args[idx],
@@ -1954,6 +1937,18 @@ class GOKernelArguments(Arguments):
                                            arg.argument_type))
         self._raw_arg_list = arguments
         return self._raw_arg_list
+
+    def psyir_expressions(self):
+        '''
+        :returns: the PSyIR expressions representing this Argument list.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        symtab = self._parent_call.scope.symbol_table
+        symbol1 = symtab.lookup_with_tag("contiguous_kidx")
+        symbol2 = symtab.lookup_with_tag("noncontiguous_kidx")
+        return ([Reference(symbol1), Reference(symbol2)] +
+                [arg.psyir_expression() for arg in self.args])
 
     def find_grid_access(self):
         '''
@@ -2078,6 +2073,65 @@ class GOKernelArgument(KernelArgument):
         self._arg = arg
         KernelArgument.__init__(self, arg, arg_info, call)
 
+    def psyir_expression(self):
+        '''
+        :returns: the PSyIR expression represented by this Argument.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises InternalError: if this Argument type is not "field" or \
+                               "scalar".
+
+        '''
+        tag = "AlgArgs_" + self._text
+        symbol = self._call.root.symbol_table.symbol_from_tag(tag)
+
+        # Gocean field arguments are StructureReferences to the %data attribute
+        if self.argument_type == "field":
+            return StructureReference.create(symbol, ["data"])
+
+        # Gocean scalar arguments are References to the variable
+        if self.argument_type == "scalar":
+            return Reference(symbol)
+
+        raise InternalError("GOcean expects the Argument.argument_type() to be"
+                            " 'field' or 'scalar' but found '{0}'."
+                            "".format(self.argument_type))
+
+    def infer_datatype(self):
+        ''' Infer the datatype of this argument using the API rules.
+
+        :returns: the datatype of this argument.
+        :rtype: :py:class::`psyclone.psyir.symbols.datatype`
+
+        :raises InternalError: if this Argument type is not "field" or \
+                               "scalar".
+        :raises InternalError: if this argument is scalar but its space \
+                               property is not 'go_r_scalar' or 'go_i_scalar'.
+
+        '''
+        # All GOcean fields are r2d_type.
+        if self.argument_type == "field":
+            # r2d_type can have DeferredType and UnresolvedInterface because
+            # it is an unnamed import from a module.
+            type_symbol = self._call.root.symbol_table.symbol_from_tag(
+                "r2d_type", symbol_type=TypeSymbol, datatype=DeferredType(),
+                interface=UnresolvedInterface())
+            return type_symbol
+
+        # Gocean scalars can be REAL or INTEGER
+        if self.argument_type == "scalar":
+            if self.space.lower() == "go_r_scalar":
+                return REAL_TYPE
+            if self.space.lower() == "go_i_scalar":
+                return INTEGER_TYPE
+            raise InternalError("GOcean expects scalar arguments to be of"
+                                " 'go_r_scalar' or 'go_i_scalar' type but "
+                                "found '{0}'.".format(self.space.lower()))
+
+        raise InternalError("GOcean expects the Argument.argument_type() to be"
+                            " 'field' or 'scalar' but found '{0}'."
+                            "".format(self.argument_type))
+
     @property
     def argument_type(self):
         '''
@@ -2114,11 +2168,13 @@ class GOKernelGridArgument(Argument):
 
     :param arg: the meta-data entry describing the required grid property.
     :type arg: :py:class:`psyclone.gocean1p0.GO1p0Descriptor`
+    :param kernel_call: the kernel call node that this Argument belongs to.
+    :type kernel_call: :py:class:`psyclone.gocean1p0.GOKern`
 
     :raises GenerationError: if the grid property is not recognised.
 
     '''
-    def __init__(self, arg):
+    def __init__(self, arg, kernel_call):
         super(GOKernelGridArgument, self).__init__(None, None, arg.access)
 
         api_config = Config.get().api_conf("gocean1.0")
@@ -2139,11 +2195,31 @@ class GOKernelGridArgument(Argument):
         # This object always represents an argument that is a grid_property
         self._argument_type = "grid_property"
 
+        # Reference to the Call this argument belongs to
+        self._call = kernel_call
+
     @property
     def name(self):
         ''' Returns the Fortran name of the grid property, which is used
         in error messages etc.'''
         return self._name
+
+    def psyir_expression(self):
+        '''
+        :returns: the PSyIR expression represented by this Argument.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # Find field from which to access grid properties
+        base_field = self._call.arguments.find_grid_access().name
+        tag = "AlgArgs_" + base_field
+        symbol = self._call.root.symbol_table.symbol_from_tag(tag)
+
+        # Get aggregate grid type accessors without the base name
+        access = self.dereference(base_field).split('%')[1:]
+
+        # Construct the PSyIR reference
+        return StructureReference.create(symbol, access)
 
     def dereference(self, fld_name):
         '''Returns a Fortran string to dereference a grid property of the
@@ -2260,11 +2336,12 @@ class GOStencil():
         second dimension as "j" then the following directions are
         assumed:
 
-        j
-        ^
-        |
-        |
-        ---->i
+
+        > j
+        > ^
+        > |
+        > |
+        > ---->i
 
         For example a stencil access like:
 
@@ -2278,9 +2355,10 @@ class GOStencil():
 
         :param stencil_info: contains the appropriate part of the parser AST
         :type stencil_info: :py:class:`psyclone.expression.FunctionVar`
-        :param string kernel_name: the name of the kernel from where
-        this stencil information came from.
-        :raises ParseError: if the supplied stencil information is invalid
+        :param string kernel_name: the name of the kernel from where this \
+                                   stencil information came from.
+
+        :raises ParseError: if the supplied stencil information is invalid.
 
         '''
         self._initialised = True
@@ -2392,8 +2470,9 @@ class GOStencil():
         specifies 'pointwise' as this indicates that there is no
         stencil access.
 
-        :return Bool: True if this argument has stencil information
-        and False if not.
+        :returns: True if this argument has stencil information and False \
+                  if not.
+        :rtype: bool
 
         '''
         self._check_init()
@@ -2403,8 +2482,9 @@ class GOStencil():
     def name(self):
         '''Provides the stencil name if one is provided
 
-        :return string: the name of the type of stencil if this is
-        provided and 'None' if not.
+        :returns: the name of the type of stencil if this is provided \
+                  and 'None' if not.
+        :rtype: str
 
         '''
         self._check_init()
@@ -2426,14 +2506,17 @@ class GOStencil():
         depth(-1,0) = 9
         depth(1,1) = 4
 
-        :param int index0: the relative stencil offset for the first
-        index of the associated array. This value must be between -1
-        and 1
-        :param int index1: the relative stencil offset for the second
-        index of the associated array. This value must be between -1
-        and 1
-        :return int: the depth of the stencil in the specified direction
-        :raises GenerationError: if the indices are out-of-bounds
+        :param int index0: the relative stencil offset for the first \
+                           index of the associated array. This value \
+                           must be between -1 and 1.
+        :param int index1: the relative stencil offset for the second \
+                           index of the associated array. This value \
+                           must be between -1 and 1
+
+        :returns: the depth of the stencil in the specified direction.
+        :rtype: int
+
+        :raises GenerationError: if the indices are out-of-bounds.
 
         '''
         self._check_init()
@@ -2773,3 +2856,12 @@ class GOHaloExchange(HaloExchange):
                 "%" + self._halo_exchange_name +
                 "(depth=1)"))
         parent.add(CommentGen(parent, ""))
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ['GOPSy', 'GOInvokes', 'GOInvoke', 'GOInvokeSchedule', 'GOLoop',
+           'GOBuiltInCallFactory', 'GOKernCallFactory', 'GOKern',
+           'GOFparser2Reader', 'GOKernelArguments', 'GOKernelArgument',
+           'GOKernelGridArgument', 'GOStencil', 'GO1p0Descriptor',
+           'GOKernelType1p0', 'GOACCEnterDataDirective', 'GOSymbolTable',
+           'GOKernelSchedule', 'GOHaloExchange']
