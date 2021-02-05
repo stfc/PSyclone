@@ -345,6 +345,9 @@
         111) PR #1092 for #1091. Auto-invoke profiling does not include
         Return nodes anymore.
 
+        112) PR #1087 for #1086. PSyIR Fortran backend for routines merges
+        symbol tables into single scope.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
