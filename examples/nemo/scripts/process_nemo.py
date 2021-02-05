@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,7 @@ EXCLUDED_FILES = ["bdyini.f90",
                   "iceistate.f90",
                   "icethd_ent.f90", "icethd_zdf.f90",
                   "icethd_dh.f90", "iom.f90",
-                  "mppini.f90", # MPI code
+                  "mppini.f90",  # MPI code
                   "obs_inter_h2d.f90", "obs_grid.f90", "obs_averg_h2d.f90",
                   "obs_profiles_def.f90", "obs_sort.f90", "obs_types.f90",
                   "obs_utils.f90",
