@@ -3182,15 +3182,16 @@ class LFRicScalarArgs(DynCollection):
 
     def _invoke_declarations(self, parent):
         '''
-        Create and add declarations for all of the scalar arguments in
-        an Invoke.
+        Create argument lists and declarations for all scalar arguments
+        in an Invoke.
 
-        :param parent: the f2pygen node in which to insert declarations.
+        :param parent: the f2pygen node representing the PSy-layer routine \
+                       in which to insert declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
-        :raises InternalError: for an unsupported argument data type.
+        :raises InternalError: for unsupported argument intrinsic types.
         :raises GenerationError: if the same scalar argument has different \
-                                 data types in different kernel calls \
+                                 data types in different Kernel calls \
                                  within the same Invoke.
 
         '''
@@ -3206,13 +3207,24 @@ class LFRicScalarArgs(DynCollection):
             intrinsic_type=MAPPING_DATA_TYPES["gh_integer"])
 
         for intent in FORTRAN_INTENT_NAMES:
-            scal = set(self._scalar_args[intent])
-            rscal = set(self._real_scalars[intent])
-            iscal = set(self._int_scalars[intent])
+            scal = [arg.declaration_name for arg in self._scalar_args[intent]]
+            rscal = [arg.declaration_name for
+                     arg in self._real_scalars[intent]]
+            iscal = [arg.declaration_name for
+                     arg in self._int_scalars[intent]]
+            # Check for unsupported intrinsic types
+            scal_inv = set(scal) - set(rscal).union(set(iscal))
+            if scal_inv:
+                raise InternalError(
+                    "Found unsupported intrinsic types in Invoke '{0}' "
+                    "declarations for the scalar arguments {1}. "
+                    "Supported types are {2}.".
+                    format(self._invoke.name, list(scal_inv),
+                           list(MAPPING_DATA_TYPES.values())))
             # Check that the same scalar name is not found in both real and
             # integer scalar lists (for instance if passed to one kernel as
             # a real and to another kernel as an integer scalar)
-            scal_mtype = rscal.intersection(iscal)
+            scal_mtype = set(rscal).intersection(set(iscal))
             if scal_mtype:
                 raise GenerationError(
                     "At least one scalar ({0}) in Invoke '{1}' has different "
@@ -3220,24 +3232,14 @@ class LFRicScalarArgs(DynCollection):
                     "This is invalid.".
                     format(list(scal_mtype), self._invoke.name,
                            list(MAPPING_DATA_TYPES.keys())))
-            # Check for unsupported intrinsic types
-            scal_inv = scal - rscal.union(iscal)
-            if scal_inv:
-                for arg in scal_inv:
-                    raise InternalError(
-                        "Found an unsupported intrinsic type '{0}' in "
-                        "Invoke declarations for the scalar argument '{1}'. "
-                        "Supported types are {2}.".
-                        format(arg.intrinsic_type, arg.declaration_name,
-                               list(MAPPING_DATA_TYPES.values())))
 
         # Create declarations
         self._create_declarations(parent)
 
     def _stub_declarations(self, parent):
         '''
-        Create and add declarations for all of the scalar arguments in
-        a Kernel stubs.
+        Create and add declarations for all scalar arguments in
+        a Kernel stub.
 
         :param parent: node in the f2pygen AST representing the Kernel stub \
                        to which to add declarations.
@@ -3270,9 +3272,10 @@ class LFRicScalarArgs(DynCollection):
 
     def _create_declarations(self, parent):
         '''
-        Add declarations for all of the scalar arguments.
+        Add declarations for the scalar arguments.
 
-        :param parent: the f2pygen node in which to insert declarations.
+        :param parent: the f2pygen node in which to insert declarations \
+                       (Invoke or Kernel).
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''

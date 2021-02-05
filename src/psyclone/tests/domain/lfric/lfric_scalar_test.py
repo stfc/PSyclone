@@ -77,9 +77,27 @@ def test_lfricscalars_call_err():
     scalar_arg._intrinsic_type = "double-type"
     with pytest.raises(InternalError) as err:
         LFRicScalarArgs(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
-    assert ("Found an unsupported intrinsic type 'double-type' in Invoke "
-            "declarations for the scalar argument 'a'. Supported types "
-            "are ['real', 'integer']." in str(err.value))
+    assert ("Found unsupported intrinsic types in Invoke "
+            "'invoke_0_testkern_two_scalars_type' declarations for the "
+            "scalar arguments ['a']. Supported types are "
+            "['real', 'integer']." in str(err.value))
+
+
+def test_int_real_scalar_invalid():
+    ''' Tests that the same scalar cannot have different data types
+    in different kernels within the same Invoke. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "4.16_multikernel_invokes_real_int_scalar_invalid.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("At least one scalar (['b']) in Invoke "
+            "'invoke_real_and_integer_scalars' has different metadata for "
+            "data type (['gh_real', 'gh_integer']) in different kernels. "
+            "This is invalid." in str(err.value))
 
 
 def test_scalar_invoke_uniq_declns_valid_intrinsic():
