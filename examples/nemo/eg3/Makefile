@@ -47,7 +47,7 @@
 # export LDFLAGS="-acc -ta=tesla,cc70"
 include ../../common.mk
 
-GENERATED_FILES += psy.f90 psy.o traadv.exe
+GENERATED_FILES += psy.f90 psy.o traadv.exe psyclone.log traldf_iso.F90
 
 F90FLAGS ?= -fopenmp
 LDFLAGS ?= -fopenmp
@@ -84,8 +84,8 @@ kernels:
 managed_mem:
 	${PSYCLONE} -l all -api "nemo" -s ../scripts/kernels_trans.py \
    ../code/tra_adv.F90
-	${PSYCLONE} -l all -api "nemo" -s ../scripts/kernels_trans.py \
-   ../code/traldf_iso.F90
+	PSYCLONE="${PSYCLONE}" ../scripts/process_nemo.py \
+   -s ../scripts/kernels_trans.py ../code/traldf_iso.F90
 
 # Compilation uses the 'kernels' transformed code
 psy.f90: kernels

@@ -96,6 +96,10 @@ if __name__ == "__main__":
                         help="eXit immediately if PSyclone fails")
     ARGS = PARSER.parse_args()
 
+    # Check whether the PSycone command has been specified in an environment
+    # variable. We default to just using the 'psyclone' in the PATH.
+    PSYCLONE_CMD = os.environ.get("PSYCLONE", "psyclone")
+
     # Keep a list of files for which PSyclone fails
     FAILED_FILES = []
 
@@ -106,9 +110,12 @@ if __name__ == "__main__":
             continue
 
         file_name = os.path.basename(ffile)
-        out_file = os.path.join(ARGS.out_dir, file_name)
+        if ARGS.out_dir:
+            out_file = os.path.join(ARGS.out_dir, file_name)
+        else:
+            out_file = file_name
 
-        args = ["psyclone", "--limit", "output", "-api", "nemo"]
+        args = [PSYCLONE_CMD, "--limit", "output", "-api", "nemo"]
         if file_name in EXCLUDED_FILES:
             if PROFILE_ALL:
                 print("Instrumenting {0} for profiling...".format(file_name))
