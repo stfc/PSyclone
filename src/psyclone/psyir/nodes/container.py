@@ -40,6 +40,7 @@
 
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.errors import GenerationError
 
@@ -57,7 +58,8 @@ class Container(Node):
 
     '''
     # Textual description of the node.
-    _children_valid_format = "[Container | KernelSchedule | InvokeSchedule]*"
+    _children_valid_format = (
+        "[Container | KernelSchedule | InvokeSchedule | CodeBlock]*")
     _text_name = "Container"
     _colour_key = "Container"
 
@@ -80,7 +82,8 @@ class Container(Node):
         # pylint: disable=unused-argument
         # Import InvokeSchedule here to avoid circular dependency
         from psyclone.psyGen import InvokeSchedule
-        return isinstance(child, (Container, KernelSchedule, InvokeSchedule))
+        return isinstance(child, (Container, KernelSchedule, InvokeSchedule,
+                                  CodeBlock))
 
     @staticmethod
     def create(name, symbol_table, children):

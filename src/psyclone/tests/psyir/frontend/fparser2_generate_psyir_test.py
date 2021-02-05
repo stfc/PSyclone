@@ -40,12 +40,13 @@ from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyir.frontend.fparser2 import fparser2psyir
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import RoutineSymbol, UnresolvedInterface, \
     GlobalInterface
 from psyclone.psyir.nodes import Literal, CodeBlock, Schedule, Call, \
     Reference, BinaryOperation
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.errors import GenerationError
 
 
 # module with no subroutines
@@ -90,11 +91,12 @@ end subroutine test'''
                          [(MODULE1_IN, MODULE1_OUT),
                           (MODULE2_IN, MODULE2_OUT),
                           (SUBROUTINE1_IN, SUBROUTINE1_OUT)])
-def test_fparser2psyir(f2008_parser, input_code, expected_code):
+def test_fparser2_generate_psyir(f2008_parser, input_code, expected_code):
     ''' xxx '''
     reader = FortranStringReader(input_code)
     ast = f2008_parser(reader)
-    psyir = fparser2psyir(ast)
+    fp2_reader = Fparser2Reader()
+    psyir = fp2_reader.generate_psyir(ast)
     writer = FortranWriter()
     result = writer(psyir)
     result_strip = "\n".join([line for line in result.splitlines() if line.rstrip()])
@@ -126,8 +128,9 @@ def test_multi_routine(f2008_parser, input_code):
     ''' xxx '''
     reader = FortranStringReader(input_code)
     ast = f2008_parser(reader)
-    with pytest.raises(NotImplementedError) as info:
-        _ = fparser2psyir(ast)
+    fp2_reader = Fparser2Reader()
+    with pytest.raises(GenerationError) as info:
+        _ = fp2_reader.generate_psyir(ast)
     assert ("The PSyIR is currently limited to a single top level "
             "module/subroutine/program/function, but 2 were found."
             in str(info.value))
@@ -140,7 +143,6 @@ def test_no_program(f2008_parser):
         "end program test\n")
     reader = FortranStringReader(input_code)
     ast = f2008_parser(reader)
-    with pytest.raises(NotImplementedError) as info:
-        _ = fparser2psyir(ast)
-    assert ("The PSyIR currently only supports a module or a subroutine as its "
-            "top level concept, but found 'Main_Program'." in str(info.value))
+    fp2_reader = Fparser2Reader()
+    result = fp2_reader.generate_psyir(ast)
+    assert isinstance(result, CodeBlock)
