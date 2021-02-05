@@ -60,12 +60,15 @@ region.
 
 from __future__ import print_function
 import logging
-from psyclone.psyGen import TransInfo
+from fparser.two.utils import walk
+from fparser.two import Fortran2003
+from psyclone.psyGen import TransInfo, ACCDirective, ACCLoopDirective
 from psyclone.psyir.transformations import TransformationError, ProfileTrans
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, NaryOperation, Loop, \
     Literal, Return
-from psyclone.nemo import NemoInvokeSchedule
+from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
+from psyclone.errors import InternalError
 
 # Which version of the NVIDIA (PGI) compiler we are targetting (different
 # versions have different bugs that we have to workaround).
@@ -203,7 +206,7 @@ def log_msg(name, msg, node):
     node_strings.reverse()
     location = "->".join(node_strings)
     # Log the message
-    logging.info("{0}: {1}: {2}".format(name, msg, location))
+    logging.info("%s: %s: %s", name, msg, location)
 
 
 def valid_acc_kernel(node):
@@ -218,10 +221,6 @@ def valid_acc_kernel(node):
     :rtype: bool
 
     '''
-    from psyclone.nemo import (NemoKern, NemoLoop, NemoInvokeSchedule)
-    from fparser.two.utils import walk
-    from fparser.two import Fortran2003
-
     # The Fortran routine which our parent Invoke represents
     sched = node.ancestor(NemoInvokeSchedule)
     routine_name = sched.invoke.name
@@ -229,10 +228,7 @@ def valid_acc_kernel(node):
     # Allow for per-routine setting of what to exclude from within KERNELS
     # regions. This is because sometimes things work in one context but not
     # in another (with the PGI compiler).
-    if routine_name in EXCLUDING:
-        excluding = EXCLUDING[routine_name]
-    else:
-        excluding = EXCLUDING["default"]
+    excluding = EXCLUDING.get(routine_name, EXCLUDING["default"])
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
@@ -422,9 +418,6 @@ def contains_unsupported_sum(intrinsics):
     :rtype: bool
 
     '''
-    from fparser.two.utils import walk
-    from fparser.two import Fortran2003
-
     for intrinsic in intrinsics:
         if str(intrinsic.items[0]).lower() == "sum":
             # If there's only one argument then we'll just have a Name
@@ -495,7 +488,6 @@ def have_loops(nodes):
     :rtype: bool
 
     '''
-    from psyclone.psyGen import Loop
     for node in nodes:
         if node.walk(Loop):
             return True
@@ -558,8 +550,6 @@ def add_profiling(children):
     :type childre: list of :py:class:`psyclone.psyGen.Node`
 
     '''
-    from psyclone.psyGen import ACCDirective
-
     if not children:
         return
 
@@ -641,8 +631,6 @@ def try_kernels_trans(nodes):
     :rtype: bool
 
     '''
-    from psyclone.psyGen import InternalError, ACCLoopDirective
-
     # We only enclose the proposed region if it contains a loop.
     for node in nodes:
         if node.walk(Loop):
