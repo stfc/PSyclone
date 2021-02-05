@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,12 +62,13 @@ from __future__ import print_function
 import logging
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.transformations import TransformationError, ProfileTrans
-from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, Array, \
-    Assignment, BinaryOperation, NaryOperation, Loop, Literal, Return
+from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
+    ArrayReference, Assignment, BinaryOperation, NaryOperation, Loop, \
+    Literal, Return
 from psyclone.nemo import NemoInvokeSchedule
 
-# Which version of the PGI compiler we are targetting (different versions
-# have different bugs we have to workaround).
+# Which version of the NVIDIA (PGI) compiler we are targetting (different
+# versions have different bugs that we have to workaround).
 PGI_VERSION = 1940  # i.e. 19.4
 
 # Get the PSyclone transformations we will use
@@ -91,16 +92,15 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
 # Routines we do not attempt to add any OpenACC to (because it breaks with
 # the PGI compiler or because it just isn't worth it)
 ACC_IGNORE = ["asm_inc_init",  # Triggers "missing branch target block"
-              "day_mth", # Just calendar operations
+              "day_mth",  # Just calendar operations
               "oce_alloc",
-              "trc_bc_ini", # Str manipulation and is only an init routine
-              "trc_ini_age", # Triggers "missing branch target block"
-              "turb_ncar",  # Resulting code seg. faults with PGI 19.4
+              "trc_bc_ini",  # Str manipulation and is only an init routine
+              "trc_ini_age",  # Triggers "missing branch target block"
+              "turb_ncar",   # Resulting code seg. faults with PGI 19.4
               "ice_dyn_adv",  # No significant compute
               "iom_open", "iom_get_123d", "iom_nf90_rp0123d",
-              "p2z_ini", # Str manipulation in init routine
-              "p4z_ini" # Str manipulation in init routine
-]
+              "p2z_ini",  # Str manipulation in init routine
+              "p4z_ini"]  # Str manipulation in init routine
 
 # Currently fparser has no way of distinguishing array accesses from
 # function calls if the symbol is imported from some other module.
@@ -180,8 +180,7 @@ EXCLUDING = {"default": ExcludeSettings(),
                                               "ifs_scalars": False}),
              "rdgrft_prep": ExcludeSettings({"ifs_scalars": False}),
              "tra_nxt_vvl": ExcludeSettings({"ifs_scalars": False,
-                                             "inside_kernels": False}),
-             "ice_dyn_rdgrft": ExcludeSettings({"ifs_1d_arrays": False})}
+                                             "inside_kernels": False})}
 
 
 def log_msg(name, msg, node):
@@ -238,7 +237,7 @@ def valid_acc_kernel(node):
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
     excluded_node_types = (CodeBlock, IfBlock, BinaryOperation, NaryOperation,
-                           NemoLoop, NemoKern, Loop, Return)
+                           NemoLoop, NemoKern, Loop, Return, Assignment)
     excluded_nodes = node.walk(excluded_node_types)
     # Ensure we check inside Kernels too (but only for IfBlocks)
     if excluding.inside_kernels:
@@ -251,7 +250,7 @@ def valid_acc_kernel(node):
     # we have to be careful to exclude attempts to put multiple
     # CASE branches inside a single region. (Once we are no longer
     # reliant on the original fparser2 parse tree this restriction
-    # can be lifted.)
+    # can be lifted - #435.)
     # Is the supplied node a child of an IfBlock originating from a
     # SELECT block?
     if isinstance(node, IfBlock) and "was_case" in node.annotations:
@@ -261,11 +260,11 @@ def valid_acc_kernel(node):
             return False
 
     if (isinstance(node.parent.parent, IfBlock) and
-        "was_where" in node.parent.parent.annotations):
-            # Cannot put KERNELS *within* a loop nest tht originated from
-            # a WHERE construct.
-            log_msg(routine_name, "cannot put KERNELs *inside* a WHERE", node)
-            return False
+            "was_where" in node.parent.parent.annotations):
+        # Cannot put KERNELS *within* a loop nest tht originated from
+        # a WHERE construct.
+        log_msg(routine_name, "cannot put KERNELs *inside* a WHERE", node)
+        return False
 
     for enode in excluded_nodes:
         if isinstance(enode, CodeBlock):
@@ -305,7 +304,7 @@ def valid_acc_kernel(node):
             # this includes those that are created by compiler-generated allocs
             # e.g. for automatic arrays). We assume that all arrays of rank 2
             # or greater are dynamically allocated.
-            arrays = enode.children[0].walk(Array)
+            arrays = enode.children[0].walk(ArrayReference)
             # We also exclude if statements where the condition expression does
             # not refer to arrays at all as this seems to cause issues for
             # 19.4 of the compiler (get "Missing branch target block").
@@ -320,7 +319,7 @@ def valid_acc_kernel(node):
                         "IF references 1D arrays that may be static", enode)
                 return False
 
-        elif False:  # isinstance(enode, NemoImplicitLoop):
+        elif (isinstance(enode, Assignment) and enode.is_array_range):
             intrinsics = walk(enode.ast,
                               Fortran2003.Intrinsic_Function_Reference)
             if PGI_VERSION < 19.4:
@@ -342,8 +341,7 @@ def valid_acc_kernel(node):
                         "Implicit loop contains RESHAPE call", enode)
                 return False
 
-        elif isinstance(enode, NemoLoop): # and \
-             # not isinstance(enode, NemoImplicitLoop):
+        elif isinstance(enode, NemoLoop):
             # Heuristic:
             # We don't want to put loops around 3D loops into KERNELS regions
             # and nor do we want to put loops over levels into KERNELS regions
@@ -383,15 +381,16 @@ def valid_acc_kernel(node):
 
     # Finally, check that we haven't got any 'array accesses' that are in
     # fact function calls.
-    refs = node.walk(Array)
+    refs = node.walk(ArrayReference)
     # Since kernels are leaves in the PSyIR, we need to separately check
     # their schedules for array references too.
     kernels = node.walk(NemoKern)
     for kern in kernels:
         sched = kern.get_kernel_schedule()
-        refs += sched.walk((Array, NemoLoop))
+        refs += sched.walk((ArrayReference, NemoLoop))
     for ref in refs:
-        if isinstance(ref, Array) and ref.name.lower() in NEMO_FUNCTIONS:
+        if (isinstance(ref, ArrayReference) and ref.name.lower() in
+                NEMO_FUNCTIONS):
             # This reference has the name of a known function. Is it on
             # the LHS or RHS of an assignment?
             ref_parent = ref.parent
@@ -491,6 +490,7 @@ def have_loops(nodes):
 
     :param nodes: list of PSyIR nodes to check for Loops.
     :type nodes: list of :py:class:`psyclone.psyGen.Node`
+
     :returns: True if a Loop is found, False otherwise.
     :rtype: bool
 
@@ -599,7 +599,8 @@ def add_profile_region(nodes):
     '''
     if nodes and _AUTO_PROFILE:
         # Check whether we should be adding profiling inside this routine
-        routine_name = nodes[0].ancestor(NemoInvokeSchedule).invoke.name.lower()
+        routine_name = \
+            nodes[0].ancestor(NemoInvokeSchedule).invoke.name.lower()
         if any([ignore in routine_name for ignore in PROFILING_IGNORE]):
             return
         if len(nodes) == 1:
@@ -662,6 +663,9 @@ def try_kernels_trans(nodes):
             # parse tree - we can't apply transformations to them, only to
             # their body. TODO #435.
             ACC_KERN_TRANS.apply(nodes[0].if_body, {"default_present": False})
+            if nodes[0].else_body and nodes[0].else_body.walk(Loop):
+                ACC_KERN_TRANS.apply(nodes[0].else_body,
+                                     {"default_present": False})
         else:
             ACC_KERN_TRANS.apply(nodes, {"default_present": False})
 
@@ -723,7 +727,6 @@ def trans(psy):
 
         # Attempt to add OpenACC directives unless this routine is one
         # we ignore
-        #if not any([ignore in invoke.name.lower() for ignore in ACC_IGNORE]):
         if invoke.name.lower() not in ACC_IGNORE:
             print("Transforming invoke {0}:".format(invoke.name))
             add_kernels(sched.children)
