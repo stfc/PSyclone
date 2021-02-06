@@ -55,7 +55,7 @@ SUB2_IN = "subroutine sub1(a)\nreal :: a\nend subroutine\n"
 SUB2_OUT = "subroutine sub1(a)\n  real, intent(inout) :: a\n\n\nend subroutine sub1\n"
 # subroutine with executable content
 SUB3_IN = "subroutine sub1()\nreal :: a\na=0.0\nend subroutine\n"
-SUB3_OUT = "subroutine sub1()\n  real :: a\n\n  a=0.0\n\nend subroutine sub1\n"
+SUB3_OUT = "subroutine sub1()\n  real :: a\n\n  a = 0.0\n\nend subroutine sub1\n"
 
 
 @pytest.mark.parametrize("code,expected",

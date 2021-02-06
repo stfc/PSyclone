@@ -76,7 +76,7 @@ def test_program_handler(parser):
     assert psyir.name == "a"
     writer = FortranWriter()
     result = writer(psyir)
-    assert "module a\n\n  contains\n\nend module a\n" in result
+    assert "module a\n  implicit none\n\n  contains\n\nend module a\n" in result
 
 
 def test_program_handler_error(parser):
