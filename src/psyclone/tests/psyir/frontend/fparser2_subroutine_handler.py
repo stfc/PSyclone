@@ -33,48 +33,45 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing pytest tests for the _module_handler method in
-the class Fparser2Reader. This handler deals with the translation of
-the fparser2 Module construct to PSyIR.'''
+'''Module containing pytest tests for the _subroutine_handler method
+in the class Fparser2Reader. This handler deals with the translation
+of the fparser2 Subroutine_Subprogram construct to PSyIR.
+
+'''
 
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes import Container
+from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
 
-# module no declarations
-MODULE1_IN = "module a\nend module\n"
-MODULE1_OUT = "module a\n\n  contains\n\nend module a\n"
-# module with symbols/declarations
-MODULE2_IN = "module a\nuse my_mod, only : b\nreal :: c\nend module\n"
-MODULE2_OUT = ("module a\n  use my_mod, only : b\n  real :: c\n\n"
-               "  contains\n\nend module a\n")
-# module with subprograms
-MODULE3_IN = ("module a\ncontains\nsubroutine sub1(a)\nreal :: a\nend subroutine\n"
-              "  subroutine sub2\nend subroutine\nend module\n")
-MODULE3_OUT = ("module a\n\n  public :: sub1, sub2\n\n  contains\n"
-               "  subroutine sub1(a)\n    real, intent(inout) :: a\n\n\n  end subroutine sub1\n"
-               "  subroutine sub2()\n\n\n  end subroutine sub2\n\n"
-               "end module a\n")
+# subroutine no declarations
+SUB1_IN = "subroutine sub1()\nend subroutine\n"
+SUB1_OUT = "subroutine sub1()\n\n\nend subroutine sub1\n"
+# subroutine with symbols/declarations
+SUB2_IN = "subroutine sub1(a)\nreal :: a\nend subroutine\n"
+SUB2_OUT = "subroutine sub1(a)\n  real, intent(inout) :: a\n\n\nend subroutine sub1\n"
+# subroutine with executable content
+SUB3_IN = "subroutine sub1()\nreal :: a\na=0.0\nend subroutine\n"
+SUB3_OUT = "subroutine sub1()\n  real :: a\n\n  a=0.0\n\nend subroutine sub1\n"
 
 
 @pytest.mark.parametrize("code,expected",
-                         [(MODULE1_IN, MODULE1_OUT),
-                          (MODULE2_IN, MODULE2_OUT),
-                          (MODULE3_IN, MODULE3_OUT)])
-def test_module_handler(parser, code, expected):
-    '''Test that module_handler handles valid Fortran modules.
-    '''
+                         [(SUB1_IN, SUB1_OUT),
+                          (SUB2_IN, SUB2_OUT),
+                          (SUB3_IN, SUB3_OUT)])
+def test_subroutine_handler(parser, code, expected):
+    '''Test that subroutine_handler handles valid Fortran subroutines.'''
+
     processor = Fparser2Reader()
     reader = FortranStringReader(code)
     parse_tree = parser(reader)
-    module = parse_tree.children[0]
-    psyir = processor._module_handler(module, None)
+    subroutine = parse_tree.children[0]
+    psyir = processor._subroutine_handler(subroutine, None)
     # Check the expected PSyIR nodes are being created
-    assert isinstance(psyir, Container)
+    assert isinstance(psyir, Routine)
     writer = FortranWriter()
     result = writer(psyir)
     assert expected == result

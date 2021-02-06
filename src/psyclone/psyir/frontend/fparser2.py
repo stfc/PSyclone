@@ -3338,7 +3338,7 @@ class Fparser2Reader(object):
 
         '''
         name = node.children[0].children[1].string
-        routine = Routine(name)
+        routine = Routine(name, parent=parent)
 
         try:
             sub_spec = first_type_match(node.content,
@@ -3399,27 +3399,27 @@ class Fparser2Reader(object):
                                  default_visibility, visibility_map)
 
         # Parse the declarations if it has any
-        for child in node.children:
-            if isinstance(child, Fortran2003.Specification_Part):
-                try:
-                    self.process_declarations(container, child.children,
-                                              [], default_visibility,
-                                              visibility_map)
-                except SymbolError as err:
-                    six.raise_from(SymbolError(
-                        "Error when generating Container for module '{0}': "
-                        "{1}".format(mod_name, err.args[0])), err)
-                break
+        try:
+            spec_part = first_type_match(
+                node.children, Fortran2003.Specification_Part)
+            self.process_declarations(container, spec_part.children,
+                                      [], default_visibility,
+                                      visibility_map)
+        except ValueError:
+            pass
 
         # Parse any module subprograms (subroutine or function)
         # skipping the contains node
-        for child in node.children:
-            if isinstance(child, Fortran2003.Module_Subprogram_Part):
-                module_subprograms = \
-                    [subprogram for subprogram in child.children
-                     if not isinstance(subprogram, Fortran2003.Contains_Stmt)]
-                if module_subprograms:
-                     self.process_nodes(parent=container, nodes=module_subprograms)
+        try:
+            subprog_part = first_type_match(
+                node.children, Fortran2003.Module_Subprogram_Part)
+            module_subprograms = \
+                [subprogram for subprogram in subprog_part.children
+                 if not isinstance(subprogram, Fortran2003.Contains_Stmt)]
+            if module_subprograms:
+                self.process_nodes(parent=container, nodes=module_subprograms)
+        except ValueError:
+            pass
 
         return container
 

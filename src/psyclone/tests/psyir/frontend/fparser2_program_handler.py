@@ -58,6 +58,27 @@ from psyclone.psyir.backend.fortran import FortranWriter
 #    assert isinstance(result, CodeBlock)
 # Similarly for function x end function x
 
+
+def test_program_handler(parser):
+    '''Test that program_handler passes valid Fortran on to other handlers
+    correctly.
+
+    '''
+    code = "module a\nend module\n"
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    parse_tree = parser(reader)
+    container = Container("dummy")
+    processor._program_handler(parse_tree, container)
+    psyir = container.children[0]
+    # Check PSyIR nodes are being created
+    assert isinstance(psyir, Container)
+    assert psyir.name == "a"
+    writer = FortranWriter()
+    result = writer(psyir)
+    assert "module a\n\n  contains\n\nend module a\n" in result
+
+
 def test_program_handler_error(parser):
     '''Test that the expected exception is raised when more than one
     module/subroutine/program/function etc. is found in the fparser2
@@ -73,19 +94,3 @@ def test_program_handler_error(parser):
     assert ("The PSyIR is currently limited to a single top level "
             "module/subroutine/program/function, but 2 were found."
             in str(info.value))
-
-
-def test_program_handler(parser):
-    '''Test that program_handler passes valid Fortran on to other handlers
-    correctly.
-
-    '''
-    code = "module a\nend module\n"
-    processor = Fparser2Reader()
-    reader = FortranStringReader(code)
-    parse_tree = parser(reader)
-    container = Container("dummy")
-    processor._program_handler(parse_tree, container)
-    writer = FortranWriter()
-    result = writer(container.children[0])
-    assert "module a\n\n  contains\n\nend module a\n" in result
