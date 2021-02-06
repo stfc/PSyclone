@@ -59,7 +59,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
     default_integer_type, default_real_type, _kind_symbol_from_name, \
-    _find_or_create_imported_symbol
+    _find_or_create_imported_symbol, first_type_match
 from psyclone.tests.utilities import get_invoke
 
 
@@ -102,6 +102,18 @@ contains
   end subroutine dummy_code
 end module dummy_mod
 '''
+
+
+def test_first_type_match():
+    '''Test that the first_type_match utility function returns the first
+    instance of the specified type from a list and that it raises a
+    ValueError exception if one is not found.
+
+    '''
+    assert (first_type_match([1, 2], int) == 1)
+    assert (first_type_match(["a", 1], int) == 1)
+    with pytest.raises(ValueError):
+        first_type_match(["a", "b"], int)
 
 
 def test_check_args():

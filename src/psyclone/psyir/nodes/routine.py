@@ -36,6 +36,8 @@
 
 ''' This module contains the Routine node implementation.'''
 
+import six
+
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import DataType, RoutineSymbol
 from psyclone.psyir.nodes.node import Node
@@ -107,7 +109,7 @@ class Routine(Schedule):
             are not of the expected type.
 
         '''
-        if not isinstance(name, str):
+        if not isinstance(name, six.string_types):
             raise TypeError(
                 "name argument in create method of Routine class "
                 "should be a string but found '{0}'."
