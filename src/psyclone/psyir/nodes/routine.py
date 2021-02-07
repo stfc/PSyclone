@@ -179,7 +179,7 @@ class Routine(Schedule):
         :raises TypeError: if new_name is not a string.
 
         '''
-        if not isinstance(new_name, str):
+        if not isinstance(new_name, six.string_types):
             raise TypeError("Routine name must be a str but got "
                             "'{0}'".format(type(new_name).__name__))
         if not self._name:
