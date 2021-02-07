@@ -45,6 +45,10 @@ from psyclone.psyir.symbols import ArrayType, INTEGER_TYPE, DataSymbol, \
 from psyclone.errors import GenerationError
 
 
+class SpecialCall(Call):
+    '''Test Class specialising the Call class'''
+
+
 def test_call_init():
     '''Test that a Call can be created as expected. Also test the routine
     property.
@@ -76,15 +80,16 @@ def test_call_init_error():
     assert ("Call routine argument should be a RoutineSymbol but found "
             "'NoneType'." in str(info.value))
 
-
-def test_call_create():
+@pytest.mark.parametrize("cls", [Call, SpecialCall])
+def test_call_create(cls):
     '''Test that the create method creates a valid call with arguments'''
 
     routine = RoutineSymbol("ellie")
     array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
     arguments = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
                  ArrayReference(DataSymbol("arg2", array_type))]
-    call = Call.create(routine, arguments)
+    call = cls.create(routine, arguments)
+    assert isinstance(call, cls)
     assert call.routine is routine
     for idx, child, in enumerate(call.children):
         assert child is arguments[idx]
