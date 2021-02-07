@@ -3432,10 +3432,7 @@ class Fparser2Reader(object):
         program-units. At the moment PSyIR does not support the
         concept of multiple program-units so can only support
         one. Therefore this handler simply checks that this constraint
-        is observed in the supplied tree. It is expected that a
-        subclass of container e.g. FileContainer, would be a natural
-        way to support multiple program units in the future, see issue
-        #xxx
+        is observed in the supplied tree.
 
         :param node: top level node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Program`
