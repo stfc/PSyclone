@@ -77,7 +77,7 @@ class Call(Statement):
             added as child nodes.
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
 
-        :returns: a instance of cls.
+        :returns: an instance of cls.
         :rtype: subclass of :py:class:`psyclone.psyir.nodes.Call`
 
         '''

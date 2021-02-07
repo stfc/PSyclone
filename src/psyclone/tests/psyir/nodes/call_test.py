@@ -80,6 +80,7 @@ def test_call_init_error():
     assert ("Call routine argument should be a RoutineSymbol but found "
             "'NoneType'." in str(info.value))
 
+
 @pytest.mark.parametrize("cls", [Call, SpecialCall])
 def test_call_create(cls):
     '''Test that the create method creates a valid call with arguments'''
@@ -89,7 +90,8 @@ def test_call_create(cls):
     arguments = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
                  ArrayReference(DataSymbol("arg2", array_type))]
     call = cls.create(routine, arguments)
-    assert isinstance(call, cls)
+    # pylint: disable=unidiomatic-typecheck
+    assert type(call) is cls
     assert call.routine is routine
     for idx, child, in enumerate(call.children):
         assert child is arguments[idx]
