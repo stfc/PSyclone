@@ -37,10 +37,10 @@
 the class Fparser2Reader. This handler deals with the translation of
 the fparser2 Module construct to PSyIR.'''
 
+from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -50,15 +50,18 @@ MODULE1_IN = "module a\nend module\n"
 MODULE1_OUT = "module a\n  implicit none\n\n  contains\n\nend module a\n"
 # module with symbols/declarations
 MODULE2_IN = "module a\nuse my_mod, only : b\nreal :: c\nend module\n"
-MODULE2_OUT = ("module a\n  use my_mod, only : b\n  implicit none\n  real :: c\n\n"
-               "  contains\n\nend module a\n")
+MODULE2_OUT = (
+    "module a\n  use my_mod, only : b\n  implicit none\n  real :: c\n\n"
+    "  contains\n\nend module a\n")
 # module with subprograms
-MODULE3_IN = ("module a\ncontains\nsubroutine sub1(a)\nreal :: a\nend subroutine\n"
-              "  subroutine sub2\nend subroutine\nend module\n")
-MODULE3_OUT = ("module a\n  implicit none\n\n  public :: sub1, sub2\n\n  contains\n"
-               "  subroutine sub1(a)\n    real, intent(inout) :: a\n\n\n  end subroutine sub1\n"
-               "  subroutine sub2()\n\n\n  end subroutine sub2\n\n"
-               "end module a\n")
+MODULE3_IN = (
+    "module a\ncontains\nsubroutine sub1(a)\nreal :: a\nend subroutine\n"
+    "  subroutine sub2\nend subroutine\nend module\n")
+MODULE3_OUT = (
+    "module a\n  implicit none\n\n  public :: sub1, sub2\n\n  contains\n"
+    "  subroutine sub1(a)\n    real, intent(inout) :: a\n\n\n"
+    "  end subroutine sub1\n  subroutine sub2()\n\n\n  end subroutine sub2\n\n"
+    "end module a\n")
 
 
 @pytest.mark.parametrize("code,expected",

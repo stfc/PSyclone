@@ -110,8 +110,8 @@ def test_first_type_match():
     ValueError exception if one is not found.
 
     '''
-    assert (first_type_match([1, 2], int) == 1)
-    assert (first_type_match(["a", 1], int) == 1)
+    assert first_type_match([1, 2], int) == 1
+    assert first_type_match(["a", 1], int) == 1
     with pytest.raises(ValueError):
         first_type_match(["a", "b"], int)
 

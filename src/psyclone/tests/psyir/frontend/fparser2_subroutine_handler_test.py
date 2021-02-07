@@ -38,12 +38,11 @@ in the class Fparser2Reader. This handler deals with the translation
 of the fparser2 Subroutine_Subprogram construct to PSyIR.
 
 '''
-
+from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.errors import GenerationError
-from psyclone.psyir.nodes import Container, Routine
+from psyclone.psyir.nodes import Routine
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -52,10 +51,13 @@ SUB1_IN = "subroutine sub1()\nend subroutine\n"
 SUB1_OUT = "subroutine sub1()\n\n\nend subroutine sub1\n"
 # subroutine with symbols/declarations
 SUB2_IN = "subroutine sub1(a)\nreal :: a\nend subroutine\n"
-SUB2_OUT = "subroutine sub1(a)\n  real, intent(inout) :: a\n\n\nend subroutine sub1\n"
+SUB2_OUT = (
+    "subroutine sub1(a)\n  real, intent(inout) :: a\n\n\n"
+    "end subroutine sub1\n")
 # subroutine with executable content
 SUB3_IN = "subroutine sub1()\nreal :: a\na=0.0\nend subroutine\n"
-SUB3_OUT = "subroutine sub1()\n  real :: a\n\n  a = 0.0\n\nend subroutine sub1\n"
+SUB3_OUT = (
+    "subroutine sub1()\n  real :: a\n\n  a = 0.0\n\nend subroutine sub1\n")
 
 
 @pytest.mark.parametrize("code,expected",

@@ -81,12 +81,18 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
 
 
 def first_type_match(nodelist, typekind):
-    '''
-    Returns the first instance of the specified type in the given
+    '''Returns the first instance of the specified type in the given
     node list.
 
-    :param list nodelist: List of fparser2 nodes.
-    :param type typekind: The fparse2 Type we are searching for.
+    :param list nodelist: list of fparser2 nodes.
+    :param type typekind: the fparser2 Type we are searching for.
+
+    :returns: the first instance of the specified type.
+    :rtype: instance of typekind
+
+    :raises ValueError: if the list does not contain an object of type \
+        typekind.
+
     '''
     for node in nodelist:
         if isinstance(node, typekind):
@@ -939,10 +945,6 @@ class Fparser2Reader(object):
                 "The Fparser2Reader generate_psyir method expects root the "
                 "supplied fparser2 tree to be a Program, but found '{0}'"
                 "".format(type(parse_tree).__name__))
-        
-        # TODO process_nodes should probably be modified so that it
-        # allows a node without a parent, rather than having to create
-        # a dummy parent here.
         node = Container("dummy")
         self.process_nodes(node, [parse_tree])
         result = node.children[0]
@@ -3300,6 +3302,7 @@ class Fparser2Reader(object):
         symbol_table = parent.scope.symbol_table
         try:
             routine_symbol = symbol_table.lookup(call_name)
+            # pylint: disable=unidiomatic-typecheck
             if type(routine_symbol) is Symbol:
                 # TODO PR #1063: Symbol should be specialised to a
                 # RoutineSymbol here (if the symbol is part of a use
@@ -3347,9 +3350,9 @@ class Fparser2Reader(object):
             # TODO this if test can be removed once fparser/#211 is fixed
             # such that routine arguments are always contained in a
             # Dummy_Arg_List, even if there's only one of them.
-            from fparser.two.Fortran2003 import Dummy_Arg_List
             if isinstance(node, Fortran2003.Subroutine_Subprogram) and \
-               isinstance(node.children[0].children[2], Dummy_Arg_List):
+               isinstance(node.children[0].children[2],
+                          Fortran2003.Dummy_Arg_List):
                 arg_list = node.children[0].children[2].children
             else:
                 # Routine has no arguments
@@ -3372,7 +3375,7 @@ class Fparser2Reader(object):
 
         return routine
 
-    def _module_handler(self, node, parent):
+    def _module_handler(self, node, _):
         '''Transforms an fparser2 Module statement into a PSyIR Container node.
 
         :param node: fparser2 representation of a module.

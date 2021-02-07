@@ -37,6 +37,7 @@
 the class Fparser2Reader. This handler deals with the translation of
 the fparser2 Program construct to PSyIR.'''
 
+from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -44,19 +45,6 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
-
-# Add test that program x end program gives a codeblock? - or perhaps put in in generate_psyir tests?
-#def test_no_program(f2008_parser):
-#    ''' xxx '''
-#    input_code = (
-#        "program test\n"
-#        "end program test\n")
-#    reader = FortranStringReader(input_code)
-#    ast = f2008_parser(reader)
-#    fp2_reader = Fparser2Reader()
-#    result = fp2_reader.generate_psyir(ast)
-#    assert isinstance(result, CodeBlock)
-# Similarly for function x end function x
 
 
 def test_program_handler(parser):
@@ -76,7 +64,8 @@ def test_program_handler(parser):
     assert psyir.name == "a"
     writer = FortranWriter()
     result = writer(psyir)
-    assert "module a\n  implicit none\n\n  contains\n\nend module a\n" in result
+    assert ("module a\n  implicit none\n\n  contains\n\nend module a\n"
+            in result)
 
 
 def test_program_handler_error(parser):
