@@ -77,9 +77,9 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_adspc1) :: map_adspc1
     integer(kind=i_def), intent(in), dimension(ndf_adspc1,field2_stencil_size) :: field2_stencil_dofmap
     integer(kind=i_def), intent(in), dimension(ndf_adspc1,field3_stencil_size) :: field3_stencil_dofmap
-    real(kind=r_def), intent(out), dimension(undf_wtheta) :: field1
-    real(kind=r_def), intent(in), dimension(undf_adspc1)  :: field2
-    real(kind=r_def), intent(in), dimension(undf_adspc1)  :: field3
+    real(kind=r_def), intent(inout), dimension(undf_wtheta) :: field1
+    real(kind=r_def), intent(in), dimension(undf_adspc1)    :: field2
+    real(kind=r_def), intent(in), dimension(undf_adspc1)    :: field3
 
   end subroutine testkern_same_any_dscnt_space_stencil_code
 
