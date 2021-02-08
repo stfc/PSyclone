@@ -291,6 +291,7 @@ def test_fuse_different_loop_vars(parser):
     assert "Loop variables must be the same, but are 'jj' and 'ji'" \
         in str(err.value)
 
+
 # ----------------------------------------------------------------------------
 @pytest.mark.xfail(reason="Needs evaluation of constant expressions")
 def test_fuse_correct_bounds(parser):
@@ -324,7 +325,8 @@ def test_fuse_dimension_change(parser):
     when at least one operation is a write
     '''
 
-    # The first example can be merged, since 't' is read-only
+    # The first example can be merged, since 't' is read-only,
+    # so it doesn't matter that it is accessed differently
     code = '''subroutine sub()
               integer :: ji, jj, n
               integer, dimension(10,10) :: s, t
@@ -335,7 +337,6 @@ def test_fuse_dimension_change(parser):
               enddo
               do jj=1, n+1
                  do ji=1, 10
-                    s(ji, jj)=t(jj, ji)+1
                     s(ji, jj)=s(ji, jj) + t(jj, jj) + t(ji, ji)
                  enddo
               enddo
@@ -360,6 +361,11 @@ def test_fuse_dimension_change(parser):
               enddo
               end subroutine sub'''
 
+    with pytest.raises(TransformationError) as err:
+        fuse_loops(parser, code)
+    assert "Variable 's' is using loop variable jj in index 1 and 0." \
+        in str(err.value)
+
     # This cannot be fused, since 's' is read in the
     # first iteration and written in the second with
     # different indices.
@@ -368,12 +374,17 @@ def test_fuse_dimension_change(parser):
               integer, dimension(10,10) :: s, t, u
               do jj=1, n+1
                  do ji=1, 10
-                    t(ji, jj)=s(ji, jj)+1
+                    u(ji, jj)=s(jj, ji)+1
                  enddo
               enddo
               do jj=1, n+1
                  do ji=1, 10
-                    s(jj, ji)=t(ji, jj)+1
+                    s(ji, jj)=t(ji, jj)+1
                  enddo
               enddo
               end subroutine sub'''
+
+    with pytest.raises(TransformationError) as err:
+        fuse_loops(parser, code)
+    assert "Variable 's' is using loop variable jj in index 0 and 1." \
+        in str(err.value)
