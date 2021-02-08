@@ -8580,17 +8580,13 @@ class DynKernelArgument(KernelArgument):
         :rtype: str
 
         '''
+        valid_reductions = AccessType.get_valid_reduction_names()
         if self.access == AccessType.READ:
             return "in"
-        elif self.access == AccessType.WRITE:
-            return "out"
-        elif self.access == AccessType.READWRITE:
-            return "inout"
-        elif self.access in [AccessType.INC] + \
-                AccessType.get_valid_reduction_modes():
+        elif self.access in [AccessType.WRITE, AccessType.READWRITE,
+                             AccessType.INC] + valid_reductions:
             return "inout"
         else:
-            valid_reductions = AccessType.get_valid_reduction_names()
             raise GenerationError(
                 "Expecting argument access to be one of 'gh_read, gh_write, "
                 "gh_inc', 'gh_readwrite' or one of {0}, but found '{1}'".
