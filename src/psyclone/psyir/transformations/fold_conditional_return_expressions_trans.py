@@ -36,32 +36,89 @@
 '''This module contains the FoldConditionalReturnExpressionsTrans. '''
 
 from psyclone.psyir.nodes import (Routine, IfBlock, Return,
-    UnaryOperation)
+                                  UnaryOperation)
+from psyclone.psyGen import Transformation
+from psyclone.psyir.transformations.transformation_error import \
+        TransformationError
+
 
 class FoldConditionalReturnExpressionsTrans(Transformation):
-    ''' Provides a ... '''
+    ''' Provides a transformation that folds conditional expressions with only
+    a return statement inside so that the Return statement can disapear
+    (because happens at the end of the Routine). For example, the following
+    code:
+
+    >>> subroutine test(i)
+    >>>    if (y < 5) then
+    >>>        return
+    >>>    endif
+    >>>    if (y > 10) then
+    >>>        return
+    >>>    endif
+    >>>    ! CODE
+    >>>  end subroutine
+
+    will be transformed to:
+
+    >>> subroutine test(i)
+    >>>    if (.not.(y < 5)) then
+    >>>        if (.not.(y > 10)) then
+    >>>            ! CODE
+    >>>        endif
+    >>>    endif
+    >>>  end subroutine
+
+    '''
 
     def __str__(self):
-        return "description"
+        return "Fold all conditional expressions with Return statements."
 
     @property
     def name(self):
         '''Returns the name of this transformation as a string.'''
         return "FoldConditionalReturnExpressionsTrans"
 
-    def validate(self, routine):
-        '''Checks ...
+    def validate(self, node, options=None):
+        '''Ensure that it is valid to apply this transformation to the
+        supplied node.
 
-        :raises TransformationError: if ....
-         '''
+        :param node: the node to validate.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
 
-        if not isinstance(routine, Routine):
-            raise TransformationError("Not Routine")
+        :raises TransformationError: if the node is not a Routine.
+        '''
 
-    def apply(self, routine):
+        if not isinstance(node, Routine):
+            raise TransformationError("Error in {0} transformation. "
+                                      "This transformation can only be applied"
+                                      " to Routine nodes".format(self.name))
+
+    def apply(self, node, options=None):
+        '''Apply this transformation to the supplied node.
+
+        :param node: the node to transform.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :returns: 2-tuple of new schedule and memento of transform.
+        :rtype: (:py:class:`psyclone.psyGen.InvokeSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
+        '''
+        routine = node
         self.validate(routine)
 
         def is_conditional_return(node):
+            '''
+            :param node: node to evaluate.
+            :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+            :returns: whether the given node represents a conditional return \
+                      expression.
+            '''
+
             if not isinstance(node, IfBlock):
                 return False
             if len(node.if_body.children) != 1:
@@ -78,16 +135,15 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
                     UnaryOperation.Operator.NOT,
                     statement.condition)
                 statement.children[0] = new_condition
-                new_condition._parent = statement
+                new_condition.parent = statement
 
-                # Remove return and add remaining of routine inside the
-                # loop body
+                # Remove return and add remaining part of the routine
+                # schedule inside the loop body
                 del statement.if_body.children[0]
                 start = statement.position
                 end = len(statement.parent.children) - 1
                 for index in range(end, start, -1):
-                    #import pdb; pdb.set_trace()
                     move = statement.parent.children[index]
                     del statement.parent.children[index]
                     statement.if_body.children.insert(0, move)
-                    move._parent = statement.if_body
+                    move.parent = statement.if_body
