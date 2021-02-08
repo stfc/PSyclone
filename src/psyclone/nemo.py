@@ -48,7 +48,7 @@ from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     InlinedKern
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Loop, Schedule
+from psyclone.psyir.nodes import Loop, Schedule, Routine
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import GenerationError
 
@@ -58,7 +58,7 @@ class NemoFparser2Reader(Fparser2Reader):
     Specialisation of Fparser2Reader for the Nemo API.
     '''
     @staticmethod
-    def _create_schedule(_):
+    def _create_schedule(name):
         '''
         Create an empty InvokeSchedule. The un-named argument would be 'name'
         but this isn't used in the NEMO API.
@@ -66,7 +66,7 @@ class NemoFparser2Reader(Fparser2Reader):
         :returns: New InvokeSchedule empty object.
         :rtype: py:class:`psyclone.nemo.NemoInvokeSchedule`
         '''
-        return NemoInvokeSchedule()
+        return NemoInvokeSchedule(name)
 
     def _create_loop(self, parent, variable):
         '''
@@ -138,23 +138,23 @@ class NemoInvoke(Invoke):
     :type invokes: :py:class:`psyclone.psyGen.NemoInvokes`
 
     '''
-    def __init__(self, ast, name, invokes):
+    def __init__(self, sched, name, invokes):
         # pylint: disable=super-init-not-called
         self._invokes = invokes
-        self._schedule = None
+        self._schedule = sched
         self._name = name
         # Store the whole fparser2 AST
         # TODO #435 remove this line.
-        self._ast = ast
+        #self._ast = ast
 
         # We now walk through the fparser2 parse tree and construct the
         # PSyIR with a NemoInvokeSchedule at its root.
-        processor = NemoFparser2Reader()
+        #processor = NemoFparser2Reader()
         # TODO #737 the fparser2 processor should really first be used
         # to explicitly get the Container for this particular Invoke and
         # then be used to generate a 'subroutine' rather than a Schedule.
-        self._schedule = processor.generate_schedule(name, ast,
-                                                     self.invokes.container)
+        #self._schedule = processor.generate_schedule(name, ast,
+        #                                             self.invokes.container)
         self._schedule.invoke = self
 
     def update(self):
@@ -177,11 +177,11 @@ class NemoInvokes(Invokes):
     :param ast: the fparser2 AST for the whole Fortran source file.
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program`
     '''
-    def __init__(self, ast):
+    def __init__(self, ast, psy):
         # pylint: disable=super-init-not-called
         from fparser.two.Fortran2003 import Main_Program,  \
             Subroutine_Subprogram, Function_Subprogram, Function_Stmt, Name
-
+        self._psy = psy
         self.invoke_map = {}
         self.invoke_list = []
         # Keep a pointer to the whole fparser2 AST
@@ -191,44 +191,40 @@ class NemoInvokes(Invokes):
         # create domain-specific PSyIR (D-PSyIR) for the NEMO domain.
         # Use the fparser2 frontend to construct the PSyIR from the parse tree
         processor = NemoFparser2Reader()
-        # First create a Container representing any Fortran module
-        # contained in the parse tree.
-        self._container = processor.generate_container(ast)
 
-        # Find all the subroutines contained in the file
-        routines = walk(ast.content, (Subroutine_Subprogram,
-                                      Function_Subprogram))
-        # Add the main program as a routine to analyse - take care
-        # here as the Fortran source file might not contain a
-        # main program (might just be a subroutine in a module)
-        main_prog = get_child(ast, Main_Program)
-        if main_prog:
-            routines.append(main_prog)
+        if psy.container:
+            routines = psy.container.walk(Routine)
+        else:
+            # Find all the subroutines contained in the file
+            parse_tree_routines = walk(ast.content, (Subroutine_Subprogram,
+                                                     Function_Subprogram))
+            # Add the main program as a routine to analyse - take care
+            # here as the Fortran source file might not contain a
+            # main program (might just be a subroutine in a module)
+            main_prog = get_child(ast, Main_Program)
+            if main_prog:
+                parse_tree_routines.append(main_prog)
 
+            routines = []
+            for routine in parse_tree_routines:
+                # Get the name of this subroutine, program or function
+                substmt = routine.content[0]
+                if isinstance(substmt, Function_Stmt):
+                    for item in substmt.items:
+                        if isinstance(item, Name):
+                            sub_name = str(item)
+                            break
+                else:
+                    sub_name = str(substmt.get_name())
+                print("sub-name = {0}".format(sub_name))
+                routines.append(processor.generate_schedule(sub_name,
+                                                            routine))
         # Analyse each routine we've found
         for subroutine in routines:
-            # Get the name of this subroutine, program or function
-            substmt = subroutine.content[0]
-            if isinstance(substmt, Function_Stmt):
-                for item in substmt.items:
-                    if isinstance(item, Name):
-                        sub_name = str(item)
-                        break
-            else:
-                sub_name = str(substmt.get_name())
 
-            my_invoke = NemoInvoke(subroutine, sub_name, self)
-            self.invoke_map[sub_name] = my_invoke
+            my_invoke = NemoInvoke(subroutine, subroutine.name, self)
+            self.invoke_map[subroutine.name] = my_invoke
             self.invoke_list.append(my_invoke)
-
-    @property
-    def container(self):
-        '''
-        :returns: the Container node that encapsulates the invokes \
-                  associated with this object.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
-        '''
-        return self._container
 
     def update(self):
         ''' Walk down the tree and update the underlying fparser2 AST
@@ -259,8 +255,12 @@ class NemoPSy(PSy):
             raise InternalError("Found no names in supplied Fortran - should "
                                 "be impossible!")
         self._name = str(names[0]) + "_psy"
-        self._invokes = NemoInvokes(ast)
+        processor = NemoFparser2Reader()
+        # Create a Container representing any Fortran module contained in the
+        # parse tree. This will be None if there is no module.
+        self._container = processor.generate_container(ast)
         self._ast = ast
+        self._invokes = NemoInvokes(ast, self)
 
     def inline(self, _):
         '''
@@ -301,10 +301,10 @@ class NemoInvokeSchedule(InvokeSchedule):
     '''
     _text_name = "NemoInvokeSchedule"
 
-    def __init__(self, invoke=None):
+    def __init__(self, name, invoke=None):
         # TODO #1010: The name placeholder should be changed with the
         # expected InvokeShcedule name to use the PSyIR backend.
-        super(NemoInvokeSchedule, self).__init__('name', None, None)
+        super(NemoInvokeSchedule, self).__init__(name, None, None)
 
         self._invoke = invoke
         # Whether or not we've already checked the associated Fortran for
