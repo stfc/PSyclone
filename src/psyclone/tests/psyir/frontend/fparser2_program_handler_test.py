@@ -52,7 +52,14 @@ def test_program_handler(parser):
     correctly.
 
     '''
-    code = "module a\nend module\n"
+    code = (
+        "module a\n"
+        "end module\n")
+    expected = (
+        "module a\n"
+        "  implicit none\n\n"
+        "  contains\n\n"
+        "end module a\n")
     processor = Fparser2Reader()
     reader = FortranStringReader(code)
     parse_tree = parser(reader)
@@ -64,8 +71,7 @@ def test_program_handler(parser):
     assert psyir.name == "a"
     writer = FortranWriter()
     result = writer(psyir)
-    assert ("module a\n  implicit none\n\n  contains\n\nend module a\n"
-            in result)
+    assert result == expected
 
 
 def test_program_handler_error(parser):

@@ -80,7 +80,7 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
                   "inout": ArgumentInterface.Access.READWRITE}
 
 
-def first_type_match(nodelist, typekind):
+def _first_type_match(nodelist, typekind):
     '''Returns the first instance of the specified type in the given
     node list.
 
@@ -929,7 +929,7 @@ class Fparser2Reader(object):
     def generate_psyir(self, parse_tree):
         '''Translate the supplied fparser2 parse_tree into PSyIR.
 
-        :param parse_tree: the supplied fparser2 parse tree
+        :param parse_tree: the supplied fparser2 parse tree.
         :type parse_tree: :py:class:`fparser.two.Fortran2003.Program`
 
         :returns: PSyIR representation of the supplied fparser2 parse_tree.
@@ -937,7 +937,7 @@ class Fparser2Reader(object):
             :py:class:`psyclone.psyir.nodes.Routine`
 
         :raises GenerationError: if the root of the supplied fparser2 \
-            parse tree is not a Program
+            parse tree is not a Program.
 
         '''
         if not isinstance(parse_tree, Fortran2003.Program):
@@ -1072,8 +1072,8 @@ class Fparser2Reader(object):
         # pylint: enable=protected-access
 
         try:
-            sub_spec = first_type_match(subroutine.content,
-                                        Fortran2003.Specification_Part)
+            sub_spec = _first_type_match(subroutine.content,
+                                         Fortran2003.Specification_Part)
             decl_list = sub_spec.content
             # TODO this if test can be removed once fparser/#211 is fixed
             # such that routine arguments are always contained in a
@@ -1093,8 +1093,8 @@ class Fparser2Reader(object):
             self.process_declarations(new_schedule, decl_list, arg_list)
 
         try:
-            sub_exec = first_type_match(subroutine.content,
-                                        Fortran2003.Execution_Part)
+            sub_exec = _first_type_match(subroutine.content,
+                                         Fortran2003.Execution_Part)
         except ValueError:
             pass
         else:
@@ -3344,8 +3344,8 @@ class Fparser2Reader(object):
         routine = Routine(name, parent=parent)
 
         try:
-            sub_spec = first_type_match(node.content,
-                                        Fortran2003.Specification_Part)
+            sub_spec = _first_type_match(node.content,
+                                         Fortran2003.Specification_Part)
             decl_list = sub_spec.content
             # TODO this if test can be removed once fparser/#211 is fixed
             # such that routine arguments are always contained in a
@@ -3366,9 +3366,11 @@ class Fparser2Reader(object):
             self.process_declarations(routine, decl_list, arg_list)
 
         try:
-            sub_exec = first_type_match(node.content,
-                                        Fortran2003.Execution_Part)
+            sub_exec = _first_type_match(node.content,
+                                         Fortran2003.Execution_Part)
         except ValueError:
+            # Routines without any execution statemens are still
+            # valid.
             pass
         else:
             self.process_nodes(routine, sub_exec.content)
@@ -3403,7 +3405,7 @@ class Fparser2Reader(object):
 
         # Parse the declarations if it has any
         try:
-            spec_part = first_type_match(
+            spec_part = _first_type_match(
                 node.children, Fortran2003.Specification_Part)
             self.process_declarations(container, spec_part.children,
                                       [], default_visibility,
@@ -3414,7 +3416,7 @@ class Fparser2Reader(object):
         # Parse any module subprograms (subroutine or function)
         # skipping the contains node
         try:
-            subprog_part = first_type_match(
+            subprog_part = _first_type_match(
                 node.children, Fortran2003.Module_Subprogram_Part)
             module_subprograms = \
                 [subprogram for subprogram in subprog_part.children

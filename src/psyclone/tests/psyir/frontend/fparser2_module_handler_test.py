@@ -46,21 +46,47 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
 
 # module no declarations
-MODULE1_IN = "module a\nend module\n"
-MODULE1_OUT = "module a\n  implicit none\n\n  contains\n\nend module a\n"
+MODULE1_IN = (
+    "module a\n"
+    "end module\n")
+MODULE1_OUT = (
+    "module a\n"
+    "  implicit none\n\n"
+    "  contains\n\n"
+    "end module a\n")
 # module with symbols/declarations
-MODULE2_IN = "module a\nuse my_mod, only : b\nreal :: c\nend module\n"
+MODULE2_IN = (
+    "module a\n"
+    "use my_mod, only : b\n"
+    "real :: c\n"
+    "end module\n")
 MODULE2_OUT = (
-    "module a\n  use my_mod, only : b\n  implicit none\n  real :: c\n\n"
-    "  contains\n\nend module a\n")
+    "module a\n"
+    "  use my_mod, only : b\n"
+    "  implicit none\n"
+    "  real :: c\n\n"
+    "  contains\n\n"
+    "end module a\n")
 # module with subprograms
 MODULE3_IN = (
-    "module a\ncontains\nsubroutine sub1(a)\nreal :: a\nend subroutine\n"
-    "  subroutine sub2\nend subroutine\nend module\n")
+    "module a\n"
+    "contains\n"
+    "subroutine sub1(a)\n"
+    "real :: a\n"
+    "end subroutine\n"
+    "subroutine sub2\n"
+    "end subroutine\n"
+    "end module\n")
 MODULE3_OUT = (
-    "module a\n  implicit none\n\n  public :: sub1, sub2\n\n  contains\n"
-    "  subroutine sub1(a)\n    real, intent(inout) :: a\n\n\n"
-    "  end subroutine sub1\n  subroutine sub2()\n\n\n  end subroutine sub2\n\n"
+    "module a\n"
+    "  implicit none\n\n"
+    "  public :: sub1, sub2\n\n"
+    "  contains\n"
+    "  subroutine sub1(a)\n"
+    "    real, intent(inout) :: a\n\n\n"
+    "  end subroutine sub1\n"
+    "  subroutine sub2()\n\n\n"
+    "  end subroutine sub2\n\n"
     "end module a\n")
 
 

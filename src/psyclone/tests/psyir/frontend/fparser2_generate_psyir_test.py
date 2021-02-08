@@ -48,21 +48,55 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
 
 MODULE_IN = (
-    "module a\ncontains\nsubroutine sub1(a)\nreal :: a\nend subroutine\n"
-    "  subroutine sub2\nend subroutine\nend module\n")
+    "module a\n"
+    "contains\n"
+    "subroutine sub1(a)\n"
+    "real :: a\n"
+    "end subroutine\n"
+    "subroutine sub2\n"
+    "end subroutine\n"
+    "end module\n")
 MODULE_OUT = (
-    "module a\n  implicit none\n\n  public :: sub1, sub2\n\n"
-    "  contains\n  subroutine sub1(a)\n    real, intent(inout) :: a\n\n\n"
-    "  end subroutine sub1\n  subroutine sub2()\n\n\n  end subroutine sub2\n\n"
+    "module a\n"
+    "  implicit none\n\n"
+    "  public :: sub1, sub2\n\n"
+    "  contains\n"
+    "  subroutine sub1(a)\n"
+    "    real, intent(inout) :: a\n\n\n"
+    "  end subroutine sub1\n"
+    "  subroutine sub2()\n\n\n"
+    "  end subroutine sub2\n\n"
     "end module a\n")
-SUB_IN = "subroutine sub1()\nreal :: a\na=0.0\nend subroutine\n"
+SUB_IN = (
+    "subroutine sub1()\n"
+    "real :: a\n"
+    "a=0.0\n"
+    "end subroutine\n")
 SUB_OUT = (
-    "subroutine sub1()\n  real :: a\n\n  a = 0.0\n\nend subroutine sub1\n")
-PROGRAM_IN = "program main\nreal :: a\na=0.0\nend program main\n"
-PROGRAM_OUT = "PROGRAM main\n  REAL :: a\n  a = 0.0\nEND PROGRAM main"
-FUNCTION_IN = "integer function tmp(a)\nreal :: a\na=0.0\nend function tmp"
+    "subroutine sub1()\n"
+    "  real :: a\n\n"
+    "  a = 0.0\n\n"
+    "end subroutine sub1\n")
+PROGRAM_IN = (
+    "program main\n"
+    "real :: a\n"
+    "a=0.0\n"
+    "end program main\n")
+PROGRAM_OUT = (
+    "PROGRAM main\n"
+    "  REAL :: a\n"
+    "  a = 0.0\n"
+    "END PROGRAM main")
+FUNCTION_IN = (
+    "integer function tmp(a)\n"
+    "real :: a\n"
+    "a=0.0\n"
+    "end function tmp")
 FUNCTION_OUT = (
-    "INTEGER FUNCTION tmp(a)\n  REAL :: a\n  a = 0.0\nEND FUNCTION tmp")
+    "INTEGER FUNCTION tmp(a)\n"
+    "  REAL :: a\n"
+    "  a = 0.0\n"
+    "END FUNCTION tmp")
 
 
 @pytest.mark.parametrize("code,expected,node_class",
