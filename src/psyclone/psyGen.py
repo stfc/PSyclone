@@ -3222,6 +3222,16 @@ class CodedKern(Kern):
         kern_schedule.name = new_kern_name[:]
         kern_schedule.root.name = new_mod_name[:]
 
+        # Change the name of the symbol
+        try:
+            kern_symbol = kern_schedule.symbol_table.lookup(orig_kern_name)
+            kern_schedule.root.symbol_table.rename_symbol(kern_symbol,
+                                                          new_kern_name)
+        except KeyError:
+            # TODO #1013. Right now not all tests have PSyIR symbols because
+            # some only expect f2pygen generation.
+            pass
+
         # TODO #1013. This needs re-doing properly - in particular the
         # RoutineSymbol associated with the kernel needs to be replaced. For
         # now we only fix the specific case of the name of the kernel routine

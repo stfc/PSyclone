@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -180,6 +180,10 @@ class PSyDataTrans(RegionTrans):
         # The checks below are only for the NEMO API and can be removed
         # once #435 is done.
         sched = node_list[0].ancestor(InvokeSchedule)
+        if not sched:
+            # Some tests construct PSyIR fragments that do not have an
+            # InvokeSchedule
+            return
         invoke = sched.invoke
         if not isinstance(invoke, NemoInvoke):
             return
