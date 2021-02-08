@@ -77,10 +77,9 @@ def test_lfricscalars_call_err():
     scalar_arg._intrinsic_type = "double-type"
     with pytest.raises(InternalError) as err:
         LFRicScalarArgs(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
-    assert ("Found unsupported intrinsic types in Invoke "
-            "'invoke_0_testkern_two_scalars_type' declarations for the "
-            "scalar arguments ['a']. Supported types are "
-            "['real', 'integer']." in str(err.value))
+    assert ("Found unsupported intrinsic types for the scalar arguments "
+            "['a'] to Invoke 'invoke_0_testkern_two_scalars_type'. Supported "
+            "types are ['real', 'integer']." in str(err.value))
 
 
 def test_int_real_scalar_invalid():
@@ -96,16 +95,15 @@ def test_int_real_scalar_invalid():
 
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("At least one scalar (['b']) in Invoke "
-            "'invoke_real_and_integer_scalars' has different metadata for "
+    assert ("Scalar argument(s) ['b'] in Invoke "
+            "'invoke_real_and_integer_scalars' have different metadata for "
             "data type (['gh_real', 'gh_integer']) in different kernels. "
             "This is invalid." in str(err.value))
 
 
 def test_scalar_invoke_uniq_declns_valid_intrinsic():
-    ''' Tests that all valid access valid intrinsic types for
-    user-defined scalar aarguments ('real' and 'integer') are accepted
-    by Invoke.unique_declarations().
+    ''' Tests that all valid intrinsic types for user-defined scalar arguments
+    ('real' and 'integer') are accepted by Invoke.unique_declarations().
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,

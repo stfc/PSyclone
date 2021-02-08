@@ -197,16 +197,14 @@ def test_lfricfields_call_err():
     fld_arg._intrinsic_type = "triple-type"
     with pytest.raises(InternalError) as err:
         LFRicFields(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
-    assert ("Found unsupported intrinsic types in Invoke "
-            "'invoke_0_testkern_fs_type' declarations for the field "
-            "arguments ['f1']. Supported types are ['real', 'integer']."
-            in str(err.value))
+    assert ("Found unsupported intrinsic types for the field arguments "
+            "['f1'] to Invoke 'invoke_0_testkern_fs_type'. Supported "
+            "types are ['real', 'integer']." in str(err.value))
 
 
 def test_field_invoke_uniq_declns_valid_intrinsic():
-    ''' Tests that all valid access valid intrinsic types for user-defined
-    scalar field arguments ('real' and 'integer') are accepted by
-    Invoke.unique_declarations().
+    ''' Tests that all valid intrinsic types for user-defined field arguments
+    ('real' and 'integer') are accepted by Invoke.unique_declarations().
 
     '''
     _, invoke_info = parse(
@@ -676,8 +674,8 @@ def test_int_real_field_invalid():
 
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
-    assert ("At least one field (['n1']) in Invoke "
-            "'invoke_integer_and_real_field' has different metadata for "
+    assert ("Field argument(s) ['n1'] in Invoke "
+            "'invoke_integer_and_real_field' have different metadata for "
             "data type (['gh_real', 'gh_integer']) in different kernels. "
             "This is invalid." in str(err.value))
 

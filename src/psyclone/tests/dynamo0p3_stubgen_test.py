@@ -44,11 +44,12 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern, LFRicScalarArgs
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.gen_kernel_stub import generate
+from psyclone.f2pygen import ModuleGen
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -90,8 +91,6 @@ def test_lfricscalars_stub_err():
     type of a scalar argument when generating a kernel stub.
 
     '''
-    from psyclone.dynamo0p3 import LFRicScalarArgs
-    from psyclone.f2pygen import ModuleGen
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)

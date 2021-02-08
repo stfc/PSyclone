@@ -56,7 +56,7 @@ from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, \
-    KernCallArgList, DynACCEnterDataDirective, MAPPING_DATA_TYPES
+    KernCallArgList, DynACCEnterDataDirective, VALID_INTRINSIC_TYPES
 
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
@@ -1848,7 +1848,6 @@ def test_invoke_uniq_declns_invalid_access():
 def test_invoke_uniq_declns_invalid_intrinsic():
     ''' Tests that we raise an error when Invoke.unique_declarations() is
     called for an invalid intrinsic type. '''
-    from psyclone.dynamo0p3 import VALID_INTRINSIC_TYPES
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
@@ -1945,7 +1944,7 @@ def test_uniq_proxy_declns_invalid_intrinsic_type():
         psy.invokes.invoke_list[0].unique_proxy_declarations(
             ["gh_field"], intrinsic_type="not_intrinsic_type")
     assert ("Expected one of {0} as a valid intrinsic type but found "
-            "'not_intrinsic_type'.".format(MAPPING_DATA_TYPES.values())
+            "'not_intrinsic_type'.".format(VALID_INTRINSIC_TYPES)
             in str(excinfo.value))
 
 
@@ -1977,10 +1976,9 @@ def test_dyninvoke_uniq_declns_intent_inv_argtype():
             str(excinfo.value))
 
 
-def test_dyninvoke_uniq_declns_intent_inv_intrinsic():
+def test_dyninvoke_uniq_declns_intent_invalid_intrinsic():
     ''' Tests that we raise an error when Invoke.unique_declns_by_intent()
     is called for an invalid intrinsic type. '''
-    from psyclone.dynamo0p3 import VALID_INTRINSIC_TYPES
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)

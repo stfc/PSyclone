@@ -2714,11 +2714,10 @@ class LFRicFields(DynCollection):
                    set(real_fld_arg_list).union(set(int_fld_arg_list)))
         if fld_inv:
             raise InternalError(
-                "Found unsupported intrinsic types in Invoke '{0}' "
-                "declarations for the field arguments {1}. "
-                "Supported types are {2}.".
-                format(self._invoke.name, list(fld_inv),
-                       list(MAPPING_DATA_TYPES.values())))
+                "Found unsupported intrinsic types for the field "
+                "arguments {0} to Invoke '{1}'. Supported types are {2}.".
+                format(list(fld_inv), self._invoke.name,
+                       VALID_INTRINSIC_TYPES))
         # Check that the same field name is not found in both real and
         # integer field lists (for instance if passed to one kernel as a
         # real-valued and to another kernel as an integer-valued field)
@@ -2726,7 +2725,7 @@ class LFRicFields(DynCollection):
             set(real_fld_arg_list).intersection(set(int_fld_arg_list))
         if fld_multi_type:
             raise GenerationError(
-                "At least one field ({0}) in Invoke '{1}' has different "
+                "Field argument(s) {0} in Invoke '{1}' have different "
                 "metadata for data type ({2}) in different kernels. "
                 "This is invalid.".
                 format(list(fld_multi_type), self._invoke.name,
@@ -3215,18 +3214,17 @@ class LFRicScalarArgs(DynCollection):
             scal_inv = set(scal) - set(rscal).union(set(iscal))
             if scal_inv:
                 raise InternalError(
-                    "Found unsupported intrinsic types in Invoke '{0}' "
-                    "declarations for the scalar arguments {1}. "
-                    "Supported types are {2}.".
-                    format(self._invoke.name, list(scal_inv),
-                           list(MAPPING_DATA_TYPES.values())))
+                    "Found unsupported intrinsic types for the scalar "
+                    "arguments {0} to Invoke '{1}'. Supported types are {2}.".
+                    format(list(scal_inv), self._invoke.name,
+                           VALID_INTRINSIC_TYPES))
             # Check that the same scalar name is not found in both real and
             # integer scalar lists (for instance if passed to one kernel as
             # a real and to another kernel as an integer scalar)
             scal_multi_type = set(rscal).intersection(set(iscal))
             if scal_multi_type:
                 raise GenerationError(
-                    "At least one scalar ({0}) in Invoke '{1}' has different "
+                    "Scalar argument(s) {0} in Invoke '{1}' have different "
                     "metadata for data type ({2}) in different kernels. "
                     "This is invalid.".
                     format(list(scal_multi_type), self._invoke.name,
@@ -3278,7 +3276,6 @@ class LFRicScalarArgs(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        # Create and add declarations
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Real scalar arguments
@@ -5082,12 +5079,10 @@ class DynInvoke(Invoke):
             raise InternalError(
                 "Expected one of {0} as a valid access type but found '{1}'.".
                 format(valid_names, access))
-        if (intrinsic_type and intrinsic_type not in
-                MAPPING_DATA_TYPES.values()):
+        if (intrinsic_type and intrinsic_type not in VALID_INTRINSIC_TYPES):
             raise InternalError(
                 "Expected one of {0} as a valid intrinsic type but found "
-                "'{1}'.".format(str(MAPPING_DATA_TYPES.values()),
-                                intrinsic_type))
+                "'{1}'.".format(VALID_INTRINSIC_TYPES, intrinsic_type))
         # Create declarations list
         declarations = []
         for call in self.schedule.kernels():
