@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the ArrayRange2LoopTrans
 transformation.'''
@@ -388,19 +388,19 @@ def test_same_range():
 @pytest.mark.parametrize("lhs_create,rhs_create,expected",
                          [(create_array_x, create_literal,
                            "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
-                           "    x(idx)=0.0\n"),
+                           "    x(idx) = 0.0\n"),
                           (create_array_x, create_array_y,
                            "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
-                           "    x(idx)=y(n,idx)\n"),
+                           "    x(idx) = y(n,idx)\n"),
                           (create_array_y, create_array_x,
                            "  do idx = LBOUND(y, 2), UBOUND(y, 2), 1\n"
-                           "    y(n,idx)=x(idx)\n"),
+                           "    y(n,idx) = x(idx)\n"),
                           (create_array_y_2d_slice, create_array_z,
                            "  do idx = LBOUND(y2, 2), UBOUND(y2, 2), 1\n"
-                           "    y2(:,idx)=z(:,n,idx)\n"),
+                           "    y2(:,idx) = z(:,n,idx)\n"),
                           (create_array_y_slice_subset, create_expr,
                            "  do idx = 2, n, 2\n"
-                           "    y3(n,idx)=x(idx) * z(1,idx) + a(1)")])
+                           "    y3(n,idx) = x(idx) * z(1,idx) + a(1)")])
 def test_transform_apply(lhs_create, rhs_create, expected, tmpdir):
     '''Check that the PSyIR is transformed as expected for various types
     of ranges in an array. The resultant Fortran code is used to
@@ -444,7 +444,7 @@ def test_transform_multi_apply(tmpdir):
     expected = (
         "  do idx = LBOUND(y2, 2), UBOUND(y2, 2), 1\n"
         "    do idx_1 = LBOUND(y2, 1), UBOUND(y2, 1), 1\n"
-        "      y2(idx_1,idx)=z(idx_1,n,idx)\n"
+        "      y2(idx_1,idx) = z(idx_1,n,idx)\n"
         "    enddo\n"
         "  enddo\n")
     writer = FortranWriter()
@@ -479,10 +479,10 @@ def test_transform_apply_insert(tmpdir):
     writer = FortranWriter()
     expected = (
         "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
-        "    x(idx)=y(n,idx)\n"
+        "    x(idx) = y(n,idx)\n"
         "  enddo\n"
         "  do idx_1 = LBOUND(y2, 2), UBOUND(y2, 2), 1\n"
-        "    y2(:,idx_1)=z(:,n,idx_1)\n"
+        "    y2(:,idx_1) = z(:,n,idx_1)\n"
         "  enddo\n")
     result = writer(routine)
     assert expected in result

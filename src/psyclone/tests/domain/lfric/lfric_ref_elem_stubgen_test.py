@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -61,9 +61,9 @@ def setup():
 REF_ELEM_QUAD_MDATA = '''
 module testkern_refelem_quad_mod
   type, extends(kernel_type) :: testkern_refelem_quad_type
-    type(arg_type), dimension(2) :: meta_args =  &
-        (/ arg_type(gh_field, gh_read,  w1),     &
-           arg_type(gh_field, gh_write, wtheta) /)
+    type(arg_type), dimension(2) :: meta_args =       &
+        (/ arg_type(gh_field, gh_real, gh_read,  w1), &
+           arg_type(gh_field, gh_real, gh_write, wtheta) /)
     type(func_type), meta_funcs(2) = &
         (/ func_type(w1, gh_basis),  &
            func_type(wtheta, gh_basis) /)
