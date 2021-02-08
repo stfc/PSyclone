@@ -49,6 +49,7 @@ import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
 import six
+import logging
 import fparser
 from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
@@ -154,6 +155,10 @@ psyGen.VALID_SCALAR_NAMES = LFRicArgDescriptor.VALID_SCALAR_NAMES
 
 # psyGen argument types translate to LFRic argument types.
 psyGen.VALID_ARG_TYPE_NAMES = LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
+
+# ---------- Logging configuration -------------------------------------------#
+
+LOGGER = logging.getLogger(__name__)
 
 # ---------- Functions ------------------------------------------------------ #
 
@@ -7261,7 +7266,9 @@ class DynKern(CodedKern):
         if self.name.lower().endswith("_code"):
             self._base_name = self.name[:-5]
         else:
-            # TODO: #11 add a warning here when logging is added
+            LOGGER.warning(
+                "Kernel subroutine '%' does not conform to the LFRic API "
+                "naming scheme (should end with '_code')", self.name)
             self._base_name = self.name
         self._func_descriptors = ktype.func_descriptors
         # Keep a record of the type of CMA kernel identified when

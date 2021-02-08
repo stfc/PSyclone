@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,6 +51,7 @@ import argparse
 import sys
 import os
 import traceback
+import logging
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
@@ -248,6 +249,7 @@ def main(args):
     Parses and checks the command line arguments, calls the generate
     function if all is well, catches any errors and outputs the
     results.
+
     :param list args: the list of command-line arguments that PSyclone has \
                       been invoked with.
     '''
@@ -333,6 +335,10 @@ def main(args):
     else:
         # We write any transformed kernels to the current working directory
         kern_out_path = os.getcwd()
+
+    # Initialise the logging system
+    logging.basicConfig(filename='psyclone.log', filemode='w',
+                        level=logging.INFO)
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
