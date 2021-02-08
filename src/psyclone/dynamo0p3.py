@@ -8580,17 +8580,17 @@ class DynKernelArgument(KernelArgument):
         :rtype: str
 
         '''
-        valid_reductions = AccessType.get_valid_reduction_names()
+        write_accesses = AccessType.all_write_accesses()
         if self.access == AccessType.READ:
             return "in"
-        elif self.access in [AccessType.WRITE, AccessType.READWRITE,
-                             AccessType.INC] + valid_reductions:
+        elif self.access in write_accesses:
             return "inout"
         else:
+            valid_accesses = [AccessType.READ.api_specific_name()] + \
+                [access.api_specific_name() for access in write_accesses]
             raise GenerationError(
-                "Expecting argument access to be one of 'gh_read, gh_write, "
-                "gh_inc', 'gh_readwrite' or one of {0}, but found '{1}'".
-                format(valid_reductions, self.access))
+                "In the LFRic API argument access must be one of {0}, but "
+                "found '{1}'.".format(valid_accesses, self.access))
 
     @property
     def discontinuous(self):
