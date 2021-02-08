@@ -57,14 +57,6 @@ BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
 VALID_BUILTIN_ARG_TYPES = LFRicArgDescriptor.VALID_FIELD_NAMES + \
     LFRicArgDescriptor.VALID_SCALAR_NAMES
 
-# The data types of field arguments that are valid for built-in kernels
-# in the LFRic API (also valid LFRicArgDescriptor field data types)
-VALID_BUILTIN_FIELD_DATA_TYPES = LFRicArgDescriptor.VALID_FIELD_DATA_TYPES
-
-# The data types of scalar arguments that are valid for built-in kernels
-# in the LFRic API (also valid LFRicArgDescriptor scalar data types)
-VALID_BUILTIN_SCALAR_DATA_TYPES = LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES
-
 # Valid LFRic iteration spaces for built-in kernels
 # TODO #870 rm 'dofs' from list below.
 BUILTIN_ITERATION_SPACES = ["dofs", "dof"]
@@ -229,19 +221,21 @@ class DynBuiltIn(BuiltIn):
             # Check valid data types (InternalError as the relevant ParseError
             # is caught in LFRicArgDescriptor)
             if (arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES and
-                    arg.data_type not in VALID_BUILTIN_FIELD_DATA_TYPES):
+                    arg.data_type not in
+                    LFRicArgDescriptor.VALID_FIELD_DATA_TYPES):
                 raise InternalError(
                     "Found an unsupported data type '{0}' for a field "
                     "argument in kernel '{1}'. Supported data types are {2}.".
                     format(arg.data_type, self.name,
-                           VALID_BUILTIN_FIELD_DATA_TYPES))
+                           LFRicArgDescriptor.VALID_FIELD_DATA_TYPES))
             if (arg.argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES and
-                    arg.data_type not in VALID_BUILTIN_SCALAR_DATA_TYPES):
+                    arg.data_type not in
+                    LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES):
                 raise InternalError(
                     "Found an unsupported data type '{0}' for a scalar "
                     "argument in kernel '{1}'. Supported data types are {2}.".
                     format(arg.data_type, self.name,
-                           VALID_BUILTIN_SCALAR_DATA_TYPES))
+                           LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES))
             # Built-ins update fields DoF by DoF and therefore can have
             # WRITE/READWRITE access
             if arg.access in [AccessType.WRITE, AccessType.SUM,

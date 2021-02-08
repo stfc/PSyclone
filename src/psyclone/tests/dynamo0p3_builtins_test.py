@@ -49,6 +49,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
 from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone import dynamo0p3_builtins
 
 from psyclone.tests.lfric_build import LFRicBuild
@@ -273,8 +274,9 @@ def test_builtin_args_not_same_space():
 
 def test_builtin_invalid_field_data_type():
     ''' Check that we raise appropriate error if we encounter a built-in
-    that takes an invalid field data type (here "gh_double" field). '''
-    from psyclone.dynamo0p3_builtins import VALID_BUILTIN_FIELD_DATA_TYPES
+    that takes an invalid field data type (here "gh_double" field).
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.1_X_minus_Y_builtin.f90"),
                            api=API)
@@ -289,13 +291,15 @@ def test_builtin_invalid_field_data_type():
         dynamo0p3_builtins.DynXMinusYKern._validate(kern)
     assert ("Found an unsupported data type 'gh_double' for a field "
             "argument in kernel 'x_minus_y'. Supported data types are {0}".
-            format(VALID_BUILTIN_FIELD_DATA_TYPES) in str(excinfo.value))
+            format(LFRicArgDescriptor.VALID_FIELD_DATA_TYPES) in
+            str(excinfo.value))
 
 
 def test_builtin_invalid_scalar_data_type():
     ''' Check that we raise appropriate error if we encounter a built-in
-    that takes an invalid scalar data type (here "gh_float" scalar). '''
-    from psyclone.dynamo0p3_builtins import VALID_BUILTIN_SCALAR_DATA_TYPES
+    that takes an invalid scalar data type (here "gh_float" scalar).
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.4.2_inc_a_times_X_builtin.f90"),
                            api=API)
@@ -310,7 +314,8 @@ def test_builtin_invalid_scalar_data_type():
         dynamo0p3_builtins.DynIncATimesXKern._validate(kern)
     assert ("Found an unsupported data type 'gh_float' for a scalar argument "
             "in kernel 'inc_a_times_x'. Supported data types are {0}".
-            format(VALID_BUILTIN_SCALAR_DATA_TYPES) in str(excinfo.value))
+            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES) in
+            str(excinfo.value))
 
 
 def test_dynbuiltincallfactory_str():
