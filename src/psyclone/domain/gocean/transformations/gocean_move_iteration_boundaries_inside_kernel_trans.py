@@ -56,7 +56,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
     >>>   end do
     >>> end do
 
-    will be translated to:
+    will be transformed to:
 
     >>> startx = 2
     >>> stopx = N - 1
@@ -64,7 +64,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
     >>> stopy = N - 1
     >>> do i = 1, size(field, 1)
     >>>   do j = 1, size(field, 2)
-    >>>      kernel(i, j, startx, stopx, starty, stopx, field)
+    >>>      kernel(i, j, field, startx, stopx, starty, stopx)
     >>>   end do
     >>> end do
 
