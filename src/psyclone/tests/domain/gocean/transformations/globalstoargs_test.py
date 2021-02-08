@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -221,7 +221,7 @@ def test_globalstoargumentstrans_constant(monkeypatch):
     fwriter = FortranWriter()
     kernel_code = fwriter(kernel.get_kernel_schedule())
 
-    assert "subroutine kernel_with_use_code(ji,jj,istep,ssha,tmask,rdt)" \
+    assert "subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt)" \
         in kernel_code
     assert "integer, intent(in) :: rdt" in kernel_code
 
@@ -277,11 +277,12 @@ def test_globalstoarguments_multiple_kernels(monkeypatch):
     # The kernels are checked before the psy.gen, so they don't include the
     # modified suffix.
     expected = [
-        ["subroutine kernel_with_use_code(ji,jj,istep,ssha,tmask,rdt)",
+        ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt)",
          "real, intent(inout) :: rdt"],
-        ["subroutine kernel_with_use2_code(ji,jj,istep,ssha,tmask,cbfr,rdt)",
+        ["subroutine kernel_with_use2_code(ji, jj, istep, ssha, tmask, cbfr,"
+         " rdt)",
          "real, intent(inout) :: cbfr\n  real, intent(inout) :: rdt"],
-        ["subroutine kernel_with_use_code(ji,jj,istep,ssha,tmask,rdt)",
+        ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt)",
          "real, intent(inout) :: rdt"]]
 
     # Monkeypatch the resolve_deferred() methods to avoid searching and

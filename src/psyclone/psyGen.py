@@ -49,10 +49,11 @@ from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
-    Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE
+    Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
+    ArgumentInterface, DeferredType
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
-    Routine, PSyDataNode, Call, Reference
+    Routine, PSyDataNode, Call
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 
@@ -2875,14 +2876,9 @@ class CodedKern(Kern):
         self.parent.children[self.position] = call_node
         call_node.parent = self.parent
 
-        # Add arguments as children
-        for argument in self.arguments.raw_arg_list():
-            # TODO #1010: Some arrays and structures are given by the name,
-            # not the PSyIR DataType, we just use the base name for now.
-            argument = argument.split('%')[0]
-            argument = argument.split('(')[0]
-            argument_symbol = symtab.lookup(argument)
-            call_node.addchild(Reference(argument_symbol))
+        for argument in self.arguments.psyir_expressions():
+            call_node.addchild(argument)
+            argument.parent = call_node
 
         if not self.module_inline:
             # Import subroutine symbol
@@ -3226,6 +3222,16 @@ class CodedKern(Kern):
         kern_schedule.name = new_kern_name[:]
         kern_schedule.root.name = new_mod_name[:]
 
+        # Change the name of the symbol
+        try:
+            kern_symbol = kern_schedule.symbol_table.lookup(orig_kern_name)
+            kern_schedule.root.symbol_table.rename_symbol(kern_symbol,
+                                                          new_kern_name)
+        except KeyError:
+            # TODO #1013. Right now not all tests have PSyIR symbols because
+            # some only expect f2pygen generation.
+            pass
+
         # TODO #1013. This needs re-doing properly - in particular the
         # RoutineSymbol associated with the kernel needs to be replaced. For
         # now we only fix the specific case of the name of the kernel routine
@@ -3448,6 +3454,14 @@ class Arguments(object):
         '''
         raise NotImplementedError("Arguments.raw_arg_list must be "
                                   "implemented in sub-class")
+
+    @abc.abstractmethod
+    def psyir_expressions(self):
+        '''
+        :returns: the PSyIR expressions representing this Argument list.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
 
     def clear_cached_data(self):
         '''This function is called to clear all cached data, which
@@ -3706,11 +3720,59 @@ class Argument(object):
             self._text = None
         else:
             # There are unit-tests where we create Arguments without an
-            # associated call.
-            if self._call:
+            # associated call or InvokeSchedule.
+            if self._call and self._call.ancestor(InvokeSchedule):
+
+                symtab = self._call.ancestor(InvokeSchedule).symbol_table
+
+                # Keep original list of arguments
+                previous_arguments = symtab.argument_list
+
+                # Find the tag to use
                 tag = "AlgArgs_" + self._text
-                self._name = self._call.root.symbol_table.symbol_from_tag(
-                    tag, self._orig_name).name
+
+                # Prepare the Argument Interface Access value
+                if access and access.name == "READ":
+                    argument_access = ArgumentInterface.Access.READ
+                elif access and access.name == "WRITE":
+                    argument_access = ArgumentInterface.Access.WRITE
+                else:
+                    # If access is READWRITE, INC, SUM, UNKNOWN or no access
+                    # is given, use a READWRITE argument interface.
+                    argument_access = ArgumentInterface.Access.READWRITE
+
+                # Find the tag or create a new symbol with expected attributes
+                new_argument = symtab.symbol_from_tag(
+                    tag, root_name=self._orig_name, symbol_type=DataSymbol,
+                    datatype=self.infer_datatype(),
+                    interface=ArgumentInterface(argument_access))
+                self._name = new_argument.name
+
+                # Unless the argument already exists with another interface
+                # (e.g. globals) they come from the invoke argument list
+                if isinstance(new_argument.interface, ArgumentInterface):
+                    symtab.specify_argument_list(previous_arguments +
+                                                 [new_argument])
+
+    @abc.abstractmethod
+    def psyir_expression(self):
+        '''
+        :returns: the PSyIR expression represented by this Argument.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+
+    def infer_datatype(self):
+        ''' Infer the datatype of this argument using the API rules. If no
+        specialisation of this method has been provided make the type
+        DeferredType for now (it may be provided later in the execution).
+
+        :returns: the datatype of this argument.
+        :rtype: :py:class::`psyclone.psyir.symbols.datatype`
+
+        '''
+        # pylint: disable=no-self-use
+        return DeferredType()
 
     def __str__(self):
         return self._name

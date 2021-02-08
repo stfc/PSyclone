@@ -74,9 +74,9 @@ def setup():
 STENCIL_CODE = '''
 module stencil_mod
   type, extends(kernel_type) :: stencil_type
-     type(arg_type), meta_args(2) =          &
-          (/ arg_type(gh_field, gh_inc, w1), &
-             arg_type(gh_field, gh_read, w2, stencil(cross)) &
+     type(arg_type), meta_args(2) =                                   &
+          (/ arg_type(gh_field, gh_real, gh_inc,  w1),                &
+             arg_type(gh_field, gh_real, gh_read, w2, stencil(cross)) &
            /)
      integer :: operates_on = cell_column
    contains
@@ -297,11 +297,11 @@ def test_stencil_args_unique_2(dist_mem, tmpdir):
     assert output5 in result
     if dist_mem:
         assert (
-                "IF (f2_proxy%is_dirty(depth=max(f2_info+1,"
-                "f2_info_2+1))) THEN" in result)
+            "IF (f2_proxy%is_dirty(depth=max(f2_info+1,"
+            "f2_info_2+1))) THEN" in result)
         assert (
-                "CALL f2_proxy%halo_exchange(depth=max(f2_info+1,"
-                "f2_info_2+1))" in result)
+            "CALL f2_proxy%halo_exchange(depth=max(f2_info+1,"
+            "f2_info_2+1))" in result)
         assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
         assert "CALL f3_proxy%halo_exchange(depth=1)" in result
         assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
@@ -325,21 +325,21 @@ def test_stencil_args_unique_3(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
-            "      INTEGER(KIND=i_def), intent(in) :: my_info_f2_info, "
-            "my_info_f2_info_2\n"
-            "      INTEGER(KIND=i_def), intent(in) :: my_info_f2_info_1, "
-            "my_info_f2_info_3\n"
-            in result)
+        "      INTEGER(KIND=i_def), intent(in) :: my_info_f2_info, "
+        "my_info_f2_info_2\n"
+        "      INTEGER(KIND=i_def), intent(in) :: my_info_f2_info_1, "
+        "my_info_f2_info_3\n"
+        in result)
     assert (
-            "f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap(STENCIL_1DX,"
-            "my_info_f2_info)" in result)
+        "f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap(STENCIL_1DX,"
+        "my_info_f2_info)" in result)
     if dist_mem:
         assert (
-                "IF (f2_proxy%is_dirty(depth=max(my_info_f2_info+1,"
-                "my_info_f2_info_2+1))) THEN" in result)
+            "IF (f2_proxy%is_dirty(depth=max(my_info_f2_info+1,"
+            "my_info_f2_info_2+1))) THEN" in result)
         assert (
-                "CALL f2_proxy%halo_exchange(depth=max(my_info_f2_info+1,"
-                "my_info_f2_info_2+1))" in result)
+            "CALL f2_proxy%halo_exchange(depth=max(my_info_f2_info+1,"
+            "my_info_f2_info_2+1))" in result)
         assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
         assert "CALL f3_proxy%halo_exchange(depth=1)" in result
         assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
@@ -361,27 +361,27 @@ def test_stencil_vector(dist_mem, tmpdir):
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
     assert (
-               "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
-               "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
-           in str(result)
+        "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
+        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
+        in str(result)
     assert (
-               "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => "
-               "null()\n"
-               "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:)"
-               " => null()\n"
-               "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-               "null()\n") \
-           in str(result)
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:)"
+        " => null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+        "null()\n") \
+        in str(result)
     assert (
-               "      f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
-               "(STENCIL_CROSS,f2_extent)\n"
-               "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-               "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
-           ) in str(result)
+        "      f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
+        "(STENCIL_CROSS,f2_extent)\n"
+        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
+        ) in str(result)
     assert (
-               "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, "
-               "f2_proxy(4)%data, f2_stencil_size(cell), "
-               "f2_stencil_dofmap(:,:,cell)") in str(result)
+        "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, "
+        "f2_proxy(4)%data, f2_stencil_size(cell), "
+        "f2_stencil_dofmap(:,:,cell)") in str(result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -399,41 +399,41 @@ def test_stencil_xory_vector(dist_mem, tmpdir):
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
     assert (
-               "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
-               "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
-               "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
-           in result
+        "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
+        "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
+        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
+        in result
     assert (
-               "      INTEGER(KIND=i_def), intent(in) :: f2_extent\n"
-               "      INTEGER(KIND=i_def), intent(in) :: f2_direction\n") \
-           in result
+        "      INTEGER(KIND=i_def), intent(in) :: f2_extent\n"
+        "      INTEGER(KIND=i_def), intent(in) :: f2_direction\n") \
+        in result
     assert (
-               "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => "
-               "null()\n"
-               "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:)"
-               " => null()\n"
-               "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-               "null()\n") \
-           in result
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:)"
+        " => null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+        "null()\n") \
+        in result
     assert (
-               "      IF (f2_direction .eq. x_direction) THEN\n"
-               "        f2_stencil_map => "
-               "f2_proxy(1)%vspace%get_stencil_dofmap"
-               "(STENCIL_1DX,f2_extent)\n"
-               "      END IF\n"
-               "      IF (f2_direction .eq. y_direction) THEN\n"
-               "        f2_stencil_map => "
-               "f2_proxy(1)%vspace%get_stencil_dofmap"
-               "(STENCIL_1DY,f2_extent)\n"
-               "      END IF\n"
-               "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-               "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
-           ) in result
+        "      IF (f2_direction .eq. x_direction) THEN\n"
+        "        f2_stencil_map => "
+        "f2_proxy(1)%vspace%get_stencil_dofmap"
+        "(STENCIL_1DX,f2_extent)\n"
+        "      END IF\n"
+        "      IF (f2_direction .eq. y_direction) THEN\n"
+        "        f2_stencil_map => "
+        "f2_proxy(1)%vspace%get_stencil_dofmap"
+        "(STENCIL_1DY,f2_extent)\n"
+        "      END IF\n"
+        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
+        ) in result
     assert (
-               "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, "
-               "f2_proxy(4)%data, f2_stencil_size(cell), f2_direction, "
-               "f2_stencil_dofmap(:,:,cell)") \
-           in result
+        "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, "
+        "f2_proxy(4)%data, f2_stencil_size(cell), f2_direction, "
+        "f2_stencil_dofmap(:,:,cell)") \
+        in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 

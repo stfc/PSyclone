@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -701,19 +701,22 @@ def test_dynkern_setup(monkeypatch):
 BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(12) =                                  &
-          (/ arg_type(gh_field,    gh_inc,       w0),                 &
-             arg_type(gh_operator, gh_readwrite, w1, w1),             &
-             arg_type(gh_field,    gh_read,      w2),                 &
-             arg_type(gh_operator, gh_write,     w3, w3),             &
-             arg_type(gh_field,    gh_write,     wtheta),             &
-             arg_type(gh_operator, gh_readwrite, w2h, w2h),           &
-             arg_type(gh_field,    gh_read,      w2v),                &
-             arg_type(gh_operator, gh_readwrite, w2broken, w2broken), &
-             arg_type(gh_field,    gh_read,      wchi),               &
-             arg_type(gh_operator, gh_write,     w2trace,  w2trace),  &
-             arg_type(gh_field,    gh_inc,       w2htrace),           &
-             arg_type(gh_operator, gh_read,      w2vtrace, w2vtrace)  &
+     type(arg_type), meta_args(12) =                                 &
+          (/ arg_type(gh_field,    gh_real, gh_inc,       w0),       &
+             arg_type(gh_operator, gh_real, gh_readwrite, w1, w1),   &
+             arg_type(gh_field,    gh_real, gh_read,      w2),       &
+             arg_type(gh_operator, gh_real, gh_write,     w3, w3),   &
+             arg_type(gh_field,    gh_real, gh_write,     wtheta),   &
+             arg_type(gh_operator, gh_real, gh_readwrite, w2h, w2h), &
+             arg_type(gh_field,    gh_real, gh_read,      w2v),      &
+             arg_type(gh_operator, gh_real, gh_readwrite, w2broken,  &
+                                                          w2broken), &
+             arg_type(gh_field,    gh_real, gh_read,      wchi),     &
+             arg_type(gh_operator, gh_real, gh_write,     w2trace,   &
+                                                          w2trace),  &
+             arg_type(gh_field,    gh_real, gh_inc,       w2htrace), &
+             arg_type(gh_operator, gh_real, gh_read,      w2vtrace,  &
+                                                          w2vtrace)  &
            /)
      type(func_type), meta_funcs(12) =      &
           (/ func_type(w0, gh_basis),       &

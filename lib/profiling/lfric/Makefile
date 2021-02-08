@@ -30,19 +30,48 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Authors: A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# -----------------------------------------------------------------------------
+# Author J. Henrichs, Bureau of Meteorology
 
-include ../common.mk
+# This makefile compiles a PSyData profiling wrapper library using the LFRic
+# timer code. It can be used with any code, not only with LFRic.
 
-transform:
-	${PYTHON} create.py
-	${PYTHON} create_structure_types.py
-	${PYTHON} modify.py
+# This defaults to the infrastructure library included in PSyclone
+LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_LIB=$(LFRIC_DIR)/liblfric.a
 
-compile:
-	@echo "No compilation supported for the PSyIR examples"
+F90?=gfortran
+F90FLAGS?=-g
+F90FLAGS += -I$(LFRIC_DIR)
 
-run: compile
-	@echo "No run targets for PSyIR creation examples"
+PSY_OBJS = profile_psy_data_mod.o
+LFRIC_OBJS = timer_mod.o log_mod.o scalar_mod.o mpi_mod.o io_utility_mod.o
+LFRIC_OBJS_FULL_PATH = $(patsubst %,$(LFRIC_DIR)/%,$(LFRIC_OBJS))
+
+.phony: default clean
+
+default: libpsy_lfric_timer.a libpsy_lfric_timer_standalone.a
+
+# First target: this needs to be linked with the LFRic
+# infrastructure library.
+libpsy_lfric_timer.a: $(PSY_OBJS)
+	ar rs $@ $<
+
+# Second target: this library contains the required files
+# from the infrastructure library, and can be used by any
+# application, not only LFRic.
+libpsy_lfric_timer_standalone.a: $(LFRIC_LIB) $(PSY_OBJS)
+	ar rs $@ $(LFRIC_OBJS_FULL_PATH) $(PSY_OBJS)
+
+# Trigger recompilation if the infrastructure lib is changed
+$(OBJS): $(LFRIC_LIB)
+
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_DIR)
+
+%.o: %.F90
+	$(F90) $(F90FLAGS) -c $<
+
+clean:
+	rm -f libpsy_lfric_timer.a libpsy_lfric_timer_standalone.a *.mod *.o
 

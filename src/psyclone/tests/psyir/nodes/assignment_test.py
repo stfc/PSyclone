@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -100,7 +100,7 @@ def test_assignment_create():
     assignment = Assignment.create(lhs, rhs)
     check_links(assignment, [lhs, rhs])
     result = FortranWriter().assignment_node(assignment)
-    assert result == "tmp=0.0\n"
+    assert result == "tmp = 0.0\n"
 
 
 def test_assignment_children_validation():

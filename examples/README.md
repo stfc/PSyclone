@@ -14,7 +14,7 @@ Various examples related to the GOCean API.
 Various examples related to the NEMO API.
 
 ## [lfric](./lfric)
-Various examples related to the LFric API.
+Various examples related to the LFRic API.
 
 ## [line_length](./line_length)
 This example demonstrates the use of the line length option.
@@ -34,8 +34,8 @@ This directory shows how to use the inline transformation.
 # Compiler Settings
 By default, all examples are using ``gfortran`` as compiler.
 If you want to change the compiler, use the environment
-variables F90 and F90FLAGS, e.g.:
-    
+variables ``F90`` and ``F90FLAGS``, e.g.:
+
 ```shell
     F90=ifort F90FLAGS="-g -check bounds" make
 ```

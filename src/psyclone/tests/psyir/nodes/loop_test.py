@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -226,7 +226,7 @@ def test_loop_create():
     check_links(loop, [start, stop, step, schedule])
     check_links(schedule, [child_node])
     result = FortranWriter().loop_node(loop)
-    assert result == "do i = 0, 1, 1\n  tmp=i\nenddo\n"
+    assert result == "do i = 0, 1, 1\n  tmp = i\nenddo\n"
 
 
 def test_loop_create_invalid():

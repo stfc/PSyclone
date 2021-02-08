@@ -22,6 +22,11 @@ rely on a file compiled in this directory.
 Contains code for extracting kernel data - i.e. all input and output parameters of
 a kernel invocation.
 
+## `nan_test`
+
+Contains PSyData libraries for checking that input and output parameters of kernels
+are valid numbers (i.e. not NaN or infinity).
+
 ## `profiling` directory
 
 Contains PSyData wrapper libraries for various profiling libraries and stand-alone timing
