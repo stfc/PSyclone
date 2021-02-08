@@ -158,11 +158,12 @@ the ``field_type`` and ``integer_field_type`` classes, respectively.
 Field Vector
 ++++++++++++
 
-Depending on the function space a field lives on, the field data at a
-point can be a scalar or a vector (see :ref:`dynamo0.3-function-space`
+Depending on the function space a field lives on, the field data value at
+a point can be a scalar or a vector (see :ref:`dynamo0.3-function-space`
 for the list of scalar and vector function spaces). There is an
-additional option which specifies whether the data itself is vector
-valued and it usually refers to bundles of scalar-valued fields.
+additional option, called a *field vector*, to represent a bundle of
+either scalar- or vector-valued fields (in LFRic it is commonly used
+to represent bundles of scalar-valued fields).
 Field vectors are represented as ``GH_FIELD*N`` where ``N`` is the
 size of the vector. The 3D coordinate field, for example, has
 ``(x, y, z)`` scalar values at the nodes and therefore has a

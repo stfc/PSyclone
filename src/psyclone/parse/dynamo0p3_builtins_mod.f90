@@ -289,7 +289,7 @@ module dynamo0p3_builtins_mod
   end type inc_a_times_X
 
 ! ------------------------------------------------------------------- !
-! ============== Dividing (scaled) real fields ====================== !
+! ============== Dividing real fields =============================== !
 ! ------------------------------------------------------------------- !
 
   !> field3 = field1/field2
@@ -624,7 +624,7 @@ contains
   subroutine inc_a_times_X_code()
   end subroutine inc_a_times_X_code
 
-  ! Dividing (scaled) real fields
+  ! Dividing real fields
   subroutine X_divideby_Y_code()
   end subroutine X_divideby_Y_code
 

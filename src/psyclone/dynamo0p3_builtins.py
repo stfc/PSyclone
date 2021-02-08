@@ -357,9 +357,10 @@ class DynBuiltIn(BuiltIn):
 
 
 class DynXPlusYKern(DynBuiltIn):
-    ''' Add one real-valued field to another and return the result as
-    a third real-valued field '''
+    ''' Add one, real-valued, field to another and return the result as
+    a third, real-valued, field.
 
+    '''
     def __str__(self):
         return "Built-in: Add real-valued fields"
 
@@ -382,8 +383,9 @@ class DynXPlusYKern(DynBuiltIn):
 
 
 class DynIncXPlusYKern(DynBuiltIn):
-    ''' Add the second real-valued field to the first field and return it '''
+    ''' Add the second, real-valued, field to the first field and return it.
 
+    '''
     def __str__(self):
         return "Built-in: Increment a real-valued field"
 
@@ -406,8 +408,9 @@ class DynIncXPlusYKern(DynBuiltIn):
 
 class DynAXPlusYKern(DynBuiltIn):
     ''' Z = a.X + Y where 'a' is a real scalar and 'Z', 'X' and
-    'Y' are real-valued fields '''
+    'Y' are real-valued fields.
 
+    '''
     def __str__(self):
         return "Built-in: aX_plus_Y (real-valued fields)"
 
@@ -434,8 +437,9 @@ class DynAXPlusYKern(DynBuiltIn):
 
 class DynIncAXPlusYKern(DynBuiltIn):
     ''' X = a.X + Y where 'a' is a real scalar and 'X' and 'Y' are
-    real-valued fields '''
+    real-valued fields.
 
+    '''
     def __str__(self):
         return "Built-in: inc_aX_plus_Y (real-valued fields)"
 
@@ -461,8 +465,9 @@ class DynIncAXPlusYKern(DynBuiltIn):
 
 class DynIncXPlusBYKern(DynBuiltIn):
     ''' X = X + b.Y where 'b' is a real scalar and 'X' and 'Y' are
-    real-valued fields '''
+    real-valued fields.
 
+    '''
     def __str__(self):
         return "Built-in: inc_X_plus_bY (real-valued fields)"
 
@@ -488,8 +493,9 @@ class DynIncXPlusBYKern(DynBuiltIn):
 
 class DynAXPlusBYKern(DynBuiltIn):
     ''' Z = a.X + b.Y where 'a' and 'b' are real scalars and 'Z', 'X' and
-    'Y' are real-valued fields '''
+    'Y' are real-valued fields.
 
+    '''
     def __str__(self):
         return "Built-in: aX_plus_bY (real-valued fields)"
 
@@ -502,9 +508,9 @@ class DynAXPlusBYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We multiply one element of field f1 (3rd arg) by the first real
+        # We multiply one element of field f1 (3rd arg) by the first, real,
         # scalar (2nd arg), add it to the product of the corresponding
-        # element of a second field (5th arg) with the second real scalar
+        # element of a second field (5th arg) with the second, real, scalar
         # (4th arg) and write the value to the corresponding element of
         # field f3 (1st arg) (real-valued fields).
         field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
@@ -519,8 +525,9 @@ class DynAXPlusBYKern(DynBuiltIn):
 
 class DynIncAXPlusBYKern(DynBuiltIn):
     ''' X = a.X + b.Y where 'a' and 'b' are real scalars and 'X' and 'Y'
-    are real-valued fields '''
+    are real-valued fields.
 
+    '''
     def __str__(self):
         return "Built-in: inc_aX_plus_bY (real-valued fields)"
 
@@ -533,9 +540,9 @@ class DynIncAXPlusBYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We multiply one element of field f1 (2nd arg) by the first real
+        # We multiply one element of field f1 (2nd arg) by the first, real,
         # scalar (1st arg), add it to the product of the corresponding
-        # element of a second field (4th arg) with the second real scalar
+        # element of a second field (4th arg) with the second, real, scalar
         # (4rd arg) and write the value back into the element of field f1
         # (real-valued fields).
         scalar_name1 = self._arguments.args[0].name
@@ -553,9 +560,10 @@ class DynIncAXPlusBYKern(DynBuiltIn):
 
 
 class DynXMinusYKern(DynBuiltIn):
-    ''' Subtract one real-valued field from another and return the
-    result as a third real-valued field '''
+    ''' Subtract one, real-valued, field from another and return the
+    result as a third, real-valued, field.
 
+    '''
     def __str__(self):
         return "Built-in: Subtract real-valued fields"
 
@@ -579,9 +587,10 @@ class DynXMinusYKern(DynBuiltIn):
 
 
 class DynIncXMinusYKern(DynBuiltIn):
-    ''' Subtract the second real-valued field from the first field
-    and return it '''
+    ''' Subtract the second, real-valued, field from the first field
+    and return it.
 
+    '''
     def __str__(self):
         return "Built-in: Decrement a real-valued field"
 
@@ -604,8 +613,9 @@ class DynIncXMinusYKern(DynBuiltIn):
 
 class DynAXMinusYKern(DynBuiltIn):
     ''' Z = a.X - Y where 'a' is a real scalar and 'Z', 'X' and
-    'Y' are real-valued fields '''
+    'Y' are real-valued fields.
 
+    '''
     def __str__(self):
         return "Built-in: aX_minus_Y (real-valued fields)"
 
@@ -632,8 +642,9 @@ class DynAXMinusYKern(DynBuiltIn):
 
 class DynXMinusBYKern(DynBuiltIn):
     ''' Z = X - b.Y where 'b' is a real scalar and 'Z', 'X' and
-    'Y' are real-valued fields '''
+    'Y' are real-valued fields.
 
+    '''
     def __str__(self):
         return "Built-in: X_minus_bY (real-valued fields)"
 
@@ -660,8 +671,9 @@ class DynXMinusBYKern(DynBuiltIn):
 
 class DynIncXMinusBYKern(DynBuiltIn):
     ''' X = X - b.Y where 'b' is a real scalar and 'X' and 'Y' are
-    real-valued fields '''
+    real-valued fields.
 
+    '''
     def __str__(self):
         return "Built-in: inc_X_minus_bY (real-valued fields)"
 
@@ -675,8 +687,8 @@ class DynIncXMinusBYKern(DynBuiltIn):
 
         '''
         # We multiply one element of field f2 (3rd arg) by a real scalar
-        # (2nd arg), subtract it fom  the corresponding element of a first
-        # field f1 (1st arg) and write the value back into the element of
+        # (2nd arg), subtract it from the corresponding element of field
+        # f1 (1st arg) and write the value back into the element of
         # field f1 (real-valued fields).
         scalar_name = self._arguments.args[1].name
         field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
@@ -691,9 +703,10 @@ class DynIncXMinusBYKern(DynBuiltIn):
 
 
 class DynXTimesYKern(DynBuiltIn):
-    ''' DoF-wise product of one real-valued field with another with
-    the result returned as a third real-valued field '''
+    ''' DoF-wise product of one, real-valued, field with another with
+    the result returned as a third, real-valued, field.
 
+    '''
     def __str__(self):
         return "Built-in: Multiply real-valued fields"
 
@@ -717,8 +730,9 @@ class DynXTimesYKern(DynBuiltIn):
 
 
 class DynIncXTimesYKern(DynBuiltIn):
-    ''' Multiply the first real-valued field by the second and return it '''
+    ''' Multiply the first, real-valued, field by the second and return it.
 
+    '''
     def __str__(self):
         return "Built-in: Multiply one real-valued field by another"
 
@@ -741,8 +755,9 @@ class DynIncXTimesYKern(DynBuiltIn):
 
 class DynIncAXTimesYKern(DynBuiltIn):
     ''' X = a.X.Y where 'a' is a real scalar and 'X' and 'Y' are
-    real-valued fields '''
+    real-valued fields.
 
+    '''
     def __str__(self):
         return "Built-in: inc_aX_times_Y (real-valued fields)"
 
@@ -756,7 +771,7 @@ class DynIncAXTimesYKern(DynBuiltIn):
 
         '''
         # We multiply a real scalar (1st arg) by a DoF-wise product of
-        # (real-valued fields f1 (2nd arg) and f2 (3rd arg) and write
+        # (real-valued) fields f1 (2nd arg) and f2 (3rd arg) and write
         # the value back into the element of field f1.
         scalar_name = self._arguments.args[0].name
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
@@ -771,9 +786,10 @@ class DynIncAXTimesYKern(DynBuiltIn):
 
 
 class DynATimesXKern(DynBuiltIn):
-    ''' Multiply the first real-valued field by a real scalar and return
-    the result as a second real-valued field (Y = a.X) '''
+    ''' Multiply the first, real-valued, field by a real scalar and
+    return the result as a second, real-valued, field (Y = a.X).
 
+    '''
     def __str__(self):
         return "Built-in: Copy a scaled real-valued field"
 
@@ -796,8 +812,9 @@ class DynATimesXKern(DynBuiltIn):
 
 
 class DynIncATimesXKern(DynBuiltIn):
-    ''' Multiply a real-valued field by a real scalar and return it '''
+    ''' Multiply a real-valued field by a real scalar and return it.
 
+    '''
     def __str__(self):
         return "Built-in: Scale a real-valued field"
 
@@ -819,14 +836,15 @@ class DynIncATimesXKern(DynBuiltIn):
 
 
 # ------------------------------------------------------------------- #
-# ============== Dividing (scaled) real fields ====================== #
+# ============== Dividing real fields =============================== #
 # ------------------------------------------------------------------- #
 
 
 class DynXDividebyYKern(DynBuiltIn):
-    ''' Divide the first real-valued field by the second and return the
-    result as real-valued a third field '''
+    ''' Divide the first, real-valued, field by the second and return
+    the result as a third, real-valued, field.
 
+    '''
     def __str__(self):
         return "Built-in: Divide real-valued fields"
 
@@ -849,8 +867,9 @@ class DynXDividebyYKern(DynBuiltIn):
 
 
 class DynIncXDividebyYKern(DynBuiltIn):
-    ''' Divide the first real-valued field by the second and return it '''
+    ''' Divide the first, real-valued, field by the second and return it.
 
+    '''
     def __str__(self):
         return "Built-in: Divide one real-valued field by another"
 
@@ -877,8 +896,9 @@ class DynIncXDividebyYKern(DynBuiltIn):
 
 
 class DynIncXPowrealAKern(DynBuiltIn):
-    ''' Raise a real-valued field to a real power and return it '''
+    ''' Raise a real-valued field to a real power and return it.
 
+    '''
     def __str__(self):
         return "Built-in: Raise a real-valued field to a real power"
 
@@ -900,8 +920,9 @@ class DynIncXPowrealAKern(DynBuiltIn):
 
 
 class DynIncXPowintNKern(DynBuiltIn):
-    ''' Raise a real-valued field to an integer power and return it '''
+    ''' Raise a real-valued field to an integer power and return it.
 
+    '''
     def __str__(self):
         return "Built-in: Raise a real-valued field to an integer power"
 
@@ -928,8 +949,9 @@ class DynIncXPowintNKern(DynBuiltIn):
 
 
 class DynSetvalCKern(DynBuiltIn):
-    ''' Set a real-valued field equal to a real scalar value '''
+    ''' Set a real-valued field equal to a real scalar value.
 
+    '''
     def __str__(self):
         return "Built-in: Set a real-valued field to a real scalar value"
 
@@ -950,8 +972,9 @@ class DynSetvalCKern(DynBuiltIn):
 
 
 class DynSetvalXKern(DynBuiltIn):
-    ''' Set a real-valued field equal to another real-valued field '''
+    ''' Set a real-valued field equal to another, real-valued, field.
 
+    '''
     def __str__(self):
         return "Built-in: Set a real-valued field equal to another such field"
 
@@ -978,8 +1001,9 @@ class DynSetvalXKern(DynBuiltIn):
 
 class DynXInnerproductYKern(DynBuiltIn):
     ''' Calculates the inner product of two real-valued fields,
-    innprod = SUM( X(:)*Y(:) ) '''
+    innprod = SUM( X(:)*Y(:) ).
 
+    '''
     def __str__(self):
         return "Built-in: X_innerproduct_Y (real-valued fields)"
 
@@ -1004,8 +1028,9 @@ class DynXInnerproductYKern(DynBuiltIn):
 
 class DynXInnerproductXKern(DynBuiltIn):
     ''' Calculates the inner product of one real-valued field by itself,
-    innprod = SUM( X(:)*X(:) ) '''
+    innprod = SUM( X(:)*X(:) ).
 
+    '''
     def __str__(self):
         return "Built-in: X_innerproduct_X (real-valued fields)"
 
@@ -1033,8 +1058,9 @@ class DynXInnerproductXKern(DynBuiltIn):
 
 
 class DynSumXKern(DynBuiltIn):
-    ''' Computes the sum of the elements of a real-valued field '''
+    ''' Computes the sum of the elements of a real-valued field.
 
+    '''
     def __str__(self):
         return "Built-in: Sum a real-valued field"
 
@@ -1064,8 +1090,8 @@ class DynSumXKern(DynBuiltIn):
 # ------------------------------------------------------------------- #
 
 class LFRicIntXPlusYKern(DynXPlusYKern):
-    ''' Add corresponding elements of two integer-valued fields, `X`
-    and `Y`, and return the result as a third integer-valued field, `Z`.
+    ''' Add corresponding elements of two, integer-valued, fields, `X`
+    and `Y`, and return the result as a third, integer-valued, field, `Z`.
     Inherits the `gen_code` method from the real-valued built-in
     equivalent `DynXPlusYKern`.
 
@@ -1093,8 +1119,8 @@ class LFRicIntIncXPlusYKern(DynIncXPlusYKern):
 
 class LFRicIntXMinusYKern(DynXMinusYKern):
     ''' Subtract each element of an integer-valued field, `Y`, from
-    the corresponding element of another integer-valued field, `X`,
-    and return the result as a third integer-valued field, `Z`.
+    the corresponding element of another, integer-valued, field, `X`,
+    and return the result as a third, integer-valued, field, `Z`.
     Inherits the `gen_code` method from the real-valued built-in
     equivalent `DynXMinusYKern`.
 
@@ -1105,10 +1131,11 @@ class LFRicIntXMinusYKern(DynXMinusYKern):
 
 class LFRicIntIncXMinusYKern(DynIncXMinusYKern):
     ''' Subtract each element of an integer-valued field, `Y`, from
-    the corresponding element of another integer-valued field, `X`,
+    the corresponding element of another, integer-valued, field, `X`,
     and store the result back in `X`.
     Inherits the `gen_code` method from the real-valued built-in
     equivalent `DynXMinusYKern`.
+
     '''
     def __str__(self):
         return "Built-in: Decrement an integer-valued field"
@@ -1120,9 +1147,9 @@ class LFRicIntIncXMinusYKern(DynIncXMinusYKern):
 
 
 class LFRicIntXTimesYKern(DynXTimesYKern):
-    ''' Multiply each element of one integer-valued field, `X`, by
-    the corresponding element of another integer-valued field, `Y`,
-    and returne the result as a third integer-valued field, `Z`.
+    ''' Multiply each element of one, integer-valued, field, `X`, by
+    the corresponding element of another, integer-valued, field, `Y`,
+    and return the result as a third, integer-valued, field, `Z`.
     Inherits the `gen_code` method from the real-valued built-in
     equivalent `DynXTimesYKern`.
 
@@ -1132,8 +1159,8 @@ class LFRicIntXTimesYKern(DynXTimesYKern):
 
 
 class LFRicIntIncXTimesYKern(DynIncXTimesYKern):
-    ''' Multiply each element of one integer-valued field, `X`, by
-    the corresponding element of another integer-valued field, `Y`,
+    ''' Multiply each element of one, integer-valued, field, `X`, by
+    the corresponding element of another, integer-valued, field, `Y`,
     and store the result back in `X`.
     Inherits the `gen_code` method from the real-valued built-in
     equivalent `DynIncXTimesYKern`.
@@ -1149,9 +1176,9 @@ class LFRicIntIncXTimesYKern(DynIncXTimesYKern):
 
 
 class LFRicIntATimesXKern(DynATimesXKern):
-    ''' Multiply each element of the first integer-valued field, `X`,
-     by an integer scalar, `a`, and return the result as a second
-    integer-valued field `Y` (`Y = a*X`)
+    ''' Multiply each element of the first, integer-valued, field, `X`,
+     by an integer scalar, `a`, and return the result as a second,
+    integer-valued, field `Y` (`Y = a*X`).
     Inherits the `gen_code` method from the real-valued built-in
     equivalent `DynATimesXKern`.
 
@@ -1179,7 +1206,6 @@ class LFRicIntIncATimesXKern(DynIncATimesXKern):
 class LFRicIntSetvalCKern(DynSetvalCKern):
     ''' Assign a single constant integer scalar value, `c`, to all
     elements of an integer-valued field, `X`.
-    Set an integer-valued field equal to an integer scalar value
     Inherits the `gen_code` method from the real-valued built-in
     equivalent `DynSetvalCKern`.
 
@@ -1191,7 +1217,7 @@ class LFRicIntSetvalCKern(DynSetvalCKern):
 
 class LFRicIntSetvalXKern(DynSetvalXKern):
     ''' Copy one element of an integer-valued field (second argument),
-    `X`, to the corresponding element of field of another integer-valued
+    `X`, to the corresponding element of another, integer-valued,
     field (first argument), `Y`.
     Inherits the `gen_code` method from the real-valued built-in
     equivalent `DynSetvalXKern`.
@@ -1229,7 +1255,7 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Multiplying real fields by a real scalar (scaling fields)
     "a_times_X": DynATimesXKern,
     "inc_a_times_X": DynIncATimesXKern,
-    # Dividing (scaled) real fields
+    # Dividing real fields
     "X_divideby_Y": DynXDividebyYKern,
     "inc_X_divideby_Y": DynIncXDividebyYKern,
     # Raising a real field to a scalar
