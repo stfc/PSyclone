@@ -140,6 +140,9 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: inc_X_divideby_Y_code
   end type inc_X_divideby_Y
 
+  ! TODO in #1107: Add a check that mixing will only be allowed for the
+  ! built-ins that convert 'real'- to 'integer'-valued fields and vice-versa.
+
 contains
 
   subroutine aX_plus_Y_code()

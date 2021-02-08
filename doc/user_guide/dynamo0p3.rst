@@ -150,9 +150,8 @@ the field is on. Placement of field data points, also called degrees of
 freedom (hereafter "DoFs"), is determined by the function space the field
 is on.
 LFRic fields can have ``real``-valued data or ``integer``-valued data.
-Properties of the ``real``-valued fields in the LFRic infrastructure
-are stored in the ``field_type`` class, and of the ``integer``-valued
-fields in the ``integer_field_type`` class.
+In the LFRic infrastructure, these fields are represented by instances of
+the ``field_type`` and ``integer_field_type`` classes, respectively.
 
 .. _dynamo0.3-field-vector:
 
@@ -176,8 +175,8 @@ Operator
 
 Represents a matrix constructed on a per-cell basis using Local
 Matrix Assembly (LMA) and is identified with ``GH_OPERATOR``
-metadata. Properties of the operators in the LFRic infrastructure
-are stored in the ``operator_type`` class. LFRic operators can only
+metadata. In the LFRic infrastructure, operators are represented by
+instances of the ``operator_type`` class. LFRic operators can only
 have ``real``-valued data.
 
 .. _dynamo0.3-cma-operator:
@@ -187,9 +186,9 @@ Column-Wise Operator
 
 The LFRic API has support for the construction and use of
 column-wise/Column Matrix Assembly (CMA) operators whose metadata
-identifier is ``GH_COLUMNWISE_OPERATOR``. Properties of the
-column-wise operators in the LFRic infrastructure are stored in
-the ``columnwise_operator_type`` class. LFRic column-wise
+identifier is ``GH_COLUMNWISE_OPERATOR``. In the LFRic
+infrastructure, column-wise operators are represented by instances
+of the ``columnwise_operator_type`` class. LFRic column-wise
 operators can only have ``real``-valued data.
 
 As the name suggests, these are operators constructed for a whole
@@ -2037,7 +2036,11 @@ following rules:
    ``integer`` scalar arguments;
 
 7) Built-ins that update ``integer``-valued fields can only read from
-   other ``integer``-valued fields and take ``integer`` scalar arguments.
+   other ``integer``-valued fields and take ``integer`` scalar arguments
+
+.. note:: The exceptions from taking only the fields of the same data
+          type are built-ins that convert `real`- to `integer`-valued
+          fields and vice-versa, which will be introduced in #1107.
 
 The Built-ins supported for the LFRic API are listed in the related
 subsections, grouped first by the data type of fields they operate on
@@ -2183,7 +2186,8 @@ scheme presented below. Any new Built-in needs to comply with these rules.
 
    3) Common prefix is ``"Dyn"`` for the Built-in operations on the
       ``real``-valued`` arguments and ````"LFRicInt" for the Built-in
-      operations on the ``integer``-valued fields.
+      operations on the ``integer``-valued fields (TODO: the class
+      names will be harmonised in #1114).
 
 .. _lfric-built-ins-real:
 
@@ -2193,16 +2197,15 @@ Built-in operations on ``real``-valued fields
 Addition
 ########
 
-Built-ins that add (scaled) ``real``-valued fields are denoted with
-the keyword **plus**.
+Built-ins that add (scaled) ``real``-valued fields and return the result
+as a `real`-valued field are denoted with the keyword **plus**.
 
 X_plus_Y
 ^^^^^^^^
 
 **X_plus_Y** (*field3*, *field1*, *field2*)
 
-Sums two ``real``-valued fields and stores the result in the third
-``real``-valued field (``Z = X + Y``)::
+Sums two fields and stores the result in the third field (``Z = X + Y``)::
 
   field3(:) = field1(:) + field2(:)
 
@@ -2215,8 +2218,7 @@ inc_X_plus_Y
 
 **inc_X_plus_Y** (*field1*, *field2*)
 
-Adds the second ``real``-valued field to the first ``real``-valued
-field and returns it (``X = X + Y``)::
+Adds the second field to the first and returns it (``X = X + Y``)::
 
   field1(:) = field1(:) + field2(:)
 
@@ -2243,7 +2245,7 @@ inc_aX_plus_Y
 
 **inc_aX_plus_Y** (*rscalar*, *field1*, *field2*)
 
-Performs ``X = aX + Y`` (increments the first ``real``-valued field)::
+Performs ``X = aX + Y`` (increments the first field)::
 
   field1(:) = rscalar*field1(:) + field2(:)
 
@@ -2257,7 +2259,7 @@ inc_X_plus_bY
 
 **inc_X_plus_bY** (*field1*, *rscalar*, *field2*)
 
-Performs ``X = X + bY`` (increments the first ``real``-valued field)::
+Performs ``X = X + bY`` (increments the first field)::
 
   field1(:) = field1(:) + rscalar*field2(:)
 
@@ -2285,7 +2287,7 @@ inc_aX_plus_bY
 
 **inc_aX_plus_bY** (*rscalar1*, *field1*, *rscalar2*, *field2*)
 
-Performs ``X = aX + bY`` (increments the first ``real``-valued field)::
+Performs ``X = aX + bY`` (increments the first field)::
 
   field1(:) = rscalar1*field1(:) + rscalar2*field2(:)
 
@@ -2297,17 +2299,16 @@ where:
 Subtraction
 ###########
 
-Built-ins which subtract (scaled) ``real``-valued  fields are denoted with
-the keyword **minus**.
+Built-ins which subtract (scaled) ``real``-valued  fields and return the
+result as a `real`-valued field are denoted with the keyword **minus**.
 
 X_minus_Y
 ^^^^^^^^^
 
 **X_minus_Y** (*field3*, *field1*, *field2*)
 
-Subtracts the second ``real``-valued field from the first
-``real``-valued field and stores the result in the third
-``real``-valued field (``Z = X - Y``)::
+Subtracts the second field from the first and returns the result in the
+third field (``Z = X - Y``)::
 
   field3(:) = field1(:) - field2(:)
 
@@ -2320,8 +2321,7 @@ inc_X_minus_Y
 
 **inc_X_minus_Y** (*field1*, *field2*)
 
-Subtracts the second ``real``-valued  field from the first
-``real``-valued field and returns it (``X = X - Y``)::
+Subtracts the second field from the first and returns it (``X = X - Y``)::
 
   field1(:) = field1(:) - field2(:)
 
@@ -2362,7 +2362,7 @@ inc_X_minus_bY
 
 **inc_X_minus_bY** (*field1*, *rscalar*, *field2*)
 
-Performs ``X = X - bY`` (decrements the first ``real``-valued field)::
+Performs ``X = X - bY`` (decrements the first field)::
 
   field1(:) = field1(:) - rscalar*field2(:)
 
@@ -2374,16 +2374,16 @@ where:
 Multiplication
 ##############
 
-Built-ins which multiply (scaled) ``real``-valued fields are denoted
-with the keyword **times**.
+Built-ins which multiply (scaled) ``real``-valued fields and return the
+result as a `real`-valued field are denoted with the keyword **times**.
 
 X_times_Y
 ^^^^^^^^^
 
 **X_times_Y** (*field3*, *field1*, *field2*)
 
-Multiplies two ``real``-valued fields DoF by DoF and returns the result
-in a third ``real``-valued field (``Z = X*Y``)::
+Multiplies two fields DoF by DoF and returns the result in a
+third field (``Z = X*Y``)::
 
   field3(:) = field1(:)*field2(:)
 
@@ -2396,8 +2396,7 @@ inc_X_times_Y
 
 **inc_X_times_Y** (*field1*, *field2*)
 
-Multiplies the first ``real``-valued field by the second ``real``-valued
-field and returns it (``X = X*Y``)::
+Multiplies the first field by the second and returns it (``X = X*Y``)::
 
   field1(:) = field1(:)*field2(:)
 
@@ -2410,7 +2409,7 @@ inc_aX_times_Y
 
 **inc_aX_times_Y** (*rscalar*, *field1*, *field2*)
 
-Performs ``X = a*X*Y`` (increments the first ``real``-valued field)::
+Performs ``X = a*X*Y`` (increments the first field)::
 
   field1(:) = rscalar*field1(:)*field2(:)
 
@@ -2431,8 +2430,8 @@ a_times_X
 
 **a_times_X** (*field2*, *rscalar*, *field1*)
 
-Multiplies a ``real``-valued field by a ``real`` scalar and stores the
-result in a second ``real``-valued field (``Y = a*X``)::
+Multiplies a field by a ``real`` scalar value and stores the result
+in another field (``Y = a*X``)::
 
   field2(:) = rscalar*field1(:)
 
@@ -2446,8 +2445,8 @@ inc_a_times_X
 
 **inc_a_times_X** (*rscalar*, *field*)
 
-Multiplies a ``real``-valued field by a ``real`` scalar value and returns
-the field (``X = a*X``)::
+Multiplies a field by a ``real`` scalar value and returns the
+field (``X = a*X``)::
 
   field(:) = rscalar*field(:)
 
@@ -2459,17 +2458,16 @@ where:
 Division
 ########
 
-Built-ins which divide (scaled) ``real``-valued fields are denoted with
-the keyword **divideby**.
+Built-ins which divide ``real``-valued fields and return the result
+as a `real`-valued field are denoted with the keyword **divideby**.
 
 X_divideby_Y
 ^^^^^^^^^^^^
 
 **X_divideby_Y** (*field3*, *field1*, *field2*)
 
-Divides the first ``real``-valued field by the second ``real``-valued
-field and stores the result in the third ``real``-valued field
-(``Z = X/Y``)::
+Divides the first field by the second field, DoF by DoF, and stores the
+result in the third field (``Z = X/Y``)::
 
   field3(:) = field1(:)/field2(:)
 
@@ -2482,8 +2480,7 @@ inc_X_divideby_Y
 
 **inc_X_divideby_Y** (*field1*, *field2*)
 
-Divides the first ``real``-valued field by the second ``real``-valued
-field and returns it (``X = X/Y``)::
+Divides the first field by the second and returns it (``X = X/Y``)::
 
   field1(:) = field1(:)/field2(:)
 
@@ -2502,8 +2499,8 @@ setval_c
 
 **setval_c** (*field*, *constant*)
 
-Sets all elements of a ``real``-valued  field *field* to a ``real``
-scalar *constant* (``X = c``)::
+Sets all elements of a field *field* to a ``real`` scalar
+*constant* (``X = c``)::
 
   field(:) = constant
 
@@ -2512,15 +2509,13 @@ where:
 * ``type(field_type), intent(in) ::`` **field**
 * ``real(r_def), intent(in) ::`` *constant*
 
-.. note:: The field may be on any function space.
-
 setval_X
 ^^^^^^^^
 
 **setval_X** (*field2*, *field1*)
 
-Sets a ``real``-valued field *field2* equal (DoF per DoF) to another
-``real``-valued field *field1* (``Y = X``)::
+Sets a field *field2* equal (DoF per DoF) to another field
+*field1* (``Y = X``)::
 
   field2(:) = field1(:)
 
@@ -2540,8 +2535,8 @@ inc_X_powreal_a
 
 **inc_X_powreal_a** (*field*, *rscalar*)
 
-Raises a ``real``-valued field to a ``real`` scalar value and returns
-the field (``X = X**a``)::
+Raises a field to a ``real`` scalar value and returns the
+field (``X = X**a``)::
 
   field(:) = field(:)**rscalar
 
@@ -2555,7 +2550,7 @@ inc_X_powint_n
 
 **inc_X_powint_n** (*field*, *iscalar*)
 
-Raises a ``real``-valued field to an ``integer`` scalar value and returns
+Raises a field to an ``integer`` scalar value and returns
 the field (``X = X**n``)::
 
   field(:) = field(:)**iscalar
@@ -2569,8 +2564,8 @@ Inner product
 #############
 
 Built-ins which calculate the inner product of two ``real``-valued fields
-or of a ``real``-valued field with itself are denoted with the keyword
-**innerproduct**.
+or of a ``real``-valued field with itself and return the result as a
+`real` scalar are denoted with the keyword **innerproduct**.
 
 .. note:: When used with distributed memory these Built-ins will
           trigger the addition of a global sum which may affect the
@@ -2581,7 +2576,7 @@ X_innerproduct_Y
 
 **X_innerproduct_Y** (*innprod*, *field1*, *field2*)
 
-Computes the inner product of two ``real``-valued fields, *field1*
+Computes the inner product of two fields, *field1*
 and *field2*, *i.e.*::
 
   innprod = SUM(field1(:)*field2(:))
@@ -2596,7 +2591,7 @@ X_innerproduct_X
 
 **X_innerproduct_X** (*innprod*, *field*)
 
-Computes the inner product of the ``real``-valued field *field1*
+Computes the inner product of the field *field1*
 by itself, *i.e.*::
 
   innprod = SUM(field(:)*field(:))
@@ -2609,8 +2604,8 @@ where:
 Sum of elements
 ###############
 
-Built-in which sums the elements of a ``real``-valued field is denoted
-with the keyword *sum*.
+A Built-in which sums the elements of a ``real``-valued field and returns
+the result as a `real` scalar is denoted with the keyword *sum*.
 
 .. note:: When used with distributed memory this Built-in will trigger
           the addition of a global sum which may affect the
@@ -2621,8 +2616,8 @@ sum_X
 
 **sum_X** (*sumfld*, *field*)
 
-Sums all of the elements of the ``real``-valued field *field* and returns
-the result in the ``real`` scalar variable *sumfld*::
+Sums all of the elements of the field *field* and returns the result
+in the ``real`` scalar variable *sumfld*::
 
   sumfld = SUM(field(:))
 
@@ -2643,16 +2638,16 @@ mathematical operations on ``integer``-valued fields make sense.
 Addition
 ########
 
-Built-ins that add ``integer``-valued fields are denoted with the
-keyword **plus** and the prefix **int**.
+Built-ins that add ``integer``-valued fields and return the result as
+an `integer`-valued field are denoted with the keyword **plus** and
+the prefix **int**.
 
 int_X_plus_Y
 ^^^^^^^^^^^^
 
 **int_X_plus_Y** (*ifield3*, *ifield1*, *ifield2*)
 
-Sums two ``integer``-valued fields and stores the result in the third
-``integer``-valued field (``Z = X + Y``)::
+Sums two fields and stores the result in the third field (``Z = X + Y``)::
 
   ifield3(:) = ifield1(:) + ifield2(:)
 
@@ -2665,8 +2660,7 @@ int_inc_X_plus_Y
 
 **int_inc_X_plus_Y** (*ifield1*, *ifield2*)
 
-Adds the second ``integer``-valued field to the first ``integer``-valued
-field and returns it (``X = X + Y``)::
+Adds the second field to the first and returns it (``X = X + Y``)::
 
   ifield1(:) = ifield1(:) + ifield2(:)
 
@@ -2677,17 +2671,17 @@ where:
 Subtraction
 ###########
 
-Built-ins which subtract ``integer``-valued  fields are denoted with
-the keyword **minus** and the prefix **int**.
+Built-ins which subtract ``integer``-valued fields and return the result
+as an `integer`-valued field are denoted with the keyword **minus**
+and the prefix **int**.
 
 int_X_minus_Y
 ^^^^^^^^^^^^^
 
 **int_X_minus_Y** (*ifield3*, *ifield1*, *ifield2*)
 
-Subtracts the second ``integer``-valued field from the first
-``integer``-valued field and stores the result in the third
-``integer``-valued field (``Z = X - Y``)::
+Subtracts the second field from the first and returns the result in the
+third field (``Z = X - Y``)::
 
   ifield3(:) = ifield1(:) - ifield2(:)
 
@@ -2700,8 +2694,7 @@ int_inc_X_minus_Y
 
 **int_inc_X_minus_Y** (*ifield1*, *ifield2*)
 
-Subtracts the second ``integer``-valued  field from the first
-``integer``-valued field and returns it (``X = X - Y``)::
+Subtracts the second field from the first and returns it (``X = X - Y``)::
 
   ifield1(:) = ifield1(:) - ifield2(:)
 
@@ -2712,16 +2705,17 @@ where:
 Multiplication
 ##############
 
-Built-ins which multiply ``integer``-valued fields are denoted
-with the keyword **times** and the prefix **int**.
+Built-ins which multiply ``integer``-valued fields and return the result
+as an `integer`-valued field are denoted with the keyword **times**
+and the prefix **int**.
 
 int_X_times_Y
 ^^^^^^^^^^^^^
 
 **int_X_times_Y** (*ifield3*, *ifield1*, *ifield2*)
 
-Multiplies two ``integer``-valued fields DoF by DoF and returns the
-result in a third ``integer``-valued field (``Z = X*Y``)::
+Multiplies two fields DoF by DoF and returns the result in a
+third field (``Z = X*Y``)::
 
   ifield3(:) = ifield1(:)*ifield2(:)
 
@@ -2730,12 +2724,11 @@ where:
 * ``type(integer_field_type), intent(in)`` :: **ifield3**, *ifield1*, *ifield2*
 
 int_inc_X_times_Y
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^
 
 **int_inc_X_times_Y** (*ifield1*, *ifield2*)
 
-Multiplies the first ``integer``-valued field by the second
-``integer``-valued field and returns it (``X = X*Y``)::
+Multiplies the first field by the second and returns it (``X = X*Y``)::
 
   ifield1(:) = ifield1(:)*ifield2(:)
 
@@ -2746,17 +2739,16 @@ where:
 Scaling
 #######
 
-As their ``real`` counterparts, Built-ins which scale ``integer``-valued
-fields are denoted with the keyword **times**. They are also prefixed
-by the keyword **int**.
+Built-ins which scale ``integer``-valued fields are denoted with the keyword
+**times** and prefixed by the keyword **int**.
 
 int_a_times_X
 ^^^^^^^^^^^^^
 
 **int_a_times_X** (*ifield2*, *iscalar*, *ifield1*)
 
-Multiplies an ``integer``-valued field by an ``integer`` scalar and stores
-the result in a second ``integer``-valued field (``Y = a*X``)::
+Multiplies a field by an ``integer`` scalar and stores the result
+in another field (``Y = a*X``)::
 
   ifield2(:) = iscalar*ifield1(:)
 
@@ -2770,8 +2762,8 @@ int_inc_a_times_X
 
 **int_inc_a_times_X** (*iscalar*, *ifield*)
 
-Multiplies an ``integer``-valued field by an ``integer`` scalar value
-and returns the field (``X = a*X``)::
+Multiplies a field by an ``integer`` scalar value and returns the
+field (``X = a*X``)::
 
   ifield(:) = iscalar*ifield(:)
 
@@ -2791,8 +2783,8 @@ int_setval_c
 
 **int_setval_c** (*ifield*, *constant*)
 
-Sets all elements of an ``integer``-valued  field *ifield* to an
-``integer`` scalar *constant* (``X = c``)::
+Sets all elements of a field *ifield* to an ``integer`` scalar
+*constant* (``X = c``)::
 
   ifield(:) = constant
 
@@ -2801,15 +2793,13 @@ where:
 * ``type(integer_field_type), intent(in) ::`` **ifield**
 * ``integer(i_def), intent(in) ::`` *constant*
 
-.. note:: The field may be on any function space.
-
 int_setval_X
 ^^^^^^^^^^^^
 
 **int_setval_X** (*ifield2*, *ifield1*)
 
-Sets an ``integer``-valued field *ifield2* equal (DoF per DoF) to
-another ``integer``-valued field *ifield1* (``Y = X``)::
+Sets a field *ifield2* equal (DoF per DoF) to another field
+*ifield1* (``Y = X``)::
 
   ifield2(:) = ifield1(:)
 
