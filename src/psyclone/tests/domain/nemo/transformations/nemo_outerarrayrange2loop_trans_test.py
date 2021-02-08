@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the NemoOuterArrayRange2LoopTrans
 transformation.'''
@@ -80,7 +80,7 @@ def test_transform_apply_mixed_implicit_do():
     expected = (
         "do jk = 1, jpk, 1\n"
         "  do jj = 1, jpj, 1\n"
-        "    umask(:,jj,jk)=vmask(:,jj,jk) + 1.0\n"
+        "    umask(:,jj,jk) = vmask(:,jj,jk) + 1.0\n"
         "  enddo\n"
         "enddo")
     assert expected in result
@@ -90,7 +90,7 @@ def test_transform_apply_mixed_implicit_do():
         "do jk = 1, jpk, 1\n"
         "  do jj = 1, jpj, 1\n"
         "    do ji = 1, jpi, 1\n"
-        "      umask(ji,jj,jk)=vmask(ji,jj,jk) + 1.0\n"
+        "      umask(ji,jj,jk) = vmask(ji,jj,jk) + 1.0\n"
         "    enddo\n"
         "  enddo\n"
         "enddo")
