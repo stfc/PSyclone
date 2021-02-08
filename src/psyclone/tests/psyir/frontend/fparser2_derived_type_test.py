@@ -51,7 +51,8 @@ from fparser.common.readfortran import FortranStringReader
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_deferred_derived_type():
+@pytest.mark.parametrize("type_name", ["my_type", "MY_TYPE", "mY_type"])
+def test_deferred_derived_type(type_name):
     ''' Check that we get a symbol with a type given by a TypeSymbol (which
     itself is of DeferredType) for a declaration using an unresolved derived
     type. '''
@@ -59,7 +60,7 @@ def test_deferred_derived_type():
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod\n"
-                                 "type(my_type) :: var")
+                                 "type({0}) :: var".format(type_name))
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     vsym = symtab.lookup("var")
@@ -84,7 +85,8 @@ def test_missing_derived_type():
     assert "No Symbol found for name 'my_type'" in str(err.value)
 
 
-def test_name_clash_derived_type(f2008_parser):
+@pytest.mark.parametrize("type_name", ["my_type", "MY_TYPE", "mY_type"])
+def test_name_clash_derived_type(f2008_parser, type_name):
     ''' Check that the frontend raises an error if it encounters a reference
     to a derived type that clashes with another symbol. '''
     fake_parent = KernelSchedule("dummy_schedule")
@@ -94,16 +96,16 @@ def test_name_clash_derived_type(f2008_parser):
     symtab.add(RoutineSymbol("my_type"))
     processor = Fparser2Reader()
     reader = FortranStringReader("subroutine my_sub()\n"
-                                 "  type(my_type) :: some_var\n"
-                                 "end subroutine my_sub\n")
+                                 "  type({0}) :: some_var\n"
+                                 "end subroutine my_sub\n".format(type_name))
     fparser2spec = f2008_parser(reader)
     # This should raise an error because the Container symbol table should
     # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, fparser2spec.content, [])
-    assert ("Search for a TypeSymbol named 'my_type' (required by declaration"
-            " 'TYPE(my_type) :: some_var') found a 'RoutineSymbol' "
-            "instead" in str(err.value))
+    assert ("Search for a TypeSymbol named '{0}' (required by declaration"
+            " 'TYPE({0}) :: some_var') found a 'RoutineSymbol' "
+            "instead".format(type_name) in str(err.value))
 
 
 def test_name_clash_derived_type_def(f2008_parser):
@@ -185,7 +187,8 @@ def test_parse_derived_type(use_stmt):
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_derived_type_self_ref():
+@pytest.mark.parametrize("type_name", ["my_type", "MY_TYPE", "mY_type"])
+def test_derived_type_self_ref(type_name):
     ''' Test that we can parse a derived type that contains a pointer
     reference of that same type. The 'pointer' attribute is not supported
     so we get a TypeSymbol of UnknownFortranType. '''
@@ -193,10 +196,10 @@ def test_derived_type_self_ref():
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
     reader = FortranStringReader("type :: my_type\n"
-                                 "  type(my_type), pointer :: next => null()\n"
+                                 "  type({0}), pointer :: next => null()\n"
                                  "  integer :: flag\n"
                                  "end type my_type\n"
-                                 "type(my_type) :: var\n")
+                                 "type({0}) :: var\n".format(type_name))
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")

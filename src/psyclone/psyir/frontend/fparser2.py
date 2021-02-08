@@ -83,9 +83,13 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
 def _find_or_create_imported_symbol(location, name, scope_limit=None,
                                     **kargs):
     '''Returns the symbol with the name 'name' from a symbol table
-    associated with this node or one of its ancestors.  If the symbol
-    is not found and there are no ContainerSymbols with wildcard imports
-    then an exception is raised. However, if there are one or more
+    associated with this node or one of its ancestors.  If a symbol is found
+    and the `symbol_type` keyword argument is supplied then the type of the
+    existing symbol is compared with the specified type. If it is not already
+    an instance of this type, then the symbol is specialised (in place).
+
+    If the symbol is not found and there are no ContainerSymbols with wildcard
+    imports then an exception is raised. However, if there are one or more
     ContainerSymbols with wildcard imports (which could therefore be
     bringing the symbol into scope) then a new Symbol with the
     specified visibility but of unknown interface is created and
@@ -162,14 +166,17 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
 
             try:
                 # If the name matches a Symbol in this SymbolTable then
-                # return the Symbol.
+                # return the Symbol (after specialising it, if necessary).
                 sym = symbol_table.lookup(name, scope_limit=test_node)
-                if "symbol_type" in kargs and type(sym) == Symbol:
-                    # The caller specified a sub-class of Symbol and we've
-                    # only found a generic Symbol.
-                    # TODO 935
-                    sym.__class__ = kargs.pop("symbol_type")
-                    sym.__init__(sym.name, **kargs)
+                if "symbol_type" in kargs:
+                    expected_type = kargs.pop("symbol_type")
+                    if not isinstance(sym, expected_type):
+                        # The caller specified a sub-class so we need to
+                        # specialise the existing symbol.
+                        # TODO Use the API developed in #1113 to specialise
+                        # the symbol.
+                        sym.__class__ = expected_type
+                        sym.__init__(sym.name, **kargs)
                 return sym
             except KeyError:
                 # The supplied name does not match any Symbols in
@@ -1078,15 +1085,17 @@ class Fparser2Reader(object):
     def _parse_dimensions(dimensions, symbol_table):
         '''
         Parse the fparser dimension attribute into a shape list with
-        the extent of each dimension.
+        the extent of each dimension. If any of the symbols encountered are
+        instances of the generic Symbol class, they are specialised (in
+        place) and become instances of DataSymbol with DeferredType.
 
         :param dimensions: fparser dimension attribute
         :type dimensions: \
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
-        :param symbol_table: Symbol table of the declaration context.
+        :param symbol_table: symbol table of the declaration context.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        :returns: Shape of the attribute in column-major order (leftmost \
+        :returns: shape of the attribute in column-major order (leftmost \
             index is contiguous in memory). Each entry represents an array \
             dimension. If it is 'None' the extent of that dimension is \
             unknown, otherwise it holds an integer with the extent. If it is \
@@ -1128,7 +1137,10 @@ class Fparser2Reader(object):
                         sym = symbol_table.lookup(dim_name)
                         # pylint: disable=unidiomatic-typecheck
                         if type(sym) == Symbol:
-                            # TODO #935 convert this to a DataSymbol
+                            # An entry for this symbol exists but it's only a
+                            # generic Symbol and we now know it must be a
+                            # DataSymbol.
+                            # TODO use the API developed in #1113.
                             sym.__class__ = DataSymbol
                             sym.__init__(sym.name, DeferredType(),
                                          interface=sym.interface)
@@ -1453,7 +1465,7 @@ class Fparser2Reader(object):
             base_type = ScalarType(data_name, precision)
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
             # This is a variable of derived type
-            type_name = str(walk(type_spec, Fortran2003.Type_Name)[0]).lower()
+            type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
             # Do we already have a Symbol for this derived type?
             type_symbol = _find_or_create_imported_symbol(parent, type_name)
             # pylint: disable=unidiomatic-typecheck
