@@ -48,7 +48,6 @@ use argument_mod,            only : arg_type, func_type,                 &
                                     GH_READ, GH_WRITE,                   &
                                     ANY_DISCONTINUOUS_SPACE_1,           &
                                     ANY_DISCONTINUOUS_SPACE_2,           &
-                                    GH_COLUMN_BANDED_DOFMAP,             &
                                     CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
@@ -84,7 +83,7 @@ contains
 
   !> @brief The subroutine which is called directly from the PSy layer and
   !> assembles the LMA into a CMA
-  !> @detail Given an LMA representation of the operator mapping between two
+  !> @details Given an LMA representation of the operator mapping between two
   !> horizontally discontinuous spaces, assemble the columnwise matrix
   !> representation of the operator.
   !>
