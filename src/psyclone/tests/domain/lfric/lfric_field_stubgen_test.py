@@ -45,7 +45,7 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynFields
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern, LFRicFields
 from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.errors import InternalError
 
@@ -86,8 +86,8 @@ end module testkern_field_mod
 '''
 
 
-def test_dynfields_stub_err():
-    ''' Check that the DynFields constructor raises the expected internal
+def test_lfricfields_stub_err():
+    ''' Check that the LFRicFields constructor raises the expected internal
     error if it encounters an unrecognised intrinsic type of a field
     argument when generating a kernel stub.
 
@@ -106,7 +106,7 @@ def test_dynfields_stub_err():
     fld_arg.descriptor._data_type = "gh_invalid_type"
     print(fld_arg.descriptor._data_type)
     with pytest.raises(InternalError) as err:
-        DynFields(kernel)._stub_declarations(sub_stub)
+        LFRicFields(kernel)._stub_declarations(sub_stub)
     assert ("Found an unsupported data type 'gh_invalid_type' in "
             "kernel stub declarations for the field argument 'field_2'. "
             "Supported types are {0}.".
