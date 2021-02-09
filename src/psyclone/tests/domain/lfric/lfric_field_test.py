@@ -44,6 +44,7 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
+from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import LFRicArgDescriptor, FunctionSpace
 from psyclone.dynamo0p3 import DynKernMetadata, LFRicFields
 from psyclone.f2pygen import ModuleGen
@@ -90,6 +91,22 @@ end module testkern_field_mod
 '''
 
 
+def test_ad_fld_type_1st_arg():
+    ''' Tests that an error is raised when the first argument descriptor
+    metadata for a field is invalid. '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    code = FIELD_CODE.replace("arg_type(gh_field,  gh_real,    gh_inc,   w1)",
+                              "arg_type(gh_hedge, gh_real, gh_inc, w1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_field_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("the 1st argument of a 'meta_arg' entry should be a valid "
+            "argument type (one of {0}), but found 'gh_hedge'".
+            format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
+            in str(excinfo.value))
+
+
 def test_ad_field_invalid_data_type():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a field has an invalid data type. '''
@@ -116,6 +133,67 @@ def test_ad_field_invalid_data_type():
         _ = DynKernMetadata(ast, name=name)
     assert ("but found 'gh_double' in 'arg_type(gh_field, gh_double, "
             "gh_read, w3)'." in str(excinfo.value))
+
+
+def test_field_gh_sum_invalid():
+    ''' Tests that an error is raised when a field is specified with
+    access type 'gh_sum'. '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    code = FIELD_CODE.replace("arg_type(gh_field,  gh_real,    gh_read,  w2)",
+                              "arg_type(gh_field, gh_real, gh_sum, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_field_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("In the LFRic API, allowed accesses for fields on "
+            "continuous function spaces that are arguments to kernels "
+            "that operate on cell-columns are ['gh_read', 'gh_inc'], but "
+            "found 'gh_sum' for 'w2'" in str(excinfo.value))
+
+
+def test_ad_field_type_too_few_args():
+    ''' Tests that an error is raised when the field argument descriptor
+    metadata for a field has fewer than 3 args. '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    code = FIELD_CODE.replace("arg_type(gh_field,  gh_real,    gh_inc,   w1)",
+                              "arg_type(gh_field,  gh_real,    gh_inc)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_field_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("each 'meta_arg' entry must have at least 4 arguments if its "
+            "first argument is of ['gh_field'] type" in str(excinfo.value))
+
+
+def test_ad_fld_type_too_many_args():
+    ''' Tests that an error is raised when the field argument descriptor
+    metadata has more than 4 args. '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    code = FIELD_CODE.replace(
+        "arg_type(gh_field,  gh_real,    gh_inc,   w1)",
+        "arg_type(gh_field,  gh_real,    gh_inc,   w1, w1, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_field_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("each 'meta_arg' entry must have at most 5 arguments if its "
+            "first argument is of ['gh_field'] type" in str(excinfo.value))
+
+
+def test_ad_field_init_wrong_type():
+    ''' Test that an error is raised if something other than a field
+    is passed to the LFRicArgDescriptor._init_field() method. '''
+    ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
+    name = "testkern_field_type"
+    metadata = DynKernMetadata(ast, name=name)
+    # Get an argument which is not a field
+    wrong_arg = metadata._inits[0]
+    with pytest.raises(InternalError) as excinfo:
+        LFRicArgDescriptor(
+            wrong_arg, metadata.iterates_over)._init_field(
+                wrong_arg, metadata.iterates_over)
+    assert ("Expected a field argument but got an argument of type "
+            "'gh_scalar'" in str(excinfo.value))
 
 
 def test_ad_field_init_wrong_data_type(monkeypatch):
@@ -181,6 +259,219 @@ def test_arg_descriptor_invalid_fs():
             in str(excinfo.value))
 
 
+def test_ad_field_init_wrong_iteration_space():
+    ''' Test that an error is raised if a wrong iteration space
+    (other than ['cell_column', 'dof']) is passed to the
+    LFRicArgDescriptor._init_field() method.
+
+    TODO #870 update this test with correct error msg once 'dofs' and
+    'cells' are no longer permitted.
+
+    '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_field_type")
+    field_arg = metadata._inits[1]
+    # Set a wrong iteration space
+    with pytest.raises(InternalError) as excinfo:
+        LFRicArgDescriptor(
+            field_arg, metadata.iterates_over)._init_field(
+                field_arg, "ncolours")
+    assert ("Invalid operates_on 'ncolours' in the kernel metadata (expected "
+            "one of ['cells', 'cell_column', 'domain', 'dofs', 'dof'])." in
+            str(excinfo.value))
+
+
+def test_fs_discontinuous_inc_error():
+    ''' Test that an error is raised if a discontinuous function space
+    and 'gh_inc' are provided for the same field in the metadata. '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    for fspace in FunctionSpace.VALID_DISCONTINUOUS_NAMES:
+        code = FIELD_CODE.replace(
+            "arg_type(gh_field,  gh_integer, gh_read,  w3)",
+            "arg_type(gh_field,  gh_integer, gh_inc, " + fspace + ")", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name="testkern_field_type")
+        assert ("In the LFRic API, allowed accesses for fields on "
+                "discontinuous function spaces that are arguments to kernels "
+                "that operate on either cell-columns or the domain are "
+                "['gh_read', 'gh_write', 'gh_readwrite'], but found 'gh_inc' "
+                "for '{0}'".format(fspace) in str(excinfo.value))
+
+
+def test_fs_continuous_cells_write_or_readwrite_error():
+    ''' Test that an error is raised if a field on a continuous
+    function space is specified as having an access of 'gh_write'
+    or 'gh_readwrite' in kernel metadata.
+
+    '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    for fspace in FunctionSpace.CONTINUOUS_FUNCTION_SPACES:
+        for acc in ["gh_write", "gh_readwrite"]:
+            code = FIELD_CODE.replace(
+                "arg_type(gh_field,  gh_real,    gh_read,  w2)",
+                "arg_type(gh_field, gh_real, " + acc + ", " + fspace + ")", 1)
+            ast = fpapi.parse(code, ignore_comments=False)
+            with pytest.raises(ParseError) as excinfo:
+                _ = DynKernMetadata(ast, name="testkern_field_type")
+            assert ("In the LFRic API, allowed accesses for fields on "
+                    "continuous function spaces that are arguments to "
+                    "kernels that operate on cell-columns are ['gh_read', "
+                    "'gh_inc'], but found '{0}' for '{1}'".
+                    format(acc, fspace) in str(excinfo.value))
+
+
+def test_fs_anyspace_cells_write_or_readwrite_error():
+    ''' Test that an error is raised if a field that is on 'any_space' "
+    "(and therefore may be continuous) is specified as having 'gh_write' "
+    "or 'gh_readwrite' access in the metadata.
+
+    '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    for fspace in FunctionSpace.VALID_ANY_SPACE_NAMES:
+        for acc in ["gh_write", "gh_readwrite"]:
+            code = FIELD_CODE.replace(
+                "arg_type(gh_field,  gh_real,    gh_read,  w2)",
+                "arg_type(gh_field, gh_real, " + acc + ", " + fspace + ")", 1)
+            ast = fpapi.parse(code, ignore_comments=False)
+            with pytest.raises(ParseError) as excinfo:
+                _ = DynKernMetadata(ast, name="testkern_field_type")
+            assert ("In the LFRic API, allowed accesses for fields on "
+                    "continuous function spaces that are arguments to "
+                    "kernels that operate on cell-columns are ['gh_read', "
+                    "'gh_inc'], but found '{0}' for '{1}'".
+                    format(acc, fspace) in str(excinfo.value))
+
+
+def test_fs_anyspace_dofs_inc_error():
+    ''' Test that an error is raised if a field on 'any_space' with
+    'gh_inc' access is specified for a kernel that operates on DoFs. '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    dof_code = FIELD_CODE.replace("integer :: operates_on = cell_column",
+                                  "integer :: operates_on = dof", 1)
+    for fspace in FunctionSpace.VALID_ANY_SPACE_NAMES:
+        code = dof_code.replace(
+            "arg_type(gh_field,  gh_real,    gh_inc,   w1)",
+            "arg_type(gh_field, gh_real, gh_inc, " + fspace + ")", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name="testkern_field_type")
+        assert ("In the LFRic API, allowed field accesses for a kernel "
+                "that operates on DoFs are ['gh_read', 'gh_write', "
+                "'gh_readwrite'], but found 'gh_inc' for '{0}'".
+                format(fspace) in str(excinfo.value))
+
+
+def test_arg_descriptor_field():
+    ''' Test that the LFRicArgDescriptor argument representation works
+    as expected for a field argument. '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_field_type")
+    field_descriptor = metadata.arg_descriptors[1]
+
+    # Assert correct string representation from LFRicArgDescriptor
+    result = str(field_descriptor)
+    expected_output = (
+        "LFRicArgDescriptor object\n"
+        "  argument_type[0]='gh_field'\n"
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_inc'\n"
+        "  function_space[3]='w1'")
+    assert expected_output in result
+
+    # Check LFRicArgDescriptor argument properties
+    assert field_descriptor.argument_type == "gh_field"
+    assert field_descriptor.data_type == "gh_real"
+    assert field_descriptor.function_space == "w1"
+    assert field_descriptor.function_spaces == ['w1']
+    assert str(field_descriptor.access) == "INC"
+    assert field_descriptor.mesh is None
+    assert field_descriptor.stencil is None
+    assert field_descriptor.vector_size == 1
+
+
+def test_invalid_vector_operator():
+    ''' Tests that an error is raised when a vector does not use "*"
+    as its operator. '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    code = FIELD_CODE.replace(
+        "(gh_field,  gh_real,    gh_inc,   w1)",
+        "(gh_field+3,  gh_real,    gh_inc,  w1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_field_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert "must use '*' as the separator" in str(excinfo.value)
+
+
+def test_invalid_vector_value_type():
+    ''' Tests that an error is raised when a vector value is not a valid
+    integer. '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    code = FIELD_CODE.replace("(gh_field,  gh_real,    gh_inc,   w1)",
+                              "(gh_field*n,  gh_real,    gh_inc,   w1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_field_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("the field vector notation must be in the format 'field*n' "
+            "where 'n' is an integer, but the following 'n' was found "
+            in str(excinfo.value))
+
+
+def test_invalid_vector_value_range():
+    ''' Tests that an error is raised when a vector value is not a valid
+    value (<2). '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    code = FIELD_CODE.replace("(gh_field,  gh_real,    gh_inc,   w1)",
+                              "(gh_field*1,  gh_real,    gh_inc,   w1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_field_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("the 1st argument of a 'meta_arg' entry may be a field vector "
+            "with format 'field*n' where n is an integer > 1. However, "
+            "found n = 1" in str(excinfo.value))
+
+# Testing that an error is raised when a vector value is not provided is
+# not required here as it causes a parse error in the generic code.
+
+
+def test_arg_descriptor_field_vector():
+    ''' Test that the LFRicArgDescriptor argument representation works
+    as expected when we have a field vector. '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    # Change the meta-data so that the second argument is a vector
+    code = FIELD_CODE.replace("(gh_field,  gh_real,    gh_inc,   w1)",
+                              "(gh_field*3,  gh_real,    gh_inc,  w1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_field_type"
+    dkm = DynKernMetadata(ast, name=name)
+    field_descriptor = dkm.arg_descriptors[1]
+
+    # Assert correct string representation from LFRicArgDescriptor
+    field_descriptor_str = str(field_descriptor)
+    expected = (
+        "LFRicArgDescriptor object\n"
+        "  argument_type[0]='gh_field'*3\n"
+        "  data_type[1]='gh_real'\n"
+        "  access_descriptor[2]='gh_inc'\n"
+        "  function_space[3]='w1'")
+    assert expected in field_descriptor_str
+
+    # Check LFRicArgDescriptor argument properties
+    assert field_descriptor.argument_type == "gh_field"
+    assert field_descriptor.data_type == "gh_real"
+    assert field_descriptor.function_space == "w1"
+    assert field_descriptor.function_spaces == ['w1']
+    assert str(field_descriptor.access) == "INC"
+    assert field_descriptor.mesh is None
+    assert field_descriptor.stencil is None
+    assert field_descriptor.vector_size == 3
+
+
 def test_lfricfields_call_err():
     ''' Check that the LFRicFields constructor raises the expected internal
     error if it encounters an unrecognised intrinsic type of a field
@@ -200,6 +491,21 @@ def test_lfricfields_call_err():
     assert ("Found unsupported intrinsic types for the field arguments "
             "['f1'] to Invoke 'invoke_0_testkern_fs_type'. Supported "
             "types are ['real', 'integer']." in str(err.value))
+
+
+def test_dyninvoke_uniq_declns_intent_fields():
+    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for 'gh_field' argument type. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    args = psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_field"])
+    args_inout = [arg.declaration_name for arg in args['inout']]
+    assert args_inout == ['f1']
+    assert args['out'] == []
+    args_in = [arg.declaration_name for arg in args['in']]
+    assert args_in == ['f2', 'm1', 'm2']
 
 
 def test_field_invoke_uniq_declns_valid_intrinsic():
@@ -229,7 +535,531 @@ def test_field_invoke_uniq_declns_valid_intrinsic():
                           "i5", "i6", "n5", "n6", "i7", "i8", "n7"]
 
 
-# Tests for invokes calling kernels that contain integer-valued fields
+def test_multiple_updated_field_args():
+    ''' Check that we successfully parse a kernel that writes to more
+    than one of its field arguments '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    code = FIELD_CODE.replace("arg_type(gh_field,  gh_real,    gh_read,  w2)",
+                              "arg_type(gh_field, gh_real, gh_inc, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_field_type"
+    metadata = DynKernMetadata(ast, name=name)
+    count = 0
+    for descriptor in metadata.arg_descriptors:
+        if descriptor.argument_type == "gh_field" and \
+                descriptor.access != AccessType.READ:
+            count += 1
+    assert count == 3
+
+
+# Tests for PSy-layer code generation for field arguments
+
+
+def test_field(tmpdir):
+    ''' Tests that a call with a set of fields, no basis functions and
+    no distributed memory, produces correct code.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    generated_code = psy.gen
+    output = (
+        "  MODULE single_invoke_psy\n"
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
+        "      USE testkern_mod, ONLY: testkern_code\n"
+        "      REAL(KIND=r_def), intent(in) :: a\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
+        "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
+        "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, "
+        "undf_w3\n"
+        "      !\n"
+        "      ! Initialise field and/or operator proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      m1_proxy = m1%get_proxy()\n"
+        "      m2_proxy = m2%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Look-up dofmaps for each function space\n"
+        "      !\n"
+        "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w1\n"
+        "      !\n"
+        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w2\n"
+        "      !\n"
+        "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
+        "      undf_w2 = f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w3\n"
+        "      !\n"
+        "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
+        "      undf_w3 = m2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
+        "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
+        "      END DO\n"
+        "      !\n"
+        "    END SUBROUTINE invoke_0_testkern_type\n"
+        "  END MODULE single_invoke_psy")
+    assert output in str(generated_code)
+
+
+def test_field_deref(tmpdir, dist_mem):
+    ''' Tests that a call with a set of fields (some obtained by
+    de-referencing derived types) and no basis functions produces
+    correct code.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.13_single_invoke_field_deref.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
+    output = (
+        "    SUBROUTINE invoke_0_testkern_type(a, f1, est_f2, m1, "
+        "est_m2)\n"
+        "      USE testkern_mod, ONLY: testkern_code\n")
+    assert output in generated_code
+    if dist_mem:
+        output = "      USE mesh_mod, ONLY: mesh_type\n"
+        assert output in generated_code
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    output = (
+        "      REAL(KIND=r_def), intent(in) :: a\n"
+        "      TYPE(field_type), intent(in) :: f1, est_f2, m1, est_m2\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy, est_f2_proxy, m1_proxy, "
+        "est_m2_proxy\n"
+        "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
+        "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, "
+        "undf_w3\n")
+    assert output in generated_code
+    if dist_mem:
+        output = "      TYPE(mesh_type), pointer :: mesh => null()\n"
+        assert output in generated_code
+    output = (
+        "      !\n"
+        "      ! Initialise field and/or operator proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      est_f2_proxy = est_f2%get_proxy()\n"
+        "      m1_proxy = m1%get_proxy()\n"
+        "      est_m2_proxy = est_m2%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n")
+    assert output in generated_code
+    if dist_mem:
+        output = (
+            "      !\n"
+            "      ! Create a mesh object\n"
+            "      !\n"
+            "      mesh => f1_proxy%vspace%get_mesh()\n"
+        )
+        assert output in generated_code
+    output = (
+        "      !\n"
+        "      ! Look-up dofmaps for each function space\n"
+        "      !\n"
+        "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2 => est_f2_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w3 => est_m2_proxy%vspace%get_whole_dofmap()\n"
+        "      !\n")
+    assert output in generated_code
+    output = (
+        "      ! Initialise number of DoFs for w1\n"
+        "      !\n"
+        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w2\n"
+        "      !\n"
+        "      ndf_w2 = est_f2_proxy%vspace%get_ndf()\n"
+        "      undf_w2 = est_f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w3\n"
+        "      !\n"
+        "      ndf_w3 = est_m2_proxy%vspace%get_ndf()\n"
+        "      undf_w3 = est_m2_proxy%vspace%get_undf()\n"
+        "      !\n")
+    assert output in generated_code
+    if dist_mem:
+        output = (
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL f1_proxy%halo_exchange(depth=1)\n"
+            "      END IF\n"
+            "      !\n"
+            "      IF (est_f2_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL est_f2_proxy%halo_exchange(depth=1)\n"
+            "      END IF\n"
+            "      !\n"
+            "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL m1_proxy%halo_exchange(depth=1)\n"
+            "      END IF\n"
+            "      !\n"
+            "      IF (est_m2_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL est_m2_proxy%halo_exchange(depth=1)\n"
+            "      END IF\n"
+            "      !\n"
+            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+        assert output in generated_code
+    else:
+        output = (
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
+        assert output in generated_code
+    output = (
+        "        !\n"
+        "        CALL testkern_code(nlayers, a, f1_proxy%data, "
+        "est_f2_proxy%data, m1_proxy%data, est_m2_proxy%data, ndf_w1, "
+        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
+        "ndf_w3, undf_w3, map_w3(:,cell))\n"
+        "      END DO\n")
+    assert output in generated_code
+    if dist_mem:
+        output = (
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n"
+            "      !")
+        assert output in generated_code
+
+
+def test_field_fs(tmpdir):
+    ''' Tests that a call with a set of fields making use of all
+    function spaces and no basis functions produces correct code.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1.5_single_invoke_fs.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    generated_code = str(psy.gen)
+    output = (
+        "  MODULE single_invoke_fs_psy\n"
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, "
+        "m3, m4, f5, f6, m5, m6, m7)\n"
+        "      USE testkern_fs_mod, ONLY: testkern_fs_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2, f3, f4, m3, "
+        "m4, f5, f6, m5, m6, m7\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
+        "m2_proxy, f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, "
+        "f6_proxy, m5_proxy, m6_proxy, m7_proxy\n"
+        "      INTEGER(KIND=i_def), pointer :: map_any_w2(:,:) => null(), "
+        "map_w0(:,:) => null(), map_w1(:,:) => null(), map_w2(:,:) => "
+        "null(), map_w2broken(:,:) => null(), map_w2h(:,:) => null(), "
+        "map_w2htrace(:,:) => null(), map_w2trace(:,:) => null(), "
+        "map_w2v(:,:) => null(), map_w2vtrace(:,:) => null(), map_w3(:,:) "
+        "=> null(), map_wchi(:,:) => null(), map_wtheta(:,:) => null()\n"
+        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w0, "
+        "undf_w0, ndf_w3, undf_w3, ndf_wtheta, undf_wtheta, ndf_w2h, "
+        "undf_w2h, ndf_w2v, undf_w2v, ndf_w2broken, undf_w2broken, "
+        "ndf_w2trace, undf_w2trace, ndf_w2htrace, undf_w2htrace, "
+        "ndf_w2vtrace, undf_w2vtrace, ndf_wchi, undf_wchi, ndf_any_w2, "
+        "undf_any_w2\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n")
+    assert output in generated_code
+    output = (
+        "      ! Initialise field and/or operator proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      m1_proxy = m1%get_proxy()\n"
+        "      m2_proxy = m2%get_proxy()\n"
+        "      f3_proxy = f3%get_proxy()\n"
+        "      f4_proxy = f4%get_proxy()\n"
+        "      m3_proxy = m3%get_proxy()\n"
+        "      m4_proxy = m4%get_proxy()\n"
+        "      f5_proxy = f5%get_proxy()\n"
+        "      f6_proxy = f6%get_proxy()\n"
+        "      m5_proxy = m5%get_proxy()\n"
+        "      m6_proxy = m6%get_proxy()\n"
+        "      m7_proxy = m7%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh => f1_proxy%vspace%get_mesh()\n"
+        "      !\n"
+        "      ! Look-up dofmaps for each function space\n"
+        "      !\n"
+        "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w0 => m1_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
+        "      map_wtheta => f3_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2h => f4_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2v => m3_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2broken => m4_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2trace => f5_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2htrace => f6_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w2vtrace => m5_proxy%vspace%get_whole_dofmap()\n"
+        "      map_wchi => m6_proxy%vspace%get_whole_dofmap()\n"
+        "      map_any_w2 => m7_proxy%vspace%get_whole_dofmap()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w1\n"
+        "      !\n"
+        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w2\n"
+        "      !\n"
+        "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
+        "      undf_w2 = f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w0\n"
+        "      !\n"
+        "      ndf_w0 = m1_proxy%vspace%get_ndf()\n"
+        "      undf_w0 = m1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w3\n"
+        "      !\n"
+        "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
+        "      undf_w3 = m2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for wtheta\n"
+        "      !\n"
+        "      ndf_wtheta = f3_proxy%vspace%get_ndf()\n"
+        "      undf_wtheta = f3_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w2h\n"
+        "      !\n"
+        "      ndf_w2h = f4_proxy%vspace%get_ndf()\n"
+        "      undf_w2h = f4_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w2v\n"
+        "      !\n"
+        "      ndf_w2v = m3_proxy%vspace%get_ndf()\n"
+        "      undf_w2v = m3_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w2broken\n"
+        "      !\n"
+        "      ndf_w2broken = m4_proxy%vspace%get_ndf()\n"
+        "      undf_w2broken = m4_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w2trace\n"
+        "      !\n"
+        "      ndf_w2trace = f5_proxy%vspace%get_ndf()\n"
+        "      undf_w2trace = f5_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w2htrace\n"
+        "      !\n"
+        "      ndf_w2htrace = f6_proxy%vspace%get_ndf()\n"
+        "      undf_w2htrace = f6_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w2vtrace\n"
+        "      !\n"
+        "      ndf_w2vtrace = m5_proxy%vspace%get_ndf()\n"
+        "      undf_w2vtrace = m5_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for wchi\n"
+        "      !\n"
+        "      ndf_wchi = m6_proxy%vspace%get_ndf()\n"
+        "      undf_wchi = m6_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for any_w2\n"
+        "      !\n"
+        "      ndf_any_w2 = m7_proxy%vspace%get_ndf()\n"
+        "      undf_any_w2 = m7_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f1_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
+        "      IF (f4_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f4_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
+        "      IF (m3_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m3_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
+        "      IF (m4_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m4_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
+        "      IF (f5_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f5_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
+        "      IF (f6_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f6_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
+        "      IF (m5_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m5_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
+        "      IF (m6_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m6_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
+        "      IF (m7_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m7_proxy%halo_exchange(depth=1)\n"
+        "      END IF\n"
+        "      !\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+        "        !\n"
+        "        CALL testkern_fs_code(nlayers, f1_proxy%data, f2_proxy%data, "
+        "m1_proxy%data, m2_proxy%data, f3_proxy%data, f4_proxy%data, "
+        "m3_proxy%data, m4_proxy%data, f5_proxy%data, f6_proxy%data, "
+        "m5_proxy%data, m6_proxy%data, m7_proxy%data, ndf_w1, undf_w1, "
+        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w0, undf_w0, "
+        "map_w0(:,cell), ndf_w3, undf_w3, map_w3(:,cell), ndf_wtheta, "
+        "undf_wtheta, map_wtheta(:,cell), ndf_w2h, undf_w2h, "
+        "map_w2h(:,cell), ndf_w2v, undf_w2v, map_w2v(:,cell), ndf_w2broken, "
+        "undf_w2broken, map_w2broken(:,cell), ndf_w2trace, undf_w2trace, "
+        "map_w2trace(:,cell), ndf_w2htrace, undf_w2htrace, "
+        "map_w2htrace(:,cell), ndf_w2vtrace, undf_w2vtrace, "
+        "map_w2vtrace(:,cell), ndf_wchi, undf_wchi, map_wchi(:,cell), "
+        "ndf_any_w2, undf_any_w2, map_any_w2(:,cell))\n"
+        "      END DO\n"
+        "      !\n"
+        "      ! Set halos dirty/clean for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f3_proxy%set_dirty()\n"
+        "      CALL f3_proxy%set_clean(1)\n"
+        "      !\n"
+        "      !\n"
+        "    END SUBROUTINE invoke_0_testkern_fs_type\n"
+        "  END MODULE single_invoke_fs_psy")
+    assert output in generated_code
+
+
+def test_vector_field(tmpdir):
+    ''' Tests that a vector field is declared correctly in the PSy
+    layer. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    generated_code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    assert ("SUBROUTINE invoke_0_testkern_coord_w0_type(f1, chi, f2)" in
+            generated_code)
+    assert "TYPE(field_type), intent(in) :: f1, chi(3), f2" in generated_code
+
+
+def test_vector_field_2(tmpdir):
+    ''' Tests that a vector field is indexed correctly in the PSy layer. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    generated_code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # All references to chi_proxy should be chi_proxy(1)
+    assert "chi_proxy%" not in generated_code
+    assert generated_code.count("chi_proxy(1)%vspace") == 5
+    # Use each chi field individually in the kernel
+    assert ("chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data" in
+            generated_code)
+
+
+def test_vector_field_deref(tmpdir, dist_mem):
+    ''' Tests that a vector field is declared correctly in the PSy
+    layer when it is obtained by de-referencing a derived type in the
+    Algorithm layer.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "8.1_vector_field_deref.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
+    assert ("SUBROUTINE invoke_0_testkern_coord_w0_type(f1, box_chi, f2)" in
+            generated_code)
+    assert ("TYPE(field_type), intent(in) :: f1, box_chi(3), f2" in
+            generated_code)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_mkern_invoke_vec_fields():
+    ''' Test that correct code is produced when there are multiple
+    kernels within an invoke with vector fields '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.2_multikernel_invokes.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    generated_code = str(psy.gen)
+    # 1st test for duplication of name vector-field declaration
+    assert ("TYPE(field_type), intent(in) :: f1, chi(3), chi(3)"
+            not in generated_code)
+    # 2nd test for duplication of name vector-field declaration
+    assert ("TYPE(field_proxy_type) f1_proxy, chi_proxy(3), chi_proxy(3)"
+            not in generated_code)
+
+
+# Tests for Invokes calling kernels that contain integer-valued fields
 
 
 def test_int_field_fs(tmpdir):
@@ -659,7 +1489,7 @@ def test_multiple_stencils_int_field(dist_mem, tmpdir):
     assert output7 in result
 
 
-# Tests for invokes calling kernels that contain real- and
+# Tests for Invokes calling kernels that contain real- and
 # integer-valued fields
 
 

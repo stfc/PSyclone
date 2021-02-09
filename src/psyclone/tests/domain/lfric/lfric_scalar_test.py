@@ -417,6 +417,21 @@ def test_scalar_invoke_uniq_declns_valid_intrinsic():
     assert scalars_int == ["istep"]
 
 
+def test_multiple_updated_scalar_args():
+    ''' Check that we raise the expected exception when we encounter a
+    kernel that writes to more than one of its field and scalar arguments '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    code = CODE.replace("arg_type(gh_scalar,   gh_real,    gh_read)",
+                        "arg_type(gh_scalar,   gh_real,    gh_sum)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A user-supplied LFRic kernel must not write/update a scalar "
+            "argument but kernel 'testkern_qr_type' has a scalar "
+            "argument with 'gh_sum' access." in str(excinfo.value))
+
+
 def test_int_real_scalar_invalid():
     ''' Tests that the same scalar cannot have different data types
     in different kernels within the same Invoke.
