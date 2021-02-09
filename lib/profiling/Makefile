@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ LDFLAGS=
 
 # We don't build dl_timer, drhook and nvidia since they require
 # external libraries to be available.
-ALL_LIBS=template simple_timing
+ALL_LIBS=template simple_timing lfric
 
 .PHONY: default all $(ALL_LIBS) clean allclean
 
@@ -48,20 +48,9 @@ default: all
 
 all: $(ALL_LIBS)
 
-template:
-	$(MAKE) -C template
-
-simple_timing:
-	$(MAKE) -C simple_timing
-
-dl_timer:
-	$(MAKE) -C dl_timer
-
-drhook:
-	$(MAKE) -C drhook
-
-nvidia:
-	$(MAKE) -C nvidia
+# Invoke make in the corresponding subdirectory
+$(ALL_LIBS):
+		$(MAKE) -C $@
 
 clean:
 	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) clean; )

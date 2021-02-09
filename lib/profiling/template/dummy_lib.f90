@@ -45,7 +45,7 @@ contains
                       num_post_vars)
     implicit none
     class(profile_PSyDataType), intent(inout), target :: this
-    character*(*), intent(in) :: module_name, region_name
+    character(len=*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
     if ( .not. has_been_initialised ) then

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
 
 '''This module creates the expected arguments for an LFRic coded
 kernel based on the kernel metadata.
@@ -542,21 +543,6 @@ class KernelInterface(ArgOrdering):
         first_dim_value_func = DynBasisFunctions.diff_basis_first_dim_value
         self._create_basis(function_space, self.diff_basis_mapping,
                            basis_name_func, first_dim_value_func)
-
-    def orientation(self, function_space, var_accesses=None):
-        '''Not implemented.
-
-        :param function_space: the function space for orientation.
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: an unused optional argument that stores \
-            information about variable accesses.
-        :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        :raises NotImplementedError: as this method is not implemented.
-
-        '''
-        raise NotImplementedError("orientation not implemented")
 
     def field_bcs_kernel(self, function_space, var_accesses=None):
         '''Not implemented.
