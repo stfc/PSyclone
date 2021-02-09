@@ -89,4 +89,7 @@ if __name__ == "__main__":
     # NemoInvokeSchedule but giving this to the visitor produces Fortran
     # defining a "subroutine name(...)" when, in this case, we should be
     # getting "program tra_adv".
-    print(FWRITER(PSY.container))
+    if PSY.container:
+        print(FWRITER(PSY.container))
+    else:
+        print(FWRITER(INVOKE.schedule))

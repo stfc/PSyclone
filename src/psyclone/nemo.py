@@ -217,6 +217,8 @@ class NemoInvokes(Invokes):
                 else:
                     sub_name = str(substmt.get_name())
                 print("sub-name = {0}".format(sub_name))
+                # ARPDBG This needs to make a Routine, not a
+                # NemoInvokeSchedule...
                 routines.append(processor.generate_schedule(sub_name,
                                                             routine))
         # Analyse each routine we've found
