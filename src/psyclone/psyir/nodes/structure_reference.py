@@ -45,7 +45,7 @@ from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import DataSymbol, TypeSymbol, StructureType, \
-    DeferredType
+    DeferredType, UnknownType
 from psyclone.errors import InternalError
 
 
@@ -142,9 +142,8 @@ class StructureReference(Reference):
             do not have full type information available.
 
         '''
-        if not isinstance(symbol_type, (StructureType,
-                                        TypeSymbol,
-                                        DeferredType)):
+        if not isinstance(symbol_type, (StructureType, TypeSymbol,
+                                        DeferredType, UnknownType)):
             raise TypeError(
                 "A StructureReference must refer to a symbol that is (or "
                 "could be) a structure, however symbol '{0}' has type "
