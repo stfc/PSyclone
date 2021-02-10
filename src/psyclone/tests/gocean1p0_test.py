@@ -48,17 +48,17 @@ from psyclone.parse.algorithm import parse, Arg
 from psyclone.parse.kernel import Descriptor
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, CodedKern, HaloExchange
 from psyclone.gocean1p0 import GOKern, GOLoop, \
     GOKernelArgument, GOKernelArguments, GOKernelGridArgument, \
-    GOBuiltInCallFactory, GOSymbolTable
+    GOBuiltInCallFactory, GOSymbolTable, GOInvokeSchedule
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.psyir.symbols import SymbolTable, DeferredType, \
     ContainerSymbol, DataSymbol, GlobalInterface, REAL_TYPE, INTEGER_TYPE, \
     ArgumentInterface, TypeSymbol
 from psyclone.psyir.nodes import Node, StructureReference, Member, \
-    StructureMember, Reference
+    StructureMember, Reference, Loop, Schedule, Literal, BinaryOperation
 from psyclone.psyir.nodes.node import colored
 
 API = "gocean1.0"
@@ -1021,9 +1021,6 @@ def test_goschedule_view(capsys, dist_mem):
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
 
-    from psyclone.gocean1p0 import GOInvokeSchedule
-    from psyclone.psyGen import CodedKern, HaloExchange
-    from psyclone.psyir.nodes import Loop, Schedule, Literal, StructureReference, StructureMember, Member, BinaryOperation
     # Ensure we check for the correct (colour) control codes in the output
     isched = colored("GOInvokeSchedule", GOInvokeSchedule._colour)
     loop = colored("Loop", Loop._colour)

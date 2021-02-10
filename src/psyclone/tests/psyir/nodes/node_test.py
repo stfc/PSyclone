@@ -54,6 +54,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.transformations import DynamoLoopFuseTrans
 from psyclone.tests.utilities import get_invoke
+from psyclone.psyir.nodes.node import colored
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -73,7 +74,6 @@ def test_node_abstract_methods():
 
 def test_node_coloured_name():
     ''' Tests for the coloured_name method of the Node class. '''
-    from psyclone.psyir.nodes.node import colored
     tnode = Node()
     # Node is an abstract class
     with pytest.raises(NotImplementedError) as err:
@@ -91,7 +91,6 @@ def test_node_coloured_name():
 
 def test_node_str():
     ''' Tests for the Node.node_str method. '''
-    from psyclone.psyir.nodes.node import colored
     tnode = Node()
     # Node is an abstract class
     with pytest.raises(NotImplementedError) as err:

@@ -46,6 +46,7 @@ from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, BOOLEAN_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
+from psyclone.psyir.nodes.node import colored
 
 
 def test_ifblock_invalid_annotation():
@@ -60,7 +61,6 @@ def test_ifblock_invalid_annotation():
 
 def test_ifblock_node_str():
     ''' Check the node_str method of the IfBlock class.'''
-    from psyclone.psyir.nodes.node import colored
     colouredif = colored("If", IfBlock._colour)
 
     ifblock = IfBlock()

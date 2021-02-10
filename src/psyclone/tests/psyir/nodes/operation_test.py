@@ -47,6 +47,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE, \
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
+from psyclone.psyir.nodes.node import colored
 
 
 # Test BinaryOperation class
@@ -73,7 +74,6 @@ def test_binaryoperation_operator():
 
 def test_binaryoperation_node_str():
     ''' Check the node_str method of the Binary Operation class.'''
-    from psyclone.psyir.nodes.node import colored
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     op1 = Literal("1", INTEGER_SINGLE_TYPE, parent=binary_operation)
     op2 = Literal("1", INTEGER_SINGLE_TYPE, parent=binary_operation)
@@ -192,7 +192,6 @@ def test_unaryoperation_operator():
 
 def test_unaryoperation_node_str():
     ''' Check the view method of the UnaryOperation class.'''
-    from psyclone.psyir.nodes.node import colored
     ref1 = Reference(DataSymbol("a", REAL_SINGLE_TYPE))
     unary_operation = UnaryOperation.create(UnaryOperation.Operator.MINUS,
                                             ref1)
@@ -266,7 +265,6 @@ def test_unaryoperation_children_validation():
 
 def test_naryoperation_node_str():
     ''' Check the node_str method of the Nary Operation class.'''
-    from psyclone.psyir.nodes.node import colored
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
     nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE,
                                     parent=nary_operation))

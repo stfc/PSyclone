@@ -50,7 +50,7 @@ import os
 import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import GlobalSum
+from psyclone.psyGen import GlobalSum, InvokeSchedule
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
     Literal, Node, Schedule, KernelSchedule, Call, Loop
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
@@ -63,7 +63,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
 from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
 from psyclone.psyir.symbols import INTEGER_TYPE, DeferredType
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
-    DynKernelArguments
+    DynKernelArguments, DynGlobalSum
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
     DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans, \
@@ -72,6 +72,7 @@ from psyclone.generator import generate
 from psyclone.configuration import Config
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.psyir.nodes.node import colored
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -331,8 +332,6 @@ end module dummy_mod
 def test_invokeschedule_node_str():
     ''' Check the node_str method of the InvokeSchedule class. We need an
     Invoke object for this which we get using the dynamo0.3 API. '''
-    from psyclone.psyGen import InvokeSchedule
-    from psyclone.psyir.nodes.node import colored
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -387,9 +386,10 @@ def test_kern_get_kernel_schedule():
 
 
 def test_codedkern_node_str():
-    ''' Tests the node_str method in the CodedKern class. The simplest way to
-    do this is via the dynamo0.3 subclass '''
-    from psyclone.psyir.nodes.node import colored
+    '''Tests the node_str method in the CodedKern class. The simplest way
+    to do this is via the dynamo0.3 subclass
+
+    '''
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     my_kern = DynKern()
@@ -567,9 +567,10 @@ def test_codedkern_lower_to_language_level(monkeypatch):
 
 
 def test_kern_coloured_text():
-    ''' Check that the coloured_name method of both CodedKern and
-    BuiltIn return what we expect. '''
-    from psyclone.psyir.nodes.node import colored
+    '''Check that the coloured_name method of both CodedKern and BuiltIn
+    return what we expect.
+
+    '''
     # Use LFRic example with both a CodedKern and a BuiltIn
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -734,9 +735,10 @@ def test_ompdo_constructor():
 
 
 def test_ompdo_directive_class_node_str(dist_mem):
-    ''' Tests the node_str method in the OMPDoDirective class. We create a
-    sub-class object then call this method from it. '''
-    from psyclone.psyir.nodes.node import colored
+    '''Tests the node_str method in the OMPDoDirective class. We create a
+    sub-class object then call this method from it.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
 
@@ -774,7 +776,6 @@ def test_ompdo_directive_class_node_str(dist_mem):
 
 def test_acc_dir_node_str():
     ''' Test the node_str() method of OpenACC directives '''
-    from psyclone.psyir.nodes.node import colored
 
     acclt = ACCLoopTrans()
     accdt = ACCEnterDataTrans()
@@ -818,18 +819,18 @@ def test_haloexchange_unknown_halo_depth():
 
 
 def test_globalsum_node_str():
-    '''test the node_str method in the GlobalSum class. The simplest way to do
-    this is to use a dynamo0p3 builtin example which contains a scalar and
-    then call node_str() on that.'''
-    from psyclone.psyir.nodes.node import colored
-    from psyclone import dynamo0p3
+    '''test the node_str method in the GlobalSum class. The simplest way
+    to do this is to use a dynamo0p3 builtin example which contains a
+    scalar and then call node_str() on that.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gsum = None
     for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, dynamo0p3.DynGlobalSum):
+        if isinstance(child, DynGlobalSum):
             gsum = child
             break
     assert gsum
@@ -1423,7 +1424,7 @@ def test_haloexchange_can_be_printed():
 
 def test_haloexchange_node_str():
     ''' Test the node_str() method of HaloExchange. '''
-    from psyclone.psyir.nodes.node import colored
+
     # We have to use the LFRic (Dynamo0.3) API as that's currently the only
     # one that supports halo exchanges.
     _, invoke_info = parse(
@@ -1799,8 +1800,6 @@ def test_acckernelsdirective_node_str():
     as expected.
 
     '''
-    from psyclone.psyir.nodes.node import colored
-
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule

@@ -46,6 +46,7 @@ from psyclone.psyir.symbols import DataSymbol, ArrayType, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE
 from psyclone.psyGen import GenerationError
 from psyclone.core.access_info import VariablesAccessInfo
+from psyclone.psyir.nodes.node import colored
 
 
 def test_reference_bad_init():
@@ -62,7 +63,6 @@ def test_reference_bad_init():
 
 def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
-    from psyclone.psyir.nodes.node import colored
     kschedule = KernelSchedule("kname")
     symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)

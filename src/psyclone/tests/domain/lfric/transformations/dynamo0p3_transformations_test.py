@@ -59,6 +59,11 @@ from psyclone.transformations import OMPParallelTrans, \
     Dynamo0p3AsyncHaloExchangeTrans, \
     Dynamo0p3KernelConstTrans
 from psyclone.configuration import Config
+from psyclone.dynamo0p3 import DynLoop
+from psyclone.psyir.nodes.node import colored
+from psyclone.psyGen import OMPDoDirective, InvokeSchedule, Directive, \
+    GlobalSum, BuiltIn
+from psyclone.psyir.nodes import Loop, Schedule, Literal
 
 
 # The version of the API that the tests in this file
@@ -3531,13 +3536,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     '''
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    from psyclone.dynamo0p3 import DynLoop
-    from psyclone.psyGen import OMPDoDirective
-    from psyclone.psyir.nodes.node import colored
 
-    from psyclone.psyGen import InvokeSchedule, Directive, GlobalSum, BuiltIn
-    from psyclone.psyir.nodes import Loop, Schedule, Literal
-    
     # Ensure we check for text containing the correct (colour) control codes
     isched = colored("InvokeSchedule", InvokeSchedule._colour)
     directive = colored("Directive", Directive._colour)

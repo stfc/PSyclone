@@ -42,11 +42,11 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Return
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.node import colored
 
 
 def test_return_node_str():
     ''' Check the node_str method of the Return class.'''
-    from psyclone.psyir.nodes.node import colored
     return_stmt = Return()
     coloredtext = colored("Return", Return._colour)
     assert coloredtext+"[]" in return_stmt.node_str()

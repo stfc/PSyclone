@@ -43,6 +43,7 @@ from psyclone.psyir.symbols import ScalarType, ArrayType, DataSymbol, \
 from psyclone.psyir.nodes import Range, Literal, Reference, Node, \
     ArrayReference
 from psyclone.errors import InternalError, GenerationError
+from psyclone.psyir.nodes.node import colored
 
 
 @pytest.mark.parametrize("prop", ["start", "stop", "step"])
@@ -220,7 +221,6 @@ def test_range_str():
 def test_range_view(capsys):
     ''' Check that calling view() on an array with a child Range works
     as expected. '''
-    from psyclone.psyir.nodes.node import colored
     # Create the PSyIR for 'my_array(1, 1:10)'
     erange = Range.create(Literal("1", INTEGER_SINGLE_TYPE),
                           Literal("10", INTEGER_SINGLE_TYPE))
