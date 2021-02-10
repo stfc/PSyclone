@@ -769,7 +769,7 @@ class GOLoop(Loop):
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
-    def _upper_bound(self):
+    def upper_bound(self):
         ''' Creates the PSyIR of the upper bound of this loop.
         This takes the field type and usage of const_loop_bounds
         into account. In the case of const_loop_bounds it will be
@@ -859,7 +859,7 @@ class GOLoop(Loop):
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
-    def _lower_bound(self):
+    def lower_bound(self):
         ''' Returns the lower bound of this loop as a string.
         This takes the field type and usage of const_loop_bounds
         into account. In case of const_loop_bounds it will be
@@ -940,8 +940,8 @@ class GOLoop(Loop):
         :rtype: str
         '''
         # Generate the upper and lower loop bounds
-        self.start_expr = self._lower_bound()
-        self.stop_expr = self._upper_bound()
+        self.start_expr = self.lower_bound()
+        self.stop_expr = self.upper_bound()
 
         return super(GOLoop, self).node_str(colour)
 
@@ -949,8 +949,8 @@ class GOLoop(Loop):
         ''' Returns a string describing this Loop object '''
 
         # Generate the upper and lower loop bounds
-        self.start_expr = self._lower_bound()
-        self.stop_expr = self._upper_bound()
+        self.start_expr = self.lower_bound()
+        self.stop_expr = self.upper_bound()
 
         return super(GOLoop, self).__str__()
 
@@ -1002,8 +1002,8 @@ class GOLoop(Loop):
                                              index_offset))
 
         # Generate the upper and lower loop bounds
-        self.start_expr = self._lower_bound()
-        self.stop_expr = self._upper_bound()
+        self.start_expr = self.lower_bound()
+        self.stop_expr = self.upper_bound()
 
         Loop.gen_code(self, parent)
 

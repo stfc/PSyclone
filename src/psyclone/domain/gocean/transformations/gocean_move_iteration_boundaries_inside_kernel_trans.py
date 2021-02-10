@@ -45,7 +45,7 @@ from psyclone.psyir.symbols import (INTEGER_TYPE, ArgumentInterface,
 
 class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
     ''' Provides a transformation that moves iteration boundaries that are
-    encoded in the Loops _lower_bound() and _upper_bound() methods to a mask
+    encoded in the Loops lower_bound() and upper_bound() methods to a mask
     inside the kernel with the boundaries passed as kernel arguments.
 
     For example the following kernel call:
@@ -137,19 +137,19 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
             datatype=INTEGER_TYPE)
 
         assign1 = Assignment.create(Reference(inv_xstart),
-                                    inner_loop._lower_bound())
+                                    inner_loop.lower_bound())
         outer_loop.parent.children.insert(cursor, assign1)
         cursor = cursor + 1
         assign2 = Assignment.create(Reference(inv_xstop),
-                                    inner_loop._upper_bound())
+                                    inner_loop.upper_bound())
         outer_loop.parent.children.insert(cursor, assign2)
         cursor = cursor + 1
         assign3 = Assignment.create(Reference(inv_ystart),
-                                    outer_loop._lower_bound())
+                                    outer_loop.lower_bound())
         outer_loop.parent.children.insert(cursor, assign3)
         cursor = cursor + 1
         assign4 = Assignment.create(Reference(inv_ystop),
-                                    outer_loop._upper_bound())
+                                    outer_loop.upper_bound())
         outer_loop.parent.children.insert(cursor, assign4)
 
         # Update Kernel Call (only works with the gen_ocl_code)

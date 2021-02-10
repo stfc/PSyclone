@@ -133,10 +133,10 @@ def test_goloop_bounds_invalid_iteration_space():
     # Set the iteration space to something invalid
     gojloop._iteration_space = "broken"
     with pytest.raises(GenerationError) as err:
-        gojloop._upper_bound()
+        gojloop.upper_bound()
     assert "Unrecognised iteration space, 'broken'." in str(err.value)
     with pytest.raises(GenerationError) as err:
-        gojloop._lower_bound()
+        gojloop.lower_bound()
     assert "Unrecognised iteration space, 'broken'." in str(err.value)
 
 
