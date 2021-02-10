@@ -75,11 +75,7 @@ all: template simple_timing drhook dl_timer lfric
 template: template_lib
 template: PROFILE_DIR?=../../../lib/profiling/template
 template: PROFILE_LINK=-ldummy
-template: ../../../lib/profiling/template/libdummy.a $(NAME).template
-
-# Build the template profiling library
-../../../lib/profiling/template/libdummy.a:
-	${MAKE} -C ../../../lib/profiling/template
+template: $(NAME).template
 
 simple_timing: simple_timing_lib
 simple_timing: PROFILE_DIR?=../../../lib/profiling/simple_timing
@@ -90,7 +86,7 @@ simple_timing: $(NAME).simple_timing
 # assume it is installed 'next' to PSyclone
 drhook: drhook_lib
 drhook: DRHOOK_DIR?=../../../../drhook
-drhook: PROFILE_DIR=../../../lib/profiling/drhook
+drhook: PROFILE_DIR?=../../../lib/profiling/drhook
 drhook: PROFILE_LINK=-ldrhook_psy -L $(DRHOOK_DIR)/build/lib -ldrhook
 drhook: $(NAME).drhook
 
@@ -98,7 +94,7 @@ drhook: $(NAME).drhook
 # default assume apeg-dl_timer is installed 'next' to PSyclone.
 dl_timer: dl_timer_lib
 dl_timer: DL_TIMER_ROOT?=../../../../apeg-dl_timer
-dl_timer: PROFILE_DIR=../../../lib/profiling/dl_timer
+dl_timer: PROFILE_DIR?=../../../lib/profiling/dl_timer
 dl_timer: PROFILE_LINK=-ldl_timer_psy -L$(DL_TIMER_ROOT) -ldl_timer_omp -fopenmp
 dl_timer: F90FLAGS += -fopenmp   # apeg-dl_timer must be compiled with openmp!
 dl_timer: $(NAME).dl_timer
@@ -130,9 +126,15 @@ $(KERNELS): $(INF_LIB)
 
 # The dl_esm_inf library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR) F90=$(F90)
+	$(MAKE) -C $(INF_DIR)
 
-drhook_lib template_lib simple_timing_lib dl_timer_lib:
+drhook_lib :
+	$(MAKE) DRHOOK_ROOT=$(DRHOOK_DIR) -C $(PROFILE_DIR)
+
+dl_timer_lib:
+	$(MAKE) DL_TIMER_ROOT=$(DL_TIMER_ROOT) -C $(PROFILE_DIR)
+
+template_lib simple_timing_lib:
 	$(MAKE) -C $(PROFILE_DIR)
 
 # Special rule to create psy_LIBNAME.o for each wrapper library (required
