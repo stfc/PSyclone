@@ -42,8 +42,7 @@ import pytest
 from psyclone.psyir.transformations import \
         FoldConditionalReturnExpressionsTrans
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.transformations import \
-        TransformationError
+from psyclone.psyir.transformations import TransformationError
 
 
 SUB_IN = (
@@ -71,14 +70,14 @@ SUB_OUT = (
 
 
 def test_description():
-    ''' Check that the transormation returns the expected strings '''
+    ''' Check that the transformation returns the expected strings '''
     trans = FoldConditionalReturnExpressionsTrans()
     assert trans.name == "FoldConditionalReturnExpressionsTrans"
     assert str(trans) == \
         "Fold all conditional expressions with Return statements."
 
 
-def test_description_and_validation():
+def test_validation():
     ''' Check that the transformation can only be applied to routine nodes '''
     trans = FoldConditionalReturnExpressionsTrans()
     with pytest.raises(TransformationError) as info:

@@ -99,7 +99,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         if not isinstance(node, CodedKern):
             raise TransformationError("Error in {0} transformation. "
                                       "This transformation can only be applied"
-                                      "to CodedKern".format(self.name))
+                                      " to CodedKern nodes.".format(self.name))
 
     def apply(self, node, options=None):
         '''Apply this transformation to the supplied node.
