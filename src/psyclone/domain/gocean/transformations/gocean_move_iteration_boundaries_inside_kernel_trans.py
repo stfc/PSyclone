@@ -124,13 +124,17 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
 
         # Create new symbols in the PSylayer and initialise them with
         inv_xstart = invoke_st.new_symbol(
-            "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            "xstart", tag="xstart_" + node.name, symbol_type=DataSymbol,
+            datatype=INTEGER_TYPE)
         inv_xstop = invoke_st.new_symbol(
-            "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            "xstop", tag="xstop_" + node.name, symbol_type=DataSymbol,
+            datatype=INTEGER_TYPE)
         inv_ystart = invoke_st.new_symbol(
-            "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            "ystart", tag="ystart_" + node.name, symbol_type=DataSymbol,
+            datatype=INTEGER_TYPE)
         inv_ystop = invoke_st.new_symbol(
-            "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            "ystop", tag="ystop_" + node.name, symbol_type=DataSymbol,
+            datatype=INTEGER_TYPE)
 
         assign1 = Assignment.create(Reference(inv_xstart),
                                     inner_loop._lower_bound())
@@ -148,10 +152,10 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
                                     outer_loop._upper_bound())
         outer_loop.parent.children.insert(cursor, assign4)
 
-        # Update Kernel Call (only works with f2pygen)
-        arguments = node.arguments.raw_arg_list()
-        arguments.extend([inv_xstart.name, inv_xstop.name,
-                          inv_ystart.name, inv_ystop.name])
+        # Update Kernel Call (only works with the gen_ocl_code)
+        raw_arguments = node.arguments.raw_arg_list()
+        for symbol in [inv_xstart, inv_xstop, inv_ystart, inv_ystop]:
+            raw_arguments.append(symbol.name)
 
         # Now that the boundaries are inside the kernel, the looping should go
         # trough all the field points

@@ -1170,19 +1170,6 @@ class GOKern(CodedKern):
         # Generate code to ensure data is on device
         self.gen_data_on_ocl_device(parent)
 
-        # Extract the limits of the iteration space which are given by the
-        # loops surrounding the kernel, which won't be used in OpenCL.
-        # For now it converts the PSyIR to Fortran to use the values in
-        # f2pygen, but this should change in the future. Also note that OpenCL
-        # expects 0-indexing, hence we subtract 1 from each boundary value.
-        f_writer = FortranWriter()
-        inner_loop = self.parent.parent
-        inner_start = f_writer(inner_loop.start_expr) + " - 1"
-        inner_stop = f_writer(inner_loop.stop_expr) + " - 1"
-        outer_loop = inner_loop.parent.parent
-        outer_start = f_writer(outer_loop.start_expr) + " - 1"
-        outer_stop = f_writer(outer_loop.stop_expr) + " - 1"
-
         # Create array for the global work size argument of the kernel
         symtab = self.root.symbol_table
         garg = self._arguments.find_grid_access()
@@ -1228,7 +1215,18 @@ class GOKern(CodedKern):
         # In OpenCL the iteration boundaries are passed as arguments to the
         # kernel because the global work size may exceed the dimensions and
         # therefore the updates outsides the boundaries should be masked.
-        arguments = [kernel, inner_start, inner_stop, outer_start, outer_stop]
+        arguments = [kernel]
+        try:
+            for boundary in ["xstart", "xstop", "ystart", "ystop"]:
+                # We need to find the symbol that defines each boundary for
+                # this kernel, make sure it is declared, and subtract 1 from
+                # each boundary value as OpenCL is  0-indexed.
+                symbol = symtab.lookup_with_tag(boundary + "_" + self.name)
+                arguments.append(symbol.name + " - 1")
+                parent.add(DeclGen(parent, datatype="integer",
+                                   entity_decls=[symbol.name]))
+        except KeyError as err:
+            six.raise_from(GenerationError("Boundary symbol not found"), err)
         for arg in self._arguments.args:
             if arg.argument_type == "scalar":
                 arguments.append(arg.name)
@@ -1411,23 +1409,23 @@ class GOKern(CodedKern):
             sub,
             " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
         index = 0
-        # First the boundary values
-        for boundary in boundary_names:
-            sub.add(AssignGen(
-                sub, lhs=err_name,
-                rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-                format(kobj, index, boundary)))
-            sub.add(CallGen(
-                sub, "check_status",
-                ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
-                 err_name]))
-            index = index + 1
-        # Then the PSy-layer kernel arguments
+        # First the PSy-layer kernel arguments
         for arg in self.arguments.args:
             sub.add(AssignGen(
                 sub, lhs=err_name,
                 rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
                 format(kobj, index, arg.name)))
+            sub.add(CallGen(
+                sub, "check_status",
+                ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
+                 err_name]))
+            index = index + 1
+        # Then the boundary values
+        for boundary in boundary_names:
+            sub.add(AssignGen(
+                sub, lhs=err_name,
+                rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
+                format(kobj, index, boundary)))
             sub.add(CallGen(
                 sub, "check_status",
                 ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
