@@ -49,10 +49,10 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
     code:
 
     >>> subroutine test(i)
-    >>>    if (y < 5) then
+    >>>    if (i < 5) then
     >>>        return
     >>>    endif
-    >>>    if (y > 10) then
+    >>>    if (i > 10) then
     >>>        return
     >>>    endif
     >>>    ! CODE
@@ -61,8 +61,8 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
     will be transformed to:
 
     >>> subroutine test(i)
-    >>>    if (.not.(y < 5)) then
-    >>>        if (.not.(y > 10)) then
+    >>>    if (.not.(i < 5)) then
+    >>>        if (.not.(i > 10)) then
     >>>            ! CODE
     >>>        endif
     >>>    endif
@@ -93,7 +93,7 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
         if not isinstance(node, Routine):
             raise TransformationError("Error in {0} transformation. "
                                       "This transformation can only be applied"
-                                      " to Routine nodes".format(self.name))
+                                      " to Routine nodes.".format(self.name))
 
     def apply(self, node, options=None):
         '''Apply this transformation to the supplied node.

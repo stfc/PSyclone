@@ -37,19 +37,60 @@
 transformation.'''
 
 from __future__ import absolute_import
+import pytest
 
 from psyclone.psyir.transformations import \
         FoldConditionalReturnExpressionsTrans
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.transformations import \
+        TransformationError
 
 
-def test_description_and_validation():
-    ''' Generic tests for the ACCLoopTrans transformation class '''
+SUB_IN = (
+    "subroutine sub1(i, a)\n"
+    "real, intent(inout) :: a\n"
+    "integer, intent(in) :: i\n"
+    " if (i < 5) then\n"
+    "    return\n"
+    " endif\n"
+    " if (i > 10) then\n"
+    "    return\n"
+    " endif\n"
+    "a=0.0\n"
+    "end subroutine\n")
+SUB_OUT = (
+    "subroutine sub1(i, a)\n"
+    "real, intent(inout) :: a\n"
+    "integer, intent(in) :: i\n"
+    " if (.not.(i < 5)) then\n"
+    "   if (.not.(i > 10)) then\n"
+    "     a=0.0\n"
+    "   endif\n"
+    " endif\n"
+    "end subroutine\n")
+
+
+def test_description():
+    ''' Check that the transormation returns the expected strings '''
     trans = FoldConditionalReturnExpressionsTrans()
     assert trans.name == "FoldConditionalReturnExpressionsTrans"
     assert str(trans) == \
         "Fold all conditional expressions with Return statements."
 
 
-def test_transformation():
-    pass
+def test_description_and_validation():
+    ''' Check that the transformation can only be applied to routine nodes '''
+    trans = FoldConditionalReturnExpressionsTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.apply(None)
+    assert("Error in FoldConditionalReturnExpressionsTrans transformation. "
+           "This transformation can only be applied to Routine nodes."
+           in str(info.value))
+
+
+@pytest.mark.parametrize("input_code, expected",
+                         [(SUB_IN, SUB_OUT)])
+def test_transformation(input_code, expected):
+    ''' Check that the transformation works as expected. '''
+    trans = FoldConditionalReturnExpressionsTrans()
+    assert input_code == expected
