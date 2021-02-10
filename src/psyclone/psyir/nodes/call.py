@@ -66,19 +66,19 @@ class Call(Statement):
 
         self._routine = routine
 
-    @staticmethod
-    def create(routine, arguments):
-        '''Create a Call instance given valid instances of a routine symbol,
-        and a list of child nodes for its arguments.
+    @classmethod
+    def create(cls, routine, arguments):
+        '''Create an instance of class cls given valid instances of a routine
+        symbol, and a list of child nodes for its arguments.
 
-        :param routine: the routine that this call calls.
+        :param routine: the routine that class cls calls.
         :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
         :param arguments: the arguments to this routine. These are \
             added as child nodes.
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
 
-        :returns: a Call instance.
-        :rtype: :py:class:`psyclone.psyir.nodes.Call`
+        :returns: an instance of cls.
+        :rtype: :py:class:`psyclone.psyir.nodes.Call` or a subclass thereof.
 
         '''
         if not isinstance(routine, RoutineSymbol):
@@ -90,7 +90,7 @@ class Call(Statement):
                 "Call create arguments argument should be a list but found "
                 "'{0}'.".format(type(arguments).__name__))
 
-        call = Call(routine)
+        call = cls(routine)
         call.children = arguments
         for child in call.children:
             child.parent = call
