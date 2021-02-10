@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@ class Call(Statement):
     # Textual description of the node.
     _children_valid_format = "[DataNode]*"
     _text_name = "Call"
-    _colour_key = "Call"
+    _colour = "cyan"
 
     def __init__(self, routine, parent=None):
         super(Call, self).__init__(parent=parent)

@@ -3533,16 +3533,19 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     from psyclone.dynamo0p3 import DynLoop
     from psyclone.psyGen import OMPDoDirective
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored
 
+    from psyclone.psyGen import InvokeSchedule, Directive, GlobalSum, BuiltIn
+    from psyclone.psyir.nodes import Loop, Schedule, Literal
+    
     # Ensure we check for text containing the correct (colour) control codes
-    isched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
-    gsum = colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
-    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-    call = colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+    isched = colored("InvokeSchedule", InvokeSchedule._colour)
+    directive = colored("Directive", Directive._colour)
+    gsum = colored("GlobalSum", GlobalSum._colour)
+    loop = colored("Loop", Loop._colour)
+    call = colored("BuiltIn", BuiltIn._colour)
+    sched = colored("Schedule", Schedule._colour)
+    lit = colored("Literal", Literal._colour)
     lit_uninit = (lit + "[value:'NOT_INITIALISED', Scalar<INTEGER, "
                   "UNDEFINED>]\n")
     lit_one = lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"

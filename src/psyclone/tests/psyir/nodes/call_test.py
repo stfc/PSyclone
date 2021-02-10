@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Call, Reference, ArrayReference, Schedule
-from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import ArrayType, INTEGER_TYPE, DataSymbol, \
     RoutineSymbol
 from psyclone.errors import GenerationError
@@ -130,7 +130,7 @@ def test_call_node_str():
     ''' Test that the node_str method behaves as expected '''
     routine = RoutineSymbol("isaac")
     call = Call(routine)
-    colouredtext = colored("Call", SCHEDULE_COLOUR_MAP["Call"])
+    colouredtext = colored("Call", Call._colour)
     assert call.node_str() == colouredtext+"[name='isaac']"
 
 

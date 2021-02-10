@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -220,7 +220,7 @@ def test_range_str():
 def test_range_view(capsys):
     ''' Check that calling view() on an array with a child Range works
     as expected. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored
     # Create the PSyIR for 'my_array(1, 1:10)'
     erange = Range.create(Literal("1", INTEGER_SINGLE_TYPE),
                           Literal("10", INTEGER_SINGLE_TYPE))
@@ -230,11 +230,9 @@ def test_range_view(capsys):
                                    erange])
     array.view()
     stdout, _ = capsys.readouterr()
-    arrayref = colored("ArrayReference",
-                       SCHEDULE_COLOUR_MAP[array._colour_key])
-    literal = colored("Literal",
-                      SCHEDULE_COLOUR_MAP[array.children[0]._colour_key])
-    rangestr = colored("Range", SCHEDULE_COLOUR_MAP[erange._colour_key])
+    arrayref = colored("ArrayReference", ArrayReference._colour)
+    literal = colored("Literal", Literal._colour)
+    rangestr = colored("Range", Range._colour)
     indent = "    "
     assert (arrayref + "[name:'my_array']\n" +
             indent + literal +
