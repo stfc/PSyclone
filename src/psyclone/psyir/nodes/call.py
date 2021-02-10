@@ -78,7 +78,7 @@ class Call(Statement):
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
 
         :returns: an instance of cls.
-        :rtype: subclass of :py:class:`psyclone.psyir.nodes.Call`
+        :rtype: :py:class:`psyclone.psyir.nodes.Call` or a subclass thereof.
 
         '''
         if not isinstance(routine, RoutineSymbol):
