@@ -61,8 +61,10 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
         '''
         Create a reference to a member of one or more elements of an array of
         structures.
-        The symbol to be referred to must be of ArrayType with the 'intrinsic'
-        type of the array specified with a TypeSymbol. The member of the
+
+        The symbol to be referred to must be of DeferredType, UnknownType or
+        ArrayType. If the latter then the 'intrinsic' type of the array must
+        be specified with a TypeSymbol. The member of the
         structure that is accessed is specified using the 'members'
         argument. e.g. for a reference to "field(idx)%bundle(2)%flag" this
         argument would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
