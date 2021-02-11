@@ -457,6 +457,18 @@ def test_remove_unsupported_types():
             "and RoutineSymbol types but got: 'DataSymbol'" in str(err.value))
 
 
+@pytest.mark.parametrize("sym_name", ["var1", "vAr1", "VAR1"])
+def test_remove_case_insensitive(sym_name):
+    ''' Check that the remove method works, irrespective of the case of the
+    Symbol name. '''
+    sym_table = SymbolTable()
+    symbol1 = Symbol(sym_name)
+    sym_table.add(symbol1)
+    assert "var1" in sym_table
+    sym_table.remove(symbol1)
+    assert "var1" not in sym_table
+
+
 def test_swap_symbol():
     ''' Test the SymbolTable.swap() method. '''
     symbol1 = Symbol("var1")
