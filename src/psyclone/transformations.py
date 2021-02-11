@@ -59,8 +59,9 @@ from psyclone.psyir.transformations import RegionTrans, LoopTrans, \
     TransformationError
 from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
     INTEGER_TYPE, DataSymbol, Symbol
-from psyclone.psyir.nodes import CodeBlock, Loop
+from psyclone.psyir.nodes import CodeBlock, Loop, Assignment
 from psyclone.dynamo0p3 import DynInvokeSchedule
+from psyclone.nemo import NemoInvokeSchedule
 
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -906,8 +907,6 @@ class OMPLoopTrans(ParallelLoopTrans):
         :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        from psyclone.nemo import NemoInvokeSchedule
-
         if not options:
             options = {}
         self._reprod = options.get("reprod",
@@ -3315,9 +3314,6 @@ class ACCKernelsTrans(RegionTrans):
                                      proposed region.
 
         '''
-        from psyclone.nemo import NemoInvokeSchedule
-        from psyclone.psyir.nodes import Loop, Assignment
-
         # Ensure we are always working with a list of nodes, even if only
         # one was supplied via the `nodes` argument.
         node_list = self.get_node_list(nodes)
