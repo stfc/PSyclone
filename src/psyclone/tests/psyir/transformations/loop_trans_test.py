@@ -38,7 +38,6 @@ have to test it using various sub-classes. '''
 
 from __future__ import absolute_import
 import inspect
-from importlib import import_module
 import pytest
 from psyclone.psyir.transformations import TransformationError, LoopTrans
 from psyclone.psyir.nodes import Loop
@@ -50,7 +49,7 @@ from psyclone import transformations, psyir
 
 def test_loop_trans_name():
     ''' Check that the name method works as expected. '''
-    # We have to use sub-classes of LoopTrans as it is virtual.
+    # We have to use sub-classes of LoopTrans as it itself is abstract.
     trans1 = OMPParallelLoopTrans()
     assert trans1.name == "OMPParallelLoopTrans"
     trans2 = LoopFuseTrans()
@@ -118,22 +117,17 @@ def test_all_loop_trans_base_validate(monkeypatch):
     ''' Check that all transformations that sub-class LoopTrans call the
     base validate() method. '''
     # First get a valid Loop object that we can pass in.
-    trans = OMPParallelLoopTrans()
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=1,
                            dist_mem=False)
     loop = invoke.schedule.walk(Loop)[0]
 
-    # Find all classes defined in our various possible locations for
-    # transformations. This highlights the problem of finding transformations
-    # which is the subject of TODO #978.
+    # Find all PSyIR transformations. There are currently two locations for
+    # these. Eventually all general transformations will be in
+    # psyir.transformations.
     all_trans_classes = inspect.getmembers(psyir.transformations,
                                            inspect.isclass)
     all_trans_classes += inspect.getmembers(transformations, inspect.isclass)
-    # Domain-specific transformations
-    for api in ["gocean", "lfric", "nemo"]:
-        transmod = import_module("psyclone.domain.{0}.transformations".format(
-            api))
-        all_trans_classes += inspect.getmembers(transmod, inspect.isclass)
+
     # To ensure that we identify that the validate() method in the LoopTrans
     # base class has been called, we monkeypatch it to raise an exception.
 

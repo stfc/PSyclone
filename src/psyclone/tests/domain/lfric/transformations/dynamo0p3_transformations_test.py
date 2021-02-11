@@ -39,16 +39,19 @@
 
 from __future__ import absolute_import, print_function
 import pytest
+import inspect
+from importlib import import_module
 from psyclone.core.access_type import AccessType
 from psyclone import psyGen
 from psyclone import psyir
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import LocalInterface, ScalarType, ArrayType, \
     REAL_TYPE, INTEGER_TYPE
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.nodes import Loop
+from psyclone.psyir.transformations import TransformationError, LoopTrans
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import OMPParallelTrans, \
+from psyclone.transformations import OMPParallelTrans, LoopFuseTrans, \
     Dynamo0p3ColourTrans, \
     Dynamo0p3OMPLoopTrans, \
     DynamoOMPParallelLoopTrans, \
@@ -7376,3 +7379,37 @@ def test_kern_const_invalid_make_constant2():
         _, _ = kctrans.apply(kernel, {"element_order": 0})
     assert ("Expected entry to be a scalar integer argument but found "
             "a constant." in str(excinfo.value))
+
+
+def test_all_loop_trans_base_validate(monkeypatch):
+    ''' Check that all LFRic (Dynamo) transformations that sub-class LoopTrans
+    call the base validate() method. '''
+    # First get a valid Loop object that we can pass in.
+    _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
+                           name="invoke_0_testkern_type", dist_mem=False)
+    loop = invoke.schedule.walk(Loop)[0]
+
+    # LFRic-domain transformations should live in the `domain` module. However,
+    # there are still others in psyclone.transformations but these are tested
+    # by the generic tests/psyir/transformations/loop_trans_test.py file.
+    transmod = import_module("psyclone.domain.lfric.transformations")
+    all_trans_classes = inspect.getmembers(transmod, inspect.isclass)
+
+    # To ensure that we identify that the validate() method in the LoopTrans
+    # base class has been called, we monkeypatch it to raise an exception.
+
+    def fake_validate(_1, _2, options=None):
+        raise NotImplementedError("validate test exception")
+    monkeypatch.setattr(LoopTrans, "validate", fake_validate)
+
+    for name, cls_type in all_trans_classes:
+        trans = cls_type()
+        if isinstance(trans, LoopTrans):
+            with pytest.raises(NotImplementedError) as err:
+                if isinstance(trans, LoopFuseTrans):
+                    trans.validate(loop, loop)
+                else:
+                    trans.validate(loop)
+            assert "validate test exception" in str(err.value), \
+                "{0}.validate() does not call LoopTrans.validate()".format(
+                    name)

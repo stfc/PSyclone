@@ -41,12 +41,14 @@
 from __future__ import absolute_import
 import os
 import re
+import inspect
+from importlib import import_module
 import pytest
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations import TransformationError, LoopTrans
 from psyclone.transformations import ACCKernelsTrans, GOConstLoopBoundsTrans, \
     LoopFuseTrans, GOLoopSwapTrans, OMPParallelTrans, \
     GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, KernelModuleInlineTrans, \
@@ -1983,3 +1985,35 @@ def test_acc_kernels_error():
         _, _ = accktrans.apply(schedule.children)
     assert ("kernels regions are currently only supported for the nemo"
             " and dynamo0.3 front-ends" in str(err.value))
+
+
+def test_all_go_loop_trans_base_validate(monkeypatch):
+    ''' Check that all GOcean transformations that sub-class LoopTrans call the
+    base validate() method. '''
+    # First get a valid Loop object that we can pass in.
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=1,
+                           dist_mem=False)
+    loop = invoke.schedule.walk(Loop)[0]
+
+    # GOcean-specific transformations
+    transmod = import_module("psyclone.domain.gocean.transformations")
+    all_trans_classes = inspect.getmembers(transmod, inspect.isclass)
+
+    # To ensure that we identify that the validate() method in the LoopTrans
+    # base class has been called, we monkeypatch it to raise an exception.
+
+    def fake_validate(_1, _2, options=None):
+        raise NotImplementedError("validate test exception")
+    monkeypatch.setattr(LoopTrans, "validate", fake_validate)
+
+    for name, cls_type in all_trans_classes:
+        trans = cls_type()
+        if isinstance(trans, LoopTrans):
+            with pytest.raises(NotImplementedError) as err:
+                if isinstance(trans, LoopFuseTrans):
+                    trans.validate(loop, loop)
+                else:
+                    trans.validate(loop)
+            assert "validate test exception" in str(err.value), \
+                "{0}.validate() does not call LoopTrans.validate()".format(
+                    name)

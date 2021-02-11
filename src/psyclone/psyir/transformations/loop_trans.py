@@ -49,9 +49,8 @@ from psyclone.nemo import NemoInvokeSchedule
 
 @six.add_metaclass(abc.ABCMeta)
 class LoopTrans(Transformation):
-    # Avoid pylint warning about abstract functions (apply, name) not
-    # overwritten:
-    # pylint: disable=abstract-method,arguments-differ
+    # Avoid pylint warning about abstract method (apply) not overwritten:
+    # pylint: disable=abstract-method
     '''
     This abstract class is a base class for all transformations that act
     on a Loop node. It gives access to a validate function that
@@ -74,8 +73,8 @@ class LoopTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["node-type-check"]: this flag controls if the \
-                type of the nodes enclosed in the loop should be tested \
-                to avoid including unsupported nodes in a transformation.
+            type of the nodes enclosed in the loop should be tested to \
+            avoid including unsupported nodes in a transformation.
 
         :raises TransformationError: if the supplied node is not a (fully- \
                 formed) Loop.
@@ -110,7 +109,7 @@ class LoopTrans(Transformation):
         if options.get("node-type-check", True):
             # Stop at any instance of Kern to avoid going into the
             # actual kernels, e.g. in Nemo inlined kernels
-            flat_list = [item for item in node.walk(object, Kern)
+            flat_list = [item for item in node.walk(object, stop_type=Kern)
                          if not isinstance(item, Schedule)]
             for item in flat_list:
                 if isinstance(item, self.excluded_node_types):
