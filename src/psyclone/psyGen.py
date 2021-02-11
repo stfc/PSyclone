@@ -72,8 +72,13 @@ OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 # domain-specific modules.
 VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
 
-# Valid types of argument to a kernel call
+# Valid types of argument to a kernel call. Can be overridden in
+# domain-specific modules.
 VALID_ARG_TYPE_NAMES = []
+
+# Valid intrinsic types of kernel argument data. Can be
+# overridden in domain-specific modules.
+VALID_INTRINSIC_TYPES = []
 
 # Mapping of access type to operator.
 REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
@@ -380,7 +385,7 @@ class Invokes(object):
                 # The enable_profiling option must be equal in all invokes
                 if ocl_enable_profiling is not None and \
                    ocl_enable_profiling != isch.get_opencl_option(
-                        'enable_profiling'):
+                           'enable_profiling'):
                     raise_unmatching_options('enable_profiling')
                 ocl_enable_profiling = isch.get_opencl_option(
                     'enable_profiling')
@@ -630,17 +635,22 @@ class Invoke(object):
     def schedule(self, obj):
         self._schedule = obj
 
-    def unique_declarations(self, argument_types, access=None):
+    def unique_declarations(self, argument_types, access=None,
+                            intrinsic_type=None):
         '''
         Returns a list of all required declarations for the specified
         API argument types. If access is supplied (e.g. "write") then
-        only declarations with that access are returned.
+        only declarations with that access are returned. If an intrinsic
+        type is supplied then only declarations with that intrinsic type
+        are returned.
 
         :param argument_types: the types of the kernel argument for the \
                                particular API.
         :type argument_types: list of str
         :param access: optional AccessType that the declaration should have.
         :type access: :py:class:`psyclone.core.access_type.AccessType`
+        :param intrinsic_type: optional intrinsic type of argument data.
+        :type intrinsic_type: str
 
         :returns: a list of all declared kernel arguments.
         :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
@@ -648,9 +658,10 @@ class Invoke(object):
         :raises InternalError: if at least one kernel argument type is \
                                not valid for the particular API.
         :raises InternalError: if an invalid access is specified.
+        :raises InternalError: if an invalid intrinsic type is specified.
 
         '''
-        # First check for invalid argument types and invalid access
+        # First check for invalid argument types, access and intrinsic type
         if any(argtype not in VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
@@ -660,9 +671,17 @@ class Invoke(object):
 
         if access and not isinstance(access, AccessType):
             raise InternalError(
-                "Invoke.unique_declarations() called with an invalid access "
-                "type. Type is '{0}' instead of AccessType.".
+                "Invoke.unique_declarations() called with an invalid "
+                "access type. Type is '{0}' instead of AccessType.".
                 format(str(access)))
+
+        if (intrinsic_type and intrinsic_type not in
+                VALID_INTRINSIC_TYPES):
+            raise InternalError(
+                "Invoke.unique_declarations() called with an invalid "
+                "intrinsic argument data type. Expected one of {0} but "
+                "found '{1}'.".
+                format(str(VALID_INTRINSIC_TYPES), intrinsic_type))
 
         # Initialise dictionary of kernel arguments to get the
         # argument list from
@@ -670,12 +689,13 @@ class Invoke(object):
         # Find unique kernel arguments using their declaration names
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
-                if not access or arg.access == access:
-                    if arg.text is not None:
-                        if arg.argument_type in argument_types:
-                            test_name = arg.declaration_name
-                            if test_name not in declarations:
-                                declarations[test_name] = arg
+                if not intrinsic_type or arg.intrinsic_type == intrinsic_type:
+                    if not access or arg.access == access:
+                        if arg.text is not None:
+                            if arg.argument_type in argument_types:
+                                test_name = arg.declaration_name
+                                if test_name not in declarations:
+                                    declarations[test_name] = arg
         return list(declarations.values())
 
     def first_access(self, arg_name):
@@ -689,7 +709,7 @@ class Invoke(object):
         raise GenerationError("Failed to find any kernel argument with name "
                               "'{0}'".format(arg_name))
 
-    def unique_declns_by_intent(self, argument_types):
+    def unique_declns_by_intent(self, argument_types, intrinsic_type=None):
         '''
         Returns a dictionary listing all required declarations for each
         type of intent ('inout', 'out' and 'in').
@@ -697,6 +717,8 @@ class Invoke(object):
         :param argument_types: the types of the kernel argument for the \
                                particular API for which the intent is required.
         :type argument_types: list of str
+        :param intrinsic_type: optional intrinsic type of argument data.
+        :type intrinsic_type: str
 
         :returns: dictionary containing 'intent' keys holding the kernel \
                   arguments as values for each type of intent.
@@ -704,9 +726,10 @@ class Invoke(object):
 
         :raises InternalError: if at least one kernel argument type is \
                                not valid for the particular API.
+        :raises InternalError: if an invalid intrinsic type is specified.
 
         '''
-        # First check for invalid argument types
+        # First check for invalid argument types and intrinsic type
         if any(argtype not in VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
@@ -714,13 +737,22 @@ class Invoke(object):
                 "invalid argument type. Expected one of {0} but found {1}.".
                 format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
 
+        if (intrinsic_type and intrinsic_type not in
+                VALID_INTRINSIC_TYPES):
+            raise InternalError(
+                "Invoke.unique_declns_by_intent() called with an invalid "
+                "intrinsic argument data type. Expected one of {0} but "
+                "found '{1}'.".
+                format(str(VALID_INTRINSIC_TYPES), intrinsic_type))
+
         # We will return a dictionary containing as many lists
         # as there are types of intent
         declns = {}
         for intent in FORTRAN_INTENT_NAMES:
             declns[intent] = []
 
-        for arg in self.unique_declarations(argument_types):
+        for arg in self.unique_declarations(argument_types,
+                                            intrinsic_type=intrinsic_type):
             first_arg = self.first_access(arg.declaration_name)
             if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
                 # If the first access is a write then the intent is
@@ -3221,6 +3253,16 @@ class CodedKern(Kern):
         kern_schedule = self.get_kernel_schedule()
         kern_schedule.name = new_kern_name[:]
         kern_schedule.root.name = new_mod_name[:]
+
+        # Change the name of the symbol
+        try:
+            kern_symbol = kern_schedule.symbol_table.lookup(orig_kern_name)
+            kern_schedule.root.symbol_table.rename_symbol(kern_symbol,
+                                                          new_kern_name)
+        except KeyError:
+            # TODO #1013. Right now not all tests have PSyIR symbols because
+            # some only expect f2pygen generation.
+            pass
 
         # TODO #1013. This needs re-doing properly - in particular the
         # RoutineSymbol associated with the kernel needs to be replaced. For
