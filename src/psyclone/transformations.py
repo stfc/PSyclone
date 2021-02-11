@@ -226,7 +226,7 @@ class LoopFuseTrans(LoopTrans):
 
         '''
         # Validity checks for the supplied nodes
-        self.validate(node1, node2, options)
+        self.validate(node1, node2, options=options)
 
         schedule = node1.root
 
@@ -299,7 +299,8 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
                                       "Both nodes must be of the same "
                                       "GOLoop class.".format(self.name))
 
-        super(GOceanLoopFuseTrans, self).validate(node1, node2, options)
+        super(GOceanLoopFuseTrans, self).validate(node1, node2,
+                                                  options=options)
 
         if node1.field_space != node2.field_space:
             raise TransformationError(
@@ -331,7 +332,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         '''
 
         # Validate first
-        self.validate(node1, node2, options)
+        self.validate(node1, node2, options=options)
 
         # Now check for GOcean-specific constraints before applying
         # the transformation
@@ -455,7 +456,8 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         '''
         # pylint: disable=too-many-locals,too-many-branches
         # Call the parent class validation first
-        super(DynamoLoopFuseTrans, self).validate(node1, node2, options)
+        super(DynamoLoopFuseTrans, self).validate(node1, node2,
+                                                  options=options)
 
         # Now test for Dynamo-specific constraints
 
@@ -578,7 +580,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         '''
 
         # Validity checks for the supplied nodes
-        self.validate(node1, node2, options)
+        self.validate(node1, node2, options=options)
 
         # Apply fuse method from the parent class
         return super(DynamoLoopFuseTrans, self).apply(node1, node2, options)
@@ -709,7 +711,7 @@ class ParallelLoopTrans(LoopTrans):
         '''
         if not options:
             options = {}
-        self.validate(node, options)
+        self.validate(node, options=options)
 
         schedule = node.root
 
@@ -1080,7 +1082,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         '''
         # Check that the supplied Node is a Loop
-        super(OMPParallelLoopTrans, self).validate(node, options)
+        super(OMPParallelLoopTrans, self).validate(node, options=options)
 
         # Check we are not a sequential loop
         if node.loop_type == 'colours':
@@ -1112,7 +1114,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         :rtype: (:py:class:`psyclone.psyir.nodes.Schedule, \
                  :py:class:`psyclone.undoredo.Memento`)
         '''
-        self.validate(node, options)
+        self.validate(node, options=options)
 
         schedule = node.root
         # create a memento of the schedule and the proposed transformation
@@ -1171,7 +1173,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self.validate(node, options)
+        self.validate(node, options=options)
 
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is discontinuous (including
@@ -1220,7 +1222,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self.validate(node, options)
+        self.validate(node, options=options)
 
         # Check we are either an inner or outer loop
         if node.loop_type not in ["inner", "outer"]:
@@ -1267,7 +1269,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         options["reprod"] = options.get("reprod",
                                         Config.get().reproducible_reductions)
 
-        self.validate(node, options)
+        self.validate(node, options=options)
 
         # If the loop is not already coloured then check whether or not
         # it should be
@@ -1545,7 +1547,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
         '''
         # check node is a loop
-        super(Dynamo0p3ColourTrans, self).validate(node, options)
+        super(Dynamo0p3ColourTrans, self).validate(node, options=options)
 
         # Check we need colouring
         if node.field_space.orig_name in \
@@ -2249,7 +2251,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self.validate(loop, options)
+        self.validate(loop, options=options)
         if not options:
             options = {}
         depth = options.get("depth")
@@ -2381,7 +2383,7 @@ class GOLoopSwapTrans(LoopTrans):
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self.validate(outer, options)
+        self.validate(outer, options=options)
 
         schedule = outer.root
         inner = outer.loop_body[0]

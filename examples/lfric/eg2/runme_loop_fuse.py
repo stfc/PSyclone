@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Authors: R. Ford and A. R. Porter, STFC Daresbury Lab
 
 from __future__ import print_function
 from psyclone.parse.algorithm import parse
