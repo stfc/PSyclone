@@ -532,6 +532,8 @@ def test_invoke_uniq_declns_invalid_intrinsic():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    # TODO in #874: After removing support for old-style scalar metadata use
+    # the scalar names list LFRicArgDescriptor.VALID_SCALAR_NAMES in this test
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations(
             ["gh_scalar"], intrinsic_type="double")
@@ -663,6 +665,8 @@ def test_dyninvoke_uniq_declns_intent_invalid_intrinsic():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    # TODO in #874: After removing support for old-style scalar metadata use
+    # the scalar names list LFRicArgDescriptor.VALID_SCALAR_NAMES in this test
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declns_by_intent(
             ["gh_scalar"], intrinsic_type="triple")
@@ -3004,133 +3008,6 @@ def test_halo_for_discontinuous_2(tmpdir, monkeypatch, annexed):
         assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_arg_discontinuous(monkeypatch, annexed):
-    ''' Test that the discontinuous method in the Dynamo0.3 API argument
-    class returns the correct values. Check that the code is generated
-    correctly when annexed dofs are and are not computed by default as
-    the number of halo exchanges produced is different in the two
-    cases.
-
-    '''
-
-    # 1) Discontinuous fields return true
-    # 1a) Check w3, wtheta and w2v in turn
-    api_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    if annexed:
-        # no halo exchanges produced for the w3 example (reads from
-        # continuous spaces)
-        idchld_list = [0, 0, 0]
-    else:
-        # 3 halo exchanges produced for the w3 example (reads from
-        # continuous spaces)
-        idchld_list = [3, 0, 0]
-    idarg_list = [4, 0, 0]
-    fs_dict = dict(zip(FunctionSpace.DISCONTINUOUS_FUNCTION_SPACES[0:3],
-                       zip(idchld_list, idarg_list)))
-    for fspace in fs_dict.keys():
-        filename = "1_single_invoke_" + fspace + ".f90"
-        idchld = fs_dict[fspace][0]
-        idarg = fs_dict[fspace][1]
-        _, info = parse(os.path.join(BASE_PATH, filename),
-                        api=TEST_API)
-        psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        kernel = schedule.children[idchld].loop_body[0]
-        field = kernel.arguments.args[idarg]
-        assert field.space == fspace
-        assert field.discontinuous
-
-    # 1b) w2broken, w2vtrace and wchi return true
-    _, info = parse(
-        os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if annexed:
-        index = 12
-    else:
-        index = 13
-    kernel = schedule.children[index].loop_body[0]
-    # Test w2broken
-    field = kernel.arguments.args[7]
-    assert field.space == 'w2broken'
-    assert field.discontinuous
-    # Test w2vtrace
-    field = kernel.arguments.args[11]
-    assert field.space == 'w2vtrace'
-    assert field.discontinuous
-    # Test wchi
-    field = kernel.arguments.args[4]
-    assert field.space == 'wchi'
-    assert not field.discontinuous
-
-    # 1c) any_discontinuous_space returns true
-    _, info = parse(
-        os.path.join(BASE_PATH,
-                     "1_single_invoke_any_discontinuous_space.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if annexed:
-        index = 0
-    else:
-        index = 2
-    kernel = schedule.children[index].loop_body[0]
-    field = kernel.arguments.args[0]
-    assert field.space == 'any_discontinuous_space_1'
-    assert field.discontinuous
-
-    # 2) any_space field returns false
-    _, info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if annexed:
-        index = 4
-    else:
-        index = 5
-    kernel = schedule.children[index].loop_body[0]
-    field = kernel.arguments.args[0]
-    assert field.space == 'any_space_1'
-    assert not field.discontinuous
-
-    # 3) Continuous field returns false
-    # 3a) Test w1
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if annexed:
-        index = 3
-    else:
-        index = 4
-    kernel = schedule.children[index].loop_body[0]
-    field = kernel.arguments.args[1]
-    assert field.space == 'w1'
-    assert not field.discontinuous
-    # 3b) Test w2trace and w2htrace
-    _, info = parse(
-        os.path.join(BASE_PATH,
-                     "1.5.4_single_invoke_write_anyspace_w2trace.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    if annexed:
-        index = 6
-    else:
-        index = 8
-    kernel = schedule.children[index].loop_body[0]
-    # Test w2trace
-    field = kernel.arguments.args[3]
-    assert field.space == 'w2trace'
-    assert not field.discontinuous
-    # Test w2htrace
-    field = kernel.arguments.args[7]
-    assert field.space == 'w2htrace'
-    assert not field.discontinuous
 
 
 def test_halo_stencil_redundant_computation():
