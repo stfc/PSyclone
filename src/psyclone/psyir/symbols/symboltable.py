@@ -650,12 +650,16 @@ class SymbolTable(object):
                 "".format(type(symbol).__name__))
         # pylint: enable=unidiomatic-typecheck
 
-        if symbol.name not in self._symbols:
+        # Since we are manipulating the _symbols dict directly we must use
+        # the normalised name of the symbol.
+        norm_name = self._normalize(symbol.name)
+
+        if norm_name not in self._symbols:
             raise KeyError("Cannot remove Symbol '{0}' from symbol table "
                            "because it does not exist.".format(symbol.name))
         # Sanity-check that the entry in the table is the symbol we've
         # been passed.
-        if self._symbols[symbol.name] is not symbol:
+        if self._symbols[norm_name] is not symbol:
             raise InternalError(
                 "The Symbol with name '{0}' in this symbol table is not the "
                 "same Symbol object as the one that has been supplied to the "
@@ -676,7 +680,7 @@ class SymbolTable(object):
             if symbol is tagged_symbol:
                 del self._tags[tag]
 
-        self._symbols.pop(symbol.name)
+        self._symbols.pop(norm_name)
 
     @property
     def argument_list(self):
