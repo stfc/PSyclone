@@ -38,10 +38,9 @@
 ''' Performs py.test tests on the fparser2 PSyIR front-end '''
 
 from __future__ import absolute_import
-import os
 import pytest
 import fparser
-from fparser.common.readfortran import FortranStringReader, FortranFileReader
+from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Specification_Part, \
     Type_Declaration_Stmt, Execution_Part, Name, Stmt_Function_Stmt, \
@@ -49,18 +48,17 @@ from fparser.two.Fortran2003 import Specification_Part, \
 from psyclone.psyir.nodes import Schedule, CodeBlock, Assignment, Return, \
     UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference, \
     ArrayReference, Container, Literal, Range, KernelSchedule
-from psyclone.psyGen import PSyFactory, Directive, Kern
+from psyclone.psyGen import PSyFactory, Directive
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol,
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE,
-    REAL_TYPE, UnknownFortranType, DeferredType, Symbol, UnresolvedInterface)
+    REAL_TYPE, UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
+    GlobalInterface)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
-    default_integer_type, default_real_type, _kind_symbol_from_name, \
-    _find_or_create_imported_symbol
-from psyclone.tests.utilities import get_invoke
+    default_integer_type, default_real_type, _kind_symbol_from_name
 
 
 def process_declarations(code):
@@ -1025,6 +1023,15 @@ def test_process_not_supported_declarations():
     assert "An array with defined extent cannot have the ALLOCATABLE" \
         in str(err.value)
 
+    reader = FortranStringReader("integer :: l11")
+    fparser2spec = Specification_Part(reader).content[0]
+    # Break the parse tree
+    fparser2spec.items = ("hello", fparser2spec.items[1],
+                          fparser2spec.items[2])
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    l11sym = fake_parent.symbol_table.lookup("l11")
+    assert isinstance(l11sym.datatype, UnknownFortranType)
+
 
 def test_module_function_symbol(parser):
     ''' Check that the frontend correctly creates a new, local symbol for
@@ -1393,6 +1400,22 @@ def test_parse_array_dimensions_attributes():
     assert "Could not process " in str(error.value)
     assert ("Only scalar integer literals or symbols are supported for "
             "explicit shape array declarations.") in str(error.value)
+
+    # Shape specified by an unknown Symbol
+    reader = FortranStringReader("dimension(var3)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    csym = sym_table.new_symbol("some_mod", symbol_type=ContainerSymbol)
+    vsym = sym_table.new_symbol("var3", interface=GlobalInterface(csym))
+    # pylint: disable=unidiomatic-typecheck
+    assert type(vsym) == Symbol
+    shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+    assert len(shape) == 1
+    assert isinstance(shape[0], Reference)
+    # Symbol is the same object but is now a DataSymbol
+    assert shape[0].symbol is vsym
+    assert isinstance(shape[0].symbol, DataSymbol)
+    assert shape[0].symbol.name == "var3"
+    assert isinstance(shape[0].symbol.interface, GlobalInterface)
 
     # Test dimension and intent arguments together
     fake_parent = KernelSchedule("dummy_schedule")
@@ -2717,141 +2740,3 @@ def test_named_and_wildcard_use_var(f2008_parser):
     avar2 = schedule.symbol_table.lookup("a_var")
     assert type(avar2) == Symbol
     assert avar2 is not avar1
-
-
-def test_find_or_create_imported_symbol():
-    '''Test that the find_or_create_imported_symbol method in a Node instance
-    returns the associated symbol if there is one and raises an exception if
-    not. Also test for an incorrect scope argument.'''
-
-    _, invoke = get_invoke("single_invoke_kern_with_global.f90",
-                           api="gocean1.0", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    kernel_schedule = kernels[0].get_kernel_schedule()
-    references = kernel_schedule.walk(Reference)
-
-    # Symbol in KernelSchedule SymbolTable
-    field_old = references[0]
-    assert field_old.name == "field_old"
-    assert isinstance(field_old.symbol, DataSymbol)
-    assert field_old.symbol in kernel_schedule.symbol_table.symbols
-
-    # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
-    assert isinstance(_find_or_create_imported_symbol(
-        field_old, field_old.name, scope_limit=kernel_schedule), DataSymbol)
-    assert field_old.symbol.name == field_old.name
-
-    # Symbol in KernelSchedule SymbolTable with parent scope, so
-    # the symbol should not be found as we limit the scope to the
-    # immediate parent of the reference
-    with pytest.raises(SymbolError) as excinfo:
-        _ = _find_or_create_imported_symbol(field_old, field_old.name,
-                                            scope_limit=field_old.parent)
-    assert "No Symbol found for name 'field_old'." in str(excinfo.value)
-
-    # Symbol in Container SymbolTable
-    alpha = references[6]
-    assert alpha.name == "alpha"
-    assert isinstance(_find_or_create_imported_symbol(alpha, alpha.name),
-                      DataSymbol)
-    container = kernel_schedule.root
-    assert isinstance(container, Container)
-    assert (_find_or_create_imported_symbol(alpha, alpha.name) in
-            container.symbol_table.symbols)
-
-    # Symbol in Container SymbolTable with KernelSchedule scope, so
-    # the symbol should not be found as we limit the scope to the
-    # kernel so do not search the container symbol table.
-    with pytest.raises(SymbolError) as excinfo:
-        _ = _find_or_create_imported_symbol(alpha, alpha.name,
-                                            scope_limit=kernel_schedule)
-    assert "No Symbol found for name 'alpha'." in str(excinfo.value)
-
-    # Symbol in Container SymbolTable with Container scope
-    assert (_find_or_create_imported_symbol(
-        alpha, alpha.name, scope_limit=container).name == alpha.name)
-
-    # Test _find_or_create_impored_symbol with invalid location
-    with pytest.raises(TypeError) as excinfo:
-        _ = _find_or_create_imported_symbol("hello", alpha.name)
-    assert ("The location argument 'hello' provided to "
-            "_find_or_create_imported_symbol() is not of type `Node`."
-            in str(excinfo.value))
-
-    # Test _find_or_create_impored_symbol with invalid scope type
-    with pytest.raises(TypeError) as excinfo:
-        _ = _find_or_create_imported_symbol(alpha, alpha.name,
-                                            scope_limit="hello")
-    assert ("The scope_limit argument 'hello' provided to "
-            "_find_or_create_imported_symbol() is not of type `Node`."
-            in str(excinfo.value))
-
-    # find_or_create_symbol method with invalid scope location
-    with pytest.raises(ValueError) as excinfo:
-        _ = _find_or_create_imported_symbol(alpha, alpha.name,
-                                            scope_limit=alpha)
-    assert ("The scope_limit node 'Reference[name:'alpha']' provided to "
-            "_find_or_create_imported_symbol() is not an ancestor of this "
-            "node 'Reference[name:'alpha']'." in str(excinfo.value))
-
-    # With a visibility parameter
-    sym = _find_or_create_imported_symbol(alpha, "very_private",
-                                          visibility=Symbol.Visibility.PRIVATE)
-    assert sym.name == "very_private"
-    assert sym.visibility == Symbol.Visibility.PRIVATE
-    assert sym is container.symbol_table.lookup("very_private",
-                                                scope_limit=container)
-
-
-def test_find_or_create_imported_symbol_2():
-    ''' Check that the _find_or_create_imported_symbol() method creates new
-    symbols when appropriate. '''
-    # Create some suitable PSyIR from scratch
-    symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("tmp", REAL_TYPE))
-    kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
-    container = Container.create("container_name", symbol_table,
-                                 [kernel1])
-    xvar = DataSymbol("x", REAL_TYPE)
-    xref = Reference(xvar)
-    assign = Assignment.create(xref, Literal("1.0", REAL_TYPE))
-    kernel1.addchild(assign)
-    assign.parent = kernel1
-    # We have no wildcard imports so there can be no symbol named 'undefined'
-    with pytest.raises(SymbolError) as err:
-        _ = _find_or_create_imported_symbol(assign, "undefined")
-    assert "No Symbol found for name 'undefined'" in str(err.value)
-    # We should be able to find the 'tmp' symbol in the parent Container
-    sym = _find_or_create_imported_symbol(assign, "tmp")
-    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    # Add a wildcard import to the SymbolTable of the KernelSchedule
-    new_container = ContainerSymbol("some_mod")
-    new_container.wildcard_import = True
-    kernel1.symbol_table.add(new_container)
-    # Symbol not in any container but we do have wildcard imports so we
-    # get a new symbol back
-    new_symbol = _find_or_create_imported_symbol(assign, "undefined")
-    assert new_symbol.name == "undefined"
-    assert isinstance(new_symbol.interface, UnresolvedInterface)
-    # pylint: disable=unidiomatic-typecheck
-    assert type(new_symbol) == Symbol
-    assert "undefined" not in container.symbol_table
-    assert kernel1.symbol_table.lookup("undefined") is new_symbol
-
-
-def test_nemo_find_container_symbol(parser):
-    ''' Check that find_or_create_symbol() works for the NEMO API when the
-    searched-for symbol is declared in the parent module. '''
-    reader = FortranFileReader(
-        os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__)))),
-            "test_files", "gocean1p0", "kernel_with_global_mod.f90"))
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    # Get a node from the schedule
-    bops = psy._invokes.invoke_list[0].schedule.walk(BinaryOperation)
-    # Use it as the starting point for the search
-    symbol = _find_or_create_imported_symbol(bops[0], "alpha")
-    assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
