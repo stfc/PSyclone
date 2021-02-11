@@ -63,12 +63,10 @@ def test_program_handler(parser):
     processor = Fparser2Reader()
     reader = FortranStringReader(code)
     parse_tree = parser(reader)
-    container = Container("dummy")
-    processor._program_handler(parse_tree, container)
-    psyir = container.children[0]
+    psyir = processor._program_handler(parse_tree, None)
     # Check PSyIR nodes are being created
     assert isinstance(psyir, Container)
-    assert psyir.name == "a"
+    assert psyir.parent is None
     writer = FortranWriter()
     result = writer(psyir)
     assert result == expected

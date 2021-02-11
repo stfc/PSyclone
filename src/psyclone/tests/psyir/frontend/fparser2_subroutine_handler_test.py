@@ -89,6 +89,7 @@ def test_subroutine_handler(parser, code, expected):
     psyir = processor._subroutine_handler(subroutine, None)
     # Check the expected PSyIR nodes are being created
     assert isinstance(psyir, Routine)
+    assert psyir.parent is None
     writer = FortranWriter()
     result = writer(psyir)
     assert expected == result

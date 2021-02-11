@@ -3377,7 +3377,7 @@ class Fparser2Reader(object):
 
         return routine
 
-    def _module_handler(self, node, _):
+    def _module_handler(self, node, parent):
         '''Transforms an fparser2 Module statement into a PSyIR Container node.
 
         :param node: fparser2 representation of a module.
@@ -3391,7 +3391,7 @@ class Fparser2Reader(object):
         '''
         # Create a container to capture the module information
         mod_name = str(node.children[0].children[1])
-        container = Container(mod_name)
+        container = Container(mod_name, parent=parent)
 
         # Search for any accessibility statements (e.g. "PUBLIC :: my_var") to
         # determine the default accessibility of symbols as well as identifying
@@ -3450,4 +3450,4 @@ class Fparser2Reader(object):
                 "The PSyIR is currently limited to a single top level "
                 "module/subroutine/program/function, but {0} were found."
                 "".format(len(node.children)))
-        self.process_nodes(parent=parent, nodes=node.children)
+        return self._create_child(node.children[0], parent)

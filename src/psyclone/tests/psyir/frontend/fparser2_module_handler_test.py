@@ -104,6 +104,7 @@ def test_module_handler(parser, code, expected):
     psyir = processor._module_handler(module, None)
     # Check the expected PSyIR nodes are being created
     assert isinstance(psyir, Container)
+    assert psyir.parent is None
     writer = FortranWriter()
     result = writer(psyir)
     assert expected == result
