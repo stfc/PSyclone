@@ -43,7 +43,6 @@
 from __future__ import absolute_import
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import BuiltIn
-from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.f2pygen import AssignGen
@@ -189,10 +188,6 @@ class DynBuiltIn(BuiltIn):
         :raises ParseError: if a built-in call does not iterate over DoFs.
         :raises ParseError: if an argument to a built-in kernel is not \
                             one of valid argument types.
-        :raises InternalError: if a field argument to a built-in kernel has \
-                               an invalid data type.
-        :raises InternalError: if a scalar argument to a built-in kernel has \
-                               an invalid data type.
         :raises ParseError: if a built-in kernel writes to more than \
                             one argument.
         :raises ParseError: if a built-in kernel does not have at least \
@@ -218,24 +213,6 @@ class DynBuiltIn(BuiltIn):
                     "must be one of {0} but kernel '{1}' has an argument of "
                     "type '{2}'.".format(VALID_BUILTIN_ARG_TYPES, self.name,
                                          arg.argument_type))
-            # Check valid data types (InternalError as the relevant ParseError
-            # is caught in LFRicArgDescriptor)
-            if (arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES and
-                    arg.data_type not in
-                    LFRicArgDescriptor.VALID_FIELD_DATA_TYPES):
-                raise InternalError(
-                    "Found an unsupported data type '{0}' for a field "
-                    "argument in kernel '{1}'. Supported data types are {2}.".
-                    format(arg.data_type, self.name,
-                           LFRicArgDescriptor.VALID_FIELD_DATA_TYPES))
-            if (arg.argument_type in LFRicArgDescriptor.VALID_SCALAR_NAMES and
-                    arg.data_type not in
-                    LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES):
-                raise InternalError(
-                    "Found an unsupported data type '{0}' for a scalar "
-                    "argument in kernel '{1}'. Supported data types are {2}.".
-                    format(arg.data_type, self.name,
-                           LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES))
             # Built-ins update fields DoF by DoF and therefore can have
             # WRITE/READWRITE access
             if arg.access in [AccessType.WRITE, AccessType.SUM,

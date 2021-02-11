@@ -47,9 +47,8 @@ import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import GenerationError
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone import dynamo0p3_builtins
 
 from psyclone.tests.lfric_build import LFRicBuild
@@ -270,52 +269,6 @@ def test_builtin_args_not_same_space():
             "be on the same space. However, found spaces ['any_space_1', "
             "'any_space_2'] for arguments to '{0}'".
             format(test_builtin_name.lower()) in str(excinfo.value))
-
-
-def test_builtin_invalid_field_data_type():
-    ''' Check that we raise appropriate error if we encounter a built-in
-    that takes an invalid field data type (here "gh_double" field).
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.1_X_minus_Y_builtin.f90"),
-                           api=API)
-    psy = PSyFactory(API,
-                     distributed_memory=False).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].loop_body[0]
-    fld_arg = kern.arguments.args[0]
-    # Sabotage the field argument to make it have an invalid data type
-    fld_arg.descriptor._data_type = "gh_double"
-    with pytest.raises(InternalError) as excinfo:
-        dynamo0p3_builtins.DynXMinusYKern._validate(kern)
-    assert ("Found an unsupported data type 'gh_double' for a field "
-            "argument in kernel 'x_minus_y'. Supported data types are {0}".
-            format(LFRicArgDescriptor.VALID_FIELD_DATA_TYPES) in
-            str(excinfo.value))
-
-
-def test_builtin_invalid_scalar_data_type():
-    ''' Check that we raise appropriate error if we encounter a built-in
-    that takes an invalid scalar data type (here "gh_float" scalar).
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4.2_inc_a_times_X_builtin.f90"),
-                           api=API)
-    psy = PSyFactory(API,
-                     distributed_memory=False).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].loop_body[0]
-    scal_arg = kern.arguments.args[0]
-    # Sabotage the scalar argument to make it have an invalid data type
-    scal_arg.descriptor._data_type = "gh_float"
-    with pytest.raises(InternalError) as excinfo:
-        dynamo0p3_builtins.DynIncATimesXKern._validate(kern)
-    assert ("Found an unsupported data type 'gh_float' for a scalar argument "
-            "in kernel 'inc_a_times_x'. Supported data types are {0}".
-            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES) in
-            str(excinfo.value))
 
 
 def test_dynbuiltincallfactory_str():
