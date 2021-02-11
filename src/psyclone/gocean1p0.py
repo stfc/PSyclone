@@ -51,7 +51,7 @@ from __future__ import print_function
 import re
 import six
 from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, \
-    Execution_Part
+    Subroutine_Subprogram
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config, ConfigurationError
@@ -60,15 +60,14 @@ from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
     KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Return, IfBlock
+    Return, IfBlock, Container
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    AccessType, ACCEnterDataDirective, HaloExchange, Routine
+    AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, Symbol, \
-    ContainerSymbol, DeferredType, TypeSymbol, GlobalInterface, \
-    UnknownFortranType, UnresolvedInterface, REAL_TYPE
+    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
+    ContainerSymbol, DeferredType, TypeSymbol, UnresolvedInterface, REAL_TYPE
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -1592,10 +1591,10 @@ class GOKern(CodedKern):
                         write_fp = self.gen_ocl_write_to_device_function(
                             parent.parent)
                     ifthen.add(AssignGen(
-                        ifthen, lhs="{0}%read_from_device_c".format(arg.name),
+                        ifthen, lhs="{0}%read_from_device_f".format(arg.name),
                         rhs=read_fp, pointer=True))
                     ifthen.add(AssignGen(
-                        ifthen, lhs="{0}%write_to_device_c".format(arg.name),
+                        ifthen, lhs="{0}%write_to_device_f".format(arg.name),
                         rhs=write_fp, pointer=True))
 
                 # Ensure data copies have finished
@@ -1618,105 +1617,44 @@ class GOKern(CodedKern):
         :rtype: str
 
         '''
-
         # Create the symbol for the routine and add it to the symbol table.
         subroutine_name = self.root.symbol_table.new_symbol(
-            "read_from_device", symbol_type=RoutineSymbol,
-            tag="ocl_read_func").name
-
-
-        subroutine = Routine(subroutine_name)
-        sub_st = subroutine.symbol_table
-
-        # Import the 'iso_c_binding', 'clfrontran' and 'fortcl' modules
-        kind_params_sym = ContainerSymbol("iso_c_binding")
-        kind_params_sym.wildcard_import = True
-        sub_st.add(kind_params_sym)
-        kind_params_sym = ContainerSymbol("clfortran")
-        kind_params_sym.wildcard_import = True
-        sub_st.add(kind_params_sym)
-        kind_params_sym = ContainerSymbol("fortcl")
-        kind_params_sym.wildcard_import = True
-        sub_st.add(kind_params_sym)
-
-        # Declare the routine variables, the 'value' and 'pointer' attributes
-        # are not supported by the PSyIR, so all the arguments will need to be
-        # UnknownFortranType, in this case this is fine because this function
-        # will only be generated in Fortran.
-        interface = ArgumentInterface(ArgumentInterface.Access.READ)
-        s_from = DataSymbol(
-            "from", interface=interface, datatype=UnknownFortranType(
-                "INTEGER(KIND=c_intptr_t), intent(in), value :: from\n"))
-        s_to = DataSymbol(
-            "to", interface=interface, datatype=UnknownFortranType(
-                "TYPE(c_ptr), intent(in), value :: to\n"))
-        s_offset = DataSymbol(
-            "offset", interface=interface, datatype=UnknownFortranType(
-                "INTEGER(KIND=c_int), intent(in), value :: offset\n"))
-        s_nx = DataSymbol(
-            "nx", interface=interface, datatype=UnknownFortranType(
-                "INTEGER(KIND=c_int), intent(in), value :: nx\n"))
-        s_ny = DataSymbol(
-            "ny", interface=interface, datatype=UnknownFortranType(
-                "INTEGER(KIND=c_int), intent(in), value :: ny\n"))
-        s_stride = DataSymbol(
-            "stride", interface=interface, datatype=UnknownFortranType(
-                "INTEGER(KIND=c_int), intent(in), value :: stride\n"))
-
-        sub_st.add(s_from)
-        sub_st.add(s_to)
-        sub_st.add(s_offset)
-        sub_st.add(s_nx)
-        sub_st.add(s_ny)
-        sub_st.add(s_stride)
-        sub_st.specify_argument_list([s_from, s_to, s_offset, s_nx, s_ny,
-                                      s_stride])
-
-        cmd_queues = DataSymbol(
-            "cmd_queues", datatype=UnknownFortranType(
-                "INTEGER(KIND=c_intptr_t), pointer, dimension(:) ::"
-                "cmd_queues\n"))
-        cmd_queue = DataSymbol(
-            "cmd_queue", datatype=UnknownFortranType(
-                "INTEGER(KIND=c_intptr_t), pointer :: cmd_queue"
-                "= cmd_queues(1)\n"))
-        ierr = DataSymbol(
-            "ierr", datatype=UnknownFortranType(
-                "integer(kind=c_int32_t) :: ierr\n"))
-        offset_in_bytes = DataSymbol(
-            "offset_in_bytes", datatype=UnknownFortranType(
-                "integer(kind=8) :: offset_in_bytes\n"))
-        size_in_bytes = DataSymbol(
-            "size_in_bytes", datatype=UnknownFortranType(
-                "integer(kind=8) :: size_in_bytes\n"))
-
-        sub_st.add(cmd_queues)
-        sub_st.add(ierr)
-        sub_st.add(offset_in_bytes)
-        sub_st.add(size_in_bytes)
+            "write_to_device", symbol_type=RoutineSymbol,
+            tag="ocl_write_func").name
 
         code = '''
+        subroutine read_opencl(from, to, offset, nx, ny, gap)
+            use iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
+            USE ocl_utils_mod, ONLY: check_status
+            use kind_params_mod, only: go_wp
+            USE clfortran
+            USE fortcl, ONLY: get_cmd_queues
+            type(c_ptr), intent(in) :: from
+            real(go_wp), dimension(:,:), intent(inout), target :: to
+            integer, intent(in) :: offset, nx, ny, gap
+            INTEGER(c_size_t) :: size_in_bytes, offset_in_bytes
+            integer(c_intptr_t) :: cl_mem
+            INTEGER(c_intptr_t), pointer :: cmd_queues(:)
+            integer :: ierr
+            size_in_bytes = int((nx+gap)*ny, 8) * c_sizeof(to(1,1))
+            offset_in_bytes = int(offset, 8) * c_sizeof(to(1,1))
+            cl_mem = transfer(from, cl_mem)
             cmd_queues => get_cmd_queues()
-            offset_in_bytes = int(offset, kind=8) * 8_8
-            size_in_bytes = int(ny*(nx+stride), kind=8) * 8_8
-            !write(*,*) "Read", from, to, offset, nx, ny, stride
-            !write(*,*) "in OCL", offset_in_bytes, size_in_bytes
-            ierr = clFinish(cmd_queues(1))
-            ierr = clEnqueueReadBuffer( &
-                cmd_queues(1), &
-                from, &
-                CL_BLOCKING, & ! Is blocking
-                offset_in_bytes, & ! Offset
-                size_in_bytes, &
-                to, &
-                0, C_NULL_PTR, & ! Wait list
-                C_NULL_PTR) ! event
+            ierr = clEnqueueReadBuffer(cmd_queues(1), cl_mem, &
+                CL_TRUE, offset_in_bytes, size_in_bytes, C_LOC(to), 0, &
+                C_NULL_PTR, C_NULL_PTR)
+            CALL check_status('clEnqueueReadBuffer', ierr)
+        end subroutine read_opencl
         '''
 
+        container = Container("dummy")
         processor = Fparser2Reader()
         reader = FortranStringReader(code)
-        exe_part = Execution_Part.match(reader)
-        processor.process_nodes(subroutine, exe_part[0])
+        exe_part = Subroutine_Subprogram.match(reader)
+        processor.process_nodes(container, exe_part[0])
+        subroutine = container.children[0]
+        # import pdb; pdb.set_trace()
+        # Rename subroutine
 
         # Insert the code in the invoke module
         f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
@@ -1729,95 +1667,39 @@ class GOKern(CodedKern):
             "write_to_device", symbol_type=RoutineSymbol,
             tag="ocl_write_func").name
 
-        subroutine = Routine(subroutine_name)
-        sub_st = subroutine.symbol_table
-
-        # Import the 'iso_c_binding', 'clfrontran' and 'fortcl' modules
-        kind_params_sym = ContainerSymbol("iso_c_binding")
-        kind_params_sym.wildcard_import = True
-        sub_st.add(kind_params_sym)
-        kind_params_sym = ContainerSymbol("clfortran")
-        kind_params_sym.wildcard_import = True
-        sub_st.add(kind_params_sym)
-        kind_params_sym = ContainerSymbol("fortcl")
-        kind_params_sym.wildcard_import = True
-        sub_st.add(kind_params_sym)
-
-        # Declare the routine variables, the 'value' and 'pointer' attributes
-        # are not supported by the PSyIR, so all the arguments will need to be
-        # UnknownFortranType, in this case this is fine because this function
-        # will only be generated in Fortran.
-        interface = ArgumentInterface(ArgumentInterface.Access.READ)
-        s_from = DataSymbol(
-            "from", interface=interface, datatype=UnknownFortranType(
-                "TYPE(c_ptr), intent(in), value :: from\n"))
-        s_to = DataSymbol(
-            "to", interface=interface, datatype=UnknownFortranType(
-                "INTEGER(KIND=c_intptr_t), intent(in), value :: to\n"))
-        s_offset = DataSymbol(
-            "offset", interface=interface, datatype=UnknownFortranType(
-                "INTEGER(KIND=c_int), intent(in), value :: offset\n"))
-        s_nx = DataSymbol(
-            "nx", interface=interface, datatype=UnknownFortranType(
-                "INTEGER(KIND=c_int), intent(in), value :: nx\n"))
-        s_ny = DataSymbol(
-            "ny", interface=interface, datatype=UnknownFortranType(
-                "INTEGER(KIND=c_int), intent(in), value :: ny\n"))
-        s_stride = DataSymbol(
-            "stride", interface=interface, datatype=UnknownFortranType(
-                "INTEGER(KIND=c_int), intent(in), value :: stride\n"))
-
-        sub_st.add(s_from)
-        sub_st.add(s_to)
-        sub_st.add(s_offset)
-        sub_st.add(s_nx)
-        sub_st.add(s_ny)
-        sub_st.add(s_stride)
-        sub_st.specify_argument_list([s_from, s_to, s_offset, s_nx, s_ny,
-                                      s_stride])
-
-        cmd_queues = DataSymbol(
-            "cmd_queues", datatype=UnknownFortranType(
-                "INTEGER(KIND=c_intptr_t), pointer, dimension(:) :: "
-                "cmd_queues\n"))
-        ierr = DataSymbol(
-            "ierr", datatype=UnknownFortranType(
-                "integer(kind=c_int32_t) :: ierr\n"))
-        offset_in_bytes = DataSymbol(
-            "offset_in_bytes", datatype=UnknownFortranType(
-                "integer(kind=8) :: offset_in_bytes\n"))
-        size_in_bytes = DataSymbol(
-            "size_in_bytes", datatype=UnknownFortranType(
-                "integer(kind=8) :: size_in_bytes\n"))
-
-        sub_st.add(cmd_queues)
-        sub_st.add(ierr)
-        sub_st.add(offset_in_bytes)
-        sub_st.add(size_in_bytes)
-
-        # Code goes here ...
-
         code = '''
+        subroutine write_opencl(from, to, offset, nx, ny, gap)
+            use iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
+            USE ocl_utils_mod, ONLY: check_status
+            use kind_params_mod, only: go_wp
+            USE clfortran
+            USE fortcl, ONLY: get_cmd_queues
+            real(go_wp), dimension(:,:), intent(in), target :: from
+            type(c_ptr), intent(in) :: to
+            integer, intent(in) :: offset, nx, ny, gap
+            integer(c_intptr_t) :: cl_mem
+            INTEGER(c_size_t) :: size_in_bytes, offset_in_bytes
+            INTEGER(c_intptr_t), pointer :: cmd_queues(:)
+            integer :: ierr
+            size_in_bytes = int((nx+gap)*ny, 8) * c_sizeof(from(1,1))
+            offset_in_bytes = int(offset, 8) * c_sizeof(from(1,1))
+            cl_mem = transfer(to, cl_mem)
             cmd_queues => get_cmd_queues()
-            offset_in_bytes = int(offset, kind=8) * 8_8
-            size_in_bytes = int(ny*(nx+stride), kind=8) * 8_8
-            !write(*,*) "Write", from, to, offset, nx, ny, stride
-            !write(*,*) "in OCL", offset_in_bytes, size_in_bytes
-            ierr = clEnqueueWriteBuffer( &
-                cmd_queues(1), &
-                to, &
-                CL_BLOCKING, & ! Is blocking
-                offset_in_bytes, & ! Offset
-                size_in_bytes, &
-                from, &
-                0, C_NULL_PTR, & ! Wait list
-                C_NULL_PTR) ! event
+            ierr = clEnqueueWriteBuffer(cmd_queues(1), cl_mem, &
+                CL_TRUE, offset_in_bytes, size_in_bytes, C_LOC(from), 0, &
+                C_NULL_PTR, C_NULL_PTR)
+            CALL check_status('clEnqueueWriteBuffer', ierr)
+        end subroutine write_opencl
         '''
 
+        container = Container("dummy")
         processor = Fparser2Reader()
         reader = FortranStringReader(code)
-        exe_part = Execution_Part.match(reader)
-        processor.process_nodes(subroutine, exe_part[0])
+        exe_part = Subroutine_Subprogram.match(reader)
+        processor.process_nodes(container, exe_part[0])
+        subroutine = container.children[0]
+        # import pdb; pdb.set_trace()
+        # Rename subroutine
 
         # Insert the code in the invoke module
         f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
