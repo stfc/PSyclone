@@ -38,15 +38,13 @@
 node. '''
 
 from __future__ import absolute_import
-from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir import symbols
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.array_of_structures_mixin import \
+    ArrayOfStructuresMixin
 
 
-class ArrayOfStructuresReference(StructureReference, ArrayMixin):
+class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
     '''
     Node representing an access to a member of one or more elements of an
     array of structures. Since this access is to a member of the
@@ -59,27 +57,14 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
     _text_name = "ArrayOfStructuresReference"
 
     @staticmethod
-    def _validate_child(position, child):
-        '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        if position == 0:
-            return isinstance(child, Member)
-        return isinstance(child, (DataNode, Range))
-
-    @staticmethod
-    def create(symbol, indices=None, members=None, parent=None):
+    def create(symbol, indices, members, parent=None):
         '''
         Create a reference to a member of one or more elements of an array of
         structures.
-        The symbol to be referred to must be of ArrayType with the 'intrinsic'
-        type of the array specified with a TypeSymbol. The member of the
+
+        The symbol to be referred to must be of DeferredType, UnknownType or
+        ArrayType. If the latter then the 'intrinsic' type of the array must
+        be specified with a TypeSymbol. The member of the
         structure that is accessed is specified using the 'members'
         argument. e.g. for a reference to "field(idx)%bundle(2)%flag" this
         argument would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
@@ -113,22 +98,27 @@ class ArrayOfStructuresReference(StructureReference, ArrayMixin):
                 "The 'symbol' argument to ArrayOfStructuresReference.create() "
                 "should be a DataSymbol but found '{0}'.".format(
                     type(symbol).__name__))
-        if not isinstance(symbol.datatype, symbols.ArrayType):
+        if isinstance(symbol.datatype, symbols.ArrayType):
+            base_type = symbol.datatype.intrinsic
+        elif isinstance(symbol.datatype, (symbols.DeferredType,
+                                          symbols.UnknownType)):
+            base_type = symbol.datatype
+        else:
             raise TypeError(
                 "An ArrayOfStructuresReference must refer to a symbol of "
-                "ArrayType but symbol '{0}' has type '{1}".format(
-                    symbol.name, symbol.datatype))
+                "ArrayType, DeferredType or UnknownType but symbol '{0}' has "
+                "type '{1}".format(symbol.name, symbol.datatype))
         if not isinstance(indices, list) or not indices:
             raise TypeError(
-                "The 'children' argument to  ArrayOfStructuresReference."
-                "create() must be a list containing at least one array-index "
-                "expression but this is missing for symbol '{0}'".format(
-                    symbol.name))
+                "The 'indices' argument to "
+                "ArrayOfStructuresReference.create() must be a list "
+                "containing at least one array-index expression but this is "
+                "missing for symbol '{0}'".format(symbol.name))
 
         # First use the StructureReference _create class method to create a
         # reference to the base structure of the array.
         ref = ArrayOfStructuresReference._create(
-            symbol, symbol.datatype.intrinsic, members, parent)
+            symbol, base_type, members, parent)
 
         # Then add the array-index expressions. We don't validate the children
         # as that is handled in _validate_child.

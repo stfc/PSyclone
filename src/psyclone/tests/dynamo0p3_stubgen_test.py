@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,11 +44,12 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern, LFRicScalarArgs
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.gen_kernel_stub import generate
+from psyclone.f2pygen import ModuleGen
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -84,27 +85,27 @@ def test_kernel_stub_invalid_iteration_space():
             "'testkern_dofs_code'." in str(excinfo.value))
 
 
-def test_dynscalars_stub_err():
-    ''' Check that the DynScalarArgs constructor raises the expected
-    internal error if it encounters an unrecognised intrinsic type of
-    scalar when generating a kernel stub.
+def test_lfricscalars_stub_err():
+    ''' Check that LFRicScalarArgs._stub_declarations() raises the
+    expected internal error if it encounters an unrecognised data
+    type of a scalar argument when generating a kernel stub.
 
     '''
-    from psyclone.dynamo0p3 import DynScalarArgs
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    # Sabotage the scalar argument to make it have an invalid intrinsic type
+    # Sabotage the scalar argument to make it have an invalid data type
     arg = kernel.arguments.args[1]
-    arg._intrinsic_type = "invalid-scalar-type"
+    arg.descriptor._data_type = "gh_invalid_scalar"
     with pytest.raises(InternalError) as err:
-        _ = DynScalarArgs(kernel)
-    assert ("DynScalarArgs.__init__(): Found an unsupported intrinsic type "
-            "'invalid-scalar-type' for the scalar argument 'iscalar_2'. "
-            "Supported types are ['real', 'integer']." in str(err.value))
+        LFRicScalarArgs(kernel)._stub_declarations(ModuleGen(name="my_mod"))
+    assert ("Found an unsupported data type 'gh_invalid_scalar' for the "
+            "scalar argument 'iscalar_2'. Supported types are {0}.".
+            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES)
+            in str(err.value))
 
 
 def test_stub_generate_with_anyw2():
@@ -220,10 +221,10 @@ def test_stub_generate_with_scalar_sums():
 INTENT = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =            &
-          (/ arg_type(gh_field, gh_write, w3), &
-             arg_type(gh_field, gh_inc,   w1), &
-             arg_type(gh_field, gh_read,  w1)  &
+     type(arg_type), meta_args(3) =                     &
+          (/ arg_type(gh_field, gh_real, gh_write, w3), &
+             arg_type(gh_field, gh_real, gh_inc,   w1), &
+             arg_type(gh_field, gh_real, gh_read,  w1)  &
            /)
      integer :: operates_on = cell_column
    contains
@@ -288,19 +289,19 @@ def test_intent():
 SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(12) =                 &
-          (/ arg_type(gh_field, gh_inc,   w0),       &
-             arg_type(gh_field, gh_inc,   w1),       &
-             arg_type(gh_field, gh_inc,   w2),       &
-             arg_type(gh_field, gh_write, w2broken), &
-             arg_type(gh_field, gh_inc,   w2trace),  &
-             arg_type(gh_field, gh_write, w3),       &
-             arg_type(gh_field, gh_write, wtheta),   &
-             arg_type(gh_field, gh_inc,   w2h),      &
-             arg_type(gh_field, gh_write, w2v),      &
-             arg_type(gh_field, gh_inc,   w2htrace), &
-             arg_type(gh_field, gh_write, w2vtrace), &
-             arg_type(gh_field, gh_read,  wchi)      &
+     type(arg_type), meta_args(12) =                          &
+          (/ arg_type(gh_field, gh_real, gh_inc,   w0),       &
+             arg_type(gh_field, gh_real, gh_inc,   w1),       &
+             arg_type(gh_field, gh_real, gh_inc,   w2),       &
+             arg_type(gh_field, gh_real, gh_write, w2broken), &
+             arg_type(gh_field, gh_real, gh_inc,   w2trace),  &
+             arg_type(gh_field, gh_real, gh_write, w3),       &
+             arg_type(gh_field, gh_real, gh_write, wtheta),   &
+             arg_type(gh_field, gh_real, gh_inc,   w2h),      &
+             arg_type(gh_field, gh_real, gh_write, w2v),      &
+             arg_type(gh_field, gh_real, gh_inc,   w2htrace), &
+             arg_type(gh_field, gh_real, gh_write, w2vtrace), &
+             arg_type(gh_field, gh_real, gh_read,  wchi)      &
            /)
      integer :: operates_on = cell_column
    contains
@@ -407,10 +408,12 @@ def test_spaces():
 ANY_SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =                                       &
-          (/ arg_type(gh_field, gh_read,      any_discontinuous_space_1), &
-             arg_type(gh_field, gh_inc,       any_space_7),               &
-             arg_type(gh_field, gh_readwrite, any_discontinuous_space_4)  &
+     type(arg_type), meta_args(3) =                                  &
+          (/ arg_type(gh_field, gh_real, gh_read,                    &
+                                         any_discontinuous_space_1), &
+             arg_type(gh_field, gh_real, gh_inc,       any_space_7), &
+             arg_type(gh_field, gh_real, gh_readwrite,               &
+                                         any_discontinuous_space_4)  &
            /)
      integer :: operates_on = cell_column
    contains
@@ -471,8 +474,8 @@ def test_any_spaces():
 VECTORS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =           &
-          (/ arg_type(gh_field*3, gh_inc, w0) &
+     type(arg_type), meta_args(1) =                    &
+          (/ arg_type(gh_field*3, gh_real, gh_inc, w0) &
            /)
      integer :: operates_on = cell_column
    contains
@@ -530,62 +533,6 @@ def test_arg_descriptor_vec_str():
         "  access_descriptor[2]='gh_inc'\n"
         "  function_space[3]='w0'")
     assert expected_output in result
-
-
-# Orientation : spaces
-ORIENTATION_OUTPUT = (
-    "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
-    "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
-    "undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, "
-    "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3)\n"
-    "      USE constants_mod, ONLY: r_def, i_def\n"
-    "      IMPLICIT NONE\n"
-    "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-    "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
-    "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
-    "      INTEGER(KIND=i_def), intent(in) :: "
-    "undf_w0, ndf_w1, undf_w2, ndf_w3\n"
-    "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
-    "field_1_w0\n"
-    "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-    "field_3_w2\n"
-    "      INTEGER(KIND=i_def), intent(in) :: cell\n"
-    "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
-    "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
-    "op_2_ncell_3d) :: op_2\n"
-    "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
-    "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
-    "op_4_ncell_3d) :: op_4\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: "
-    "orientation_w0\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: "
-    "orientation_w1\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: "
-    "orientation_w2\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: "
-    "orientation_w3\n"
-    "    END SUBROUTINE dummy_orientation_code\n"
-    "  END MODULE dummy_orientation_mod")
-
-
-def test_orientation_stubs():
-    ''' Test that orientation is handled correctly for kernel
-    stubs '''
-    # Read-in the meta-data from file (it's in a file because it's also
-    # used when testing the genkernelstub script from the command
-    # line).
-    with open(os.path.join(BASE_PATH, "dummy_orientation_mod.f90"),
-              "r") as myfile:
-        orientation = myfile.read()
-
-    ast = fpapi.parse(orientation, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    generated_code = kernel.gen_stub
-    assert ORIENTATION_OUTPUT in str(generated_code)
 
 
 def test_enforce_bc_kernel_stub_gen():
@@ -745,8 +692,8 @@ def test_qr_plus_eval_stub_gen():
 SUB_NAME = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =         &
-          (/ arg_type(gh_field, gh_inc, w1) &
+     type(arg_type), meta_args(1) =                  &
+          (/ arg_type(gh_field, gh_real, gh_inc, w1) &
            /)
      integer :: operates_on = cell_column
    contains
@@ -812,10 +759,10 @@ def test_kernel_stub_gen_cmd_line():
     # We use the Popen constructor here rather than check_output because
     # the latter is only available in Python 2.7 onwards.
     out = Popen(["genkernelstub",
-                 os.path.join(BASE_PATH, "dummy_orientation_mod.f90")],
+                 os.path.join(BASE_PATH, "simple_with_scalars.f90")],
                 stdout=PIPE).communicate()[0]
 
-    assert ORIENTATION_OUTPUT in out.decode('utf-8')
+    assert SIMPLE_WITH_SCALARS in out.decode('utf-8')
 
 
 def test_stub_stencil_extent():

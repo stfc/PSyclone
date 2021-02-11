@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council.
+! Copyright (c) 2017-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,11 +43,11 @@ module testkern_dofs_mod
 
   ! User-defined single kernel that operates on DoFs (currently not supported)
   type, extends(kernel_type) :: testkern_dofs_type
-     type(arg_type), dimension(4) :: meta_args = &
-          (/ arg_type(gh_field, gh_write, w1),   &
-             arg_type(gh_field, gh_read,  w2),   &
-             arg_type(gh_field, gh_read,  w2),   &
-             arg_type(gh_field, gh_read,  w3)    &
+     type(arg_type), dimension(4) :: meta_args =          &
+          (/ arg_type(gh_field, gh_real, gh_write, w1),   &
+             arg_type(gh_field, gh_real, gh_read,  w2),   &
+             arg_type(gh_field, gh_real, gh_read,  w2),   &
+             arg_type(gh_field, gh_real, gh_read,  w3)    &
            /)
      integer :: operates_on = DOF
    contains

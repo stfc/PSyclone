@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
+# Modified I. Kavcic Met Office
 
 '''This module tests the DynKern class within dynamo0p3 using
 pytest. A the moment the tests here do not fully cover DynKern as
@@ -64,13 +65,13 @@ TEST_API = "dynamo0.3"
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
-     type(arg_type), meta_args(6) =                   &
-          (/ arg_type(gh_scalar, gh_real, gh_read),   &
-             arg_type(gh_field, gh_inc, w1),          &
-             arg_type(gh_field, gh_read, w2),         &
-             arg_type(gh_operator, gh_read, w2, w2),  &
-             arg_type(gh_field, gh_read, w3),         &
-             arg_type(gh_scalar, gh_integer, gh_read) &
+     type(arg_type), meta_args(6) =                              &
+          (/ arg_type(gh_scalar,   gh_real,    gh_read),         &
+             arg_type(gh_field,    gh_real,    gh_inc, w1),      &
+             arg_type(gh_field,    gh_real,    gh_read, w2),     &
+             arg_type(gh_operator, gh_real,    gh_read, w2, w2), &
+             arg_type(gh_field,    gh_real,    gh_read, w3),     &
+             arg_type(gh_scalar,   gh_integer, gh_read)          &
            /)
      type(func_type), dimension(3) :: meta_funcs =  &
           (/ func_type(w1, gh_basis),               &
@@ -104,7 +105,7 @@ def test_scalar_kernel_load_meta_err():
     scalar_arg._data_type = "gh_triple"
     with pytest.raises(InternalError) as err:
         kernel.load_meta(metadata)
-    assert ("DynKern.load_meta(): expected one of {0} data types for "
+    assert ("Expected one of {0} data types for "
             "a scalar argument but found 'gh_triple'.".
             format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES) in
             str(err.value))

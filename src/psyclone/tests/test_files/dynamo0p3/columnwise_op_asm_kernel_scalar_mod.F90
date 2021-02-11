@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -65,8 +65,8 @@ private
 type, public, extends(kernel_type) :: columnwise_op_asm_kernel_scalar_type
   private
   type(arg_type) :: meta_args(3) = (/                                                 &
-       arg_type(GH_OPERATOR,                     GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
-       arg_type(GH_COLUMNWISE_OPERATOR,          GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_OPERATOR,            GH_REAL, GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
        arg_type(GH_SCALAR,              GH_REAL, GH_READ) &
        /)
   integer :: operates_on = CELL_COLUMN

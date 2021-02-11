@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2020, Science and Technology Facilities Council
+.. Copyright (c) 2017-2021, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -260,7 +260,8 @@ The metadata for a Kernel which operates on a cell-column may specify
 that a Kernel performs a stencil operation on a field. Any such
 metadata must provide a stencil type. See the
 :ref:`dynamo0.3-api-meta-args` section for more details. The supported
-stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS`` or ``CROSS2D``.
+stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``, ``CROSS2D`` or
+``REGION``.
 
 If a stencil operation is specified by the Kernel metadata the
 algorithm layer must provide the ``extent`` of the stencil (the
@@ -509,7 +510,7 @@ All three CMA-related kernel types must obey the following rules:
 1) Since a CMA operator only acts within a single column of data,
    stencil operations are not permitted.
 
-2) No vector quantities (e.g. "GH_FIELD*3" - see below) are
+2) No vector quantities (e.g. ``GH_FIELD*3`` - see below) are
    permitted as arguments.
 
 3) The kernel must operate on cell-columns.
@@ -664,29 +665,27 @@ fields (see the :ref:`dynamo0.3-field-vector` section for more
 details).
 
 As an example, the following ``meta_args`` metadata describes 4
-entries, the first is a real scalar, the next two are fields and the
+entries, the first is a scalar, the next two are fields and the
 fourth is an operator. The third entry is a field vector of size 3.
 
 ::
 
   type(arg_type) :: meta_args(4) = (/                                  &
        arg_type(GH_SCALAR, GH_REAL, ...),                              &
-       arg_type(GH_FIELD, ... ),                                       &
-       arg_type(GH_FIELD*3, ... ),                                     &
-       arg_type(GH_OPERATOR, ...)                                      &
+       arg_type(GH_FIELD, GH_INTEGER, ... ),                           &
+       arg_type(GH_FIELD*3, GH_REAL, ... ),                            &
+       arg_type(GH_OPERATOR, GH_REAL, ...)                             &
        /)
 
-The second item in a metadata entry for a :ref:`scalar argument
-<dynamo0.3-scalar>` describes the Fortran primitive (intrinsic)
-type of the data of a kernel argument. The currently supported values
-are ``GH_REAL`` and ``GH_INTEGER`` for ``real`` and ``integer``
-data, respectively. Valid data types for each Dynamo0.3 API argument
-type are specified later in this section (see
+The second item in a metadata entry describes the Fortran primitive
+(intrinsic) type of the data of a kernel argument. The currently supported
+values are ``GH_REAL`` and ``GH_INTEGER`` for ``real`` and ``integer``
+data, respectively. This information is mandatory. Valid data types for
+each Dynamo0.3 API argument type are specified later in this section (see
 :ref:`dynamo0.3-kernel-valid-data-type`).
 
-The third component of argument metadata for scalars and the second for
-all other argument types describes how the Kernel makes use of
-the data being passed into it (the way it is accessed within a
+The third component of argument metadata describes how the Kernel makes
+use of the data being passed into it (the way it is accessed within a
 Kernel). This information is mandatory. There are currently 5 possible
 values of this metadata ``GH_WRITE``, ``GH_READ``, ``GH_INC``,
 ``GH_READWRITE`` and ``GH_SUM``. However, not all combinations of
@@ -722,9 +721,9 @@ For example::
 
   type(arg_type) :: meta_args(4) = (/                                  &
        arg_type(GH_SCALAR, GH_REAL, GH_SUM),                           &
-       arg_type(GH_FIELD, GH_INC, ... ),                               &
-       arg_type(GH_FIELD*3, GH_WRITE, ... ),                           &
-       arg_type(GH_OPERATOR, GH_READ, ...)                             &
+       arg_type(GH_FIELD, GH_INTEGER, GH_INC, ... ),                   &
+       arg_type(GH_FIELD*3, GH_REAL, GH_WRITE, ... ),                  &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ, ...)                    &
        /)
 
 .. note:: In the Dynamo0.3 API only :ref:`dynamo0.3-built-ins` are permitted
@@ -739,19 +738,19 @@ function-space information.
 The meaning of these further entries differs depending on whether a
 field or an operator is being described.
 
-In the case of an operator, the 3rd and 4th arguments describe the
-``to`` and ``from`` function spaces respectively. In the case of a
-field the 3rd argument specifies the function space that the field
+In the case of an operator, the fourth and fifth arguments describe
+the ``to`` and ``from`` function spaces respectively. In the case of a
+field the fourth argument specifies the function space that the field
 lives on. More details about the supported function spaces are in
 subsection :ref:`dynamo0.3-function-space`.
 
 For example, the metadata for a kernel that applies a Column-wise
 operator to a field might look like::
 
-  type(arg_type) :: meta_args(3) = (/                     &
-       arg_type(GH_FIELD, GH_INC, W1),                    &
-       arg_type(GH_FIELD, GH_READ, W2H),                  &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, W1, W2H) &
+  type(arg_type) :: meta_args(3) = (/                              &
+       arg_type(GH_FIELD, GH_REAL, GH_INC, W1),                    &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W2H),                  &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W1, W2H) &
        /)
 
 In some cases a Kernel may be written so that it works for fields and/or
@@ -788,10 +787,10 @@ forbid ``ANY_SPACE_1`` and ``ANY_SPACE_2`` from being the same.
 
 ::
 
-  type(arg_type) :: meta_args(3) = (/                           &
-       arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),                 &
-       arg_type(GH_FIELD*3, GH_INC, ANY_SPACE_2),               &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
+  type(arg_type) :: meta_args(3) = (/                                    &
+       arg_type(GH_FIELD,    GH_REAL, GH_INC,  ANY_SPACE_1),             &
+       arg_type(GH_FIELD*3,  GH_REAL, GH_INC,  ANY_SPACE_2),             &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
        /)
 
 Note also that the scope of this naming of any-space function spaces is
@@ -821,18 +820,14 @@ vectors <dynamo0.3-field-vector>` follow the same rules as the
 +------------------------+---------------------+
 | Argument Type          | Data Type           |
 +========================+=====================+
-| GH_SCALAR              | GH_INTEGER, GH_REAL |
+| GH_SCALAR              | GH_REAL, GH_INTEGER |
 +------------------------+---------------------+
-| GH_FIELD               | GH_REAL             |
+| GH_FIELD               | GH_REAL, GH_INTEGER |
 +------------------------+---------------------+
 | GH_OPERATOR            | GH_REAL             |
 +------------------------+---------------------+
 | GH_COLUMNWISE_OPERATOR | GH_REAL             |
 +------------------------+---------------------+
-
-.. note:: The metadata descriptors for data type for field and operator
-          arguments will be introduced in `PSyclone issue #817
-          <https://github.com/stfc/PSyclone/issues/817>`_.
 
 .. _dynamo0.3-kernel-valid-access:
 
@@ -1081,7 +1076,7 @@ therefore treats read-only as a third category of function space.
 Optional Field Metadata
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-A field entry in the meta_args array may have an optional fourth element.
+A field entry in the meta_args array may have an optional fifth element.
 This element describes either a stencil access or, for inter-grid kernels,
 which mesh the field is on. Since an inter-grid kernel is not permitted
 to have stencil accesses, these two options are mutually exclusive.
@@ -1101,9 +1096,9 @@ Stencil metadata is written in the following format::
 
   STENCIL(type)
 
-where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D``,
-``CROSS`` or ``CROSS2D``.  As the stencil ``extent`` (the maximum distance from the
-central cell that the stencil extends) is not provided in the metadata,
+where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``,
+``CROSS2D`` or ``REGION``.  As the stencil ``extent`` (the maximum distance from
+the central cell that the stencil extends) is not provided in the metadata,
 it is expected to be provided by the algorithm writer as part of the
 ``invoke`` call (see Section :ref:`dynamo0.3-alg-stencil`). As there
 is currently no way to specify a fixed extent value for stencils in the
@@ -1141,12 +1136,25 @@ would be declared as::
 
   STENCIL(CROSS)
 
+The ``REGION`` stencil references a block of cells:
+
+.. code-block:: none
+
+  | 9 | 8 | 7 |
+  | 2 | 1 | 6 |
+  | 3 | 4 | 5 |
+
+
+and would be declared as::
+
+  STENCIL(REGION)
+
 Below is an example of stencil information within the full kernel metadata::
 
   type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD, GH_INC, W1),                                 &
-       arg_type(GH_FIELD, GH_READ, W2H, STENCIL(CROSS)),               &
-       arg_type(GH_OPERATOR, GH_READ, W1, W2H)                         &
+       arg_type(GH_FIELD,    GH_REAL, GH_INC,  W1),                    &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, W2H, STENCIL(CROSS)),   &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ, W1, W2H)                &
        /)
 
 There is a full example of this distributed with PSyclone. It may
@@ -1158,7 +1166,7 @@ Inter-Grid Metadata
 ___________________
 
 
-The alternative form of the optional fourth metadata argument for a
+The alternative form of the optional fifth metadata argument for a
 field specifies which mesh the associated field is on.  This is
 required for inter-grid kernels which perform prolongation or
 restriction operations on fields (or field vectors) existing on grids
@@ -1174,9 +1182,11 @@ inter-grid kernel and, as such, all of its other arguments (which
 must also be fields) must have it specified too. An example of the
 metadata for such a kernel is given below::
 
-  type(arg_type) :: meta_args(2) = (/                                                  &
-      arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, mesh_arg=GH_COARSE), &
-      arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, mesh_arg=GH_FINE  )  &
+  type(arg_type) :: meta_args(2) = (/                                      &
+      arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, &
+                                                      mesh_arg=GH_COARSE), &
+      arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, &
+                                                      mesh_arg=GH_FINE  )  &
       /)
 
 Note that an inter-grid kernel must have at least one field (or field-
@@ -1195,30 +1205,30 @@ Column-wise operators are constructed from cell-wise (local) operators.
 Therefore, in order to **assemble** a CMA operator, a kernel must have at
 least one read-only LMA operator, e.g.::
 
-   type(arg_type) :: meta_args(2) = (/                                       &
-        arg_type(GH_OPERATOR,            GH_READ,  ANY_SPACE_1, ANY_SPACE_2),&
-        arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2) &
+   type(arg_type) :: meta_args(2) = (/                                                 &
+        arg_type(GH_OPERATOR,            GH_REAL, GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
+        arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2)  &
         /)
 
 CMA operators (and their inverse) are **applied** to fields. Therefore any
 kernel of this type must have one read-only CMA operator, one read-only
 field and a field that is updated, e.g.::
 
-   type(arg_type) :: meta_args(3) = (/                                      &
-        arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &
-        arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                        &
-        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
+   type(arg_type) :: meta_args(3) = (/                                               &
+        arg_type(GH_FIELD,               GH_REAL, GH_INC,  ANY_SPACE_1),             &
+        arg_type(GH_FIELD,               GH_REAL, GH_READ, ANY_SPACE_2),             &
+        arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
         /)
 
 **Matrix-matrix** kernels compute the product/linear combination of CMA
 operators. They must therefore have one such operator that is updated while
 the rest are read-only. They may also have read-only scalar arguments, e.g.::
 
-   type(arg_type) :: meta_args(3) = (/                                        &
-        arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
-        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
-        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
-        arg_type(GH_SCALAR, GH_REAL, GH_READ) /)
+   type(arg_type) :: meta_args(3) = (/                                                 &
+        arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
+        arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
+        arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
+        arg_type(GH_SCALAR,              GH_REAL, GH_READ) /)
 
 .. note:: The order with which arguments are specified in metadata for CMA
           kernels does not affect the process of identifying the type of
@@ -1237,8 +1247,8 @@ following kernel metadata::
 
     type, extends(kernel_type) :: testkern_operator_type
       type(arg_type), dimension(3) :: meta_args =                 &
-          (/ arg_type(gh_operator,             gh_write, w0, w0), &
-             arg_type(gh_field*3,              gh_read,  w1),     &
+          (/ arg_type(gh_operator, gh_real,    gh_write, w0, w0), &
+             arg_type(gh_field*3,  gh_real,    gh_read,  w1),     &
              arg_type(gh_scalar,   gh_integer, gh_read)           &
           /)
       type(func_type) :: meta_funcs(2) =                          &
@@ -1261,6 +1271,11 @@ spaces associated with the arguments listed in ``meta_args``.  In this
 case we require both for the W0 function space but only basis
 functions for W1.
 
+.. note:: Basis and differential basis functions for both ``real``- and
+          ``integer``-valued field arguments have ``real`` values on the
+          points on which these functions are :ref:`required
+          <dynamo0.3-gh-shape>`.
+
 meta_reference_element
 ######################
 
@@ -1271,9 +1286,9 @@ this metadata should be omitted.)  Consider the following example
 kernel metadata::
 
   type, extends(kernel_type) :: testkern_type
-    type(arg_type), dimension(2) :: meta_args = &
-        (/ arg_type(gh_field, gh_read, w1),     &
-           arg_type(gh_field, gh_inc,  w0) /)
+    type(arg_type), dimension(2) :: meta_args =      &
+        (/ arg_type(gh_field, gh_real, gh_read, w1), &
+           arg_type(gh_field, gh_real, gh_inc,  w0) /)
     type(reference_element_data_type), dimension(2) ::               &
       meta_reference_element =                                       &
         (/ reference_element_data_type(normals_to_horizontal_faces), &
@@ -1319,11 +1334,11 @@ mesh properties are required then this metadata should be omitted.)
 Consider the following example kernel metadata::
 
   type, extends(kernel_type) :: testkern_type
-    type(arg_type), dimension(2) :: meta_args = &
-        (/ arg_type(gh_field, gh_read, w1),     &
-           arg_type(gh_field, gh_inc, w0) /)
-    type(mesh_data_type), dimension(1) ::       &
-      meta_mesh =                               &
+    type(arg_type), dimension(2) :: meta_args =      &
+        (/ arg_type(gh_field, gh_real, gh_read, w1), &
+           arg_type(gh_field, gh_real, gh_inc,  w0) /)
+    type(mesh_data_type), dimension(1) ::            &
+      meta_mesh =                                    &
         (/ mesh_data_type(adjacent_face) /)
   contains
     procedure, nopass :: code => testkern_code
@@ -1347,7 +1362,7 @@ gh_shape and gh_evaluator_targets
 If a kernel requires basis or differential-basis functions then the
 metadata must also specify the set of points on which these functions
 are required. This information is provided by the ``gh_shape``
-component of the metadata.  Currently PSyclone supports four shapes;
+component of the metadata. Currently PSyclone supports four shapes;
 ``gh_quadrature_XYoZ`` for Gaussian quadrature points,
 ``gh_quadrature_face`` for quadrature points on cell faces,
 ``gh_quadrature_edge`` for quadrature points on cell edges and
@@ -1504,72 +1519,63 @@ conventions, are:
          array of type ``i_def`` with intent ``in``. It has one dimension
          sized by the local degrees of freedom for the function space.
 
-   3) For each operation on the function space (``basis``, ``diff_basis``,
-      ``orientation``) in the order specified in the metadata
+   3) For each operation on the function space (``basis``, ``diff_basis``),
+      in the order specified in the metadata, pass real arrays of kind
+      ``r_def`` with intent ``in``. For each shape specified in the
+      ``gh_shape`` metadata entry:
 
-      1) If it is a basis or differential basis function then we must pass
-         real arrays of kind ``r_def`` with intent ``in``. For each shape
-         specified in the ``gh_shape`` metadata entry:
+      1) If shape is ``gh_quadrature_*`` then the arrays are of rank four
+         and are named
+         ``"basis_"<field_function_space>_<quadrature_arg_name>`` or
+         ``"diff_basis_"<field_function_space>_<quadrature_arg_name>``,
+         as appropriate:
 
-         1) If shape is ``gh_quadrature_*`` then the arrays are of rank four
-            and are named
-            ``"basis_"<field_function_space>_<quadrature_arg_name>`` or
-            ``"diff_basis_"<field_function_space>_<quadrature_arg_name>``,
-            as appropriate:
+         1) If shape is ``gh_quadrature_xyoz`` then the arrays have extent
+            (``dimension``, ``number_of_dofs``, ``np_xy``, ``np_z``).
 
-            1) If shape is ``gh_quadrature_xyoz`` then the arrays have extent
-               (``dimension``, ``number_of_dofs``, ``np_xy``,
-               ``np_z``).
+         2) If shape is ``gh_quadrature_face`` or ``gh_quadrature_edge``
+            then the  arrays have extent
+            (``dimension``, ``number_of_dofs``, ``np_xyz``, ``nfaces`` or
+            ``nedges``).
 
-            2) If shape is ``gh_quadrature_face`` or ``gh_quadrature_edge``
-               then the  arrays have extent
-               (``dimension``, ``number_of_dofs``, ``np_xyz``, ``nfaces`` or
-               ``nedges``).
+      2) If shape is ``gh_evaluator`` then we pass one array for
+         each target function space (i.e. as specified by
+         ``gh_evaluator_targets``). Each of these arrays are of rank three
+         with extent (``dimension``, ``number_of_dofs``,
+         ``ndf_<target_function_space>``). The name of the argument is
+         ``"basis_"<field_function_space>"_on_"<target_function_space>`` or
+         ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``,
+         as appropriate.
 
-         2) If shape is ``gh_evaluator`` then we pass one array for
-            each target function space (i.e. as specified by
-            ``gh_evaluator_targets``). Each of these arrays are of rank three
-            with extent (``dimension``, ``number_of_dofs``,
-            ``ndf_<target_function_space>``). The name of the argument is
-            ``"basis_"<field_function_space>"_on_"<target_function_space>`` or
-            ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``,
-            as appropriate.
+      Here ``<quadrature_arg_name>`` is the name of the corresponding
+      quadrature object being passed to the Invoke.
+      ``dimension`` is 1 or 3 and depends upon the function space
+      (see :ref:`dynamo0.3-function-space` above for more information) and
+      whether or not it is a basis or a differential basis function (see
+      the table below). ``number_of_dofs`` is the number of degrees of
+      freedom (DoFs) associated with the function space and ``np_*`` are
+      the number of points to be evaluated: i) ``*_xyz`` in
+      all directions (3D); ii) ``*_xy`` in the horizontal plane (2D);
+      iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the
+      vertical (1D). ``nfaces`` and ``nedges`` are the number of horizontal
+      faces/edges obtained from the appropriate quadrature object supplied
+      to the Invoke.
 
-         where ``<quadrature_arg_name>`` is the name of the corresponding
-         quadrature object being passed to the Invoke.
-         ``dimension`` is 1 or 3 and depends upon the function space
-         (see :ref:`dynamo0.3-function-space` above for more information) and
-         whether or not it is a basis or a differential basis function (see
-         the table below). ``number_of_dofs`` is the number of degrees of
-         freedom (DoFs) associated with the function space and ``np_*`` are
-         the number of points to be evaluated: i) ``*_xyz`` in
-         all directions (3D); ii) ``*_xy`` in the horizontal plane (2D);
-         iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the
-         vertical (1D). ``nfaces`` and ``nedges`` are the number of horizontal
-         faces/edges obtained from the appropriate quadrature object supplied
-         to the Invoke.
+      .. tabularcolumns:: |l|c|l|
 
-         .. tabularcolumns:: |l|c|l|
-
-         +---------------+-----------+------------------------------------+
-         | Function Type | Dimension | Function Space Name                |
-         +===============+===========+====================================+
-         | Basis         |    1      | W0, W2trace, W2Htrace, W2Vtrace,   |
-         |               |           | W3, Wtheta, Wchi                   |
-         |               +-----------+------------------------------------+
-         |               |    3      | W1, W2, W2H, W2V, W2broken, ANY_W2 |
-         +---------------+-----------+------------------------------------+
-         | Differential  |    1      | W2, W2H, W2V, W2broken, ANY_W2     |
-         | Basis         +-----------+------------------------------------+
-         |               |    3      | W0, W1, W2trace, W2Htrace,         |
-         |               |           | W2Vtrace, W3, Wtheta, Wchi         |
-         +---------------+-----------+------------------------------------+
-
-      2) If it is an orientation array, include the associated argument.
-         The argument is an integer array of type ``i_def`` with intent ``in``.
-         There is one dimension of size the local degrees of freedom for the
-         function space. The name of the array is
-         ``"orientation_"<field_function_space>``.
+      +---------------+-----------+------------------------------------+
+      | Function Type | Dimension | Function Space Name                |
+      +===============+===========+====================================+
+      | Basis         |    1      | W0, W2trace, W2Htrace, W2Vtrace,   |
+      |               |           | W3, Wtheta, Wchi                   |
+      |               +-----------+------------------------------------+
+      |               |    3      | W1, W2, W2H, W2V, W2broken, ANY_W2 |
+      +---------------+-----------+------------------------------------+
+      | Differential  |    1      | W2, W2H, W2V, W2broken, ANY_W2     |
+      | Basis         +-----------+------------------------------------+
+      |               |    3      | W0, W1, W2trace, W2Htrace,         |
+      |               |           | W2Vtrace, W3, Wtheta, Wchi         |
+      +---------------+-----------+------------------------------------+
 
 5) If either the ``normals_to_horizontal_faces`` or
    ``outward_normals_to_horizontal_faces`` properties of the reference
@@ -1631,10 +1637,10 @@ For instance, if a kernel has only one written argument and requires an
 evaluator then its metadata might be::
 
   type, extends(kernel_type) :: testkern_operator_type
-     type(arg_type), dimension(2) :: meta_args =      &
-          (/ arg_type(gh_operator, gh_write, w0, w1), &
-             arg_type(gh_field*3,  gh_read,  w0) /)
-     type(func_type) :: meta_funcs(1) =               &
+     type(arg_type), dimension(2) :: meta_args =               &
+          (/ arg_type(gh_operator, gh_real, gh_write, w0, w1), &
+             arg_type(gh_field*3,  gh_real, gh_read,  w0) /)
+     type(func_type) :: meta_funcs(1) =                        &
           (/ func_type(w0, gh_basis) /)
      integer :: operates_on = cell_column
      integer :: gh_shape = gh_evaluator
@@ -1657,9 +1663,9 @@ the dofmap for the ``W0`` function space.
 If instead, ``gh_evaluator_targets`` is specified in the metadata::
 
   type, extends(kernel_type) :: testkern_operator_type
-     type(arg_type), dimension(2) :: meta_args =      &
-          (/ arg_type(gh_operator, gh_write, w0, w1), &
-             arg_type(gh_field*3,  gh_read,  w0) /)
+     type(arg_type), dimension(2) :: meta_args =               &
+          (/ arg_type(gh_operator, gh_real, gh_write, w0, w1), &
+             arg_type(gh_field*3,  gh_real, gh_read,  w0) /)
      type(func_type) :: meta_funcs(1) =               &
           (/ func_type(w0, gh_basis) /)
      integer :: operates_on = cell_column
@@ -1680,10 +1686,10 @@ If the metadata specifies that a kernel requires both an evaluator
 and quadrature::
 
   type, extends(kernel_type) :: testkern_operator_type
-     type(arg_type), dimension(2) :: meta_args =      &
-          (/ arg_type(gh_operator, gh_write, w0, w1), &
-             arg_type(gh_field*3,  gh_read,  w0) /)
-     type(func_type) :: meta_funcs(1) =               &
+     type(arg_type), dimension(2) :: meta_args =               &
+          (/ arg_type(gh_operator, gh_real, gh_write, w0, w1), &
+             arg_type(gh_field*3,  gh_real, gh_read,  w0) /)
+     type(func_type) :: meta_funcs(1) =                        &
           (/ func_type(w0, gh_basis) /)
      integer :: operates_on = cell_column
      integer :: gh_shape(2) = (/ gh_evaluator, gh_quadrature_face /)
@@ -1704,9 +1710,9 @@ If the metadata specifies that the kernel requires a property of the
 reference element::
 
   type, extends(kernel_type) :: testkern_operator_type
-     type(arg_type), dimension(2) :: meta_args =      &
-          (/ arg_type(gh_operator, gh_write, w0, w1), &
-             arg_type(gh_field*3, gh_read, w0) /)
+     type(arg_type), dimension(2) :: meta_args =               &
+          (/ arg_type(gh_operator, gh_real, gh_write, w0, w1), &
+             arg_type(gh_field*3,  gh_real, gh_read,  w0) /)
      type(reference_element_data_type) :: meta_reference_element(1) =  &
           (/ reference_element_data_type(normals_to_horizontal_faces) /)
      integer :: operates_on = cell_column
@@ -1790,7 +1796,7 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
          ``"gamma_p_"<operator_name>``.
 
    3) If it is a field or scalar argument then include arguments following
-          the same rules as for general-purpose kernels.
+      the same rules as for general-purpose kernels.
 
 6) For each unique function space in the order they appear in the
    metadata arguments (the ``to`` function space of an operator is
@@ -1936,7 +1942,7 @@ arguments to inter-grid kernels are as follows:
       the field on the fine mesh;
 
    2) Include ``undf_fine``, the number of unique DoFs per cell for the FS
-          of the field on the fine mesh;
+      of the field on the fine mesh;
 
    3) Include ``dofmap_fine``, the *whole* dofmap for the fine mesh. This
       is an integer array of rank two and type ``i_def`` with intent ``in``.
@@ -2033,11 +2039,11 @@ metadata, 1) 'meta_args', 2) 'operates_on' and 3) 'procedure'::
   type, public, extends(kernel_type) :: aX_plus_bY
      private
      type(arg_type) :: meta_args(5) = (/                              &
-          arg_type(GH_FIELD,           GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL  GH_WRITE, ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1)         &
+          arg_type(GH_FIELD,  GH_REAL  GH_READ,  ANY_SPACE_1)         &
           /)
      integer :: operates_on = DOF
    contains
@@ -2071,9 +2077,13 @@ are listed in the table below.
 |               |            |                | GH_READWRITE       |
 +---------------+------------+----------------+--------------------+
 
-.. note:: *Since the LFRic infrastructure does not currently support
+.. note:: Since the LFRic infrastructure does not currently support
           integer reductions, integer scalar arguments in Built-ins
-          are restricted to having read-only access.*
+          are restricted to having read-only access.
+
+.. note:: Built-ins are currently implemented only for ``real``-valued
+          fields and will be extended to update ``integer``-valued fields
+          in issue #853.
 
 .. _dynamo0.3-built-ins-names:
 

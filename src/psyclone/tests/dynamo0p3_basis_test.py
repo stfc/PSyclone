@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,13 +62,13 @@ API = "dynamo0.3"
 CODE = '''
 module testkern_eval
   type, extends(kernel_type) :: testkern_eval_type
-    type(arg_type) :: meta_args(2) = (/       &
-         arg_type(GH_FIELD,   GH_INC,  W0),   &
-         arg_type(GH_FIELD,   GH_READ, W1)    &
+    type(arg_type) :: meta_args(2) = (/            &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W0), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W1)  &
          /)
-    type(func_type) :: meta_funcs(2) = (/     &
-         func_type(W0, GH_BASIS),             &
-         func_type(W1, GH_DIFF_BASIS)         &
+    type(func_type) :: meta_funcs(2) = (/          &
+         func_type(W0, GH_BASIS),                  &
+         func_type(W1, GH_DIFF_BASIS)              &
          /)
     integer :: gh_shape = gh_evaluator
     integer :: gh_evaluator_targets(2) = [W0, W1]
@@ -135,9 +135,9 @@ def test_eval_targets_err():
             in str(err.value))
     # When there are no basis/diff-basis functions required
     code = CODE.replace(
-        "    type(func_type) :: meta_funcs(2) = (/     &\n"
-        "         func_type(W0, GH_BASIS),             &\n"
-        "         func_type(W1, GH_DIFF_BASIS)         &\n"
+        "    type(func_type) :: meta_funcs(2) = (/          &\n"
+        "         func_type(W0, GH_BASIS),                  &\n"
+        "         func_type(W1, GH_DIFF_BASIS)              &\n"
         "         /)\n", "")
     code = code.replace("    integer :: gh_shape = gh_evaluator\n",
                         "")
@@ -156,23 +156,23 @@ def test_eval_targets_wrong_space():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
         _ = DynKernMetadata(ast, name="testkern_eval_type")
-    assert ("specifies that an evaluator is required on w3 but does not have "
-            "an argument on this space" in str(err.value))
+    assert ("specifies that an evaluator is required on 'w3' but does not "
+            "have an argument on this space" in str(err.value))
 
 
 def test_eval_targets_op_space():
     ''' Check that listing a space associated with an operator in
     gh_evaluator_targets works OK. '''
-    code = CODE.replace("arg_type(GH_FIELD,   GH_INC,  W0),   &",
-                        "arg_type(GH_FIELD,   GH_INC,  W0),   &\n"
-                        "    arg_type(GH_OPERATOR, GH_READ, W2, W1), &")
-    code = code.replace("meta_args(2)", "meta_args(3)")
+    opstring = "    arg_type(GH_OPERATOR, GH_REAL, GH_READ, W2, W1), &"
+    code = CODE.split("\n")
+    code.insert(5, opstring)
+    code = "\n".join(code).replace("meta_args(2)", "meta_args(3)")
     code = code.replace("[W0, W1]", "[W0, W3]")
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
         _ = DynKernMetadata(ast, name="testkern_eval_type")
-    assert ("specifies that an evaluator is required on w3 but does not have "
-            "an argument on this space" in str(err.value))
+    assert ("specifies that an evaluator is required on 'w3' but does not "
+            "have an argument on this space" in str(err.value))
     # Change to a space that is referenced by an operator
     code = code.replace("[W0, W3]", "[W0, W2]")
     ast = fpapi.parse(code, ignore_comments=False)
@@ -1326,19 +1326,19 @@ def test_eval_agglomerate(tmpdir):
 BASIS_EVAL = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(12) =                              &
-          (/ arg_type(gh_field,    gh_inc,   w0),                 &
-             arg_type(gh_operator, gh_read,  w1, w1),             &
-             arg_type(gh_field,    gh_read,  w2),                 &
-             arg_type(gh_operator, gh_read,  w3, w3),             &
-             arg_type(gh_field,    gh_read,  wtheta),             &
-             arg_type(gh_operator, gh_read,  w2h, w2h),           &
-             arg_type(gh_field,    gh_read,  w2v),                &
-             arg_type(gh_operator, gh_read,  w2broken, w2broken), &
-             arg_type(gh_field,    gh_read,  wchi),               &
-             arg_type(gh_operator, gh_read,  w2trace, w2trace),   &
-             arg_type(gh_field,    gh_read,  w2vtrace),           &
-             arg_type(gh_operator, gh_read,  w2htrace, w2htrace)  &
+     type(arg_type), meta_args(12) =                                       &
+          (/ arg_type(gh_field,    gh_real, gh_inc,   w0),                 &
+             arg_type(gh_operator, gh_real, gh_read,  w1, w1),             &
+             arg_type(gh_field,    gh_real, gh_read,  w2),                 &
+             arg_type(gh_operator, gh_real, gh_read,  w3, w3),             &
+             arg_type(gh_field,    gh_real, gh_read,  wtheta),             &
+             arg_type(gh_operator, gh_real, gh_read,  w2h, w2h),           &
+             arg_type(gh_field,    gh_real, gh_read,  w2v),                &
+             arg_type(gh_operator, gh_real, gh_read,  w2broken, w2broken), &
+             arg_type(gh_field,    gh_real, gh_read,  wchi),               &
+             arg_type(gh_operator, gh_real, gh_read,  w2trace, w2trace),   &
+             arg_type(gh_field,    gh_real, gh_read,  w2vtrace),           &
+             arg_type(gh_operator, gh_real, gh_read,  w2htrace, w2htrace)  &
            /)
      type(func_type), meta_funcs(12) =      &
           (/ func_type(w0, gh_basis),       &
@@ -1474,8 +1474,8 @@ def test_basis_evaluator():
 BASIS_UNSUPPORTED_SPACE = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =                  &
-          (/ arg_type(gh_field, gh_inc, any_space_1) &
+     type(arg_type), meta_args(1) =                           &
+          (/ arg_type(gh_field, gh_real, gh_inc, any_space_1) &
            /)
      type(func_type), meta_funcs(1) =         &
           (/ func_type(any_space_1, gh_basis) &
@@ -1525,19 +1525,22 @@ def test_basis_unsupported_space():
 DIFF_BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(12) =                                  &
-          (/ arg_type(gh_field,    gh_inc,       w0),                 &
-             arg_type(gh_operator, gh_readwrite, w1, w1),             &
-             arg_type(gh_field,    gh_read,      w2),                 &
-             arg_type(gh_operator, gh_write,     w3, w3),             &
-             arg_type(gh_field,    gh_write,     wtheta),             &
-             arg_type(gh_operator, gh_readwrite, w2h, w2h),           &
-             arg_type(gh_field,    gh_read,      w2v),                &
-             arg_type(gh_operator, gh_readwrite, w2broken, w2broken), &
-             arg_type(gh_field,    gh_read,      wchi),               &
-             arg_type(gh_operator, gh_write,     w2trace,  w2trace),  &
-             arg_type(gh_field,    gh_inc,       w2htrace),           &
-             arg_type(gh_operator, gh_read,      w2vtrace, w2vtrace)  &
+     type(arg_type), meta_args(12) =                                 &
+          (/ arg_type(gh_field,    gh_real, gh_inc,       w0),       &
+             arg_type(gh_operator, gh_real, gh_readwrite, w1, w1),   &
+             arg_type(gh_field,    gh_real, gh_read,      w2),       &
+             arg_type(gh_operator, gh_real, gh_write,     w3, w3),   &
+             arg_type(gh_field,    gh_real, gh_write,     wtheta),   &
+             arg_type(gh_operator, gh_real, gh_readwrite, w2h, w2h), &
+             arg_type(gh_field,    gh_real, gh_read,      w2v),      &
+             arg_type(gh_operator, gh_real, gh_readwrite, w2broken,  &
+                                                          w2broken), &
+             arg_type(gh_field,    gh_real, gh_read,      wchi),     &
+             arg_type(gh_operator, gh_real, gh_write,     w2trace,   &
+                                                          w2trace),  &
+             arg_type(gh_field,    gh_real, gh_inc,       w2htrace), &
+             arg_type(gh_operator, gh_real, gh_read,      w2vtrace,  &
+                                                          w2vtrace)  &
            /)
      type(func_type), meta_funcs(12) =           &
           (/ func_type(w0, gh_diff_basis),       &
@@ -1688,19 +1691,22 @@ def test_diff_basis():
 DIFF_BASIS_EVAL = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(12) =                                  &
-          (/ arg_type(gh_field,    gh_read,      w0),                 &
-             arg_type(gh_operator, gh_readwrite, w2, w1),             &
-             arg_type(gh_field,    gh_read,      w2),                 &
-             arg_type(gh_operator, gh_read,      w3, w3),             &
-             arg_type(gh_field,    gh_read,      wtheta),             &
-             arg_type(gh_operator, gh_read,      w2h, w2h),           &
-             arg_type(gh_field,    gh_read,      w2v),                &
-             arg_type(gh_operator, gh_read,      w2broken, w2broken), &
-             arg_type(gh_field,    gh_read,      wchi),               &
-             arg_type(gh_operator, gh_read,      w2trace, w2trace),   &
-             arg_type(gh_field,    gh_read,      w2vtrace),           &
-             arg_type(gh_operator, gh_read,      w2htrace, w2htrace)  &
+     type(arg_type), meta_args(12) =                                 &
+          (/ arg_type(gh_field,    gh_real, gh_read,      w0),       &
+             arg_type(gh_operator, gh_real, gh_readwrite, w2, w1),   &
+             arg_type(gh_field,    gh_real, gh_read,      w2),       &
+             arg_type(gh_operator, gh_real, gh_read,      w3, w3),   &
+             arg_type(gh_field,    gh_real, gh_read,      wtheta),   &
+             arg_type(gh_operator, gh_real, gh_read,      w2h, w2h), &
+             arg_type(gh_field,    gh_real, gh_read,      w2v),      &
+             arg_type(gh_operator, gh_real, gh_read,      w2broken,  &
+                                                          w2broken), &
+             arg_type(gh_field,    gh_real, gh_read,      wchi),     &
+             arg_type(gh_operator, gh_real, gh_read,      w2trace,   &
+                                                          w2trace),  &
+             arg_type(gh_field,    gh_real, gh_read,      w2vtrace), &
+             arg_type(gh_operator, gh_real, gh_read,      w2htrace,  &
+                                                          w2htrace)  &
            /)
      type(func_type), meta_funcs(12) =           &
           (/ func_type(w0, gh_diff_basis),       &
@@ -1935,10 +1941,10 @@ def test_2eval_stubgen():
 DIFF_BASIS_UNSUPPORTED_SPACE = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =                  &
-          (/ arg_type(gh_field, gh_inc, any_space_1) &
+     type(arg_type), meta_args(1) =                           &
+          (/ arg_type(gh_field, gh_real, gh_inc, any_space_1) &
            /)
-     type(func_type), meta_funcs(1) =    &
+     type(func_type), meta_funcs(1) =              &
           (/ func_type(any_space_1, gh_diff_basis) &
            /)
      integer :: operates_on = cell_column

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ from psyclone.psyir.backend.fortran import gen_intent, FortranWriter, \
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
-    StructureReference
+    StructureReference, Schedule
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -667,7 +667,6 @@ def test_gen_decls(fort_writer):
     symbol_table.add(grid_variable)
     result = fort_writer.gen_decls(symbol_table)
     assert (result ==
-            "use my_module, only : grid_type, my_use\n"
             "integer :: arg\n"
             "integer :: local\n"
             "type(grid_type) :: grid\n"
@@ -754,7 +753,8 @@ def test_fw_container_1(fort_writer, monkeypatch):
     container = Container("test")
     result = fort_writer(container)
     assert (
-        "module test\n\n"
+        "module test\n"
+        "  implicit none\n\n"
         "  contains\n\n"
         "end module test\n" in result)
 
@@ -765,7 +765,7 @@ def test_fw_container_1(fort_writer, monkeypatch):
             in str(excinfo.value))
 
 
-def test_fw_container_2(fort_writer):
+def test_fw_container_2(fort_writer, tmpdir):
     '''Check the FortranWriter class outputs correct code when a Container
     node is found with a subroutine, use statements and
     declarations. Also raise an exception if the Container contains a
@@ -775,7 +775,8 @@ def test_fw_container_2(fort_writer):
     # Generate fparser2 parse tree from Fortran code.
     code = (
         "module test\n"
-        "use test2_mod, only : a,b\n"
+        "use iso_c_binding, only : c_int\n"
+        "implicit none\n"
         "real :: c,d\n"
         "contains\n"
         "subroutine tmp()\n"
@@ -789,7 +790,8 @@ def test_fw_container_2(fort_writer):
 
     assert (
         "module test\n"
-        "  use test2_mod, only : a, b\n"
+        "  use iso_c_binding, only : c_int\n"
+        "  implicit none\n"
         "  real :: c\n"
         "  real :: d\n\n"
         "  public :: tmp\n\n"
@@ -797,12 +799,13 @@ def test_fw_container_2(fort_writer):
         "  subroutine tmp()\n\n\n"
         "  end subroutine tmp\n\n"
         "end module test\n" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
     container.children.append(Container("child", parent=container))
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer(container)
     assert ("The Fortran back-end requires all children of a Container "
-            "to be KernelSchedules." in str(excinfo.value))
+            "to be a sub-class of Routine." in str(excinfo.value))
 
 
 def test_fw_container_3(fort_writer, monkeypatch):
@@ -815,6 +818,7 @@ def test_fw_container_3(fort_writer, monkeypatch):
     code = (
         "module test\n"
         "real :: a\n"
+        "implicit none\n"
         "contains\n"
         "subroutine tmp()\n"
         "end subroutine tmp\n"
@@ -830,39 +834,111 @@ def test_fw_container_3(fort_writer, monkeypatch):
             "contains argument(s): '['a']'." in str(excinfo.value))
 
 
-def test_fw_kernelschedule(fort_writer, monkeypatch):
-    '''Check the FortranWriter class outputs correct code when a
-    KernelSchedule node is found. Also tests that an exception is
-    raised if KernelSchedule.name does not have a value.
+def test_fw_container_4(fort_writer):
+    '''Check the FortranWriter class outputs correct code when a Container
+    symbol table has multiple imported modules.
+
+    '''
+    container = Container("test")
+    container.symbol_table.add(ContainerSymbol("mod1"))
+    container.symbol_table.lookup("mod1").wildcard_import = True
+    container.symbol_table.add(ContainerSymbol("mod2"))
+    container.symbol_table.lookup("mod2").wildcard_import = True
+    container.symbol_table.add(ContainerSymbol("mod3"))
+    container.symbol_table.lookup("mod3").wildcard_import = True
+    result = fort_writer(container)
+    assert (
+        "module test\n"
+        "  use mod1\n"
+        "  use mod2\n"
+        "  use mod3\n"
+        "  implicit none\n\n"
+        "  contains\n\n"
+        "end module test\n" in result)
+
+
+def test_fw_routine(fort_writer, monkeypatch, tmpdir):
+    '''Check the FortranWriter class outputs correct code when a routine node
+    is found. Also tests that an exception is raised if routine.name does not
+    have a value.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(a,b,c)\n"
-        "  use my_mod, only : d\n"
+        "subroutine tmp(a, b, c)\n"
+        "  use iso_c_binding, only : c_int\n"
         "  real, intent(out) :: a(:)\n"
         "  real, intent(in) :: b(:)\n"
         "  integer, intent(in) :: c\n"
+        "  if(c > 3) then\n"
         "  a = b/c\n"
+        "  else\n"
+        "  a = b/c\n"
+        "  endif\n"
         "end subroutine tmp\n"
         "end module test")
+
+    # Create Schedule will instantiate a KernelSchedule which works for this
+    # test as it is a subclass of Routine and will use the routine visitor.
     schedule = create_schedule(code, "tmp")
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
 
     assert(
-        "subroutine tmp(a,b,c)\n"
-        "  use my_mod, only : d\n"
+        "subroutine tmp(a, b, c)\n"
+        "  use iso_c_binding, only : c_int\n"
         "  real, dimension(:), intent(out) :: a\n"
         "  real, dimension(:), intent(in) :: b\n"
         "  integer, intent(in) :: c\n"
         "\n"
-        "  a=b / c\n"
+        "  if (c > 3) then\n"
+        "    a = b / c\n"
+        "  else\n"
+        "    a = b / c\n"
+        "  end if\n"
         "\n"
         "end subroutine tmp\n") in result
+    assert Compile(tmpdir).string_compiles(result)
+
+    # Add distinctly named symbols in the routine sub-scopes
+    sub_scopes = schedule.walk(Schedule)[1:]
+    sub_scopes[0].symbol_table.new_symbol("symbol1", symbol_type=DataSymbol,
+                                          datatype=INTEGER_TYPE)
+    sub_scopes[1].symbol_table.new_symbol("symbol2", symbol_type=DataSymbol,
+                                          datatype=INTEGER_TYPE)
+    # They should be promoted to the routine-scope level
+    result = fort_writer(schedule)
+    assert(
+        "  integer, intent(in) :: c\n"
+        "  integer :: symbol1\n"
+        "  integer :: symbol2\n") in result
+    assert Compile(tmpdir).string_compiles(result)
+
+    # Add symbols that will result in name clashes to sibling scopes
+    sub_scopes = schedule.walk(Schedule)[1:]
+    sub_scopes[0].symbol_table.new_symbol("symbol2", symbol_type=DataSymbol,
+                                          datatype=INTEGER_TYPE)
+    sub_scopes[1].symbol_table.new_symbol("symbol1", symbol_type=DataSymbol,
+                                          datatype=INTEGER_TYPE)
+    # Since the scopes are siblings they are alowed the same name
+    assert "symbol1" in sub_scopes[0].symbol_table
+    assert "symbol2" in sub_scopes[0].symbol_table
+    assert "symbol1" in sub_scopes[1].symbol_table
+    assert "symbol2" in sub_scopes[1].symbol_table
+    # But the back-end will promote them to routine-scope level with different
+    # names
+    result = fort_writer(schedule)
+    assert(
+        "  integer, intent(in) :: c\n"
+        "  integer :: symbol1\n"
+        "  integer :: symbol2\n"
+        "  integer :: symbol2_1\n"
+        "  integer :: symbol1_1\n"
+        "\n") in result
+    assert Compile(tmpdir).string_compiles(result)
 
     monkeypatch.setattr(schedule, "_name", None)
     with pytest.raises(VisitorError) as excinfo:
@@ -887,7 +963,7 @@ def test_fw_binaryoperator(fort_writer, binary_intrinsic, tmpdir):
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(a,n)\n"
+        "subroutine tmp(a, n)\n"
         "  integer, intent(in) :: n\n"
         "  real, intent(out) :: a(n)\n"
         "    a = {0}(1.0,1.0)\n"
@@ -897,7 +973,7 @@ def test_fw_binaryoperator(fort_writer, binary_intrinsic, tmpdir):
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    assert "a={0}(1.0, 1.0)".format(binary_intrinsic.upper()) in result
+    assert "a = {0}(1.0, 1.0)".format(binary_intrinsic.upper()) in result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -911,7 +987,7 @@ def test_fw_binaryoperator_sum(fort_writer, tmpdir):
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(array,n)\n"
+        "subroutine tmp(array, n)\n"
         "  integer, intent(in) :: n\n"
         "  real, intent(out) :: array(n)\n"
         "  integer :: a\n"
@@ -922,7 +998,7 @@ def test_fw_binaryoperator_sum(fort_writer, tmpdir):
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    assert "a=SUM(array, dim = 1)" in result
+    assert "a = SUM(array, dim = 1)" in result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -936,7 +1012,7 @@ def test_fw_binaryoperator_matmul(fort_writer, tmpdir):
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(a,b,c,n)\n"
+        "subroutine tmp(a, b, c, n)\n"
         "  integer, intent(in) :: n\n"
         "  real, intent(in) :: a(n,n), b(n)\n"
         "  real, intent(out) :: c(n)\n"
@@ -947,7 +1023,7 @@ def test_fw_binaryoperator_matmul(fort_writer, tmpdir):
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    assert "c=MATMUL(a, b)" in result
+    assert "c = MATMUL(a, b)" in result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -960,7 +1036,7 @@ def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(a,n)\n"
+        "subroutine tmp(a, n)\n"
         "  integer, intent(in) :: n\n"
         "  real, intent(out) :: a(n)\n"
         "    a = sign(1.0,1.0)\n"
@@ -975,7 +1051,7 @@ def test_fw_binaryoperator_unknown(fort_writer, monkeypatch):
     assert "Unexpected binary op" in str(excinfo.value)
 
 
-def test_fw_binaryoperator_precedence(fort_writer):
+def test_fw_binaryoperator_precedence(fort_writer, tmpdir):
     '''Check the FortranWriter class binary_operation method complies with
     the operator precedence rules. This is achieved by placing the
     operation in brackets.
@@ -1003,19 +1079,20 @@ def test_fw_binaryoperator_precedence(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     expected = (
-        "  a=b * (c + d)\n"
-        "  a=b * c + d\n"
-        "  a=b * c + d\n"
-        "  a=b * c * d * a\n"
-        "  a=b * c * d * a\n"
-        "  a=b * (c * (d * a))\n"
-        "  a=-(a + b)\n"
-        "  e=.NOT.(e .AND. (f .OR. g))\n"
-        "  e=.NOT.e .AND. f .OR. g\n")
+        "  a = b * (c + d)\n"
+        "  a = b * c + d\n"
+        "  a = b * c + d\n"
+        "  a = b * c * d * a\n"
+        "  a = b * c * d * a\n"
+        "  a = b * (c * (d * a))\n"
+        "  a = -(a + b)\n"
+        "  e = .NOT.(e .AND. (f .OR. g))\n"
+        "  e = .NOT.e .AND. f .OR. g\n")
     assert expected in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_mixed_operator_precedence(fort_writer):
+def test_fw_mixed_operator_precedence(fort_writer, tmpdir):
     '''Check the FortranWriter class unary_operation and binary_operation
     methods complies with the operator precedence rules. This is
     achieved by placing the binary operation in brackets.
@@ -1039,12 +1116,13 @@ def test_fw_mixed_operator_precedence(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     expected = (
-        "  a=-a * (-b + c)\n"
-        "  a=-a * (-b + c)\n"
-        "  a=-a + (-b + -c)\n"
-        "  e=.NOT.f .OR. .NOT.g\n"
-        "  a=LOG(b * c)\n")
+        "  a = -a * (-b + c)\n"
+        "  a = -a * (-b + c)\n"
+        "  a = -a + (-b + -c)\n"
+        "  e = .NOT.f .OR. .NOT.g\n"
+        "  a = LOG(b * c)\n")
     assert expected in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_fw_naryoperator(fort_writer, tmpdir):
@@ -1056,7 +1134,7 @@ def test_fw_naryoperator(fort_writer, tmpdir):
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(a,n)\n"
+        "subroutine tmp(a, n)\n"
         "  integer, intent(in) :: n\n"
         "  real, intent(out) :: a\n"
         "    a = max(1.0,1.0,2.0)\n"
@@ -1066,7 +1144,7 @@ def test_fw_naryoperator(fort_writer, tmpdir):
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    assert "a=MAX(1.0, 1.0, 2.0)" in result
+    assert "a = MAX(1.0, 1.0, 2.0)" in result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -1079,7 +1157,7 @@ def test_fw_naryoperator_unknown(fort_writer, monkeypatch):
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(a,n)\n"
+        "subroutine tmp(a, n)\n"
         "  integer, intent(in) :: n\n"
         "  real, intent(out) :: a\n"
         "    a = max(1.0,1.0,2.0)\n"
@@ -1094,7 +1172,7 @@ def test_fw_naryoperator_unknown(fort_writer, monkeypatch):
     assert "Unexpected N-ary op" in str(err.value)
 
 
-def test_fw_reference(fort_writer):
+def test_fw_reference(fort_writer, tmpdir):
     '''Check the FortranWriter class reference method prints the
     appropriate information (the name of the reference it points to).
 
@@ -1105,7 +1183,7 @@ def test_fw_reference(fort_writer):
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(a,n)\n"
+        "subroutine tmp(a, n)\n"
         "  integer, intent(in) :: n\n"
         "  real, intent(out) :: a(n)\n"
         "    a = 1\n"
@@ -1120,17 +1198,18 @@ def test_fw_reference(fort_writer):
     # The asserts need to be split as the declaration order can change
     # between different versions of Python.
     assert (
-        "subroutine tmp(a,n)\n"
+        "subroutine tmp(a, n)\n"
         "  integer, intent(in) :: n\n"
         "  real, dimension(n), intent(out) :: a\n"
         "\n"
-        "  a=1\n"
-        "  a(n)=0.0\n"
+        "  a = 1\n"
+        "  a(n) = 0.0\n"
         "\n"
         "end subroutine tmp\n") in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_arrayreference(fort_writer):
+def test_fw_arrayreference(fort_writer, tmpdir):
     '''Check the FortranWriter class array method correctly prints
     out the Fortran representation of an array reference.
 
@@ -1139,7 +1218,7 @@ def test_fw_arrayreference(fort_writer):
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(a,n)\n"
+        "subroutine tmp(a, n)\n"
         "  integer, intent(in) :: n\n"
         "  real, intent(out) :: a(n,n,n)\n"
         "    a(2,n,3) = 0.0\n"
@@ -1149,7 +1228,8 @@ def test_fw_arrayreference(fort_writer):
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    assert "a(2,n,3)=0.0" in result
+    assert "a(2,n,3) = 0.0" in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_fw_arrayreference_incomplete(fort_writer):
@@ -1341,7 +1421,7 @@ def test_fw_arrayofstructuresmember(fort_writer):
 # literal is already checked within previous tests
 
 
-def test_fw_ifblock(fort_writer):
+def test_fw_ifblock(fort_writer, tmpdir):
     '''Check the FortranWriter class ifblock method
     correctly prints out the Fortran representation.
 
@@ -1350,7 +1430,7 @@ def test_fw_ifblock(fort_writer):
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(a,n)\n"
+        "subroutine tmp(a, n)\n"
         "  integer, intent(inout) :: n\n"
         "  real, intent(out) :: a(n)\n"
         "    if (n.gt.2) then\n"
@@ -1369,16 +1449,17 @@ def test_fw_ifblock(fort_writer):
     result = fort_writer(schedule)
     assert (
         "  if (n > 2) then\n"
-        "    n=n + 1\n"
+        "    n = n + 1\n"
         "  end if\n"
         "  if (n > 4) then\n"
-        "    a=-1\n"
+        "    a = -1\n"
         "  else\n"
-        "    a=1\n"
+        "    a = 1\n"
         "  end if\n") in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_loop(fort_writer):
+def test_fw_loop(fort_writer, tmpdir):
     '''Check the FortranWriter class loop method
     correctly prints out the Fortran representation.
 
@@ -1400,9 +1481,10 @@ def test_fw_loop(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     assert "do i = 1, 20, 2\n" in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_unaryoperator(fort_writer):
+def test_fw_unaryoperator(fort_writer, tmpdir):
     '''Check the FortranWriter class unary_operation method
     correctly prints out the Fortran representation. Uses -1 as the
     example.
@@ -1412,7 +1494,7 @@ def test_fw_unaryoperator(fort_writer):
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(a,n)\n"
+        "subroutine tmp(a, n)\n"
         "  integer, intent(in) :: n\n"
         "  real, intent(out) :: a(n)\n"
         "    a = -1\n"
@@ -1422,10 +1504,11 @@ def test_fw_unaryoperator(fort_writer):
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    assert "a=-1" in result
+    assert "a = -1" in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_unaryoperator2(fort_writer):
+def test_fw_unaryoperator2(fort_writer, tmpdir):
     '''Check the FortranWriter class unary_operation method correctly
     prints out the Fortran representation of an intrinsic. Uses sin as
     the example.
@@ -1435,7 +1518,7 @@ def test_fw_unaryoperator2(fort_writer):
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(a,n)\n"
+        "subroutine tmp(a, n)\n"
         "  integer, intent(in) :: n\n"
         "  real, intent(out) :: a(n)\n"
         "    a = sin(1.0)\n"
@@ -1445,7 +1528,8 @@ def test_fw_unaryoperator2(fort_writer):
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    assert "a=SIN(1.0)" in result
+    assert "a = SIN(1.0)" in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_fw_unaryoperator_unknown(fort_writer, monkeypatch):
@@ -1457,7 +1541,7 @@ def test_fw_unaryoperator_unknown(fort_writer, monkeypatch):
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(a,n)\n"
+        "subroutine tmp(a, n)\n"
         "  integer, intent(in) :: n\n"
         "  real, intent(out) :: a(n)\n"
         "    a = sin(1.0)\n"
@@ -1472,7 +1556,7 @@ def test_fw_unaryoperator_unknown(fort_writer, monkeypatch):
     assert "Unexpected unary op" in str(excinfo.value)
 
 
-def test_fw_return(fort_writer):
+def test_fw_return(fort_writer, tmpdir):
     '''Check the FortranWriter class return method
     correctly prints out the Fortran representation.
 
@@ -1490,9 +1574,10 @@ def test_fw_return(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     assert "  return\n" in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_codeblock_1(fort_writer):
+def test_fw_codeblock_1(fort_writer, tmpdir):
     '''Check the FortranWriter class codeblock method correctly
     prints out the Fortran code contained within it.
 
@@ -1514,12 +1599,13 @@ def test_fw_codeblock_1(fort_writer):
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
     assert (
-        "  a=1\n"
+        "  a = 1\n"
         "  PRINT *, \"I am a code block\"\n"
         "  PRINT *, \"with more than one line\"\n" in result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_codeblock_2(fort_writer):
+def test_fw_codeblock_2(fort_writer, tmpdir):
     '''Check the FortranWriter class codeblock method correctly prints out
     the Fortran representation when there is a code block that is part
     of a line (not a whole line). In this case the data initialisation
@@ -1542,7 +1628,8 @@ def test_fw_codeblock_2(fort_writer):
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule)
-    assert "a=(/0.0/)" in result
+    assert "a = (/0.0/)" in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_fw_codeblock_3(fort_writer):
@@ -1590,7 +1677,7 @@ def test_fw_nemoinvokeschedule(fort_writer, parser):
     schedule = get_nemo_schedule(parser, code)
     assert isinstance(schedule, NemoInvokeSchedule)
     result = fort_writer(schedule)
-    assert "a=1\n" in result
+    assert "a = 1\n" in result
 
 
 def test_fw_nemokern(fort_writer, parser):
@@ -1623,11 +1710,11 @@ def test_fw_nemokern(fort_writer, parser):
     result = fort_writer(schedule)
     assert (
         "    do i = 1, n, 1\n"
-        "      a(i,j,k)=0.0\n"
+        "      a(i,j,k) = 0.0\n"
         "    enddo\n" in result)
 
 
-def test_fw_query_intrinsics(fort_writer):
+def test_fw_query_intrinsics(fort_writer, tmpdir):
     ''' Check that the FortranWriter outputs SIZE/LBOUND/UBOUND
     intrinsic calls. '''
     code = ("module test_mod\n"
@@ -1644,9 +1731,10 @@ def test_fw_query_intrinsics(fort_writer):
 
     # Generate Fortran from the PSyIR schedule
     result = fort_writer(schedule).lower()
-    assert "mysize=size(a, 2)" in result
-    assert "lb=lbound(a, 2)" in result
-    assert "ub=ubound(a, 2)" in result
+    assert "mysize = size(a, 2)" in result
+    assert "lb = lbound(a, 2)" in result
+    assert "ub = ubound(a, 2)" in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_fw_literal_node(fort_writer):

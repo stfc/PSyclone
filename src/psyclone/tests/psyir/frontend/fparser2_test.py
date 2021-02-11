@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,8 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, RoutineSymbol,
     ArgumentInterface, SymbolError, ScalarType, ArrayType, INTEGER_TYPE,
-    REAL_TYPE, UnknownFortranType, DeferredType, Symbol, UnresolvedInterface)
+    REAL_TYPE, UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
+    GlobalInterface)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _is_array_range_literal, _is_bound_full_extent, \
     _is_range_full_extent, _check_args, default_precision, \
@@ -85,10 +86,10 @@ FAKE_KERNEL_METADATA = '''
 module dummy_mod
   use argument_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type) meta_args(3) =                     &
-          (/ arg_type(gh_field, gh_write,     w3),     &
-             arg_type(gh_field, gh_readwrite, wtheta), &
-             arg_type(gh_field, gh_inc,       w1)      &
+     type(arg_type) meta_args(3) =                              &
+          (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
+             arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
+             arg_type(gh_field, gh_real, gh_inc,       w1)      &
            /)
      integer :: operates_on = cell_column
    contains
@@ -458,10 +459,10 @@ def test_generate_schedule_dummy_subroutine(parser):
     module dummy_mod
       use argument_mod
       type, extends(kernel_type) :: dummy_type
-         type(arg_type) meta_args(3) =                     &
-              (/ arg_type(gh_field, gh_write,     w3),     &
-                 arg_type(gh_field, gh_readwrite, wtheta), &
-                 arg_type(gh_field, gh_inc,       w1)      &
+         type(arg_type) meta_args(3) =                              &
+              (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
+                 arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
+                 arg_type(gh_field, gh_real, gh_inc,       w1)      &
                /)
          integer :: operates_on = cell_column
        contains
@@ -503,10 +504,10 @@ def test_generate_schedule_no_args_subroutine(parser):
     module dummy_mod
       use argument_mod
       type, extends(kernel_type) :: dummy_type
-         type(arg_type) meta_args(3) =                      &
-              (/ arg_type(gh_field, gh_write,     w3),     &
-                 arg_type(gh_field, gh_readwrite, wtheta), &
-                 arg_type(gh_field, gh_inc,       w1)      &
+         type(arg_type) meta_args(3) =                              &
+              (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
+                 arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
+                 arg_type(gh_field, gh_real, gh_inc,       w1)      &
                /)
          integer :: operates_on = cell_column
        contains
@@ -537,10 +538,10 @@ def test_generate_schedule_unmatching_arguments(parser):
     module dummy_mod
       use kernel_mod
       type, extends(kernel_type) :: dummy_type
-         type(arg_type) meta_args(3) =                     &
-              (/ arg_type(gh_field, gh_write,     w3),     &
-                 arg_type(gh_field, gh_readwrite, wtheta), &
-                 arg_type(gh_field, gh_inc,       w1)      &
+         type(arg_type) meta_args(3) =                              &
+              (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
+                 arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
+                 arg_type(gh_field, gh_real, gh_inc,       w1)      &
                /)
          integer :: operates_on = cell_column
        contains
@@ -1022,6 +1023,15 @@ def test_process_not_supported_declarations():
     assert "An array with defined extent cannot have the ALLOCATABLE" \
         in str(err.value)
 
+    reader = FortranStringReader("integer :: l11")
+    fparser2spec = Specification_Part(reader).content[0]
+    # Break the parse tree
+    fparser2spec.items = ("hello", fparser2spec.items[1],
+                          fparser2spec.items[2])
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    l11sym = fake_parent.symbol_table.lookup("l11")
+    assert isinstance(l11sym.datatype, UnknownFortranType)
+
 
 def test_module_function_symbol(parser):
     ''' Check that the frontend correctly creates a new, local symbol for
@@ -1054,7 +1064,7 @@ def test_module_function_symbol(parser):
     # This should result in a new, *local* symbol named "modvar1"
     sched = processor.generate_schedule("modvar1", ast, container)
     # Check that the resulting Schedule has a local symbol
-    sym = sched.scope.symbol_table.lookup("modvar1", check_ancestors=False)
+    sym = sched.scope.symbol_table.lookup("modvar1", scope_limit=sched)
     assert isinstance(sym, DataSymbol)
     assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
@@ -1390,6 +1400,22 @@ def test_parse_array_dimensions_attributes():
     assert "Could not process " in str(error.value)
     assert ("Only scalar integer literals or symbols are supported for "
             "explicit shape array declarations.") in str(error.value)
+
+    # Shape specified by an unknown Symbol
+    reader = FortranStringReader("dimension(var3)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    csym = sym_table.new_symbol("some_mod", symbol_type=ContainerSymbol)
+    vsym = sym_table.new_symbol("var3", interface=GlobalInterface(csym))
+    # pylint: disable=unidiomatic-typecheck
+    assert type(vsym) == Symbol
+    shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+    assert len(shape) == 1
+    assert isinstance(shape[0], Reference)
+    # Symbol is the same object but is now a DataSymbol
+    assert shape[0].symbol is vsym
+    assert isinstance(shape[0].symbol, DataSymbol)
+    assert shape[0].symbol.name == "var3"
+    assert isinstance(shape[0].symbol.interface, GlobalInterface)
 
     # Test dimension and intent arguments together
     fake_parent = KernelSchedule("dummy_schedule")
@@ -2597,7 +2623,7 @@ def test_handling_end_subroutine_stmt():
     assert not fake_parent.children  # No new children created
 
 
-# (1/4) fparser2reader::nodes_to_code_block
+# (1/3) fparser2reader::nodes_to_code_block
 def test_nodes_to_code_block_1(f2008_parser):
     '''Check that a statement codeblock that is at the "top level" in the
     PSyIR has the structure property set to statement (as it has a
@@ -2618,7 +2644,7 @@ def test_nodes_to_code_block_1(f2008_parser):
     assert schedule[0].structure == CodeBlock.Structure.STATEMENT
 
 
-# (2/4) fparser2reader::nodes_to_code_block
+# (2/3) fparser2reader::nodes_to_code_block
 def test_nodes_to_code_block_2(f2008_parser):
     '''Check that a statement codeblock that is within another statement
     in the PSyIR has the structure property set to statement (as it
@@ -2641,33 +2667,9 @@ def test_nodes_to_code_block_2(f2008_parser):
     assert schedule[0].if_body[0].structure == CodeBlock.Structure.STATEMENT
 
 
-# (3/4) fparser2reader::nodes_to_code_block
-@pytest.mark.usefixtures("disable_declaration_check")
-def test_nodes_to_code_block_3(f2008_parser):
-    '''Check that a codeblock that contains an expression has the
-    structure property set to expression.
-
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-    '''
-    # The derived-type reference is currently a code block in the PSyIR
-    reader = FortranStringReader('''
-        program test
-        if (a%text == "HELLO") then
-        end if
-        end program test
-        ''')
-    prog = f2008_parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
-    code_block = schedule[0].condition.children[0]
-    assert isinstance(code_block, CodeBlock)
-    assert code_block.structure == CodeBlock.Structure.EXPRESSION
-
-
-# (4/4) fparser2reader::nodes_to_code_block
+# (3/3) fparser2reader::nodes_to_code_block
 @pytest.mark.usefixtures("f2008_parser")
-def test_nodes_to_code_block_4():
+def test_nodes_to_code_block_3():
     '''Check that a codeblock that has a directive as a parent causes the
     expected exception.
 

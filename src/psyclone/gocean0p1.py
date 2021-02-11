@@ -224,8 +224,8 @@ class GOInvokeSchedule(InvokeSchedule):
     supply our API-specific factories to the base InvokeSchedule class
     constructor. '''
 
-    def __init__(self, alg_calls, reserved_names=None):
-        InvokeSchedule.__init__(self, GOKernCallFactory,
+    def __init__(self, name, alg_calls, reserved_names=None):
+        InvokeSchedule.__init__(self, name, GOKernCallFactory,
                                 GOBuiltInCallFactory, alg_calls,
                                 reserved_names)
 
@@ -251,12 +251,11 @@ class GOLoop(Loop):
 
         symtab = self.scope.symbol_table
         try:
-            data_symbol = symtab.lookup_with_tag(tag)
+            self.variable = symtab.lookup_with_tag(tag)
         except KeyError:
-            name = symtab.new_symbol_name(suggested_name)
-            data_symbol = DataSymbol(name, INTEGER_TYPE)
-            symtab.add(data_symbol, tag=tag)
-        self.variable = data_symbol
+            self.variable = symtab.new_symbol(
+                suggested_name, tag, symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE)
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,

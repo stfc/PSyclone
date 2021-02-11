@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal
 from psyclone.psyir.symbols import (INTEGER_TYPE, REAL_TYPE, DataSymbol,
-                                    SymbolTable)
+                                    SymbolTable, RoutineSymbol)
 from psyclone.tests.utilities import check_links
 
 
@@ -82,11 +82,29 @@ def test_routine_properties():
     assert node4.return_type == INTEGER_TYPE
     assert node4.is_program
 
+
+def test_routine_name_setter():
+    ''' Check the name setter property of the Routine class updates its
+    name and its associated Routine symbol. '''
+
+    node = Routine("hello")  # The constructor has an implicit name setter
+    # Check the associated RoutineSymbol has been created
+    assert "hello" in node.symbol_table
+    assert isinstance(node.symbol_table.lookup("hello"), RoutineSymbol)
+    # Check with an incorrect value type
     with pytest.raises(TypeError) as err:
-        node4.name = node3
+        node.name = 3
     assert "must be a str but got" in str(err.value)
-    node4.name = "goodbye"
-    assert node4.name == "goodbye"
+
+    # Perform a successful name change
+    node.name = "goodbye"
+    assert node.name == "goodbye"
+    # Check that the previous symbol has been deleted and the new one created
+    assert "welcome" not in node.symbol_table
+    assert "goodbye" in node.symbol_table
+    # Check that the 'own_routine_symbol' tag has been updated
+    assert node.symbol_table.lookup_with_tag('own_routine_symbol').name == \
+        "goodbye"
 
 
 def test_routine_create_invalid():

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,16 +51,18 @@ import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
-    Literal, Node, Schedule, KernelSchedule
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE
+    Literal, Node, Schedule, KernelSchedule, Call
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
+    GlobalInterface, ContainerSymbol, Symbol
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     OMPParallelDoDirective, InlinedKern, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
     ACCEnterDataDirective, ACCKernelsDirective, HaloExchange, Invoke, \
-    DataAccess, Kern, Arguments, CodedKern
+    DataAccess, Kern, Arguments, CodedKern, Argument
 from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
-from psyclone.psyir.symbols import INTEGER_TYPE
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
+from psyclone.psyir.symbols import INTEGER_TYPE, DeferredType
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
+    DynKernelArguments
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
     DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans, \
@@ -307,10 +309,10 @@ FAKE_KERNEL_METADATA = '''
 module dummy_mod
   use argument_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =                    &
-          (/ arg_type(gh_field, gh_write,     w3),     &
-             arg_type(gh_field, gh_readwrite, wtheta), &
-             arg_type(gh_field, gh_inc,       w1)      &
+     type(arg_type), meta_args(3) =                             &
+          (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
+             arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
+             arg_type(gh_field, gh_real, gh_inc,       w1)      &
            /)
      integer :: operates_on = cell_column
    contains
@@ -335,7 +337,7 @@ def test_invokeschedule_node_str():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     # Create a plain InvokeSchedule
-    sched = InvokeSchedule(None, None)
+    sched = InvokeSchedule('name', None, None)
     # Manually supply it with an Invoke object created with the Dynamo API.
     sched._invoke = psy.invokes.invoke_list[0]
     output = sched.node_str()
@@ -505,6 +507,62 @@ def test_codedkern_module_inline_gen_code_modified_kernels(tmpdir):
     assert "SUBROUTINE ru_0_code(" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_codedkern_lower_to_language_level(monkeypatch):
+    ''' Check that a generic CodedKern can be lowered to a subroutine call
+    with the appropriate arguments'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.children[0].loop_body[0]
+
+    # TODO 1010: LFRic still needs psy.gen to create symbols. But these must
+    # eventually be created automatically before the gen() call, for now we
+    # manually create the symbols that appear in the PSyIR tree.
+    schedule.symbol_table.add(Symbol("f1_proxy"))
+    schedule.symbol_table.add(Symbol("f2_proxy"))
+    schedule.symbol_table.add(Symbol("m1_proxy"))
+    schedule.symbol_table.add(Symbol("m2_proxy"))
+    schedule.symbol_table.add(Symbol("ndf_w1"))
+    schedule.symbol_table.add(Symbol("undf_w1"))
+    schedule.symbol_table.add(Symbol("map_w1"))
+    schedule.symbol_table.add(Symbol("ndf_w2"))
+    schedule.symbol_table.add(Symbol("undf_w2"))
+    schedule.symbol_table.add(Symbol("map_w2"))
+    schedule.symbol_table.add(Symbol("ndf_w3"))
+    schedule.symbol_table.add(Symbol("undf_w3"))
+    schedule.symbol_table.add(Symbol("map_w3"))
+
+    # TODO #1085 LFRic Arguments do not have a translation to PSyIR
+    # yet, we monkeypatch a dummy expression for now:
+    monkeypatch.setattr(DynKernelArguments, "psyir_expressions",
+                        lambda x: [Literal("1", INTEGER_TYPE)])
+
+    # In DSL-level it is a CodedKern with no children
+    assert isinstance(kern, CodedKern)
+    assert len(kern.children) == 0
+    number_of_arguments = len(kern.arguments.psyir_expressions())
+
+    kern.lower_to_language_level()
+
+    # In language-level it is a Call with arguments as children
+    call = schedule.children[0].loop_body[0]
+    assert not isinstance(call, CodedKern)
+    assert isinstance(call, Call)
+    assert call.routine.name == 'testkern_code'
+    assert len(call.children) == number_of_arguments
+    assert isinstance(call.children[0], Literal)
+
+    # A RoutineSymbol and the ContainerSymbol from where it is imported are
+    # in the symbol table
+    rsymbol = call.scope.symbol_table.lookup('testkern_code')
+    assert isinstance(rsymbol, RoutineSymbol)
+    assert isinstance(rsymbol.interface, GlobalInterface)
+    csymbol = rsymbol.interface.container_symbol
+    assert isinstance(csymbol, ContainerSymbol)
+    assert csymbol.name == "testkern_mod"
 
 
 def test_kern_coloured_text():
@@ -1002,6 +1060,12 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
     assert (
         "REPROD_PAD_SIZE in {0} should be a positive "
         "integer".format(Config.get().filename) in str(excinfo.value))
+
+
+def test_argument_infer_datatype():
+    ''' Check that a generic argument inferred datatype is a DeferredType. '''
+    arg = Argument(None, None, None)
+    assert isinstance(arg.infer_datatype(), DeferredType)
 
 
 def test_argument_depends_on():
@@ -2460,7 +2524,7 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     assert os.path.isfile(filepath)
     # Check that the argument list is line wrapped as it is longer
     # than 132 characters.
-    assert "undf_w3,&\n&map_w3)\n" in open(filepath).read()
+    assert "map_w2, &\n&ndf_w3" in open(filepath).read()
 
 
 def test_walk():

@@ -652,6 +652,52 @@ takes the following parameters:
     emtpy (i.e. no prefix). If you specify a prefix, you have to
     add the ``_`` between the prefix and name explicitly.
 
+-generic-declare:
+    If this flag is specified, the processed template will also
+    declare a generic subroutine with all ``declareXXX`` functions
+    (see :ref:`generic_interfaces` for details).  
+
+-generic-provide:
+    If this flag is specified, the processed template will also
+    declare a generic subroutine with all ``provideXXX`` functions
+    (see :ref:`generic_interfaces` for details).
+
+.. _generic_interfaces:
+
+Details About Generic Interfaces
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The Fortran standard requires that a generic subroutine is declared
+in the same program unit in which it is defined. Therefore, if a
+derived class falls back to the implementation of a function in the
+base class, the generic subroutine must be declared in the base class,
+not in the derived class (though some compilers, e.g. gfortran 9
+accept it). The two options ``-generic-declare`` and ``-generic-provide``
+are supported so that a derived class can control where the generic
+subroutines should be declared: if the derived class does not implement
+say the 'declaration' functions itself, the ``-generic-declare`` command
+line option guarantees that the base class defines the declaration
+functions all as one generic subroutine. The derived class can of
+course extend this generic subroutine with API-specific implementations.
+On the other hand, if the
+derived class implements the 'declaration' functions (potentially
+calling their implementation in the base class), then the derived class
+must declare the generic subroutine, and the base class must not
+declare them as well. The same approach is used for the 'provide'
+functions. As an example, the ReadOnly verification library for
+LFRic in ``lib/read_only/lfric/`` uses ``-generic-declare`` when
+processing the PSyData base class (i.e. all declaration functions
+are implemented in the PSyData base class), and uses
+``-generic-provide`` when processing the ReadOnly base class (i.e.
+all provide functions are implemented in the ReadOnly base class).
+The LFRic-specific implementation extends the generic subroutine
+with two new subroutines: ``DeclareFieldDouble`` and
+``DeclareFieldVectorDouble`` (and the same for the corresponding
+'provide' functions). 
+
+
+Explanation of Jinja Use
+~~~~~~~~~~~~~~~~~~~~~~~~
+
 For each specified type name the Jinja template will create methods called
 ``DeclareScalar{{type}}`` and ``ProvideScalar{{type}}`` for handling
 scalar parameters. For array parameters, the functions
@@ -691,7 +737,7 @@ needs to be adjusted as well.
 
 Below is a short excerpt that shows how these variables are defined by
 default, and how they are used to create subroutines and declare their
-parameters in ``lib/read_only_base.jinja``:
+parameters in ``lib/read_only/read_only_base.jinja``:
 
 .. code-block:: jinja
 
@@ -705,8 +751,8 @@ parameters in ``lib/read_only_base.jinja``:
        The second entry is the Fortran declaration. The third entry
        is the number of bits. There is slightly different code
        required for 32 and 64 bit values (due to the fact that the
-       Fortran transfer(value, mould) function leaves undefined bits
-       when mould is larger than value.) #}
+       Fortran ``transfer(value, mould)`` function leaves undefined
+       bits when mould is larger than value.) #}
 
     {% if ALL_TYPES is not defined %}
        {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),

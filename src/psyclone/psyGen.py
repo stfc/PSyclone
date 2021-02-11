@@ -49,9 +49,11 @@ from psyclone.configuration import Config
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.psyir.symbols import DataSymbol, ArrayType, RoutineSymbol, \
-    Symbol, INTEGER_TYPE, BOOLEAN_TYPE
+    Symbol, ContainerSymbol, GlobalInterface, INTEGER_TYPE, BOOLEAN_TYPE, \
+    ArgumentInterface, DeferredType
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
-from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, PSyDataNode
+from psyclone.psyir.nodes import Node, Schedule, Loop, Statement, Container, \
+    Routine, PSyDataNode, Call
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 
@@ -70,8 +72,13 @@ OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 # domain-specific modules.
 VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
 
-# Valid types of argument to a kernel call
+# Valid types of argument to a kernel call. Can be overridden in
+# domain-specific modules.
 VALID_ARG_TYPE_NAMES = []
+
+# Valid intrinsic types of kernel argument data. Can be
+# overridden in domain-specific modules.
+VALID_INTRINSIC_TYPES = []
 
 # Mapping of access type to operator.
 REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
@@ -257,6 +264,17 @@ class PSy(object):
     def __init__(self, invoke_info):
         self._name = invoke_info.name
         self._invokes = None
+        # create an empty PSy layer container
+        # TODO 1010: Alternatively the PSy object could be a Container itself
+        self._container = Container(self.name)
+
+    @property
+    def container(self):
+        '''
+        :returns: the container associated with this PSy object
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
+        '''
+        return self._container
 
     def __str__(self):
         return "PSy"
@@ -339,9 +357,22 @@ class Invokes(object):
         :param parent: the parent node in the AST to which to add content.
         :type parent: `psyclone.f2pygen.ModuleGen`
         '''
+        def raise_unmatching_options(option_name):
+            ''' Create unmatching OpenCL options error message.
+
+            :param str option_name: name of the option that failed.
+            :raises NotImplementedError: with the given option_name.
+            '''
+            raise NotImplementedError(
+                "The current implementation creates a single OpenCL context "
+                "for all the invokes which needs certain OpenCL options to "
+                "match between invokes. Found '{0}' with unmatching values "
+                "between invokes.".format(option_name))
         opencl_kernels = []
         opencl_num_queues = 1
         generate_ocl_init = False
+        ocl_enable_profiling = None
+        ocl_out_of_order = None
         for invoke in self.invoke_list:
             # If we are generating OpenCL for an Invoke then we need to
             # create routine(s) to set the arguments of the Kernel(s) it
@@ -349,7 +380,24 @@ class Invokes(object):
             # duplication.
             if invoke.schedule.opencl:
                 generate_ocl_init = True
-                for kern in invoke.schedule.coded_kernels():
+                isch = invoke.schedule
+
+                # The enable_profiling option must be equal in all invokes
+                if ocl_enable_profiling is not None and \
+                   ocl_enable_profiling != isch.get_opencl_option(
+                           'enable_profiling'):
+                    raise_unmatching_options('enable_profiling')
+                ocl_enable_profiling = isch.get_opencl_option(
+                    'enable_profiling')
+
+                # The out_of_order option must be equal in all invokes
+                if ocl_out_of_order is not None and \
+                   ocl_out_of_order != isch.get_opencl_option('out_of_order'):
+                    raise_unmatching_options('out_of_order')
+                ocl_out_of_order = isch.get_opencl_option('out_of_order')
+
+                # openCL_num_queues must be the maximum number from any invoke
+                for kern in isch.coded_kernels():
                     if kern.name not in opencl_kernels:
                         # Compute the maximum number of command queues that
                         # will be needed.
@@ -360,10 +408,11 @@ class Invokes(object):
                         kern.gen_arg_setter_code(parent)
             invoke.gen_code(parent)
         if generate_ocl_init:
-            self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues)
+            self.gen_ocl_init(parent, opencl_kernels, opencl_num_queues,
+                              ocl_enable_profiling, ocl_out_of_order)
 
-    @staticmethod
-    def gen_ocl_init(parent, kernels, num_queues):
+    def gen_ocl_init(self, parent, kernels, num_queues, enable_profiling,
+                     out_of_order):
         '''
         Generates a subroutine to initialise the OpenCL environment and
         construct the list of OpenCL kernel objects used by this PSy layer.
@@ -375,9 +424,24 @@ class Invokes(object):
         :type kernels: list of str
         :param int num_queues: total number of queues needed for the OpenCL \
                                implementation.
+        :param bool enable_profiling: value given to the enable_profiling \
+                                      flag in the OpenCL initialisation.
+        :param bool out_of_order: value given to the out_of_order flag in \
+                                  the OpenCL initialisation.
+
         '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
             CallGen, UseGen, CharDeclGen, IfThenGen
+
+        def bool_to_fortran(value):
+            '''
+            :param bool value: a python boolean value
+            :returns: the Fortran representation of the given boolean value.
+            :rtype: str
+            '''
+            if value:
+                return ".True."
+            return ".False."
 
         sub = SubroutineGen(parent, "psy_init")
         parent.add(sub)
@@ -398,7 +462,24 @@ class Invokes(object):
         # Initialise the OpenCL environment
         ifthen.add(CommentGen(ifthen,
                               " Initialise the OpenCL environment/device"))
-        ifthen.add(CallGen(ifthen, "ocl_env_init", [num_queues]))
+        sub.add(DeclGen(sub, datatype="integer",
+                        entity_decls=["ocl_device_num"],
+                        initial_values=["1"]))
+
+        distributed_memory = Config.get().distributed_memory
+        devices_per_node = Config.get().ocl_devices_per_node
+
+        if devices_per_node > 1 and distributed_memory:
+            my_rank = self.gen_rank_expression(sub)
+            # Add + 1 as FortCL devices are 1-indexed
+            ifthen.add(AssignGen(ifthen, lhs="ocl_device_num",
+                                 rhs="mod({0} - 1, {1}) + 1"
+                                 "".format(my_rank, devices_per_node)))
+
+        ifthen.add(CallGen(ifthen, "ocl_env_init",
+                           [num_queues, 'ocl_device_num',
+                            bool_to_fortran(enable_profiling),
+                            bool_to_fortran(out_of_order)]))
 
         # Create a list of our kernels
         ifthen.add(CommentGen(ifthen,
@@ -415,26 +496,36 @@ class Invokes(object):
         ifthen.add(CommentGen(ifthen,
                               " Create the OpenCL kernel objects. Expects "
                               "to find all of the compiled"))
-        ifthen.add(CommentGen(ifthen, " kernels in PSYCLONE_KERNELS_FILE."))
+        ifthen.add(CommentGen(ifthen, " kernels in FORTCL_KERNELS_FILE."))
         ifthen.add(CallGen(ifthen, "add_kernels", [nkernstr, "kernel_names"]))
+
+    @abc.abstractmethod
+    def gen_rank_expression(self, scope):
+        ''' Generate the expression to retrieve the process rank.
+
+        :param scope: where the expression is going to be located.
+        :type scope: :py:class:`psyclone.f2pygen.BaseGen`
+        :return: generate the expression to retrieve the process rank.
+        :rtype: str
+        '''
 
 
 class Invoke(object):
-    '''Manage an individual invoke call.
+    r'''Manage an individual invoke call.
 
     :param alg_invocation: metadata from the parsed code capturing \
-        information for this Invoke instance.
-    :type alg_invocation: :py:class`psyclone.parse.algorithm.InvokeCall`
-    :param int idx: position/index of this invoke call in the subroutine.
-        If not None, this number is added to the name ("invoke_").
+                           information for this Invoke instance.
+    :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
+    :param int idx: position/index of this invoke call in the subroutine. \
+                    If not None, this number is added to the name ("invoke\_").
     :param schedule_class: the schedule class to create for this invoke.
     :type schedule_class: :py:class:`psyclone.psyGen.InvokeSchedule`
     :param invokes: the Invokes instance that contains this Invoke \
-        instance.
-    :type invokes: :py:class:`psyclone.psyGen.invokes`
-    :param reserved_names: optional argument: list of reserved names,
-        i.e. names that should not be used e.g. as a PSyclone-created
-        variable name.
+                    instance.
+    :type invokes: :py:class:`psyclone.psyGen.Invokes`
+    :param reserved_names: optional list of reserved names, i.e. names that \
+                           should not be used e.g. as a PSyclone-created \
+                           variable name.
     :type reserved_names: list of str
 
     '''
@@ -451,7 +542,8 @@ class Invoke(object):
 
         # create a name for the call if one does not already exist
         if alg_invocation.name is not None:
-            self._name = alg_invocation.name
+            # In Python2 unicode strings must be converted to str()
+            self._name = str(alg_invocation.name)
         elif len(alg_invocation.kcalls) == 1 and \
                 alg_invocation.kcalls[0].type == "kernelCall":
             # use the name of the kernel call with the position appended.
@@ -461,14 +553,16 @@ class Invoke(object):
                 alg_invocation.kcalls[0].ktype.name
         else:
             # use the position of the invoke
-            self._name = "invoke_"+str(idx)
+            self._name = "invoke_" + str(idx)
 
         if not reserved_names:
             reserved_names = []
-        reserved_names.append(self._name)
 
         # create the schedule
-        self._schedule = schedule_class(alg_invocation.kcalls, reserved_names)
+        self._schedule = schedule_class(self._name, alg_invocation.kcalls,
+                                        reserved_names)
+        if self.invokes:
+            self.invokes.psy.container.addchild(self._schedule)
 
         # let the schedule have access to me
         self._schedule.invoke = self
@@ -541,17 +635,22 @@ class Invoke(object):
     def schedule(self, obj):
         self._schedule = obj
 
-    def unique_declarations(self, argument_types, access=None):
+    def unique_declarations(self, argument_types, access=None,
+                            intrinsic_type=None):
         '''
         Returns a list of all required declarations for the specified
         API argument types. If access is supplied (e.g. "write") then
-        only declarations with that access are returned.
+        only declarations with that access are returned. If an intrinsic
+        type is supplied then only declarations with that intrinsic type
+        are returned.
 
         :param argument_types: the types of the kernel argument for the \
                                particular API.
         :type argument_types: list of str
         :param access: optional AccessType that the declaration should have.
         :type access: :py:class:`psyclone.core.access_type.AccessType`
+        :param intrinsic_type: optional intrinsic type of argument data.
+        :type intrinsic_type: str
 
         :returns: a list of all declared kernel arguments.
         :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
@@ -559,9 +658,10 @@ class Invoke(object):
         :raises InternalError: if at least one kernel argument type is \
                                not valid for the particular API.
         :raises InternalError: if an invalid access is specified.
+        :raises InternalError: if an invalid intrinsic type is specified.
 
         '''
-        # First check for invalid argument types and invalid access
+        # First check for invalid argument types, access and intrinsic type
         if any(argtype not in VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
@@ -571,9 +671,17 @@ class Invoke(object):
 
         if access and not isinstance(access, AccessType):
             raise InternalError(
-                "Invoke.unique_declarations() called with an invalid access "
-                "type. Type is '{0}' instead of AccessType.".
+                "Invoke.unique_declarations() called with an invalid "
+                "access type. Type is '{0}' instead of AccessType.".
                 format(str(access)))
+
+        if (intrinsic_type and intrinsic_type not in
+                VALID_INTRINSIC_TYPES):
+            raise InternalError(
+                "Invoke.unique_declarations() called with an invalid "
+                "intrinsic argument data type. Expected one of {0} but "
+                "found '{1}'.".
+                format(str(VALID_INTRINSIC_TYPES), intrinsic_type))
 
         # Initialise dictionary of kernel arguments to get the
         # argument list from
@@ -581,12 +689,13 @@ class Invoke(object):
         # Find unique kernel arguments using their declaration names
         for call in self.schedule.kernels():
             for arg in call.arguments.args:
-                if not access or arg.access == access:
-                    if arg.text is not None:
-                        if arg.argument_type in argument_types:
-                            test_name = arg.declaration_name
-                            if test_name not in declarations:
-                                declarations[test_name] = arg
+                if not intrinsic_type or arg.intrinsic_type == intrinsic_type:
+                    if not access or arg.access == access:
+                        if arg.text is not None:
+                            if arg.argument_type in argument_types:
+                                test_name = arg.declaration_name
+                                if test_name not in declarations:
+                                    declarations[test_name] = arg
         return list(declarations.values())
 
     def first_access(self, arg_name):
@@ -600,7 +709,7 @@ class Invoke(object):
         raise GenerationError("Failed to find any kernel argument with name "
                               "'{0}'".format(arg_name))
 
-    def unique_declns_by_intent(self, argument_types):
+    def unique_declns_by_intent(self, argument_types, intrinsic_type=None):
         '''
         Returns a dictionary listing all required declarations for each
         type of intent ('inout', 'out' and 'in').
@@ -608,6 +717,8 @@ class Invoke(object):
         :param argument_types: the types of the kernel argument for the \
                                particular API for which the intent is required.
         :type argument_types: list of str
+        :param intrinsic_type: optional intrinsic type of argument data.
+        :type intrinsic_type: str
 
         :returns: dictionary containing 'intent' keys holding the kernel \
                   arguments as values for each type of intent.
@@ -615,9 +726,10 @@ class Invoke(object):
 
         :raises InternalError: if at least one kernel argument type is \
                                not valid for the particular API.
+        :raises InternalError: if an invalid intrinsic type is specified.
 
         '''
-        # First check for invalid argument types
+        # First check for invalid argument types and intrinsic type
         if any(argtype not in VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
@@ -625,13 +737,22 @@ class Invoke(object):
                 "invalid argument type. Expected one of {0} but found {1}.".
                 format(str(VALID_ARG_TYPE_NAMES), str(argument_types)))
 
+        if (intrinsic_type and intrinsic_type not in
+                VALID_INTRINSIC_TYPES):
+            raise InternalError(
+                "Invoke.unique_declns_by_intent() called with an invalid "
+                "intrinsic argument data type. Expected one of {0} but "
+                "found '{1}'.".
+                format(str(VALID_INTRINSIC_TYPES), intrinsic_type))
+
         # We will return a dictionary containing as many lists
         # as there are types of intent
         declns = {}
         for intent in FORTRAN_INTENT_NAMES:
             declns[intent] = []
 
-        for arg in self.unique_declarations(argument_types):
+        for arg in self.unique_declarations(argument_types,
+                                            intrinsic_type=intrinsic_type):
             first_arg = self.first_access(arg.declaration_name)
             if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
                 # If the first access is a write then the intent is
@@ -737,7 +858,7 @@ class Invoke(object):
         parent.add(invoke_sub)
 
 
-class InvokeSchedule(Schedule):
+class InvokeSchedule(Routine):
     '''
     Stores schedule information for an invocation call. Schedules can be
     optimised using transformations.
@@ -753,6 +874,7 @@ class InvokeSchedule(Schedule):
     >>> schedule = invoke.schedule
     >>> schedule.view()
 
+    :param str name: name of the Invoke.
     :param type KernFactory: class instance of the factory to use when \
      creating Kernels. e.g. :py:class:`psyclone.dynamo0p3.DynKernCallFactory`.
     :param type BuiltInFactory: class instance of the factory to use when \
@@ -765,15 +887,17 @@ class InvokeSchedule(Schedule):
     # Textual description of the node.
     _text_name = "InvokeSchedule"
 
-    def __init__(self, KernFactory, BuiltInFactory, alg_calls=None,
+    def __init__(self, name, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None):
-        super(InvokeSchedule, self).__init__()
+        super(InvokeSchedule, self).__init__(name)
 
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
 
         # InvokeSchedule opencl_options default values
-        self._opencl_options = {"end_barrier": True}
+        self._opencl_options = {"end_barrier": True,
+                                "enable_profiling": False,
+                                "out_of_order": False}
 
         # Populate the Schedule Symbol Table with the reserved names.
         if reserved_names:
@@ -808,23 +932,31 @@ class InvokeSchedule(Schedule):
         :type options: dictionary of <string>:<value>
 
         '''
-        valid_opencl_options = ['end_barrier']
+        valid_opencl_options = ['end_barrier', 'enable_profiling',
+                                'out_of_order']
 
         # Validate that the options given are supported and store them
         for key, value in options.items():
             if key in valid_opencl_options:
-                if key == "end_barrier":
-                    if not isinstance(value, bool):
-                        raise TypeError(
-                            "InvokeSchedule opencl_option 'end_barrier' "
-                            "should be a boolean.")
+                # All current options should contain boolean values
+                if not isinstance(value, bool):
+                    raise TypeError(
+                        "InvokeSchedule OpenCL option '{0}' "
+                        "should be a boolean.".format(key))
             else:
                 raise AttributeError(
-                    "InvokeSchedule does not support the opencl_option '{0}'. "
+                    "InvokeSchedule does not support the OpenCL option '{0}'. "
                     "The supported options are: {1}."
                     "".format(key, valid_opencl_options))
 
             self._opencl_options[key] = value
+
+    def get_opencl_option(self, key):
+        '''
+        :returns: The value of the requested Invoke OpenCL option.
+        :rtype: bool
+        '''
+        return self._opencl_options[key]
 
     @property
     def invoke(self):
@@ -901,28 +1033,25 @@ class InvokeSchedule(Schedule):
                                          "get_kernel_by_name"]))
 
             # Declare variables needed on a OpenCL PSy-layer invoke
-            nqueues = self.symbol_table.new_symbol_name("num_cmd_queues")
-            self.symbol_table.add(DataSymbol(nqueues, INTEGER_TYPE),
-                                  tag="opencl_num_cmd_queues")
-            qlist = self.symbol_table.new_symbol_name("cmd_queues")
-            self.symbol_table.add(
-                DataSymbol(qlist,
-                           ArrayType(INTEGER_TYPE,
-                                     [ArrayType.Extent.ATTRIBUTE])),
-                tag="opencl_cmd_queues")
-            first = self.symbol_table.new_symbol_name("first_time")
-            self.symbol_table.add(
-                DataSymbol(first, BOOLEAN_TYPE), tag="first_time")
-            flag = self.symbol_table.new_symbol_name("ierr")
-            self.symbol_table.add(
-                DataSymbol(flag, INTEGER_TYPE), tag="opencl_error")
-            nbytes = self.root.symbol_table.new_symbol_name(
-                "size_in_bytes")
-            self.symbol_table.add(
-                DataSymbol(nbytes, INTEGER_TYPE), tag="opencl_bytes")
-            wevent = self.root.symbol_table.new_symbol_name("write_event")
-            self.symbol_table.add(
-                DataSymbol(wevent, INTEGER_TYPE), tag="opencl_wevent")
+            nqueues = self.symbol_table.new_symbol(
+                "num_cmd_queues", symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE, tag="opencl_num_cmd_queues").name
+            qlist = self.symbol_table.new_symbol(
+                "cmd_queues", symbol_type=DataSymbol,
+                datatype=ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE]),
+                tag="opencl_cmd_queues").name
+            first = self.symbol_table.new_symbol(
+                "first_time", symbol_type=DataSymbol,
+                datatype=BOOLEAN_TYPE, tag="first_time").name
+            flag = self.symbol_table.new_symbol(
+                "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                tag="opencl_error").name
+            self.root.symbol_table.new_symbol(
+                "size_in_bytes", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                tag="opencl_bytes")
+            self.root.symbol_table.new_symbol(
+                "write_event", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                tag="opencl_wevent")
 
             parent.add(DeclGen(parent, datatype="integer", save=True,
                                entity_decls=[nqueues]))
@@ -948,9 +1077,11 @@ class InvokeSchedule(Schedule):
             # Kernel pointers
             kernels = self.walk(Kern)
             for kern in kernels:
-                base = "kernel_" + kern.name
-                kernel = self.root.symbol_table.new_symbol_name(base)
-                self.symbol_table.add(Symbol(kernel), tag=kernel)
+                kernel = "kernel_" + kern.name
+                try:
+                    self.symbol_table.lookup_with_tag(kernel)
+                except KeyError:
+                    self.symbol_table.add(RoutineSymbol(kernel), tag=kernel)
                 parent.add(
                     DeclGen(parent, datatype="integer", kind="c_intptr_t",
                             save=True, target=True, entity_decls=[kernel]))
@@ -2162,13 +2293,13 @@ class HaloExchange(Statement):
 
     :param field: the field that this halo exchange will act on
     :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param check_dirty: optional argument default True indicating
-    whether this halo exchange should be subject to a run-time check
-    for clean/dirty halos.
+    :param check_dirty: optional argument default True indicating whether \
+                        this halo exchange should be subject to a run-time \
+                        check for clean/dirty halos.
     :type check_dirty: bool
-    :param vector_index: optional vector index (default None) to
-    identify which index of a vector field this halo exchange is
-    responsible for
+    :param vector_index: optional vector index (default None) to identify \
+                         which index of a vector field this halo exchange is \
+                         responsible for.
     :type vector_index: int
     :param parent: optional parent (default None) of this object
     :type parent: :py:class:`psyclone.psyGen.node`
@@ -2235,7 +2366,7 @@ class HaloExchange(Statement):
         return [self._field]
 
     def check_vector_halos_differ(self, node):
-        '''helper method which checks that two halo exchange nodes (one being
+        '''Helper method which checks that two halo exchange nodes (one being
         self and the other being passed by argument) operating on the
         same field, both have vector fields of the same size and use
         different vector indices. If this is the case then the halo
@@ -2243,21 +2374,22 @@ class HaloExchange(Statement):
         case then an internal error will have occured and we raise an
         appropriate exception.
 
-        :param node: a halo exchange which should exchange the same
-        field as self
+        :param node: a halo exchange which should exchange the same field as \
+                     self.
         :type node: :py:class:`psyclone.psyGen.HaloExchange`
-        :raises GenerationError: if the argument passed is not a halo exchange
-        :raises GenerationError: if the field name in the halo
-        exchange passed in has a different name to the field in this
-        halo exchange
-        :raises GenerationError: if the field in this halo exchange is
-        not a vector field
-        :raises GenerationError: if the vector size of the field in
-        this halo exchange is different to vector size of the field in
-        the halo exchange passed by argument.
-        :raises GenerationError: if the vector index of the field in
-        this halo exchange is the same as the vector index of the
-        field in the halo exchange passed by argument.
+        :raises GenerationError: if the argument passed is not a halo exchange.
+        :raises GenerationError: if the field name in the halo exchange \
+                                 passed in has a different name to the field \
+                                 in this halo exchange.
+        :raises GenerationError: if the field in this halo exchange is not a \
+                                 vector field
+        :raises GenerationError: if the vector size of the field in this halo \
+                                 exchange is different to vector size of the \
+                                 field in the halo exchange passed by argument.
+        :raises GenerationError: if the vector index of the field in this \
+                                 halo exchange is the same as the vector \
+                                 index of the field in the halo exchange \
+                                 passed by argument.
 
         '''
 
@@ -2436,8 +2568,7 @@ class Kern(Statement):
         reduction argument name. This is used for thread-local
         reductions with reproducible reductions '''
         tag = self._reduction_arg.name
-        # TODO #720: Deprecate name_from_tag method
-        name = self.root.symbol_table.name_from_tag(tag, "l_" + tag)
+        name = self.root.symbol_table.symbol_from_tag(tag, "l_" + tag).name
         return name
 
     def zero_reduction_variable(self, parent, position=None):
@@ -2527,13 +2658,16 @@ class Kern(Statement):
         we will be using the OpenMP reduction clause. Otherwise we
         will be computing the reduction ourselves and therefore need
         to store values into a (padded) array separately for each
-        thread.'''
+        thread.
+
+        :param str name: original name of the variable to be reduced.
+
+        '''
         if self.reprod_reduction:
             idx_name = \
                 self.root.symbol_table.lookup_with_tag("omp_thread_index").name
-            # TODO #720: Deprecate name_from_tag method
             local_name = \
-                self.root.symbol_table.name_from_tag(name, "l_" + name)
+                self.root.symbol_table.symbol_from_tag(name, "l_" + name).name
             return local_name + "(1," + idx_name + ")"
         return name
 
@@ -2688,16 +2822,16 @@ class CodedKern(Kern):
                 if key == "local_size":
                     if not isinstance(value, int):
                         raise TypeError(
-                            "CodedKern opencl_option 'local_size' should be "
+                            "CodedKern OpenCL option 'local_size' should be "
                             "an integer.")
                 if key == "queue_number":
                     if not isinstance(value, int):
                         raise TypeError(
-                            "CodedKern opencl_option 'queue_number' should be "
+                            "CodedKern OpenCL option 'queue_number' should be "
                             "an integer.")
             else:
                 raise AttributeError(
-                    "CodedKern does not support the opencl_option '{0}'. "
+                    "CodedKern does not support the OpenCL option '{0}'. "
                     "The supported options are: {1}."
                     "".format(key, valid_opencl_kernel_options))
 
@@ -2758,13 +2892,39 @@ class CodedKern(Kern):
                 self.arguments.names + ") " + "[module_inline=" +
                 str(self._module_inline) + "]")
 
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of CodedKern concept into language level
+        PSyIR constructs. The CodedKern is implemented as a Call to a
+        routine with the appropriate arguments.
+
+        '''
+        symtab = self.scope.symbol_table
+        rsymbol = RoutineSymbol(self._name)
+        symtab.add(rsymbol)
+        call_node = Call(rsymbol)
+
+        # Swap itself with the appropriate Call node
+        self.parent.children[self.position] = call_node
+        call_node.parent = self.parent
+
+        for argument in self.arguments.psyir_expressions():
+            call_node.addchild(argument)
+            argument.parent = call_node
+
+        if not self.module_inline:
+            # Import subroutine symbol
+            csymbol = ContainerSymbol(self._module_name)
+            symtab.add(csymbol)
+            rsymbol.interface = GlobalInterface(csymbol)
+
     def gen_code(self, parent):
         '''
         Generates the f2pygen AST of the Fortran for this kernel call and
         writes the kernel itself to file if it has been transformed.
 
         :param parent: The parent of this kernel call in the f2pygen AST.
-        :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
+        :type parent: :py:class:`psyclone.f2pygen.LoopGen`
 
         :raises NotImplementedError: if there is a name clash that prevents \
             the kernel from being module-inlined without changing its name.
@@ -2983,7 +3143,7 @@ class CodedKern(Kern):
         # We can't rename OpenCL kernels as the Invoke set_args functions
         # have already been generated. The link to an specific kernel
         # implementation is delayed to run-time in OpenCL. (e.g. FortCL has
-        # the  PSYCLONE_KERNELS_FILE environment variable)
+        # the  FORTCL_KERNELS_FILE environment variable)
         if not self.root.opencl:
             if self._kern_schedule:
                 # A PSyIR kernel schedule has been created. This means
@@ -3093,6 +3253,16 @@ class CodedKern(Kern):
         kern_schedule = self.get_kernel_schedule()
         kern_schedule.name = new_kern_name[:]
         kern_schedule.root.name = new_mod_name[:]
+
+        # Change the name of the symbol
+        try:
+            kern_symbol = kern_schedule.symbol_table.lookup(orig_kern_name)
+            kern_schedule.root.symbol_table.rename_symbol(kern_symbol,
+                                                          new_kern_name)
+        except KeyError:
+            # TODO #1013. Right now not all tests have PSyIR symbols because
+            # some only expect f2pygen generation.
+            pass
 
         # TODO #1013. This needs re-doing properly - in particular the
         # RoutineSymbol associated with the kernel needs to be replaced. For
@@ -3317,6 +3487,14 @@ class Arguments(object):
         raise NotImplementedError("Arguments.raw_arg_list must be "
                                   "implemented in sub-class")
 
+    @abc.abstractmethod
+    def psyir_expressions(self):
+        '''
+        :returns: the PSyIR expressions representing this Argument list.
+        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+
     def clear_cached_data(self):
         '''This function is called to clear all cached data, which
         enforces that raw_arg_list is recomputed.'''
@@ -3539,21 +3717,20 @@ class DataAccess(object):
 
 
 class Argument(object):
-    ''' Argument base class '''
+    ''' Argument base class
 
+    :param call: the call that this argument is associated with.
+    :type call: :py:class:`psyclone.psyGen.Kern`
+    :param arg_info: Information about this argument collected by \
+                     the parser.
+    :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
+    :param access: the way in which this argument is accessed in \
+                   the 'Kern'. Valid values are specified in the config \
+                   object of the current API.
+    :type access: str
+
+    '''
     def __init__(self, call, arg_info, access):
-        '''
-        :param call: the call that this argument is associated with.
-        :type call: :py:class:`psyclone.psyGen.Kern`
-        :param arg_info: Information about this argument collected by \
-                         the parser.
-        :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
-        :param access: the way in which this argument is accessed in \
-                 the 'Kern'. Valid values are specified in the config object \
-                 of the current API.
-        :type access: str
-
-        '''
         self._call = call
         if arg_info is not None:
             self._text = arg_info.text
@@ -3575,12 +3752,59 @@ class Argument(object):
             self._text = None
         else:
             # There are unit-tests where we create Arguments without an
-            # associated call.
-            if self._call:
+            # associated call or InvokeSchedule.
+            if self._call and self._call.ancestor(InvokeSchedule):
+
+                symtab = self._call.ancestor(InvokeSchedule).symbol_table
+
+                # Keep original list of arguments
+                previous_arguments = symtab.argument_list
+
+                # Find the tag to use
                 tag = "AlgArgs_" + self._text
-                # TODO #720: Deprecate name_from_tag method
-                self._name = self._call.root.symbol_table.name_from_tag(
-                    tag, self._orig_name)
+
+                # Prepare the Argument Interface Access value
+                if access and access.name == "READ":
+                    argument_access = ArgumentInterface.Access.READ
+                elif access and access.name == "WRITE":
+                    argument_access = ArgumentInterface.Access.WRITE
+                else:
+                    # If access is READWRITE, INC, SUM, UNKNOWN or no access
+                    # is given, use a READWRITE argument interface.
+                    argument_access = ArgumentInterface.Access.READWRITE
+
+                # Find the tag or create a new symbol with expected attributes
+                new_argument = symtab.symbol_from_tag(
+                    tag, root_name=self._orig_name, symbol_type=DataSymbol,
+                    datatype=self.infer_datatype(),
+                    interface=ArgumentInterface(argument_access))
+                self._name = new_argument.name
+
+                # Unless the argument already exists with another interface
+                # (e.g. globals) they come from the invoke argument list
+                if isinstance(new_argument.interface, ArgumentInterface):
+                    symtab.specify_argument_list(previous_arguments +
+                                                 [new_argument])
+
+    @abc.abstractmethod
+    def psyir_expression(self):
+        '''
+        :returns: the PSyIR expression represented by this Argument.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+
+    def infer_datatype(self):
+        ''' Infer the datatype of this argument using the API rules. If no
+        specialisation of this method has been provided make the type
+        DeferredType for now (it may be provided later in the execution).
+
+        :returns: the datatype of this argument.
+        :rtype: :py:class::`psyclone.psyir.symbols.datatype`
+
+        '''
+        # pylint: disable=no-self-use
+        return DeferredType()
 
     def __str__(self):
         return self._name
@@ -3697,7 +3921,7 @@ class Argument(object):
         reader then return an empty list.
 
         :param ignore_halos: if `True` then any write dependencies \
-            involving a halo exchange are ignored. Defaults to `False.
+            involving a halo exchange are ignored. Defaults to `False`.
         :type ignore_halos: bool
 
         :returns: a list of arguments that have a preceding write \
@@ -4239,3 +4463,14 @@ class ACCDataDirective(ACCDirective):
         self._pre_gen_validate()
         self._add_region(start_text="DATA", end_text="END DATA",
                          data_movement="analyse")
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ['PSyFactory', 'PSy', 'Invokes', 'Invoke', 'InvokeSchedule',
+           'Directive', 'ACCDirective', 'ACCEnterDataDirective',
+           'ACCParallelDirective', 'ACCLoopDirective', 'OMPDirective',
+           'OMPParallelDirective', 'OMPDoDirective', 'OMPParallelDoDirective',
+           'GlobalSum', 'HaloExchange', 'Kern', 'CodedKern', 'InlinedKern',
+           'BuiltIn', 'Arguments', 'DataAccess', 'Argument', 'KernelArgument',
+           'TransInfo', 'Transformation', 'DummyTransformation',
+           'ACCKernelsDirective', 'ACCDataDirective']

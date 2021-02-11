@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -52,9 +52,9 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: X_plus_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1)                   &
+          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)          &
           /)
      ! TODO #870 change this to operates_on = DOF
      integer :: iterates_over = DOFS
@@ -66,8 +66,8 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: inc_X_plus_Y
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD, GH_READWRITE, ANY_SPACE_1),              &
-          arg_type(GH_FIELD, GH_READ,      ANY_SPACE_1)               &
+          arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_SPACE_1),     &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_SPACE_1)      &
           /)
      integer :: operates_on = DOF
    contains
@@ -78,10 +78,10 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: aX_plus_Y
      private
      type(arg_type) :: meta_args(4) = (/                              &
-          arg_type(GH_FIELD,           GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1),        &
-          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1)         &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
           /)
      integer :: operates_on = DOF
    contains
@@ -93,8 +93,8 @@ module dynamo0p3_builtins_mod
      private
      type(arg_type) :: meta_args(3) = (/                              &
           arg_type(GH_SCALAR, GH_REAL, GH_READ                  ),    &
-          arg_type(GH_FIELD,           GH_READWRITE, ANY_SPACE_1),    &
-          arg_type(GH_FIELD,           GH_READ,      ANY_SPACE_1)     &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1),    &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,      ANY_SPACE_1)     &
           /)
      integer :: operates_on = DOF
    contains
@@ -105,9 +105,9 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: inc_X_plus_bY
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD,           GH_READWRITE, ANY_SPACE_1),    &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1),    &
           arg_type(GH_SCALAR, GH_REAL, GH_READ                  ),    &
-          arg_type(GH_FIELD,           GH_READ,      ANY_SPACE_1)     &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,      ANY_SPACE_1)     &
           /)
      integer :: operates_on = DOF
    contains
@@ -118,11 +118,11 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: aX_plus_bY
      private
      type(arg_type) :: meta_args(5) = (/                              &
-          arg_type(GH_FIELD,           GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1)         &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
           /)
      integer :: operates_on = DOF
    contains
@@ -134,9 +134,9 @@ module dynamo0p3_builtins_mod
      private
      type(arg_type) :: meta_args(4) = (/                              &
           arg_type(GH_SCALAR, GH_REAL, GH_READ                  ),    &
-          arg_type(GH_FIELD,           GH_READWRITE, ANY_SPACE_1),    &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1),    &
           arg_type(GH_SCALAR, GH_REAL, GH_READ                  ),    &
-          arg_type(GH_FIELD,           GH_READ,      ANY_SPACE_1)     &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,      ANY_SPACE_1)     &
           /)
      integer :: operates_on = DOF
    contains
@@ -151,9 +151,9 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: X_minus_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1)                   &
+          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)          &
           /)
      integer :: operates_on = DOF
    contains
@@ -164,8 +164,8 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: inc_X_minus_Y
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD, GH_READWRITE, ANY_SPACE_1),              &
-          arg_type(GH_FIELD, GH_READ,      ANY_SPACE_1)               &
+          arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_SPACE_1),     &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_SPACE_1)      &
           /)
      integer :: operates_on = DOF
    contains
@@ -176,10 +176,10 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: aX_minus_Y
      private
      type(arg_type) :: meta_args(4) = (/                              &
-          arg_type(GH_FIELD,           GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1),        &
-          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1)         &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
           /)
      integer :: operates_on = DOF
    contains
@@ -190,10 +190,10 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: X_minus_bY
      private
      type(arg_type) :: meta_args(4) = (/                              &
-          arg_type(GH_FIELD,           GH_WRITE, ANY_SPACE_1),        &
-          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1)         &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
           /)
      integer :: operates_on = DOF
    contains
@@ -204,9 +204,9 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: inc_X_minus_bY
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD,           GH_READWRITE, ANY_SPACE_1),    &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1),    &
           arg_type(GH_SCALAR, GH_REAL, GH_READ                  ),    &
-          arg_type(GH_FIELD,           GH_READ,      ANY_SPACE_1)     &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,      ANY_SPACE_1)     &
           /)
      integer :: operates_on = DOF
    contains
@@ -221,9 +221,9 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: X_times_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1)                   &
+          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)          &
           /)
      integer :: operates_on = DOF
    contains
@@ -234,8 +234,8 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: inc_X_times_Y
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD, GH_READWRITE, ANY_SPACE_1),              &
-          arg_type(GH_FIELD, GH_READ,      ANY_SPACE_1)               &
+          arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_SPACE_1),     &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_SPACE_1)      &
           /)
      integer :: operates_on = DOF
    contains
@@ -247,8 +247,8 @@ module dynamo0p3_builtins_mod
      private
      type(arg_type) :: meta_args(3) = (/                              &
           arg_type(GH_SCALAR, GH_REAL, GH_READ                  ),    &
-          arg_type(GH_FIELD,           GH_READWRITE, ANY_SPACE_1),    &
-          arg_type(GH_FIELD,           GH_READ,      ANY_SPACE_1)     &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1),    &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,      ANY_SPACE_1)     &
           /)
      integer :: operates_on = DOF
    contains
@@ -263,9 +263,9 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: a_times_X
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD,           GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,           GH_READ,  ANY_SPACE_1)         &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
           /)
      integer :: operates_on = DOF
    contains
@@ -277,7 +277,7 @@ module dynamo0p3_builtins_mod
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_SCALAR, GH_REAL, GH_READ                  ),    &
-          arg_type(GH_FIELD,           GH_READWRITE, ANY_SPACE_1)     &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1)     &
           /)
      integer :: operates_on = DOF
    contains
@@ -292,9 +292,9 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: X_divideby_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1)                   &
+          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)          &
           /)
      integer :: operates_on = DOF
    contains
@@ -305,8 +305,8 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: inc_X_divideby_Y
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD, GH_READWRITE, ANY_SPACE_1),              &
-          arg_type(GH_FIELD, GH_READ,      ANY_SPACE_1)               &
+          arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_SPACE_1),     &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_SPACE_1)      &
           /)
      integer :: operates_on = DOF
    contains
@@ -321,7 +321,7 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: inc_X_powreal_a
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD,           GH_READWRITE, ANY_SPACE_1),    &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1),    &
           arg_type(GH_SCALAR, GH_REAL, GH_READ                  )     &
           /)
      integer :: operates_on = DOF
@@ -333,7 +333,7 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: inc_X_powint_n
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD,              GH_READWRITE, ANY_SPACE_1), &
+          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_SPACE_1), &
           arg_type(GH_SCALAR, GH_INTEGER, GH_READ                  )  &
           /)
      integer :: operates_on = DOF
@@ -349,7 +349,7 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: setval_c
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD,           GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              )         &
           /)
      integer :: operates_on = DOF
@@ -361,8 +361,8 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: setval_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1)                   &
+          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)          &
           /)
      integer :: operates_on = DOF
    contains
@@ -378,8 +378,8 @@ module dynamo0p3_builtins_mod
      private
      type(arg_type) :: meta_args(3) = (/                              &
           arg_type(GH_SCALAR, GH_REAL, GH_SUM              ),         &
-          arg_type(GH_FIELD,           GH_READ, ANY_SPACE_1),         &
-          arg_type(GH_FIELD,           GH_READ, ANY_SPACE_1)          &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ, ANY_SPACE_1),         &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ, ANY_SPACE_1)          &
           /)
      integer :: operates_on = DOF
    contains
@@ -391,7 +391,7 @@ module dynamo0p3_builtins_mod
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_SCALAR, GH_REAL, GH_SUM              ),         &
-          arg_type(GH_FIELD,           GH_READ, ANY_SPACE_1)          &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ, ANY_SPACE_1)          &
           /)
      integer :: operates_on = DOF
    contains
@@ -406,7 +406,7 @@ module dynamo0p3_builtins_mod
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_SCALAR, GH_REAL, GH_SUM              ),         &
-          arg_type(GH_FIELD,           GH_READ, ANY_SPACE_1)          &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ, ANY_SPACE_1)          &
           /)
      integer :: operates_on = DOF
    contains

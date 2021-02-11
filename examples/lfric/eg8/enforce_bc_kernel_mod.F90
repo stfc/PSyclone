@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,13 +43,13 @@
 
 !> @brief Applies boundary conditions to a field
 !> @details Wrapper code for applying boundary conditions to a field
-!>         When the Psyclone api is updated to correctly deal with
-!>         boundary dofs this can be removed
+!>          When the Psyclone api is updated to correctly deal with
+!>          boundary dofs this can be removed
 module enforce_bc_kernel_mod
 
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_FIELD, GH_INC,                        &
+                                    GH_FIELD, GH_REAL, GH_INC,               &
                                     ANY_SPACE_1,                             &
                                     CELL_COLUMN
 use constants_mod,           only : r_def, i_def
@@ -65,7 +65,7 @@ private
 type, public, extends(kernel_type) :: enforce_bc_kernel_type
   private
   type(arg_type) :: meta_args(1) = (/                                  &
-       arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1)                      &
+       arg_type(GH_FIELD,  GH_REAL,  GH_INC,  ANY_SPACE_1)             &
        /)
   integer :: operates_on = CELL_COLUMN
 contains

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -45,26 +45,26 @@ module testkern_stencil_fs_mod
 
   ! Example of stencils on all supported function space identifiers
   type, extends(kernel_type) :: testkern_stencil_fs_type
-     type(arg_type), dimension(16) :: meta_args = (/                &
-          arg_type(gh_field, gh_inc,  w1),                          &
-          arg_type(gh_field, gh_read, w0,          stencil(cross)), &
-          arg_type(gh_field, gh_read, w1,          stencil(cross)), &
-          arg_type(gh_field, gh_read, w2,          stencil(cross)), &
-          arg_type(gh_field, gh_read, w3,          stencil(cross)), &
-          arg_type(gh_field, gh_read, wtheta,      stencil(cross)), &
-          arg_type(gh_field, gh_read, w2h,         stencil(cross)), &
-          arg_type(gh_field, gh_read, w2v,         stencil(cross)), &
-          arg_type(gh_field, gh_read, w2broken,    stencil(cross)), &
-          arg_type(gh_field, gh_read, w2trace,     stencil(cross)), &
-          arg_type(gh_field, gh_read, w2htrace,    stencil(cross)), &
-          arg_type(gh_field, gh_read, w2vtrace,    stencil(cross)), &
-          arg_type(gh_field, gh_read, wchi,        stencil(cross)), &
-          arg_type(gh_field, gh_read, any_w2,      stencil(cross)), &
-          arg_type(gh_field, gh_read, any_space_9, stencil(cross)), &
-          arg_type(gh_field, gh_read, any_discontinuous_space_1,    &
-                                      stencil(cross))               &
+     type(arg_type), dimension(16) :: meta_args = (/                         &
+          arg_type(gh_field, gh_real, gh_inc,  w1),                          &
+          arg_type(gh_field, gh_real, gh_read, w0,          stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w1,          stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w2,          stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w3,          stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, wtheta,      stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w2h,         stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w2v,         stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w2broken,    stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w2trace,     stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w2htrace,    stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, w2vtrace,    stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, wchi,        stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, any_w2,      stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, any_space_9, stencil(cross)), &
+          arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_1,    &
+                                               stencil(cross))               &
            /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_stencil_fs_code
   end type testkern_stencil_fs_type

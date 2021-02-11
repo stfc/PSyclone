@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,8 @@ module columnwise_op_asm_field_kernel_mod
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type, GH_FIELD,          &
                                     GH_OPERATOR, GH_COLUMNWISE_OPERATOR,    &
-                                    GH_READ, GH_WRITE,                      &
+                                    GH_REAL, GH_READ, GH_WRITE,             &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
-                                    GH_COLUMN_BANDED_DOFMAP,                &
                                     CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
@@ -61,10 +60,10 @@ private
 
 type, public, extends(kernel_type) :: columnwise_op_asm_field_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                                        &
-       arg_type(GH_FIELD,               GH_READ,  ANY_SPACE_1),              &
-       arg_type(GH_OPERATOR,            GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2) &
+  type(arg_type) :: meta_args(3) = (/                                                 &
+       arg_type(GH_FIELD,               GH_REAL, GH_READ,  ANY_SPACE_1),              &
+       arg_type(GH_OPERATOR,            GH_REAL, GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2)  &
        /)
   integer :: operates_on = CELL_COLUMN
 contains

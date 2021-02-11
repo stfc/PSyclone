@@ -97,6 +97,7 @@ jobs:
         ( make -C tutorial/practicals/nemo test > /dev/null )
         ( make -C tutorial/practicals/LFRic test > /dev/null )
     - name: Test with pytest
+      if: ${{ !(matrix.python-version == 3.8) }}
       run: |
         locale
         pytest --cov=psyclone --cov-report=xml src/psyclone/tests

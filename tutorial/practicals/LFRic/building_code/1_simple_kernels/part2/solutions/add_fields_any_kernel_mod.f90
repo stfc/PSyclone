@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,9 +39,10 @@
 ! -----------------------------------------------------------------------------
 module add_fields_any_kernel_mod
 
-  use argument_mod,      only: arg_type, GH_FIELD, &
-                               GH_INC, GH_READ,    &
-                               ANY_SPACE_1, CELLS
+  use argument_mod,      only: arg_type,          &
+                               GH_FIELD, GH_REAL, &
+                               GH_INC, GH_READ,   &
+                               ANY_SPACE_1, CELL_COLUMN
   use constants_mod,     only: r_def, i_def
   use kernel_mod,        only: kernel_type
 
@@ -55,12 +56,12 @@ module add_fields_any_kernel_mod
   !-----------------------------------------------------------------------------
   type, public, extends(kernel_type) :: add_fields_any_kernel_type
     private
-    type(arg_type), dimension(3) :: meta_args = (/ &
-         arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1), &
-         arg_type(GH_FIELD, GH_READ, ANY_SPACE_1), &
-         arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)  &
+    type(arg_type), dimension(3) :: meta_args = (/          &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_1)  &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: add_fields_any_code
   end type add_fields_any_kernel_type

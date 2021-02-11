@@ -38,8 +38,8 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Node
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+import psyclone.psyir.frontend.fparser2 as fp2
 
 
 @pytest.fixture(scope="function")
@@ -52,6 +52,6 @@ def disable_declaration_check(monkeypatch):
 
     '''
     monkeypatch.setattr(
-        Node, "find_or_create_symbol",
+        fp2, "_find_or_create_imported_symbol",
         lambda _1, name, _2=None: DataSymbol(name,
                                              INTEGER_TYPE))

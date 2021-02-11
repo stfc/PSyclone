@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
@@ -41,11 +42,13 @@ OBJ = global_mesh_base_mod.o mesh_mod.o linked_list_data_mod.o \
 		domain_size_config_mod.o coord_transform_mod.o matrix_invert_mod.o \
 		cross_product_mod.o partition_mod.o mpi_mod.o linked_list_int_mod.o \
 		log_mod.o linked_list_mod.o reference_element_mod.o function_space_mod.o \
-		master_dofmap_mod.o stencil_dofmap_mod.o fs_continuity_mod.o field_mod.o \
+		master_dofmap_mod.o stencil_dofmap_mod.o fs_continuity_mod.o \
+		field_mod.o integer_field_mod.o \
 		function_space_constructor_helper_functions_mod.o polynomial_mod.o \
 		field_parent_mod.o pure_abstract_field_mod.o scalar_mod.o count_mod.o \
 		operator_mod.o argument_mod.o kernel_mod.o constants_mod.o \
-		mesh_map_mod.o stencil_dofmap_helper_functions_mod.o stencil_2D_dofmap_mod.o
+		mesh_map_mod.o stencil_dofmap_helper_functions_mod.o stencil_2D_dofmap_mod.o \
+		timer_mod.o io_utility_mod.o
 
 # Additional object files required for netcdf support
 OBJ_NETCDF = global_mesh_netcdf_mod.o ugrid_2d_mod.o ugrid_file_mod.o file_mod.o \
@@ -65,15 +68,17 @@ default: standalone
 
 # Standalone target, no netcdf dependency:
 # ----------------------------------------
-standalone: $(OBJ)
-	$(AR) $(ARFLAGS) liblfric.a $(OBJ)
-standalone: $(LIB)
+standalone: liblfric.a
+liblfric.a: $(OBJ)
+	$(AR) $(ARFLAGS) $@ $(OBJ)
+
 
 # Netcdf target, like standalone but with support for netcdf files:
 # -----------------------------------------------------------------
 netcdf: F90FLAGS += $$(nf-config --fflags)
-netcdf: $(OBJ_NETCDF) $(OBJ)
-	$(AR) $(ARFLAGS) liblfric_netcdf.a $(OBJ) $(OBJ_NETCDF)
+netcdf: liblfric_netcdf.a
+liblfric_netcdf.a: $(OBJ) $(OBJ_NETCDF)
+	$(AR) $(ARFLAGS) $@ $(OBJ) $(OBJ_NETCDF)
 
 
 # Dependencies
@@ -94,6 +99,7 @@ mesh_constructor_helper_functions_mod.o: coord_transform_mod.o \
 domain_size_config_mod.o: mpi_mod.o
 log_mod.o:	constants_mod.o
 field_mod.o: field_parent_mod.o scalar_mod.o count_mod.o
+integer_field_mod.o: field_parent_mod.o mpi_mod.o count_mod.o
 field_parent_mod.o: pure_abstract_field_mod.o function_space_mod.o
 extrusion_mod.o:	global_mesh_base_mod.o
 coord_transform_mod.o: matrix_invert_mod.o cross_product_mod.o
@@ -120,6 +126,8 @@ scalar_mod.o: mpi_mod.o
 polynomial_mod.o: constants_mod.o
 count_mod.o: log_mod.o mpi_mod.o
 master_dofmap_mod.o: constants_mod.o
+io_utility_mod.o: constants_mod.o log_mod.o
+timer_mod.o: constants_mod.o io_utility_mod.o log_mod.o mpi_mod.o scalar_mod.o
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<

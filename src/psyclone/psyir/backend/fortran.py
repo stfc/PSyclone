@@ -50,7 +50,7 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
     SymbolTable, RoutineSymbol, LocalInterface, GlobalInterface, Symbol, \
     TypeSymbol
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Operation, \
-    Reference, Literal, KernelSchedule, DataNode, CodeBlock, Member, Range
+    Routine, Reference, Literal, DataNode, CodeBlock, Member, Range, Schedule
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.errors import InternalError
 
@@ -538,10 +538,24 @@ class FortranWriter(PSyIRVisitor):
         :raises InternalError: if a Routine symbol with an unrecognised \
                                visibility is encountered.
         '''
+
+        # Find the symbol that represents itself, this one will not need
+        # an accessibility statement
+        try:
+            itself = symbol_table.lookup_with_tag('own_routine_symbol')
+        except KeyError:
+            itself = None
+
         public_routines = []
         private_routines = []
         for symbol in symbol_table.symbols:
             if isinstance(symbol, RoutineSymbol):
+
+                # Skip the symbol representing the routine where these
+                # declarations belong
+                if symbol is itself:
+                    continue
+
                 # It doesn't matter whether this symbol has a local or global
                 # interface - its accessibility in *this* context is determined
                 # by the local accessibility statements. e.g. if we are
@@ -620,11 +634,7 @@ class FortranWriter(PSyIRVisitor):
         # variable declarations. As a convention, this method also
         # declares any argument variables before local variables.
 
-        # 1: Use statements
-        for symbol in symbol_table.containersymbols:
-            declarations += self.gen_use(symbol, symbol_table)
-
-        # 2: Argument variable declarations
+        # 1: Argument variable declarations
         if symbol_table.argument_datasymbols and not args_allowed:
             raise VisitorError(
                 "Arguments are not allowed in this context but this symbol "
@@ -634,16 +644,13 @@ class FortranWriter(PSyIRVisitor):
         for symbol in symbol_table.argument_datasymbols:
             declarations += self.gen_vardecl(symbol)
 
-        # 3: Local variable declarations
+        # 2: Local variable declarations
         for symbol in symbol_table.local_datasymbols:
             declarations += self.gen_vardecl(symbol)
 
-        # 4: Derived-type declarations
+        # 3: Derived-type declarations
         for symbol in symbol_table.local_typesymbols:
             declarations += self.gen_typedecl(symbol)
-
-        # 5: Accessibility statements for routine symbols
-        declarations += self.gen_routine_access_stmts(symbol_table)
 
         return declarations
 
@@ -662,27 +669,34 @@ class FortranWriter(PSyIRVisitor):
         :raises VisitorError: if the name attribute of the supplied \
         node is empty or None.
         :raises VisitorError: if any of the children of the supplied \
-        Container node are not KernelSchedules.
+        Container node are not Routines.
 
         '''
         if not node.name:
             raise VisitorError("Expected Container node name to have a value.")
 
-        # All children must be KernelSchedules as modules within
+        # All children must be Routine as modules within
         # modules are not supported.
-        if not all([isinstance(child, KernelSchedule)
-                    for child in node.children]):
+        if not all([isinstance(child, Routine) for child in node.children]):
             raise VisitorError(
                 "The Fortran back-end requires all children of a Container "
-                "to be KernelSchedules.")
+                "to be a sub-class of Routine.")
 
         result = "{0}module {1}\n".format(self._nindent, node.name)
 
         self._depth += 1
 
+        # Generate module imports
+        imports = ""
+        for symbol in node.symbol_table.containersymbols:
+            imports += self.gen_use(symbol, node.symbol_table)
+
         # Declare the Container's data and specify that Containers do
         # not allow argument declarations.
         declarations = self.gen_decls(node.symbol_table, args_allowed=False)
+
+        # Accessibility statements for routine symbols
+        declarations += self.gen_routine_access_stmts(node.symbol_table)
 
         # Get the subroutine statements.
         subroutines = ""
@@ -690,22 +704,20 @@ class FortranWriter(PSyIRVisitor):
             subroutines += self._visit(child)
 
         result += (
-            "{1}\n"
-            "{0}contains\n"
+            "{1}"
+            "{0}implicit none\n"
             "{2}\n"
-            "".format(self._nindent, declarations, subroutines))
+            "{0}contains\n"
+            "{3}\n"
+            "".format(self._nindent, imports, declarations, subroutines))
 
         self._depth -= 1
         result += "{0}end module {1}\n".format(self._nindent, node.name)
         return result
 
-    def kernelschedule_node(self, node):
-        '''This method is called when a KernelSchedule instance is found in
+    def routine_node(self, node):
+        '''This method is called when a Routine node is found in
         the PSyIR tree.
-
-        The constants_mod module is currently hardcoded into the
-        output as it is required for LFRic code. When issue #375 has
-        been addressed this module can be added only when required.
 
         :param node: a KernelSchedule PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.KernelSchedule`
@@ -723,19 +735,42 @@ class FortranWriter(PSyIRVisitor):
         args = [symbol.name for symbol in node.symbol_table.argument_list]
         result = (
             "{0}subroutine {1}({2})\n"
-            "".format(self._nindent, node.name, ",".join(args)))
+            "".format(self._nindent, node.name, ", ".join(args)))
 
         self._depth += 1
-        # Declare the kernel data.
-        declarations = self.gen_decls(node.symbol_table)
+
+        # The PSyIR has nested scopes but Fortran only supports declaring
+        # variables at the routine level scope. For this reason, at this
+        # point we have to unify all declarations and resolve possible name
+        # clashes that appear when merging the scopes.
+        whole_routine_scope = SymbolTable()
+        for schedule in node.walk(Schedule):
+            for symbol in schedule.symbol_table.symbols:
+                try:
+                    whole_routine_scope.add(symbol)
+                except KeyError:
+                    schedule.symbol_table.rename_symbol(
+                        symbol,
+                        whole_routine_scope.next_available_name(symbol.name))
+                    whole_routine_scope.add(symbol)
+
+        # Generate module imports
+        imports = ""
+        for symbol in whole_routine_scope.containersymbols:
+            imports += self.gen_use(symbol, whole_routine_scope)
+
+        # Generate declaration statements
+        declarations = self.gen_decls(whole_routine_scope)
+
         # Get the executable statements.
         exec_statements = ""
         for child in node.children:
             exec_statements += self._visit(child)
         result += (
-            "{0}\n"
+            "{0}"
             "{1}\n"
-            "".format(declarations, exec_statements))
+            "{2}\n"
+            "".format(imports, declarations, exec_statements))
 
         self._depth -= 1
         result += (
@@ -757,7 +792,7 @@ class FortranWriter(PSyIRVisitor):
         '''
         lhs = self._visit(node.lhs)
         rhs = self._visit(node.rhs)
-        result = "{0}{1}={2}\n".format(self._nindent, lhs, rhs)
+        result = "{0}{1} = {2}\n".format(self._nindent, lhs, rhs)
         return result
 
     def binaryoperation_node(self, node):

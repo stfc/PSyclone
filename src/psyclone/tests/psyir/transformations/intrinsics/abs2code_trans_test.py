@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the abs2code transformation.'''
 
@@ -73,13 +73,10 @@ def example_psyir(create_expression):
 
     '''
     symbol_table = SymbolTable()
-    name1 = symbol_table.new_symbol_name("arg")
-    arg1 = DataSymbol(name1, REAL_TYPE, interface=ArgumentInterface(
-        ArgumentInterface.Access.READWRITE))
-    symbol_table.add(arg1)
-    name2 = symbol_table.new_symbol_name()
-    local = DataSymbol(name2, REAL_TYPE)
-    symbol_table.add(local)
+    arg1 = symbol_table.new_symbol(
+        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
+    local = symbol_table.new_symbol(symbol_type=DataSymbol, datatype=REAL_TYPE)
     symbol_table.specify_argument_list([arg1])
     var1 = Reference(arg1)
     var2 = Reference(local)
@@ -109,7 +106,7 @@ def test_correct(func, output, tmpdir):
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=ABS({0})\n\n"
+        "  psyir_tmp = ABS({0})\n\n"
         "end subroutine abs_example\n".format(output)) in result
     trans = Abs2CodeTrans()
     trans.apply(operation, operation.root.symbol_table)
@@ -120,13 +117,13 @@ def test_correct(func, output, tmpdir):
         "  real :: psyir_tmp\n"
         "  real :: res_abs\n"
         "  real :: tmp_abs\n\n"
-        "  tmp_abs={0}\n"
+        "  tmp_abs = {0}\n"
         "  if (tmp_abs > 0.0) then\n"
-        "    res_abs=tmp_abs\n"
+        "    res_abs = tmp_abs\n"
         "  else\n"
-        "    res_abs=tmp_abs * -1.0\n"
+        "    res_abs = tmp_abs * -1.0\n"
         "  end if\n"
-        "  psyir_tmp=res_abs\n\n"
+        "  psyir_tmp = res_abs\n\n"
         "end subroutine abs_example\n".format(output)) in result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
@@ -156,7 +153,7 @@ def test_correct_expr(tmpdir):
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=1.0 + ABS(arg * 3.14) + 2.0\n\n"
+        "  psyir_tmp = 1.0 + ABS(arg * 3.14) + 2.0\n\n"
         "end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
     trans.apply(operation, operation.root.symbol_table)
@@ -167,13 +164,13 @@ def test_correct_expr(tmpdir):
         "  real :: psyir_tmp\n"
         "  real :: res_abs\n"
         "  real :: tmp_abs\n\n"
-        "  tmp_abs=arg * 3.14\n"
+        "  tmp_abs = arg * 3.14\n"
         "  if (tmp_abs > 0.0) then\n"
-        "    res_abs=tmp_abs\n"
+        "    res_abs = tmp_abs\n"
         "  else\n"
-        "    res_abs=tmp_abs * -1.0\n"
+        "    res_abs = tmp_abs * -1.0\n"
         "  end if\n"
-        "  psyir_tmp=1.0 + res_abs + 2.0\n\n"
+        "  psyir_tmp = 1.0 + res_abs + 2.0\n\n"
         "end subroutine abs_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
@@ -203,7 +200,7 @@ def test_correct_2abs(tmpdir):
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp=ABS(arg * 3.14) + ABS(1.0)\n\n"
+        "  psyir_tmp = ABS(arg * 3.14) + ABS(1.0)\n\n"
         "end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
     trans.apply(operation, operation.root.symbol_table)
@@ -217,19 +214,19 @@ def test_correct_2abs(tmpdir):
         "  real :: tmp_abs\n"
         "  real :: res_abs_1\n"
         "  real :: tmp_abs_1\n\n"
-        "  tmp_abs=arg * 3.14\n"
+        "  tmp_abs = arg * 3.14\n"
         "  if (tmp_abs > 0.0) then\n"
-        "    res_abs=tmp_abs\n"
+        "    res_abs = tmp_abs\n"
         "  else\n"
-        "    res_abs=tmp_abs * -1.0\n"
+        "    res_abs = tmp_abs * -1.0\n"
         "  end if\n"
-        "  tmp_abs_1=1.0\n"
+        "  tmp_abs_1 = 1.0\n"
         "  if (tmp_abs_1 > 0.0) then\n"
-        "    res_abs_1=tmp_abs_1\n"
+        "    res_abs_1 = tmp_abs_1\n"
         "  else\n"
-        "    res_abs_1=tmp_abs_1 * -1.0\n"
+        "    res_abs_1 = tmp_abs_1 * -1.0\n"
         "  end if\n"
-        "  psyir_tmp=res_abs + res_abs_1\n\n"
+        "  psyir_tmp = res_abs + res_abs_1\n\n"
         "end subroutine abs_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
