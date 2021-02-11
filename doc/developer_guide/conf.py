@@ -32,6 +32,7 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
               'sphinx.ext.intersphinx', 'sphinx.ext.coverage',
               'sphinx.ext.imgmath', 'sphinx.ext.viewcode',
               'sphinxcontrib.bibtex']
+bibtex_bibfiles = ['../bibliography/references.bib']
 
 # Enable numbered referencing of figures (use with :numref:`my-fig-reference`)
 numfig = True
