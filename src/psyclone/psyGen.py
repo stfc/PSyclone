@@ -879,7 +879,7 @@ class InvokeSchedule(Routine):
      creating Kernels. e.g. :py:class:`psyclone.dynamo0p3.DynKernCallFactory`.
     :param type BuiltInFactory: class instance of the factory to use when \
      creating built-ins. e.g. \
-     :py:class:`psyclone.dynamo0p3_builtins.DynBuiltInCallFactory`.
+     :py:class:`psyclone.domain.lfric.lfric_builtins.LFRicBuiltInCallFactory`.
     :param alg_calls: list of Kernel calls in the schedule.
     :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
 
