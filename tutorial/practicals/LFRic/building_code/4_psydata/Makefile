@@ -62,5 +62,5 @@ transform:
 	make clean
 	make -f solutions/Makefile.readonly_all time_evolution_alg_mod_psy.f90
 
-# This will define a 'transformation' target, that tutorial checking will use
+# This will define a 'transform' target, that tutorial checking will use
 include Makefile.inc

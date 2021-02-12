@@ -38,7 +38,7 @@
 # instead of any locally-installed version.
 #
 # **Note** that this code to find the correct directory only works if
-#          the examples directory is still within the standard PSyclone
+#          the tutorial directory is still within the standard PSyclone
 #          source tree. If it has been moved then the PSYCLONE_CONFIG
 #          environment variable will have to be set to the full path
 #          to the config file before make is launched.

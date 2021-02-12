@@ -42,4 +42,4 @@ compile:
 	@echo "No compilation supported for stub-generation example"
 
 run: compile
-	@echo "No run targets for stub-generation xample"
+	@echo "No run targets for stub-generation example"

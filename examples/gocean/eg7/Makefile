@@ -62,8 +62,6 @@ KERNELS = init_field_mod.o update_field_mod.o
 # The name of the executable
 NAME = read_only_test
 
-#.PHONY: $(READ_ONLY_DIR)/$(LIB_NAME) $(INF_LIB)
-
 compile: transform $(NAME)
 
 run: compile

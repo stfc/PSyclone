@@ -62,11 +62,9 @@ KERNELS = init_field_mod.o update_field_mod.o
 # The name of the executable
 NAME = extract_test
 
-.PHONY: default
-
 run: compile
 	./extract_test
-	@echo "TODO the driver cannot be testet yet because of #644"
+	@echo "TODO the driver cannot be tested yet because of #644"
 
 compile: transform $(NAME)
 	@echo "TODO the driver does not yet compile because of #644"
