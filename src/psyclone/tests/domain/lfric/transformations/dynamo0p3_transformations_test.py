@@ -3654,7 +3654,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
 
 
 def test_reductions_reprod():
-    '''Check that the optional reprod argument to reductions() method
+    ''' Check that the optional reprod argument to reductions() method
     works as expected. '''
     file_name = "15.9.1_X_innerproduct_Y_builtin.f90"
     for reprod in [False, True]:
@@ -3673,9 +3673,10 @@ def test_reductions_reprod():
             assert len(schedule.reductions(reprod=reprod)) == 1
             assert not schedule.reductions(reprod=not reprod)
             assert len(schedule.reductions()) == 1
-            from psyclone.dynamo0p3_builtins import DynXInnerproductYKern
+            from psyclone.domain.lfric.lfric_builtins import \
+                LFRicXInnerproductYKern
             assert (isinstance(schedule.reductions(reprod=reprod)[0],
-                               DynXInnerproductYKern))
+                               LFRicXInnerproductYKern))
 
 
 def test_list_multiple_reductions(dist_mem):
@@ -4471,9 +4472,9 @@ def test_discontinuous_no_set_clean():
 
 
 def test_dofs_no_set_clean(monkeypatch, annexed):
-    '''Test that set_clean is not added for the default iteration space of
-    a loop over dofs. This is probably covered from tests in
-    dynamo0p3_builtins_test.py but it is good to have a specific
+    ''' Test that set_clean is not added for the default iteration space
+    of a loop over dofs. This is probably covered from tests in
+    lfric_builtins_test.py but it is good to have a specific
     test. Also test with and without annexed dofs being computed as
     this affects the generated code.
 
