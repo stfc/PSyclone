@@ -97,4 +97,4 @@ nan_test_base.f90: ../nan_test_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > nan_test_base.f90
 
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* nan_test_base.* nan_test.f90
+	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* nan_test_base.*
