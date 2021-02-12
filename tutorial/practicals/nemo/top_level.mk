@@ -37,7 +37,7 @@
 # Include file for 'top-level' Makefiles found in the directories immediately
 # below the one containing this file.
 #
-# Provides support for 'all', 'compile', 'transform' (the default), 'notebook',
+# Provides support for 'all', 'compile', 'transform' (the default),
 # 'run', clean' and 'allclean' targets for directories listed in TUTORIALS.
 # All an including Makefile needs to do is set TUTORIALS appropriately.
 
@@ -50,12 +50,11 @@ allclean_TUTORIALS=$(addprefix allclean_,$(TUTORIALS))
 run: ${run_TUTORIALS}
 compile: ${compile_TUTORIALS}
 transform: ${TUTORIALS}
-notebook: ${notebook_TUTORIALS}
 clean: ${clean_TUTORIALS}
 allclean: ${allclean_TUTORIALS}
 
 .PHONY: ${TUTORIALS} $(all_TUTORIALS) ${compile_TUTORIALS} ${clean_TUTORIALS} \
-        ${notebook_TUTORIALS} ${allclean_TUTORIALS}
+        ${allclean_TUTORIALS}
 
 $(TUTORIALS):
 	${MAKE} -C $@ transform
@@ -65,9 +64,6 @@ $(run_TUTORIALS):
 
 $(compile_TUTORIALS):
 	${MAKE} -C $(patsubst compile_%,%,$@) compile
-
-$(notebook_TUTORIALS):
-	${MAKE} -C $(patsubst notebook_%,%,$@) notebook
 
 $(clean_TUTORIALS):
 	${MAKE} -C $(patsubst clean_%,%,$@) clean
