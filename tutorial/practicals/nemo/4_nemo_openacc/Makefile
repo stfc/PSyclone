@@ -85,6 +85,7 @@ allclean: clean
 transform:
 	${MAKE} -C solutions transform
 
+compile: TRANS_SCRIPT=./solutions/collapse_trans.py
 compile: transform $(NAME)
 
 run: compile
