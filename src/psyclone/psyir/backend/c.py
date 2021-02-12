@@ -458,3 +458,52 @@ class CWriter(PSyIRVisitor):
         self._depth -= 1
         result_list.append("}}\n")
         return "".join(result_list)
+
+    def _generate_type_str(self, symbol):
+        return "int"
+
+    def _generate_declarations(self, symtab):
+        result = ""
+        for symbol in symtab.symbols:
+            typestr = self._generate_type_str(symbol)
+            result += "{0}{1} {2};\n".format(self._nindent, typestr,
+                                             symbol.name)
+        return result
+
+
+    def container_node(self, node):
+        result = self._generate_declarations(node.symbol_table)
+        result += "\n"
+        for child in node.children:
+            result += self._visit(child)
+        return result
+
+    def routine_node(self, node):
+        result = "{0}void {1}({2})\n".format(self._nindent, node.name, "ARGS")
+        result += "{\n"
+        self._depth += 1
+        result += self._generate_declarations(node.symbol_table)
+        result += "\n"
+        for child in node.children:
+            result += self._visit(child)
+        self._depth -= 1
+        return result + "}"
+
+    def reference_node(self, node):
+        return node.name
+
+    def call_node(self, node):
+        '''Translate the PSyIR call node to C.
+
+        :param node: a Call PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Call`
+
+        :returns: the C code as a string.
+        :rtype: str
+
+        '''
+        result_list = []
+        for child in node.children:
+            result_list.append(self._visit(child))
+        args = ", ".join(result_list)
+        return "{0}{1}({2});\n".format(self._nindent, node.routine.name, args)

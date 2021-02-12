@@ -39,6 +39,7 @@
 ''' This module contains the Container node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.errors import GenerationError
@@ -168,3 +169,20 @@ class Container(Node):
 
     def __str__(self):
         return "Container[{0}]\n".format(self.name)
+
+    def generate_fortran_wrapper(self):
+        '''
+        Split this container in two containers, the first one have all
+        language-independent PSyIR code, the second one habe the
+        Fortran-specific nodes (Fortran CodeBlocks, FortranUnknownTypes, ...)
+        and wrappers to the routines in the first Container.'''
+        wrapper = Container(self.name)
+
+        for scoping_node in self.walk((Container, Routine)):
+            print("On", scoping_node.name)
+            symbols = scoping_node.symbol_table.symbols
+            print(symbols)
+
+
+
+        return wrapper

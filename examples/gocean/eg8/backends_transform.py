@@ -42,6 +42,7 @@ progress of the development tracked by issue #1010.
 from __future__ import print_function
 import sys
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.c import CWriter
 
 
 def trans(psy):
@@ -53,20 +54,26 @@ def trans(psy):
     print("DSL level view:")
     schedule.view()
 
-    print("f2pygen code:")
-    print(str(psy.gen))
-
     # In-place lowering to Language-level PSyIR
     schedule.lower_to_language_level()
 
     print("")
     print("Language level view:")
+    schedule.symbol_table.view()
     schedule.view()
 
     fvisitor = FortranWriter()
     print("")
     print("FortranWriter code:")
     print(fvisitor(psy.container))
+
+    wrapper = psy.container.generate_fortran_wrapper()
+    cvisitor = CWriter()
+    print("")
+    print("Fortran wrapper code:")
+    print(fvisitor(wrapper))
+    print("C code:")
+    print(cvisitor(psy.container))
 
     # This PSyclone call should terminate gracefully here
     sys.exit(0)
