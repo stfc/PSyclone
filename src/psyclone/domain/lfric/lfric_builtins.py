@@ -35,9 +35,9 @@
 # Modified I. Kavcic, Met Office
 
 ''' This module implements the support for 'built-in' operations in the
-    PSyclone Dynamo 0.3 API. Each supported built-in is implemented as
-    a different Python class, all inheriting from the DynBuiltIn class.
-    The DynBuiltInCallFactory creates the Python object required for
+    PSyclone LFRic (Dynamo 0.3) API. Each supported built-in is implemented
+    as a different Python class, all inheriting from the LFRicBuiltIn class.
+    The LFRicBuiltInCallFactory creates the Python object required for
     a given built-in call. '''
 
 from __future__ import absolute_import
@@ -49,7 +49,7 @@ from psyclone.f2pygen import AssignGen
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
-BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
+BUILTIN_DEFINITIONS_FILE = "lfric_builtins_mod.f90"
 
 # The types of argument that are valid for built-in kernels in the
 # LFRic API
@@ -62,7 +62,7 @@ BUILTIN_ITERATION_SPACES = ["dofs", "dof"]
 
 
 # Function to return the built-in operations that we support for this API.
-# The meta-data describing these kernels is in dynamo0p3_builtins_mod.f90.
+# The meta-data describing these kernels is in lfric_builtins_mod.f90.
 # The built-in operations F90 capitalised names are dictionary keys and need
 # to be converted to lower case for invoke-generation purpose.
 def get_lowercase_builtin_map(builtin_map_capitalised_dict):
@@ -85,15 +85,15 @@ def get_lowercase_builtin_map(builtin_map_capitalised_dict):
     return builtin_map_dict
 
 
-class DynBuiltInCallFactory(object):
+class LFRicBuiltInCallFactory(object):
     '''
-    Creates the necessary framework for a call to a Dynamo built-in,
+    Creates the necessary framework for a call to an LFRic built-in,
     This consists of the operation itself and the loop over unique DoFs.
 
     '''
 
     def __str__(self):
-        return "Factory for a call to a Dynamo built-in."
+        return "Factory for a call to an LFRic built-in."
 
     @staticmethod
     def create(call, parent=None):
@@ -143,20 +143,20 @@ class DynBuiltInCallFactory(object):
         return dofloop
 
 
-class DynBuiltIn(BuiltIn):
+class LFRicBuiltIn(BuiltIn):
     '''
-    Parent class for a call to a Dynamo Built-in.
+    Parent class for a call to an LFRic Built-in.
     '''
     def __init__(self):
         # Builtins do not accept quadrature
         self.qr_rules = {}
         # Builtins cannot request mesh properties
         self.mesh = None
-        super(DynBuiltIn, self).__init__()
+        super(LFRicBuiltIn, self).__init__()
 
     def __str__(self):
         ''' :raises NotImplementedError: if the method is called. '''
-        raise NotImplementedError("DynBuiltIn.__str__ must be overridden")
+        raise NotImplementedError("LFRicBuiltIn.__str__ must be overridden")
 
     def load(self, call, parent=None):
         '''
@@ -282,7 +282,7 @@ class DynBuiltIn(BuiltIn):
         return None
 
     def gen_code(self, parent):
-        raise NotImplementedError("DynBuiltIn.gen_code must be overridden")
+        raise NotImplementedError("LFRicBuiltIn.gen_code must be overridden")
 
     def cma_operation(self):
         '''
@@ -327,7 +327,7 @@ class DynBuiltIn(BuiltIn):
 # ------------------------------------------------------------------- #
 
 
-class DynXPlusYKern(DynBuiltIn):
+class LFRicXPlusYKern(LFRicBuiltIn):
     ''' Add one, real-valued, field to another and return the result as
     a third, real-valued, field.
 
@@ -337,7 +337,7 @@ class DynXPlusYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         X_plus_Y Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -353,7 +353,7 @@ class DynXPlusYKern(DynBuiltIn):
                              rhs=field_name1 + " + " + field_name2))
 
 
-class DynIncXPlusYKern(DynBuiltIn):
+class LFRicIncXPlusYKern(LFRicBuiltIn):
     ''' Add the second, real-valued, field to the first field and return it.
 
     '''
@@ -362,7 +362,7 @@ class DynIncXPlusYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         inc_X_plus_Y Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -377,7 +377,7 @@ class DynIncXPlusYKern(DynBuiltIn):
                              rhs=field_name1 + " + " + field_name2))
 
 
-class DynAXPlusYKern(DynBuiltIn):
+class LFRicAXPlusYKern(LFRicBuiltIn):
     ''' Z = a.X + Y where 'a' is a real scalar and 'Z', 'X' and
     'Y' are real-valued fields.
 
@@ -387,7 +387,7 @@ class DynAXPlusYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         aX_plus_Y Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -406,7 +406,7 @@ class DynAXPlusYKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
 
 
-class DynIncAXPlusYKern(DynBuiltIn):
+class LFRicIncAXPlusYKern(LFRicBuiltIn):
     ''' X = a.X + Y where 'a' is a real scalar and 'X' and 'Y' are
     real-valued fields.
 
@@ -416,7 +416,7 @@ class DynIncAXPlusYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         inc_aX_plus_Y Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -434,7 +434,7 @@ class DynIncAXPlusYKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
 
 
-class DynIncXPlusBYKern(DynBuiltIn):
+class LFRicIncXPlusBYKern(LFRicBuiltIn):
     ''' X = X + b.Y where 'b' is a real scalar and 'X' and 'Y' are
     real-valued fields.
 
@@ -444,7 +444,7 @@ class DynIncXPlusBYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         inc_X_plus_bY Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -462,7 +462,7 @@ class DynIncXPlusBYKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
 
 
-class DynAXPlusBYKern(DynBuiltIn):
+class LFRicAXPlusBYKern(LFRicBuiltIn):
     ''' Z = a.X + b.Y where 'a' and 'b' are real scalars and 'Z', 'X' and
     'Y' are real-valued fields.
 
@@ -472,7 +472,7 @@ class DynAXPlusBYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         aX_plus_bY Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -494,7 +494,7 @@ class DynAXPlusBYKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
 
 
-class DynIncAXPlusBYKern(DynBuiltIn):
+class LFRicIncAXPlusBYKern(LFRicBuiltIn):
     ''' X = a.X + b.Y where 'a' and 'b' are real scalars and 'X' and 'Y'
     are real-valued fields.
 
@@ -504,7 +504,7 @@ class DynIncAXPlusBYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         inc_aX_plus_bY Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -530,7 +530,7 @@ class DynIncAXPlusBYKern(DynBuiltIn):
 # ------------------------------------------------------------------- #
 
 
-class DynXMinusYKern(DynBuiltIn):
+class LFRicXMinusYKern(LFRicBuiltIn):
     ''' Subtract one, real-valued, field from another and return the
     result as a third, real-valued, field.
 
@@ -540,7 +540,7 @@ class DynXMinusYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         X_minus_Y Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -557,7 +557,7 @@ class DynXMinusYKern(DynBuiltIn):
         parent.add(assign)
 
 
-class DynIncXMinusYKern(DynBuiltIn):
+class LFRicIncXMinusYKern(LFRicBuiltIn):
     ''' Subtract the second, real-valued, field from the first field
     and return it.
 
@@ -567,7 +567,7 @@ class DynIncXMinusYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         inc_X_minus_Y Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -582,7 +582,7 @@ class DynIncXMinusYKern(DynBuiltIn):
                              rhs=field_name1 + " - " + field_name2))
 
 
-class DynAXMinusYKern(DynBuiltIn):
+class LFRicAXMinusYKern(LFRicBuiltIn):
     ''' Z = a.X - Y where 'a' is a real scalar and 'Z', 'X' and
     'Y' are real-valued fields.
 
@@ -592,7 +592,7 @@ class DynAXMinusYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         aX_minus_Y Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -611,7 +611,7 @@ class DynAXMinusYKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
 
 
-class DynXMinusBYKern(DynBuiltIn):
+class LFRicXMinusBYKern(LFRicBuiltIn):
     ''' Z = X - b.Y where 'b' is a real scalar and 'Z', 'X' and
     'Y' are real-valued fields.
 
@@ -621,7 +621,7 @@ class DynXMinusBYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         X_minus_bY Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -640,7 +640,7 @@ class DynXMinusBYKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
 
 
-class DynIncXMinusBYKern(DynBuiltIn):
+class LFRicIncXMinusBYKern(LFRicBuiltIn):
     ''' X = X - b.Y where 'b' is a real scalar and 'X' and 'Y' are
     real-valued fields.
 
@@ -650,7 +650,7 @@ class DynIncXMinusBYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         inc_X_minus_bY Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -673,7 +673,7 @@ class DynIncXMinusBYKern(DynBuiltIn):
 # ------------------------------------------------------------------- #
 
 
-class DynXTimesYKern(DynBuiltIn):
+class LFRicXTimesYKern(LFRicBuiltIn):
     ''' DoF-wise product of one, real-valued, field with another with
     the result returned as a third, real-valued, field.
 
@@ -683,7 +683,7 @@ class DynXTimesYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         X_times_Y Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -700,7 +700,7 @@ class DynXTimesYKern(DynBuiltIn):
         parent.add(assign)
 
 
-class DynIncXTimesYKern(DynBuiltIn):
+class LFRicIncXTimesYKern(LFRicBuiltIn):
     ''' Multiply the first, real-valued, field by the second and return it.
 
     '''
@@ -709,7 +709,7 @@ class DynIncXTimesYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         inc_X_times_Y Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -724,7 +724,7 @@ class DynIncXTimesYKern(DynBuiltIn):
                              rhs=field_name1 + " * " + field_name2))
 
 
-class DynIncAXTimesYKern(DynBuiltIn):
+class LFRicIncAXTimesYKern(LFRicBuiltIn):
     ''' X = a.X.Y where 'a' is a real scalar and 'X' and 'Y' are
     real-valued fields.
 
@@ -734,7 +734,7 @@ class DynIncAXTimesYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         inc_aX_times_Y Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -756,7 +756,7 @@ class DynIncAXTimesYKern(DynBuiltIn):
 # ------------------------------------------------------------------- #
 
 
-class DynATimesXKern(DynBuiltIn):
+class LFRicATimesXKern(LFRicBuiltIn):
     ''' Multiply the first, real-valued, field by a real scalar and
     return the result as a second, real-valued, field (Y = a.X).
 
@@ -766,7 +766,7 @@ class DynATimesXKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         a_times_X Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -782,7 +782,7 @@ class DynATimesXKern(DynBuiltIn):
                              rhs=scalar_name + " * " + field_name1))
 
 
-class DynIncATimesXKern(DynBuiltIn):
+class LFRicIncATimesXKern(LFRicBuiltIn):
     ''' Multiply a real-valued field by a real scalar and return it.
 
     '''
@@ -791,7 +791,7 @@ class DynIncATimesXKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         inc_a_times_X Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -811,7 +811,7 @@ class DynIncATimesXKern(DynBuiltIn):
 # ------------------------------------------------------------------- #
 
 
-class DynXDividebyYKern(DynBuiltIn):
+class LFRicXDividebyYKern(LFRicBuiltIn):
     ''' Divide the first, real-valued, field by the second and return
     the result as a third, real-valued, field.
 
@@ -821,7 +821,7 @@ class DynXDividebyYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         X_divideby_Y Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -837,7 +837,7 @@ class DynXDividebyYKern(DynBuiltIn):
                              rhs=field_name1 + " / " + field_name2))
 
 
-class DynIncXDividebyYKern(DynBuiltIn):
+class LFRicIncXDividebyYKern(LFRicBuiltIn):
     ''' Divide the first, real-valued, field by the second and return it.
 
     '''
@@ -846,7 +846,7 @@ class DynIncXDividebyYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         inc_X_divideby_Y Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -866,7 +866,7 @@ class DynIncXDividebyYKern(DynBuiltIn):
 # ------------------------------------------------------------------- #
 
 
-class DynIncXPowrealAKern(DynBuiltIn):
+class LFRicIncXPowrealAKern(LFRicBuiltIn):
     ''' Raise a real-valued field to a real power and return it.
 
     '''
@@ -875,7 +875,7 @@ class DynIncXPowrealAKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         X_powreal_a Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -890,7 +890,7 @@ class DynIncXPowrealAKern(DynBuiltIn):
                              rhs=field_name + "**" + real_power))
 
 
-class DynIncXPowintNKern(DynBuiltIn):
+class LFRicIncXPowintNKern(LFRicBuiltIn):
     ''' Raise a real-valued field to an integer power and return it.
 
     '''
@@ -899,7 +899,7 @@ class DynIncXPowintNKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         X_powint_n Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -919,7 +919,7 @@ class DynIncXPowintNKern(DynBuiltIn):
 # ------------------------------------------------------------------- #
 
 
-class DynSetvalCKern(DynBuiltIn):
+class LFRicSetvalCKern(LFRicBuiltIn):
     ''' Set a real-valued field equal to a real scalar value.
 
     '''
@@ -928,7 +928,7 @@ class DynSetvalCKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         setval_c Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -942,7 +942,7 @@ class DynSetvalCKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=field_name, rhs=scalar_value))
 
 
-class DynSetvalXKern(DynBuiltIn):
+class LFRicSetvalXKern(LFRicBuiltIn):
     ''' Set a real-valued field equal to another, real-valued, field.
 
     '''
@@ -951,7 +951,7 @@ class DynSetvalXKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         setval_X Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -970,7 +970,7 @@ class DynSetvalXKern(DynBuiltIn):
 # ------------------------------------------------------------------- #
 
 
-class DynXInnerproductYKern(DynBuiltIn):
+class LFRicXInnerproductYKern(LFRicBuiltIn):
     ''' Calculates the inner product of two real-valued fields,
     innprod = SUM( X(:)*Y(:) ).
 
@@ -980,7 +980,7 @@ class DynXInnerproductYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         X_innerproduct_Y Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -997,7 +997,7 @@ class DynXInnerproductYKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
 
 
-class DynXInnerproductXKern(DynBuiltIn):
+class LFRicXInnerproductXKern(LFRicBuiltIn):
     ''' Calculates the inner product of one real-valued field by itself,
     innprod = SUM( X(:)*X(:) ).
 
@@ -1007,7 +1007,7 @@ class DynXInnerproductXKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         X_innerproduct_X Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -1028,7 +1028,7 @@ class DynXInnerproductXKern(DynBuiltIn):
 # ------------------------------------------------------------------- #
 
 
-class DynSumXKern(DynBuiltIn):
+class LFRicSumXKern(LFRicBuiltIn):
     ''' Computes the sum of the elements of a real-valued field.
 
     '''
@@ -1037,7 +1037,7 @@ class DynSumXKern(DynBuiltIn):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo0.3 API specific PSy code for a call to the
+        Generates LFRic API specific PSy code for a call to the
         sum_X Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
@@ -1060,23 +1060,23 @@ class DynSumXKern(DynBuiltIn):
 # ============== Adding integer fields ============================== #
 # ------------------------------------------------------------------- #
 
-class LFRicIntXPlusYKern(DynXPlusYKern):
+class LFRicIntXPlusYKern(LFRicXPlusYKern):
     ''' Add corresponding elements of two, integer-valued, fields, `X`
     and `Y`, and return the result as a third, integer-valued, field, `Z`.
     Inherits the `gen_code` method from the real-valued built-in
-    equivalent `DynXPlusYKern`.
+    equivalent `LFRicXPlusYKern`.
 
     '''
     def __str__(self):
         return "Built-in: Add integer-valued fields"
 
 
-class LFRicIntIncXPlusYKern(DynIncXPlusYKern):
+class LFRicIntIncXPlusYKern(LFRicIncXPlusYKern):
     ''' Add each element of an integer-valued field, `X`, to the
     corresponding element of another integer-valued field, `Y`, and
     store the result back in `X`.
     Inherits the `gen_code` method from the real-valued built-in
-    equivalent `DynIncXPlusYKern`.
+    equivalent `LFRicIncXPlusYKern`.
 
     '''
     def __str__(self):
@@ -1088,24 +1088,24 @@ class LFRicIntIncXPlusYKern(DynIncXPlusYKern):
 # ------------------------------------------------------------------- #
 
 
-class LFRicIntXMinusYKern(DynXMinusYKern):
+class LFRicIntXMinusYKern(LFRicXMinusYKern):
     ''' Subtract each element of an integer-valued field, `Y`, from
     the corresponding element of another, integer-valued, field, `X`,
     and return the result as a third, integer-valued, field, `Z`.
     Inherits the `gen_code` method from the real-valued built-in
-    equivalent `DynXMinusYKern`.
+    equivalent `LFRicXMinusYKern`.
 
     '''
     def __str__(self):
         return "Built-in: Subtract integer-valued fields"
 
 
-class LFRicIntIncXMinusYKern(DynIncXMinusYKern):
+class LFRicIntIncXMinusYKern(LFRicIncXMinusYKern):
     ''' Subtract each element of an integer-valued field, `Y`, from
     the corresponding element of another, integer-valued, field, `X`,
     and store the result back in `X`.
     Inherits the `gen_code` method from the real-valued built-in
-    equivalent `DynXMinusYKern`.
+    equivalent `LFRicXMinusYKern`.
 
     '''
     def __str__(self):
@@ -1117,24 +1117,24 @@ class LFRicIntIncXMinusYKern(DynIncXMinusYKern):
 # ------------------------------------------------------------------- #
 
 
-class LFRicIntXTimesYKern(DynXTimesYKern):
+class LFRicIntXTimesYKern(LFRicXTimesYKern):
     ''' Multiply each element of one, integer-valued, field, `X`, by
     the corresponding element of another, integer-valued, field, `Y`,
     and return the result as a third, integer-valued, field, `Z`.
     Inherits the `gen_code` method from the real-valued built-in
-    equivalent `DynXTimesYKern`.
+    equivalent `LFRicXTimesYKern`.
 
     '''
     def __str__(self):
         return "Built-in: Multiply integer-valued fields"
 
 
-class LFRicIntIncXTimesYKern(DynIncXTimesYKern):
+class LFRicIntIncXTimesYKern(LFRicIncXTimesYKern):
     ''' Multiply each element of one, integer-valued, field, `X`, by
     the corresponding element of another, integer-valued, field, `Y`,
     and store the result back in `X`.
     Inherits the `gen_code` method from the real-valued built-in
-    equivalent `DynIncXTimesYKern`.
+    equivalent `LFRicIncXTimesYKern`.
 
     '''
     def __str__(self):
@@ -1146,23 +1146,23 @@ class LFRicIntIncXTimesYKern(DynIncXTimesYKern):
 # ------------------------------------------------------------------- #
 
 
-class LFRicIntATimesXKern(DynATimesXKern):
+class LFRicIntATimesXKern(LFRicATimesXKern):
     ''' Multiply each element of the first, integer-valued, field, `X`,
      by an integer scalar, `a`, and return the result as a second,
     integer-valued, field `Y` (`Y = a*X`).
     Inherits the `gen_code` method from the real-valued built-in
-    equivalent `DynATimesXKern`.
+    equivalent `LFRicATimesXKern`.
 
     '''
     def __str__(self):
         return "Built-in: Copy a scaled integer-valued field"
 
 
-class LFRicIntIncATimesXKern(DynIncATimesXKern):
+class LFRicIntIncATimesXKern(LFRicIncATimesXKern):
     ''' Multiply each element of an integer-valued field, `X` by
     an integer scalar, `a`, and store the result back in `X`.
     Inherits the `gen_code` method from the real-valued built-in
-    equivalent `DynIncATimesXKern`.
+    equivalent `LFRicIncATimesXKern`.
 
     '''
     def __str__(self):
@@ -1174,11 +1174,11 @@ class LFRicIntIncATimesXKern(DynIncATimesXKern):
 # ------------------------------------------------------------------- #
 
 
-class LFRicIntSetvalCKern(DynSetvalCKern):
+class LFRicIntSetvalCKern(LFRicSetvalCKern):
     ''' Assign a single constant integer scalar value, `c`, to all
     elements of an integer-valued field, `X`.
     Inherits the `gen_code` method from the real-valued built-in
-    equivalent `DynSetvalCKern`.
+    equivalent `LFRicSetvalCKern`.
 
     '''
     def __str__(self):
@@ -1186,12 +1186,12 @@ class LFRicIntSetvalCKern(DynSetvalCKern):
                 "scalar value")
 
 
-class LFRicIntSetvalXKern(DynSetvalXKern):
+class LFRicIntSetvalXKern(LFRicSetvalXKern):
     ''' Copy one element of an integer-valued field (second argument),
     `X`, to the corresponding element of another, integer-valued,
     field (first argument), `Y`.
     Inherits the `gen_code` method from the real-valued built-in
-    equivalent `DynSetvalXKern`.
+    equivalent `LFRicSetvalXKern`.
 
     '''
     def __str__(self):
@@ -1200,47 +1200,47 @@ class LFRicIntSetvalXKern(DynSetvalXKern):
 
 
 # The built-in operations that we support for this API. The meta-data
-# describing these kernels is in dynamo0p3_builtins_mod.f90. This dictionary
+# describing these kernels is in lfric_builtins_mod.f90. This dictionary
 # can only be defined after all of the necessary 'class' statements have
 # been executed (happens when this module is imported into another).
 # Built-ins for real-valued fields
 REAL_BUILTIN_MAP_CAPITALISED = {
     # Adding (scaled) real fields
-    "X_plus_Y": DynXPlusYKern,
-    "inc_X_plus_Y": DynIncXPlusYKern,
-    "aX_plus_Y": DynAXPlusYKern,
-    "inc_aX_plus_Y": DynIncAXPlusYKern,
-    "inc_X_plus_bY": DynIncXPlusBYKern,
-    "aX_plus_bY": DynAXPlusBYKern,
-    "inc_aX_plus_bY": DynIncAXPlusBYKern,
+    "X_plus_Y": LFRicXPlusYKern,
+    "inc_X_plus_Y": LFRicIncXPlusYKern,
+    "aX_plus_Y": LFRicAXPlusYKern,
+    "inc_aX_plus_Y": LFRicIncAXPlusYKern,
+    "inc_X_plus_bY": LFRicIncXPlusBYKern,
+    "aX_plus_bY": LFRicAXPlusBYKern,
+    "inc_aX_plus_bY": LFRicIncAXPlusBYKern,
     # Subtracting (scaled) real fields
-    "X_minus_Y": DynXMinusYKern,
-    "inc_X_minus_Y": DynIncXMinusYKern,
-    "aX_minus_Y": DynAXMinusYKern,
-    "X_minus_bY": DynXMinusBYKern,
-    "inc_X_minus_bY": DynIncXMinusBYKern,
+    "X_minus_Y": LFRicXMinusYKern,
+    "inc_X_minus_Y": LFRicIncXMinusYKern,
+    "aX_minus_Y": LFRicAXMinusYKern,
+    "X_minus_bY": LFRicXMinusBYKern,
+    "inc_X_minus_bY": LFRicIncXMinusBYKern,
     # Multiplying (scaled) real fields
-    "X_times_Y": DynXTimesYKern,
-    "inc_X_times_Y": DynIncXTimesYKern,
-    "inc_aX_times_Y": DynIncAXTimesYKern,
+    "X_times_Y": LFRicXTimesYKern,
+    "inc_X_times_Y": LFRicIncXTimesYKern,
+    "inc_aX_times_Y": LFRicIncAXTimesYKern,
     # Multiplying real fields by a real scalar (scaling fields)
-    "a_times_X": DynATimesXKern,
-    "inc_a_times_X": DynIncATimesXKern,
+    "a_times_X": LFRicATimesXKern,
+    "inc_a_times_X": LFRicIncATimesXKern,
     # Dividing real fields
-    "X_divideby_Y": DynXDividebyYKern,
-    "inc_X_divideby_Y": DynIncXDividebyYKern,
+    "X_divideby_Y": LFRicXDividebyYKern,
+    "inc_X_divideby_Y": LFRicIncXDividebyYKern,
     # Raising a real field to a scalar
-    "inc_X_powreal_a": DynIncXPowrealAKern,
-    "inc_X_powint_n": DynIncXPowintNKern,
+    "inc_X_powreal_a": LFRicIncXPowrealAKern,
+    "inc_X_powint_n": LFRicIncXPowintNKern,
     # Setting real field elements to scalar or other
     # real field's values
-    "setval_c": DynSetvalCKern,
-    "setval_X": DynSetvalXKern,
+    "setval_c": LFRicSetvalCKern,
+    "setval_X": LFRicSetvalXKern,
     # Inner product of real fields
-    "X_innerproduct_Y": DynXInnerproductYKern,
-    "X_innerproduct_X": DynXInnerproductXKern,
+    "X_innerproduct_Y": LFRicXInnerproductYKern,
+    "X_innerproduct_X": LFRicXInnerproductXKern,
     # Sum values of a real field
-    "sum_X": DynSumXKern}
+    "sum_X": LFRicSumXKern}
 
 # Built-ins for integer-valued fields
 INT_BUILTIN_MAP_CAPITALISED = {
