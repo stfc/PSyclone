@@ -88,7 +88,8 @@ transform:
                      -opsy psy_3.f90 -l output tra_adv_mod.F90
 
 compile: transform $(KERNELS) psy.o solutions/runner.o
-	$(F90) $^ -o $(NAME) -L$(PROFILE_DIR) $(PROFILE_LINK)
+	$(F90) $(KERNELS) psy.o solutions/runner.o -o $(NAME) \
+	       -L$(PROFILE_DIR) $(PROFILE_LINK)
 
 # Only used for the compile CI target to compile the solution file
 solutions/%.o: solutions/%.f90
