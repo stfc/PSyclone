@@ -60,7 +60,9 @@ NAME = ./tra_adv.exe
 $(NAME): $(KERNELS) psy_openacc.o runner.o
 	$(F90) $(F90FLAGS) $^ -o $@
 
-# Target that uses PSyclone to generate 'psy.f90'
+# Target that uses PSyclone to generate 'psy%.f90' - it is used
+# to create psy_openacc.f90 here, but also to create psy_1 as
+# default target.
 psy%.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
 	$(PSYCLONE) -s ${TRANS_SCRIPT} -api nemo \
                      -opsy $@ -l output tra_adv_mod.F90
