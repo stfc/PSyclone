@@ -39,7 +39,7 @@
 include ../../common.mk
 
 # By default we only generate the transformed code
-.DEFAULT_GOAL := psy.f90
+.DEFAULT_GOAL := psy_1.f90
 
 # The PSyclone transformation script to use
 TRANS_SCRIPT ?= ./kernels_trans.py
@@ -70,7 +70,8 @@ psy%.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
 # Make sure the infrastructure library is compiled, so the mods are found
 $(KERNELS): $(INF_LIB)
 
-# Creating psy.o and runner.o requires that the profiling lib be compiled
+# Dependencies - runner needs tra_adv.mod, which is in the psyclone
+# processed file psy_openacc.c.
 runner.o: psy_openacc.o
 
 %.o: %.f90
