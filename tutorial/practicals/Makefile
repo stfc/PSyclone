@@ -33,7 +33,7 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-.DEFAULT_GOAL := compile
+.DEFAULT_GOAL := transform
 
 ALL_TARGETS = transform compile run clean allclean
 .PHONY: $(ALL_TARGETS)
