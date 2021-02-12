@@ -412,7 +412,7 @@ written to iterate over dofs, but that does not have to be the case.
 The loop iteration information is specified in the kernel metadata. In
 the case of built-ins there is kernel metadata but it is part of
 PSyclone and is specified in
-``src/psyclone/domain/lfric/parse/lfric_builtins_mod.f90``.
+``src/psyclone/parse/lfric_builtins_mod.f90``.
 
 For inter-grid kernels, it is the coarse mesh that provides the iteration
 space. (The kernel is passed a list of the cells in the fine mesh that are

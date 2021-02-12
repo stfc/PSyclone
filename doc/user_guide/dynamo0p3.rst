@@ -2180,10 +2180,9 @@ scheme presented below. Any new Built-in needs to comply with these rules.
 
    4) Common suffix is ``"Kern"``;
 
-   3) Common prefix is ``"Dyn"`` for the Built-in operations on the
+   3) Common prefix is ``"LFRic"`` for the Built-in operations on the
       ``real``-valued arguments and ``"LFRicInt"`` for the Built-in
-      operations on the ``integer``-valued fields (TODO: the class
-      names will be harmonised in #1114).
+      operations on the ``integer``-valued fields.
 
 .. _lfric-built-ins-real:
 

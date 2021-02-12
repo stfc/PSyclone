@@ -282,7 +282,7 @@ Adding new Built-in operations
     to the ``BUILTIN_MAP`` dictionary in that source file.
  5. Add metadata describing this call to the appropriate file specified in
     the ``BUILTIN_DEFINITIONS_FILE`` in that source file. For LFRic API
-    this is ``src/psyclone/domain/lfric/parse/lfric_builtins_mod.f90``.
+    this is ``src/psyclone/parse/lfric_builtins_mod.f90``.
  6. Add relevant tests to the PSyclone test files for the API to be extended.
     *e.g.* for LFRic API they are
     * ``src/psyclone/tests/domain/lfric/lfric_builtins_test.py``,
