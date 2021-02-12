@@ -950,8 +950,8 @@ def test_reduction_sum_error():
         with pytest.raises(GenerationError) as err:
             call.reduction_sum_loop(None)
         assert (
-            "unsupported reduction access 'gh_inc' found in DynBuiltin:"
-            "reduction_sum_loop(). Expected one of '['gh_sum']"
+            "Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
+            "reduction_sum_loop(). Expected one of ['gh_sum']."
             in str(err.value))
 
 
@@ -960,8 +960,8 @@ def test_call_multi_reduction_error(monkeypatch):
     Kernel or a Builtin) with more than one reduction in it. Since we have
     a rule that only Builtins can write to scalars we need a built-in that
     attempts to perform two reductions. '''
-    from psyclone import dynamo0p3_builtins
-    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+    from psyclone.domain.lfric import lfric_builtins
+    monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "multi_reduction_builtins_mod.f90"))
     for dist_mem in [False, True]:

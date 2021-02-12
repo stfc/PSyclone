@@ -2628,8 +2628,17 @@ class Kern(Statement):
                                  rhs=zero), position=position)
 
     def reduction_sum_loop(self, parent):
-        '''generate the appropriate code to place after the end parallel
-        region'''
+        '''
+        Generate the appropriate code to place after the end parallel
+        region.
+
+        :param parent: the Node in the AST to which to add new code.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises GenerationError: for an nsupported reduction access in \
+                                 LFRicBuiltIn.
+
+        '''
         from psyclone.f2pygen import DoGen, AssignGen, DeallocateGen
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
@@ -2641,8 +2650,8 @@ class Kern(Statement):
             api_strings = [access.api_specific_name()
                            for access in REDUCTION_OPERATOR_MAPPING]
             raise GenerationError(
-                "unsupported reduction access '{0}' found in DynBuiltin:"
-                "reduction_sum_loop(). Expected one of '{1}'".
+                "Unsupported reduction access '{0}' found in LFRicBuiltIn:"
+                "reduction_sum_loop(). Expected one of {1}.".
                 format(reduction_access.api_specific_name(), api_strings))
         symtab = self.root.symbol_table
         thread_idx = symtab.lookup_with_tag("omp_thread_index").name
