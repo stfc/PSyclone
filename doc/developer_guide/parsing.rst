@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Modified by I. Kavcic, Met Office
 
 Parsing Code
 ############
@@ -64,7 +65,7 @@ examples.
 The `Parser` class is initialised with a number of optional
 arguments. A particular `api` can be specified (this is required so
 the parser knows what sort of code and metadata to expect, how to
-parse it and which `builtins` are supported). The name used to specify
+parse it and which `built-ins` are supported). The name used to specify
 an invoke (defaulting to `invoke`) can be changed, a path to where to
 look for associated kernel files can be provided and a particular
 maximum line length can be specified.
@@ -117,7 +118,7 @@ extracts the kernel name and kernel arguments, then creates either an
 `algorithm.BuiltInCall` instance (via the `create_builtin_kernel_call`
 method) or an `algorithm.KernelCall` instance (via the
 `create_coded_kernel_call` method). `BuiltInCalls` are created if the
-kernel name is the same as one of those specified in the builtin names
+kernel name is the same as one of those specified in the built-in names
 for this particular API (see the variable `_builtin_name_map` which is
 initialised by the `get_builtin_defs` function).
 
@@ -143,8 +144,8 @@ An `algorithm.BuiltInCall` instance is created by being passed a
 `kernel.BuiltinKernelType` instance for the particular API via the
 `BuiltInKernelTypeFactory` class which is found in the `parse.kernels`
 module. This class parses the Fortran module file which specifies
-builtin description metadata. Currently `fparser1` is used but we will
-be migrating to `fparser2` in the future. The builtin metadata is
+built-in description metadata. Currently `fparser1` is used but we will
+be migrating to `fparser2` in the future. The built-in metadata is
 specified in the same form as coded kernel metadata so the same logic
 can be used (i.e. the `KernelTypeFactory.create` method is called)
 which is why `BuiltInKernelTypeFactory` subclasses
@@ -160,7 +161,7 @@ earlier). Again, currently `fparser1` is used but we will be migrating
 to `fparser2` in the future.
 
 The `KernelTypeFactory create` method is used for both coded kernels
-and builtin kernels to specify the API-specific class to use. As an
+and built-in kernels to specify the API-specific class to use. As an
 example, in the case of the `dynamo0.3` API, the class is
 `DynKernMetadata` which is found in `psyclone.dynamo0p3`. Once this
 instance has been created (by passing it an `fparser1` parse tree) it can
