@@ -98,8 +98,7 @@ compile-mpi-ocl: dm_fd_lib ${FORTCL_LIB} ${KERNELS} psy_gen_dm.o alg_gen_dm.f90
 %.o: %.f90
 	${F90} ${LDFLAGS} -I${INF_INC} -I${FORTCL_INC} -c $<
 
-compile: transform
-	@echo "Example gocean/eg3 needs to be compiled with 'make compile-ocl'"
+compile: compile-ocl
 
 run: compile
 	@echo "No run targets for example gocean/eg3"
