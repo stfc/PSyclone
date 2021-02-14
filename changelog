@@ -354,11 +354,23 @@
         114) PR #1054 for #1047. Adds check that the intrinsic types of
         scalar arguments in the LFRic API are consistent. Extends argument-
         filtering routines to additionally filter on intrinsic type.
-	
+
 	115) PR #1102 towards #1031. Improves PSyIR fparser2 frontend support for
 	structures types.
 
 	116) PR #1111 for #1110. The Call create method is a classmethod.
+
+	117) PR #1121 for #1120. Introduce bibtex_bibfiles to Sphinx UG
+	and DG config files to fix latex build errors in the latest
+	version of Sphinx which were causing read the docs to fail to
+	build the documentation.
+
+        118) #1058 for #917. Updates the profiling example (gocean/eg5)
+        so that the appropriate wrapper library is automatically
+        compiled.
+
+        119) PR #1090. Adds support for LFRic builtins that accept integer-
+        valued fields.
 
 release 1.9.0 20th May 2020
 
