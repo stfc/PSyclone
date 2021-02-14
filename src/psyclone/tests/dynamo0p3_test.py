@@ -5310,7 +5310,7 @@ def test_dynkernelarguments_acc_args_4():
 
     '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "19.25_single_stencil_cross2d.f90"))
+                                 "19.26_single_stencil_cross2d.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_stencil_cross2d_type').schedule
     kern = sched.kernels()[0]

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic and A. Coughtrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements a class that creates the argument list
@@ -227,6 +227,71 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
 
         '''
+        from psyclone.dynamo0p3 import DynStencils
+        var_name = DynStencils.dofmap_name(self._stub_symtab, arg)
+        self.append(var_name, var_accesses)
+
+    def stencil_2d_max_extent(self, arg, var_accesses=None):
+        '''Add the maximum branch extent for a 2D stencil associated with the
+        argument 'arg' to the argument list. If supplied it also stores this
+        in var_accesses.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariableAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariableAccessInfo`
+
+        '''
+        # The maximum branch extent is not specified in the metadata so pass
+        # the value in.
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.dynamo0p3 import DynStencils
+        name = DynStencils.max_branch_length_name(self._stub_symtab, arg)
+        self.append(name, var_accesses)
+
+    def stencil_2d_unknown_extent(self, arg, var_accesses=None):
+        '''Add 2D stencil information to the argument list associated with the
+        argument 'arg' if the extent is unknown. If supplied it also stores
+        this access in var_accesses.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        from psyclone.dynamo0p3 import DynStencils
+        name = DynStencils.dofmap_size_name(self._stub_symtab, arg)
+        self.append(name, var_accesses)
+
+    def stencil_2d(self, arg, var_accesses=None):
+        '''Add general 2D stencil information associated with the argument
+        'arg' to the argument list. If supplied it also stores this access in
+        var_accesses.
+
+        :param arg: the meta-data description of the kernel \
+            argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        # The stencil_2D differs from the stencil in that the direction
+        # of the branch is baked into the stencil_dofmap array.
+        # The array dimensions are thus (dof_in_cell, cell_in_branch,
+        # branch_in_stencil) where the branch_in_stencil is always ordered
+        # West, South, East, North which is standard in LFRic. This allows
+        # for knowledge of what direction a stencil cell is in relation
+        # to the center even when the stencil is truncated at boundaries.
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
         var_name = DynStencils.dofmap_name(self._stub_symtab, arg)
         self.append(var_name, var_accesses)

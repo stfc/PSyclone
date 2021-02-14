@@ -362,16 +362,15 @@ def test_stencil_vector(dist_mem, tmpdir):
     result = str(psy.gen)
     assert (
                "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
-               "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
-           in str(result)
+               "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n"
+           ) in str(result)
     assert (
                "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => "
                "null()\n"
                "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:)"
                " => null()\n"
                "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-               "null()\n") \
-           in str(result)
+               "null()\n") in str(result)
     assert (
                "      f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
                "(STENCIL_CROSS,f2_extent)\n"
@@ -401,20 +400,19 @@ def test_stencil_xory_vector(dist_mem, tmpdir):
     assert (
                "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
                "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
-               "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
-           in result
+               "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n"
+           ) in result
     assert (
                "      INTEGER(KIND=i_def), intent(in) :: f2_extent\n"
-               "      INTEGER(KIND=i_def), intent(in) :: f2_direction\n") \
-           in result
+               "      INTEGER(KIND=i_def), intent(in) :: f2_direction\n"
+           ) in result
     assert (
                "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => "
                "null()\n"
                "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:)"
                " => null()\n"
                "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-               "null()\n") \
-           in result
+               "null()\n") in result
     assert (
                "      IF (f2_direction .eq. x_direction) THEN\n"
                "        f2_stencil_map => "
@@ -432,8 +430,7 @@ def test_stencil_xory_vector(dist_mem, tmpdir):
     assert (
                "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, "
                "f2_proxy(4)%data, f2_stencil_size(cell), f2_direction, "
-               "f2_stencil_dofmap(:,:,cell)") \
-           in result
+               "f2_stencil_dofmap(:,:,cell)") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -789,7 +786,7 @@ def test_single_stencil_cross2d(dist_mem, tmpdir):
 
     '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.25_single_stencil_cross2d.f90"),
+        os.path.join(BASE_PATH, "19.26_single_stencil_cross2d.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
