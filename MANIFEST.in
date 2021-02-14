@@ -38,7 +38,7 @@ include *.py
 recursive-include contributions *
 recursive-include bin *
 recursive-include doc *.py *.rst Makefile
-include src/psyclone/domain/lfric/parse/lfric_builtins_mod.f90
+include src/psyclone/parse/lfric_builtins_mod.f90
 include config/*.cfg
 recursive-include examples *.py *.c *.cl *90 *.md Makefile *.mk
 recursive-include tutorial *.ipynb
