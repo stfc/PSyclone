@@ -129,6 +129,6 @@ def test_generate_psyir_error(parser):
     parse_tree = parser(reader)
     with pytest.raises(GenerationError) as info:
         _ = processor.generate_psyir(parse_tree.children[0])
-    assert ("The Fparser2Reader generate_psyir method expects root the "
-            "supplied fparser2 tree to be a Program, but found 'Module'"
+    assert ("The Fparser2Reader generate_psyir method expects the root of "
+            "the supplied fparser2 tree to be a Program, but found 'Module'"
             in str(info.value))
