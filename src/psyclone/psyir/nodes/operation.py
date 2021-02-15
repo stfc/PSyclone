@@ -196,7 +196,9 @@ class BinaryOperation(Operation):
         # Query Operators
         'SIZE', 'LBOUND', 'UBOUND',
         # Matrix and Vector Operators
-        'MATMUL'
+        'MATMUL',
+        # Casting operator
+        'CAST'
         ])
     '''Arithmetic operators:
 

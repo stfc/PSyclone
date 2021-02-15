@@ -731,7 +731,8 @@ class Fparser2Reader(object):
         ('max', BinaryOperation.Operator.MAX),
         ('min', BinaryOperation.Operator.MIN),
         ('mod', BinaryOperation.Operator.REM),
-        ('matmul', BinaryOperation.Operator.MATMUL)])
+        ('matmul', BinaryOperation.Operator.MATMUL),
+        ('transfer', BinaryOperation.Operator.CAST)])
 
     nary_operators = OrderedDict([
         ('max', NaryOperation.Operator.MAX),
