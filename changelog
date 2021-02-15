@@ -371,6 +371,9 @@
 
         119) PR #1090. Adds support for LFRic builtins that accept integer-
         valued fields.
+	
+	120) PR #1105 for #1104. Adds support for program, module and subroutine
+	to Fparser2Reader
 
 release 1.9.0 20th May 2020
 
