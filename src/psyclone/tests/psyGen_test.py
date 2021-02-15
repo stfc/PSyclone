@@ -309,10 +309,10 @@ FAKE_KERNEL_METADATA = '''
 module dummy_mod
   use argument_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =                    &
-          (/ arg_type(gh_field, gh_write,     w3),     &
-             arg_type(gh_field, gh_readwrite, wtheta), &
-             arg_type(gh_field, gh_inc,       w1)      &
+     type(arg_type), meta_args(3) =                             &
+          (/ arg_type(gh_field, gh_real, gh_write,     w3),     &
+             arg_type(gh_field, gh_real, gh_readwrite, wtheta), &
+             arg_type(gh_field, gh_real, gh_inc,       w1)      &
            /)
      integer :: operates_on = cell_column
    contains
@@ -2524,7 +2524,7 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     assert os.path.isfile(filepath)
     # Check that the argument list is line wrapped as it is longer
     # than 132 characters.
-    assert "undf_w3,&\n&map_w3)\n" in open(filepath).read()
+    assert "map_w2, &\n&ndf_w3" in open(filepath).read()
 
 
 def test_walk():
