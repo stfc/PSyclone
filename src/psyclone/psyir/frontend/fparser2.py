@@ -956,8 +956,8 @@ class Fparser2Reader(object):
         '''
         if not isinstance(parse_tree, Fortran2003.Program):
             raise GenerationError(
-                "The Fparser2Reader generate_psyir method expects root the "
-                "supplied fparser2 tree to be a Program, but found '{0}'"
+                "The Fparser2Reader generate_psyir method expects the root of "
+                "the supplied fparser2 tree to be a Program, but found '{0}'"
                 "".format(type(parse_tree).__name__))
         node = Container("dummy")
         self.process_nodes(node, [parse_tree])
@@ -3419,7 +3419,7 @@ class Fparser2Reader(object):
             sub_exec = _first_type_match(node.content,
                                          Fortran2003.Execution_Part)
         except ValueError:
-            # Routines without any execution statemens are still
+            # Routines without any execution statements are still
             # valid.
             pass
         else:
@@ -3490,6 +3490,9 @@ class Fparser2Reader(object):
         :type node: :py:class:`fparser.two.Fortran2003.Program`
         :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: PSyIR representation of the program.
+        :rtype: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
         :raises NotImplementedError: if more than one program-unit is \
             found in the fparser2 parse tree.
