@@ -270,15 +270,16 @@ class Symbol(object):
         try:
             is_subclass = issubclass(subclass, self.__class__)
         except TypeError as info:
-            message = ("The specialise method in the Symbol class expects the "
-                       "subclass argument to be a class.")
+            message = ("The specialise method in '{0}' expects the "
+                       "subclass argument to be a class.".format(self.name))
             six.raise_from(TypeError(message), info)
         # pylint: disable = unidiomatic-typecheck
         if not is_subclass or type(self) is subclass:
             raise TypeError(
-                "The specialise method in the Symbol class expects the "
-                "subclass argument to be a class that is a sub-class of "
-                "Symbol.")
+                "The specialise method in '{0}', an instance of '{1}', "
+                "expects the subclass argument to be a subclass of '{1}', "
+                "but found '{2}'.".format(
+                    self.name, type(self).__name__, subclass.__name__))
         self.__class__ = subclass
 
     def get_external_symbol(self):
