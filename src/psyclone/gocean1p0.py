@@ -50,8 +50,7 @@
 from __future__ import print_function
 import re
 import six
-from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt, \
-    Subroutine_Subprogram
+from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config, ConfigurationError
@@ -1619,12 +1618,12 @@ class GOKern(CodedKern):
         '''
         # Create the symbol for the routine and add it to the symbol table.
         subroutine_name = self.root.symbol_table.new_symbol(
-            "write_to_device", symbol_type=RoutineSymbol,
-            tag="ocl_write_func").name
+            "read_from_device", symbol_type=RoutineSymbol,
+            tag="ocl_read_func").name
 
         code = '''
-        subroutine read_opencl(from, to, offset, nx, ny, gap)
-            use iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
+        subroutine read_sub(from, to, offset, nx, ny, gap)
+            USE iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
             USE ocl_utils_mod, ONLY: check_status
             use kind_params_mod, only: go_wp
             USE clfortran
@@ -1643,18 +1642,17 @@ class GOKern(CodedKern):
             ierr = clEnqueueReadBuffer(cmd_queues(1), cl_mem, &
                 CL_TRUE, offset_in_bytes, size_in_bytes, C_LOC(to), 0, &
                 C_NULL_PTR, C_NULL_PTR)
-            CALL check_status('clEnqueueReadBuffer', ierr)
-        end subroutine read_opencl
+            CALL check_status(\'clEnqueueReadBuffer\', ierr)
+        end subroutine read_sub
         '''
 
-        container = Container("dummy")
         processor = Fparser2Reader()
         reader = FortranStringReader(code)
-        exe_part = Subroutine_Subprogram.match(reader)
-        processor.process_nodes(container, exe_part[0])
-        subroutine = container.children[0]
-        # import pdb; pdb.set_trace()
+        parser = ParserFactory().create(std="f2003")
+        parse_tree = parser(reader)
+        subroutine = processor.generate_psyir(parse_tree)
         # Rename subroutine
+        subroutine.name = subroutine_name
 
         # Insert the code in the invoke module
         f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
@@ -1668,8 +1666,8 @@ class GOKern(CodedKern):
             tag="ocl_write_func").name
 
         code = '''
-        subroutine write_opencl(from, to, offset, nx, ny, gap)
-            use iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
+        subroutine write_sub(from, to, offset, nx, ny, gap)
+            USE iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
             USE ocl_utils_mod, ONLY: check_status
             use kind_params_mod, only: go_wp
             USE clfortran
@@ -1688,18 +1686,17 @@ class GOKern(CodedKern):
             ierr = clEnqueueWriteBuffer(cmd_queues(1), cl_mem, &
                 CL_TRUE, offset_in_bytes, size_in_bytes, C_LOC(from), 0, &
                 C_NULL_PTR, C_NULL_PTR)
-            CALL check_status('clEnqueueWriteBuffer', ierr)
-        end subroutine write_opencl
+            CALL check_status(\'clEnqueueWriteBuffer\', ierr)
+        end subroutine write_sub
         '''
 
-        container = Container("dummy")
         processor = Fparser2Reader()
         reader = FortranStringReader(code)
-        exe_part = Subroutine_Subprogram.match(reader)
-        processor.process_nodes(container, exe_part[0])
-        subroutine = container.children[0]
-        # import pdb; pdb.set_trace()
+        parser = ParserFactory().create(std="f2003")
+        parse_tree = parser(reader)
+        subroutine = processor.generate_psyir(parse_tree)
         # Rename subroutine
+        subroutine.name = subroutine_name
 
         # Insert the code in the invoke module
         f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
