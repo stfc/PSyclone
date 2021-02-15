@@ -59,14 +59,15 @@ from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
     KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Return, IfBlock, Container
+    Return, IfBlock, Call, Assignment
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
-    ContainerSymbol, DeferredType, TypeSymbol, UnresolvedInterface, REAL_TYPE
+    ContainerSymbol, DeferredType, TypeSymbol, UnresolvedInterface, \
+    REAL_TYPE, UnknownFortranType
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -1234,7 +1235,7 @@ class GOKern(CodedKern):
             if arg.argument_type == "scalar":
                 arguments.append(arg.name)
             elif arg.argument_type == "field":
-                arguments.append(arg.name + "%device_ptr")
+                arguments.append(arg.name + "_cl_mem")
             elif arg.argument_type == "grid_property":
                 # TODO (dl_esm_inf/#18) the dl_esm_inf library stores
                 # the pointers to device memory for grid properties in
@@ -1507,21 +1508,41 @@ class GOKern(CodedKern):
         :param parent: Parent subroutine in f2pygen AST of generated code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        api_config = Config.get().api_conf("gocean1.0")
-        grid_arg = self._arguments.find_grid_access()
         symtab = self.root.symbol_table
         for arg in self._arguments.args:
             if arg.argument_type == "field":
                 try:
-                    init_buf = symtab.lookup_with_tag(
-                                    "ocl_init_buffer_func").name
+                    init_buf = symtab.lookup_with_tag("ocl_init_buffer_func")
                 except KeyError:
                     # If the subroutines does not exist, it needs to be
                     # generated first.
-                    init_buf = self.gen_ocl_initialise_buffer(
-                        parent.parent)
+                    self.gen_ocl_initialise_buffer(parent.parent)
+                    init_buf = symtab.lookup_with_tag("ocl_init_buffer_func")
 
                 # Insert call to init_buff
+                field = symtab.lookup(arg.name)
+                call = Call.create(init_buf, [Reference(field)])
+                parent.add(PSyIRGen(parent, call))
+
+                # Lookup for the OpenCL memory object for this field
+                name = arg.name + "_cl_mem"
+                try:
+                    symbol = symtab.lookup_with_tag(arg.name + "_cl_mem")
+                except KeyError:
+                    symbol = symtab.new_symbol(
+                        name, tag=name, symbol_type=DataSymbol,
+                        datatype=UnknownFortranType("INTEGER(KIND=c_intptr_t)"
+                                                    " :: " + name))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind="c_intptr_t", entity_decls=[name]))
+
+                # Cast buffer to cl_mem type expected by OpenCL
+                source = StructureReference.create(field, ['device_ptr'])
+                dest = Reference(symbol)
+                bop = BinaryOperation.create(BinaryOperation.Operator.CAST,
+                                             source, dest)
+                assig = Assignment.create(dest, bop)
+                parent.add(PSyIRGen(parent, assig))
 
     def gen_ocl_initialise_buffer(self, f2pygen_module):
         '''
@@ -1570,6 +1591,7 @@ class GOKern(CodedKern):
         code = '''
         subroutine initialise_device_buffer(field)
             USE fortcl, ONLY: create_rw_buffer
+            use field_mod
             type(r2d_field), intent(inout), target :: field
             integer(kind=c_size_t) size_in_bytes
             IF (.NOT. field%data_on_device) THEN
@@ -1639,7 +1661,7 @@ class GOKern(CodedKern):
             ierr = clEnqueueReadBuffer(cmd_queues(1), cl_mem, &
                 CL_TRUE, offset_in_bytes, size_in_bytes, C_LOC(to), 0, &
                 C_NULL_PTR, C_NULL_PTR)
-            CALL check_status(\'clEnqueueReadBuffer\', ierr)
+            CALL check_status("clEnqueueReadBuffer", ierr)
         end subroutine read_sub
         '''
 
@@ -1683,7 +1705,7 @@ class GOKern(CodedKern):
             ierr = clEnqueueWriteBuffer(cmd_queues(1), cl_mem, &
                 CL_TRUE, offset_in_bytes, size_in_bytes, C_LOC(from), 0, &
                 C_NULL_PTR, C_NULL_PTR)
-            CALL check_status(\'clEnqueueWriteBuffer\', ierr)
+            CALL check_status("clEnqueueWriteBuffer", ierr)
         end subroutine write_sub
         '''
 
