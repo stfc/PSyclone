@@ -64,9 +64,9 @@ contains
     implicit none
 
     integer(kind=i_def), intent(in)                     :: nlayers
+    integer(kind=i_def)                                 :: ndf_w0, undf_w0
     real(kind=r_def), dimension(undf_w0), intent(inout) :: fld1
     real(kind=r_def), dimension(undf_w0), intent(in)    :: fld2
-    integer(kind=i_def)                                 :: ndf_w0, undf_w0
     integer(kind=i_def), dimension(ndf_w0)              :: map_w0
 
     integer(kind=i_def)                                 :: i, k
