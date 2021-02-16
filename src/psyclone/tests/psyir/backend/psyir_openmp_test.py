@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran and c module'''
@@ -78,8 +78,8 @@ def test_nemo_omp_parallel():
     result = fvisitor(schedule)
     correct = '''!$omp parallel private(a,i)
     do i = 1, 20, 2
-      a=2 * i
-      b(i)=b(i) + a
+      a = 2 * i
+      b(i) = b(i) + a
     enddo
 !$omp end parallel'''
     assert correct in result
@@ -143,7 +143,7 @@ def test_gocean_omp_parallel():
     fvisitor = FortranWriter()
     result = fvisitor(omp_sched[0])
     correct = '''!$omp parallel
-  a=b
+  a = b
 !$omp end parallel'''
     assert correct in result
 
@@ -186,8 +186,8 @@ def test_nemo_omp_do():
     result = fvisitor(schedule)
     correct = '''!$omp do schedule(static)
     do i = 1, 20, 2
-      a=2 * i
-      b(i)=b(i) + a
+      a = 2 * i
+      b(i) = b(i) + a
     enddo
 !$omp end do'''
     assert correct in result
@@ -231,7 +231,7 @@ def test_gocean_omp_do():
     # the OMP node:
     result = fvisitor(omp_sched[0])
     correct = '''!$omp do schedule(static)
-  a=b
+  a = b
 !$omp end do'''
     assert correct in result
 

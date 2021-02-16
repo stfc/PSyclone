@@ -41,7 +41,7 @@
 program builtins_driver
 
   use constants_mod,        only : i_def, r_def
-  use global_mesh_base_mod, only : global_mesh_type => global_mesh_base_type
+  use global_mesh_base_mod, only : global_mesh_base_type
   use mesh_mod,             only : mesh_type
   use partition_mod,        only : partition_type,     &
                                    partitioner_planar, &
@@ -54,12 +54,12 @@ program builtins_driver
   implicit none
 
   ! Global and local mesh data types
-  type(global_mesh_type), target  :: global_mesh
-  type(global_mesh_type), pointer :: global_mesh_ptr => null()
-  type(mesh_type), target         :: mesh
+  type(global_mesh_base_type), target       :: global_mesh
+  class(global_mesh_base_type), pointer     :: global_mesh_ptr => null()
+  type(mesh_type), target                   :: mesh
   ! Extrusion
-  type(uniform_extrusion_type), target  :: extrusion
-  type(uniform_extrusion_type), pointer :: extrusion_ptr => null()
+  type(uniform_extrusion_type), target      :: extrusion
+  type(uniform_extrusion_type), pointer     :: extrusion_ptr => null()
   ! Partition
   type(partition_type)                      :: partition
   procedure(partitioner_interface), pointer :: partitioner_ptr => null()
@@ -106,7 +106,7 @@ program builtins_driver
   !-----------------------------------------------------------------------------
   call log_event( "Creating mesh", LOG_LEVEL_INFO )
   ! Allocate global 2D mesh from the unit-test constructor
-  global_mesh = global_mesh_type()
+  global_mesh = global_mesh_base_type()
   global_mesh_ptr => global_mesh
 
   ! Generate the partition object

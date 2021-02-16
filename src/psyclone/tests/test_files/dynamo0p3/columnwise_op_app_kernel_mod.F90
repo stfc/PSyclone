@@ -50,7 +50,6 @@ use argument_mod,            only : arg_type, func_type,                    &
                                     GH_FIELD, GH_COLUMNWISE_OPERATOR,       &
                                     GH_REAL, GH_READ, GH_INC,               &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
-                                    GH_COLUMN_INDIRECTION_DOFMAP,           &
                                     CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
