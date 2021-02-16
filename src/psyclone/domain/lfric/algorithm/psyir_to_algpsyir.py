@@ -45,7 +45,7 @@ def psyir_to_algpsyir(psyir):
     '''
     from psyclone.psyir.nodes import Call, CodeBlock, ArrayReference
     from psyclone.psyir.symbols import RoutineSymbol
-    import psyclone.algorithm.psyir as algpsyir
+    import psyclone.domain.lfric.algorithm.psyir as algpsyir
     from fparser.two.Fortran2003 import Actual_Arg_Spec
 
     from psyclone.configuration import Config
