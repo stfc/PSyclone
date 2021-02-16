@@ -43,6 +43,7 @@ from enum import Enum
 import six
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import TypeSymbol, DataSymbol
+from psyclone.psyir.symbols.symbol import Symbol
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -377,6 +378,9 @@ class ArrayType(DataType):
                             "declaration then it should be a scalar "
                             "integer or an unknown type, but '{0}' is a "
                             "'{1}'.".format(symbol.name, symbol.datatype))
+                # TODO #1089 - add check that any References are not to a
+                # local datasymbol that is not constant (as this would have
+                # no value).
             elif not isinstance(dimension, (self.Extent, int)):
                 raise TypeError(
                     "DataSymbol shape list elements can only be "
@@ -480,9 +484,6 @@ class StructureType(DataType):
         :raises TypeError: if any of the supplied values are of the wrong type.
 
         '''
-        # This import has to be here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols import Symbol
         if not isinstance(name, str):
             raise TypeError(
                 "The name of a component of a StructureType must be a 'str' "
