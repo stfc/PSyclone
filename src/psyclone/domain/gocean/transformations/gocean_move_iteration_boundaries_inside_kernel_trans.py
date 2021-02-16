@@ -124,16 +124,16 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
 
         # Create new symbols in the PSylayer and initialise them with
         inv_xstart = invoke_st.symbol_from_tag(
-            "xstart_" + node.name, symbol_type=DataSymbol,
+            "xstart_" + node.name, root_name="xstart", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE)
         inv_xstop = invoke_st.symbol_from_tag(
-            "xstop_" + node.name, symbol_type=DataSymbol,
+            "xstop_" + node.name, root_name="xstop", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE)
         inv_ystart = invoke_st.symbol_from_tag(
-            "ystart_" + node.name, symbol_type=DataSymbol,
+            "ystart_" + node.name, root_name="ystart", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE)
         inv_ystop = invoke_st.symbol_from_tag(
-            "ystop_" + node.name, symbol_type=DataSymbol,
+            "ystop_" + node.name, root_name="ystop", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE)
 
         assign1 = Assignment.create(Reference(inv_xstart),
