@@ -365,6 +365,16 @@
 	version of Sphinx which were causing read the docs to fail to
 	build the documentation.
 
+        118) #1058 for #917. Updates the profiling example (gocean/eg5)
+        so that the appropriate wrapper library is automatically
+        compiled.
+
+        119) PR #1090. Adds support for LFRic builtins that accept integer-
+        valued fields.
+	
+	120) PR #1105 for #1104. Adds support for program, module and subroutine
+	to Fparser2Reader
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
