@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-21, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,17 +68,17 @@ class Call(Statement):
 
     @classmethod
     def create(cls, routine, arguments):
-        '''Create a Call instance given valid instances of a routine symbol,
-        and a list of child nodes for its arguments.
+        '''Create an instance of class cls given valid instances of a routine
+        symbol, and a list of child nodes for its arguments.
 
-        :param routine: the routine that this call calls.
+        :param routine: the routine that class cls calls.
         :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
         :param arguments: the arguments to this routine. These are \
             added as child nodes.
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
 
-        :returns: a Call instance.
-        :rtype: :py:class:`psyclone.psyir.nodes.Call`
+        :returns: an instance of cls.
+        :rtype: :py:class:`psyclone.psyir.nodes.Call` or a subclass thereof.
 
         '''
         if not isinstance(routine, RoutineSymbol):
