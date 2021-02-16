@@ -33,18 +33,14 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
 
-'''Specialise generic psyir representing an algorithm layer to an
-algorithm layer specific psyir which uses specialised classes
-
-TODO: There should be lfric and gocean-specific implementations
-e.g. for builtins and for when we start understanding the structure of
-the algorithn layer
+'''Specialise generic PSyIE representing an algorithm layer to an
+LFRic algorithm-layer-specific PSyIR which uses specialised classes.
 
 '''
 
 def psyir_to_algpsyir(psyir):
-    '''Takes a generic psyir tree and translates it to an
-    algorithm-specific psyir representation
+    '''Takes a generic PSyIR tree and translates it to an
+    LFRic algorithm-specific PSyIR representation
 
     '''
     from psyclone.psyir.nodes import Call, CodeBlock, ArrayReference
@@ -55,7 +51,6 @@ def psyir_to_algpsyir(psyir):
     from psyclone.configuration import Config
     from psyclone.parse.utils import check_api
 
-    # TODO Assumption that this is dynamo0.3 API
     from psyclone.dynamo0p3_builtins import BUILTIN_MAP as builtins
 
     for call in psyir.walk(Call):
@@ -63,7 +58,8 @@ def psyir_to_algpsyir(psyir):
             call_description = None
             kernel_calls = []
             for call_arg in call.children:
-                # Named argument, builtin or kernelcall
+                # Children should be a named argument, builtin or
+                # kernelcall.
                 if isinstance(call_arg, CodeBlock) and isinstance(call_arg.ast, Actual_Arg_Spec):
                     # TODO Check call_arg.ast.children[0] is a Name with content "name"
                     # TODO Check call_arg.ast.children[1] is a Char_Literal_Constant

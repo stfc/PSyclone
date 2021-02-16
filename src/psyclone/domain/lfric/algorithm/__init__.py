@@ -33,7 +33,10 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module for the Algorithm layer.
+'''Module to capture LFRic-specific PSyIR for the Algorithm layer, the
+transformation from PSyIR to LFRic-specific PSyIR and transformations
+on LFRic-specific PSyIR.
+
 '''
 
 from psyclone.algorithm.psyir_to_algpsyir import psyir_to_algpsyir

@@ -33,26 +33,37 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
 
-'''This module contains algorithm-layer-specific PSyIR classes
+'''This module contains LFRic Algorithm-layer-specific PSyIR classes.
 
 '''
 from psyclone.psyir.nodes import Call, Node
 
 
 class AlgorithmInvokeCall(Call):
-    '''An invoke call in the Algorithm layer'''
+    '''An invoke call in an LFRic Algorithm layer.
+
+    :param routine: xxx
+    :type routine: xxx
+    :param parent: xxx
+    :type parent: xxx
+    :param str description: xxx
+
+    '''
     _children_valid_format = "[KernelLayerCall]*"
     _text_name = "AlgorithmInvokeCall"
-    _colour_key = "Container"  # green
+
+    # Change this when PR #1122 is on master
+    # _colour = "green"
+    _colour_key = "Container"
 
     def __init__(self, routine, parent=None, description=None):
         self._description = description
         super(AlgorithmInvokeCall, self).__init__(routine, parent=parent)
 
     def node_str(self, colour=True):
-        '''
-        Construct a text representation of this node, optionally containing
-        colour control codes.
+        '''Construct a text representation of this node, optionally
+        containing colour control codes. Specialise as this node has
+        an additional description argument.
 
         :param bool colour: whether or not to include colour control codes.
 
@@ -60,7 +71,8 @@ class AlgorithmInvokeCall(Call):
         :rtype: str
 
         '''
-        return "{0}[description=\"{1}\"]".format(self.coloured_name(colour), self._description)
+        return "{0}[description=\"{1}\"]".format(self.coloured_name(colour),
+                                                 self._description)
 
     @staticmethod
     def _validate_child(position, child):
@@ -77,29 +89,35 @@ class AlgorithmInvokeCall(Call):
 
 
 class KernelLayerCall(Call):
-    '''A call to a coded kernel or builtin from an invoke call in the
-    Algorithm layer
+    '''A call to a coded kernel or builtin from an invoke call in an LFRic
+    Algorithm layer.
 
     '''
+    # Change this when PR #1122 is on master
+    # _colour = "green"
     _colour_key = "Container"  # green
 
 
 class BuiltinCall(KernelLayerCall):
-    '''A call to a builtin from an invoke call in the Algorithm layer'''
+    '''A call to a builtin from an invoke call in an LFRic Algorithm
+    layer.
+
+    '''
     _text_name = "BuiltinCall"
 
 
 class CodedCall(KernelLayerCall):
-    '''A call to a coded kernel from an invoke call in the Algorithm
-    layer
+    '''A call to a coded kernel from an invoke call in an LFRic Algorithm
+    layer.
 
     '''
     _text_name = "CodedCall"
 
 
-class KernelLayerArgument(Node):
-    '''A call to a coded kernel or builtin from an invoke call in the
-    Algorithm layer
-
-    '''
-    pass
+#Not used at the moment???
+#class KernelLayerArgument(Node):
+#    '''A call to a coded kernel or builtin from an invoke call in the
+#    Algorithm layer
+#
+#    '''
+#    pass
