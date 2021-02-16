@@ -1064,6 +1064,7 @@ class InvokeSchedule(Routine):
                                entity_decls=[first],
                                initial_values=[".true."]))
             if_first = IfThenGen(parent, first)
+            self._first_time_block = if_first
             parent.add(if_first)
             if_first.add(AssignGen(if_first, lhs=first, rhs=".false."))
             if_first.add(CommentGen(if_first,

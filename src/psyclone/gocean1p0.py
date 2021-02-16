@@ -1509,6 +1509,7 @@ class GOKern(CodedKern):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         symtab = self.root.symbol_table
+        ft_block = self.root._first_time_block
         for arg in self._arguments.args:
             if arg.argument_type == "field":
                 try:
@@ -1522,7 +1523,10 @@ class GOKern(CodedKern):
                 # Insert call to init_buff
                 field = symtab.lookup(arg.name)
                 call = Call.create(init_buf, [Reference(field)])
-                parent.add(PSyIRGen(parent, call))
+                ft_block.add(PSyIRGen(ft_block, call))
+                call = Call.create(
+                    RoutineSymbol(arg.name+"%write_to_device()"), [])
+                ft_block.add(PSyIRGen(ft_block, call))
 
                 # Lookup for the OpenCL memory object for this field
                 name = arg.name + "_cl_mem"
@@ -1556,7 +1560,91 @@ class GOKern(CodedKern):
                 # Insert call
                 field = symtab.lookup(self._arguments.find_grid_access().name)
                 call = Call.create(init_buf, [Reference(field)])
-                parent.add(PSyIRGen(parent, call))
+                ft_block.add(PSyIRGen(ft_block, call))
+
+                # Grid write
+                try:
+                    init_buf = symtab.lookup_with_tag("ocl_write_grid_buffers")
+                except KeyError:
+                    # If the subroutines does not exist, it needs to be
+                    # generated first.
+                    self.gen_ocl_write_grid_buffers(parent.parent)
+                    init_buf = symtab.lookup_with_tag("ocl_write_grid_buffers")
+
+                # Insert call
+                field = symtab.lookup(self._arguments.find_grid_access().name)
+                call = Call.create(init_buf, [Reference(field)])
+                ft_block.add(PSyIRGen(ft_block, call))
+
+    def gen_ocl_write_grid_buffers(self, f2pygen_module):
+        '''
+        Insert a f2pygen subroutine to initialise the OpenCL buffer in a
+        OpenCL device using FortCL in the given f2pygen module and return
+        its name.
+
+        :param f2pygen_module: the module where the new function will be \
+                               inserted.
+        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        :returns: the name of the generated subroutine.
+        :rtype: str
+
+        '''
+        symtab = self.root.symbol_table
+
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_name = symtab.new_symbol(
+            "write_grid_buffers", symbol_type=RoutineSymbol,
+            tag="ocl_write_grid_buffers").name
+
+        code = '''
+        subroutine write_device_grid(field)
+            USE fortcl, ONLY: get_cmd_queues
+            use iso_c_binding, only: c_intptr_t, c_size_t, c_sizeof
+            USE clfortran
+            USE ocl_utils_mod, ONLY: check_status
+            type(r2d_field), intent(inout), target :: field
+            integer(kind=c_size_t) size_in_bytes
+            INTEGER(c_intptr_t), pointer :: cmd_queues(:)
+            integer :: ierr
+            cmd_queues => get_cmd_queues()
+            ! Integer grid buffers
+            size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * &
+                            c_sizeof(field%grid%tmask(1,1))
+            ierr = clEnqueueWriteBuffer(cmd_queues(1), &
+                        field%grid%tmask_device, CL_TRUE, 0_8, &
+                        size_in_bytes, C_LOC(field%grid%tmask), 0, &
+                        C_NULL_PTR, C_NULL_PTR)
+            CALL check_status("clEnqueueWriteBuffer tmask", ierr)
+            ! Real grid buffers
+            size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * &
+                            c_sizeof(field%grid%area_t(1,1))
+        '''
+        write_str = '''
+            ierr = clEnqueueWriteBuffer(cmd_queues(1), &
+                       field%grid%{0}_device, CL_TRUE, 0_8, &
+                       size_in_bytes, C_LOC(field%grid%{0}), 0, &
+                       C_NULL_PTR, C_NULL_PTR)
+            CALL check_status("clEnqueueWriteBuffer {0}_device", ierr)
+        '''
+        for grid_prop in ['area_t', 'area_u', 'area_v', 'dx_u', 'dx_v',
+                          'dx_t', 'dy_u', 'dy_v', 'dy_t', 'gphiu', 'gphiv']:
+            code += write_str.format(grid_prop)
+
+        code += "end subroutine write_device_grid"
+
+        processor = Fparser2Reader()
+        reader = FortranStringReader(code)
+        parser = ParserFactory().create(std="f2003")
+        parse_tree = parser(reader)
+        subroutine = processor.generate_psyir(parse_tree)
+        # Rename subroutine
+        subroutine.name = subroutine_name
+
+        # Insert the code in the invoke module
+        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        return subroutine_name
 
     def gen_ocl_initialise_buffer(self, f2pygen_module):
         '''
