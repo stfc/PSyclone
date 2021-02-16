@@ -557,7 +557,9 @@ class PSyIRGen(BaseGen):
         # supplied PSyIR tree and pass the resulting code to the fparser1
         # Fortran parser.
         fortran_writer = FortranWriter()
-        reader = FortranStringReader(fortran_writer(content),
+        # FortranStringReader makes any string starting with 'c' a comment,
+        # which happens when the content is a Call. The whitespace fixes it.
+        reader = FortranStringReader(' ' + fortran_writer(content),
                                      ignore_comments=False)
         fparser1_parser = FortranParser(reader, ignore_comments=False)
         fparser1_parser.parse()

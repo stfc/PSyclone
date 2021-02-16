@@ -1544,6 +1544,20 @@ class GOKern(CodedKern):
                 assig = Assignment.create(dest, bop)
                 parent.add(PSyIRGen(parent, assig))
 
+            elif arg.argument_type == "grid_property" and not arg.is_scalar:
+                try:
+                    init_buf = symtab.lookup_with_tag("ocl_init_grid_buffers")
+                except KeyError:
+                    # If the subroutines does not exist, it needs to be
+                    # generated first.
+                    self.gen_ocl_initialise_grid_buffers(parent.parent)
+                    init_buf = symtab.lookup_with_tag("ocl_init_grid_buffers")
+
+                # Insert call
+                field = symtab.lookup(self._arguments.find_grid_access().name)
+                call = Call.create(init_buf, [Reference(field)])
+                parent.add(PSyIRGen(parent, call))
+
     def gen_ocl_initialise_buffer(self, f2pygen_module):
         '''
         Insert a f2pygen subroutine to initialise the OpenCL buffer in a
@@ -1620,6 +1634,93 @@ class GOKern(CodedKern):
         f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
 
         return subroutine_name
+
+    def gen_ocl_initialise_grid_buffers(self, f2pygen_module):
+        '''
+        Insert a f2pygen subroutine to initialise the OpenCL buffer in a
+        OpenCL device using FortCL in the given f2pygen module and return
+        its name.
+
+        :param f2pygen_module: the module where the new function will be \
+                               inserted.
+        :param type: :py:class:`psyclone.f2pygen.ModuleGen`
+
+        :returns: the name of the generated subroutine.
+        :rtype: str
+
+        '''
+        symtab = self.root.symbol_table
+
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_name = symtab.new_symbol(
+            "initialise_grid_device_buffers", symbol_type=RoutineSymbol,
+            tag="ocl_init_grid_buffers").name
+
+        # Get the GOcean API property names used in this routine
+        api_config = Config.get().api_conf("gocean1.0")
+        host_buff = \
+            api_config.grid_properties["go_grid_data"].fortran.format("field")
+        props = api_config.grid_properties
+        num_x = props["go_grid_nx"].fortran.format("field")
+        num_y = props["go_grid_ny"].fortran.format("field")
+
+        # Fields need to provide a function pointer to how the
+        # device data is going to be read and written, if it doesn't
+        # exist, create the appropriate subroutine first.
+        try:
+            read_fp = symtab.lookup_with_tag("ocl_read_func").name
+        except KeyError:
+            # If the subroutines does not exist, it needs to be
+            # generated first.
+            read_fp = self.gen_ocl_read_from_device_function(f2pygen_module)
+        try:
+            write_fp = \
+                symtab.lookup_with_tag("ocl_write_func").name
+        except KeyError:
+            write_fp = self.gen_ocl_write_to_device_function(f2pygen_module)
+
+        code = '''
+        subroutine initialise_device_grid(field)
+            USE fortcl, ONLY: create_rw_buffer
+            use field_mod
+            type(r2d_field), intent(inout), target :: field
+            integer(kind=c_size_t) size_in_bytes
+            IF (field%grid%tmask_device == 0) THEN
+                ! Create integer grid fields
+                size_in_bytes = int({0}*{1}, 8) * &
+                                    c_sizeof(field%grid%tmask(1,1))
+                field%grid%tmask_device = create_rw_buffer(size_in_bytes)
+                ! Create real grid buffers
+                size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * &
+                                    c_sizeof(field%grid%area_t(1,1))
+                field%grid%area_t_device = create_rw_buffer(size_in_bytes)
+                field%grid%area_u_device = create_rw_buffer(size_in_bytes)
+                field%grid%area_v_device = create_rw_buffer(size_in_bytes)
+                field%grid%dx_u_device = create_rw_buffer(size_in_bytes)
+                field%grid%dx_v_device = create_rw_buffer(size_in_bytes)
+                field%grid%dx_t_device = create_rw_buffer(size_in_bytes)
+                field%grid%dy_u_device = create_rw_buffer(size_in_bytes)
+                field%grid%dy_v_device = create_rw_buffer(size_in_bytes)
+                field%grid%dy_t_device = create_rw_buffer(size_in_bytes)
+                field%grid%gphiu_device = create_rw_buffer(size_in_bytes)
+                field%grid%gphiv_device = create_rw_buffer(size_in_bytes)
+            END IF
+        end subroutine initialise_device_grid
+        '''.format(num_x, num_y, host_buff, read_fp, write_fp)
+
+        processor = Fparser2Reader()
+        reader = FortranStringReader(code)
+        parser = ParserFactory().create(std="f2003")
+        parse_tree = parser(reader)
+        subroutine = processor.generate_psyir(parse_tree)
+        # Rename subroutine
+        subroutine.name = subroutine_name
+
+        # Insert the code in the invoke module
+        f2pygen_module.add(PSyIRGen(f2pygen_module, subroutine))
+
+        return subroutine_name
+
 
     def gen_ocl_read_from_device_function(self, f2pygen_module):
         '''
