@@ -40,9 +40,15 @@ on LFRic-specific PSyIR.
 '''
 
 from psyclone.domain.lfric.algorithm.psyir_to_algpsyir import psyir_to_algpsyir
+from psyclone.domain.lfric.algorithm.psyir import \
+    AlgorithmInvokeCall, CodedCall, BuiltinCall
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.algorithm import psyir_to_alg_psyir
 
-__all__ = ['psyir_to_alg_psyir']
+__all__ = [
+    'psyir_to_alg_psyir',
+    'AlgorithmInvokeCall',
+    'CodedCall',
+    'BuiltinCall']
