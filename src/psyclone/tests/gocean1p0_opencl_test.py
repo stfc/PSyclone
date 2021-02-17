@@ -804,6 +804,32 @@ def test_opencl_prepared_kernel_code_generation():
     assert expected_code == openclwriter(kschedule)
 
 
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_opencl_kernel_missing_symbol():
+    '''Check that an OpenCL file named modulename_kernelname_0 is generated.
+    '''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+
+    # Create dummy boundary symbols for the "name" kernel with one missing
+    # symbol
+    sched.symbol_table.new_symbol(
+        "a", tag="xstart_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    sched.symbol_table.new_symbol(
+        "c", tag="ystart_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    sched.symbol_table.new_symbol(
+        "d", tag="ystop_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    sched.kernels()[0].name = "name"
+
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
+    assert ("Boundary symbol tag 'xstop_name' not found while generating the "
+            "OpenCL code for kernel 'name'." in str(err.value))
+
+
 def test_opencl_kernel_output_file(kernel_outputdir):
     '''Check that an OpenCL file named modulename_kernelname_0 is generated.
     '''

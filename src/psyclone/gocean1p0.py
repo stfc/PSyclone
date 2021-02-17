@@ -1221,12 +1221,15 @@ class GOKern(CodedKern):
                 # We need to find the symbol that defines each boundary for
                 # this kernel, make sure it is declared, and subtract 1 from
                 # each boundary value as OpenCL is  0-indexed.
-                symbol = symtab.lookup_with_tag(boundary + "_" + self.name)
+                tag = boundary + "_" + self.name
+                symbol = symtab.lookup_with_tag(tag)
                 arguments.append(symbol.name + " - 1")
                 parent.add(DeclGen(parent, datatype="integer",
                                    entity_decls=[symbol.name]))
         except KeyError as err:
-            six.raise_from(GenerationError("Boundary symbol not found"), err)
+            six.raise_from(GenerationError(
+                "Boundary symbol tag '{0}' not found while generating the "
+                "OpenCL code for kernel '{1}'.".format(tag, self.name)), err)
         for arg in self._arguments.args:
             if arg.argument_type == "scalar":
                 arguments.append(arg.name)
