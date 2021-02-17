@@ -50,6 +50,8 @@ from psyclone.psyir.symbols import DataSymbol, ArgumentInterface, \
 from psyclone.tests.utilities import Compile, get_invoke
 from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.tests.gocean1p0_build import GOcean1p0OpenCLBuild
+from psyclone.domain.gocean.transformations import \
+    GOMoveIterationBoundariesInsideKernelTrans
 
 
 API = "gocean1.0"
@@ -96,6 +98,13 @@ def test_invoke_use_stmts(kernel_outputdir, monkeypatch, debug_mode):
     monkeypatch.setattr(api_config, "_debug_mode", debug_mode)
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for OCLTrans
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen).lower()
@@ -120,6 +129,12 @@ def test_invoke_opencl_initialisation(kernel_outputdir):
     OpenCL first time initialisation code '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for OCLTrans
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen).lower()
@@ -161,6 +176,12 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
     monkeypatch.setattr(api_config, "_debug_mode", debug_mode)
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for OCLTrans
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
@@ -184,8 +205,8 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
     # OpenCL 0-indexing
     expected += '''
       CALL compute_cu_code_set_args(kernel_compute_cu_code, \
-cu_fld%internal%xstart - 1, cu_fld%internal%xstop - 1, \
-cu_fld%internal%ystart - 1, cu_fld%internal%ystop - 1, \
+xstart - 1, xstop - 1, \
+ystart - 1, ystop - 1, \
 cu_fld%device_ptr, p_fld%device_ptr, u_fld%device_ptr)'''
 
     expected += '''
@@ -222,6 +243,12 @@ def test_grid_proprty(kernel_outputdir):
     works.'''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for OCLTrans
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen).lower()
@@ -239,6 +266,12 @@ def test_field_arguments(kernel_outputdir):
     generated.'''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for OCLTrans
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen).lower()
@@ -290,6 +323,12 @@ def test_psy_init(kernel_outputdir, monkeypatch):
     OpenCL environment. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for OCLTrans
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
@@ -374,6 +413,12 @@ def test_psy_init_with_options(kernel_outputdir):
     OpenCL environment with the provided non-default options. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for OCLTrans
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
     otrans = OCLTrans()
     otrans.apply(sched, options={"end_barrier": True,
                                  "enable_profiling": True,
@@ -391,6 +436,12 @@ def test_opencl_options_validation():
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for OCLTrans
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
     otrans = OCLTrans()
 
     # Unsupported options are not accepted
@@ -446,6 +497,14 @@ def test_opencl_multi_invoke_options_validation(option_to_check):
     psy, _ = get_invoke("test12_two_invokes_two_kernels.f90", API, idx=0)
     invoke1_schedule = psy.invokes.invoke_list[0].schedule
     invoke2_schedule = psy.invokes.invoke_list[1].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for OCLTrans
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in invoke1_schedule.coded_kernels():
+        trans.apply(kernel)
+    for kernel in invoke2_schedule.coded_kernels():
+        trans.apply(kernel)
+
     otrans = OCLTrans()
     otrans.apply(invoke1_schedule, options={option_to_check: False})
     otrans.apply(invoke2_schedule, options={option_to_check: True})
@@ -464,6 +523,12 @@ def test_opencl_options_effects():
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for OCLTrans
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
@@ -504,6 +569,12 @@ def test_set_kern_args(kernel_outputdir):
     ''' Check that we generate the necessary code to set kernel arguments. '''
     psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for OCLTrans
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
@@ -524,19 +595,19 @@ def test_set_kern_args(kernel_outputdir):
     assert expected in generated_code
     expected = '''\
       ! Set the arguments for the compute_cu_code OpenCL Kernel
-      ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(xstart), C_LOC(xstart))
+      ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(cu_fld), C_LOC(cu_fld))
       CALL check_status('clSetKernelArg: arg 0 of compute_cu_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(xstop), C_LOC(xstop))
+      ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(p_fld), C_LOC(p_fld))
       CALL check_status('clSetKernelArg: arg 1 of compute_cu_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(ystart), C_LOC(ystart))
+      ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(u_fld), C_LOC(u_fld))
       CALL check_status('clSetKernelArg: arg 2 of compute_cu_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(ystop), C_LOC(ystop))
+      ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(xstart), C_LOC(xstart))
       CALL check_status('clSetKernelArg: arg 3 of compute_cu_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 4, C_SIZEOF(cu_fld), C_LOC(cu_fld))
+      ierr = clSetKernelArg(kernel_obj, 4, C_SIZEOF(xstop), C_LOC(xstop))
       CALL check_status('clSetKernelArg: arg 4 of compute_cu_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 5, C_SIZEOF(p_fld), C_LOC(p_fld))
+      ierr = clSetKernelArg(kernel_obj, 5, C_SIZEOF(ystart), C_LOC(ystart))
       CALL check_status('clSetKernelArg: arg 5 of compute_cu_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 6, C_SIZEOF(u_fld), C_LOC(u_fld))
+      ierr = clSetKernelArg(kernel_obj, 6, C_SIZEOF(ystop), C_LOC(ystop))
       CALL check_status('clSetKernelArg: arg 6 of compute_cu_code', ierr)
     END SUBROUTINE compute_cu_code_set_args'''
     assert expected in generated_code
@@ -544,8 +615,8 @@ def test_set_kern_args(kernel_outputdir):
                                 "kernel_obj, xstart, xstop, ystart, ystop, "
                                 "u_fld, unew_fld, uold_fld)") == 1
     assert ("CALL compute_cu_code_set_args(kernel_compute_cu_code, "
-            "cu_fld%internal%xstart - 1, cu_fld%internal%xstop - 1, "
-            "cu_fld%internal%ystart - 1, cu_fld%internal%ystop - 1, "
+            "xstart - 1, xstop - 1, "
+            "ystart - 1, ystop - 1, "
             "cu_fld%device_ptr, p_fld%device_ptr, "
             "u_fld%device_ptr)" in generated_code)
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
@@ -557,6 +628,12 @@ def test_set_kern_args_real_grid_property():
     property. '''
     psy, _ = get_invoke("driver_test.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for OCLTrans
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
@@ -584,6 +661,12 @@ def test_set_kern_float_arg():
     argument. '''
     psy, _ = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for OCLTrans
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
@@ -602,21 +685,21 @@ a_scalar, ssh_fld, xstop, tmask)
     assert expected in generated_code
     expected = '''\
       ! Set the arguments for the bc_ssh_code OpenCL Kernel
-      ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(xstart), C_LOC(xstart))
+      ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(a_scalar), C_LOC(a_scalar))
       CALL check_status('clSetKernelArg: arg 0 of bc_ssh_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(xstop), C_LOC(xstop))
+      ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(ssh_fld), C_LOC(ssh_fld))
       CALL check_status('clSetKernelArg: arg 1 of bc_ssh_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(ystart), C_LOC(ystart))
+      ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(xstop), C_LOC(xstop))
       CALL check_status('clSetKernelArg: arg 2 of bc_ssh_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(ystop), C_LOC(ystop))
+      ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(tmask), C_LOC(tmask))
       CALL check_status('clSetKernelArg: arg 3 of bc_ssh_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 4, C_SIZEOF(a_scalar), C_LOC(a_scalar))
+      ierr = clSetKernelArg(kernel_obj, 4, C_SIZEOF(xstart), C_LOC(xstart))
       CALL check_status('clSetKernelArg: arg 4 of bc_ssh_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 5, C_SIZEOF(ssh_fld), C_LOC(ssh_fld))
+      ierr = clSetKernelArg(kernel_obj, 5, C_SIZEOF(xstop), C_LOC(xstop))
       CALL check_status('clSetKernelArg: arg 5 of bc_ssh_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 6, C_SIZEOF(xstop), C_LOC(xstop))
+      ierr = clSetKernelArg(kernel_obj, 6, C_SIZEOF(ystart), C_LOC(ystart))
       CALL check_status('clSetKernelArg: arg 6 of bc_ssh_code', ierr)
-      ierr = clSetKernelArg(kernel_obj, 7, C_SIZEOF(tmask), C_LOC(tmask))
+      ierr = clSetKernelArg(kernel_obj, 7, C_SIZEOF(ystop), C_LOC(ystop))
       CALL check_status('clSetKernelArg: arg 7 of bc_ssh_code', ierr)
     END SUBROUTINE bc_ssh_code_set_args'''
     assert expected in generated_code
@@ -686,18 +769,19 @@ def test_opencl_prepared_kernel_code_generation():
     psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=False)
     sched = psy.invokes.invoke_list[0].schedule
     kernel = sched.children[0].loop_body[0].loop_body[0]  # compute_cu kernel
-    kernel._prepare_opencl_kernel_schedule()
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    trans.apply(kernel)
     kschedule = kernel.get_kernel_schedule()
 
     expected_code = (
         "__kernel void compute_cu_code(\n"
+        "  __global double * restrict cu,\n"
+        "  __global double * restrict p,\n"
+        "  __global double * restrict u,\n"
         "  int xstart,\n"
         "  int xstop,\n"
         "  int ystart,\n"
-        "  int ystop,\n"
-        "  __global double * restrict cu,\n"
-        "  __global double * restrict p,\n"
-        "  __global double * restrict u\n"
+        "  int ystop\n"
         "  ){\n"
         "  int cuLEN1 = get_global_size(0);\n"
         "  int cuLEN2 = get_global_size(1);\n"
@@ -720,11 +804,47 @@ def test_opencl_prepared_kernel_code_generation():
     assert expected_code == openclwriter(kschedule)
 
 
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_opencl_kernel_missing_symbol():
+    '''Check that an OpenCL file named modulename_kernelname_0 is generated.
+    '''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+
+    # Create dummy boundary symbols for the "name" kernel with one missing
+    # symbol
+    sched.symbol_table.new_symbol(
+        "a", tag="xstart_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    sched.symbol_table.new_symbol(
+        "c", tag="ystart_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    sched.symbol_table.new_symbol(
+        "d", tag="ystop_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    sched.kernels()[0].name = "name"
+
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
+    assert ("Boundary symbol tag 'xstop_name' not found while generating the "
+            "OpenCL code for kernel 'name'." in str(err.value))
+
+
 def test_opencl_kernel_output_file(kernel_outputdir):
     '''Check that an OpenCL file named modulename_kernelname_0 is generated.
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+    # Create dummy boundary symbols for the "name" kernel
+    sched.symbol_table.new_symbol(
+        "a", tag="xstart_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    sched.symbol_table.new_symbol(
+        "b", tag="xstop_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    sched.symbol_table.new_symbol(
+        "c", tag="ystart_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    sched.symbol_table.new_symbol(
+        "d", tag="ystop_name", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+
     otrans = OCLTrans()
     otrans.apply(sched)
     sched.kernels()[0].name = "name"
@@ -740,6 +860,12 @@ def test_opencl_kernel_output_file_with_suffix(kernel_outputdir):
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for OCLTrans
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+
     otrans = OCLTrans()
     otrans.apply(sched)
     _ = psy.gen  # Generates the OpenCL kernels as a side-effect.

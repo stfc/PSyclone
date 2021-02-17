@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -197,3 +197,12 @@ class Assignment(Statement):
         if not isinstance(self.lhs, ArrayReference):
             return False
         return any(dim for dim in self.lhs.children if isinstance(dim, Range))
+
+    def gen_code(self, parent):
+        '''Abstract base class for code generation function.
+
+        :param parent: the parent of this Node in the PSyIR.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        from psyclone.f2pygen import PSyIRGen
+        parent.add(PSyIRGen(parent, self))

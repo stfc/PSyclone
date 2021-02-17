@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Transformation module, containing all generic (API independent)
 transformations and base classes.
@@ -55,6 +55,8 @@ from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
     Sign2CodeTrans
 from psyclone.psyir.transformations.arrayrange2loop_trans import \
     ArrayRange2LoopTrans
+from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
+    import FoldConditionalReturnExpressionsTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 # The entities in the __all__ list are made available to import directly from
@@ -72,4 +74,5 @@ __all__ = ['ExtractTrans',
            'Min2CodeTrans',
            'Sign2CodeTrans',
            'TransformationError',
-           'ArrayRange2LoopTrans']
+           'ArrayRange2LoopTrans',
+           'FoldConditionalReturnExpressionsTrans']

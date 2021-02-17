@@ -771,7 +771,7 @@ class GOLoop(Loop):
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
-    def _upper_bound(self):
+    def upper_bound(self):
         ''' Creates the PSyIR of the upper bound of this loop.
         This takes the field type and usage of const_loop_bounds
         into account. In the case of const_loop_bounds it will be
@@ -861,7 +861,7 @@ class GOLoop(Loop):
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
-    def _lower_bound(self):
+    def lower_bound(self):
         ''' Returns the lower bound of this loop as a string.
         This takes the field type and usage of const_loop_bounds
         into account. In case of const_loop_bounds it will be
@@ -942,8 +942,8 @@ class GOLoop(Loop):
         :rtype: str
         '''
         # Generate the upper and lower loop bounds
-        self.start_expr = self._lower_bound()
-        self.stop_expr = self._upper_bound()
+        self.start_expr = self.lower_bound()
+        self.stop_expr = self.upper_bound()
 
         return super(GOLoop, self).node_str(colour)
 
@@ -951,8 +951,8 @@ class GOLoop(Loop):
         ''' Returns a string describing this Loop object '''
 
         # Generate the upper and lower loop bounds
-        self.start_expr = self._lower_bound()
-        self.stop_expr = self._upper_bound()
+        self.start_expr = self.lower_bound()
+        self.stop_expr = self.upper_bound()
 
         return super(GOLoop, self).__str__()
 
@@ -1004,8 +1004,8 @@ class GOLoop(Loop):
                                              index_offset))
 
         # Generate the upper and lower loop bounds
-        self.start_expr = self._lower_bound()
-        self.stop_expr = self._upper_bound()
+        self.start_expr = self.lower_bound()
+        self.stop_expr = self.upper_bound()
 
         Loop.gen_code(self, parent)
 
@@ -1172,19 +1172,6 @@ class GOKern(CodedKern):
         # Generate code to ensure data is on device
         self.gen_data_on_ocl_device(parent)
 
-        # Extract the limits of the iteration space which are given by the
-        # loops surrounding the kernel, which won't be used in OpenCL.
-        # For now it converts the PSyIR to Fortran to use the values in
-        # f2pygen, but this should change in the future. Also note that OpenCL
-        # expects 0-indexing, hence we subtract 1 from each boundary value.
-        f_writer = FortranWriter()
-        inner_loop = self.parent.parent
-        inner_start = f_writer(inner_loop.start_expr) + " - 1"
-        inner_stop = f_writer(inner_loop.stop_expr) + " - 1"
-        outer_loop = inner_loop.parent.parent
-        outer_start = f_writer(outer_loop.start_expr) + " - 1"
-        outer_stop = f_writer(outer_loop.stop_expr) + " - 1"
-
         # Create array for the global work size argument of the kernel
         symtab = self.root.symbol_table
         garg = self._arguments.find_grid_access()
@@ -1230,7 +1217,21 @@ class GOKern(CodedKern):
         # In OpenCL the iteration boundaries are passed as arguments to the
         # kernel because the global work size may exceed the dimensions and
         # therefore the updates outsides the boundaries should be masked.
-        arguments = [kernel, inner_start, inner_stop, outer_start, outer_stop]
+        arguments = [kernel]
+        try:
+            for boundary in ["xstart", "xstop", "ystart", "ystop"]:
+                # We need to find the symbol that defines each boundary for
+                # this kernel, make sure it is declared, and subtract 1 from
+                # each boundary value as OpenCL is  0-indexed.
+                tag = boundary + "_" + self.name
+                symbol = symtab.lookup_with_tag(tag)
+                arguments.append(symbol.name + " - 1")
+                parent.add(DeclGen(parent, datatype="integer",
+                                   entity_decls=[symbol.name]))
+        except KeyError as err:
+            six.raise_from(GenerationError(
+                "Boundary symbol tag '{0}' not found while generating the "
+                "OpenCL code for kernel '{1}'.".format(tag, self.name)), err)
         for arg in self._arguments.args:
             if arg.argument_type == "scalar":
                 arguments.append(arg.name)
@@ -1413,18 +1414,7 @@ class GOKern(CodedKern):
             sub,
             " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
         index = 0
-        # First the boundary values
-        for boundary in boundary_names:
-            sub.add(AssignGen(
-                sub, lhs=err_name,
-                rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-                format(kobj, index, boundary)))
-            sub.add(CallGen(
-                sub, "check_status",
-                ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
-                 err_name]))
-            index = index + 1
-        # Then the PSy-layer kernel arguments
+        # First the PSy-layer kernel arguments
         for arg in self.arguments.args:
             sub.add(AssignGen(
                 sub, lhs=err_name,
@@ -1435,70 +1425,17 @@ class GOKern(CodedKern):
                 ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
                  err_name]))
             index = index + 1
-
-    def _prepare_opencl_kernel_schedule(self):
-        ''' GOcean OpenCL kernels take the iteration boundaries as arguments
-        and add a conditional masking statement to avoid updating elements
-        outside the boundaries.
-        '''
-        kschedule = self.get_kernel_schedule()
-        kernel_st = kschedule.symbol_table
-        iteration_indices = kernel_st.iteration_indices
-        data_arguments = kernel_st.data_arguments
-
-        # Create new symbols and insert them as kernel arguments after
-        # the initial iteration indices
-        xstart_symbol = kernel_st.new_symbol(
-            "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        xstop_symbol = kernel_st.new_symbol(
-            "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        ystart_symbol = kernel_st.new_symbol(
-            "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        ystop_symbol = kernel_st.new_symbol(
-            "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        kernel_st.specify_argument_list(
-            iteration_indices +
-            [xstart_symbol, xstop_symbol, ystart_symbol, ystop_symbol] +
-            data_arguments)
-
-        # Create boundaries masking condition
-        condition1 = BinaryOperation.create(
-            BinaryOperation.Operator.LT,
-            Reference(iteration_indices[0]),
-            Reference(xstart_symbol))
-        condition2 = BinaryOperation.create(
-            BinaryOperation.Operator.GT,
-            Reference(iteration_indices[0]),
-            Reference(xstop_symbol))
-        condition3 = BinaryOperation.create(
-            BinaryOperation.Operator.LT,
-            Reference(iteration_indices[1]),
-            Reference(ystart_symbol))
-        condition4 = BinaryOperation.create(
-            BinaryOperation.Operator.GT,
-            Reference(iteration_indices[1]),
-            Reference(ystop_symbol))
-
-        condition = BinaryOperation.create(
-            BinaryOperation.Operator.OR,
-            BinaryOperation.create(
-                BinaryOperation.Operator.OR,
-                condition1,
-                condition2),
-            BinaryOperation.create(
-                BinaryOperation.Operator.OR,
-                condition3,
-                condition4)
-            )
-
-        # Insert if condition masking as the kernel first statement
-        if_statement = IfBlock.create(condition, [Return()])
-        kschedule.children.insert(0, if_statement)
-        if_statement.parent = kschedule
+        # Then the boundary values
+        for boundary in boundary_names:
+            sub.add(AssignGen(
+                sub, lhs=err_name,
+                rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
+                format(kobj, index, boundary)))
+            sub.add(CallGen(
+                sub, "check_status",
+                ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
+                 err_name]))
+            index = index + 1
 
     def gen_data_on_ocl_device(self, parent):
         # pylint: disable=too-many-locals
