@@ -39,34 +39,12 @@ transformation.'''
 from __future__ import absolute_import
 import pytest
 
+from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.transformations import \
         FoldConditionalReturnExpressionsTrans
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.transformations import TransformationError
-
-
-SUB_IN = (
-    "subroutine sub1(i, a)\n"
-    "real, intent(inout) :: a\n"
-    "integer, intent(in) :: i\n"
-    " if (i < 5) then\n"
-    "    return\n"
-    " endif\n"
-    " if (i > 10) then\n"
-    "    return\n"
-    " endif\n"
-    "a=0.0\n"
-    "end subroutine\n")
-SUB_OUT = (
-    "subroutine sub1(i, a)\n"
-    "real, intent(inout) :: a\n"
-    "integer, intent(in) :: i\n"
-    " if (.not.(i < 5)) then\n"
-    "   if (.not.(i > 10)) then\n"
-    "     a=0.0\n"
-    "   endif\n"
-    " endif\n"
-    "end subroutine\n")
 
 
 def test_description():
@@ -87,9 +65,96 @@ def test_validation():
            in str(info.value))
 
 
-@pytest.mark.parametrize("input_code, expected",
-                         [(SUB_IN, SUB_OUT)])
-def test_transformation(input_code, expected):
+SUB_IN1 = (
+    "subroutine sub1(i, a)\n"
+    "  real, intent(inout) :: a\n"
+    "  integer, intent(in) :: i\n"
+    "  if (i < 5) then\n"
+    "    return\n"
+    "  endif\n"
+    "  if (i > 10) then\n"
+    "    ! Comments do not matter\n"
+    "    return\n"
+    "    a=2.0 ! Dead code do not matter\n"
+    "  endif\n"
+    "  a=0.0\n"
+    "end subroutine\n")
+SUB_OUT1 = (
+    "subroutine sub1(i, a)\n"
+    "  real, intent(inout) :: a\n"
+    "  integer, intent(in) :: i\n\n"
+    "  if (.NOT.i < 5) then\n"
+    "    if (.NOT.i > 10) then\n"
+    "      a = 0.0\n"
+    "    end if\n"
+    "  end if\n\n"
+    "end subroutine sub1\n")
+
+# Tests with preceding code that is not part of the mask
+SUB_IN2 = (
+    "subroutine sub1(i, a)\n"
+    "  real, intent(inout) :: a\n"
+    "  integer, intent(in) :: i\n"
+    "  {0}\n"
+    "  if (i < 5) then\n"
+    "    return\n"
+    "  endif\n"
+    "  if (i > 10) then\n"
+    "    return\n"
+    "  endif\n"
+    "  a=0.0\n"
+    "end subroutine\n")
+SUB_IN2_1 = SUB_IN2.format("a = 0.0")
+SUB_IN2_2 = SUB_IN2.format(
+    "if (i > 20) then\n"
+    "    a=0.0\n"
+    "    return\n"
+    "  end if")
+SUB_IN2_3 = SUB_IN2.format(
+    "if (i > 20) then\n"
+    "    return\n"
+    "  else\n"
+    "    a=0.0\n"
+    "  end if")
+SUB_OUT2 = (
+    "subroutine sub1(i, a)\n"
+    "  real, intent(inout) :: a\n"
+    "  integer, intent(in) :: i\n\n"
+    "  {0}\n"
+    "  if (.NOT.i < 5) then\n"
+    "    if (.NOT.i > 10) then\n"
+    "      a = 0.0\n"
+    "    end if\n"
+    "  end if\n\n"
+    "end subroutine sub1\n")
+SUB_OUT2_1 = SUB_OUT2.format("a = 0.0")
+SUB_OUT2_2 = SUB_OUT2.format(
+    "if (i > 20) then\n"
+    "    a = 0.0\n"
+    "    return\n"
+    "  end if")
+SUB_OUT2_3 = SUB_OUT2.format(
+    "if (i > 20) then\n"
+    "    return\n"
+    "  else\n"
+    "    a = 0.0\n"
+    "  end if")
+
+test_cases = [(SUB_IN1, SUB_OUT1), (SUB_IN2_1, SUB_OUT2_1),
+              (SUB_IN2_2, SUB_OUT2_2), (SUB_IN2_3, SUB_OUT2_3)]
+
+
+@pytest.mark.parametrize("test_case", [0, 1, 2, 3])
+def test_transformation(parser, test_case):
     ''' Check that the transformation works as expected. '''
+    input_code, expected = test_cases[test_case]
     trans = FoldConditionalReturnExpressionsTrans()
-    assert True
+    processor = Fparser2Reader()
+    reader = FortranStringReader(input_code)
+    parse_tree = parser(reader)
+    subroutine = processor.generate_psyir(parse_tree)
+    trans.apply(subroutine)
+    writer = FortranWriter()
+    print(writer(subroutine))
+    print(expected)
+    assert writer(subroutine) == expected

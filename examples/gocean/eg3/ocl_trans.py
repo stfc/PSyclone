@@ -68,6 +68,7 @@ def trans(psy):
     # Provide kernel-specific OpenCL optimization options
     for kern in sched.kernels():
         move_boundaries_trans.apply(kern)
+        fold_trans.apply(kern.get_kernel_schedule())
         kern.set_opencl_options({"queue_number": 1, 'local_size': 4})
 
     return psy

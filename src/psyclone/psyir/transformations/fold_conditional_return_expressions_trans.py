@@ -121,8 +121,6 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
 
             if not isinstance(node, IfBlock):
                 return False
-            if len(node.if_body.children) != 1:
-                return False
             if node.else_body is not None:
                 return False
             return isinstance(node.if_body[0], Return)
@@ -137,9 +135,10 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
                 statement.children[0] = new_condition
                 new_condition.parent = statement
 
-                # Remove return and add remaining part of the routine
-                # schedule inside the loop body
-                del statement.if_body.children[0]
+                # Remove return (and dead code after return) and add remaining
+                # part of the routine schedule inside the loop body
+                for i in reversed(range(len(statement.if_body.children))):
+                    del statement.if_body.children[i]
                 start = statement.position
                 end = len(statement.parent.children) - 1
                 for index in range(end, start, -1):
