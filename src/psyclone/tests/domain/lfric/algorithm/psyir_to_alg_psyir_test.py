@@ -44,13 +44,14 @@ from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Reference, Literal
-from psyclone.domain.lfric.algorithm import \
-    psyir_to_algpsyir, AlgorithmInvokeCall, CodedCall, BuiltinCall
+from psyclone.domain.lfric.algorithm import (psyir_to_algpsyir,
+                                             LfricAlgorithmInvokeCall,
+                                             LfricCodedCall, LfricBuiltinCall)
 
 
 def check_kernel(call):
     ''' xxx '''
-    assert type(call) ==  CodedCall
+    assert type(call) ==  LfricCodedCall
     assert call.routine.name == "kern_type"
     assert len(call.children) == 1
     arg = call.children[0]
@@ -60,7 +61,7 @@ def check_kernel(call):
 
 def check_builtin(call):
     ''' xxx '''
-    assert type(call) ==  BuiltinCall
+    assert type(call) ==  LfricBuiltinCall
     assert call.routine.name == "setval_c"
     assert len(call.children) == 2
     arg0 = call.children[0]
@@ -103,7 +104,7 @@ def test_kern(name):
     psyir_to_algpsyir(psyir)
 
     invoke = psyir.children[0][0]
-    assert type(invoke) == AlgorithmInvokeCall
+    assert type(invoke) == LfricAlgorithmInvokeCall
     assert invoke._description == name
     assert len(invoke.children) == 1
     check_kernel(invoke.children[0])
@@ -141,7 +142,7 @@ def test_builtin(name):
     psyir_to_algpsyir(psyir)
 
     invoke = psyir.children[0][0]
-    assert type(invoke) == AlgorithmInvokeCall
+    assert type(invoke) == LfricAlgorithmInvokeCall
     assert invoke._description == name
     assert len(invoke.children) == 1
     check_builtin(invoke.children[0])
@@ -182,7 +183,7 @@ def test_mixed_multi_invoke():
 
     for index, name in enumerate([None, "'named invoke'"]):
         invoke = psyir.children[0][index]
-        assert type(invoke) == AlgorithmInvokeCall
+        assert type(invoke) == LfricAlgorithmInvokeCall
         assert invoke._description == name
         assert len(invoke.children) == 2
         check_builtin(invoke.children[0])

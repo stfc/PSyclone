@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
 
-'''Specialise generic PSyIE representing an algorithm layer to an
+'''Specialise generic PSyIR representing an algorithm layer to an
 LFRic algorithm-layer-specific PSyIR which uses specialised classes.
 
 '''
@@ -78,23 +78,22 @@ def psyir_to_algpsyir(psyir):
                         except KeyError:
                             routine_symbol = RoutineSymbol(name)
                             call.scope.symbol_table.add(routine_symbol)
-                        kernel_calls.append(algpsyir.BuiltinCall.create(routine_symbol, call_arg.children))
+                        kernel_calls.append(algpsyir.LfricBuiltinCall.create(routine_symbol, call_arg.children))
                     else:
                         routine_symbol = call_arg.symbol
                         routine_symbol.__class__ = RoutineSymbol
-                        kernel_calls.append(algpsyir.CodedCall.create(routine_symbol, call_arg.children))
+                        kernel_calls.append(algpsyir.LfricCodedCall.create(routine_symbol, call_arg.children))
                 else:
                     print (type(call_arg))
                     print ("TBD")
                     exit(1)
 
-            invoke_call = algpsyir.AlgorithmInvokeCall.create(
-                call.routine, kernel_calls)
-            invoke_call._description = call_description
+            invoke_call = algpsyir.LfricAlgorithmInvokeCall.create(
+                call.routine, kernel_calls, description=call_description)
             invoke_call.parent = call.parent
             position = call.position
             call.parent.children.remove(call)
             invoke_call.parent.children.insert(position, invoke_call)
 
 
-__all__ = {psyir_to_algpsyir}
+__all__ = [psyir_to_algpsyir]

@@ -236,17 +236,32 @@ def generate(filename, api="", kernel_path="", script_name=None,
         if api not in API_WITHOUT_ALGORITHM:
             alg_psyir_devel = True
             if alg_psyir_devel:
-                # Add a use statement to the ast to declare builtins
-                add_use(ast, "psyclone_builtins")
+                if api=="dynamo0.3":
+                    from psyclone.domain.lfric.algorithm import psyir_to_algpsyir
+                    # Add a use statement to the ast to declare builtins
+                    add_use(ast, "psyclone_builtins")
+                elif api == "gocean1.0":
+                    from psyclone.domain.gocean.algorithm import psyir_to_algpsyir
+                else:
+                    raise Exception("Unsupported API found")
                 # Create psyir from fparser2 ast
-                psyir = fparser2psyir(ast)
+                from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+                processor = Fparser2Reader()
+                psyir = processor.generate_psyir(ast)
                 psyir.view()
-                # Transform psyir to algpsyir
-                from psyclone.algorithm import psyir_to_algpsyir
-                psyir_to_algpsyir(psyir)
-                psyir.view()
+                # Transform psyir to algorithm-specific psyir
+                algpsyir = psyir_to_algpsyir(psyir)
+                algpsyir.view()
+                # Transform algpsyir to processed_algpsyir
+                # processed_algpsyir = algpsyir_to_processed_algpsyir(algpsyir, names)
+                # psyir.view()
+                # Transform processed_algpsyir to Fortran
+                # from psyclone.psyir.backend.fortran import FortranWriter
+                # writer = FortranWriter()
+                # alg_gen = writer(psyir)
                 exit(1)
-            alg_gen = Alg(ast, psy).gen
+            else:
+                alg_gen = Alg(ast, psy).gen
         else:
             alg_gen = None
     except Exception:

@@ -31,24 +31,43 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author R. W. Ford STFC Daresbury Lab
 
-'''Module to capture LFRic-specific PSyIR for the Algorithm layer, the
-transformation from PSyIR to LFRic-specific PSyIR and transformations
-on LFRic-specific PSyIR.
+'''This module contains PSyclone Algorithm-layer-specific PSyIR classes.
 
 '''
+from psyclone.psyir.nodes import Call
 
-from psyclone.domain.lfric.algorithm.psyir_to_algpsyir import psyir_to_algpsyir
-from psyclone.domain.lfric.algorithm.psyir import \
-    LfricAlgorithmInvokeCall, LfricCodedCall, LfricBuiltinCall
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.algorithm import psyir_to_alg_psyir
+class AlgorithmInvokeCall(Call):
+    '''An invoke call in a PSyclone Algorithm layer.'''
 
-__all__ = [
-    'psyir_to_alg_psyir',
-    'LfricAlgorithmInvokeCall',
-    'LfricCodedCall',
-    'LfricBuiltinCall']
+    _children_valid_format = "[KernelLayerCall]*"
+    _text_name = "AlgorithmInvokeCall"
+
+    # Change this when PR #1122 is on master
+    # _colour = "green"
+    _colour_key = "Container"
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return isinstance(child, KernelLayerCall)
+
+
+class KernelLayerCall(Call):
+    '''A call to a kernel from an invoke call in a PSyclone Algorithm
+    layer.
+
+    '''
+    # Change this when PR #1122 is on master
+    # _colour = "green"
+    _colour_key = "Container"  # green

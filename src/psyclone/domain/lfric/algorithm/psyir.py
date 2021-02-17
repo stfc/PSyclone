@@ -36,29 +36,51 @@
 '''This module contains LFRic Algorithm-layer-specific PSyIR classes.
 
 '''
-from psyclone.psyir.nodes import Call, Node
+from psyclone.domain.common.algorithm import (AlgorithmInvokeCall,
+                                              KernelLayerCall)
 
-
-class AlgorithmInvokeCall(Call):
+class LfricAlgorithmInvokeCall(AlgorithmInvokeCall):
     '''An invoke call in an LFRic Algorithm layer.
 
-    :param routine: xxx
-    :type routine: xxx
-    :param parent: xxx
-    :type parent: xxx
+    :param routine: the routine that this call calls.
+    :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
+    :param parent: parent of this node in the PSyIR.
+    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
     :param str description: xxx
 
     '''
-    _children_valid_format = "[KernelLayerCall]*"
-    _text_name = "AlgorithmInvokeCall"
-
-    # Change this when PR #1122 is on master
-    # _colour = "green"
-    _colour_key = "Container"
+    _text_name = "LfricAlgorithmInvokeCall"
 
     def __init__(self, routine, parent=None, description=None):
         self._description = description
         super(AlgorithmInvokeCall, self).__init__(routine, parent=parent)
+
+    @classmethod
+    def create(cls, routine, arguments, description=None):
+        '''Create an instance of class cls given valid instances of a routine
+        symbol, a list of child nodes for its arguments and an
+        optional name.
+
+        :param routine: the routine that class cls calls.
+        :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
+        :param arguments: the arguments to this routine. These are \
+            added as child nodes.
+        :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
+        :param description: a string describing the purpose of the \
+            invoke or None if one is not provided. This is used to \
+            create the name of the subroutine that replaces the \
+            invoke. Defaults to None.
+        :type name: str or NoneType
+
+        :returns: an instance of cls.
+        :rtype: \
+            :py:class:`psyclone.psyir.nodes.LfricAlgorithmInvokeCall` or a \
+            subclass thereof.
+
+        '''
+        instance = super(LfricAlgorithmInvokeCall, cls).create(routine, arguments)
+        instance._description = description
+        return instance
 
     def node_str(self, colour=True):
         '''Construct a text representation of this node, optionally
@@ -74,50 +96,18 @@ class AlgorithmInvokeCall(Call):
         return "{0}[description=\"{1}\"]".format(self.coloured_name(colour),
                                                  self._description)
 
-    @staticmethod
-    def _validate_child(position, child):
-        '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: whether the given child and position are valid for this node.
-        :rtype: bool
-
-        '''
-        return isinstance(child, KernelLayerCall)
-
-
-class KernelLayerCall(Call):
-    '''A call to a coded kernel or builtin from an invoke call in an LFRic
-    Algorithm layer.
-
-    '''
-    # Change this when PR #1122 is on master
-    # _colour = "green"
-    _colour_key = "Container"  # green
-
-
-class BuiltinCall(KernelLayerCall):
+class LfricBuiltinCall(KernelLayerCall):
     '''A call to a builtin from an invoke call in an LFRic Algorithm
     layer.
 
     '''
-    _text_name = "BuiltinCall"
+    _text_name = "LfricBuiltinCall"
 
 
-class CodedCall(KernelLayerCall):
+class LfricCodedCall(KernelLayerCall):
     '''A call to a coded kernel from an invoke call in an LFRic Algorithm
     layer.
 
     '''
-    _text_name = "CodedCall"
-
-
-#Not used at the moment???
-#class KernelLayerArgument(Node):
-#    '''A call to a coded kernel or builtin from an invoke call in the
-#    Algorithm layer
-#
-#    '''
-#    pass
+    _text_name = "LfricCodedCall"

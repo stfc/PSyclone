@@ -33,22 +33,17 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module to capture LFRic-specific PSyIR for the Algorithm layer, the
-transformation from PSyIR to LFRic-specific PSyIR and transformations
-on LFRic-specific PSyIR.
+'''Module to capture PSyclone-specific PSyIR for the Algorithm
+layer.
 
 '''
-
-from psyclone.domain.lfric.algorithm.psyir_to_algpsyir import psyir_to_algpsyir
-from psyclone.domain.lfric.algorithm.psyir import \
-    LfricAlgorithmInvokeCall, LfricCodedCall, LfricBuiltinCall
+from psyclone.domain.common.algorithm.psyir import \
+    AlgorithmInvokeCall, KernelLayerCall
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
-# from psyclone.algorithm import psyir_to_alg_psyir
+# from psyclone.domain.common.algorithm import AlgorithmInvokeCall
 
 __all__ = [
-    'psyir_to_alg_psyir',
-    'LfricAlgorithmInvokeCall',
-    'LfricCodedCall',
-    'LfricBuiltinCall']
+    'AlgorithmInvokeCall',
+    'KernelLayerCall']
