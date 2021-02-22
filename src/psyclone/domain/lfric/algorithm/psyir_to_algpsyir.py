@@ -44,14 +44,17 @@ def psyir_to_algpsyir(psyir):
 
     '''
     from psyclone.psyir.nodes import Call, CodeBlock, ArrayReference
-    from psyclone.psyir.symbols import RoutineSymbol
-    import psyclone.domain.lfric.algorithm.psyir as algpsyir
-    from fparser.two.Fortran2003 import Actual_Arg_Spec
+    from psyclone.psyir.symbols import Symbol, RoutineSymbol
+    from psyclone.domain.lfric.algorithm import \
+        LfricBuiltinCall, LfricCodedCall, LfricAlgorithmInvokeCall
+    from fparser.two.Fortran2003 import \
+        Actual_Arg_Spec, Name, Char_Literal_Constant
 
     from psyclone.configuration import Config
     from psyclone.parse.utils import check_api
 
     from psyclone.dynamo0p3_builtins import BUILTIN_MAP as builtins
+    from psyclone.errors import GenerationError, InternalError
 
     for call in psyir.walk(Call):
         if call.routine.name.lower() == "invoke":
@@ -60,35 +63,61 @@ def psyir_to_algpsyir(psyir):
             for call_arg in call.children:
                 # Children should be a named argument, builtin or
                 # kernelcall.
-                if isinstance(call_arg, CodeBlock) and isinstance(call_arg.ast, Actual_Arg_Spec):
-                    # TODO Check call_arg.ast.children[0] is a Name with content "name"
-                    # TODO Check call_arg.ast.children[1] is a Char_Literal_Constant
-                    print ("It's a named argument")
+                if (isinstance(call_arg, CodeBlock) and
+                        len(call_arg._fp2_nodes)>1):
+                    raise GenerationError(
+                        "If the PSyIR contains a CodeBlock as an invoke "
+                        "argument it should be a Fortran named argument. "
+                        "There should only be one named argument. However, "
+                        "this code block contains multiple nodes.")
+
+                if (isinstance(call_arg, CodeBlock) and
+                        isinstance(call_arg.ast, Actual_Arg_Spec)):
+                    # This child is a named argument
+                    if not (isinstance(call_arg.ast.children[0], Name) and
+                            call_arg.ast.children[0].string.lower() == "name"
+                            and isinstance(call_arg.ast.children[1],
+                                           Char_Literal_Constant)):
+                        raise GenerationError(
+                            "If there is a named argument, it must take the "
+                            "form name='str', but found '{0}'."
+                            "".format(str(call_arg.ast)))
+                    if call_description:
+                        raise GenerationError(
+                            "There should be at most one named argument in an "
+                            "invoke, but there are at least two: '{0}' and "
+                            "'{1}'.".format(call_description,
+                                            call_arg.ast.children[1].string))
                     call_description = call_arg.ast.children[1].string
                 elif isinstance(call_arg, ArrayReference):
+                    # This child is a kernelcall or builtin argument
                     name = call_arg.name
                     if name in builtins:
-                        print ("It's a Builtin called {0}".format(name))
-                        # TODO Check name is not in symbol table
-                        # TODO What about call_arg.symbol?
-                        # TODO Make the name reference the psyclone_builtins module
-                        try:
-                            routine_symbol = call.scope.symbol_table.lookup(name)
+                        routine_symbol = call.scope.symbol_table.lookup(name)
+                        if type(routine_symbol) is Symbol:
+                            # Needs setting to a RoutineSymbol
+                            # TODO Use specialise method from PR #1063
+                            # when it is on master
+                            # routine_symbol.specialise(RoutineSymbol)
                             routine_symbol.__class__ = RoutineSymbol
-                        except KeyError:
-                            routine_symbol = RoutineSymbol(name)
-                            call.scope.symbol_table.add(routine_symbol)
-                        kernel_calls.append(algpsyir.LfricBuiltinCall.create(routine_symbol, call_arg.children))
+                        kernel_calls.append(LfricBuiltinCall.create(
+                            routine_symbol, call_arg.children))
                     else:
                         routine_symbol = call_arg.symbol
-                        routine_symbol.__class__ = RoutineSymbol
-                        kernel_calls.append(algpsyir.LfricCodedCall.create(routine_symbol, call_arg.children))
+                        if type(routine_symbol) is Symbol:
+                            # TODO Use specialise method from PR #1063
+                            # when it is on master
+                            # routine_symbol.specialise(RoutineSymbol)
+                            routine_symbol.__class__ = RoutineSymbol
+                        kernel_calls.append(LfricCodedCall.create(
+                            routine_symbol, call_arg.children))
                 else:
-                    print (type(call_arg))
-                    print ("TBD")
-                    exit(1)
+                    raise InternalError(
+                        "Unsupported argument type found. Expecting kernel "
+                        "call, builtin call or name='xxx', but found '{0}'."
+                        "".format(call_arg))
 
-            invoke_call = algpsyir.LfricAlgorithmInvokeCall.create(
+            invoke_call = LfricAlgorithmInvokeCall.create(
                 call.routine, kernel_calls, description=call_description)
             invoke_call.parent = call.parent
             position = call.position

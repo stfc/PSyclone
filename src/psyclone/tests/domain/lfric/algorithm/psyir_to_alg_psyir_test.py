@@ -44,13 +44,19 @@ from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Reference, Literal
-from psyclone.domain.lfric.algorithm import (psyir_to_algpsyir,
-                                             LfricAlgorithmInvokeCall,
-                                             LfricCodedCall, LfricBuiltinCall)
-
+from psyclone.domain.lfric.algorithm import \
+    psyir_to_algpsyir, LfricAlgorithmInvokeCall, LfricCodedCall, \
+    LfricBuiltinCall
+from psyclone.errors import GenerationError, InternalError
 
 def check_kernel(call):
-    ''' xxx '''
+    '''Utility routine that checks that the call argument has the expected
+    structure.
+
+    :param call: the LfricCodedCall node being tested.
+    :type call: :py:class:`psyclone.domain.lfric.algorithm.LfricCodedCall`
+
+    '''
     assert type(call) ==  LfricCodedCall
     assert call.routine.name == "kern_type"
     assert len(call.children) == 1
@@ -60,7 +66,13 @@ def check_kernel(call):
 
 
 def check_builtin(call):
-    ''' xxx '''
+    '''Utility routine that checks that the call argument has the expected
+    structure.
+
+    :param call: the LfricBuiltinCall node being tested.
+    :type call: :py:class:`psyclone.domain.lfric.algorithm.LfricBuiltinCall`
+
+    '''
     assert type(call) ==  LfricBuiltinCall
     assert call.routine.name == "setval_c"
     assert len(call.children) == 2
@@ -153,14 +165,15 @@ def test_mixed_multi_invoke():
     builtins within an LFRic algorithm layer are transformed into
     LFRic-specific AlgorithmInvokeCall, KernelCall and BuiltinCall
     classes. Also test that the optional name='xxx' argument is
-    captured correctly.
+    captured correctly. Also test that generation works with an
+    undeclared builtin.
 
     '''
     code = (
         "module algorithm_mod\n"
         "use field_mod, only: field_type\n"
         "use kern_mod, only: kern_type\n"
-        "use psyclone_builtins, only : setval_c\n"
+        "use psyclone_builtins\n"
         "contains\n"
         "  subroutine alg()\n"
         "    type(field_type) :: field\n"
@@ -190,4 +203,101 @@ def test_mixed_multi_invoke():
         check_kernel(invoke.children[1])
 
 
-#Errors ...
+def test_multi_entry_codeblock_error():
+    '''Test that the expected exception is raised if an LFRic invoke call
+    contains a CodeBlock which itself contains more than one
+    entry. This is because a codeblock should only occur in an invoke
+    if there is a named argument and there should only be one named
+    argument. Therefore, more than one named argument with the format
+    'name = "string"'.
+
+    '''
+    code = (
+        "subroutine alg()\n"
+        "  call invoke(name='description1', name='description2')\n"
+        "end subroutine alg\n")
+    fortran_reader = FortranStringReader(code)
+    f2008_parser = ParserFactory().create(std="f2008")
+    parse_tree = f2008_parser(fortran_reader)
+
+    psyir_reader = Fparser2Reader()
+    psyir = psyir_reader.generate_psyir(parse_tree)
+    with pytest.raises(GenerationError) as info:
+        psyir_to_algpsyir(psyir)
+    assert("If the PSyIR contains a CodeBlock as an invoke argument it should "
+           "be a Fortran named argument. There should only be one named "
+           "argument. However, this code block contains multiple nodes."
+           in str(info.value))
+
+
+@pytest.mark.parametrize("named_arg", ["x = 'description'", "name = x"])
+def test_named_arg_error(named_arg):
+    '''Test that the expected exception is raised if an LFRic invoke call
+    contains a named argument that does not conform to the expected
+    format (name = "string")
+
+    '''
+    code = (
+        "subroutine alg()\n"
+        "  call invoke({0})\n"
+        "end subroutine alg\n".format(named_arg))
+    fortran_reader = FortranStringReader(code)
+    f2008_parser = ParserFactory().create(std="f2008")
+    parse_tree = f2008_parser(fortran_reader)
+
+    psyir_reader = Fparser2Reader()
+    psyir = psyir_reader.generate_psyir(parse_tree)
+
+    with pytest.raises(GenerationError) as info:
+        psyir_to_algpsyir(psyir)
+    assert("If there is a named argument, it must take the form name='str', "
+           "but found '{0}'.".format(named_arg) in str(info.value))
+
+
+def test_multi_named_arg_error():
+    '''Test that the expected exception is raised if an LFRic invoke call
+    contains more than one named argument with the format 'name =
+    "string"'.
+
+    '''
+    code = (
+        "subroutine alg()\n"
+        "  use field_mod, only : field_type\n"
+        "  use kern_mod, only : kern_type\n"
+        "  type(field_type) :: field\n"
+        "  call invoke(name='description1', kern_type(field), name='description2')\n"
+        "end subroutine alg\n")
+    fortran_reader = FortranStringReader(code)
+    f2008_parser = ParserFactory().create(std="f2008")
+    parse_tree = f2008_parser(fortran_reader)
+
+    psyir_reader = Fparser2Reader()
+    psyir = psyir_reader.generate_psyir(parse_tree)
+    with pytest.raises(GenerationError) as info:
+        psyir_to_algpsyir(psyir)
+    assert("There should be at most one named argument in an invoke, but "
+           "there are at least two: ''description1'' and ''description2''."
+           in str(info.value))
+
+
+def test_unsupported_arg_error():
+    '''Test that the expected exception is raised if an LFRic invoke call
+    contains an argument in an unsupported form.
+
+    '''
+    code = (
+        "subroutine alg()\n"
+        "  real :: a\n"
+        "  call invoke(a)\n"
+        "end subroutine alg\n")
+    fortran_reader = FortranStringReader(code)
+    f2008_parser = ParserFactory().create(std="f2008")
+    parse_tree = f2008_parser(fortran_reader)
+
+    psyir_reader = Fparser2Reader()
+    psyir = psyir_reader.generate_psyir(parse_tree)
+
+    with pytest.raises(InternalError) as info:
+        psyir_to_algpsyir(psyir)
+    assert("Expecting kernel call, builtin call or name='xxx', but found "
+           "'Reference[name:'a']'." in str(info.value))
