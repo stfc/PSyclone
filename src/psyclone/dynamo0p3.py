@@ -8643,14 +8643,15 @@ class DynKernelArgument(KernelArgument):
         write_accesses = AccessType.all_write_accesses()
         if self.access == AccessType.READ:
             return "in"
-        elif self.access in write_accesses:
+        if self.access in write_accesses:
             return "inout"
-        else:
-            valid_accesses = [AccessType.READ.api_specific_name()] + \
-                [access.api_specific_name() for access in write_accesses]
-            raise GenerationError(
-                "In the LFRic API argument access must be one of {0}, but "
-                "found '{1}'.".format(valid_accesses, self.access))
+        # An argument access other than the pure "read" or one of
+        # the "write" accesses is invalid
+        valid_accesses = [AccessType.READ.api_specific_name()] + \
+            [access.api_specific_name() for access in write_accesses]
+        raise GenerationError(
+            "In the LFRic API the argument access must be one of {0}, "
+            "but found '{1}'.".format(valid_accesses, self.access))
 
     @property
     def discontinuous(self):
