@@ -45,20 +45,20 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Reference, Literal
 from psyclone.domain.lfric.algorithm import \
-    psyir_to_algpsyir, LfricAlgorithmInvokeCall, LfricCodedCall, \
-    LfricBuiltinCall
+    psyir_to_algpsyir, LfricAlgorithmInvokeCall, LfricCodedKernelRef, \
+    LfricBuiltinRef
 from psyclone.errors import GenerationError, InternalError
 
 def check_kernel(call):
     '''Utility routine that checks that the call argument has the expected
     structure.
 
-    :param call: the LfricCodedCall node being tested.
-    :type call: :py:class:`psyclone.domain.lfric.algorithm.LfricCodedCall`
+    :param call: the LfricCodedKernelRef node being tested.
+    :type call: :py:class:`psyclone.domain.lfric.algorithm.LfricCodedKernelRef`
 
     '''
-    assert type(call) ==  LfricCodedCall
-    assert call.routine.name == "kern_type"
+    assert type(call) ==  LfricCodedKernelRef
+    assert call.symbol.name == "kern_type"
     assert len(call.children) == 1
     arg = call.children[0]
     assert type(arg) == Reference
@@ -69,12 +69,12 @@ def check_builtin(call):
     '''Utility routine that checks that the call argument has the expected
     structure.
 
-    :param call: the LfricBuiltinCall node being tested.
-    :type call: :py:class:`psyclone.domain.lfric.algorithm.LfricBuiltinCall`
+    :param call: the LfricBuiltinRef node being tested.
+    :type call: :py:class:`psyclone.domain.lfric.algorithm.LfricBuiltinRef`
 
     '''
-    assert type(call) ==  LfricBuiltinCall
-    assert call.routine.name == "setval_c"
+    assert type(call) ==  LfricBuiltinRef
+    assert call.symbol.name == "setval_c"
     assert len(call.children) == 2
     arg0 = call.children[0]
     assert type(arg0) == Reference
@@ -88,8 +88,8 @@ def check_builtin(call):
 def test_kern(name):
     '''Test that an invoke containing a kernel within an LFRic algorithm
     layer is transformed into LFRic-specific AlgorithmInvokeCall and
-    CodedCall classes. Also test that the optional name='xxx' argument
-    is captured correctly.
+    CodedKernelRef classes. Also test that the optional name='xxx'
+    argument is captured correctly.
 
     '''
     name_arg=""
@@ -126,7 +126,7 @@ def test_kern(name):
 def test_builtin(name):
     '''Test that an invoke containing a builtin within an LFRic algorithm
     layer is transformed into LFRic-specific AlgorithmInvokeCall and
-    BuiltinCall classes. Also test that the optional name='xxx'
+    LfricBuiltinRef classes. Also test that the optional name='xxx'
     argument is captured correctly.
 
     '''
@@ -163,10 +163,10 @@ def test_builtin(name):
 def test_mixed_multi_invoke():
     '''Test that multiple invokes containing a mixture of kernels and
     builtins within an LFRic algorithm layer are transformed into
-    LFRic-specific AlgorithmInvokeCall, KernelCall and BuiltinCall
-    classes. Also test that the optional name='xxx' argument is
-    captured correctly. Also test that generation works with an
-    undeclared builtin.
+    LFRic-specific AlgorithmInvokeCall, LfricCodedKernelRef and
+    LfricBuiltinRef classes. Also test that the optional name='xxx'
+    argument is captured correctly. Also test that generation works
+    with an undeclared builtin.
 
     '''
     code = (
@@ -299,5 +299,5 @@ def test_unsupported_arg_error():
 
     with pytest.raises(InternalError) as info:
         psyir_to_algpsyir(psyir)
-    assert("Expecting kernel call, builtin call or name='xxx', but found "
+    assert("Expecting coded call, builtin call or name='xxx', but found "
            "'Reference[name:'a']'." in str(info.value))

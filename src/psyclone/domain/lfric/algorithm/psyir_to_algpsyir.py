@@ -44,9 +44,10 @@ def psyir_to_algpsyir(psyir):
 
     '''
     from psyclone.psyir.nodes import Call, CodeBlock, ArrayReference
-    from psyclone.psyir.symbols import Symbol, RoutineSymbol
+    from psyclone.psyir.symbols import Symbol, RoutineSymbol, TypeSymbol, \
+        StructureType
     from psyclone.domain.lfric.algorithm import \
-        LfricBuiltinCall, LfricCodedCall, LfricAlgorithmInvokeCall
+        LfricBuiltinRef, LfricCodedKernelRef, LfricAlgorithmInvokeCall
     from fparser.two.Fortran2003 import \
         Actual_Arg_Spec, Name, Char_Literal_Constant
 
@@ -99,8 +100,9 @@ def psyir_to_algpsyir(psyir):
                             # TODO Use specialise method from PR #1063
                             # when it is on master
                             # routine_symbol.specialise(RoutineSymbol)
-                            routine_symbol.__class__ = RoutineSymbol
-                        kernel_calls.append(LfricBuiltinCall.create(
+                            routine_symbol.__class__ = TypeSymbol
+                            routine_symbol.datatype = StructureType()
+                        kernel_calls.append(LfricBuiltinRef.create(
                             routine_symbol, call_arg.children))
                     else:
                         routine_symbol = call_arg.symbol
@@ -108,17 +110,19 @@ def psyir_to_algpsyir(psyir):
                             # TODO Use specialise method from PR #1063
                             # when it is on master
                             # routine_symbol.specialise(RoutineSymbol)
-                            routine_symbol.__class__ = RoutineSymbol
-                        kernel_calls.append(LfricCodedCall.create(
+                            routine_symbol.__class__ = TypeSymbol
+                            routine_symbol.datatype = StructureType()
+                        kernel_calls.append(LfricCodedKernelRef.create(
                             routine_symbol, call_arg.children))
                 else:
                     raise InternalError(
-                        "Unsupported argument type found. Expecting kernel "
+                        "Unsupported argument type found. Expecting coded "
                         "call, builtin call or name='xxx', but found '{0}'."
                         "".format(call_arg))
 
             invoke_call = LfricAlgorithmInvokeCall.create(
                 call.routine, kernel_calls, description=call_description)
+            # issue #1124, use Node.replace_with() here
             invoke_call.parent = call.parent
             position = call.position
             call.parent.children.remove(call)

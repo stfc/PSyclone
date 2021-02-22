@@ -36,13 +36,15 @@
 '''This module contains PSyclone Algorithm-layer-specific PSyIR classes.
 
 '''
-from psyclone.psyir.nodes import Call
+from psyclone.psyir.nodes import Call, Node, DataNode
+from psyclone.psyir.symbols import TypeSymbol
+from psyclone.errors import GenerationError
 
 
 class AlgorithmInvokeCall(Call):
     '''An invoke call in a PSyclone Algorithm layer.'''
 
-    _children_valid_format = "[KernelLayerCall]*"
+    _children_valid_format = "[KernelLayerRef]*"
     _text_name = "AlgorithmInvokeCall"
 
     # Change this when PR #1122 is on master
@@ -60,14 +62,99 @@ class AlgorithmInvokeCall(Call):
         :rtype: bool
 
         '''
-        return isinstance(child, KernelLayerCall)
+        return isinstance(child, KernelLayerRef)
 
 
-class KernelLayerCall(Call):
-    '''A call to a kernel from an invoke call in a PSyclone Algorithm
-    layer.
+class KernelLayerRef(Node):
+    '''Reference to a kernels metadata from an invoke call in a PSyclone
+    Algorithm layer and provides the arguments that will be used to
+    pass data into the associated kernel call.
 
     '''
     # Change this when PR #1122 is on master
     # _colour = "green"
     _colour_key = "Container"  # green
+    # Textual description of the node.
+    _children_valid_format = "[DataNode]*"
+    _text_name = "KernelLayerRef"
+    _colour_key = "KernelLayerRef"
+
+    def __init__(self, symbol, parent=None):
+        super(KernelLayerRef, self).__init__(parent=parent)
+
+        if not isinstance(symbol, TypeSymbol):
+            raise TypeError(
+                "KernelLayerRef symbol argument should be a TypeSymbol but found "
+                "'{0}'.".format(type(symbol).__name__))
+
+        self._symbol = symbol
+
+    @classmethod
+    def create(cls, symbol, arguments):
+        '''Create an instance of class cls given valid instances of a TypeSymbol,
+        and a list of child nodes for its arguments.
+
+        :param symbol: the name of the kernel metadata type that
+        this onject references.
+
+        :type routine: py:class:`psyclone.psyir.symbols.TypeSymbol`
+        :param arguments: the arguments to this routine. These are \
+            added as child nodes.
+        :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
+
+        :returns: an instance of cls.
+        :rtype: :py:class:`psyclone.psyir.nodes.Call` or a subclass thereof.
+
+        '''
+        if not isinstance(symbol, TypeSymbol):
+            raise GenerationError(
+                "Call create symbol argument should be a TypeSymbol but "
+                "found '{0}'.".format(type(symbol).__name__))
+        if not isinstance(arguments, list):
+            raise GenerationError(
+                "Call create arguments argument should be a list but found "
+                "'{0}'.".format(type(arguments).__name__))
+
+        call = cls(symbol)
+        call.children = arguments
+        for child in call.children:
+            child.parent = call
+        return call
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return isinstance(child, DataNode)
+
+    @property
+    def symbol(self):
+        '''
+        :returns: the symbol that this call calls.
+        :rtype: py:class:`psyclone.psyir.symbols.TypeSymbol`
+        '''
+        return self._symbol
+
+    def node_str(self, colour=True):
+        '''
+        Construct a text representation of this node, optionally containing
+        colour control codes.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this PSyIR node.
+        :rtype: str
+
+        '''
+        return "{0}[name='{1}']".format(
+            self.coloured_name(colour), self.symbol.name)
+
+    def __str__(self):
+        return self.node_str(False)

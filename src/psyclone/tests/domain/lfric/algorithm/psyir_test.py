@@ -44,10 +44,11 @@ from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Reference, Literal, Node
-from psyclone.psyir.symbols import RoutineSymbol
+from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
+    StructureType
 from psyclone.domain.lfric.algorithm import \
-    psyir_to_algpsyir, LfricAlgorithmInvokeCall, LfricCodedCall, \
-    LfricBuiltinCall
+    psyir_to_algpsyir, LfricAlgorithmInvokeCall, LfricCodedKernelRef, \
+    LfricBuiltinRef
 from psyclone.errors import GenerationError, InternalError
 
 
@@ -92,7 +93,7 @@ def test_lfricalgorithminvokecall_create(cls):
 
     '''
     routine = RoutineSymbol("hello")
-    klc = LfricCodedCall.create(RoutineSymbol("arg"), [])
+    klc = LfricCodedKernelRef.create(TypeSymbol("arg", StructureType()), [])
     call = cls.create(routine, [klc], description="describing an invoke")
     assert call._description == "describing an invoke"
     assert call.routine is routine
@@ -123,21 +124,21 @@ def test_lfricalgorithminvokecall_node_str():
             in call.node_str(colour=False))
 
 
-def test_lfricbuiltincall():
-    '''test that an instance of LfricBuiltinCall class can be created.
+def test_lfricbuiltinref():
+    '''test that an instance of LfricBuiltinRef class can be created.
 
     '''
-    routine = RoutineSymbol("hello")
-    lbc = LfricBuiltinCall(routine)
-    assert type(lbc) == LfricBuiltinCall
-    assert lbc._text_name == "LfricBuiltinCall"
+    routine = TypeSymbol("hello", StructureType())
+    lbc = LfricBuiltinRef(routine)
+    assert type(lbc) == LfricBuiltinRef
+    assert lbc._text_name == "LfricBuiltinRef"
 
 
-def test_lfricCodedcall():
-    '''test that an instance of LfricCodedCall class can be created.
+def test_lfricCodedkernelRef():
+    '''test that an instance of LfricCodedKernelRef class can be created.
 
     '''
-    routine = RoutineSymbol("hello")
-    lbc = LfricCodedCall(routine)
-    assert type(lbc) == LfricCodedCall
-    assert lbc._text_name == "LfricCodedCall"
+    routine = TypeSymbol("hello", StructureType())
+    lbc = LfricCodedKernelRef(routine)
+    assert type(lbc) == LfricCodedKernelRef
+    assert lbc._text_name == "LfricCodedKernelRef"
