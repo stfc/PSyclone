@@ -70,6 +70,8 @@ access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
 COMPUTE_ANNEXED_DOFS = false
 default_kind = real: r_def, integer: i_def, logical: l_def
 RUN_TIME_CHECKS = false
+NUM_ANY_SPACE = 10
+NUM_ANY_DISCONTINUOUS_SPACE = 10
 '''
 
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,6 +64,8 @@ access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
 COMPUTE_ANNEXED_DOFS = false
 default_kind = real: r_def, integer: i_def, logical: l_def
 RUN_TIME_CHECKS = false
+NUM_ANY_SPACE = 10
+NUM_ANY_DISCONTINUOUS_SPACE = 10
 '''
 
 
@@ -86,8 +88,10 @@ def clear_config_instance():
     Config._instance = None
 
 
-@pytest.mark.parametrize("option", ["access_mapping", "COMPUTE_ANNEXED_DOFS",
-                                    "default_kind", "RUN_TIME_CHECKS"])
+@pytest.mark.parametrize(
+    "option", ["access_mapping", "COMPUTE_ANNEXED_DOFS",
+               "default_kind", "RUN_TIME_CHECKS", "NUM_ANY_SPACE",
+               "NUM_ANY_DISCONTINUOUS_SPACE"])
 def test_no_mandatory_option(tmpdir, option):
     ''' Check that we raise an error if we do not provide mandatory
     configuration options for LFRic (Dynamo0.3) API '''
@@ -107,7 +111,8 @@ def test_no_mandatory_option(tmpdir, option):
                 "\'[dynamo0.3]\' section " in str(err.value))
         assert ("Valid options are: '['access_mapping', "
                 "'compute_annexed_dofs', 'default_kind', "
-                "'run_time_checks']" in str(err.value))
+                "'run_time_checks', 'num_any_space', "
+                "'num_any_discontinuous_space']" in str(err.value))
 
 
 @pytest.mark.parametrize("option", ["COMPUTE_ANNEXED_DOFS", "RUN_TIME_CHECKS"])
@@ -128,6 +133,28 @@ def test_entry_not_bool(tmpdir, option):
 
         assert "error while parsing {0}".format(option) in str(err.value)
         assert "Not a boolean: tree" in str(err.value)
+
+
+@pytest.mark.parametrize("option", ["NUM_ANY_SPACE",
+                                    "NUM_ANY_DISCONTINUOUS_SPACE"])
+def test_entry_not_int(tmpdir, option):
+    ''' Check that we raise an error if the value of any options expecting
+    an integer value is not int() with base 10. '''
+    content = re.sub(r"^{0} = .*$".format(option),
+                     "{0} = false".format(option),
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    config_file = tmpdir.join("config_dyn")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(config_file=str(config_file))
+
+        assert "error while parsing {0}".format(option) in str(err.value)
+        assert ("invalid literal for int() with base 10: 'false'"
+                in str(err.value))
 
 
 def test_invalid_default_kind(tmpdir):
@@ -165,6 +192,48 @@ def test_invalid_default_kind(tmpdir):
                 "the \'[dynamo0.3]\' section" in str(err.value))
         assert ("do not define the default kind for one or more supported "
                 "datatypes \'[\'real\', \'integer\', \'logical\']\'."
+                in str(err.value))
+
+
+def test_invalid_num_any_anyd_spaces(tmpdir):
+    ''' Check that we raise an error if we supply an invalid number
+    (less than or equal to 0) of ANY_SPACE and ANY_DISCONTINUOUS_SPACE
+    function spaces in the configuration file.
+
+    '''
+    # Test invalid NUM_ANY_SPACE
+    content = re.sub(r"NUM_ANY_SPACE = 10", "NUM_ANY_SPACE = 0",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    config_file = tmpdir.join("config_dyn")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(config_file=str(config_file))
+
+        assert ("The supplied number of ANY_SPACE function spaces in "
+                "the \'[dynamo0.3]\' section " in str(err.value))
+        assert ("must be greater than 0 but found 0."
+                in str(err.value))
+
+    # Test invalid NUM_ANY_DISCONTINUOUS_SPACE
+    content = re.sub(r"NUM_ANY_DISCONTINUOUS_SPACE = 10",
+                     "NUM_ANY_DISCONTINUOUS_SPACE = -10",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    config_file = tmpdir.join("config_dyn")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(config_file=str(config_file))
+
+        assert ("The supplied number of ANY_DISCONTINUOUS_SPACE function "
+                "spaces in the \'[dynamo0.3]\' section " in str(err.value))
+        assert ("must be greater than 0 but found -10."
                 in str(err.value))
 
 
@@ -208,3 +277,20 @@ def test_run_time_checks():
     '''
     api_config = Config().get().api_conf(TEST_API)
     assert not api_config.run_time_checks
+
+
+def test_num_any_space():
+    ''' Check that we load the expected default ANY_SPACE value (10).
+
+    '''
+    api_config = Config().get().api_conf(TEST_API)
+    assert api_config.num_any_space == 10
+
+
+def test_num_any_discontinuous_space():
+    ''' Check that we load the expected default ANY_DISCONTINUOUS_SPACE
+    value (10).
+
+    '''
+    api_config = Config().get().api_conf(TEST_API)
+    assert api_config.num_any_discontinuous_space == 10

@@ -811,12 +811,12 @@ class DynConfig(APISpecificConfig):
     :raises ConfigurationError: for an invalid argument kind.
     :raises ConfigurationError: for an invalid value type of NUM_ANY_SPACE.
     :raises ConfigurationError: if the supplied number of ANY_SPACE \
-                                function spaces is <= 0.
+                                function spaces is less than or equal to 0.
     :raises ConfigurationError: for an invalid value type of \
                                 NUM_ANY_DISCONTINUOUS_SPACE.
     :raises ConfigurationError: if the supplied number of \
                                 ANY_DISCONTINUOUS_SPACE function \
-                                spaces is <= 0.
+                                spaces is less than or equal to 0.
 
     '''
     # pylint: disable=too-few-public-methods
@@ -844,7 +844,8 @@ class DynConfig(APISpecificConfig):
             # Define and check mandatory keys
             self._mandatory_keys = ["access_mapping",
                                     "compute_annexed_dofs", "default_kind",
-                                    "run_time_checks"]
+                                    "run_time_checks", "num_any_space",
+                                    "num_any_discontinuous_space"]
             mdkeys = set(self._mandatory_keys)
             if not mdkeys.issubset(set(section.keys())):
                 raise ConfigurationError(
@@ -859,7 +860,7 @@ class DynConfig(APISpecificConfig):
                     "compute_annexed_dofs")
             except ValueError as err:
                 raise ConfigurationError(
-                    "Error while parsing COMPUTE_ANNEXED_DOFS in the "
+                    "error while parsing COMPUTE_ANNEXED_DOFS in the "
                     "[dynamo0.3] section of the config file: {0}"
                     .format(str(err)), config=self._config)
 
@@ -869,7 +870,7 @@ class DynConfig(APISpecificConfig):
                     "run_time_checks")
             except ValueError as err:
                 raise ConfigurationError(
-                    "Error while parsing RUN_TIME_CHECKS in the "
+                    "error while parsing RUN_TIME_CHECKS in the "
                     "[dynamo0.3] section of the config file: {0}"
                     .format(str(err)), config=self._config)
 
@@ -897,37 +898,37 @@ class DynConfig(APISpecificConfig):
                             SUPPORTED_FORTRAN_DATATYPES))
             self._default_kind = all_kinds
 
-        # Parse setting for the number of ANY_SPACE function spaces (check
-        # for an invalid value and numbers <= 0)
-        try:
-            self._num_any_space = self._config['DEFAULT'].getint(
-                'NUM_ANY_SPACE')
-        except ValueError as err:
-            raise ConfigurationError(
-                "Error while parsing NUM_ANY_SPACE: {0}".
-                format(str(err)), config=self._config)
-        if self._num_any_space <= 0:
-            raise ConfigurationError(
-                "The supplied number of ANY_SPACE function spaces in the "
-                "'[dynamo0.3]' section of the configuration file '{0}' "
-                "must be greater than 0 but found '{1}'."
-                .format(config.filename, self._num_any_space))
+            # Parse setting for the number of ANY_SPACE function spaces
+            # (check for an invalid value and numbers <= 0)
+            try:
+                self._num_any_space = section.getint("NUM_ANY_SPACE")
+            except ValueError as err:
+                raise ConfigurationError(
+                    "error while parsing NUM_ANY_SPACE: {0}".
+                    format(str(err)), config=self._config)
+            if self._num_any_space <= 0:
+                raise ConfigurationError(
+                    "The supplied number of ANY_SPACE function spaces "
+                    "in the '[dynamo0.3]' section of the configuration "
+                    "file '{0}' must be greater than 0 but found {1}."
+                    .format(config.filename, self._num_any_space))
 
-        # Parse setting for the number of ANY_DISCONTINUOUS_SPACE function
-        # spaces (checks for an invalid value and numbers <= 0)
-        try:
-            self._num_any_discontinuous_space = self._config['DEFAULT'].getint(
-                'NUM_ANY_DISCONTINUOUS_SPACE')
-        except ValueError as err:
-            raise ConfigurationError(
-                "Error while parsing NUM_ANY_DISCONTINUOUS_SPACE: {0}".
-                format(str(err)), config=self._config)
-        if self._num_any_discontinuous_space <= 0:
-            raise ConfigurationError(
-                "The supplied number of ANY_DISCONTINUOUS_SPACE function "
-                "spaces in the '[dynamo0.3]' section of the configuration "
-                "file '{0}' must be greater than 0 but found '{1}'."
-                .format(config.filename, self._num_any_discontinuous_space))
+            # Parse setting for the number of ANY_DISCONTINUOUS_SPACE
+            # function spaces (checks for an invalid value and numbers <= 0)
+            try:
+                self._num_any_discontinuous_space = section.getint(
+                    "NUM_ANY_DISCONTINUOUS_SPACE")
+            except ValueError as err:
+                raise ConfigurationError(
+                    "error while parsing NUM_ANY_DISCONTINUOUS_SPACE: {0}".
+                    format(str(err)), config=self._config)
+            if self._num_any_discontinuous_space <= 0:
+                raise ConfigurationError(
+                    "The supplied number of ANY_DISCONTINUOUS_SPACE function "
+                    "spaces in the '[dynamo0.3]' section of the configuration "
+                    "file '{0}' must be greater than 0 but found {1}."
+                    .format(config.filename,
+                            self._num_any_discontinuous_space))
 
     @property
     def compute_annexed_dofs(self):
