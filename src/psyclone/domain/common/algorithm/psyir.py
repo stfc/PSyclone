@@ -67,8 +67,8 @@ class AlgorithmInvokeCall(Call):
 
 class KernelLayerRef(Node):
     '''Reference to a kernels metadata from an invoke call in a PSyclone
-    Algorithm layer and provides the arguments that will be used to
-    pass data into the associated kernel call.
+    Algorithm layer and provides the arguments that will be passed
+    into the PSy layer.
 
     '''
     # Change this when PR #1122 is on master
@@ -77,7 +77,6 @@ class KernelLayerRef(Node):
     # Textual description of the node.
     _children_valid_format = "[DataNode]*"
     _text_name = "KernelLayerRef"
-    _colour_key = "KernelLayerRef"
 
     def __init__(self, symbol, parent=None):
         super(KernelLayerRef, self).__init__(parent=parent)
