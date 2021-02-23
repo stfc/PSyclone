@@ -39,6 +39,8 @@ layer.
 '''
 from psyclone.domain.common.algorithm.psyir import \
     AlgorithmInvokeCall, KernelLayerRef
+from psyclone.domain.common.algorithm.psyir_to_algpsyir import \
+    psyir_to_algpsyir
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
@@ -46,4 +48,5 @@ from psyclone.domain.common.algorithm.psyir import \
 
 __all__ = [
     'AlgorithmInvokeCall',
-    'KernelLayerRef']
+    'KernelLayerRef',
+    'psyir_to_algpsyir']

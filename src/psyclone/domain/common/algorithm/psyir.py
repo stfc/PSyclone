@@ -157,3 +157,8 @@ class KernelLayerRef(Node):
 
     def __str__(self):
         return self.node_str(False)
+
+
+__all__ = [
+    'AlgorithmInvokeCall',
+    'KernelLayerRef']

@@ -99,7 +99,7 @@ def psyir_to_algpsyir(psyir):
                             # Needs setting to a RoutineSymbol
                             # TODO Use specialise method from PR #1063
                             # when it is on master
-                            # routine_symbol.specialise(RoutineSymbol)
+                            # routine_symbol.specialise_to(TypeSymbol)
                             routine_symbol.__class__ = TypeSymbol
                             routine_symbol.datatype = StructureType()
                         kernel_calls.append(LfricBuiltinRef.create(
