@@ -1074,6 +1074,59 @@ class GOKern(CodedKern):
         self._name = ""
         self._index_offset = ""
 
+    @staticmethod
+    def _format_access(var_name, var_value, depth):
+        '''This function creates an index-expression: if the value is
+        negative, it returns 'varname-depth', if the value is positive,
+        it returns 'varname+depth', otherwise it just returns 'varname'.
+        This is used to create artifical stencil accesses for GOKernels.
+
+        :param str var_name: name of the variable.
+        :param int var_value: value of the variable, which determines the \
+            direction (adding or subtracting depth).
+        :param int depth: the depth of the access (>0).
+
+        :returns: the index expression for an access in the given direction.
+        :rtype: str
+        '''
+
+        if var_value < 0:
+            return var_name + str(-depth)
+        if var_value > 0:
+            return var_name + "+" + str(depth)
+        return var_name
+
+    def _reference_accesses_field(self, var_name, arg, var_accesses):
+        '''This function adds accesses to a field depending on the
+        meta-data declaration for this argument.
+
+        :param str var_name: name of the variable.
+        :param arg:  the meta-data information for this argument.
+        :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
+        :param var_accesses: VariablesAccessInfo instance that stores the\
+            information about the field accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+        '''
+
+        # First handle go_pointwise:
+        if not arg.stencil.has_stencil:
+            var_accesses.add_access(var_name, arg.access, self, ["i", "j"])
+            return
+
+        # Now we have a valid depth. Query each of the combinations, and add
+        # a variable access for the possible values.
+        for j in [-1, 0, 1]:
+            for i in [-1, 0, 1]:
+                depth = arg.stencil.depth(i, j)
+                for current_depth in range(1, depth+1):
+                    i_value = GOKern._format_access("i", i, current_depth)
+                    # The j direction is mirrored: negative dvalue means
+                    # positive direction
+                    j_value = GOKern._format_access("j", -j, current_depth)
+                    var_accesses.add_access(var_name, arg.access, self,
+                                            [i_value, j_value])
+
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
         according to the kernel metadata.
@@ -1101,9 +1154,16 @@ class GOKern(CodedKern):
                 if not arg.is_literal:
                     var_accesses.add_access(var_name, arg.access, self)
             else:
-                # In case of an array for now add an arbitrary array
-                # reference so it is properly recognised as an array access
-                var_accesses.add_access(var_name, arg.access, self, [1])
+                if arg.argument_type == "field":
+                    # Now add 'artificial' accesses to this field depending
+                    # on meta-data (access-mode and stencil information):
+                    self._reference_accesses_field(var_name, arg, var_accesses)
+                else:
+                    # In case of an array for now add an arbitrary array
+                    # reference to (i,j) so it is properly recognised as
+                    # an array access.
+                    var_accesses.add_access(var_name, arg.access, self,
+                                            ["i", "j"])
         super(GOKern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
 
