@@ -37,18 +37,23 @@
 PSyclone algorithm-layer-specific PSyIR which uses specialised classes.
 
 '''
+from psyclone.psyir.nodes import Call, ArrayReference
+from psyclone.psyir.symbols import Symbol, TypeSymbol, StructureType
+from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
+    KernelLayerRef
+from psyclone.errors import InternalError
+
+
 def psyir_to_algpsyir(psyir):
     '''Takes a generic PSyIR tree and translates it to a
     PSyclone algorithm-specific PSyIR representation
 
-    '''
-    from psyclone.psyir.nodes import Call, CodeBlock, ArrayReference
-    from psyclone.psyir.symbols import RoutineSymbol, Symbol, TypeSymbol, \
-        StructureType
-    from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
-        KernelLayerRef
-    from psyclone.errors import GenerationError
+    :param psyir: generic PSyIR tree
+    :type psyir: subclass of :py:class:`psyclone.psyir.nodes.node`
 
+    :raises InternalError: if an unexpected argument type is found.
+
+    '''
     for call in psyir.walk(Call):
         if call.routine.name.lower() == "invoke":
             kernel_calls = []
@@ -56,6 +61,7 @@ def psyir_to_algpsyir(psyir):
                 # Children should reference kernel metadata
                 if isinstance(call_arg, ArrayReference):
                     routine_symbol = call_arg.symbol
+                    # pylint: disable=unidiomatic-typecheck
                     if type(routine_symbol) is Symbol:
                         # TODO Use specialise method from PR #1063
                         # when it is on master
@@ -65,7 +71,7 @@ def psyir_to_algpsyir(psyir):
                     kernel_calls.append(KernelLayerRef.create(
                         routine_symbol, call_arg.children))
                 else:
-                    raise GenerationError(
+                    raise InternalError(
                         "Unsupported argument type found. Expecting a "
                         "reference to kernel metadata, but found '{0}'."
                         "".format(type(call_arg).__name__))
@@ -79,4 +85,4 @@ def psyir_to_algpsyir(psyir):
             invoke_call.parent.children.insert(position, invoke_call)
 
 
-__all__ = [psyir_to_algpsyir]
+__all__ = ['psyir_to_algpsyir']

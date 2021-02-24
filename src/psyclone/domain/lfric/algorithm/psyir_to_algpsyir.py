@@ -37,26 +37,34 @@
 LFRic algorithm-layer-specific PSyIR which uses specialised classes.
 
 '''
+from fparser.two.Fortran2003 import \
+    Actual_Arg_Spec, Name, Char_Literal_Constant
+from psyclone.psyir.nodes import Call, CodeBlock, ArrayReference
+from psyclone.psyir.symbols import Symbol, TypeSymbol, \
+    StructureType
+from psyclone.domain.lfric.algorithm import \
+    LfricBuiltinRef, LfricCodedKernelRef, LfricAlgorithmInvokeCall
+from psyclone.dynamo0p3_builtins import BUILTIN_MAP as builtins
+from psyclone.errors import GenerationError, InternalError
+
 
 def psyir_to_algpsyir(psyir):
     '''Takes a generic PSyIR tree and translates it to an
     LFRic algorithm-specific PSyIR representation
 
+    :param psyir: generic-PSyIR tree.
+    :type psyir: subclass of :py:class:`psyclone.psyir.nodes.node`
+
+    :raises GenerationError: if a PSyIR CodeBlock represents an \
+        argument and the CodeBlock contains more than one statement (as \
+        only one is expected).
+    :raises GenerationError: if more than one named argument is \
+        provided in an invoke call.
+    :raises GenerationError: if a named argument has an incorrect \
+        format.
+    :raises InternalError: if an unexpected argument type is found.
+
     '''
-    from psyclone.psyir.nodes import Call, CodeBlock, ArrayReference
-    from psyclone.psyir.symbols import Symbol, RoutineSymbol, TypeSymbol, \
-        StructureType
-    from psyclone.domain.lfric.algorithm import \
-        LfricBuiltinRef, LfricCodedKernelRef, LfricAlgorithmInvokeCall
-    from fparser.two.Fortran2003 import \
-        Actual_Arg_Spec, Name, Char_Literal_Constant
-
-    from psyclone.configuration import Config
-    from psyclone.parse.utils import check_api
-
-    from psyclone.dynamo0p3_builtins import BUILTIN_MAP as builtins
-    from psyclone.errors import GenerationError, InternalError
-
     for call in psyir.walk(Call):
         if call.routine.name.lower() == "invoke":
             call_description = None
@@ -64,8 +72,9 @@ def psyir_to_algpsyir(psyir):
             for call_arg in call.children:
                 # Children should be a named argument, builtin or
                 # kernelcall.
+                # pylint: disable=protected-access
                 if (isinstance(call_arg, CodeBlock) and
-                        len(call_arg._fp2_nodes)>1):
+                        len(call_arg._fp2_nodes) > 1):
                     raise GenerationError(
                         "If the PSyIR contains a CodeBlock as an invoke "
                         "argument it should be a Fortran named argument. "
@@ -95,6 +104,7 @@ def psyir_to_algpsyir(psyir):
                     name = call_arg.name
                     if name in builtins:
                         routine_symbol = call.scope.symbol_table.lookup(name)
+                        # pylint: disable=unidiomatic-typecheck
                         if type(routine_symbol) is Symbol:
                             # Needs setting to a RoutineSymbol
                             # TODO Use specialise method from PR #1063
@@ -106,6 +116,7 @@ def psyir_to_algpsyir(psyir):
                             routine_symbol, call_arg.children))
                     else:
                         routine_symbol = call_arg.symbol
+                        # pylint: disable=unidiomatic-typecheck
                         if type(routine_symbol) is Symbol:
                             # TODO Use specialise method from PR #1063
                             # when it is on master
@@ -129,4 +140,4 @@ def psyir_to_algpsyir(psyir):
             invoke_call.parent.children.insert(position, invoke_call)
 
 
-__all__ = [psyir_to_algpsyir]
+__all__ = ['psyir_to_algpsyir']

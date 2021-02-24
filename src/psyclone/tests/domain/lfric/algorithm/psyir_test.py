@@ -40,16 +40,12 @@ Algorithm PSyIR.
 from __future__ import absolute_import
 import pytest
 
-from fparser.two.parser import ParserFactory
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Reference, Literal, Node
+from psyclone.psyir.nodes import Node
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
     StructureType
 from psyclone.domain.lfric.algorithm import \
-    psyir_to_algpsyir, LfricAlgorithmInvokeCall, LfricCodedKernelRef, \
+    LfricAlgorithmInvokeCall, LfricCodedKernelRef, \
     LfricBuiltinRef
-from psyclone.errors import GenerationError, InternalError
 
 
 def test_lfricalgorithminvokecall():
@@ -134,7 +130,7 @@ def test_lfricbuiltinref():
     assert lbc._text_name == "LfricBuiltinRef"
 
 
-def test_lfricCodedkernelRef():
+def test_lfriccodedkernelref():
     '''test that an instance of LfricCodedKernelRef class can be created.
 
     '''

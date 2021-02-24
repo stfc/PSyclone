@@ -42,12 +42,13 @@ import pytest
 
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
+
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Reference, Literal
+from psyclone.psyir.nodes import Reference
 from psyclone.domain.common.algorithm import \
     AlgorithmInvokeCall, KernelLayerRef, psyir_to_algpsyir
+from psyclone.errors import GenerationError
 
-from psyclone.errors import GenerationError, InternalError
 
 def check_kernel(klr, name):
     '''Utility routine that checks that the kernel layer metadata
@@ -60,7 +61,7 @@ def check_kernel(klr, name):
         an argument to klr.
 
     '''
-    assert type(klr) ==  KernelLayerRef
+    assert type(klr) == KernelLayerRef
     assert klr.symbol.name == name
     assert len(klr.children) == 1
     arg = klr.children[0]
@@ -160,4 +161,4 @@ def test_arg_error():
     with pytest.raises(GenerationError) as info:
         psyir_to_algpsyir(psyir)
     assert ("Unsupported argument type found. Expecting a reference to kernel "
-            "metadata, but found 'Literal'.")
+            "metadata, but found 'Literal'." in str(info.value))

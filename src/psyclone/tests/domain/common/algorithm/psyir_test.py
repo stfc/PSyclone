@@ -69,7 +69,7 @@ def test_algorithminvokecall_invalid_arg():
     type (tests _validate_child method and _children_valid_format
     variable).
 
-    ''' 
+    '''
     routine = RoutineSymbol("symbol")
     with pytest.raises(GenerationError) as info:
         _ = AlgorithmInvokeCall.create(routine, ["hello"])
@@ -134,7 +134,7 @@ def test_kernellayerref_create(cls):
     assert len(klr.children) == 1
     assert klr.children[0] == arg
     assert arg.parent == klr
-    
+
 
 def test_kernellayerref_create_invalid_symbol():
     '''Check that the create method of KernelLayerRef raises the expected
@@ -166,7 +166,7 @@ def test_kernellayerref_invalid_args2():
     type (tests _validate_child method and _children_valid_format
     variable)
 
-    ''' 
+    '''
     symbol = TypeSymbol("hello", StructureType())
     with pytest.raises(GenerationError) as info:
         _ = KernelLayerRef.create(symbol, ["hello"])

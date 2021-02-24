@@ -49,6 +49,7 @@ from psyclone.domain.lfric.algorithm import \
     LfricBuiltinRef
 from psyclone.errors import GenerationError, InternalError
 
+
 def check_kernel(call):
     '''Utility routine that checks that the call argument has the expected
     structure.
@@ -57,7 +58,7 @@ def check_kernel(call):
     :type call: :py:class:`psyclone.domain.lfric.algorithm.LfricCodedKernelRef`
 
     '''
-    assert type(call) ==  LfricCodedKernelRef
+    assert type(call) == LfricCodedKernelRef
     assert call.symbol.name == "kern_type"
     assert len(call.children) == 1
     arg = call.children[0]
@@ -73,7 +74,7 @@ def check_builtin(call):
     :type call: :py:class:`psyclone.domain.lfric.algorithm.LfricBuiltinRef`
 
     '''
-    assert type(call) ==  LfricBuiltinRef
+    assert type(call) == LfricBuiltinRef
     assert call.symbol.name == "setval_c"
     assert len(call.children) == 2
     arg0 = call.children[0]
@@ -92,7 +93,7 @@ def test_kern(name):
     argument is captured correctly.
 
     '''
-    name_arg=""
+    name_arg = ""
     if name:
         name_arg = ", name={0}".format(name)
     code = (
@@ -130,7 +131,7 @@ def test_builtin(name):
     argument is captured correctly.
 
     '''
-    name_arg=""
+    name_arg = ""
     if name:
         name_arg = ", name={0}".format(name)
     code = (
@@ -265,7 +266,8 @@ def test_multi_named_arg_error():
         "  use field_mod, only : field_type\n"
         "  use kern_mod, only : kern_type\n"
         "  type(field_type) :: field\n"
-        "  call invoke(name='description1', kern_type(field), name='description2')\n"
+        "  call invoke(name='description1', kern_type(field), "
+        "name='description2')\n"
         "end subroutine alg\n")
     fortran_reader = FortranStringReader(code)
     f2008_parser = ParserFactory().create(std="f2008")

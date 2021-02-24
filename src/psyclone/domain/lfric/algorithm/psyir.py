@@ -39,6 +39,7 @@
 from psyclone.domain.common.algorithm import (AlgorithmInvokeCall,
                                               KernelLayerRef)
 
+
 class LfricAlgorithmInvokeCall(AlgorithmInvokeCall):
     '''An invoke call in an LFRic Algorithm layer.
 
@@ -53,7 +54,7 @@ class LfricAlgorithmInvokeCall(AlgorithmInvokeCall):
 
     def __init__(self, routine, parent=None, description=None):
         self._description = description
-        super(AlgorithmInvokeCall, self).__init__(routine, parent=parent)
+        super(LfricAlgorithmInvokeCall, self).__init__(routine, parent=parent)
 
     @classmethod
     def create(cls, routine, arguments, description=None):
@@ -78,7 +79,8 @@ class LfricAlgorithmInvokeCall(AlgorithmInvokeCall):
             subclass thereof.
 
         '''
-        instance = super(LfricAlgorithmInvokeCall, cls).create(routine, arguments)
+        instance = super(LfricAlgorithmInvokeCall, cls).create(
+            routine, arguments)
         instance._description = description
         return instance
 

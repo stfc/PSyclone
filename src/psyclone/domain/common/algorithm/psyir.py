@@ -79,19 +79,20 @@ class KernelLayerRef(Node):
     _text_name = "KernelLayerRef"
 
     def __init__(self, symbol, parent=None):
+        # pylint: disable=super-with-arguments
         super(KernelLayerRef, self).__init__(parent=parent)
 
         if not isinstance(symbol, TypeSymbol):
             raise TypeError(
-                "KernelLayerRef symbol argument should be a TypeSymbol but found "
-                "'{0}'.".format(type(symbol).__name__))
+                "KernelLayerRef symbol argument should be a TypeSymbol but "
+                "found '{0}'.".format(type(symbol).__name__))
 
         self._symbol = symbol
 
     @classmethod
     def create(cls, symbol, arguments):
-        '''Create an instance of class cls given valid instances of a TypeSymbol,
-        and a list of child nodes for its arguments.
+        '''Create an instance of class cls given valid instances of a
+        TypeSymbol, and a list of child nodes for its arguments.
 
         :param symbol: the name of the kernel metadata type that
         this onject references.
