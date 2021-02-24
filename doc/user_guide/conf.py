@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-#
-# psyclone documentation build configuration file, created by
-# sphinx-quickstart on Mon Jan 27 12:50:29 2014.
-#
+
+'''
+ PSyclone documentation build configuration file, created by
+ sphinx-quickstart on Mon Jan 27 12:50:29 2014.
+'''
+
 # This file is execfile()d with the current directory set to its
 # containing dir.
 #
@@ -11,6 +13,10 @@
 #
 # All configuration values have a default; values that are commented out
 # serve to show the default.
+
+# The names of the variables in this file are Sphinx keywords so
+# we can't make them uppercase as pylint demands.
+# pylint: disable=invalid-name
 
 import os
 
