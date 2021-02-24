@@ -1121,7 +1121,7 @@ class GOKern(CodedKern):
                 depth = arg.stencil.depth(i, j)
                 for current_depth in range(1, depth+1):
                     i_value = GOKern._format_access("i", i, current_depth)
-                    # The j direction is mirrored: negative dvalue means
+                    # The j direction is mirrored: a negative value means
                     # positive direction
                     j_value = GOKern._format_access("j", -j, current_depth)
                     var_accesses.add_access(var_name, arg.access, self,
