@@ -234,14 +234,13 @@ def generate(filename, api="", kernel_path="", script_name=None,
             Profiler.add_profile_nodes(invoke.schedule, Loop)
 
         if api not in API_WITHOUT_ALGORITHM:
-            alg_psyir_devel = True
-            if alg_psyir_devel:
+            if False:
                 if api=="dynamo0.3":
                     from psyclone.domain.lfric.algorithm import psyir_to_algpsyir
                     # Add a use statement to the ast to declare builtins
                     add_use(ast, "psyclone_builtins")
                 elif api == "gocean1.0":
-                    from psyclone.domain.gocean.algorithm import psyir_to_algpsyir
+                    from psyclone.domain.common.algorithm import psyir_to_algpsyir
                 else:
                     raise Exception("Unsupported API found")
                 # Create psyir from fparser2 ast
@@ -250,7 +249,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
                 psyir = processor.generate_psyir(ast)
                 psyir.view()
                 # Transform psyir to algorithm-specific psyir
-                algpsyir = psyir_to_algpsyir(psyir)
+                psyir_to_algpsyir(psyir)
                 algpsyir.view()
                 # Transform algpsyir to processed_algpsyir
                 # processed_algpsyir = algpsyir_to_processed_algpsyir(algpsyir, names)
