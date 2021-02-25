@@ -36,8 +36,9 @@
 '''This module contains the GOMoveIterationBoundariesInsideKernelTrans.'''
 
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyGen import Transformation, InvokeSchedule, CodedKern
-from psyclone.psyir.nodes import (BinaryOperation, Reference,
+from psyclone.psyGen import Transformation, InvokeSchedule
+from psyclone.gocean1p0 import GOKern
+from psyclone.psyir.nodes import (BinaryOperation, Reference, Loop,
                                   Assignment, IfBlock, Return)
 from psyclone.psyir.symbols import (INTEGER_TYPE, ArgumentInterface,
                                     DataSymbol)
@@ -95,23 +96,24 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         supplied node.
 
         :param node: the node to validate.
-        :type node: :py:class:`psyclone.psyGen.CodedKern`
+        :type node: :py:class:`psyclone.gocean1p0.GOKern`
         :param options: a dictionary with options for transformations.
         :type options: dict of string:values or None
 
-        :raises TransformationError: if the node is not a CodedKern.
+        :raises TransformationError: if the node is not a GOKern.
 
         '''
-        if not isinstance(node, CodedKern):
-            raise TransformationError("Error in {0} transformation. "
-                                      "This transformation can only be applied"
-                                      " to CodedKern nodes.".format(self.name))
+        if not isinstance(node, GOKern):
+            raise TransformationError(
+                "Error in {0} transformation. This transformation can only be "
+                "applied to 'GOKern' nodes, but found '{1}'."
+                "".format(self.name, type(node).__name__))
 
     def apply(self, node, options=None):
         '''Apply this transformation to the supplied node.
 
         :param node: the node to transform.
-        :type node: :py:class:`psyclone.psyGen.CodedKern`
+        :type node: :py:class:`psyclone.gocean1p0.GOKern`
         :param options: a dictionary with options for transformations.
         :type options: dict of string:values or None
 
@@ -120,15 +122,16 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         # Get useful references
         invoke_st = node.ancestor(InvokeSchedule).symbol_table
-        inner_loop = node.parent.parent
-        outer_loop = inner_loop.parent.parent
+        inner_loop = node.ancestor(Loop)
+        outer_loop = inner_loop.ancestor(Loop)
         cursor = outer_loop.position
 
-        # Create new symbols in the PSylayer and initialise them with
+        # Create new symbols in the PSylayer and initialise them with the
+        # boundary values provided by the Loop construct
         inv_xstart = invoke_st.symbol_from_tag(
             "xstart_" + node.name, root_name="xstart", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE)
@@ -164,7 +167,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
             raw_arguments.append(symbol.name)
 
         # Now that the boundaries are inside the kernel, the looping should go
-        # trough all the field points
+        # through all the field points
         inner_loop.field_space = "go_every"
         outer_loop.field_space = "go_every"
         inner_loop.iteration_space = "go_all_pts"
@@ -176,8 +179,8 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         iteration_indices = kernel_st.iteration_indices
         data_arguments = kernel_st.data_arguments
 
-        # Create new symbols and insert them as kernel arguments after
-        # the initial iteration indices
+        # Create new symbols and insert them as kernel arguments at the end of
+        # the kernel argument list
         xstart_symbol = kernel_st.new_symbol(
             "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
             interface=ArgumentInterface(ArgumentInterface.Access.READ))
@@ -194,7 +197,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
             iteration_indices + data_arguments +
             [xstart_symbol, xstop_symbol, ystart_symbol, ystop_symbol])
 
-        # Create boundaries masking condition
+        # Create boundary masking conditions
         condition1 = BinaryOperation.create(
             BinaryOperation.Operator.LT,
             Reference(iteration_indices[0]),
@@ -224,7 +227,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
                 condition4)
             )
 
-        # Insert if condition masking as the kernel first statement
+        # Insert the conditional mask as the first statement of the kernel
         if_statement = IfBlock.create(condition, [Return()])
         kschedule.children.insert(0, if_statement)
         if_statement.parent = kschedule
