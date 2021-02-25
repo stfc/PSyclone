@@ -1837,14 +1837,14 @@ class GOKern(CodedKern):
             USE clfortran
             USE fortcl, ONLY: get_cmd_queues
             type(c_ptr), intent(in) :: from
-            real(go_wp), dimension(:,:), intent(inout), target :: to
+            real(go_wp), intent(inout), target :: to
             integer, intent(in) :: offset, nx, ny, gap
             INTEGER(c_size_t) :: size_in_bytes, offset_in_bytes
             integer(c_intptr_t) :: cl_mem
             INTEGER(c_intptr_t), pointer :: cmd_queues(:)
             integer :: ierr
-            size_in_bytes = int((nx+gap)*ny, 8) * c_sizeof(to(1,1))
-            offset_in_bytes = int(offset, 8) * c_sizeof(to(1,1))
+            size_in_bytes = int((nx+gap)*ny, 8) * c_sizeof(to)
+            offset_in_bytes = int(offset, 8) * c_sizeof(to)
             cl_mem = transfer(from, cl_mem)
             cmd_queues => get_cmd_queues()
             ierr = clEnqueueReadBuffer(cmd_queues(1), cl_mem, &
@@ -1880,15 +1880,15 @@ class GOKern(CodedKern):
             use kind_params_mod, only: go_wp
             USE clfortran
             USE fortcl, ONLY: get_cmd_queues
-            real(go_wp), dimension(:,:), intent(in), target :: from
+            real(go_wp), intent(in), target :: from
             type(c_ptr), intent(in) :: to
             integer, intent(in) :: offset, nx, ny, gap
             integer(c_intptr_t) :: cl_mem
             INTEGER(c_size_t) :: size_in_bytes, offset_in_bytes
             INTEGER(c_intptr_t), pointer :: cmd_queues(:)
             integer :: ierr
-            size_in_bytes = int((nx+gap)*ny, 8) * c_sizeof(from(1,1))
-            offset_in_bytes = int(offset, 8) * c_sizeof(from(1,1))
+            size_in_bytes = int((nx+gap)*ny, 8) * c_sizeof(from)
+            offset_in_bytes = int(offset, 8) * c_sizeof(from)
             cl_mem = transfer(to, cl_mem)
             cmd_queues => get_cmd_queues()
             ierr = clEnqueueWriteBuffer(cmd_queues(1), cl_mem, &
