@@ -383,6 +383,9 @@
         'in' to 'inout' (because a kernel does not write to all data points in
         a field).
 
+	124) PR #1063 towards #935. Add basic support for specialisation of
+	symbols.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
