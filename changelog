@@ -351,9 +351,9 @@
 	113) PR #1062 for #1037. Fix LFRic examples and tutorials to
 	compile and run with the Intel Fortran compiler.
 
-        114) PR #1054 for #1047. Adds check that the intrinsic types of
-        scalar arguments in the LFRic API are consistent. Extends argument-
-        filtering routines to additionally filter on intrinsic type.
+	114) PR #1054 for #1047. Adds check that the intrinsic types of
+	scalar arguments in the LFRic API are consistent. Extends argument-
+	filtering routines to additionally filter on intrinsic type.
 
 	115) PR #1102 towards #1031. Improves PSyIR fparser2 frontend support for
 	structures types.
@@ -365,15 +365,26 @@
 	version of Sphinx which were causing read the docs to fail to
 	build the documentation.
 
-        118) #1058 for #917. Updates the profiling example (gocean/eg5)
-        so that the appropriate wrapper library is automatically
-        compiled.
+	118) #1058 for #917. Updates the profiling example (gocean/eg5)
+	so that the appropriate wrapper library is automatically
+	compiled.
 
-        119) PR #1090. Adds support for LFRic builtins that accept integer-
-        valued fields.
+	119) PR #1090. Adds support for LFRic builtins that accept integer-
+	valued fields.
 	
 	120) PR #1105 for #1104. Adds support for program, module and subroutine
 	to Fparser2Reader
+
+	121) PR #1101 towards #1089. Remove check on arrays dimension symbols.
+
+	122) PR #1128 for #1127. Fix Sphinx-RTD builds of user and developer guides.
+
+        123) PR #1117 for #1003. Change intent for 'GH_WRITE' arguments from
+        'in' to 'inout' (because a kernel does not write to all data points in
+        a field).
+
+	124) PR #1063 towards #935. Add basic support for specialisation of
+	symbols.
 
 release 1.9.0 20th May 2020
 

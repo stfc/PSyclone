@@ -124,7 +124,7 @@ contains
     integer(kind=i_def), intent(in) :: cell,  nlayers, ncell_3d, ncell_2d
     real(kind=r_def), dimension(ndf_to,ndf_from,ncell_3d), intent(in) :: local_stencil
     integer(kind=i_def), intent(in) :: nrow, ncol, bandwidth
-    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(out) :: columnwise_matrix
+    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(inout) :: columnwise_matrix
     integer(kind=i_def), intent(in) :: ndf_to, ndf_from
     integer(kind=i_def), intent(in) :: alpha, beta, gamma_m, gamma_p
     integer(kind=i_def), dimension(ndf_to,nlayers), intent(in) :: column_banded_dofmap_to

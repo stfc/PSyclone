@@ -562,3 +562,20 @@ which would result in the following Fortran output code:
         real, intent(inout) :: new_variable
         new_variable=0.0
     end subroutine
+
+Specialising symbols
+--------------------
+
+The Symbol class provides the method ``specialise()`` that given a
+subclass of Symbol will change the Symbol instance to the specified
+subclass. If the subclass has any additional properties then these
+would need to be set explicitly.
+
+.. code-block:: python
+
+    symbol = Symbol("name")
+    symbol.specialise(RoutineSymbol)
+    # Symbol is now a RoutineSymbol
+
+This method is useful as it allows the class of a symbol to be changed
+without affecting any references to it.
