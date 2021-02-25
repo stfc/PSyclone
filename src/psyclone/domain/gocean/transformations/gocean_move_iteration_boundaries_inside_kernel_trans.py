@@ -50,30 +50,36 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
 
     For example the following kernel call:
 
-    >>> do i = 2, N - 1
-    >>>   do j = 2, N - 1
-    >>>      kernel(i, j, field)
-    >>>   end do
-    >>> end do
+    .. code-block:: fortran
+
+        do i = 2, N - 1
+            do j = 2, N - 1
+                kernel(i, j, field)
+            end do
+        end do
 
     will be transformed to:
 
-    >>> startx = 2
-    >>> stopx = N - 1
-    >>> starty = 2
-    >>> stopy = N - 1
-    >>> do i = 1, size(field, 1)
-    >>>   do j = 1, size(field, 2)
-    >>>      kernel(i, j, field, startx, stopx, starty, stopx)
-    >>>   end do
-    >>> end do
+    .. code-block:: fortran
+
+        startx = 2
+        stopx = N - 1
+        starty = 2
+        stopy = N - 1
+        do i = 1, size(field, 1)
+            do j = 1, size(field, 2)
+                kernel(i, j, field, startx, stopx, starty, stopy)
+            end do
+        end do
 
     additionally a mask like the following one will be introduced in the
     kernel code:
 
-    >>> if (i < startx .or. i > stopx .or. j < starty .or. j > stopx) then
-    >>>    return
-    >>> end if
+    .. code-block:: fortran
+
+        if (i < startx .or. i > stopx .or. j < starty .or. j > stopy) then
+            return
+        end if
 
     '''
     def __str__(self):
@@ -91,11 +97,11 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         :param node: the node to validate.
         :type node: :py:class:`psyclone.psyGen.CodedKern`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or None
 
         :raises TransformationError: if the node is not a CodedKern.
-         '''
 
+        '''
         if not isinstance(node, CodedKern):
             raise TransformationError("Error in {0} transformation. "
                                       "This transformation can only be applied"
@@ -107,7 +113,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         :param node: the node to transform.
         :type node: :py:class:`psyclone.psyGen.CodedKern`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or None
 
         :returns: 2-tuple of new schedule and memento of transform.
         :rtype: (:py:class:`psyclone.gocean1p0.GOInvokeSchedule`, \
