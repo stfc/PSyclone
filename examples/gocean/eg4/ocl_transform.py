@@ -70,7 +70,10 @@ def trans(psy):
     # Provide kernel-specific OpenCL optimization options
     move_boundaries_trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kern in sched.kernels():
+        # Move the PSy-layer loop boundaries inside the kernel as a kernel
+        # mask, this allows to iterate through the whole domain
         move_boundaries_trans.apply(kern)
+        # Specify the OpenCL queue and workgroup size of the kernel
         kern.set_opencl_options({"queue_number": 1, 'local_size': 4})
 
     return psy
