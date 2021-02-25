@@ -44,34 +44,40 @@ from psyclone.psyir.transformations.transformation_error import \
 
 class FoldConditionalReturnExpressionsTrans(Transformation):
     ''' Provides a transformation that folds conditional expressions with only
-    a return statement inside so that the Return statement can disapear
-    (because happens at the end of the Routine). For example, the following
-    code:
+    a return statement inside so that the Return statement is moved to the end
+    of the Routine and therefore it can be safely removed. This simplifies the
+    control flow of the kernel to facilitate other transformations like kernel
+    fusions. For example, the following code:
 
-    >>> subroutine test(i)
-    >>>    if (i < 5) then
-    >>>        return
-    >>>    endif
-    >>>    if (i > 10) then
-    >>>        return
-    >>>    endif
-    >>>    ! CODE
-    >>>  end subroutine
+    .. code-block:: fortran
+
+        subroutine test(i)
+            if (i < 5) then
+                return
+            endif
+            if (i > 10) then
+                return
+            endif
+            ! CODE
+        end subroutine
 
     will be transformed to:
 
-    >>> subroutine test(i)
-    >>>    if (.not.(i < 5)) then
-    >>>        if (.not.(i > 10)) then
-    >>>            ! CODE
-    >>>        endif
-    >>>    endif
-    >>>  end subroutine
+    .. code-block:: fortran
+
+        subroutine test(i)
+            if (.not.(i < 5)) then
+                if (.not.(i > 10)) then
+                    ! CODE
+                endif
+            endif
+        end subroutine
 
     '''
 
     def __str__(self):
-        return "Fold all conditional expressions with Return statements."
+        return ("Re-structure kernel statements to eliminate conditional "
+                "Return expressions.")
 
     @property
     def name(self):
@@ -85,15 +91,16 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
         :param node: the node to validate.
         :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or None
 
         :raises TransformationError: if the node is not a Routine.
-        '''
 
+        '''
         if not isinstance(node, Routine):
-            raise TransformationError("Error in {0} transformation. "
-                                      "This transformation can only be applied"
-                                      " to Routine nodes.".format(self.name))
+            raise TransformationError(
+                "Error in {0} transformation. This transformation can only be "
+                "applied to 'Routine' nodes, but found '{1}'."
+                "".format(self.name, type(node).__name__))
 
     def apply(self, node, options=None):
         '''Apply this transformation to the supplied node.
@@ -101,14 +108,15 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
         :param node: the node to transform.
         :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: dict of string:values or None
 
         :returns: 2-tuple of new schedule and memento of transform.
         :rtype: (:py:class:`psyclone.psyGen.InvokeSchedule`, \
                  :py:class:`psyclone.undoredo.Memento`)
+
         '''
         routine = node
-        self.validate(routine)
+        self.validate(routine, options)
 
         def is_conditional_return(node):
             '''
@@ -118,15 +126,13 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
             :returns: whether the given node represents a conditional return \
                       expression.
             '''
-
             if not isinstance(node, IfBlock):
                 return False
             if node.else_body is not None:
                 return False
             return isinstance(node.if_body[0], Return)
 
-        remaining_statements = [line for line in routine]
-        for statement in remaining_statements:
+        for statement in routine[:]:
             if is_conditional_return(statement):
                 # Reverse condition adding a NOT operator
                 new_condition = UnaryOperation.create(
@@ -135,14 +141,11 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
                 statement.children[0] = new_condition
                 new_condition.parent = statement
 
-                # Remove return (and dead code after return) and add remaining
-                # part of the routine schedule inside the loop body
-                for i in reversed(range(len(statement.if_body.children))):
-                    del statement.if_body.children[i]
-                start = statement.position
-                end = len(statement.parent.children) - 1
-                for index in range(end, start, -1):
-                    move = statement.parent.children[index]
-                    del statement.parent.children[index]
+                # Remove return statement (and any dead code inside the loop)
+                statement.if_body.children = []
+                # Then move any remaining statement after the conditional
+                # statement inside the loop body
+                while len(statement.parent.children) > statement.position + 1:
+                    move = statement.parent.children.pop()
                     statement.if_body.children.insert(0, move)
                     move.parent = statement.if_body
