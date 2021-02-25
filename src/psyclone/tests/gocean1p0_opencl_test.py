@@ -100,7 +100,7 @@ def test_invoke_use_stmts(kernel_outputdir, monkeypatch, debug_mode):
     sched = psy.invokes.invoke_list[0].schedule
 
     # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for OCLTrans
+    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
@@ -130,7 +130,7 @@ def test_invoke_opencl_initialisation(kernel_outputdir):
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for OCLTrans
+    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
@@ -177,7 +177,7 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for OCLTrans
+    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
@@ -244,7 +244,7 @@ def test_grid_proprty(kernel_outputdir):
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for OCLTrans
+    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
@@ -267,7 +267,7 @@ def test_field_arguments(kernel_outputdir):
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for OCLTrans
+    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
@@ -324,7 +324,7 @@ def test_psy_init(kernel_outputdir, monkeypatch):
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for OCLTrans
+    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
@@ -414,7 +414,7 @@ def test_psy_init_with_options(kernel_outputdir):
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for OCLTrans
+    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
@@ -437,7 +437,7 @@ def test_opencl_options_validation():
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for OCLTrans
+    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
@@ -498,7 +498,7 @@ def test_opencl_multi_invoke_options_validation(option_to_check):
     invoke1_schedule = psy.invokes.invoke_list[0].schedule
     invoke2_schedule = psy.invokes.invoke_list[1].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for OCLTrans
+    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in invoke1_schedule.coded_kernels():
         trans.apply(kernel)
@@ -524,7 +524,7 @@ def test_opencl_options_effects():
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for OCLTrans
+    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
@@ -570,7 +570,7 @@ def test_set_kern_args(kernel_outputdir):
     psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for OCLTrans
+    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
@@ -629,7 +629,7 @@ def test_set_kern_args_real_grid_property():
     psy, _ = get_invoke("driver_test.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for OCLTrans
+    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
@@ -662,7 +662,7 @@ def test_set_kern_float_arg():
     psy, _ = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for OCLTrans
+    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)
@@ -805,7 +805,7 @@ def test_opencl_prepared_kernel_code_generation():
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
-def test_opencl_kernel_missing_symbol():
+def test_opencl_kernel_missing_boundary_symbol():
     '''Check that an OpenCL file named modulename_kernelname_0 is generated.
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
@@ -827,7 +827,9 @@ def test_opencl_kernel_missing_symbol():
     with pytest.raises(GenerationError) as err:
         _ = psy.gen  # Generates the OpenCL kernels as a side-effect.
     assert ("Boundary symbol tag 'xstop_name' not found while generating the "
-            "OpenCL code for kernel 'name'." in str(err.value))
+            "OpenCL code for kernel 'name'. Make sure to apply the "
+            "GOMoveIterationBoundariesInsideKernelTrans for correct OpenCL "
+            "code generation." in str(err.value))
 
 
 def test_opencl_kernel_output_file(kernel_outputdir):
@@ -861,7 +863,7 @@ def test_opencl_kernel_output_file_with_suffix(kernel_outputdir):
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for OCLTrans
+    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         trans.apply(kernel)

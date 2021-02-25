@@ -1530,11 +1530,10 @@ def test_ocl_apply(kernel_outputdir):
                              "one_invoke.f90", API, idx=0, dist_mem=False)
     schedule = invoke.schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
-    # for OCLTrans
+    # for the GOcean gen_ocl() code generation.
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in schedule.coded_kernels():
         trans.apply(kernel)
-
     ocl = OCLTrans()
 
     # Check that we raise the correct error if we attempt to apply the

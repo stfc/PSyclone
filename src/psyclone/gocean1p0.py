@@ -1227,7 +1227,9 @@ class GOKern(CodedKern):
         except KeyError as err:
             six.raise_from(GenerationError(
                 "Boundary symbol tag '{0}' not found while generating the "
-                "OpenCL code for kernel '{1}'.".format(tag, self.name)), err)
+                "OpenCL code for kernel '{1}'. Make sure to apply the "
+                "GOMoveIterationBoundariesInsideKernelTrans for correct OpenCL"
+                "code generation.".format(tag, self.name)), err)
         for arg in self._arguments.args:
             if arg.argument_type == "scalar":
                 arguments.append(arg.name)
