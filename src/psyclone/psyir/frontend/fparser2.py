@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
     NaryOperation, Schedule, CodeBlock, IfBlock, Reference, Literal, Loop, \
     Container, Assignment, Return, ArrayReference, Node, Range, \
     KernelSchedule, StructureReference, ArrayOfStructuresReference, \
-    Call
+    Call, Routine
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Directive
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ContainerSymbol, \
@@ -78,6 +78,26 @@ CONSTANT_TYPE_MAP = {
 INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
                   "out": ArgumentInterface.Access.WRITE,
                   "inout": ArgumentInterface.Access.READWRITE}
+
+
+def _first_type_match(nodelist, typekind):
+    '''Returns the first instance of the specified type in the given
+    node list.
+
+    :param list nodelist: list of fparser2 nodes.
+    :param type typekind: the fparser2 Type we are searching for.
+
+    :returns: the first instance of the specified type.
+    :rtype: instance of typekind
+
+    :raises ValueError: if the list does not contain an object of type \
+        typekind.
+
+    '''
+    for node in nodelist:
+        if isinstance(node, typekind):
+            return node
+    raise ValueError  # Type not found
 
 
 def _find_or_create_imported_symbol(location, name, scope_limit=None,
@@ -746,6 +766,9 @@ class Fparser2Reader(object):
             Fortran2003.Where_Construct: self._where_construct_handler,
             Fortran2003.Where_Stmt: self._where_construct_handler,
             Fortran2003.Call_Stmt: self._call_handler,
+            Fortran2003.Subroutine_Subprogram: self._subroutine_handler,
+            Fortran2003.Module: self._module_handler,
+            Fortran2003.Program: self._program_handler,
         }
 
     @staticmethod
@@ -917,6 +940,31 @@ class Fparser2Reader(object):
         '''
         return KernelSchedule(name)
 
+    def generate_psyir(self, parse_tree):
+        '''Translate the supplied fparser2 parse_tree into PSyIR.
+
+        :param parse_tree: the supplied fparser2 parse tree.
+        :type parse_tree: :py:class:`fparser.two.Fortran2003.Program`
+
+        :returns: PSyIR representation of the supplied fparser2 parse_tree.
+        :rtype: :py:class:`psyclone.psyir.nodes.Container` or \
+            :py:class:`psyclone.psyir.nodes.Routine`
+
+        :raises GenerationError: if the root of the supplied fparser2 \
+            parse tree is not a Program.
+
+        '''
+        if not isinstance(parse_tree, Fortran2003.Program):
+            raise GenerationError(
+                "The Fparser2Reader generate_psyir method expects the root of "
+                "the supplied fparser2 tree to be a Program, but found '{0}'"
+                "".format(type(parse_tree).__name__))
+        node = Container("dummy")
+        self.process_nodes(node, [parse_tree])
+        result = node.children[0]
+        result.parent = None
+        return result
+
     def generate_container(self, module_ast):
         '''
         Create a Container from the supplied fparser2 module AST.
@@ -995,19 +1043,6 @@ class Fparser2Reader(object):
                                  the provided fpaser2 parse tree.
 
         '''
-        def first_type_match(nodelist, typekind):
-            '''
-            Returns the first instance of the specified type in the given
-            node list.
-
-            :param list nodelist: List of fparser2 nodes.
-            :param type typekind: The fparse2 Type we are searching for.
-            '''
-            for node in nodelist:
-                if isinstance(node, typekind):
-                    return node
-            raise ValueError  # Type not found
-
         new_schedule = self._create_schedule(name)
 
         routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
@@ -1051,8 +1086,8 @@ class Fparser2Reader(object):
         # pylint: enable=protected-access
 
         try:
-            sub_spec = first_type_match(subroutine.content,
-                                        Fortran2003.Specification_Part)
+            sub_spec = _first_type_match(subroutine.content,
+                                         Fortran2003.Specification_Part)
             decl_list = sub_spec.content
             # TODO this if test can be removed once fparser/#211 is fixed
             # such that routine arguments are always contained in a
@@ -1072,8 +1107,8 @@ class Fparser2Reader(object):
             self.process_declarations(new_schedule, decl_list, arg_list)
 
         try:
-            sub_exec = first_type_match(subroutine.content,
-                                        Fortran2003.Execution_Part)
+            sub_exec = _first_type_match(subroutine.content,
+                                         Fortran2003.Execution_Part)
         except ValueError:
             pass
         else:
@@ -3312,18 +3347,28 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Call`
 
+        :raises GenerationError: if the symbol associated with the \
+            name of the call is an unsupported type.
+
         '''
+        # pylint: disable="unidiomatic-typecheck"
         call_name = node.items[0].string
         symbol_table = parent.scope.symbol_table
         try:
             routine_symbol = symbol_table.lookup(call_name)
+            # pylint: disable=unidiomatic-typecheck
             if type(routine_symbol) is Symbol:
-                # TODO PR #1063: Symbol should be specialised to a
-                # RoutineSymbol here (if the symbol is part of a use
-                # statement). Without specialising, the Call class
-                # constructor will raise an exception. As a temporary
-                # fix, just change the class name.
-                routine_symbol.__class__ = RoutineSymbol
+                # Specialise routine_symbol from a Symbol to a
+                # RoutineSymbol
+                routine_symbol.specialise(RoutineSymbol)
+            elif type(routine_symbol) is RoutineSymbol:
+                # This symbol is already the expected type
+                pass
+            else:
+                raise GenerationError(
+                    "Expecting the symbol '{0}', to be of type 'Symbol' or "
+                    "'RoutineSymbol', but found '{1}'.".format(
+                        call_name, type(routine_symbol).__name__))
         except KeyError:
             routine_symbol = RoutineSymbol(
                 call_name, interface=UnresolvedInterface())
@@ -3340,6 +3385,134 @@ class Fparser2Reader(object):
         call.ast = node
 
         return call
+
+    def _subroutine_handler(self, node, parent):
+        '''Transforms an fparser2 Subroutine_Subprogram statement into a PSyIR
+        Routine node.
+
+        :param node: node in fparser2 parse tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram`
+        :param parent: parent node of the PSyIR node being constructed.
+        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: PSyIR representation of node.
+        :rtype: :py:class:`psyclone.psyir.nodes.Routine`
+
+        '''
+        name = node.children[0].children[1].string
+        routine = Routine(name, parent=parent)
+
+        try:
+            sub_spec = _first_type_match(node.content,
+                                         Fortran2003.Specification_Part)
+            decl_list = sub_spec.content
+            # TODO this if test can be removed once fparser/#211 is fixed
+            # such that routine arguments are always contained in a
+            # Dummy_Arg_List, even if there's only one of them.
+            if isinstance(node, Fortran2003.Subroutine_Subprogram) and \
+               isinstance(node.children[0].children[2],
+                          Fortran2003.Dummy_Arg_List):
+                arg_list = node.children[0].children[2].children
+            else:
+                # Routine has no arguments
+                arg_list = []
+        except ValueError:
+            # Subroutine has no Specification_Part so has no
+            # declarations. Continue with empty lists.
+            decl_list = []
+            arg_list = []
+        finally:
+            self.process_declarations(routine, decl_list, arg_list)
+
+        try:
+            sub_exec = _first_type_match(node.content,
+                                         Fortran2003.Execution_Part)
+        except ValueError:
+            # Routines without any execution statements are still
+            # valid.
+            pass
+        else:
+            self.process_nodes(routine, sub_exec.content)
+
+        return routine
+
+    def _module_handler(self, node, parent):
+        '''Transforms an fparser2 Module statement into a PSyIR Container node.
+
+        :param node: fparser2 representation of a module.
+        :type node: :py:class:`fparser.two.Fortran2003.Module`
+        :param parent: parent node of the PSyIR node being constructed.
+        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: PSyIR representation of module.
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
+
+        '''
+        # Create a container to capture the module information
+        mod_name = str(node.children[0].children[1])
+        container = Container(mod_name, parent=parent)
+
+        # Search for any accessibility statements (e.g. "PUBLIC :: my_var") to
+        # determine the default accessibility of symbols as well as identifying
+        # those that are explicitly declared as public or private.
+        (default_visibility, visibility_map) = self._parse_access_statements(
+            node)
+
+        # Create symbols for all routines defined within this module
+        _process_routine_symbols(node, container.symbol_table,
+                                 default_visibility, visibility_map)
+
+        # Parse the declarations if it has any
+        try:
+            spec_part = _first_type_match(
+                node.children, Fortran2003.Specification_Part)
+            self.process_declarations(container, spec_part.children,
+                                      [], default_visibility,
+                                      visibility_map)
+        except ValueError:
+            pass
+
+        # Parse any module subprograms (subroutine or function)
+        # skipping the contains node
+        try:
+            subprog_part = _first_type_match(
+                node.children, Fortran2003.Module_Subprogram_Part)
+            module_subprograms = \
+                [subprogram for subprogram in subprog_part.children
+                 if not isinstance(subprogram, Fortran2003.Contains_Stmt)]
+            if module_subprograms:
+                self.process_nodes(parent=container, nodes=module_subprograms)
+        except ValueError:
+            pass
+
+        return container
+
+    def _program_handler(self, node, parent):
+        '''Processes an fparser2 Program statement. Program is the top level
+        node of a complete fparser2 tree and may contain one or more
+        program-units. At the moment PSyIR does not support the
+        concept of multiple program-units so can only support
+        one. Therefore this handler simply checks that this constraint
+        is observed in the supplied tree.
+
+        :param node: top level node in fparser2 parse tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Program`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: PSyIR representation of the program.
+        :rtype: subclass of :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises NotImplementedError: if more than one program-unit is \
+            found in the fparser2 parse tree.
+
+        '''
+        if not len(node.children) == 1:
+            raise GenerationError(
+                "The PSyIR is currently limited to a single top level "
+                "module/subroutine/program/function, but {0} were found."
+                "".format(len(node.children)))
+        return self._create_child(node.children[0], parent)
 
 
 # For Sphinx AutoAPI documentation generation

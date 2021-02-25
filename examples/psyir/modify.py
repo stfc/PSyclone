@@ -49,6 +49,7 @@ representation.
 # Different pylint configurations don't agree in the order of this imports
 # pylint: disable=wrong-import-order
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.symbols import Symbol, RoutineSymbol
 from create import create_psyir_tree
 
 
@@ -65,6 +66,18 @@ def modify_psyir_tree():
     # Rename one of the subroutine local symbols.
     tmp_symbol = subroutine.symbol_table.lookup("psyir_tmp")
     subroutine.symbol_table.rename_symbol(tmp_symbol, "new_variable")
+
+    # The type of a symbol might be unknown
+    symbol = Symbol("unused")
+    container.symbol_table.add(symbol)
+    # later its type could be determined. However, we don't want to
+    # replace the existing symbol instance with a new instance as it
+    # may have references, which could then lead to inconsistencies. Therefore
+    # we support the specialise method, which transforms the existing
+    # node type to a subclass of type without changing the memory
+    # location of the instance. Note, any additional subclass properties would
+    # have to be added manually.
+    symbol.specialise(RoutineSymbol)
 
     return container
 

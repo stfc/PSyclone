@@ -78,7 +78,7 @@ contains
     real(kind=r_def), intent(in), dimension(undf_w0) :: xdata
     real(kind=r_def), intent(in), dimension(undf_w0) :: ydata
     real(kind=r_def), intent(in), dimension(undf_w0) :: zdata
-    real(kind=r_def), intent(out), dimension(ndf_w2,ndf_w2,ncell_3d) :: local_stencil
+    real(kind=r_def), intent(inout), dimension(ndf_w2,ndf_w2,ncell_3d) :: local_stencil
     real(kind=r_def), intent(in), dimension(3,ndf_w2,np_xy,np_z) :: basis_w2
     real(kind=r_def), intent(in), dimension(3,ndf_w0,np_xy,np_z) :: diff_basis_w0
     real(kind=r_def), intent(in), dimension(np_xy) :: weights_xy
