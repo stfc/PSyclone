@@ -62,6 +62,7 @@ from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
 from psyclone.psyir.nodes import CodeBlock, Loop, Assignment
 from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
+from psyclone.gocean1p0 import GOLoop
 
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -1199,7 +1200,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
        :param omp_schedule: the omp schedule to be created. Must be one of
            'runtime', 'static', 'dynamic', 'guided' or 'auto'.
 
-       '''
+    '''
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a GOcean loop"
 
@@ -2330,7 +2331,6 @@ class GOLoopSwapTrans(LoopTrans):
         '''
         super(GOLoopSwapTrans, self).validate(node_outer, options=options)
 
-        from psyclone.gocean1p0 import GOLoop
         if not isinstance(node_outer, GOLoop):
             raise TransformationError("Error in GOLoopSwap transformation. "
                                       "Given node '{0}' is not a GOLoop, but "
@@ -2346,14 +2346,24 @@ class GOLoopSwapTrans(LoopTrans):
                                       .format(node_outer))
 
         node_inner = node_outer.loop_body[0]
-        # Check that the supplied Node is a Loop
-        if not isinstance(node_inner, Loop):
-            raise TransformationError("Error in GOLoopSwap transformation. "
-                                      "Supplied node '{0}' must be the outer "
-                                      "loop of a loop nest but the first "
-                                      "inner statement is not a loop, got "
-                                      "'{1}'."
-                                      .format(node_outer, node_inner))
+
+        # Check that the body of the outer loop is itself a Loop
+        try:
+            super(GOLoopSwapTrans, self).validate(node_inner, options=options)
+        except TransformationError as err:
+            six.raise_from(
+                TransformationError("Error in GOLoopSwap transformation. "
+                                    "Supplied node '{0}' must be the outer "
+                                    "loop of a loop nest but the first "
+                                    "inner statement is not a valid loop:\n"
+                                    "{1}.".format(node_outer, str(err.value))),
+                err)
+
+        if not isinstance(node_inner, GOLoop):
+            raise TransformationError(
+                "Error in GOLoopSwap transformation. Inner loop of supplied "
+                "loop nest ({0}) is not a GOLoop, but an instance of '{1}'."
+                .format(node_outer, type(node_inner).__name__))
 
         if len(node_outer.loop_body.children) > 1:
             raise TransformationError(

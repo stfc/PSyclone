@@ -47,6 +47,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 from psyclone.errors import GenerationError
+from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import TransformationError, LoopTrans
 from psyclone.transformations import ACCKernelsTrans, GOConstLoopBoundsTrans, \
@@ -1480,11 +1481,11 @@ def test_go_loop_swap_errors():
     # a double nested loop:
     with pytest.raises(TransformationError) as error:
         swap.apply(schedule.children[0].loop_body[0])
-    assert re.search("Supplied node .* must be the outer loop of a loop nest "
-                     "but the first inner statement is not a loop, got .*",
-                     str(error.value)) is not None
+    assert re.search("Transformation Error: Target of GOLoopSwapTrans "
+                     "transformation must be a sub-class of Loop but got "
+                     "'GOKern'.", str(error.value)) is not None
 
-    # Not a loop: use the cal to bc_ssh_code node as example for this test:
+    # Not a loop: use the call to bc_ssh_code node as example for this test:
     with pytest.raises(TransformationError) as error:
         swap.apply(schedule.children[0].loop_body[0].loop_body[0])
     assert ("Target of GOLoopSwapTrans transformation must be a sub-class of "
@@ -1517,14 +1518,30 @@ def test_go_loop_swap_errors():
                      "have any statements inside.",
                      str(error.value)) is not None
 
+
+def test_go_loop_swap_wrong_loop_type():
+    '''
+    Test loop swapping transform when supplied loops are not GOLoops.
+    '''
+    swap = GOLoopSwapTrans()
     psy, invoke = get_invoke("1.0.1_single_named_invoke.f90",
                              "dynamo0.3", idx=0, dist_mem=True)
     with pytest.raises(TransformationError) as error:
         swap.apply(invoke.schedule.children[4])
 
-    assert re.search("Given node .* is not a GOLoop, "
-                     "but an instance of .*DynLoop",
-                     str(error.value)) is not None
+    assert re.search("Given node .* is not a GOLoop, but an instance of "
+                     ".*DynLoop", str(error.value)) is not None
+
+    psy, invoke_loop1 = get_invoke("test27_loop_swap.f90", API, idx=1,
+                                   dist_mem=False)
+    schedule = invoke_loop1.schedule
+    loop = schedule[0].loop_body[0]
+    assert isinstance(loop, GOLoop)
+    # Change the class of the inner loop so that it is not a GOLoop
+    loop.__class__ = Loop
+    with pytest.raises(TransformationError) as error:
+        swap.apply(schedule[0])
+    assert "is not a GOLoop, but an instance of 'Loop'" in str(error.value)
 
 
 def test_ocl_apply(kernel_outputdir):
