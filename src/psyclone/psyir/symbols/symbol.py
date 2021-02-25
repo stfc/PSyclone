@@ -262,7 +262,8 @@ class Symbol(object):
         invalid.
 
         :param subclass: the class that this symbol will become.
-        :type subclass: sub-class of :py:class:`psyclone.psyir.symbols.Symbol`
+        :type subclass: type of sub-class of \
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if subclass is not a sub-class of Symbol.
 
