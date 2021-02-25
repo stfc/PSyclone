@@ -127,7 +127,7 @@ contains
     real(kind=r_def), intent(in),    dimension(undf_w2)       :: field2
     real(kind=r_def), intent(in),    dimension(undf_w0)       :: field3
     real(kind=r_def), intent(in),    dimension(undf_w3)       :: field4
-    real(kind=r_def), intent(out),   dimension(undf_wtheta)   :: field5
+    real(kind=r_def), intent(inout), dimension(undf_wtheta)   :: field5
     real(kind=r_def), intent(in),    dimension(undf_w2h)      :: field6
     real(kind=r_def), intent(in),    dimension(undf_w2v)      :: field7
     real(kind=r_def), intent(in),    dimension(undf_w2broken) :: field8
