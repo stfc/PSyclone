@@ -57,18 +57,16 @@ from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
 from psyclone.parse.algorithm import Arg
 from psyclone.psyir.nodes import Loop, Literal, Schedule, Node, \
-    KernelSchedule, StructureReference, BinaryOperation, Reference, \
-    Return, IfBlock
+    KernelSchedule, StructureReference, BinaryOperation, Reference
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     CodedKern, Arguments, Argument, KernelArgument, args_filter, \
     AccessType, ACCEnterDataDirective, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
-    INTEGER_TYPE, DataSymbol, ArgumentInterface, RoutineSymbol, \
-    ContainerSymbol, DeferredType, TypeSymbol, UnresolvedInterface, REAL_TYPE
+    INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, \
+    TypeSymbol, UnresolvedInterface, REAL_TYPE
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
     IfThenGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen
 
@@ -1412,23 +1410,13 @@ class GOKern(CodedKern):
             sub,
             " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
         index = 0
-        # First the PSy-layer kernel arguments
-        for arg in self.arguments.args:
+        # First the PSy-layer kernel arguments and then the boundary values
+        names = [arg.name for arg in self.arguments.args] + boundary_names
+        for symbol_name in names:
             sub.add(AssignGen(
                 sub, lhs=err_name,
                 rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-                format(kobj, index, arg.name)))
-            sub.add(CallGen(
-                sub, "check_status",
-                ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
-                 err_name]))
-            index = index + 1
-        # Then the boundary values
-        for boundary in boundary_names:
-            sub.add(AssignGen(
-                sub, lhs=err_name,
-                rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-                format(kobj, index, boundary)))
+                format(kobj, index, symbol_name)))
             sub.add(CallGen(
                 sub, "check_status",
                 ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
