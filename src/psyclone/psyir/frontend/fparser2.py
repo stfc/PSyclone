@@ -3347,19 +3347,28 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Call`
 
+        :raises GenerationError: if the symbol associated with the \
+            name of the call is an unsupported type.
+
         '''
+        # pylint: disable="unidiomatic-typecheck"
         call_name = node.items[0].string
         symbol_table = parent.scope.symbol_table
         try:
             routine_symbol = symbol_table.lookup(call_name)
             # pylint: disable=unidiomatic-typecheck
             if type(routine_symbol) is Symbol:
-                # TODO PR #1063: Symbol should be specialised to a
-                # RoutineSymbol here (if the symbol is part of a use
-                # statement). Without specialising, the Call class
-                # constructor will raise an exception. As a temporary
-                # fix, just change the class name.
-                routine_symbol.__class__ = RoutineSymbol
+                # Specialise routine_symbol from a Symbol to a
+                # RoutineSymbol
+                routine_symbol.specialise(RoutineSymbol)
+            elif type(routine_symbol) is RoutineSymbol:
+                # This symbol is already the expected type
+                pass
+            else:
+                raise GenerationError(
+                    "Expecting the symbol '{0}', to be of type 'Symbol' or "
+                    "'RoutineSymbol', but found '{1}'.".format(
+                        call_name, type(routine_symbol).__name__))
         except KeyError:
             routine_symbol = RoutineSymbol(
                 call_name, interface=UnresolvedInterface())
