@@ -134,7 +134,7 @@ contains
     integer(kind=i_def), intent(in) :: nrow, bandwidth, alpha, beta, gamma_m, gamma_p
     integer(kind=i_def), intent(in), dimension(ndf_lma_to) :: map_lma_to
     integer(kind=i_def), intent(in), dimension(ndf_lma_from,nlayers) :: column_banded_dofmap_to
-    real(kind=r_def), intent(out), dimension(bandwidth,nrow,ncell_2d) :: columnwise_matrix
+    real(kind=r_def), intent(inout), dimension(bandwidth,nrow,ncell_2d) :: columnwise_matrix
     real(kind=r_def), intent(in), dimension(undf_lma_to) :: field
     real(kind=r_def), intent(in), dimension(ndf_lma_to,ndf_lma_from,ncell_3d) :: local_stencil
 

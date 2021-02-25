@@ -104,7 +104,7 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_aspc2,nlayers) :: cbanded_map_aspc2
     real(kind=r_def), intent(in), dimension(undf_aspc1) :: field1
     real(kind=r_def), intent(in), dimension(ndf_aspc1, ndf_aspc2,ncell_3d) :: op_2
-    real(kind=r_def), intent(out), dimension(cma_op_3_bandwidth, cma_op_3_nrow,ncell_2d) :: cma_op_3
+    real(kind=r_def), intent(inout), dimension(cma_op_3_bandwidth, cma_op_3_nrow,ncell_2d) :: cma_op_3
 
     write (*,*) "Hello CMA World"
 

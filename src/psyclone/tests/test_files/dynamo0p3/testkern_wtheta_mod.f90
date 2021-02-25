@@ -70,8 +70,8 @@ contains
     integer(kind=i_def), intent(in) :: undf_adspc1
     integer(kind=i_def), intent(in), dimension(ndf_wtheta) :: map_wtheta
     integer(kind=i_def), intent(in), dimension(ndf_adspc1) :: map_adspc1
-    real(kind=r_def), intent(out), dimension(undf_wtheta) :: field1
-    real(kind=r_def), intent(in), dimension(undf_adspc1)  :: field2
+    real(kind=r_def), intent(inout), dimension(undf_wtheta) :: field1
+    real(kind=r_def), intent(in), dimension(undf_adspc1)    :: field2
 
   end subroutine testkern_wtheta_code
 

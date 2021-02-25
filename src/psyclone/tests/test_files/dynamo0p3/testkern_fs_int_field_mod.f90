@@ -136,7 +136,7 @@ contains
     integer(kind=i_def), intent(inout), dimension(undf_w2)       :: field2
     integer(kind=i_def), intent(in),    dimension(undf_w0)       :: field3
     integer(kind=i_def), intent(in),    dimension(undf_w3)       :: field4
-    integer(kind=i_def), intent(out),   dimension(undf_wtheta)   :: field5
+    integer(kind=i_def), intent(inout), dimension(undf_wtheta)   :: field5
     integer(kind=i_def), intent(in),    dimension(undf_w2h)      :: field6
     integer(kind=i_def), intent(in),    dimension(undf_w2v)      :: field7
     integer(kind=i_def), intent(in),    dimension(undf_w2broken) :: field8
