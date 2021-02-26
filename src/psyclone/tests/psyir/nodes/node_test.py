@@ -81,36 +81,42 @@ def test_node_coloured_name():
         tnode.node_str()
     assert ("_text_name is an abstract attribute which needs to be given a "
             "string value in the concrete class 'Node'." in str(err.value))
-
     # Exception as _colour has not been set
     tnode._text_name = "ATest"
     with pytest.raises(NotImplementedError) as err:
         _ = tnode.coloured_name()
     assert ("The _colour attribute is abstract so needs to be given a string "
             "value in the concrete class 'Node'." in str(err.value))
-    # Exception as _colour has an invalid value (if the termcolor
-    # module has been installed) otherwise silently ignore.
-    # pylint: disable=reimported
-    # pylint: disable=import-outside-toplevel
-    tnode._colour = "invalid"
-    try:
-        from termcolor import colored
-        with pytest.raises(InternalError) as err:
-            _ = tnode.coloured_name()
-        assert ("The _colour attribute in class 'Node' has been set to an "
-                "unsupported colour 'invalid'." in str(err.value))
-    except ImportError:
-        _ = tnode.coloured_name()
-    # reset import for further tests
-    from psyclone.psyir.nodes.node import colored
-    # Check that we can change the name of the Node and the colour associated
-    # with it
+    # Valid values
     tnode._colour = "white"
     assert tnode.coloured_name(False) == "ATest"
     assert tnode.coloured_name(True) == colored("ATest", "white")
 
 
+def test_node_coloured_name_exception(monkeypatch):
+    '''Test that the expected exception is raised if the colour provided
+    to the colored function is invalid. Note, an exception if the
+    termcolor package is installed. Therefore we monkeypatch the
+    function to force the exception whether termcolor is installed or
+    not.
+
+    '''
+    def dummy(error):
+        '''Utility used to raise the required error from a lambda function.'''
+        raise error()
+
+    monkeypatch.setattr(node, "colored", lambda _1, _2: dummy(KeyError))
+    tnode = Node()
+    tnode._text_name = "ATest"
+    tnode._colour = "invalid"
+    with pytest.raises(InternalError) as err:
+        _ = tnode.coloured_name()
+    assert ("The _colour attribute in class 'Node' has been set to an "
+            "unsupported colour 'invalid'." in str(err.value))
+
+
 def test_node_str():
+
     ''' Tests for the Node.node_str method. '''
     tnode = Node()
     # Node is an abstract class
