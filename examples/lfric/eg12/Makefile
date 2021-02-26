@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
@@ -47,9 +48,10 @@ extract_transformed:
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 
 find_kernel:
-	${PYTHON} find_kernel.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} find_kernel.py
 
-compile:
+compile: transform
 	@echo "No compilation supported for lfric/eg12"
 
-all: transform compile
+run: compile
+	@echo "No run targets for lfric/eg12"

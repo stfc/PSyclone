@@ -40,8 +40,9 @@ transform:
 	${PYTHON} create_structure_types.py
 	${PYTHON} modify.py
 
-all: transform
-
 compile:
 	@echo "No compilation supported for the PSyIR examples"
+
+run: compile
+	@echo "No run targets for PSyIR creation examples"
 
