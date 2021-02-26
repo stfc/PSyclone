@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -81,7 +81,7 @@ SCHEDULE.view()
 
 TRANS_INFO = TransInfo()
 print(TRANS_INFO.list)
-FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuse')
+FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuseTrans')
 OMP_TRANS = TRANS_INFO.get_trans_name('GOceanOMPParallelLoopTrans')
 
 # invoke0

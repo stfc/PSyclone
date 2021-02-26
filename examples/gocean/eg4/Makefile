@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
@@ -48,7 +49,6 @@ KERNELS=data_mod.o kern_use_var_mod.o
 
 .PHONY: basic opencl openacc others compile-acc
 
-all: transform
 
 transform: basic opencl openacc others
 
@@ -80,8 +80,11 @@ others:
 	# ${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_call_kern.f90
 	# ${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_nested_use.f90
 
-compile:
-	@echo "No compilation targets for this example"
+compile: transform
+	@echo "No compilation targets for example gocean/eg4"
+
+run: compile
+	@echo "No run targets for example gocean/eg4"
 
 # Override allclean rule to include INF_DIR library
 allclean: clean

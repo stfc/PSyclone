@@ -1997,9 +1997,9 @@ logic determined by their :ref:`access modes <dynamo0.3-kernel-valid-access>`.
 * ``GH_READ`` indicates ``intent(in)`` as the argument is only ever read from.
 
 * ``GH_WRITE`` (for discontinuous function spaces) indicates that the argument
-  is only written to in a kernel. When the argument is defined inside a kernel
-  its intent is ``intent(out)`` and when it is defined outside of a kernel its
-  intent is ``intent(inout)``.
+  is only written to in a kernel. The field and operator arguments' data in
+  LFRic are always defined outside of a kernel so the argument intent for
+  this access type is ``intent(inout)``.
 
 * ``GH_INC`` and ``GH_READWRITE`` indicate ``intent(inout)`` as the arguments
   are updated (albeit in a different way due to different access to DoFs, see
