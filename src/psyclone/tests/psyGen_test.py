@@ -50,7 +50,6 @@ import os
 import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
-from psyclone.psyGen import GlobalSum, InvokeSchedule
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
     Literal, Node, Schedule, KernelSchedule, Call, Loop
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
@@ -59,7 +58,8 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     OMPParallelDoDirective, InlinedKern, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
     ACCEnterDataDirective, ACCKernelsDirective, HaloExchange, Invoke, \
-    DataAccess, Kern, Arguments, CodedKern, Argument
+    DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
+    InvokeSchedule
 from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
 from psyclone.psyir.symbols import INTEGER_TYPE, DeferredType
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
@@ -358,7 +358,6 @@ def test_sched_ocl_setter():
 
 def test_invokeschedule_can_be_printed():
     ''' Check the InvokeSchedule class can always be printed'''
-    from psyclone.psyGen import InvokeSchedule
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -387,7 +386,7 @@ def test_kern_get_kernel_schedule():
 
 def test_codedkern_node_str():
     '''Tests the node_str method in the CodedKern class. The simplest way
-    to do this is via the dynamo0.3 subclass
+    to do this is via the dynamo0.3 subclass.
 
     '''
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)

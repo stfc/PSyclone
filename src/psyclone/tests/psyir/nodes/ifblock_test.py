@@ -75,7 +75,6 @@ def test_ifblock_node_str():
 def test_ifblock_view_indices(capsys):
     ''' Check that the view method only displays indices on the nodes
     in the body (and else body) of an IfBlock. '''
-    from psyclone.psyir.nodes.node import colored
     colouredif = colored("If", IfBlock._colour)
     colouredreturn = colored("Return", Return._colour)
     colouredref = colored("Reference", Reference._colour)

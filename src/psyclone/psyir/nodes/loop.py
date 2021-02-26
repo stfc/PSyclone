@@ -40,6 +40,7 @@
 
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import Schedule, Literal
 from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core.access_info import AccessType
@@ -338,7 +339,6 @@ class Loop(Statement):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        from psyclone.psyir.nodes.node import colored
         return ("{0}[type='{1}', field_space='{2}', it_space='{3}']".
                 format(colored("Loop", self._colour),
                        self._loop_type, self._field_space,

@@ -81,9 +81,20 @@ def test_node_coloured_name():
     assert ("_text_name is an abstract attribute which needs to be given a "
             "string value in the concrete class 'Node'." in str(err.value))
 
+    # Exception as _colour has not been set
+    tnode._text_name = "ATest"
+    with pytest.raises(NotImplementedError) as err:
+        _ = tnode.coloured_name()
+    assert ("The _colour attribute is abstract so needs to be given a string "
+            "value in the concrete class 'Node'." in str(err.value))
+    # Exception as _colour has an invalid value
+    tnode._colour = "invalid"
+    with pytest.raises(InternalError) as err:
+        _ = tnode.coloured_name()
+    assert ("The _colour attribute in class 'Node' has been set to an "
+            "unsupported colour 'invalid'." in str(err.value))
     # Check that we can change the name of the Node and the colour associated
     # with it
-    tnode._text_name = "ATest"
     tnode._colour = "white"
     assert tnode.coloured_name(False) == "ATest"
     assert tnode.coloured_name(True) == colored("ATest", "white")

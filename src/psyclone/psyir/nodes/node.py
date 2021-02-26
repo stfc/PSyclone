@@ -41,6 +41,7 @@ This module contains the abstract Node implementation.
 
 '''
 import abc
+import six
 from psyclone.psyir.symbols import SymbolError
 from psyclone.errors import GenerationError, InternalError
 
@@ -329,7 +330,19 @@ class Node(object):
                 "given a string value in the concrete class '{0}'."
                 "".format(type(self).__name__))
         if colour:
-            return colored(self._text_name, self._colour)
+            if self._colour is None:
+                raise NotImplementedError(
+                    "The _colour attribute is abstract so needs to be given "
+                    "a string value in the concrete class '{0}'."
+                    "".format(type(self).__name__))
+            try:
+                return colored(self._text_name, self._colour)
+            except KeyError as info:
+                message = (
+                    "The _colour attribute in class '{0}' has been set to an "
+                    "unsupported colour '{1}'."
+                    "".format(type(self).__name__, self._colour))
+                six.raise_from(InternalError(message), info)
         return self._text_name
 
     def node_str(self, colour=True):
