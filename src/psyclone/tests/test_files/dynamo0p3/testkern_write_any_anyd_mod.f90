@@ -98,13 +98,13 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_w2h)    :: map_w2h
     integer(kind=i_def), intent(in), dimension(ndf_w2v)    :: map_w2v
     integer(kind=i_def), intent(in), dimension(ndf_wtheta) :: map_wtheta
-    real(kind=r_def), intent(inout), dimension(undf_aspc1) :: field1
-    real(kind=r_def), intent(in), dimension(undf_w2)      :: field2
-    real(kind=r_def), intent(in), dimension(undf_w1)      :: field3
-    real(kind=r_def), intent(out), dimension(undf_adspc1) :: field4
-    real(kind=r_def), intent(in), dimension(undf_wtheta)  :: field5
-    real(kind=r_def), intent(in), dimension(undf_w2h)     :: field6
-    real(kind=r_def), intent(in), dimension(undf_w2v)     :: field7
+    real(kind=r_def), intent(inout), dimension(undf_aspc1)  :: field1
+    real(kind=r_def), intent(in), dimension(undf_w2)        :: field2
+    real(kind=r_def), intent(in), dimension(undf_w1)        :: field3
+    real(kind=r_def), intent(inout), dimension(undf_adspc1) :: field4
+    real(kind=r_def), intent(in), dimension(undf_wtheta)    :: field5
+    real(kind=r_def), intent(in), dimension(undf_w2h)       :: field6
+    real(kind=r_def), intent(in), dimension(undf_w2v)       :: field7
 
   end subroutine testkern_write_any_anyd_code
 

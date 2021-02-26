@@ -61,54 +61,51 @@ KERNELS = init_field_mod.o update_field_mod.o
 
 # The name of the executable
 NAME=profile_test
-
-.PHONY: all template simple_timing drhook dl_timer
+.PHONY: compile transform all template simple_timing drhook dl_timer lfric
+.PHONY: template_lib simple_timing_lib drhook_lib dl_timer_lib lfric_lib
 
 run: compile
 	./profile_test.template
 
+compile: transform template
 transform: psy.f90
-
-compile: template
 all: template simple_timing drhook dl_timer lfric
 
-template: WRAPPER_DIR?=../../../lib/profiling/template
-template: WRAPPER_NAME=dummy
-template: PROFILE_LINK=
-template: $(NAME).template
+template:
+	$(MAKE) WRAPPER_DIR="../../../lib/profiling/template" \
+	        WRAPPER_NAME="dummy"                          \
+	        template_lib $(NAME).template
 
-# Build the template profiling library
-../../../lib/profiling/template/libdummy.a:
-	${MAKE} -C ../../../lib/profiling/template
+simple_timing: 
+	$(MAKE) WRAPPER_DIR="../../../lib/profiling/simple_timing" \
+	        WRAPPER_NAME="simple_timing"                       \
+	        simple_timing_lib $(NAME).simple_timing
 
-simple_timing: WRAPPER_DIR=../../../lib/profiling/simple_timing
-simple_timing: WRAPPER_NAME=simple_timing
-simple_timing: PROFILE_LINK=
-simple_timing: $(NAME).simple_timing
+# Needs to additionally link with DrHook library. As default
+# assume DrHook is installed 'next' to PSyclone
+DRHOOK_DIR?=../../../../drhook
+drhook:
+	$(MAKE) WRAPPER_DIR="../../../lib/profiling/drhook"        \
+	        WRAPPER_NAME="drhook_psy"                          \
+			PROFILE_LINK="-L $(DRHOOK_DIR)/build/lib -ldrhook" \
+	        drhook_lib $(NAME).drhook
 
-# Needs to additionally link with drhook library. As default
-# assume it is installed 'next' to PSyclone
-drhook: DRHOOK_DIR?=../../../../drhook
-drhook: WRAPPER_DIR=../../../lib/profiling/drhook
-drhook: WRAPPER_NAME=drhook_psy
-drhook: PROFILE_LINK=-L $(DRHOOK_DIR)/build/lib -ldrhook
-drhook: $(NAME).drhook
-
-# Needs to compile with openmp and link in apeg-dl_timer library. As
-# default assume apeg-dl_timer is installed 'next' to PSyclone.
-dl_timer: DL_TIMER_ROOT?=../../../../apeg-dl_timer
-dl_timer: WRAPPER_DIR=../../../lib/profiling/dl_timer
-dl_timer: WRAPPER_NAME=dl_timer_psy
-dl_timer: PROFILE_LINK=-L$(DL_TIMER_ROOT) -ldl_timer_omp
-dl_timer: F90FLAGS += -fopenmp   # apeg-dl_timer must be compiled with openmp!
-dl_timer: $(NAME).dl_timer
+# As default assume apeg-dl_timer is installed 'next' to PSyclone.
+DL_TIMER_ROOT?=../../../../apeg-dl_timer
+# Needs to link with openmp because apeg-dl_timer library needs openmp. 
+dl_timer:
+	$(MAKE) WRAPPER_DIR="../../../lib/profiling/dl_timer"    \
+	        WRAPPER_NAME="dl_timer_psy"                      \
+			PROFILE_LINK="-L$(DL_TIMER_ROOT) -ldl_timer_omp -fopenmp" \
+	        dl_timer_lib $(NAME).dl_timer
 
 # The LFRic timer can be used for gocean as well - the wrapper provides
 # a standalone library that contains all dependencies and can therefore be
 # used with any program.
-lfric: PROFILE_DIR=../../../lib/profiling/lfric
-lfric: PROFILE_LINK=-lpsy_lfric_timer_standalone
-lfric: $(NAME).lfric
+lfric: 
+	$(MAKE) WRAPPER_DIR="../../../lib/profiling/lfric"  \
+	        WRAPPER_NAME="psy_lfric_timer_standalone"                    \
+	        lfric_lib $(NAME).lfric
 
 # Generic rule. It temporarily compiles a profile-wrapper-specific version
 # of psy (psy_template.o, psy_drhook.o, ...), which 'make' then deletes
@@ -116,13 +113,10 @@ lfric: $(NAME).lfric
 # in order to preserve temporary files:
 #.SECONDARY:
 
-$(NAME).%: $(WRAPPER_DIR)/lib$(WRAPPER_NAME).a $(KERNELS) psy.o alg.o
+$(NAME).%: $(INF_LIB) $(WRAPPER_DIR)/lib$(WRAPPER_NAME).a $(KERNELS) psy.o alg.o
 	$(F90) $(F90FLAGS) $(KERNELS) psy.o alg.o -o $@                             \
 		   -L $(WRAPPER_DIR) -l $(WRAPPER_NAME) \
 		   $(PROFILE_LINK) $(INF_LIB)
-
-$(WRAPPER_DIR)/lib$(WRAPPER_NAME).a:
-	$(MAKE) -C $(WRAPPER_DIR)
 
 alg.f90 psy.f90: test.x90
 	${PSYCLONE} --profile invokes -api "gocean1.0" \
@@ -133,7 +127,19 @@ $(KERNELS): $(INF_LIB) $(DEP_LIB)
 
 # The dl_esm_inf library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR) F90=$(F90)
+	$(MAKE) -C $(INF_DIR)
+
+drhook_lib :
+	$(MAKE) DRHOOK_ROOT=$(DRHOOK_DIR) -C $(WRAPPER_DIR)
+
+dl_timer_lib:
+	$(MAKE) DL_TIMER_ROOT=$(DL_TIMER_ROOT) -C $(WRAPPER_DIR)
+
+lfric_lib:
+	$(MAKE) DL_TIMER_ROOT=$(DL_TIMER_ROOT) -C $(WRAPPER_DIR)
+
+template_lib simple_timing_lib:
+	$(MAKE) -C $(WRAPPER_DIR)
 
 $(DEP_LIB):
 	$(MAKE) -C ../../../lib/profiling/simple_timing

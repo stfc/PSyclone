@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Modified by I. Kavcic, Met Office
 
 Generic Code
 ############
@@ -405,11 +406,11 @@ Loop iterators
 
 In the current implementation of the Dynamo0.3 API it is possible to
 iterate (loop) either over cells or dofs. At the moment all coded
-kernels are written to iterate over cells and all builtin kernels are
+kernels are written to iterate over cells and all built-in kernels are
 written to iterate over dofs, but that does not have to be the case.
 
 The loop iteration information is specified in the kernel metadata. In
-the case of builtin's there is kernel metadata but it is part of
+the case of built-ins there is kernel metadata but it is part of
 PSyclone and is specified in
 `src/psyclone/dynamo0p3_builtins_mod.f90`.
 
