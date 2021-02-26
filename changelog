@@ -386,6 +386,10 @@
 	124) PR #1063 towards #935. Add basic support for specialisation of
 	symbols.
 
+        125) PR #1073 for #1022. Updates the Makefiles for the examples
+        and tutorials to make them consistent. Default target for the tutorials
+        is now 'transform'.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
