@@ -1197,7 +1197,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
        loop). Actual transformation is done by
        :py:class:`base class <OMPParallelLoopTrans>`.
 
-       :param omp_schedule: the omp schedule to be created. Must be one of
+       :param omp_schedule: the omp schedule to be created. Must be one of \
            'runtime', 'static', 'dynamic', 'guided' or 'auto'.
 
     '''
