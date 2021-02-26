@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,52 +31,42 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 
-'''Example script showing how to apply OpenMP transformations to
-dynamo code'''
+''' Module containing tests for the NEMO-specific loop transformations. '''
 
-from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.psyGen import TransInfo
-API = "dynamo0.1"
-_, INVOKEINFO = parse("dynamo_algorithm_mod.F90", api=API)
-PSY = PSyFactory(API).create(INVOKEINFO)
-print(PSY.gen)
+from __future__ import absolute_import
+import inspect
+from importlib import import_module
+import pytest
+from psyclone.psyir.nodes import Loop
+from psyclone.psyir.transformations import LoopTrans
+from psyclone.tests.utilities import get_invoke
 
-print(PSY.invokes.names)
 
-TRANS = TransInfo()
-print(TRANS.list)
+def test_all_nemo_loop_trans_base_validate(monkeypatch):
+    ''' Check that all transformations that sub-class LoopTrans call the
+    base validate() method. '''
+    # First get a valid Loop object that we can pass in.
+    _, invoke = get_invoke("explicit_over_implicit.f90", api="nemo", idx=0)
+    loop = invoke.schedule.walk(Loop)[0]
 
-LOOP_FUSE = TRANS.get_trans_name('LoopFuseTrans')
-OMP_PAR = TRANS.get_trans_name('OMPParallelLoopTrans')
+    # Get all transformations for the NEMO domain
+    transmod = import_module("psyclone.domain.nemo.transformations")
+    all_trans_classes = inspect.getmembers(transmod, inspect.isclass)
 
-SCHEDULE = PSY.invokes.get('invoke_0').schedule
-SCHEDULE.view()
+    # To ensure that we identify that the validate() method in the LoopTrans
+    # base class has been called, we monkeypatch it to raise an exception.
 
-FUSE_SCHEDULE, _ = LOOP_FUSE.apply(SCHEDULE.children[0], SCHEDULE.children[1])
-FUSE_SCHEDULE.view()
-OMP_SCHEDULE, _ = OMP_PAR.apply(FUSE_SCHEDULE.children[0])
-OMP_SCHEDULE.view()
+    def fake_validate(_1, _2, options=None):
+        raise NotImplementedError("validate test exception")
+    monkeypatch.setattr(LoopTrans, "validate", fake_validate)
 
-PSY.invokes.get('invoke_0').schedule = OMP_SCHEDULE
-
-SCHEDULE = PSY.invokes.get('invoke_1_v2_kernel_type').schedule
-SCHEDULE.view()
-
-OMP_SCHEDULE, _ = OMP_PAR.apply(SCHEDULE.children[0])
-OMP_SCHEDULE.view()
-
-PSY.invokes.get('invoke_1_v2_kernel_type').schedule = OMP_SCHEDULE
-
-SCHEDULE = PSY.invokes.get('invoke_2_v1_kernel_type').schedule
-SCHEDULE.view()
-
-OMP_SCHEDULE, _ = OMP_PAR.apply(SCHEDULE.children[0])
-OMP_SCHEDULE.view()
-
-PSY.invokes.get('invoke_2_v1_kernel_type').schedule = OMP_SCHEDULE
-
-print(PSY.gen)
+    for name, cls_type in all_trans_classes:
+        trans = cls_type()
+        if isinstance(trans, LoopTrans):
+            with pytest.raises(NotImplementedError) as err:
+                trans.validate(loop)
+            assert "validate test exception" in str(err.value), \
+                "{0}.validate() does not call LoopTrans.validate()".format(
+                    name)

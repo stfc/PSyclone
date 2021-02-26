@@ -41,11 +41,15 @@
 from __future__ import absolute_import
 import os
 import re
+import inspect
+from importlib import import_module
 import pytest
 from psyclone.configuration import Config
+from psyclone.undoredo import Memento
 from psyclone.errors import GenerationError
+from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations import TransformationError, LoopTrans
 from psyclone.transformations import ACCKernelsTrans, GOConstLoopBoundsTrans, \
     LoopFuseTrans, GOLoopSwapTrans, OMPParallelTrans, \
     GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, KernelModuleInlineTrans, \
@@ -169,7 +173,7 @@ def test_loop_fuse_different_iterates_over():
     assert "Loops do not have the same iteration space" in str(err.value)
 
 
-def test_loop_fuse_error():
+def test_loop_fuse_error(monkeypatch):
     ''' Test that we catch various errors when loop fusing '''
     _, invoke = get_invoke("test14_module_inline_same_kernel.f90", API, idx=0,
                            dist_mem=False)
@@ -189,8 +193,11 @@ def test_loop_fuse_error():
                              schedule.children[1].children[0])
     assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
-    # cause an unexpected error
-    schedule.children[0].loop_body.children = None
+    # Cause an unexpected error. This is not easy so we resort to
+    # monkeypatching the constructor of the Memento class.
+    def raise_error(_1, _2, _3):
+        raise NotImplementedError("Test exception")
+    monkeypatch.setattr(Memento, "__init__", raise_error)
 
     # Attempt to fuse two loops that are iterating over different
     # things
@@ -1467,7 +1474,6 @@ def test_go_loop_swap_errors():
 
     schedule = invoke_loop1.schedule
     swap = GOLoopSwapTrans()
-    assert swap.name == "GOLoopSwap"
     assert str(swap) == "Exchange the order of two nested loops: inner "\
         "becomes outer and vice versa"
 
@@ -1475,15 +1481,15 @@ def test_go_loop_swap_errors():
     # a double nested loop:
     with pytest.raises(TransformationError) as error:
         swap.apply(schedule.children[0].loop_body[0])
-    assert re.search("Supplied node .* must be the outer loop of a loop nest "
-                     "but the first inner statement is not a loop, got .*",
-                     str(error.value)) is not None
+    assert re.search("Transformation Error: Target of GOLoopSwapTrans "
+                     "transformation must be a sub-class of Loop but got "
+                     "'GOKern'.", str(error.value)) is not None
 
-    # Not a loop: use the cal to bc_ssh_code node as example for this test:
+    # Not a loop: use the call to bc_ssh_code node as example for this test:
     with pytest.raises(TransformationError) as error:
         swap.apply(schedule.children[0].loop_body[0].loop_body[0])
-    assert "Given node 'kern call: bc_ssh_code' is not a loop" in \
-        str(error.value)
+    assert ("Target of GOLoopSwapTrans transformation must be a sub-class of "
+            "Loop but got 'GOKern'" in str(error.value))
 
     # Now create an outer loop with more than one inner statement
     # ... by fusing the first and second outer loops :(
@@ -1512,14 +1518,30 @@ def test_go_loop_swap_errors():
                      "have any statements inside.",
                      str(error.value)) is not None
 
+
+def test_go_loop_swap_wrong_loop_type():
+    '''
+    Test loop swapping transform when supplied loops are not GOLoops.
+    '''
+    swap = GOLoopSwapTrans()
     psy, invoke = get_invoke("1.0.1_single_named_invoke.f90",
                              "dynamo0.3", idx=0, dist_mem=True)
     with pytest.raises(TransformationError) as error:
         swap.apply(invoke.schedule.children[4])
 
-    assert re.search("Given node .* is not a GOLoop, "
-                     "but an instance of .*DynLoop",
-                     str(error.value)) is not None
+    assert re.search("Given node .* is not a GOLoop, but an instance of "
+                     ".*DynLoop", str(error.value)) is not None
+
+    psy, invoke_loop1 = get_invoke("test27_loop_swap.f90", API, idx=1,
+                                   dist_mem=False)
+    schedule = invoke_loop1.schedule
+    loop = schedule[0].loop_body[0]
+    assert isinstance(loop, GOLoop)
+    # Change the class of the inner loop so that it is not a GOLoop
+    loop.__class__ = Loop
+    with pytest.raises(TransformationError) as error:
+        swap.apply(schedule[0])
+    assert "is not a GOLoop, but an instance of 'Loop'" in str(error.value)
 
 
 def test_ocl_apply(kernel_outputdir):
@@ -1811,8 +1833,8 @@ def test_accloop(tmpdir):
 
     with pytest.raises(TransformationError) as err:
         _ = acclpt.apply(schedule)
-    assert ("Cannot apply a parallel-loop directive to something that is not "
-            "a loop" in str(err.value))
+    assert ("Target of ACCLoopTrans transformation must be a sub-class of "
+            "Loop but got 'GOInvokeSchedule'" in str(err.value))
 
     # Apply an OpenACC loop directive to each loop
     for child in schedule.children:
@@ -1980,3 +2002,35 @@ def test_acc_kernels_error():
         _, _ = accktrans.apply(schedule.children)
     assert ("kernels regions are currently only supported for the nemo"
             " and dynamo0.3 front-ends" in str(err.value))
+
+
+def test_all_go_loop_trans_base_validate(monkeypatch):
+    ''' Check that all GOcean transformations that sub-class LoopTrans call the
+    base validate() method. '''
+    # First get a valid Loop object that we can pass in.
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=1,
+                           dist_mem=False)
+    loop = invoke.schedule.walk(Loop)[0]
+
+    # GOcean-specific transformations
+    transmod = import_module("psyclone.domain.gocean.transformations")
+    all_trans_classes = inspect.getmembers(transmod, inspect.isclass)
+
+    # To ensure that we identify that the validate() method in the LoopTrans
+    # base class has been called, we monkeypatch it to raise an exception.
+
+    def fake_validate(_1, _2, options=None):
+        raise NotImplementedError("validate test exception")
+    monkeypatch.setattr(LoopTrans, "validate", fake_validate)
+
+    for name, cls_type in all_trans_classes:
+        trans = cls_type()
+        if isinstance(trans, LoopTrans):
+            with pytest.raises(NotImplementedError) as err:
+                if isinstance(trans, LoopFuseTrans):
+                    trans.validate(loop, loop)
+                else:
+                    trans.validate(loop)
+            assert "validate test exception" in str(err.value), \
+                "{0}.validate() does not call LoopTrans.validate()".format(
+                    name)
