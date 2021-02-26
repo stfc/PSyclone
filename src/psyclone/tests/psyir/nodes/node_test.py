@@ -54,6 +54,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.transformations import DynamoLoopFuseTrans
 from psyclone.tests.utilities import get_invoke
+# pylint: disable=redefined-outer-name
 from psyclone.psyir.nodes.node import colored
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -87,12 +88,21 @@ def test_node_coloured_name():
         _ = tnode.coloured_name()
     assert ("The _colour attribute is abstract so needs to be given a string "
             "value in the concrete class 'Node'." in str(err.value))
-    # Exception as _colour has an invalid value
+    # Exception as _colour has an invalid value (if the termcolor
+    # module has been installed) otherwise silently ignore.
+    # pylint: disable=reimported
+    # pylint: disable=import-outside-toplevel
     tnode._colour = "invalid"
-    with pytest.raises(InternalError) as err:
+    try:
+        from termcolor import colored
+        with pytest.raises(InternalError) as err:
+            _ = tnode.coloured_name()
+        assert ("The _colour attribute in class 'Node' has been set to an "
+                "unsupported colour 'invalid'." in str(err.value))
+    except ImportError:
         _ = tnode.coloured_name()
-    assert ("The _colour attribute in class 'Node' has been set to an "
-            "unsupported colour 'invalid'." in str(err.value))
+    # reset import for further tests
+    from psyclone.psyir.nodes.node import colored
     # Check that we can change the name of the Node and the colour associated
     # with it
     tnode._colour = "white"
