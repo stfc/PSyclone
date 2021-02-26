@@ -35,9 +35,9 @@
 
 # Top-level Makefile for all LFRic hands-on tutorials on shared memory
 
-.PHONY: test clean
+.PHONY: transform compile run clean allclean
 
-test clean:
+transform compile run clean allclean:
 	${MAKE} -C 1_openmp $@
 	${MAKE} -C 2_openacc $@
 	${MAKE} -C 3_sequential $@

@@ -34,15 +34,33 @@
 # Author: A. R. Porter, STFC Daresbury Laboratory
 # Modified J. Henrichs, Bureau of Meteorology
 
-include ../../common.mk
+# Make sure we use the configuration file distributed with PSyclone
+# instead of any locally-installed version.
+#
+# **Note** that this code to find the correct directory only works if
+#          the tutorial directory is still within the standard PSyclone
+#          source tree. If it has been moved then the PSYCLONE_CONFIG
+#          environment variable will have to be set to the full path
+#          to the config file before make is launched.
+#
+# MAKEFILE_LIST is a Gnu-make variable that contains all of the
+# arguments passed to the first invocation of Make. The last entry
+# in this list is the current file.
 
-transform:
-	${PSYCLONE} -s ./matvec_opt.py \
-  ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
-  -oalg /dev/null -opsy /dev/null
+this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 
-compile: transform
-	@echo "No compilation supported for lfric/eg15"
+# PSyclone directory is up two from this file
+PSYCLONE_DIR := $(abspath $(dir $(this_file))../..)
 
-run: compile
-	@echo "No run targets for lfric/eg15"
+ifeq (,$(wildcard ${PSYCLONE_DIR}/config/psyclone.cfg))
+  # Failed to find the configuration file so don't attempt to specify it.
+  # Will be picked up from default locations or $PSYCLONE_CONFIG.
+  PSYCLONE ?= psyclone
+  KERNEL_STUB_GEN ?= genkernelstub
+else
+  PSYCLONE ?= psyclone -l output --config ${PSYCLONE_DIR}/config/psyclone.cfg
+  KERNEL_STUB_GEN ?= PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg genkernelstub
+endif
+
+.PHONY: transform compile run clean allclean
+.DEFAULT_GOAL := transform

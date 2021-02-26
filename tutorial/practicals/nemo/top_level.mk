@@ -34,15 +34,39 @@
 # Author: A. R. Porter, STFC Daresbury Laboratory
 # Modified J. Henrichs, Bureau of Meteorology
 
-include ../../common.mk
+# Include file for 'top-level' Makefiles found in the directories immediately
+# below the one containing this file.
+#
+# Provides support for 'all', 'compile', 'transform' (the default),
+# 'run', clean' and 'allclean' targets for directories listed in TUTORIALS.
+# All an including Makefile needs to do is set TUTORIALS appropriately.
 
-transform:
-	${PSYCLONE} -s ./matvec_opt.py \
-  ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
-  -oalg /dev/null -opsy /dev/null
+run_TUTORIALS=$(addprefix run_,$(TUTORIALS))
+compile_TUTORIALS=$(addprefix compile_,$(TUTORIALS))
+notebook_TUTORIALS=$(addprefix notebook_,$(TUTORIALS))
+clean_TUTORIALS=$(addprefix clean_,$(TUTORIALS))
+allclean_TUTORIALS=$(addprefix allclean_,$(TUTORIALS))
 
-compile: transform
-	@echo "No compilation supported for lfric/eg15"
+run: ${run_TUTORIALS}
+compile: ${compile_TUTORIALS}
+transform: ${TUTORIALS}
+clean: ${clean_TUTORIALS}
+allclean: ${allclean_TUTORIALS}
 
-run: compile
-	@echo "No run targets for lfric/eg15"
+.PHONY: ${TUTORIALS} $(all_TUTORIALS) ${compile_TUTORIALS} ${clean_TUTORIALS} \
+        ${allclean_TUTORIALS}
+
+$(TUTORIALS):
+	${MAKE} -C $@ transform
+
+$(run_TUTORIALS):
+	${MAKE} -C $(patsubst run_%,%,$@) run
+
+$(compile_TUTORIALS):
+	${MAKE} -C $(patsubst compile_%,%,$@) compile
+
+$(clean_TUTORIALS):
+	${MAKE} -C $(patsubst clean_%,%,$@) clean
+
+$(allclean_TUTORIALS):
+	${MAKE} -C $(patsubst allclean_%,%,$@) allclean
