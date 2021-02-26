@@ -33,11 +33,12 @@
 # ------------------------------------------------------------------------------
 # Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
 
 # Top-level Makefile to test all of the LFRic hands-on tutorials.
-.PHONY: test clean
+.PHONY: transform compile run clean allclean
 
-test clean:
+transform compile run clean allclean:
 	${MAKE} -C building_code $@
 	${MAKE} -C distributed_memory $@
 	${MAKE} -C single_node $@

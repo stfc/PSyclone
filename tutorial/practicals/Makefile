@@ -31,18 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
 
-include ../../common.mk
+.DEFAULT_GOAL := transform
 
-transform:
-	${PSYCLONE} -s ./matvec_opt.py \
-  ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
-  -oalg /dev/null -opsy /dev/null
+ALL_TARGETS = transform compile run clean allclean
+.PHONY: $(ALL_TARGETS)
 
-compile: transform
-	@echo "No compilation supported for lfric/eg15"
-
-run: compile
-	@echo "No run targets for lfric/eg15"
+$(ALL_TARGETS):
+	$(MAKE) -C LFRic $@
+	$(MAKE) -C nemo $@
