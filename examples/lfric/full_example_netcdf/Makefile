@@ -39,11 +39,10 @@
 #
 # export F90=gfortran
 # export F90FLAGS="-Wall -g -fcheck=bound"
+
 include ../../common.mk
 
-.DEFAULT_GOAL := $(EXEC)
-
-GENERATED_FILES = main_psy.f90 main_alg.f90
+GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
@@ -51,13 +50,18 @@ F90FLAGS ?= -Wall -g -fcheck=bound
 OBJ = main_psy.o main_alg.o testkern_w0_mod.o
 
 EXEC = example
+
 LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 F90FLAGS += $$(nf-config --fflags) -I$(LFRIC_PATH)
 
-compile: $(EXEC)
+run: compile
+	./example
+
+compile: transform $(EXEC)
+
 transform: main_psy.f90
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
@@ -69,6 +73,7 @@ $(LFRIC_LIB):
 # Dependencies
 main_psy.o:	testkern_w0_mod.o
 main_alg.o:	main_psy.o
+testkern_w0_mod.o: $(LFRIC_LIB)
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
@@ -84,6 +89,5 @@ main_alg.f90: main_psy.f90
 %_psy.f90:	%.x90
 	${PSYCLONE} -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
-clean:
-	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
-	make -C $(LFRIC_PATH) clean
+allclean: clean
+	make -C $(LFRIC_PATH) allclean
