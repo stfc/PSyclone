@@ -76,7 +76,7 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 # ========== First section : Parser specialisations and classes ============= #
 # --------------------------------------------------------------------------- #
 #
-# ---------- Evaluators ---------------------------------------------------- #
+# ---------- Evaluators ----------------------------------------------------- #
 # Evaluators: quadrature
 VALID_QUADRATURE_SHAPES = ["gh_quadrature_xyoz", "gh_quadrature_face",
                            "gh_quadrature_edge"]
@@ -95,7 +95,8 @@ QUADRATURE_TYPE_MAP = {
                            "proxy_type": "quadrature_edge_proxy_type"}}
 
 # ---------- Fortran datatypes ---------------------------------------------- #
-SUPPORTED_FORTRAN_DATATYPES = ["real", "integer", "logical"]
+SUPPORTED_FORTRAN_DATATYPES = Config.get().api_conf(
+    "dynamo0.3").supported_fortran_datatypes
 
 # ---------- Mapping from metadata data_type to Fortran intrinsic type ------ #
 MAPPING_DATA_TYPES = OrderedDict(zip(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
