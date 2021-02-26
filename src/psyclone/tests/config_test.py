@@ -68,6 +68,7 @@ OCL_DEVICES_PER_NODE = 1
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
+supported_fortran_datatypes = real, integer, logical
 default_kind = real: r_def, integer: i_def, logical: l_def
 RUN_TIME_CHECKS = false
 NUM_ANY_SPACE = 10
