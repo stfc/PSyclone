@@ -62,6 +62,7 @@ REPROD_PAD_SIZE = 8
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
+supported_fortran_datatypes = real, integer, logical
 default_kind = real: r_def, integer: i_def, logical: l_def
 RUN_TIME_CHECKS = false
 NUM_ANY_SPACE = 10
@@ -90,7 +91,8 @@ def clear_config_instance():
 
 @pytest.mark.parametrize(
     "option", ["access_mapping", "COMPUTE_ANNEXED_DOFS",
-               "default_kind", "RUN_TIME_CHECKS", "NUM_ANY_SPACE",
+               "supported_fortran_datatypes", "default_kind",
+               "RUN_TIME_CHECKS", "NUM_ANY_SPACE",
                "NUM_ANY_DISCONTINUOUS_SPACE"])
 def test_no_mandatory_option(tmpdir, option):
     ''' Check that we raise an error if we do not provide mandatory
@@ -109,10 +111,10 @@ def test_no_mandatory_option(tmpdir, option):
 
         assert ("Missing mandatory configuration option in the "
                 "\'[dynamo0.3]\' section " in str(err.value))
-        assert ("Valid options are: '['access_mapping', "
-                "'compute_annexed_dofs', 'default_kind', "
-                "'run_time_checks', 'num_any_space', "
-                "'num_any_discontinuous_space']" in str(err.value))
+        assert ("Valid options are: ['access_mapping', "
+                "'compute_annexed_dofs', 'supported_fortran_datatypes', "
+                "'default_kind', 'run_time_checks', 'num_any_space', "
+                "'num_any_discontinuous_space']." in str(err.value))
 
 
 @pytest.mark.parametrize("option", ["COMPUTE_ANNEXED_DOFS", "RUN_TIME_CHECKS"])
@@ -157,10 +159,33 @@ def test_entry_not_int(tmpdir, option):
                 in str(err.value))
 
 
-def test_invalid_default_kind(tmpdir):
-    ''' Check that we raise an error if we supply an invalid datatype or
-    kind (precision) in the configuration file '''
+def test_invalid_fortran_datatype(tmpdir):
+    ''' Check that we raise an error if we supply an invalid Fortran
+    datatype in the configuration file.
 
+    '''
+    content = re.sub("real, integer, logical",
+                     "real, integrity, logical",
+                     _CONFIG_CONTENT)
+    config_file = tmpdir.join("config_dyn")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(config_file=str(config_file))
+
+        assert ("Invalid Fortran datatype found in the \'[dynamo0.3]\' "
+                "section 'supported_fortran_datatypes'" in str(err.value))
+        assert ("Supported Fortran datatypes are: ['real', 'integer', "
+                "'logical']." in str(err.value))
+
+
+def test_invalid_default_kind(tmpdir):
+    ''' Check that we raise an error if we supply an invalid datatype or kind
+-   (precision) in the 'default_kind' section of the configuration file.
+
+    '''
     # Test invalid datatype
     content = re.sub(r"real:", "reality:",
                      _CONFIG_CONTENT,
@@ -173,10 +198,10 @@ def test_invalid_default_kind(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=str(config_file))
 
-        assert ("Invalid datatype found in the \'[dynamo0.3]\' section "
-                in str(err.value))
-        assert ("Valid datatypes are: '['real', 'integer', 'logical']'"
-                in str(err.value))
+        assert ("Fortran datatypes in the 'default_kind' mapping in the "
+                "\'[dynamo0.3]\' section " in str(err.value))
+        assert ("do not match the supported Fortran datatypes ['real', "
+                "'integer', 'logical']." in str(err.value))
 
     # Test invalid kind (precision)
     content = re.sub("integer: i_def,", "integer: ,", _CONFIG_CONTENT)
@@ -188,10 +213,10 @@ def test_invalid_default_kind(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=str(config_file))
 
-        assert ("Supplied kind parameters \'[\'l_def\', \'r_def\']\' in "
+        assert ("Supplied kind parameters [\'l_def\', \'r_def\'] in "
                 "the \'[dynamo0.3]\' section" in str(err.value))
         assert ("do not define the default kind for one or more supported "
-                "datatypes \'[\'real\', \'integer\', \'logical\']\'."
+                "datatypes [\'real\', \'integer\', \'logical\']."
                 in str(err.value))
 
 

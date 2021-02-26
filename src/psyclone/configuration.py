@@ -807,7 +807,9 @@ class DynConfig(APISpecificConfig):
     :raises ConfigurationError: for an invalid option for the redundant \
                                 computation over annexed dofs.
     :raises ConfigurationError: for an invalid run_time_checks flag.
-    :raises ConfigurationError: for an invalid argument datatype.
+    :raises ConfigurationError: for an invalid Fortran argument datatype.
+    :raises ConfigurationError: if argument datatypes in the 'default_kind' \
+                                mapping do not match the supported datatypes.
     :raises ConfigurationError: for an invalid argument kind.
     :raises ConfigurationError: for an invalid value type of NUM_ANY_SPACE.
     :raises ConfigurationError: if the supplied number of ANY_SPACE \
@@ -829,6 +831,7 @@ class DynConfig(APISpecificConfig):
         # Initialise run_time_checks setting
         self._run_time_checks = None
         # Initialise LFRic datatypes' default kinds (precisions) settings
+        self._supported_fortran_datatypes = []
         self._default_kind = {}
         # Number of ANY_SPACE and ANY_DISCONTINUOUS_SPACE function spaces
         self._num_any_space = None
@@ -843,16 +846,20 @@ class DynConfig(APISpecificConfig):
         if section.name == "dynamo0.3":
             # Define and check mandatory keys
             self._mandatory_keys = ["access_mapping",
-                                    "compute_annexed_dofs", "default_kind",
-                                    "run_time_checks", "num_any_space",
+                                    "compute_annexed_dofs",
+                                    "supported_fortran_datatypes",
+                                    "default_kind",
+                                    "run_time_checks",
+                                    "num_any_space",
                                     "num_any_discontinuous_space"]
             mdkeys = set(self._mandatory_keys)
             if not mdkeys.issubset(set(section.keys())):
                 raise ConfigurationError(
-                    "Missing mandatory configuration option in the "
-                    "'[dynamo0.3]' section of the configuration file '{0}'. "
-                    "Valid options are: '{1}'."
-                    .format(config.filename, self._mandatory_keys))
+                    "Missing mandatory configuration option in the '[{0}]' "
+                    "section of the configuration file '{1}'. "
+                    "Valid options are: {2}."
+                    .format(section.name, config.filename,
+                            self._mandatory_keys))
 
             # Parse setting for redundant computation over annexed dofs
             try:
@@ -861,41 +868,55 @@ class DynConfig(APISpecificConfig):
             except ValueError as err:
                 raise ConfigurationError(
                     "error while parsing COMPUTE_ANNEXED_DOFS in the "
-                    "[dynamo0.3] section of the config file: {0}"
-                    .format(str(err)), config=self._config)
+                    "'[{0}]' section of the configuration file: '{1}'."
+                    .format(section.name, str(err)), config=self._config)
 
-            # Setting for run_time_checks flag
+            # Parse setting for run_time_checks flag
             try:
                 self._run_time_checks = section.getboolean(
                     "run_time_checks")
             except ValueError as err:
                 raise ConfigurationError(
                     "error while parsing RUN_TIME_CHECKS in the "
-                    "[dynamo0.3] section of the config file: {0}"
-                    .format(str(err)), config=self._config)
+                    "'[{0}]' section of the configuration file: '{1}'."
+                    .format(section.name, str(err)), config=self._config)
+
+            # Parse setting for the supported Fortran datatypes
+            self._supported_fortran_datatypes = \
+                [loop.strip() for loop in
+                 section["supported_fortran_datatypes"].split(",")]
+            # Check for the currently supported datatypes ("real",
+            # "integer" and "logical")
+            required_datatypes = ["real", "integer", "logical"]
+            if set(self._supported_fortran_datatypes) != set(
+                    required_datatypes):
+                raise ConfigurationError(
+                    "Invalid Fortran datatype found in the '[{0}]' section "
+                    "'supported_fortran_datatypes' of the configuration "
+                    "file '{1}'. Supported Fortran datatypes are: {2}."
+                    .format(section.name, config.filename, required_datatypes))
 
             # Parse setting for default kinds (precisions)
             all_kinds = self.create_dict_from_string(section["default_kind"])
             # Set default kinds (precisions) from config file
-            from psyclone.dynamo0p3 import SUPPORTED_FORTRAN_DATATYPES
             # Check for valid datatypes (filter to remove empty values)
             datatypes = set(filter(None, all_kinds.keys()))
-            if datatypes != set(SUPPORTED_FORTRAN_DATATYPES):
+            if datatypes != set(self._supported_fortran_datatypes):
                 raise ConfigurationError(
-                    "Invalid datatype found in the '[dynamo0.3]' "
-                    "section of the configuration file '{0}'. "
-                    "Valid datatypes are: '{1}'."
-                    .format(config.filename, SUPPORTED_FORTRAN_DATATYPES))
+                    "Fortran datatypes in the 'default_kind' mapping in the "
+                    "'[{0}]' section of the configuration file '{1}' do "
+                    "not match the supported Fortran datatypes {2}."
+                    .format(section.name, config.filename,
+                            self._supported_fortran_datatypes))
             # Check for valid kinds (filter to remove any empty values)
             datakinds = set(filter(None, all_kinds.values()))
-            if len(datakinds) != len(set(SUPPORTED_FORTRAN_DATATYPES)):
+            if len(datakinds) != len(set(self._supported_fortran_datatypes)):
                 raise ConfigurationError(
-                    "Supplied kind parameters '{0}' in the '[dynamo0.3]' "
-                    "section of the configuration file '{1}' do not define "
-                    "the default kind for one or more supported "
-                    "datatypes '{2}'."
-                    .format(sorted(datakinds), config.filename,
-                            SUPPORTED_FORTRAN_DATATYPES))
+                    "Supplied kind parameters {0} in the '[{1}]' section "
+                    "of the configuration file '{2}' do not define the "
+                    "default kind for one or more supported datatypes {3}."
+                    .format(sorted(datakinds), section.name, config.filename,
+                            self._supported_fortran_datatypes))
             self._default_kind = all_kinds
 
             # Parse setting for the number of ANY_SPACE function spaces
@@ -909,9 +930,10 @@ class DynConfig(APISpecificConfig):
             if self._num_any_space <= 0:
                 raise ConfigurationError(
                     "The supplied number of ANY_SPACE function spaces "
-                    "in the '[dynamo0.3]' section of the configuration "
-                    "file '{0}' must be greater than 0 but found {1}."
-                    .format(config.filename, self._num_any_space))
+                    "in the '[{0}]' section of the configuration "
+                    "file '{1}' must be greater than 0 but found {2}."
+                    .format(section.name, config.filename,
+                            self._num_any_space))
 
             # Parse setting for the number of ANY_DISCONTINUOUS_SPACE
             # function spaces (checks for an invalid value and numbers <= 0)
@@ -925,9 +947,9 @@ class DynConfig(APISpecificConfig):
             if self._num_any_discontinuous_space <= 0:
                 raise ConfigurationError(
                     "The supplied number of ANY_DISCONTINUOUS_SPACE function "
-                    "spaces in the '[dynamo0.3]' section of the configuration "
-                    "file '{0}' must be greater than 0 but found {1}."
-                    .format(config.filename,
+                    "spaces in the '[{0}]' section of the configuration "
+                    "file '{1}' must be greater than 0 but found {2}."
+                    .format(section.name, config.filename,
                             self._num_any_discontinuous_space))
 
     @property
@@ -952,6 +974,18 @@ class DynConfig(APISpecificConfig):
 
         '''
         return self._run_time_checks
+
+    @property
+    def supported_fortran_datatypes(self):
+        '''
+        Getter for the supported Fortran argument datatypes in LFRic
+        (real, integer and logical).
+
+        :returns: supported Fortran datatypes for LFRic arguments.
+        :rtype: list of str
+
+        '''
+        return self._supported_fortran_datatypes
 
     @property
     def default_kind(self):
