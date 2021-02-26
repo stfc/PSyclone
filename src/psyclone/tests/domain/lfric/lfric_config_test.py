@@ -183,7 +183,7 @@ def test_invalid_fortran_datatype(tmpdir):
 
 def test_invalid_default_kind(tmpdir):
     ''' Check that we raise an error if we supply an invalid datatype or kind
--   (precision) in the 'default_kind' section of the configuration file.
+    (precision) in the 'default_kind' section of the configuration file.
 
     '''
     # Test invalid datatype
