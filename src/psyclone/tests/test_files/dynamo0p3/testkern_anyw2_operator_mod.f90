@@ -81,7 +81,7 @@ contains
     real(kind=r_def), intent(in), dimension(undf_any_w2) :: field2
     real(kind=r_def), intent(in), dimension(undf_any_w2) :: field3
     real(kind=r_def), intent(in), dimension(undf_any_w2) :: field4
-    real(kind=r_def), intent(out), dimension(ndf_any_w2,ndf_any_w2,ncell_3d) :: op_1
+    real(kind=r_def), intent(inout), dimension(ndf_any_w2,ndf_any_w2,ncell_3d) :: op_1
     real(kind=r_def), intent(in), dimension(3,ndf_any_w2,np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_any_w2_qr_xyoz
     real(kind=r_def), intent(in), dimension(np_xy_qr_xyoz) :: weights_xy_qr_xyoz
     real(kind=r_def), intent(in), dimension(np_z_qr_xyoz) :: weights_z_qr_xyoz

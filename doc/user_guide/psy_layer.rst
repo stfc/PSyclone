@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W Ford and A. R. Porter, STFC Daresbury Lab
+.. Modified by I. Kavcic, Met Office
 
 .. _PSy-layer:
 
@@ -168,8 +169,8 @@ we would see the following output:
 The above output tells us that the invoke name for the InvokeSchedule we are
 looking at is `invoke_0` and that the distributed_memory option has
 been switched on. Within the InvokeSchedule is an OpenMP parallel directive
-containing a loop which itself contains two builtin calls. As the
-latter of the two builtin calls requires a reduction and distributed
+containing a loop which itself contains two built-in calls. As the
+latter of the two built-in calls requires a reduction and distributed
 memory is switched on, PSyclone has added a GlobalSum call for the
 appropriate scalar.
 
@@ -213,6 +214,6 @@ associated green or red arrows.
 
 The dependence graph output gives an indication of whether nodes can
 be moved within the InvokeSchedule. In this case it is valid to run the
-builtin's in either order. The underlying dependence analysis used to
+built-ins in either order. The underlying dependence analysis used to
 create this graph is used to determine whether a transformation of a
 Schedule is valid from the perspective of data dependencies.

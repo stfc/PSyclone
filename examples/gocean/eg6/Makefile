@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: J. Henrichs, Australian Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter, STFC Daresbury Laboratory
 
 # This Makefile picks up the compiler to use plus any flags from
@@ -44,10 +44,6 @@
 #     export EXTRACT_DIR = ../../../lib/extract/netcdf/dl_esm_inf
 
 include ../../common.mk
-
-# Reset the default goal to be 'compile', i.e. to include compilation
-.DEFAULT_GOAL:=
-default: compile
 
 GENERATED_FILES += *.o *.mod $(NAME) $(DRIVER_INIT) $(DRIVER_INIT).f90 \
 		  $(DRIVER_UPDATE) $(DRIVER_UPDATE).f90 alg.f90 psy.f90
@@ -66,13 +62,14 @@ KERNELS = init_field_mod.o update_field_mod.o
 # The name of the executable
 NAME = extract_test
 
-.PHONY: default
+run: compile
+	./extract_test
+	@echo "TODO the driver cannot be tested yet because of #644"
 
-all: transform compile
 compile: transform $(NAME)
 	@echo "TODO the driver does not yet compile because of #644"
 
-alg.f90 psy.f90: transform
+transform: psy.f90
 
 # The name of the stand-alone driver that will do the init invokes.
 DRIVER_INIT = driver-main-init
@@ -83,7 +80,7 @@ DRIVER_UPDATE = driver-main-update
 F90FLAGS += $$(nf-config --fflags) -I$(INF_INC) -I$(EXTRACT_DIR)
 LIB_NAME = lib_kernel_data_netcdf.a
 
-transform: test.x90 extract_transform.py
+alg.f90 psy.f90: test.x90 extract_transform.py
 	$(PSYCLONE) -nodm -api "gocean1.0" -s ./extract_transform.py\
 				-opsy psy.f90 -oalg alg.f90 test.x90
 
@@ -97,8 +94,6 @@ $(NAME): $(INF_LIB) $(EXTRACT_DIR)/lib_kernel_data_netcdf.a $(KERNELS) alg.o psy
 # The dl_esm_inf library
 $(INF_LIB):
 	$(MAKE) -C $(INF_DIR) F90=$(F90)
-
-test:	$(DRIVER_INIT) $(DRIVER_UPDATE)
 
 # The driver does not yet compile because of #644
 $(DRIVER_INIT):	$(KERNELS) $(DRIVER_INIT).o main.o \
