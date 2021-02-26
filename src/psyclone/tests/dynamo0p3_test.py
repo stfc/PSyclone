@@ -2734,8 +2734,9 @@ def test_dynkernelargument_intent_invalid(dist_mem):
     arg._access = "invalid"
     with pytest.raises(GenerationError) as excinfo:
         _ = arg.intent
-    assert "Expecting argument access to be one of 'gh_read," in \
-        str(excinfo.value)
+    assert ("In the LFRic API the argument access must be one of "
+            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_sum'], "
+            "but found 'invalid'." in str(excinfo.value))
 
 
 def test_arg_ref_name_method_error1():
@@ -2788,9 +2789,9 @@ def test_arg_intent_error():
     first_argument._access = "gh_not_an_intent"
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.intent()
-    assert ("Expecting argument access to be one of 'gh_read, gh_write, "
-            "gh_inc', 'gh_readwrite' or one of ['gh_sum'], but found "
-            "'gh_not_an_intent'" in str(excinfo.value))
+    assert ("In the LFRic API the argument access must be one of "
+            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_sum'], "
+            "but found 'gh_not_an_intent'." in str(excinfo.value))
 
 
 def test_arg_intrinsic_type_error():

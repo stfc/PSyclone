@@ -150,7 +150,7 @@ def test_container_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = Container.create("mod_name", symbol_table, ["invalid"])
     assert ("Item 'str' can't be child 0 of 'Container'. The valid format is:"
-            " '[Container | KernelSchedule | InvokeSchedule]*'."
+            " '[Container | Routine | CodeBlock]*'."
             in str(excinfo.value))
 
 
@@ -170,5 +170,5 @@ def test_container_children_validation():
     with pytest.raises(GenerationError) as excinfo:
         container.addchild(ret)
     assert ("Item 'Return' can't be child 1 of 'Container'. The valid format"
-            " is: '[Container | KernelSchedule | InvokeSchedule]*'."
+            " is: '[Container | Routine | CodeBlock]*'."
             "" in str(excinfo.value))
