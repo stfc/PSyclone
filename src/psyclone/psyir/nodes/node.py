@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1148,6 +1148,40 @@ class Node(object):
         raise SymbolError(
             "Unable to find the scope of node '{0}' as none of its ancestors "
             "are Container or Schedule nodes.".format(self))
+
+    def replace_with(self, node):
+        '''Replaces self with the supplied node in the PSyIR tree.
+
+        :param node: the node that will replace self in the PSyIR \
+            tree.
+        :type node: subclass of :py:class:`psyclone.psyir.nodes.node`
+
+        :raises TypeError: if the argument 'node' is not a Node.
+        :raises SymbolError: if this node does not have a parent.
+        :raises SymbolError: if the argument 'node' has a parent.
+
+        '''
+        if not isinstance(node, Node):
+            raise TypeError(
+                "The argument node in method replace_with in the Node class "
+                "should be a Node but found '{0}'."
+                "".format(type(node).__name__))
+        if not self.parent:
+            raise GenerationError(
+                "This node should have a parent if its replace_with method "
+                "is called.")
+        if node.parent is not None:
+            raise GenerationError(
+                "The parent of argument node in method replace_with in the "
+                "Node class should be None but found '{0}'."
+                "".format(type(node.parent).__name__))
+
+        parent = self.parent
+        position = self.position
+        node.parent = parent
+        self.parent.children.remove(self)
+        parent.children.insert(position, node)
+        self.parent = None
 
 
 # For automatic documentation generation
