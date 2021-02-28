@@ -732,10 +732,13 @@ class FortranWriter(PSyIRVisitor):
         if not node.name:
             raise VisitorError("Expected node name to have a value.")
 
-        args = [symbol.name for symbol in node.symbol_table.argument_list]
-        result = (
-            "{0}subroutine {1}({2})\n"
-            "".format(self._nindent, node.name, ", ".join(args)))
+        if node.is_program:
+            result = ("{0}program {1}\n".format(self._nindent, node.name))
+        else:
+            args = [symbol.name for symbol in node.symbol_table.argument_list]
+            result = (
+                "{0}subroutine {1}({2})\n"
+                "".format(self._nindent, node.name, ", ".join(args)))
 
         self._depth += 1
 
@@ -773,9 +776,12 @@ class FortranWriter(PSyIRVisitor):
             "".format(imports, declarations, exec_statements))
 
         self._depth -= 1
+        name = "subroutine"
+        if node.is_program:
+            name = "program"
         result += (
-            "{0}end subroutine {1}\n"
-            "".format(self._nindent, node.name))
+            "{0}end {1} {2}\n"
+            "".format(self._nindent, name, node.name))
 
         return result
 

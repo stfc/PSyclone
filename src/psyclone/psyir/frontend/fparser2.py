@@ -768,6 +768,7 @@ class Fparser2Reader(object):
             Fortran2003.Call_Stmt: self._call_handler,
             Fortran2003.Subroutine_Subprogram: self._subroutine_handler,
             Fortran2003.Module: self._module_handler,
+            Fortran2003.Main_Program: self._program_unit_handler,
             Fortran2003.Program: self._program_handler,
         }
 
@@ -3433,6 +3434,45 @@ class Fparser2Reader(object):
             pass
         else:
             self.process_nodes(routine, sub_exec.content)
+
+        return routine
+
+    def _program_unit_handler(self, node, parent):
+        '''Transforms an fparser2 Program_Unit statement into a PSyIR
+        Routine node.
+
+        :param node: node in fparser2 parse tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Program_Unit`
+        :param parent: parent node of the PSyIR node being constructed.
+        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: PSyIR representation of node.
+        :rtype: :py:class:`psyclone.psyir.nodes.Routine`
+
+        '''
+        name = node.children[0].children[1].string
+        routine = Routine(name, parent=parent, is_program=True)
+
+        try:
+            prog_spec = _first_type_match(node.content,
+                                          Fortran2003.Specification_Part)
+            decl_list = prog_spec.content
+        except ValueError:
+            # program has no Specification_Part so has no
+            # declarations. Continue with empty list.
+            decl_list = []
+        finally:
+            self.process_declarations(routine, decl_list, [])
+
+        try:
+            prog_exec = _first_type_match(node.content,
+                                          Fortran2003.Execution_Part)
+        except ValueError:
+            # Routines without any execution statements are still
+            # valid.
+            pass
+        else:
+            self.process_nodes(routine, prog_exec.content)
 
         return routine
 
