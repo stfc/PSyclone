@@ -534,7 +534,7 @@ The rest of this section introduces examples of the available direct PSyIR
 modification methods.
 
 Renaming symbols
------------------
+----------------
 The symbol table provides the method ``rename_symbol()`` that given a symbol
 and an unused name will rename the symbol. The symbol renaming will affect
 all the references in the PSyIR AST to that symbol. For example, the PSyIR
@@ -579,3 +579,17 @@ would need to be set explicitly.
 
 This method is useful as it allows the class of a symbol to be changed
 without affecting any references to it.
+
+Replacing PSyIR nodes
+---------------------
+
+In certain cases one might want to replace a node in a PSyIR tree with
+another node. All nodes provide the `replace_with()` method to support
+this.
+
+.. code-block:: python
+
+    node.replace_with(new_node)
+
+Note, the node and all of its children is replaced with new_node and
+all of its children.

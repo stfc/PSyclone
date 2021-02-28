@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: S. Siso, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''A simple Python script showing how to modify a PSyIR tree. In order to use
 it you must first install PSyclone. See README.md in the top-level psyclone
@@ -50,6 +51,7 @@ representation.
 # pylint: disable=wrong-import-order
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.symbols import Symbol, RoutineSymbol
+from psyclone.psyir.nodes import Reference
 from create import create_psyir_tree
 
 
@@ -78,6 +80,12 @@ def modify_psyir_tree():
     # location of the instance. Note, any additional subclass properties would
     # have to be added manually.
     symbol.specialise(RoutineSymbol)
+
+    # In some cases we may want to replace one node with another. This
+    # can be simply done using a node's replace_with method.
+    assignment = subroutine.children[2]
+    assignment_rhs = assignment.rhs
+    assignment_rhs.replace_with(Reference(tmp_symbol))
 
     return container
 
