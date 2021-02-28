@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 
-'''Module containing pytest tests for the _program_unit_handler method
+'''Module containing pytest tests for the _main_program_handler method
 in the class Fparser2Reader. This handler deals with the translation
-of the fparser2 Program_Unit construct to PSyIR.
+of the fparser2 Main_Program construct to PSyIR.
 
 '''
 from __future__ import absolute_import
@@ -79,14 +79,14 @@ PROG3_OUT = (
                          [(PROG1_IN, PROG1_OUT),
                           (PROG2_IN, PROG2_OUT),
                           (PROG3_IN, PROG3_OUT)])
-def test_program_unit_handler(parser, code, expected):
-    '''Test that program_unit_handler handles valid Fortran subroutines.'''
+def test_main_program_handler(parser, code, expected):
+    '''Test that main_program_handler handles valid Fortran subroutines.'''
 
     processor = Fparser2Reader()
     reader = FortranStringReader(code)
     parse_tree = parser(reader)
     program = parse_tree.children[0]
-    psyir = processor._program_unit_handler(program, None)
+    psyir = processor._main_program_handler(program, None)
     # Check the expected PSyIR nodes are being created
     assert isinstance(psyir, Routine)
     assert psyir.is_program

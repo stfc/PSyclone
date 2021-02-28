@@ -768,7 +768,7 @@ class Fparser2Reader(object):
             Fortran2003.Call_Stmt: self._call_handler,
             Fortran2003.Subroutine_Subprogram: self._subroutine_handler,
             Fortran2003.Module: self._module_handler,
-            Fortran2003.Main_Program: self._program_unit_handler,
+            Fortran2003.Main_Program: self._main_program_handler,
             Fortran2003.Program: self._program_handler,
         }
 
@@ -3437,12 +3437,12 @@ class Fparser2Reader(object):
 
         return routine
 
-    def _program_unit_handler(self, node, parent):
-        '''Transforms an fparser2 Program_Unit statement into a PSyIR
+    def _main_program_handler(self, node, parent):
+        '''Transforms an fparser2 Main_Program statement into a PSyIR
         Routine node.
 
         :param node: node in fparser2 parse tree.
-        :type node: :py:class:`fparser.two.Fortran2003.Program_Unit`
+        :type node: :py:class:`fparser.two.Fortran2003.Main_Program`
         :param parent: parent node of the PSyIR node being constructed.
         :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
