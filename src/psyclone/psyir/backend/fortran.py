@@ -776,12 +776,13 @@ class FortranWriter(PSyIRVisitor):
             "".format(imports, declarations, exec_statements))
 
         self._depth -= 1
-        name = "subroutine"
         if node.is_program:
-            name = "program"
+            keyword = "program"
+        else:
+            keyword = "subroutine"
         result += (
             "{0}end {1} {2}\n"
-            "".format(self._nindent, name, node.name))
+            "".format(self._nindent, keyword, node.name))
 
         return result
 
