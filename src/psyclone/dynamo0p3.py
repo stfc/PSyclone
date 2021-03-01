@@ -6641,10 +6641,8 @@ class DynLoop(Loop):
         :raises GenerationError: if self._lower_bound_name is not "start" \
                                  for sequential code.
         :raises GenerationError: if self._lower_bound_name is unrecognised.
-        '''
-        if self._loop_type == "null":
-            return ""
 
+        '''
         if not Config.get().distributed_memory and \
            self._lower_bound_name != "start":
             raise GenerationError(
@@ -6683,9 +6681,6 @@ class DynLoop(Loop):
         :rtype: str
 
         '''
-        if self._loop_type == "null":
-            return ""
-
         # precompute halo_index as a string as we use it in more than
         # one of the if clauses
         halo_index = ""

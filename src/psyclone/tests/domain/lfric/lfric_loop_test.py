@@ -506,6 +506,8 @@ def test_null_loop():
     '''
     loop = DynLoop(loop_type="null")
     assert loop.loop_type == "null"
+    assert loop.node_str(colour=False) == "Loop[type='null']"
+
     # Create a kernel by parsing some metadata
     ast = fpapi.parse('''
 module testkern_mod
