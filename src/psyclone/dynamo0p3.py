@@ -6650,29 +6650,29 @@ class DynLoop(Loop):
                 "found '{0}'".format(self._upper_bound_name))
         if self._lower_bound_name == "start":
             return "1"
+
+        # the start of our space is the end of the previous space +1
+        if self._lower_bound_name == "inner":
+            prev_space_name = self._lower_bound_name
+            prev_space_index_str = str(self._lower_bound_index + 1)
+        elif self._lower_bound_name == "ncells":
+            prev_space_name = "inner"
+            prev_space_index_str = "1"
+        elif (self._lower_bound_name == "cell_halo" and
+              self._lower_bound_index == 1):
+            prev_space_name = "ncells"
+            prev_space_index_str = ""
+        elif (self._lower_bound_name == "cell_halo" and
+              self._lower_bound_index > 1):
+            prev_space_name = self._lower_bound_name
+            prev_space_index_str = str(self._lower_bound_index - 1)
         else:
-            # the start of our space is the end of the previous space +1
-            if self._lower_bound_name == "inner":
-                prev_space_name = self._lower_bound_name
-                prev_space_index_str = str(self._lower_bound_index + 1)
-            elif self._lower_bound_name == "ncells":
-                prev_space_name = "inner"
-                prev_space_index_str = "1"
-            elif (self._lower_bound_name == "cell_halo" and
-                  self._lower_bound_index == 1):
-                prev_space_name = "ncells"
-                prev_space_index_str = ""
-            elif (self._lower_bound_name == "cell_halo" and
-                  self._lower_bound_index > 1):
-                prev_space_name = self._lower_bound_name
-                prev_space_index_str = str(self._lower_bound_index - 1)
-            else:
-                raise GenerationError(
-                    "Unsupported lower bound name '{0}' "
-                    "found".format(self._lower_bound_name))
-            mesh_obj_name = self.root.symbol_table.symbol_from_tag("mesh").name
-            return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
-                + prev_space_index_str + ")+1"
+            raise GenerationError(
+                "Unsupported lower bound name '{0}' "
+                "found".format(self._lower_bound_name))
+        mesh_obj_name = self.root.symbol_table.symbol_from_tag("mesh").name
+        return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
+            + prev_space_index_str + ")+1"
 
     def _upper_bound_fortran(self):
         ''' Create the associated fortran code for the type of upper bound
