@@ -35,7 +35,7 @@
 
 program single_invoke
 
-  ! Description: call a kernel that operates-on the domain
+  ! Description: call a kernel that operates on the domain
   use constants_mod,       only : r_def
   use testkern_domain_mod, only: testkern_domain_type
   use field_mod,           only: field_type

@@ -35,7 +35,7 @@
 
 program single_invoke
 
-  ! Description: invoke of multiple kernels, one of which operates-on the
+  ! Description: invoke of multiple kernels, one of which operates on the
   ! domain instead of a cell-column.
   use constants_mod,               only : r_def
   use testkern_domain_mod,         only: testkern_domain_type
