@@ -284,6 +284,33 @@ class GOInvoke(Invoke):
         :param parent: the node in the generated AST to which to add content.
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
         '''
+
+        def split_by_interface(symbol_names):
+            ''' Utility to help differentiate between arguments, local symbols
+            and other symbols (globals, unresolved, ...)
+
+            :param symbol_names: a list of symbols to categorise.
+            :type symbol_names: list of str
+
+            :returns: a tuple of 3 lists with the given symbol_names \
+                      categorised as argument symbols, local symbols and \
+                      other symbols.
+            :rtype: 3-tuple
+            '''
+            arg_symbols = []
+            local_symbols = []
+            other_symbols = []
+            symtab = self.schedule.symbol_table
+            for name in symbol_names:
+                interface = symtab.lookup(name).interface
+                if isinstance(interface, LocalInterface):
+                    local_symbols.append(name)
+                elif isinstance(interface, ArgumentInterface):
+                    arg_symbols.append(name)
+                else:
+                    other_symbols.append(name)
+            return arg_symbols, local_symbols, other_symbols
+
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names)
@@ -304,46 +331,22 @@ class GOInvoke(Invoke):
         # the OpenCL run-time.
         target = bool(self.schedule.opencl)
 
-        # add the subroutine argument declarations for fields
+        # Add the subroutine argument declarations for fields
         if self.unique_args_arrays:
             my_decl_arrays = TypeDeclGen(invoke_sub, datatype="r2d_field",
                                          intent="inout", target=target,
                                          entity_decls=self.unique_args_arrays)
             invoke_sub.add(my_decl_arrays)
 
-        # get the list of global symbols used in the invoke
-        global_names = [sym.name for sym in
-                        self.schedule.symbol_table.global_symbols]
-
-        # add the subroutine argument declarations for real scalars which
-        # are not global symbols
-        real_decls = list(filter(lambda x: x not in global_names,
-                                 self.unique_args_rscalars))
-        if real_decls:
+        # Add the subroutine argument declarations for real scalars
+        r_args, _, _ = split_by_interface(self.unique_args_rscalars)
+        if r_args:
             my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
                                        intent="inout", kind="go_wp",
-                                       entity_decls=real_decls)
+                                       entity_decls=r_args)
             invoke_sub.add(my_decl_rscalars)
 
-        int_decls = list(filter(lambda x: x not in global_names,
-                                self.unique_args_iscalars))
-
-        def split_by_interface(symbol_names):
-            arg_symbols = []
-            local_symbols = []
-            other_symbols = []
-            symtab = self.schedule.symbol_table
-            for name in symbol_names:
-                interface = symtab.lookup(name).interface
-                if isinstance(interface, LocalInterface):
-                    local_symbols.append(name)
-                elif isinstance(interface, ArgumentInterface):
-                    arg_symbols.append(name)
-                else:
-                    other_symbols.append(name)
-            return arg_symbols, local_symbols, other_symbols
-
-        # add the subroutine argument declarations for integer scalars
+        # Add the subroutine declarations for integer scalars
         int_args, int_locals, _ = split_by_interface(self.unique_args_iscalars)
         if int_args:
             my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
@@ -1866,9 +1869,6 @@ class GOKernelArgument(KernelArgument):
                                "scalar".
 
         '''
-        #if self._text:
-        #    tag = "AlgArgs_" + self._text
-        #symbol = self._call.root.symbol_table.symbol_from_tag(tag)
         symbol = self._call.scope.symbol_table.lookup(self.name)
 
         # Gocean field arguments are StructureReferences to the %data attribute
