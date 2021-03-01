@@ -443,8 +443,7 @@ def test_operator_different_spaces(tmpdir):
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w0(:,:) => null()\n"
         "      INTEGER(KIND=i_def) ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
-        "      TYPE(mesh_type), pointer :: mesh => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: orientation_w2(:) => null()\n")
+        "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert decl_output in generated_code
     output = (
         "      !\n"
@@ -524,14 +523,11 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
-        "        orientation_w2 => mapping_proxy%fs_from%get_cell_orientation("
-        "cell)\n"
-        "        !\n"
         "        CALL assemble_weak_derivative_w3_w2_kernel_code(cell, "
         "nlayers, mapping_proxy%ncell_3d, mapping_proxy%local_stencil, "
         "coord_proxy(1)%data, coord_proxy(2)%data, coord_proxy(3)%data, "
-        "ndf_w3, basis_w3_qr, ndf_w2, diff_basis_w2_qr, orientation_w2, "
-        "ndf_w0, undf_w0, map_w0(:,cell), diff_basis_w0_qr, "
+        "ndf_w3, basis_w3_qr, ndf_w2, diff_basis_w2_qr, ndf_w0, "
+        "undf_w0, map_w0(:,cell), diff_basis_w0_qr, "
         "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         "      END DO\n"
         "      !\n"
@@ -646,68 +642,6 @@ def test_operator_nofield_scalar_deref(tmpdir, dist_mem):
         "np_z_qr_init_quadrature_symmetrical, "
         "weights_xy_qr_init_quadrature_symmetrical, "
         "weights_z_qr_init_quadrature_symmetrical)" in gen)
-
-
-def test_operator_orientation(tmpdir):
-    ''' Tests that an operator requiring orientation information is
-    implemented correctly in the PSy layer. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "10.2_operator_orient.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    gen_str = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    assert (
-        "SUBROUTINE invoke_0_testkern_operator_orient_type(mm_w1, coord, qr)"
-        in gen_str)
-    assert "TYPE(operator_type), intent(in) :: mm_w1" in gen_str
-    assert "TYPE(operator_proxy_type) mm_w1_proxy" in gen_str
-    assert "mm_w1_proxy = mm_w1%get_proxy()" in gen_str
-    assert (
-        "orientation_w1 => mm_w1_proxy%fs_from%get_cell_orientation"
-        "(cell)" in gen_str)
-    assert ("CALL testkern_operator_orient_code(cell, nlayers, "
-            "mm_w1_proxy%ncell_3d, mm_w1_proxy%local_stencil, "
-            "coord_proxy(1)%data, coord_proxy(2)%data, coord_proxy(3)%data, "
-            "ndf_w1, basis_w1_qr, orientation_w1, ndf_w0, undf_w0, "
-            "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
-            "weights_xy_qr, weights_z_qr)" in gen_str)
-
-
-def test_op_orient_different_space(tmpdir):
-    ''' Tests that an operator on different spaces requiring orientation
-    information is implemented correctly in the PSy layer. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "10.4_operator_orient_different_"
-                                        "space.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    gen_str = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    assert (
-        "INTEGER(KIND=i_def), pointer :: orientation_w1(:) => null(), "
-        "orientation_w2(:) => null()" in gen_str)
-    assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen_str
-    assert "ndf_w1 = my_mapping_proxy%fs_to%get_ndf()" in gen_str
-    assert "dim_w1 = my_mapping_proxy%fs_to%get_dim_space()" in gen_str
-    assert ("CALL qr%compute_function(BASIS, my_mapping_proxy%fs_to, "
-            "dim_w1, ndf_w1, basis_w1_qr)" in gen_str)
-    assert (
-        "orientation_w2 => my_mapping_proxy%fs_from%get_cell_orientation("
-        "cell)" in gen_str)
-    assert (
-        "orientation_w1 => my_mapping_proxy%fs_to%get_cell_orientation(cell)"
-        in gen_str)
-    assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, "
-            "my_mapping_proxy%local_stencil, coord_proxy(1)%data, "
-            "coord_proxy(2)%data, coord_proxy(3)%data, ndf_w1, basis_w1_qr, "
-            "orientation_w1, ndf_w2, orientation_w2, ndf_w0, undf_w0, "
-            "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
-            "weights_xy_qr, weights_z_qr)" in gen_str)
 
 
 def test_operator_deref(tmpdir, dist_mem):
@@ -939,7 +873,7 @@ def test_operators():
         "ndf_w2vtrace, ndf_w3, ndf_wtheta, ndf_aspc1_op_12, ndf_adspc1_op_13\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w0,ndf_w0,"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w0,ndf_w0,"
         "op_1_ncell_3d) :: op_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
@@ -954,7 +888,7 @@ def test_operators():
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2v,ndf_w2v,"
         "op_5_ncell_3d) :: op_5\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w2broken,"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2broken,"
         "ndf_w2broken,op_6_ncell_3d) :: op_6\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_7_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w2trace,"
@@ -966,11 +900,11 @@ def test_operators():
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2vtrace,"
         "ndf_w2vtrace,op_9_ncell_3d) :: op_9\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w3,ndf_w3,"
         "op_10_ncell_3d) :: op_10\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_11_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_wtheta,ndf_wtheta,"
-        "op_11_ncell_3d) :: op_11\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_wtheta,"
+        "ndf_wtheta,op_11_ncell_3d) :: op_11\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_aspc1_op_12,"
         "ndf_aspc1_op_12,op_12_ncell_3d) :: op_12\n"

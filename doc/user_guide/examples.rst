@@ -483,8 +483,8 @@ Example 1: Constructing PSyIR and Generating Code
 ``create.py`` is a Python script that demonstrates the use of the various
 ``create`` methods to build a PSyIR tree from scratch.
 
-Example 2: Creating PSyIR for Aggregate Types
+Example 2: Creating PSyIR for Structure Types
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``create_aggregate_types.py`` demonstrates the representation of
-aggregate types (i.e. Fortran derived types or C structs) in the PSyIR.
+``create_structure_types.py`` demonstrates the representation of
+structure types (i.e. Fortran derived types or C structs) in the PSyIR.

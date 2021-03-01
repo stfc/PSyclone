@@ -115,8 +115,8 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_aspc2) :: map_aspc2
     integer(kind=i_def), intent(in), dimension(cma_op_nrow) :: cma_indirection_map_w2v
     integer(kind=i_def), intent(in), dimension(cma_op_ncol) :: cma_indirection_map_aspc2
-    real(kind=r_def), intent(out), dimension(undf_w2v)  :: field1
-    real(kind=r_def), intent(in), dimension(undf_aspc2) :: field2
+    real(kind=r_def), intent(inout), dimension(undf_w2v) :: field1
+    real(kind=r_def), intent(in), dimension(undf_aspc2)  :: field2
     real(kind=r_def), intent(in), dimension(cma_op_bandwidth,cma_op_nrow,ncell_2d) :: cma_op
 
     write(*,*) "A kernel that applies CMA operator to a field on discontinuous space W2V"

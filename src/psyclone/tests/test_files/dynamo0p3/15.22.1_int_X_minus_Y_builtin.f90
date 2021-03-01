@@ -1,7 +1,8 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2021, Science and Technology Facilities Council.
+! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -30,23 +31,18 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author: I. Kavcic, Met Office
 
-program orientation
+program single_invoke
 
-  ! Description: Orientation example updating a continuous field
-  use field_mod,                 only: field_type
-  use quadrature_xyoz_mod,       only: quadrature_xyoz_type
-  use testkern_orientation2_mod, only: testkern_orientation2_type
+  ! Description: single point-wise operation (subtraction of integer-valued
+  ! fields) specified in an invoke call.
+  use integer_field_mod, only: integer_field_type
 
   implicit none
 
-  type(field_type)           :: f1, f2, m1
-  type(quadrature_xyoz_type) :: qr
+  type(integer_field_type) :: f1, f2, f3
 
-  call invoke(                                    &
-       testkern_orientation2_type(f1, f2, m1, qr) &
-          )
+  call invoke( int_X_minus_Y(f3, f1, f2) )
 
-end program orientation
+end program single_invoke

@@ -56,10 +56,6 @@ BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
 VALID_BUILTIN_ARG_TYPES = LFRicArgDescriptor.VALID_FIELD_NAMES + \
     LFRicArgDescriptor.VALID_SCALAR_NAMES
 
-# The data types of field arguments that are valid for built-in
-# kernels in the LFRic API (only "gh_real")
-VALID_BUILTIN_FIELD_DATA_TYPES = ["gh_real"]
-
 # Valid LFRic iteration spaces for built-in kernels
 # TODO #870 rm 'dofs' from list below.
 BUILTIN_ITERATION_SPACES = ["dofs", "dof"]
@@ -192,8 +188,6 @@ class DynBuiltIn(BuiltIn):
         :raises ParseError: if a built-in call does not iterate over DoFs.
         :raises ParseError: if an argument to a built-in kernel is not \
                             one of valid argument types.
-        :raises ParseError: if a field argument to a built-in kernel has \
-                            an invalid data type.
         :raises ParseError: if a built-in kernel writes to more than \
                             one argument.
         :raises ParseError: if a built-in kernel does not have at least \
@@ -212,6 +206,13 @@ class DynBuiltIn(BuiltIn):
         field_count = 0  # We must have one or more fields as arguments
         spaces = set()   # All field arguments must be on the same space
         for arg in self.arg_descriptors:
+            # Check valid argument types
+            if arg.argument_type not in VALID_BUILTIN_ARG_TYPES:
+                raise ParseError(
+                    "In the LFRic API an argument to a built-in kernel "
+                    "must be one of {0} but kernel '{1}' has an argument of "
+                    "type '{2}'.".format(VALID_BUILTIN_ARG_TYPES, self.name,
+                                         arg.argument_type))
             # Built-ins update fields DoF by DoF and therefore can have
             # WRITE/READWRITE access
             if arg.access in [AccessType.WRITE, AccessType.SUM,
@@ -220,20 +221,7 @@ class DynBuiltIn(BuiltIn):
             if arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
                 field_count += 1
                 spaces.add(arg.function_space)
-            if arg.argument_type not in VALID_BUILTIN_ARG_TYPES:
-                raise ParseError(
-                    "In the LFRic API an argument to a built-in kernel "
-                    "must be one of {0} but kernel '{1}' has an argument of "
-                    "type '{2}'.".format(VALID_BUILTIN_ARG_TYPES, self.name,
-                                         arg.argument_type))
-            if (arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES and
-                    arg.data_type not in VALID_BUILTIN_FIELD_DATA_TYPES):
-                raise ParseError(
-                    "In the LFRic API a field argument to a built-in kernel "
-                    "must have one of {0} as data type but kernel '{1}' has "
-                    "a field argument with data type '{2}'.".
-                    format(VALID_BUILTIN_FIELD_DATA_TYPES, self.name,
-                           arg.data_type))
+
         if write_count != 1:
             raise ParseError("A built-in kernel in the LFRic API must "
                              "have one and only one argument that is written "
@@ -329,16 +317,23 @@ class DynBuiltIn(BuiltIn):
         '''
         return self._fs_descriptors
 
+
+# ******************************************************************* #
+# ************** Built-ins for real-valued fields ******************* #
+# ******************************************************************* #
+
 # ------------------------------------------------------------------- #
-# ============== Adding (scaled) fields ============================= #
+# ============== Adding (scaled) real fields ======================== #
 # ------------------------------------------------------------------- #
 
 
 class DynXPlusYKern(DynBuiltIn):
-    ''' Add one field to another and return the result as a third field '''
+    ''' Add one, real-valued, field to another and return the result as
+    a third, real-valued, field.
 
+    '''
     def __str__(self):
-        return "Built-in: Add fields"
+        return "Built-in: Add real-valued fields"
 
     def gen_code(self, parent):
         '''
@@ -350,7 +345,7 @@ class DynXPlusYKern(DynBuiltIn):
 
         '''
         # We add each element of f2 to the corresponding element of f1
-        # and store the result in f3.
+        # and store the result in f3 (real-valued fields).
         field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -359,10 +354,11 @@ class DynXPlusYKern(DynBuiltIn):
 
 
 class DynIncXPlusYKern(DynBuiltIn):
-    ''' Add the 2nd field to the first field and return it '''
+    ''' Add the second, real-valued, field to the first field and return it.
 
+    '''
     def __str__(self):
-        return "Built-in: Increment field"
+        return "Built-in: Increment a real-valued field"
 
     def gen_code(self, parent):
         '''
@@ -374,7 +370,7 @@ class DynIncXPlusYKern(DynBuiltIn):
 
         '''
         # We add each element of f1 to the corresponding element of f2
-        # and store the result back in f1.
+        # and store the result back in f1 (real-valued fields).
         field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         parent.add(AssignGen(parent, lhs=field_name1,
@@ -382,11 +378,12 @@ class DynIncXPlusYKern(DynBuiltIn):
 
 
 class DynAXPlusYKern(DynBuiltIn):
-    ''' Z = a.X + Y where 'a' is a scalar and 'Z', 'X' and
-    'Y' are fields '''
+    ''' Z = a.X + Y where 'a' is a real scalar and 'Z', 'X' and
+    'Y' are real-valued fields.
 
+    '''
     def __str__(self):
-        return "Built-in: aX_plus_Y"
+        return "Built-in: aX_plus_Y (real-valued fields)"
 
     def gen_code(self, parent):
         '''
@@ -397,10 +394,10 @@ class DynAXPlusYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We multiply one element of field f1 (3rd arg) by a scalar
-        # (2nd arg), add it to the corresponding
-        # element of a second field (4th arg)  and write the value to the
-        # corresponding element of field f3 (1st arg).
+        # We multiply one element of field f1 (3rd arg) by a real scalar
+        # (2nd arg), add it to the corresponding element of a second
+        # field (4th arg)  and write the value to the corresponding
+        # element of field f3 (1st arg) (real-valed fields).
         field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
         scalar_name = self._arguments.args[1].name
         field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -410,10 +407,12 @@ class DynAXPlusYKern(DynBuiltIn):
 
 
 class DynIncAXPlusYKern(DynBuiltIn):
-    ''' X = a.X + Y where 'a' is a scalar and 'X' and 'Y' are fields '''
+    ''' X = a.X + Y where 'a' is a real scalar and 'X' and 'Y' are
+    real-valued fields.
 
+    '''
     def __str__(self):
-        return "Built-in: inc_aX_plus_Y"
+        return "Built-in: inc_aX_plus_Y (real-valued fields)"
 
     def gen_code(self, parent):
         '''
@@ -424,10 +423,10 @@ class DynIncAXPlusYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We multiply one element of field f1 (2nd arg) by a scalar
-        # (1st arg), add it to the corresponding element of a
-        # second field (3rd arg) and write the value back into
-        # the element of field f1.
+        # We multiply one element of field f1 (2nd arg) by a real scalar
+        # (1st arg), add it to the corresponding element of a second
+        # field (3rd arg) and write the value back into the element
+        # of field f1 (real-valued fields).
         scalar_name = self._arguments.args[0].name
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -436,11 +435,12 @@ class DynIncAXPlusYKern(DynBuiltIn):
 
 
 class DynIncXPlusBYKern(DynBuiltIn):
-    ''' X = X + b.Y where 'b' is a scalar and 'X' and 'Y' are
-    fields '''
+    ''' X = X + b.Y where 'b' is a real scalar and 'X' and 'Y' are
+    real-valued fields.
 
+    '''
     def __str__(self):
-        return "Built-in: inc_X_plus_bY"
+        return "Built-in: inc_X_plus_bY (real-valued fields)"
 
     def gen_code(self, parent):
         '''
@@ -451,9 +451,10 @@ class DynIncXPlusBYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We multiply one element of field f2 (3rd arg) by a scalar (2nd arg),
-        # add it to the corresponding element of a first field f1 (1st arg)
-        # and write the value back into the element of field f1.
+        # We multiply one element of field f2 (3rd arg) by a real scalar
+        # (2nd arg), add it to the corresponding element of a first field
+        # f1 (1st arg) and write the value back into the element of field
+        # f1 (real-valued fields).
         scalar_name = self._arguments.args[1].name
         field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -462,11 +463,12 @@ class DynIncXPlusBYKern(DynBuiltIn):
 
 
 class DynAXPlusBYKern(DynBuiltIn):
-    ''' Z = a.X + b.Y where 'a' and 'b' are scalars and 'Z', 'X' and
-    'Y' are fields '''
+    ''' Z = a.X + b.Y where 'a' and 'b' are real scalars and 'Z', 'X' and
+    'Y' are real-valued fields.
 
+    '''
     def __str__(self):
-        return "Built-in: aX_plus_bY"
+        return "Built-in: aX_plus_bY (real-valued fields)"
 
     def gen_code(self, parent):
         '''
@@ -477,11 +479,11 @@ class DynAXPlusBYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We multiply one element of field f1 (3rd arg) by the first
+        # We multiply one element of field f1 (3rd arg) by the first, real,
         # scalar (2nd arg), add it to the product of the corresponding
-        # element of a second field (5th arg) with the second scalar
-        # (4th arg) and write the value to the corresponding element
-        # of field f3 (1st arg).
+        # element of a second field (5th arg) with the second, real, scalar
+        # (4th arg) and write the value to the corresponding element of
+        # field f3 (1st arg) (real-valued fields).
         field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
         scalar_name1 = self._arguments.args[1].name
         scalar_name2 = self._arguments.args[3].name
@@ -493,11 +495,12 @@ class DynAXPlusBYKern(DynBuiltIn):
 
 
 class DynIncAXPlusBYKern(DynBuiltIn):
-    ''' X = a.X + b.Y where 'a' and 'b' are scalars and 'X' and 'Y' are
-    fields '''
+    ''' X = a.X + b.Y where 'a' and 'b' are real scalars and 'X' and 'Y'
+    are real-valued fields.
 
+    '''
     def __str__(self):
-        return "Built-in: inc_aX_plus_bY"
+        return "Built-in: inc_aX_plus_bY (real-valued fields)"
 
     def gen_code(self, parent):
         '''
@@ -508,10 +511,11 @@ class DynIncAXPlusBYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We multiply one element of field f1 (2nd arg) by the first scalar
-        # (1st arg), add it to the product of the corresponding element of
-        # a second field (4th arg) with the second scalar (4rd arg) and
-        # write the value back into the element of field f1.
+        # We multiply one element of field f1 (2nd arg) by the first, real,
+        # scalar (1st arg), add it to the product of the corresponding
+        # element of a second field (4th arg) with the second, real, scalar
+        # (4rd arg) and write the value back into the element of field f1
+        # (real-valued fields).
         scalar_name1 = self._arguments.args[0].name
         scalar_name2 = self._arguments.args[2].name
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
@@ -522,16 +526,17 @@ class DynIncAXPlusBYKern(DynBuiltIn):
 
 
 # ------------------------------------------------------------------- #
-# ============== Subtracting (scaled) fields ======================== #
+# ============== Subtracting (scaled) real fields =================== #
 # ------------------------------------------------------------------- #
 
 
 class DynXMinusYKern(DynBuiltIn):
-    ''' Subtract one field from another and return the result as a
-    third field '''
+    ''' Subtract one, real-valued, field from another and return the
+    result as a third, real-valued, field.
 
+    '''
     def __str__(self):
-        return "Built-in: Subtract fields"
+        return "Built-in: Subtract real-valued fields"
 
     def gen_code(self, parent):
         '''
@@ -543,7 +548,7 @@ class DynXMinusYKern(DynBuiltIn):
 
         '''
         # We subtract each element of f2 from the corresponding element
-        # of f1 and store the result in f3.
+        # of f1 and store the result in f3 (real-valued fields).
         field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -553,10 +558,12 @@ class DynXMinusYKern(DynBuiltIn):
 
 
 class DynIncXMinusYKern(DynBuiltIn):
-    ''' Subtract the second field from the first field and return it '''
+    ''' Subtract the second, real-valued, field from the first field
+    and return it.
 
+    '''
     def __str__(self):
-        return "Built-in: Decrement field"
+        return "Built-in: Decrement a real-valued field"
 
     def gen_code(self, parent):
         '''
@@ -568,7 +575,7 @@ class DynIncXMinusYKern(DynBuiltIn):
 
         '''
         # We subtract each element of f1 from the corresponding element of f2
-        # and store the result back in f1.
+        # and store the result back in f1 (real-valued fields).
         field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         parent.add(AssignGen(parent, lhs=field_name1,
@@ -576,11 +583,12 @@ class DynIncXMinusYKern(DynBuiltIn):
 
 
 class DynAXMinusYKern(DynBuiltIn):
-    ''' Z = a.X - Y where 'a' is a scalar and 'Z', 'X' and
-    'Y' are fields '''
+    ''' Z = a.X - Y where 'a' is a real scalar and 'Z', 'X' and
+    'Y' are real-valued fields.
 
+    '''
     def __str__(self):
-        return "Built-in: aX_minus_Y"
+        return "Built-in: aX_minus_Y (real-valued fields)"
 
     def gen_code(self, parent):
         '''
@@ -591,10 +599,10 @@ class DynAXMinusYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We multiply one element of field f1 (3rd arg) by a scalar
-        # (2nd arg), subtract it from the corresponding
-        # element of a second field (4th arg)  and write the value to the
-        # corresponding element of field f3 (1st arg).
+        # We multiply one element of field f1 (3rd arg) by a real scalar
+        # (2nd arg), subtract it from the corresponding element of a
+        # second field (4th arg) and write the value to the corresponding
+        # element of field f3 (1st arg) (real-valued fields).
         field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
         scalar_name = self._arguments.args[1].name
         field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -604,11 +612,12 @@ class DynAXMinusYKern(DynBuiltIn):
 
 
 class DynXMinusBYKern(DynBuiltIn):
-    ''' Z = X - b.Y where 'b' is a scalar and 'Z', 'X' and
-    'Y' are fields '''
+    ''' Z = X - b.Y where 'b' is a real scalar and 'Z', 'X' and
+    'Y' are real-valued fields.
 
+    '''
     def __str__(self):
-        return "Built-in: X_minus_bY"
+        return "Built-in: X_minus_bY (real-valued fields)"
 
     def gen_code(self, parent):
         '''
@@ -619,10 +628,10 @@ class DynXMinusBYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We multiply one element of field f2 (4th arg) by a scalar
-        # (3rd arg), subtract it from the corresponding element of a
-        # first field f1 (2nd arg) and write the value to the
-        # corresponding element of field f3 (1st arg).
+        # We multiply one element of field f2 (4th arg) by a real scalar
+        # (3rd arg), subtract it from the corresponding element of a first
+        # field f1 (2nd arg) and write the value to the corresponding
+        # element of field f3 (1st arg) (real-valued fields).
         field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
         scalar_name = self._arguments.args[2].name
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
@@ -632,11 +641,12 @@ class DynXMinusBYKern(DynBuiltIn):
 
 
 class DynIncXMinusBYKern(DynBuiltIn):
-    ''' X = X - b.Y where 'b' is a scalar and 'X' and 'Y' are
-    fields '''
+    ''' X = X - b.Y where 'b' is a real scalar and 'X' and 'Y' are
+    real-valued fields.
 
+    '''
     def __str__(self):
-        return "Built-in: inc_X_minus_bY"
+        return "Built-in: inc_X_minus_bY (real-valued fields)"
 
     def gen_code(self, parent):
         '''
@@ -647,9 +657,10 @@ class DynIncXMinusBYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We multiply one element of field f2 (3rd arg) by a scalar (2nd arg),
-        # subtract it fom  the corresponding element of a first field f1
-        # (1st arg) and write the value back into the element of field f1.
+        # We multiply one element of field f2 (3rd arg) by a real scalar
+        # (2nd arg), subtract it from the corresponding element of field
+        # f1 (1st arg) and write the value back into the element of
+        # field f1 (real-valued fields).
         scalar_name = self._arguments.args[1].name
         field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -658,16 +669,17 @@ class DynIncXMinusBYKern(DynBuiltIn):
 
 
 # ------------------------------------------------------------------- #
-# ============== Multiplying (scaled) fields ======================== #
+# ============== Multiplying (scaled) real fields =================== #
 # ------------------------------------------------------------------- #
 
 
 class DynXTimesYKern(DynBuiltIn):
-    ''' DoF-wise product of one field with another with the result
-    returned as a third field '''
+    ''' DoF-wise product of one, real-valued, field with another with
+    the result returned as a third, real-valued, field.
 
+    '''
     def __str__(self):
-        return "Built-in: Multiply fields"
+        return "Built-in: Multiply real-valued fields"
 
     def gen_code(self, parent):
         '''
@@ -678,8 +690,8 @@ class DynXTimesYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We subtract each element of f2 from the corresponding element
-        # of f1 and store the result in f3.
+        # We multiply each element of f1 by the corresponding element
+        # of f2 and store the result in f3 (real-valued fields).
         field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -689,10 +701,11 @@ class DynXTimesYKern(DynBuiltIn):
 
 
 class DynIncXTimesYKern(DynBuiltIn):
-    ''' Multiply the first field by the second and return it '''
+    ''' Multiply the first, real-valued, field by the second and return it.
 
+    '''
     def __str__(self):
-        return "Built-in: Multiply field by another"
+        return "Built-in: Multiply one real-valued field by another"
 
     def gen_code(self, parent):
         '''
@@ -704,7 +717,7 @@ class DynIncXTimesYKern(DynBuiltIn):
 
         '''
         # We multiply each element of f1 by the corresponding element of
-        # f2 and store the result back in f1.
+        # f2 and store the result back in f1 (real-valued fields).
         field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         parent.add(AssignGen(parent, lhs=field_name1,
@@ -712,10 +725,12 @@ class DynIncXTimesYKern(DynBuiltIn):
 
 
 class DynIncAXTimesYKern(DynBuiltIn):
-    ''' X = a.X.Y where 'a' is a scalar and 'X' and 'Y' are fields '''
+    ''' X = a.X.Y where 'a' is a real scalar and 'X' and 'Y' are
+    real-valued fields.
 
+    '''
     def __str__(self):
-        return "Built-in: inc_aX_times_Y"
+        return "Built-in: inc_aX_times_Y (real-valued fields)"
 
     def gen_code(self, parent):
         '''
@@ -726,9 +741,9 @@ class DynIncAXTimesYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We multiply a scalar (1st arg) by a DoF-wise product of fields
-        # f1 (2nd arg) and f2 (3rd arg) and write the value back into
-        # the element of field f1.
+        # We multiply a real scalar (1st arg) by a DoF-wise product of
+        # (real-valued) fields f1 (2nd arg) and f2 (3rd arg) and write
+        # the value back into the element of field f1.
         scalar_name = self._arguments.args[0].name
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -737,16 +752,17 @@ class DynIncAXTimesYKern(DynBuiltIn):
 
 
 # ------------------------------------------------------------------- #
-# ============== Scaling fields ===================================== #
+# ============== Scaling real fields ================================ #
 # ------------------------------------------------------------------- #
 
 
 class DynATimesXKern(DynBuiltIn):
-    ''' Multiply the first field by a scalar and return the result as
-    a second field (Y = a.X) '''
+    ''' Multiply the first, real-valued, field by a real scalar and
+    return the result as a second, real-valued, field (Y = a.X).
 
+    '''
     def __str__(self):
-        return "Built-in: Copy scaled field"
+        return "Built-in: Copy a scaled real-valued field"
 
     def gen_code(self, parent):
         '''
@@ -757,8 +773,8 @@ class DynATimesXKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We multiply each element of f1 by the scalar argument and
-        # store the result in f2.
+        # We multiply each element of f1 by the real scalar argument and
+        # store the result in f2 (real-valued fields).
         field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
         scalar_name = self._arguments.args[1].name
         field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -767,10 +783,11 @@ class DynATimesXKern(DynBuiltIn):
 
 
 class DynIncATimesXKern(DynBuiltIn):
-    ''' Multiply a field by a scalar and return it '''
+    ''' Multiply a real-valued field by a real scalar and return it.
 
+    '''
     def __str__(self):
-        return "Built-in: Scale a field"
+        return "Built-in: Scale a real-valued field"
 
     def gen_code(self, parent):
         '''
@@ -781,8 +798,8 @@ class DynIncATimesXKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # In this case we're multiplying each element of a field by the
-        # supplied scalar value.
+        # In this case we're multiplying each element of a real-valued
+        # field by the supplied real scalar value.
         field_name = self.array_ref(self._arguments.args[1].proxy_name)
         scalar_name = self._arguments.args[0].name
         parent.add(AssignGen(parent, lhs=field_name,
@@ -790,16 +807,17 @@ class DynIncATimesXKern(DynBuiltIn):
 
 
 # ------------------------------------------------------------------- #
-# ============== Dividing (scaled) fields =========================== #
+# ============== Dividing real fields =============================== #
 # ------------------------------------------------------------------- #
 
 
 class DynXDividebyYKern(DynBuiltIn):
-    ''' Divide the first field by the second and return the result as
-    a third field '''
+    ''' Divide the first, real-valued, field by the second and return
+    the result as a third, real-valued, field.
 
+    '''
     def __str__(self):
-        return "Built-in: Divide fields"
+        return "Built-in: Divide real-valued fields"
 
     def gen_code(self, parent):
         '''
@@ -811,7 +829,7 @@ class DynXDividebyYKern(DynBuiltIn):
 
         '''
         # We divide each element of f1 by the corresponding element of
-        # f2 and store the result in f3.
+        # f2 and store the result in f3 (real-valued fields).
         field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -820,10 +838,11 @@ class DynXDividebyYKern(DynBuiltIn):
 
 
 class DynIncXDividebyYKern(DynBuiltIn):
-    ''' Divide the first field by the second and return it '''
+    ''' Divide the first, real-valued, field by the second and return it.
 
+    '''
     def __str__(self):
-        return "Built-in: Divide one field by another"
+        return "Built-in: Divide one real-valued field by another"
 
     def gen_code(self, parent):
         '''
@@ -835,7 +854,7 @@ class DynIncXDividebyYKern(DynBuiltIn):
 
         '''
         # We divide each element of f1 by the corresponding element of
-        # f2 and store the result back in f1.
+        # f2 and store the result back in f1 (real-valued fields).
         field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         parent.add(AssignGen(parent, lhs=field_name1,
@@ -843,15 +862,16 @@ class DynIncXDividebyYKern(DynBuiltIn):
 
 
 # ------------------------------------------------------------------- #
-# ============== Raising field to a scalar ========================== #
+# ============== Raising a real field to a scalar =================== #
 # ------------------------------------------------------------------- #
 
 
 class DynIncXPowrealAKern(DynBuiltIn):
-    ''' Raise a field to a real power and return it '''
+    ''' Raise a real-valued field to a real power and return it.
 
+    '''
     def __str__(self):
-        return "Built-in: raise a field to a real power"
+        return "Built-in: Raise a real-valued field to a real power"
 
     def gen_code(self, parent):
         '''
@@ -862,8 +882,8 @@ class DynIncXPowrealAKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # In this case we're raising each element of a field to a
-        # supplied real scalar value.
+        # In this case we're raising each element of a real-valued field
+        # to a supplied real scalar value.
         field_name = self.array_ref(self._arguments.args[0].proxy_name)
         real_power = self._arguments.args[1].name
         parent.add(AssignGen(parent, lhs=field_name,
@@ -871,10 +891,11 @@ class DynIncXPowrealAKern(DynBuiltIn):
 
 
 class DynIncXPowintNKern(DynBuiltIn):
-    ''' Raise a field to an integer power and return it '''
+    ''' Raise a real-valued field to an integer power and return it.
 
+    '''
     def __str__(self):
-        return "Built-in: raise a field to an integer power"
+        return "Built-in: Raise a real-valued field to an integer power"
 
     def gen_code(self, parent):
         '''
@@ -885,8 +906,8 @@ class DynIncXPowintNKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # In this case we're raising each element of a field to a
-        # supplied integer scalar value.
+        # In this case we're raising each element of a real-valued field
+        # to a supplied integer scalar value.
         field_name = self.array_ref(self._arguments.args[0].proxy_name)
         integer_power = self._arguments.args[1].name
         parent.add(AssignGen(parent, lhs=field_name,
@@ -894,15 +915,16 @@ class DynIncXPowintNKern(DynBuiltIn):
 
 
 # ------------------------------------------------------------------- #
-# ============== Setting field elements to a value  ================= #
+# ============== Setting real field elements to a value  ============ #
 # ------------------------------------------------------------------- #
 
 
 class DynSetvalCKern(DynBuiltIn):
-    ''' Set a field equal to a scalar value '''
+    ''' Set a real-valued field equal to a real scalar value.
 
+    '''
     def __str__(self):
-        return "Built-in: Set field to a scalar value"
+        return "Built-in: Set a real-valued field to a real scalar value"
 
     def gen_code(self, parent):
         '''
@@ -913,18 +935,19 @@ class DynSetvalCKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # In this case we're assigning a single scalar value to all
-        # elements of a field.
+        # In this case we're assigning a single real scalar value to all
+        # elements of a real-valued field.
         field_name = self.array_ref(self._arguments.args[0].proxy_name)
         scalar_value = self._arguments.args[1]
         parent.add(AssignGen(parent, lhs=field_name, rhs=scalar_value))
 
 
 class DynSetvalXKern(DynBuiltIn):
-    ''' Set a field equal to another field '''
+    ''' Set a real-valued field equal to another, real-valued, field.
 
+    '''
     def __str__(self):
-        return "Built-in: Set a field equal to another field"
+        return "Built-in: Set a real-valued field equal to another such field"
 
     def gen_code(self, parent):
         '''
@@ -935,24 +958,25 @@ class DynSetvalXKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We copy one element of field X (second arg) to the
-        # corresponding element of field Y (first arg).
+        # We copy one element of field X (second arg) to the corresponding
+        # element of field Y (first arg) (real-valued fields).
         field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         parent.add(AssignGen(parent, lhs=field_name2, rhs=field_name1))
 
 
 # ------------------------------------------------------------------- #
-# ============== Inner product of fields ============================ #
+# ============== Inner product of real fields ======================= #
 # ------------------------------------------------------------------- #
 
 
 class DynXInnerproductYKern(DynBuiltIn):
-    ''' Calculates the inner product of two fields,
-    innprod = SUM( X(:)*Y(:) ) '''
+    ''' Calculates the inner product of two real-valued fields,
+    innprod = SUM( X(:)*Y(:) ).
 
+    '''
     def __str__(self):
-        return "Built-in: X_innerproduct_Y"
+        return "Built-in: X_innerproduct_Y (real-valued fields)"
 
     def gen_code(self, parent):
         '''
@@ -963,8 +987,9 @@ class DynXInnerproductYKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We sum the DoF-wise product of the supplied fields. The variable
-        # holding the sum is initialised to zero in the psy layer.
+        # We sum the DoF-wise product of the supplied real-valued fields.
+        # The real scalar variable holding the sum is initialised to zero
+        # in the PSy layer.
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -973,11 +998,12 @@ class DynXInnerproductYKern(DynBuiltIn):
 
 
 class DynXInnerproductXKern(DynBuiltIn):
-    ''' Calculates the inner product of one field by itself,
-    innprod = SUM( X(:)*X(:) ) '''
+    ''' Calculates the inner product of one real-valued field by itself,
+    innprod = SUM( X(:)*X(:) ).
 
+    '''
     def __str__(self):
-        return "Built-in: X_innerproduct_X"
+        return "Built-in: X_innerproduct_X (real-valued fields)"
 
     def gen_code(self, parent):
         '''
@@ -988,8 +1014,9 @@ class DynXInnerproductXKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We sum the DoF-wise product of the supplied fields. The variable
-        # holding the sum is initialised to zero in the psy layer.
+        # We sum the DoF-wise product of the supplied real-valued fields.
+        # The real scalar variable holding the sum is initialised to zero
+        # in the PSy layer.
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
         field_name = self.array_ref(self._arguments.args[1].proxy_name)
         rhs_expr = innprod_name + "+" + field_name + "*" + field_name
@@ -997,15 +1024,16 @@ class DynXInnerproductXKern(DynBuiltIn):
 
 
 # ------------------------------------------------------------------- #
-# ============== Sum field elements ================================= #
+# ============== Sum real field elements ============================ #
 # ------------------------------------------------------------------- #
 
 
 class DynSumXKern(DynBuiltIn):
-    ''' Computes the sum of the elements of a field '''
+    ''' Computes the sum of the elements of a real-valued field.
 
+    '''
     def __str__(self):
-        return "Built-in: sum a field"
+        return "Built-in: Sum a real-valued field"
 
     def gen_code(self, parent):
         '''
@@ -1016,20 +1044,168 @@ class DynSumXKern(DynBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # Sum all the elements of a field. The variable holding the
-        # sum is initialised to zero in the psy layer.
+        # Sum all the elements of a real-valued field. The real scalar
+        # variable holding the sum is initialised to zero in the PSy layer.
         field_name = self.array_ref(self._arguments.args[1].proxy_name)
         sum_name = self._reduction_ref(self._arguments.args[0].name)
         rhs_expr = sum_name + "+" + field_name
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
 
+# ******************************************************************* #
+# ************** Built-ins for integer-valued fields **************** #
+# ******************************************************************* #
+
+# ------------------------------------------------------------------- #
+# ============== Adding integer fields ============================== #
+# ------------------------------------------------------------------- #
+
+class LFRicIntXPlusYKern(DynXPlusYKern):
+    ''' Add corresponding elements of two, integer-valued, fields, `X`
+    and `Y`, and return the result as a third, integer-valued, field, `Z`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynXPlusYKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Add integer-valued fields"
+
+
+class LFRicIntIncXPlusYKern(DynIncXPlusYKern):
+    ''' Add each element of an integer-valued field, `X`, to the
+    corresponding element of another integer-valued field, `Y`, and
+    store the result back in `X`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynIncXPlusYKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Increment an integer-valued field"
+
+
+# ------------------------------------------------------------------- #
+# ============== Subtracting integer fields ========================= #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntXMinusYKern(DynXMinusYKern):
+    ''' Subtract each element of an integer-valued field, `Y`, from
+    the corresponding element of another, integer-valued, field, `X`,
+    and return the result as a third, integer-valued, field, `Z`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynXMinusYKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Subtract integer-valued fields"
+
+
+class LFRicIntIncXMinusYKern(DynIncXMinusYKern):
+    ''' Subtract each element of an integer-valued field, `Y`, from
+    the corresponding element of another, integer-valued, field, `X`,
+    and store the result back in `X`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynXMinusYKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Decrement an integer-valued field"
+
+
+# ------------------------------------------------------------------- #
+# ============== Multiplying integer fields ========================= #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntXTimesYKern(DynXTimesYKern):
+    ''' Multiply each element of one, integer-valued, field, `X`, by
+    the corresponding element of another, integer-valued, field, `Y`,
+    and return the result as a third, integer-valued, field, `Z`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynXTimesYKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Multiply integer-valued fields"
+
+
+class LFRicIntIncXTimesYKern(DynIncXTimesYKern):
+    ''' Multiply each element of one, integer-valued, field, `X`, by
+    the corresponding element of another, integer-valued, field, `Y`,
+    and store the result back in `X`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynIncXTimesYKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Multiply one integer-valued field by another"
+
+
+# ------------------------------------------------------------------- #
+# ============== Scaling integer fields ============================= #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntATimesXKern(DynATimesXKern):
+    ''' Multiply each element of the first, integer-valued, field, `X`,
+     by an integer scalar, `a`, and return the result as a second,
+    integer-valued, field `Y` (`Y = a*X`).
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynATimesXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Copy a scaled integer-valued field"
+
+
+class LFRicIntIncATimesXKern(DynIncATimesXKern):
+    ''' Multiply each element of an integer-valued field, `X` by
+    an integer scalar, `a`, and store the result back in `X`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynIncATimesXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Scale an integer-valued field"
+
+
+# ------------------------------------------------------------------- #
+# ============== Setting integer field elements to a value  ========= #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntSetvalCKern(DynSetvalCKern):
+    ''' Assign a single constant integer scalar value, `c`, to all
+    elements of an integer-valued field, `X`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynSetvalCKern`.
+
+    '''
+    def __str__(self):
+        return ("Built-in: Set an integer-valued field to an integer "
+                "scalar value")
+
+
+class LFRicIntSetvalXKern(DynSetvalXKern):
+    ''' Copy one element of an integer-valued field (second argument),
+    `X`, to the corresponding element of another, integer-valued,
+    field (first argument), `Y`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `DynSetvalXKern`.
+
+    '''
+    def __str__(self):
+        return ("Built-in: Set an integer-valued field equal to another "
+                "such field")
+
+
 # The built-in operations that we support for this API. The meta-data
 # describing these kernels is in dynamo0p3_builtins_mod.f90. This dictionary
 # can only be defined after all of the necessary 'class' statements have
 # been executed (happens when this module is imported into another).
-BUILTIN_MAP_CAPITALISED = {
-    # Adding (scaled) fields
+# Built-ins for real-valued fields
+REAL_BUILTIN_MAP_CAPITALISED = {
+    # Adding (scaled) real fields
     "X_plus_Y": DynXPlusYKern,
     "inc_X_plus_Y": DynIncXPlusYKern,
     "aX_plus_Y": DynAXPlusYKern,
@@ -1037,34 +1213,57 @@ BUILTIN_MAP_CAPITALISED = {
     "inc_X_plus_bY": DynIncXPlusBYKern,
     "aX_plus_bY": DynAXPlusBYKern,
     "inc_aX_plus_bY": DynIncAXPlusBYKern,
-    # Subtracting (scaled) fields
+    # Subtracting (scaled) real fields
     "X_minus_Y": DynXMinusYKern,
     "inc_X_minus_Y": DynIncXMinusYKern,
     "aX_minus_Y": DynAXMinusYKern,
     "X_minus_bY": DynXMinusBYKern,
     "inc_X_minus_bY": DynIncXMinusBYKern,
-    # Multiplying (scaled) fields
+    # Multiplying (scaled) real fields
     "X_times_Y": DynXTimesYKern,
     "inc_X_times_Y": DynIncXTimesYKern,
     "inc_aX_times_Y": DynIncAXTimesYKern,
-    # Multiplying fields by a scalar (scaling fields)
+    # Multiplying real fields by a real scalar (scaling fields)
     "a_times_X": DynATimesXKern,
     "inc_a_times_X": DynIncATimesXKern,
-    # Dividing (scaled) fields
+    # Dividing real fields
     "X_divideby_Y": DynXDividebyYKern,
     "inc_X_divideby_Y": DynIncXDividebyYKern,
-    # Raising field to a scalar
+    # Raising a real field to a scalar
     "inc_X_powreal_a": DynIncXPowrealAKern,
     "inc_X_powint_n": DynIncXPowintNKern,
-    # Setting field elements to scalar or other field's values
+    # Setting real field elements to scalar or other
+    # real field's values
     "setval_c": DynSetvalCKern,
     "setval_X": DynSetvalXKern,
-    # Inner product of fields
+    # Inner product of real fields
     "X_innerproduct_Y": DynXInnerproductYKern,
     "X_innerproduct_X": DynXInnerproductXKern,
-    # Sum values of a field
+    # Sum values of a real field
     "sum_X": DynSumXKern}
 
+# Built-ins for integer-valued fields
+INT_BUILTIN_MAP_CAPITALISED = {
+    # Adding integer fields
+    "int_X_plus_Y": LFRicIntXPlusYKern,
+    "int_inc_X_plus_Y": LFRicIntIncXPlusYKern,
+    # Subtracting integer fields
+    "int_X_minus_Y": LFRicIntXMinusYKern,
+    "int_inc_X_minus_Y": LFRicIntIncXMinusYKern,
+    # Multiplying (scaled) real fields
+    "int_X_times_Y": LFRicIntXTimesYKern,
+    "int_inc_X_times_Y": LFRicIntIncXTimesYKern,
+    # Multiplying integer fields by an integer scalar (scaling fields)
+    "int_a_times_X": LFRicIntATimesXKern,
+    "int_inc_a_times_X": LFRicIntIncATimesXKern,
+    # Setting an integer field elements to an integer scalar
+    # or other integer field's values
+    "int_setval_c": LFRicIntSetvalCKern,
+    "int_setval_X": LFRicIntSetvalXKern}
+
+# Built-in map dictionary for all built-ins
+BUILTIN_MAP_CAPITALISED = REAL_BUILTIN_MAP_CAPITALISED
+BUILTIN_MAP_CAPITALISED.update(INT_BUILTIN_MAP_CAPITALISED)
 
 # Built-in map dictionary in lowercase keys for invoke generation and
 # comparison purposes. This does not enforce case sensitivity to Fortran

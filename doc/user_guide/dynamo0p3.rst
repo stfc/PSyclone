@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2020, Science and Technology Facilities Council
+.. Copyright (c) 2017-2021, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -38,19 +38,19 @@
 
 .. _dynamo0.3-api:
 
-Dynamo0.3 API
-=============
+LFRic (Dynamo0.3) API
+=====================
 
-This section describes the Dynamo0.3 application programming interface
-(API). This API explains what a user needs to write in order to make
-use of the Dynamo0.3 API in PSyclone.
+This section describes the LFRic (Dynamo0.3) application programming
+interface (API). This API explains what a user needs to write in order
+to make use of the LFRic API in PSyclone.
 
-As with the majority of PSyclone APIs, the Dynamo0.3 API specifies
+As with the majority of PSyclone APIs, the LFRic (Dynamo0.3) specifies
 how a user needs to write the algorithm layer and the kernel layer to
 allow PSyclone to generate the PSy layer. These algorithm and kernel
 APIs are discussed separately in the following sections.
 
-The Dynamo0.3 API supports the Met Office's finite element (hereafter FEM)
+The LFRic API supports the Met Office's finite element (hereafter FEM)
 based GungHo dynamical core (see :ref:`introduction`). The Met Office
 Collaboration Wiki (login required) provides more detailed information
 about the dynamical core's `formulation
@@ -75,30 +75,33 @@ Algorithm
 
 The general requirements for the structure of an Algorithm are explained
 in the :ref:`algorithm-layer` section. This section explains the
-Dynamo0.3-API-specific specialisations and extensions.
+LFRic-API-specific specialisations and extensions.
 
 .. _dynamo0.3-example:
 
 Example
 +++++++
 
-An example Dynamo0.3 API invoke call is given below with various
+An example LFRic (Dynamo0.3) API invoke call is given below with various
 different types of objects supported by the API. These different
 objects and their use are discussed in the following sections.
 
 ::
 
-  real(kind=r_def)           :: scalar1
+  real(kind=r_def)           :: rscalar
+  integer(kind=i_def)        :: iscalar
   integer(kind=i_def)        :: stencil_extent
   type(field_type)           :: field1, field2, field3
   type(field_type)           :: field5(3), field6(3)
+  type(integer_field_type)   :: field7
   type(quadrature_type)      :: qr
   type(operator_type)        :: operator1
   type(columnwise_operator_type) :: cma_op1
   ...
   call invoke( kernel1(field1, field2, operator1, qr),           &
-               builtin1(scalar1, field2, field3),                &
-               kernel2(field1, stencil_extent, field3, scalar1), &
+               builtin1(rscalar, field2, field3),                &
+               int_builtin2(iscalar, field7),                    &
+               kernel2(field1, stencil_extent, field3, rscalar), &
                assembly_kernel(cma_op1, operator1),              &
                name="some_calculation"                           &
              )
@@ -109,10 +112,10 @@ objects and their use are discussed in the following sections.
 Please see the :ref:`algorithm-layer` section for a description of the
 ``name`` argument.
 
-Objects in the Dynamo0.3 API can be categorised by their functionality
+Objects in the LFRic API can be categorised by their functionality
 as data structures and information that specifies supported operations on
 a particular data structure. These data structures are represented by the
-five Dynamo0.3 API argument types: :ref:`scalar <dynamo0.3-scalar>`,
+five LFRic (Dynamo0.3) API argument types: :ref:`scalar <dynamo0.3-scalar>`,
 :ref:`field <dynamo0.3-field>`, :ref:`field vector <dynamo0.3-field-vector>`,
 :ref:`operator <dynamo0.3-operator>` and :ref:`column-wise operator
 <dynamo0.3-cma-operator>`. All of them except the field vector are
@@ -125,7 +128,7 @@ which provides information required by a kernel to operate on fields
 Scalar
 ++++++
 
-In the Dynamo0.3 API a scalar is a single-valued argument that can be
+In the LFRic API a scalar is a single-valued argument that can be
 :ref:`either real or integer <dynamo0.3-kernel-valid-data-type>`.
 Scalars are identified with ``GH_SCALAR`` metadata.
 
@@ -134,7 +137,7 @@ Scalars are identified with ``GH_SCALAR`` metadata.
 Field
 +++++
 
-Dynamo0.3 API fields, identified with ``GH_FIELD`` metadata, represent
+LFRic API fields, identified with ``GH_FIELD`` metadata, represent
 FEM discretisations of various dynamical core prognostic and diagnostic
 variables. In FEM, variables are discretised by placing them into a
 function space (see :ref:`dynamo0.3-function-space`) from which they
@@ -146,17 +149,20 @@ Points of evaluation are determined by a quadrature object
 the field is on. Placement of field data points, also called degrees of
 freedom (hereafter "DoFs"), is determined by the function space the field
 is on.
+LFRic fields can have ``real``-valued data or ``integer``-valued data.
+In the LFRic infrastructure, these fields are represented by instances of
+the ``field_type`` and ``integer_field_type`` classes, respectively.
 
 .. _dynamo0.3-field-vector:
 
 Field Vector
 ++++++++++++
 
-Depending on the function space a field lives on, the field data at a
-point can be a scalar or a vector (see :ref:`dynamo0.3-function-space`
+Depending on the function space a field lives on, the field data value at
+a point can be a scalar or a vector (see :ref:`dynamo0.3-function-space`
 for the list of scalar and vector function spaces). There is an
-additional option which specifies whether the data itself is vector
-valued and it usually refers to bundles of scalar valued fields.
+additional option, called a *field vector*, to represent a bundle of
+either scalar- or vector-valued fields.
 Field vectors are represented as ``GH_FIELD*N`` where ``N`` is the
 size of the vector. The 3D coordinate field, for example, has
 ``(x, y, z)`` scalar values at the nodes and therefore has a
@@ -169,21 +175,27 @@ Operator
 
 Represents a matrix constructed on a per-cell basis using Local
 Matrix Assembly (LMA) and is identified with ``GH_OPERATOR``
-metadata.
+metadata. In the LFRic infrastructure, operators are represented by
+instances of the ``operator_type`` class. LFRic operators can only
+have ``real``-valued data.
 
 .. _dynamo0.3-cma-operator:
 
 Column-Wise Operator
 ++++++++++++++++++++
 
-The Dynamo0.3 API has support for the construction and use of
+The LFRic API has support for the construction and use of
 column-wise/Column Matrix Assembly (CMA) operators whose metadata
-identifier is ``GH_COLUMNWISE_OPERATOR``. As the name suggests,
-these are operators constructed for a whole column of the mesh.
-These are themselves constructed from the Local Matrix Assembly
-(LMA) operators of each cell in the column. The rules governing
-Kernels that have CMA operators as arguments are given in the
-:ref:`dynamo0.3-kernel` section below.
+identifier is ``GH_COLUMNWISE_OPERATOR``. In the LFRic
+infrastructure, column-wise operators are represented by instances
+of the ``columnwise_operator_type`` class. LFRic column-wise
+operators can only have ``real``-valued data.
+
+As the name suggests, these are operators constructed for a whole
+column of the mesh. These are themselves constructed from the
+Local Matrix Assembly (LMA) operators of each cell in the column.
+The rules governing Kernels that have CMA operators as arguments
+are given in the :ref:`dynamo0.3-kernel` section below.
 
 There are three recognised Kernel types involving CMA operations;
 construction, application (including inverse application) and
@@ -228,7 +240,7 @@ A full example of CMA operator construction is available in
 Quadrature
 ++++++++++
 
-Kernels conforming to the Dynamo0.3 API may require quadrature
+Kernels conforming to the LFRic API may require quadrature
 information (specified using e.g. ``gh_shape = gh_quadrature_XYoZ`` in
 the kernel metadata - see Section :ref:`dynamo0.3-gh-shape`). This
 information must be passed to the kernel from the Algorithm layer in
@@ -266,7 +278,7 @@ stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``, ``CROSS2D`` or
 If a stencil operation is specified by the Kernel metadata the
 algorithm layer must provide the ``extent`` of the stencil (the
 maximum distance from the central cell that the stencil extends). The
-Dynamo0.3 API expects this information to be added as an additional
+LFRic API expects this information to be added as an additional
 ``integer`` argument immediately after the relevant field when specifying
 the Kernel via an ``invoke``.
 
@@ -293,7 +305,7 @@ stencil access.
 If the Kernel metadata specifies that the stencil is of type
 ``XORY1D`` (which means ``X1D`` or ``Y1D``) then the algorithm layer
 must specify whether the stencil is ``X1D`` or ``Y1D`` for that
-particular kernel call. The Dynamo0.3 API expects this information to
+particular kernel call. The LFRic API expects this information to
 be added as an additional argument immediately after the relevant
 stencil extent argument. The argument should be an ``integer`` with
 valid values being ``x_direction`` or ``y_direction``, both being
@@ -348,7 +360,7 @@ up until compile time. However, PSyclone does check for the correct
 number of algorithm arguments. If the wrong number of arguments is
 provided then an exception is raised.
 
-For example, running test 19.2 from the Dynamo0.3 API test suite gives:
+For example, running test 19.2 from the LFRic (Dynamo0.3) API test suite gives:
 
 .. code-block:: bash
 
@@ -409,7 +421,7 @@ for ``GH_SUM`` (more details in :ref:`meta_args <dynamo0.3-api-meta-args>`
 section below).
 
 The intent of other data structures is mandated by the relevant
-Dynamo0.3 API rules described in sections below.
+LFRic API rules described in sections below.
 
 .. _dynamo0.3-kernel:
 
@@ -419,7 +431,7 @@ Kernel
 The general requirements for the structure of a Kernel are explained
 in the :ref:`kernel-layer` section. In the LFRic API there are five
 different Kernel types; general purpose, CMA, inter-grid, domain and
-:ref:`dynamo0.3-built-ins`. In the case of built-ins, PSyclone generates
+:ref:`lfric-built-ins`. In the case of built-ins, PSyclone generates
 the source of the kernels.  This section explains the rules for the
 other four, user-supplied kernel types and then goes on to describe
 their metadata and subroutine arguments. Domain kernels are distinct
@@ -474,6 +486,9 @@ types.
    does not require values beyond the level-1 halo. If it does then
    PSyclone will abort.
 
+7) Any Kernel that takes an operator argument must not also take
+   an ``integer``-valued field as an argument.
+
 .. _lfric-no-cma-mdata-rules:
    
 Rules specific to General-Purpose Kernels without CMA Operators
@@ -488,7 +503,7 @@ Rules specific to General-Purpose Kernels without CMA Operators
    same or different function spaces.
 
 3) A Kernel may not write to a scalar argument. (Only
-   :ref:`built-ins <dynamo0.3-built-ins>` are permitted to do this.) Any
+   :ref:`built-ins <lfric-built-ins>` are permitted to do this.) Any
    scalar aguments must therefore be declared in the metadata as
    ``GH_READ`` - see :ref:`below <dynamo0.3-kernel-valid-access>`.
 
@@ -497,7 +512,7 @@ Rules specific to General-Purpose Kernels without CMA Operators
 Rules for Kernels that work with CMA Operators
 ++++++++++++++++++++++++++++++++++++++++++++++
 
-The Dynamo0.3 API has support for kernels that assemble, apply (or
+The LFRic API has support for kernels that assemble, apply (or
 inverse-apply) column-wise/Column Matrix Assembly (CMA) operators.
 Such operators may also be used by matrix-matrix kernels. There are
 thus three types of CMA-related kernels.  Since, by definition, CMA
@@ -604,7 +619,7 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
 Metadata
 ++++++++
 
-The code below outlines the elements of the Dynamo0.3 API Kernel
+The code below outlines the elements of the LFRic (Dynamo0.3) API Kernel
 metadata, 1) 'meta_args_', 2) 'meta_funcs_', 3) 'meta_reference_element_',
 4) 'meta_mesh_', 5) 'gh_shape' (`gh_shape and gh_evaluator_targets`_),
 6) 'operates_on_' and 7) 'procedure_'::
@@ -681,7 +696,7 @@ The second item in a metadata entry describes the Fortran primitive
 (intrinsic) type of the data of a kernel argument. The currently supported
 values are ``GH_REAL`` and ``GH_INTEGER`` for ``real`` and ``integer``
 data, respectively. This information is mandatory. Valid data types for
-each Dynamo0.3 API argument type are specified later in this section (see
+each LFRic API argument type are specified later in this section (see
 :ref:`dynamo0.3-kernel-valid-data-type`).
 
 The third component of argument metadata describes how the Kernel makes
@@ -726,7 +741,7 @@ For example::
        arg_type(GH_OPERATOR, GH_REAL, GH_READ, ...)                    &
        /)
 
-.. note:: In the Dynamo0.3 API only :ref:`dynamo0.3-built-ins` are permitted
+.. note:: In the LFRic API only :ref:`lfric-built-ins` are permitted
           to write to scalar arguments (and hence perform reductions).
           Furthermore, this permission is currently restricted to real
           scalars (``GH_SCALAR, GH_REAL``) as the LFRic infrastructure
@@ -866,10 +881,10 @@ modes depend upon the argument type and the function space it is on:
 +------------------------+------------------------------+--------------------+
 
 Note that scalar arguments to user-defined Kernels must be read-only.
-Only :ref:`Built-ins <dynamo0.3-built-ins>` are permitted to modify scalar
+Only :ref:`Built-ins <lfric-built-ins>` are permitted to modify scalar
 arguments. In practice this means that the only allowed access for the scalars
 in user-defined Kernels is ``GH_READ`` (see the allowed accesses for arguments
-in Built-ins in the :ref:`section below <dynamo0.3-built-ins-valid-access>`).
+in Built-ins in the :ref:`section below <lfric-built-ins-dtype-access>`).
 
 Note also that a ``GH_FIELD`` argument that has ``GH_WRITE`` or
 ``GH_READWRITE`` as its access pattern must be on a horizontally-discontinuous
@@ -919,7 +934,7 @@ Supported Function Spaces
 As mentioned in the :ref:`dynamo0.3-field` and :ref:`dynamo0.3-field-vector`
 sections, the function space of an argument specifies how it maps
 onto the underlying topology and, additionally, whether the data at a
-point is a vector. In Dynamo0.3 API the dimension of the basis function
+point is a vector. In LFRic API the dimension of the basis function
 set for the scalar function spaces is 1 and for the vector function spaces
 is 3 (see the table in :ref:`dynamo0.3-stub-generation-rules` for the
 dimensions of the basis and differential basis functions).
@@ -1016,7 +1031,7 @@ as discontinuous.
           vector or/and scalar basis of ``W2*`` spaces the metadata
           can represent) are being reviewed in PSyclone issue #540.
 
-Since the Dynamo0.3 API operates on columns of data, function spaces
+Since the LFRic API operates on columns of data, function spaces
 are categorised as continuous or discontinuous with regard to their
 **continuity in the horizontal**. For example, a ``GH_FIELD`` that
 specifies ``GH_INC`` as its access pattern (see
@@ -1519,72 +1534,63 @@ conventions, are:
          array of type ``i_def`` with intent ``in``. It has one dimension
          sized by the local degrees of freedom for the function space.
 
-   3) For each operation on the function space (``basis``, ``diff_basis``,
-      ``orientation``) in the order specified in the metadata
+   3) For each operation on the function space (``basis``, ``diff_basis``),
+      in the order specified in the metadata, pass real arrays of kind
+      ``r_def`` with intent ``in``. For each shape specified in the
+      ``gh_shape`` metadata entry:
 
-      1) If it is a basis or differential basis function then we must pass
-         real arrays of kind ``r_def`` with intent ``in``. For each shape
-         specified in the ``gh_shape`` metadata entry:
+      1) If shape is ``gh_quadrature_*`` then the arrays are of rank four
+         and are named
+         ``"basis_"<field_function_space>_<quadrature_arg_name>`` or
+         ``"diff_basis_"<field_function_space>_<quadrature_arg_name>``,
+         as appropriate:
 
-         1) If shape is ``gh_quadrature_*`` then the arrays are of rank four
-            and are named
-            ``"basis_"<field_function_space>_<quadrature_arg_name>`` or
-            ``"diff_basis_"<field_function_space>_<quadrature_arg_name>``,
-            as appropriate:
+         1) If shape is ``gh_quadrature_xyoz`` then the arrays have extent
+            (``dimension``, ``number_of_dofs``, ``np_xy``, ``np_z``).
 
-            1) If shape is ``gh_quadrature_xyoz`` then the arrays have extent
-               (``dimension``, ``number_of_dofs``, ``np_xy``,
-               ``np_z``).
+         2) If shape is ``gh_quadrature_face`` or ``gh_quadrature_edge``
+            then the  arrays have extent
+            (``dimension``, ``number_of_dofs``, ``np_xyz``, ``nfaces`` or
+            ``nedges``).
 
-            2) If shape is ``gh_quadrature_face`` or ``gh_quadrature_edge``
-               then the  arrays have extent
-               (``dimension``, ``number_of_dofs``, ``np_xyz``, ``nfaces`` or
-               ``nedges``).
+      2) If shape is ``gh_evaluator`` then we pass one array for
+         each target function space (i.e. as specified by
+         ``gh_evaluator_targets``). Each of these arrays are of rank three
+         with extent (``dimension``, ``number_of_dofs``,
+         ``ndf_<target_function_space>``). The name of the argument is
+         ``"basis_"<field_function_space>"_on_"<target_function_space>`` or
+         ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``,
+         as appropriate.
 
-         2) If shape is ``gh_evaluator`` then we pass one array for
-            each target function space (i.e. as specified by
-            ``gh_evaluator_targets``). Each of these arrays are of rank three
-            with extent (``dimension``, ``number_of_dofs``,
-            ``ndf_<target_function_space>``). The name of the argument is
-            ``"basis_"<field_function_space>"_on_"<target_function_space>`` or
-            ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``,
-            as appropriate.
+      Here ``<quadrature_arg_name>`` is the name of the corresponding
+      quadrature object being passed to the Invoke.
+      ``dimension`` is 1 or 3 and depends upon the function space
+      (see :ref:`dynamo0.3-function-space` above for more information) and
+      whether or not it is a basis or a differential basis function (see
+      the table below). ``number_of_dofs`` is the number of degrees of
+      freedom (DoFs) associated with the function space and ``np_*`` are
+      the number of points to be evaluated: i) ``*_xyz`` in
+      all directions (3D); ii) ``*_xy`` in the horizontal plane (2D);
+      iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the
+      vertical (1D). ``nfaces`` and ``nedges`` are the number of horizontal
+      faces/edges obtained from the appropriate quadrature object supplied
+      to the Invoke.
 
-         where ``<quadrature_arg_name>`` is the name of the corresponding
-         quadrature object being passed to the Invoke.
-         ``dimension`` is 1 or 3 and depends upon the function space
-         (see :ref:`dynamo0.3-function-space` above for more information) and
-         whether or not it is a basis or a differential basis function (see
-         the table below). ``number_of_dofs`` is the number of degrees of
-         freedom (DoFs) associated with the function space and ``np_*`` are
-         the number of points to be evaluated: i) ``*_xyz`` in
-         all directions (3D); ii) ``*_xy`` in the horizontal plane (2D);
-         iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the
-         vertical (1D). ``nfaces`` and ``nedges`` are the number of horizontal
-         faces/edges obtained from the appropriate quadrature object supplied
-         to the Invoke.
+      .. tabularcolumns:: |l|c|l|
 
-         .. tabularcolumns:: |l|c|l|
-
-         +---------------+-----------+------------------------------------+
-         | Function Type | Dimension | Function Space Name                |
-         +===============+===========+====================================+
-         | Basis         |    1      | W0, W2trace, W2Htrace, W2Vtrace,   |
-         |               |           | W3, Wtheta, Wchi                   |
-         |               +-----------+------------------------------------+
-         |               |    3      | W1, W2, W2H, W2V, W2broken, ANY_W2 |
-         +---------------+-----------+------------------------------------+
-         | Differential  |    1      | W2, W2H, W2V, W2broken, ANY_W2     |
-         | Basis         +-----------+------------------------------------+
-         |               |    3      | W0, W1, W2trace, W2Htrace,         |
-         |               |           | W2Vtrace, W3, Wtheta, Wchi         |
-         +---------------+-----------+------------------------------------+
-
-      2) If it is an orientation array, include the associated argument.
-         The argument is an integer array of type ``i_def`` with intent ``in``.
-         There is one dimension of size the local degrees of freedom for the
-         function space. The name of the array is
-         ``"orientation_"<field_function_space>``.
+      +---------------+-----------+------------------------------------+
+      | Function Type | Dimension | Function Space Name                |
+      +===============+===========+====================================+
+      | Basis         |    1      | W0, W2trace, W2Htrace, W2Vtrace,   |
+      |               |           | W3, Wtheta, Wchi                   |
+      |               +-----------+------------------------------------+
+      |               |    3      | W1, W2, W2H, W2V, W2broken, ANY_W2 |
+      +---------------+-----------+------------------------------------+
+      | Differential  |    1      | W2, W2H, W2V, W2broken, ANY_W2     |
+      | Basis         +-----------+------------------------------------+
+      |               |    3      | W0, W1, W2trace, W2Htrace,         |
+      |               |           | W2Vtrace, W3, Wtheta, Wchi         |
+      +---------------+-----------+------------------------------------+
 
 5) If either the ``normals_to_horizontal_faces`` or
    ``outward_normals_to_horizontal_faces`` properties of the reference
@@ -1991,23 +1997,23 @@ logic determined by their :ref:`access modes <dynamo0.3-kernel-valid-access>`.
 * ``GH_READ`` indicates ``intent(in)`` as the argument is only ever read from.
 
 * ``GH_WRITE`` (for discontinuous function spaces) indicates that the argument
-  is only written to in a kernel. When the argument is defined inside a kernel
-  its intent is ``intent(out)`` and when it is defined outside of a kernel its
-  intent is ``intent(inout)``.
+  is only written to in a kernel. The field and operator arguments' data in
+  LFRic are always defined outside of a kernel so the argument intent for
+  this access type is ``intent(inout)``.
 
 * ``GH_INC`` and ``GH_READWRITE`` indicate ``intent(inout)`` as the arguments
   are updated (albeit in a different way due to different access to DoFs, see
   :ref:`dynamo0.3-api-meta-args` for more details).
 
-.. _dynamo0.3-built-ins:
+.. _lfric-built-ins:
 
 Built-ins
 ---------
 
 The basic concept of a PSyclone Built-in is described in the
-:ref:`built-ins` section.  In the Dynamo0.3 API, calls to
+:ref:`built-ins` section.  In the LFRic (Dynamo0.3) API, calls to
 Built-ins generally follow a convention that the field/scalar written
-to comes first in the argument list. Dynamo0.3 Built-ins must conform to the
+to comes first in the argument list. LFRic Built-ins must conform to the
 following rules:
 
 1) They must have one and only one modified (i.e. written to) argument.
@@ -2023,14 +2029,23 @@ following rules:
    function space. This is because all current Built-ins operate on
    DoFs and therefore all fields should have the same number. It also
    means that we can determine the number of DoFs uniquely when a
-   scalar is written to.
+   scalar is written to;
 
-The Built-ins supported for the Dynamo0.3 API are listed in the related
-subsections, grouped by the mathematical operation they perform. For clarity,
-the calculation performed by each Built-in is described using Fortran array
-syntax; this does not necessarily reflect the actual implementation of the
-Built-in (*e.g.* it could be implemented by PSyclone generating a call to an
-optimised maths library).
+6) Built-ins that update ``real``-valued fields can only read from
+   other ``real``-valued fields, but they can take both ``real`` and
+   ``integer`` scalar arguments;
+
+7) Built-ins that update ``integer``-valued fields can only read from
+   other ``integer``-valued fields and take ``integer`` scalar arguments
+
+The Built-ins supported for the LFRic API are listed in the related
+subsections, grouped first by the data type of fields they operate on
+(:ref:`real-valued <lfric-built-ins-real>` and
+:ref:`integer-valued <lfric-built-ins-int>`) and then by the mathematical
+operation they perform. For clarity, the calculation performed by each
+Built-in is described using Fortran array syntax; this does not necessarily
+reflect the actual implementation of the Built-in (*e.g.* it could be
+implemented by PSyclone generating a call to an optimised Maths library).
 
 As described in the PSy-layer :ref:`Argument Intents
 <dynamo0.3-psy-arg-intents>` section, the Fortran intent of LFRic
@@ -2043,7 +2058,8 @@ Metadata
 ++++++++
 
 The code below outlines the elements of the LFRic API Built-in
-metadata, 1) 'meta_args', 2) 'operates_on' and 3) 'procedure'::
+metadata for the Built-ins that update a ``real``-valued field,
+1) 'meta_args', 2) 'operates_on' and 3) 'procedure'::
 
   type, public, extends(kernel_type) :: aX_plus_bY
      private
@@ -2063,43 +2079,55 @@ As can be seen, the metadata for a Built-in kernel is a subset of that
 for a :ref:`user-defined Kernel <dynamo0.3-api-kernel-metadata>` with the
 exception that ``operates_on`` must be ``DOF`` instead of ``CELL_COLUMN``.
 
-.. _dynamo0.3-built-ins-valid-access:
+The metadata for the LFRic Built-ins that update an ``integer``-valued
+field is similar::
 
-Valid Access Modes
-##################
+  !> ifield3 = ifield1 + ifield2
+  type, public, extends(kernel_type) :: int_X_plus_Y
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD, GH_INTEGER, GH_WRITE, ANY_SPACE_1),      &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_SPACE_1),      &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_SPACE_1)       &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_X_plus_Y_code
+  end type int_X_plus_Y
 
-The allowed accesses for arguments in Built-in
+.. _lfric-built-ins-dtype-access:
+
+Valid Data Types and Access Modes
+#################################
+
+The allowed data types and accesses for arguments in LFRic Built-in
 kernels are a bit different than for the
 :ref:`user-defined Kernels <dynamo0.3-kernel-valid-access>` and
 are listed in the table below.
 
 .. tabularcolumns:: |l|l|l|l|
 
-+---------------+------------+----------------+--------------------+
-| Argument Type | Data Type  | Function Space | Access Type        |
-+===============+============+================+====================+
-| GH_SCALAR     | GH_INTEGER | n/a            | GH_READ            |
-+---------------+------------+----------------+--------------------+
-| GH_SCALAR     | GH_REAL    | n/a            | GH_READ, GH_SUM    |
-+---------------+------------+----------------+--------------------+
-| GH_FIELD      | GH_REAL    | ANY_SPACE_n    | GH_READ, GH_WRITE, |
-|               |            |                | GH_READWRITE       |
-+---------------+------------+----------------+--------------------+
++---------------+---------------------+----------------+--------------------+
+| Argument Type | Data Type           | Function Space | Access Type        |
++===============+=====================+================+====================+
+| GH_SCALAR     | GH_INTEGER          | n/a            | GH_READ            |
++---------------+---------------------+----------------+--------------------+
+| GH_SCALAR     | GH_REAL             | n/a            | GH_READ, GH_SUM    |
++---------------+---------------------+----------------+--------------------+
+| GH_FIELD      | GH_REAL, GH_INTEGER | ANY_SPACE_n    | GH_READ, GH_WRITE, |
+|               |                     |                | GH_READWRITE       |
++---------------+---------------------+----------------+--------------------+
 
 .. note:: Since the LFRic infrastructure does not currently support
-          integer reductions, integer scalar arguments in Built-ins
+          ``integer`` reductions, ``integer`` scalar arguments in Built-ins
           are restricted to having read-only access.
 
-.. note:: Built-ins are currently implemented only for ``real``-valued
-          fields and will be extended to update ``integer``-valued fields
-          in issue #853.
-
-.. _dynamo0.3-built-ins-names:
+.. _lfric-built-ins-names:
 
 Naming scheme
 +++++++++++++
 
-The supported Built-ins in the Dynamo0.3 API are named according to the
+The supported Built-ins in the LFRic API are named according to the
 scheme presented below. Any new Built-in needs to comply with these rules.
 
 1) Ordering of arguments in Built-ins calls follows
@@ -2137,7 +2165,10 @@ scheme presented below. Any new Built-in needs to comply with these rules.
       ``<RHSargs>_<operationname>_<RHSargs>`` for more;
 
    3) Prefix ``"inc_"`` where the result is returned to one of the *RHS*
-      arguments (i.e. ``"inc_"<RHSargs>_<operationname>_<RHSargs>``).
+      arguments (i.e. ``"inc_"<RHSargs>_<operationname>_<RHSargs>``);
+
+   4) Prefix ``"int_"`` for the Built-in operations on the ``integer``-valued
+      field arguments (i.e. ``"int_inc_"<RHSargs>_<operationname>_<RHSargs>``).
 
 6) Built-ins names in Python definitions are similar to their Fortran
    counterparts, with a few differences:
@@ -2147,432 +2178,630 @@ scheme presented below. Any new Built-in needs to comply with these rules.
 
    2) There are no underscores;
 
-   3) Common prefix is ``"Dyn"``, common suffix is ``"Kern"``.
+   4) Common suffix is ``"Kern"``;
+
+   3) Common prefix is ``"Dyn"`` for the Built-in operations on the
+      ``real``-valued arguments and ``"LFRicInt"`` for the Built-in
+      operations on the ``integer``-valued fields (TODO: the class
+      names will be harmonised in #1114).
+
+.. _lfric-built-ins-real:
+
+Built-in operations on ``real``-valued fields
++++++++++++++++++++++++++++++++++++++++++++++
 
 Addition
-++++++++
+########
 
-Built-ins which add (scaled) fields are denoted with the keyword **plus**.
+Built-ins that add (scaled) ``real``-valued fields and return the result
+as a `real`-valued field are denoted with the keyword **plus**.
 
 X_plus_Y
-########
+^^^^^^^^
 
 **X_plus_Y** (*field3*, *field1*, *field2*)
 
-
-Sums two fields (Z = X + Y)::
+Sums two fields and stores the result in the third field (``Z = X + Y``)::
 
   field3(:) = field1(:) + field2(:)
 
 where:
 
-* type(field_type), intent(in) :: **field3**, *field1*, *field2*
+* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
 
 inc_X_plus_Y
-############
+^^^^^^^^^^^^
 
 **inc_X_plus_Y** (*field1*, *field2*)
 
-Adds the second field to the first and returns it (X = X + Y)::
+Adds the second field to the first and returns it (``X = X + Y``)::
 
   field1(:) = field1(:) + field2(:)
 
 where:
 
-* type(field_type), intent(in) :: **field1**, *field2*
+* ``type(field_type), intent(in) ::`` **field1**, *field2*
 
 aX_plus_Y
-#########
+^^^^^^^^^
 
-**aX_plus_Y** (*field3*, *scalar*, *field1*, *field2*)
+**aX_plus_Y** (*field3*, *rscalar*, *field1*, *field2*)
 
-Performs Z = aX + Y::
+Performs ``Z = aX + Y``::
 
-  field3(:) = scalar*field1(:) + field2(:)
+  field3(:) = rscalar*field1(:) + field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(in) :: **field3**, *field1*, *field2*
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
 
 inc_aX_plus_Y
-#############
+^^^^^^^^^^^^^
 
-**inc_aX_plus_Y** (*scalar*, *field1*, *field2*)
+**inc_aX_plus_Y** (*rscalar*, *field1*, *field2*)
 
-Performs X = aX + Y (increments the first field)::
+Performs ``X = aX + Y`` (increments the first field)::
 
-  field1(:) = scalar*field1(:) + field2(:)
+  field1(:) = rscalar*field1(:) + field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(in) :: **field1**, *field2*
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field1**, *field2*
 
 inc_X_plus_bY
-#############
+^^^^^^^^^^^^^
 
-**inc_X_plus_bY** (*field1*, *scalar*, *field2*)
+**inc_X_plus_bY** (*field1*, *rscalar*, *field2*)
 
-Performs X = X + bY (increments the first field)::
+Performs ``X = X + bY`` (increments the first field)::
 
-  field1(:) = field1(:) + scalar*field2(:)
+  field1(:) = field1(:) + rscalar*field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(in) :: **field1**, *field2*
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field1**, *field2*
 
 aX_plus_bY
-##########
+^^^^^^^^^^
 
-**aX_plus_bY** (*field3*, *scalar1*, *field1*, *scalar2*, *field2*)
+**aX_plus_bY** (*field3*, *rscalar1*, *field1*, *rscalar2*, *field2*)
 
-Performs Z = aX + bY::
+Performs ``Z = aX + bY``::
 
-  field3(:) = scalar1*field1(:) + scalar2*field2(:)
+  field3(:) = rscalar1*field1(:) + rscalar2*field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *scalar1*, *scalar2*
-* type(field_type), intent(in) :: **field3**, *field1*, *field2*
+* ``real(r_def), intent(in) ::`` *rscalar1*, *rscalar2*
+* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
 
 inc_aX_plus_bY
-##############
+^^^^^^^^^^^^^^
 
-**inc_aX_plus_bY** (*scalar1*, *field1*, *scalar2*, *field2*)
+**inc_aX_plus_bY** (*rscalar1*, *field1*, *rscalar2*, *field2*)
 
-Performs X = aX + bY (increments the first field)::
+Performs ``X = aX + bY`` (increments the first field)::
 
-  field1(:) = scalar1*field1(:) + scalar2*field2(:)
+  field1(:) = rscalar1*field1(:) + rscalar2*field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *scalar1*, *scalar2*
-* type(field_type), intent(in) :: **field1**, *field2*
+* ``real(r_def), intent(in) ::`` *rscalar1*, *rscalar2*
+* ``type(field_type), intent(in) ::`` **field1**, *field2*
 
 Subtraction
-+++++++++++
+###########
 
-Built-ins which subtract (scaled) fields are denoted with the keyword **minus**.
+Built-ins which subtract (scaled) ``real``-valued  fields and return the
+result as a `real`-valued field are denoted with the keyword **minus**.
 
 X_minus_Y
-#########
+^^^^^^^^^
 
 **X_minus_Y** (*field3*, *field1*, *field2*)
 
-Subtracts the second field from the first and stores the result in the
-third (Z = X - Y)::
+Subtracts the second field from the first and returns the result in the
+third field (``Z = X - Y``)::
 
   field3(:) = field1(:) - field2(:)
 
 where:
 
-* type(field_type), intent(in) :: **field3**, *field1*, *field2*
+* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
 
 inc_X_minus_Y
-#############
+^^^^^^^^^^^^^
 
 **inc_X_minus_Y** (*field1*, *field2*)
 
-Subtracts the second field from the first and returns it (X = X - Y)::
+Subtracts the second field from the first and returns it (``X = X - Y``)::
 
   field1(:) = field1(:) - field2(:)
 
 where:
 
-* type(field_type), intent(in) :: **field1**, *field2*
+* ``type(field_type), intent(in) ::`` **field1**, *field2*
 
 aX_minus_Y
-##########
+^^^^^^^^^^
 
-**aX_minus_Y** (*field3*, *scalar*, *field1*, *field2*)
+**aX_minus_Y** (*field3*, *rscalar*, *field1*, *field2*)
 
-Performs Z = aX - Y::
+Performs ``Z = aX - Y``::
 
-  field3(:) = scalar*field1(:) - field2(:)
+  field3(:) = rscalar*field1(:) - field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(in) :: **field3**, *field1*, *field2*
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
 
 X_minus_bY
-##########
+^^^^^^^^^^
 
-**X_minus_bY** (*field3*, *field1*, *scalar*, *field2*)
+**X_minus_bY** (*field3*, *field1*, *rscalar*, *field2*)
 
-Performs Z = X - bY::
+Performs ``Z = X - bY``::
 
-  field3(:) = field1(:) - scalar*field2(:)
+  field3(:) = field1(:) - rscalar*field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(in) :: **field3**, *field1*, *field2*
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
 
 inc_X_minus_bY
-##############
+^^^^^^^^^^^^^^
 
-**inc_X_minus_bY** (*field1*, *scalar*, *field2*)
+**inc_X_minus_bY** (*field1*, *rscalar*, *field2*)
 
-Performs X = X - bY (increments the first field)::
+Performs ``X = X - bY`` (decrements the first field)::
 
-  field1(:) = field1(:) - scalar*field2(:)
+  field1(:) = field1(:) - rscalar*field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(in) :: **field1**, *field2*
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field1**, *field2*
 
 Multiplication
-++++++++++++++
+##############
 
-Built-ins which multiply (scaled) fields are denoted with the keyword **times**.
+Built-ins which multiply (scaled) ``real``-valued fields and return the
+result as a `real`-valued field are denoted with the keyword **times**.
 
 X_times_Y
-#########
+^^^^^^^^^
 
 **X_times_Y** (*field3*, *field1*, *field2*)
 
-Multiplies two fields together and returns the result in a third
-field (Z = X*Y)::
+Multiplies two fields DoF by DoF and returns the result in a
+third field (``Z = X*Y``)::
 
   field3(:) = field1(:)*field2(:)
 
 where:
 
-* type(field_type), intent(in) :: **field3**, *field1*, *field2*
+* ``type(field_type), intent(in)`` :: **field3**, *field1*, *field2*
 
 inc_X_times_Y
-#############
+^^^^^^^^^^^^^
 
 **inc_X_times_Y** (*field1*, *field2*)
 
-Multiplies the first field by the second and returns it (X = X*Y)::
+Multiplies the first field by the second and returns it (``X = X*Y``)::
 
   field1(:) = field1(:)*field2(:)
 
 where:
 
-* type(field_type), intent(in) :: **field1**, *field2*
+* ``type(field_type), intent(in) ::`` **field1**, *field2*
 
 inc_aX_times_Y
-##############
+^^^^^^^^^^^^^^
 
-**inc_aX_times_Y** (*scalar*, *field1*, *field2*)
+**inc_aX_times_Y** (*rscalar*, *field1*, *field2*)
 
-Performs X = a*X*Y (increments the first field)::
+Performs ``X = a*X*Y`` (increments the first field)::
 
-  field1(:) = scalar*field1(:)*field2(:)
+  field1(:) = rscalar*field1(:)*field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(in) :: **field1**, *field2*
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field1**, *field2*
 
 Scaling
-+++++++
+#######
 
-Built-ins which scale fields are technically cases of multiplying a field by a
-scalar and are hence also denoted with the keyword **times**.
+Built-ins which scale ``real``-valued fields are technically cases of
+multiplying a ``real``-valued field by a ``real`` scalar and are hence
+also denoted with the keyword **times**.
 
 a_times_X
-#########
+^^^^^^^^^
 
-**a_times_X** (*field2*, *scalar*, *field1*)
+**a_times_X** (*field2*, *rscalar*, *field1*)
 
-Multiplies a field by a scalar and stores the result in a second
-field (Y = a*X)::
+Multiplies a field by a ``real`` scalar value and stores the result
+in another field (``Y = a*X``)::
 
-  field2(:) = scalar*field1(:)
+  field2(:) = rscalar*field1(:)
 
 where:
 
-* real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(in) :: **field2**, *field1*
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field2**, *field1*
 
 inc_a_times_X
-#############
+^^^^^^^^^^^^^
 
-**inc_a_times_X** (*scalar*, *field*)
+**inc_a_times_X** (*rscalar*, *field*)
 
-Multiplies a field by a scalar value and returns the field (X = a*X)::
+Multiplies a field by a ``real`` scalar value and returns the
+field (``X = a*X``)::
 
-  field(:) = scalar*field(:)
+  field(:) = rscalar*field(:)
 
 where:
 
-* real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(in) :: **field**
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field**
 
 Division
-++++++++
+########
 
-Built-ins which divide (scaled) fields are denoted with the keyword
-**divideby**.
+Built-ins which divide ``real``-valued fields and return the result
+as a `real`-valued field are denoted with the keyword **divideby**.
 
 X_divideby_Y
-############
+^^^^^^^^^^^^
 
 **X_divideby_Y** (*field3*, *field1*, *field2*)
 
-Divides the first field by the second and returns the result in the
-third (Z = X/Y)::
+Divides the first field by the second field, DoF by DoF, and stores the
+result in the third field (``Z = X/Y``)::
 
   field3(:) = field1(:)/field2(:)
 
 where:
 
-* type(field_type), intent(out) :: **field3**, *field1*, *field2*
+* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
 
 inc_X_divideby_Y
-################
+^^^^^^^^^^^^^^^^
 
 **inc_X_divideby_Y** (*field1*, *field2*)
 
-Divides the first field by the second and returns it (X = X/Y)::
+Divides the first field by the second and returns it (``X = X/Y``)::
 
   field1(:) = field1(:)/field2(:)
 
 where:
 
-* type(field_type), intent(in) :: **field1**, *field2*
+* ``type(field_type), intent(in) ::`` **field1**, *field2*
 
-Setting to value
-++++++++++++++++
+Setting to a value
+##################
 
-Built-ins which set field elements to some value and hence are denoted with
-the keyword **setval**.
+Built-ins which set ``real``-valued field elements to some ``real``
+value are denoted with the keyword **setval**.
 
 setval_c
-########
+^^^^^^^^
 
 **setval_c** (*field*, *constant*)
 
-Sets all elements of the field *field* to the value *constant* (X = c)::
+Sets all elements of a field *field* to a ``real`` scalar
+*constant* (``X = c``)::
 
   field(:) = constant
 
 where:
 
-* type(field_type), intent(in) :: **field**
-* real(r_def), intent(in) :: *constant*
-
-.. note:: The field may be on any function space.
+* ``type(field_type), intent(in) ::`` **field**
+* ``real(r_def), intent(in) ::`` *constant*
 
 setval_X
-########
+^^^^^^^^
 
 **setval_X** (*field2*, *field1*)
 
-Sets a field *field2* equal to field *field1* (Y = X)::
+Sets a field *field2* equal (DoF per DoF) to another field
+*field1* (``Y = X``)::
 
   field2(:) = field1(:)
 
 where:
 
-* type(field_type), intent(in) :: **field2**, *field1*
+* ``type(field_type), intent(in) ::`` **field2**, *field1*
 
 Raising to power
-++++++++++++++++
+################
 
-Built-ins which raise field elements to an exponent are denoted with the
-keyword **powreal** for real exponent or **powint** for integer exponent.
+Built-ins which raise ``real``-valued field elements to an exponent are
+denoted with the keyword **powreal** for a ``real`` exponent or **powint**
+for an ``integer`` exponent.
 
 inc_X_powreal_a
-###############
+^^^^^^^^^^^^^^^
 
 **inc_X_powreal_a** (*field*, *rscalar*)
 
-Raises a field to a real scalar value and returns the field (X = X**a)::
+Raises a field to a ``real`` scalar value and returns the
+field (``X = X**a``)::
 
   field(:) = field(:)**rscalar
 
 where:
 
-* type(field_type), intent(in) :: **field**
-* real(r_def), intent(in) :: *rscalar*
+* ``type(field_type), intent(in) ::`` **field**
+* ``real(r_def), intent(in) ::`` *rscalar*
 
 inc_X_powint_n
-##############
+^^^^^^^^^^^^^^
 
 **inc_X_powint_n** (*field*, *iscalar*)
 
-Raises a field to an integer scalar value and returns the field (X = X**n)::
+Raises a field to an ``integer`` scalar value and returns
+the field (``X = X**n``)::
 
   field(:) = field(:)**iscalar
 
 where:
 
-* type(field_type), intent(in) :: **field**
-* integer(i_def), intent(in) :: *iscalar*
+* ``type(field_type), intent(in) ::`` **field**
+* ``integer(i_def), intent(in) ::`` *iscalar*
 
 Inner product
-+++++++++++++
+#############
 
-Built-ins which calculate the inner product of two fields or of a field with itself
-are denoted with the keyword **innerproduct**.
+Built-ins which calculate the inner product of two ``real``-valued fields
+or of a ``real``-valued field with itself and return the result as a
+`real` scalar are denoted with the keyword **innerproduct**.
+
+.. note:: When used with distributed memory these Built-ins will
+          trigger the addition of a global sum which may affect the
+          performance and/or scalability of the code.
 
 X_innerproduct_Y
-################
+^^^^^^^^^^^^^^^^
 
 **X_innerproduct_Y** (*innprod*, *field1*, *field2*)
 
-Computes the inner product of the fields *field1* and *field2*, *i.e.*::
+Computes the inner product of two fields, *field1*
+and *field2*, *i.e.*::
 
   innprod = SUM(field1(:)*field2(:))
 
 where:
 
-* real(r_def), intent(out) :: **innprod**
-* type(field_type), intent(in) :: *field1*, *field2*
-
-.. note:: When used with distributed memory this Built-in will trigger
-          the addition of a global sum which may affect the
-          performance and/or scalability of the code.
+* ``real(r_def), intent(out) ::`` **innprod**
+* ``type(field_type), intent(in) ::`` *field1*, *field2*
 
 X_innerproduct_X
-################
+^^^^^^^^^^^^^^^^
 
 **X_innerproduct_X** (*innprod*, *field*)
 
-Computes the inner product of the field *field1* by itself, *i.e.*::
+Computes the inner product of the field *field1*
+by itself, *i.e.*::
 
   innprod = SUM(field(:)*field(:))
 
 where:
 
-* real(r_def), intent(out) :: **innprod**
-* type(field_type), intent(in) :: *field*
+* ``real(r_def), intent(out) ::`` **innprod**
+* ``type(field_type), intent(in) ::`` *field*
+
+Sum of elements
+###############
+
+A Built-in which sums the elements of a ``real``-valued field and returns
+the result as a `real` scalar is denoted with the keyword *sum*.
 
 .. note:: When used with distributed memory this Built-in will trigger
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
 
-Sum of elements
-+++++++++++++++
-
-Built-in which sums the elements of a field is denoted with the keyword *sum*.
-
 sum_X
-#####
+^^^^^
 
 **sum_X** (*sumfld*, *field*)
 
 Sums all of the elements of the field *field* and returns the result
-in the scalar variable *sumfld*::
+in the ``real`` scalar variable *sumfld*::
 
   sumfld = SUM(field(:))
 
 where:
 
-* real(r_def), intent(out) :: **sumfld**
-* type(field_type), intent(in) :: *field*
+* ``real(r_def), intent(out) ::`` **sumfld**
+* ``type(field_type), intent(in) ::`` *field*
 
-.. note:: When used with distributed memory this Built-in will trigger
-          the addition of a global sum which may affect the
-          performance and/or scalability of the code.
+.. _lfric-built-ins-int:
+
+Built-in operations on ``integer``-valued fields
+++++++++++++++++++++++++++++++++++++++++++++++++
+
+The number of supported Built-in operations on the ``integer``-valued
+fields is not as large as for their ``real`` counterparts as not all
+mathematical operations on ``integer``-valued fields make sense.
+
+Addition
+########
+
+Built-ins that add ``integer``-valued fields and return the result as
+an `integer`-valued field are denoted with the keyword **plus** and
+the prefix **int**.
+
+int_X_plus_Y
+^^^^^^^^^^^^
+
+**int_X_plus_Y** (*ifield3*, *ifield1*, *ifield2*)
+
+Sums two fields and stores the result in the third field (``Z = X + Y``)::
+
+  ifield3(:) = ifield1(:) + ifield2(:)
+
+where:
+
+* ``type(integer_field_type), intent(in) ::`` **ifield3**, *ifield1*, *ifield2*
+
+int_inc_X_plus_Y
+^^^^^^^^^^^^^^^^
+
+**int_inc_X_plus_Y** (*ifield1*, *ifield2*)
+
+Adds the second field to the first and returns it (``X = X + Y``)::
+
+  ifield1(:) = ifield1(:) + ifield2(:)
+
+where:
+
+* ``type(integer_field_type), intent(in) ::`` **ifield1**, *ifield2*
+
+Subtraction
+###########
+
+Built-ins which subtract ``integer``-valued fields and return the result
+as an `integer`-valued field are denoted with the keyword **minus**
+and the prefix **int**.
+
+int_X_minus_Y
+^^^^^^^^^^^^^
+
+**int_X_minus_Y** (*ifield3*, *ifield1*, *ifield2*)
+
+Subtracts the second field from the first and returns the result in the
+third field (``Z = X - Y``)::
+
+  ifield3(:) = ifield1(:) - ifield2(:)
+
+where:
+
+* ``type(integer_field_type), intent(in) ::`` **ifield3**, *ifield1*, *ifield2*
+
+int_inc_X_minus_Y
+^^^^^^^^^^^^^^^^^
+
+**int_inc_X_minus_Y** (*ifield1*, *ifield2*)
+
+Subtracts the second field from the first and returns it (``X = X - Y``)::
+
+  ifield1(:) = ifield1(:) - ifield2(:)
+
+where:
+
+* ``type(integer_field_type), intent(in) ::`` **ifield1**, *ifield2*
+
+Multiplication
+##############
+
+Built-ins which multiply ``integer``-valued fields and return the result
+as an `integer`-valued field are denoted with the keyword **times**
+and the prefix **int**.
+
+int_X_times_Y
+^^^^^^^^^^^^^
+
+**int_X_times_Y** (*ifield3*, *ifield1*, *ifield2*)
+
+Multiplies two fields DoF by DoF and returns the result in a
+third field (``Z = X*Y``)::
+
+  ifield3(:) = ifield1(:)*ifield2(:)
+
+where:
+
+* ``type(integer_field_type), intent(in)`` :: **ifield3**, *ifield1*, *ifield2*
+
+int_inc_X_times_Y
+^^^^^^^^^^^^^^^^^
+
+**int_inc_X_times_Y** (*ifield1*, *ifield2*)
+
+Multiplies the first field by the second and returns it (``X = X*Y``)::
+
+  ifield1(:) = ifield1(:)*ifield2(:)
+
+where:
+
+* ``type(integer_field_type), intent(in) ::`` **ifield1**, *ifield2*
+
+Scaling
+#######
+
+Built-ins which scale ``integer``-valued fields are denoted with the keyword
+**times** and prefixed by the keyword **int**.
+
+int_a_times_X
+^^^^^^^^^^^^^
+
+**int_a_times_X** (*ifield2*, *iscalar*, *ifield1*)
+
+Multiplies a field by an ``integer`` scalar and stores the result
+in another field (``Y = a*X``)::
+
+  ifield2(:) = iscalar*ifield1(:)
+
+where:
+
+* ``integer(i_def), intent(in) ::`` *iscalar*
+* ``type(integer_field_type), intent(in) ::`` **ifield2**, *ifield1*
+
+int_inc_a_times_X
+^^^^^^^^^^^^^^^^^
+
+**int_inc_a_times_X** (*iscalar*, *ifield*)
+
+Multiplies a field by an ``integer`` scalar value and returns the
+field (``X = a*X``)::
+
+  ifield(:) = iscalar*ifield(:)
+
+where:
+
+* ``integer(i_def), intent(in) ::`` *iscalar*
+* ``type(integer_field_type), intent(in) ::`` **ifield**
+
+Setting to a value
+##################
+
+Built-ins which set ``integer``-valued field elements to some ``integer``
+value are denoted with the keyword **setval** and the prefix **int**.
+
+int_setval_c
+^^^^^^^^^^^^
+
+**int_setval_c** (*ifield*, *constant*)
+
+Sets all elements of a field *ifield* to an ``integer`` scalar
+*constant* (``X = c``)::
+
+  ifield(:) = constant
+
+where:
+
+* ``type(integer_field_type), intent(in) ::`` **ifield**
+* ``integer(i_def), intent(in) ::`` *constant*
+
+int_setval_X
+^^^^^^^^^^^^
+
+**int_setval_X** (*ifield2*, *ifield1*)
+
+Sets a field *ifield2* equal (DoF per DoF) to another field
+*ifield1* (``Y = X``)::
+
+  ifield2(:) = ifield1(:)
+
+where:
+
+* ``type(integer_field_type), intent(in) ::`` **ifield2**, *ifield1*
 
 Boundary Conditions
 -------------------

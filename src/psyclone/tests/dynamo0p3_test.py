@@ -56,7 +56,7 @@ from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, \
-    KernCallArgList, DynACCEnterDataDirective, MAPPING_DATA_TYPES
+    KernCallArgList, DynACCEnterDataDirective, VALID_INTRINSIC_TYPES
 
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
@@ -83,10 +83,6 @@ def setup():
 
 
 # tests
-def test_get_op_orientation_name():
-    ''' Test that get_operator_name() works for the orientation operator '''
-    name = FunctionSpace("w3", None).get_operator_name("gh_orientation")
-    assert name == "orientation_w3"
 
 
 CODE = '''
@@ -1588,30 +1584,6 @@ def test_no_vector_scalar():
                 str(excinfo.value))
 
 
-def test_dynscalars_call_err():
-    ''' Check that the DynScalarArgs constructor raises the expected
-    internal error if it encounters an unrecognised intrinsic type of
-    scalar when generating a kernel call.
-
-    '''
-    from psyclone.dynamo0p3 import DynScalarArgs
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.9_single_invoke_2_real_scalars.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    first_kernel = first_invoke.schedule.coded_kernels()[0]
-    # Sabotage the scalar argument to make it have an invalid intrinsic type
-    first_argument = first_kernel.arguments.args[0]
-    first_argument._intrinsic_type = "double-type"
-    with pytest.raises(InternalError) as err:
-        DynScalarArgs(first_kernel)
-    assert ("Found an unsupported intrinsic type 'double-type' for the "
-            "scalar argument 'a'. Supported types are ['real', 'integer']."
-            in str(err.value))
-
-
 def test_vector_field(tmpdir):
     ''' Tests that a vector field is declared correctly in the PSy
     layer. '''
@@ -1660,21 +1632,6 @@ def test_vector_field_deref(tmpdir, dist_mem):
             generated_code)
     assert ("TYPE(field_type), intent(in) :: f1, box_chi(3), f2" in
             generated_code)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_orientation(tmpdir):
-    ''' Tests that orientation information is created correctly in
-    the PSy layer. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "9_orientation.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    generated_code = str(psy.gen)
-    assert ("INTEGER(KIND=i_def), pointer :: orientation_w2(:) "
-            "=> null()") in generated_code
-    assert ("orientation_w2 => f2_proxy%vspace%"
-            "get_cell_orientation(cell)" in generated_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -1858,7 +1815,7 @@ def test_op_any_discontinuous_space_2(tmpdir):
             in generated_code)
 
 
-def test_invoke_uniq_declns():
+def test_invoke_uniq_declns_invalid_argtype():
     ''' Tests that we raise an error when Invoke.unique_declarations() is
     called with at least one invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1888,8 +1845,23 @@ def test_invoke_uniq_declns_invalid_access():
             in str(excinfo.value))
 
 
+def test_invoke_uniq_declns_invalid_intrinsic():
+    ''' Tests that we raise an error when Invoke.unique_declarations() is
+    called for an invalid intrinsic type. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    with pytest.raises(InternalError) as excinfo:
+        psy.invokes.invoke_list[0].unique_declarations(
+            ["gh_scalar"], intrinsic_type="double")
+    assert ("Invoke.unique_declarations() called with an invalid intrinsic "
+            "argument data type. Expected one of {0} but found 'double'.".
+            format(VALID_INTRINSIC_TYPES) in str(excinfo.value))
+
+
 def test_invoke_uniq_declns_valid_access():
-    ''' Tests that all valid access modes for user-defined field arguments
+    ''' Tests that all valid access modes for user-defined arguments
     (AccessType.READ, AccessType.INC, AccessType.WRITE, AccessType.READWRITE)
     are accepted by Invoke.unique_declarations(). '''
 
@@ -1972,7 +1944,7 @@ def test_uniq_proxy_declns_invalid_intrinsic_type():
         psy.invokes.invoke_list[0].unique_proxy_declarations(
             ["gh_field"], intrinsic_type="not_intrinsic_type")
     assert ("Expected one of {0} as a valid intrinsic type but found "
-            "'not_intrinsic_type'.".format(MAPPING_DATA_TYPES.values())
+            "'not_intrinsic_type'.".format(VALID_INTRINSIC_TYPES)
             in str(excinfo.value))
 
 
@@ -1989,7 +1961,7 @@ def test_dyninvoke_first_access():
         in str(excinfo.value)
 
 
-def test_dyninvoke_uniq_declns_inv_type():
+def test_dyninvoke_uniq_declns_intent_inv_argtype():
     ''' Tests that we raise an error when DynInvoke.unique_declns_by_intent()
     is called with at least one invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2002,6 +1974,22 @@ def test_dyninvoke_uniq_declns_inv_type():
             " argument type. Expected one of {0} but found ['gh_invalid'].".
             format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
             str(excinfo.value))
+
+
+def test_dyninvoke_uniq_declns_intent_invalid_intrinsic():
+    ''' Tests that we raise an error when Invoke.unique_declns_by_intent()
+    is called for an invalid intrinsic type. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    with pytest.raises(InternalError) as excinfo:
+        psy.invokes.invoke_list[0].unique_declns_by_intent(
+            ["gh_scalar"], intrinsic_type="triple")
+    assert ("Invoke.unique_declns_by_intent() called with an invalid "
+            "intrinsic argument data type. Expected one of {0} but "
+            "found 'triple'.".format(VALID_INTRINSIC_TYPES)
+            in str(excinfo.value))
 
 
 def test_dyninvoke_uniq_declns_intent_fields():
@@ -2026,18 +2014,18 @@ def test_dyninvoke_uniq_declns_intent_scalar():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    args = psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_scalar"])
-    assert args['inout'] == []
-    assert args['out'] == []
-    args_in_names = [arg.declaration_name for arg in args['in']]
-    assert args_in_names == ['a', 'istep']
-    # Assert the correct intrinsic types of scalar arguments
-    assert args['in'][0].name == 'a'
-    assert args['in'][0].descriptor.data_type == 'gh_real'
-    assert args['in'][0].intrinsic_type == 'real'
-    assert args['in'][1].name == 'istep'
-    assert args['in'][1].descriptor.data_type == 'gh_integer'
-    assert args['in'][1].intrinsic_type == 'integer'
+    real_args = psy.invokes.invoke_list[0].unique_declns_by_intent(
+        ["gh_scalar"], intrinsic_type="real")
+    int_args = psy.invokes.invoke_list[0].unique_declns_by_intent(
+        ["gh_scalar"], intrinsic_type="integer")
+    assert real_args['inout'] == []
+    assert real_args['out'] == []
+    assert int_args['inout'] == []
+    assert int_args['out'] == []
+    real_args_in = [arg.declaration_name for arg in real_args['in']]
+    int_args_in = [arg.declaration_name for arg in int_args['in']]
+    assert real_args_in == ['a']
+    assert int_args_in == ['istep']
 
 
 def test_dyninvoke_uniq_declns_intent_ops(tmpdir):
@@ -2353,26 +2341,6 @@ def test_mkern_invoke_vec_fields():
     # 2nd test for duplication of name vector-field declaration
     assert ("TYPE(field_proxy_type) f1_proxy, chi_proxy(3), chi_proxy(3)"
             not in generated_code)
-
-
-def test_multikern_invoke_orient(tmpdir):
-    ''' Test that correct code is produced when there are multiple
-    kernels within an invoke with orientation. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4.3_multikernel_invokes.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    generated_code = str(psy.gen)
-    # 1st test for duplication of orientation pointer
-    assert generated_code.count("orientation_w2(:) => null()") == 1
-    # 2nd test for duplication of name vector-field declaration
-    assert ("TYPE(field_type), intent(in) :: f2, f3(3), f3(3)" not in
-            generated_code)
-    # 3rd test for duplication of name vector-field declaration
-    assert ("TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy(3), "
-            "f3_proxy(3)" not in generated_code)
-    # Compilation test
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_multikern_invoke_oper():
@@ -2766,8 +2734,9 @@ def test_dynkernelargument_intent_invalid(dist_mem):
     arg._access = "invalid"
     with pytest.raises(GenerationError) as excinfo:
         _ = arg.intent
-    assert "Expecting argument access to be one of 'gh_read," in \
-        str(excinfo.value)
+    assert ("In the LFRic API the argument access must be one of "
+            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_sum'], "
+            "but found 'invalid'." in str(excinfo.value))
 
 
 def test_arg_ref_name_method_error1():
@@ -2820,9 +2789,9 @@ def test_arg_intent_error():
     first_argument._access = "gh_not_an_intent"
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.intent()
-    assert ("Expecting argument access to be one of 'gh_read, gh_write, "
-            "gh_inc', 'gh_readwrite' or one of ['gh_sum'], but found "
-            "'gh_not_an_intent'" in str(excinfo.value))
+    assert ("In the LFRic API the argument access must be one of "
+            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_sum'], "
+            "but found 'gh_not_an_intent'." in str(excinfo.value))
 
 
 def test_arg_intrinsic_type_error():

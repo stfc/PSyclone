@@ -38,13 +38,12 @@
 #
 # export F90=gfortran
 # export F90FLAGS="-Wall -g -fcheck=bound"
+
 PSYROOT=../../../..
 
 include $(PSYROOT)/examples/common.mk
 
-.DEFAULT_GOAL := $(EXEC)
-
-GENERATED_FILES = main_psy.f90 main_alg.f90
+GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90 main-update.nc
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
@@ -61,7 +60,12 @@ LFRIC_LIB=$(LFRIC_DIR)/lib$(LFRIC_NAME).a
 
 F90FLAGS += -I$(LFRIC_DIR) -I$(EXTRACT_DIR)
 
-default: $(EXEC)
+transform: main_psy.f90 main_alg.f90
+
+compile: transform $(EXEC)
+
+run: compile
+	./extract
 
 $(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(EXTRACT_DIR) -l$(EXTRACT_NAME) \
@@ -70,7 +74,7 @@ $(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_DIR)
 
-$(EXTRACT_LIB):
+$(EXTRACT_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(EXTRACT_DIR)
 
 # Dependencies
@@ -95,5 +99,6 @@ transform: main_psy.f90
 	${PSYCLONE} -s ./extract_transform.py \
 	-nodm -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
-clean:
-	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90 main-update.nc
+allclean: clean
+	$(MAKE) -C $(LFRIC_DIR) allclean
+	$(MAKE) -C $(EXTRACT_DIR) allclean

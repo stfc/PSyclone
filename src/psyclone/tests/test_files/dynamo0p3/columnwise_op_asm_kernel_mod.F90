@@ -48,7 +48,6 @@ use argument_mod,            only : arg_type, func_type,                 &
                                     GH_READ, GH_WRITE,                   &
                                     ANY_DISCONTINUOUS_SPACE_1,           &
                                     ANY_DISCONTINUOUS_SPACE_2,           &
-                                    GH_COLUMN_BANDED_DOFMAP,             &
                                     CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
@@ -84,7 +83,7 @@ contains
 
   !> @brief The subroutine which is called directly from the PSy layer and
   !> assembles the LMA into a CMA
-  !> @detail Given an LMA representation of the operator mapping between two
+  !> @details Given an LMA representation of the operator mapping between two
   !> horizontally discontinuous spaces, assemble the columnwise matrix
   !> representation of the operator.
   !>
@@ -134,7 +133,7 @@ contains
     integer(kind=i_def), dimension(ndf_to,nlayers), intent(in)   :: column_banded_dofmap_to
     integer(kind=i_def), dimension(ndf_from,nlayers), intent(in) :: column_banded_dofmap_from
     real(kind=r_def), dimension(ndf_to,ndf_from,ncell_3d), intent(in) :: local_stencil
-    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(out) :: columnwise_matrix
+    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(inout) :: columnwise_matrix
 
     write(*,*) "Hello CMA World"
 

@@ -650,12 +650,16 @@ class SymbolTable(object):
                 "".format(type(symbol).__name__))
         # pylint: enable=unidiomatic-typecheck
 
-        if symbol.name not in self._symbols:
+        # Since we are manipulating the _symbols dict directly we must use
+        # the normalised name of the symbol.
+        norm_name = self._normalize(symbol.name)
+
+        if norm_name not in self._symbols:
             raise KeyError("Cannot remove Symbol '{0}' from symbol table "
                            "because it does not exist.".format(symbol.name))
         # Sanity-check that the entry in the table is the symbol we've
         # been passed.
-        if self._symbols[symbol.name] is not symbol:
+        if self._symbols[norm_name] is not symbol:
             raise InternalError(
                 "The Symbol with name '{0}' in this symbol table is not the "
                 "same Symbol object as the one that has been supplied to the "
@@ -676,7 +680,7 @@ class SymbolTable(object):
             if symbol is tagged_symbol:
                 del self._tags[tag]
 
-        self._symbols.pop(symbol.name)
+        self._symbols.pop(norm_name)
 
     @property
     def argument_list(self):
@@ -955,6 +959,54 @@ class SymbolTable(object):
                         "Couldn't copy '{0}' into the SymbolTable. The"
                         " tag '{1}' is already used by another symbol."
                         "".format(globalvar, tag))
+
+    def rename_symbol(self, symbol, name):
+        '''
+        Rename the given symbol which should belong to this symbol table
+        with the new name provided.
+
+        :param symbol: the symbol to be renamed.
+        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param str name: the new name.
+
+        :raises TypeError: if the symbol is not a Symbol.
+        :raises TypeError: if the name is not a str.
+        :raises ValueError: if the given symbol does not belong to this \
+                            symbol table.
+        :raises KeyError: if the given variable name already exists in the \
+                          symbol table.
+
+        '''
+        if not isinstance(symbol, Symbol):
+            raise TypeError(
+                "The symbol argument of rename_symbol() must be a Symbol, but"
+                " found: '{0}'.".format(type(symbol).__name__))
+
+        if symbol not in self.symbols:
+            raise ValueError(
+                "The symbol argument of rename_symbol() must belong to this "
+                "symbol_table instance, but '{0}' does not.".format(symbol))
+
+        if not isinstance(name, str):
+            raise TypeError(
+                "The name argument of rename_symbol() must be a str, but"
+                " found: '{0}'.".format(type(symbol).__name__))
+
+        if name in self._symbols:
+            raise KeyError(
+                "The name argument of rename_symbol() must not already exist "
+                "in this symbol_table instance, but '{0}' does.".format(name))
+
+        # Delete current dictionary entry
+        del self._symbols[symbol.name]
+
+        # Rename symbol using protected access as the Symbol class should not
+        # expose a name attribute setter.
+        # pylint: disable=protected-access
+        symbol._name = name
+
+        # Re-insert modified symbol
+        self.add(symbol)
 
     def view(self):
         '''

@@ -32,21 +32,23 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
 .PHONY: vanilla openmp
 
+
 transform: vanilla openmp
 
 vanilla:
-	${PYTHON} ./runme.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./runme.py
 
 openmp:
-	${PYTHON} ./runme_openmp.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./runme_openmp.py
 
-compile:
+compile: transform
 	@echo "No compilation supported for lfric/eg1"
 
-all: transform compile
-
+run: compile
+	@echo "No run targets for lfric/eg1"
