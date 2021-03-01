@@ -126,7 +126,13 @@ class PSyDataNode(Statement):
             node_position = children[0].position
 
         # A PSyData node always contains a Schedule
+        if children:
+            for child in children:
+                child.parent = None
         sched = self._insert_schedule(children)
+        if children:
+            for child in children:
+                child.parent = sched
         super(PSyDataNode, self).__init__(ast=ast, children=[sched],
                                           parent=parent)
 

@@ -136,6 +136,7 @@ class DynBuiltInCallFactory(object):
 
         # As it is the innermost loop it has the kernel as a loop_body
         # child.
+        builtin.parent = None
         dofloop.loop_body.addchild(builtin)
         builtin.parent = dofloop.loop_body
 

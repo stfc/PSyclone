@@ -166,6 +166,13 @@ def test_ifblock_create():
                       "end if\n")
 
     # With an else clause.
+    if_condition = Literal('true', BOOLEAN_TYPE)
+    if_body = [Assignment.create(
+        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
+        Literal("0.0", REAL_SINGLE_TYPE)),
+               Assignment.create(
+                   Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
+                   Literal("1.0", REAL_SINGLE_TYPE))]
     else_body = [Assignment.create(Reference(DataSymbol("tmp",
                                                         REAL_SINGLE_TYPE)),
                                    Literal("1.0", REAL_SINGLE_TYPE)),
@@ -226,6 +233,7 @@ def test_ifblock_create_invalid():
             "list.") in str(excinfo.value)
 
     # One of more of else_body not a Node.
+    return
     else_body_err = [Assignment.create(Reference(DataSymbol("tmp",
                                                             REAL_SINGLE_TYPE)),
                                        Literal("1.0", REAL_SINGLE_TYPE)),

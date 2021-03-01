@@ -1267,6 +1267,10 @@ def test_fw_range(fort_writer):
         BinaryOperation.Operator.UBOUND,
         Reference(symbol),
         Literal("1", INTEGER_TYPE))
+    dim1_bound_stop_1 = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(symbol),
+        Literal("1", INTEGER_TYPE))  # Could use .copy()
     dim2_bound_start = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol),
@@ -1280,8 +1284,13 @@ def test_fw_range(fort_writer):
         Reference(symbol),
         Literal("3", INTEGER_TYPE))
     one = Literal("1", INTEGER_TYPE)
+    one_1 = Literal("1", INTEGER_TYPE)  # Could use .copy()
     two = Literal("2", INTEGER_TYPE)
     three = Literal("3", INTEGER_TYPE)
+    three_1 = Literal("3", INTEGER_TYPE)  # Could use .copy()
+    three_2 = Literal("3", INTEGER_TYPE)  # Could use .copy()
+    three_3 = Literal("3", INTEGER_TYPE)  # Could use .copy()
+    three_4 = Literal("3", INTEGER_TYPE)  # Could use .copy()
     plus = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
         Reference(DataSymbol("b", REAL_TYPE)),
@@ -1296,9 +1305,9 @@ def test_fw_range(fort_writer):
     symbol = DataSymbol("a", array_type)
     array = ArrayReference.create(
         symbol,
-        [Range.create(dim1_bound_start, dim1_bound_stop),
-         Range.create(one, two, step=three),
-         Range.create(dim3_bound_start, dim3_bound_stop, step=three)])
+        [Range.create(dim1_bound_start, dim1_bound_stop_1),
+         Range.create(one_1, two, step=three_1),
+         Range.create(dim3_bound_start, dim3_bound_stop, step=three_2)])
     result = fort_writer.arrayreference_node(array)
     assert result == "a(:,1:2:3,::3)"
 
@@ -1318,8 +1327,8 @@ def test_fw_range(fort_writer):
     array = ArrayReference.create(
         symbol,
         [Range.create(b_dim1_bound_start, b_dim1_bound_stop),
-         Range.create(one, two, step=three),
-         Range.create(dim3_bound_stop, dim3_bound_start, step=three)])
+         Range.create(one, two, step=three_3),
+         Range.create(dim3_bound_stop, dim3_bound_start, step=three_4)])
     result = fort_writer.arrayreference_node(array)
     assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),1:2:3,"
                       "UBOUND(a, 3):LBOUND(a, 3):3)")
@@ -1806,16 +1815,18 @@ def test_fw_call_node(fort_writer):
     symbol_a = DataSymbol("a", REAL_TYPE)
     symbol_table.add(symbol_a)
     ref_a = Reference(symbol_a)
+    ref_a_1 = Reference(symbol_a)  # Could use .copy()
     symbol_b = DataSymbol("b", REAL_TYPE)
     symbol_table.add(symbol_b)
     ref_b = Reference(symbol_b)
+    ref_b_1 = Reference(symbol_b)  # Could use .copy()
     symbol_use = ContainerSymbol("my_mod")
     symbol_table.add(symbol_use)
     symbol_call = RoutineSymbol(
         "my_sub", interface=GlobalInterface(symbol_use))
     symbol_table.add(symbol_call)
     mult_ab = BinaryOperation.create(
-        BinaryOperation.Operator.MUL, ref_a, ref_b)
+        BinaryOperation.Operator.MUL, ref_a_1, ref_b_1)
     max_ab = NaryOperation.create(NaryOperation.Operator.MAX, [ref_a, ref_b])
     call = Call.create(symbol_call, [mult_ab, max_ab])
     schedule = KernelSchedule.create("work", symbol_table, [call])

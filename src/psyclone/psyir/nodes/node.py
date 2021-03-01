@@ -144,8 +144,7 @@ class ChildrenList(list):
 
     def _validate_item(self, index, item):
         '''
-        Validates the provided index and item before continuing inserting the
-        item into the list.
+        Validates the provided index and item are valid for this type of node.
 
         :param int index: position where the item is inserted into.
         :param item: object that needs to be validated in the given position.
@@ -168,6 +167,22 @@ class ChildrenList(list):
 
             raise GenerationError(errmsg)
 
+    def _check_is_orphan(self, item):
+        '''
+        Checks that the provided item is orphan.
+
+        :param item: object that needs to be validated.
+        :type item: :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises GenerationError: if the given item is not orpahn.
+        '''
+        if item.parent and item.parent is not self._node_reference:
+            raise GenerationError(
+                "Item '{0}' can't be child of '{1}' because it already has "
+                "'{2}' as a parent.".format(str(item),
+                                            str(self._node_reference),
+                                            str(item.parent)))
+
     def append(self, item):
         ''' Extends list append method with children node validation.
 
@@ -176,6 +191,7 @@ class ChildrenList(list):
 
         '''
         self._validate_item(len(self), item)
+        self._check_is_orphan(item)
         super(ChildrenList, self).append(item)
 
     def __setitem__(self, index, item):
@@ -187,6 +203,7 @@ class ChildrenList(list):
 
         '''
         self._validate_item(index, item)
+        self._check_is_orphan(item)
         super(ChildrenList, self).__setitem__(index, item)
 
     def insert(self, index, item):
@@ -199,6 +216,7 @@ class ChildrenList(list):
         '''
         positiveindex = index if index >= 0 else len(self) - index
         self._validate_item(positiveindex, item)
+        self._check_is_orphan(item)
         # Check that all displaced items will still in valid positions
         for position in range(positiveindex, len(self)):
             self._validate_item(position + 1, self[position])
@@ -213,6 +231,7 @@ class ChildrenList(list):
         '''
         for index, item in enumerate(items):
             self._validate_item(len(self) + index, item)
+            self._check_is_orphan(item)
         super(ChildrenList, self).extend(items)
 
     # Methods below don't insert elements but have the potential to displace

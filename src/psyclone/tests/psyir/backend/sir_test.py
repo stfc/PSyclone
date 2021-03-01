@@ -270,6 +270,7 @@ def test_sirwriter_node_1(parser):
     unsupported = Unsupported()
 
     # Add the unsupported node as the root of the tree
+    schedule.parent = None
     unsupported.children = [schedule]
 
     sir_writer = SIRWriter(skip_nodes=False)

@@ -222,8 +222,8 @@ def test_cw_ifblock():
     then_content = [Return()]
     else_content = [Return()]
     ifblock2 = IfBlock.create(condition, then_content, else_content)
-    ifblock2.parent = ifblock.if_body
     ifblock.else_body.addchild(ifblock2)
+    ifblock2.parent = ifblock.if_body
 
     result = cwriter(ifblock)
     assert result == (

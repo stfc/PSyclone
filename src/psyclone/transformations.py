@@ -236,6 +236,8 @@ class LoopFuseTrans(LoopTrans):
         keep = Memento(schedule, self, [node1, node2])
 
         # Add loop contents of node2 to node1
+        for child in node2.loop_body:
+            child.parent = None
         node1.loop_body.children.extend(node2.loop_body)
 
         # Change the parent of the loop contents of node2 to node1
@@ -731,6 +733,7 @@ class ParallelLoopTrans(LoopTrans):
         # Add our orphan loop directive setting its parent to the node's
         # parent and its children to the node. This calls down to the sub-class
         # to get the type of directive we require.
+        node.parent = None
         directive = self._directive(node_parent, [node], collapse)
 
         # Add the loop directive as a child of the node's parent
@@ -1128,6 +1131,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         # add our OpenMP loop directive setting its parent to the node's
         # parent and its children to the node
         from psyclone.psyGen import OMPParallelDoDirective
+        node.parent = None
         directive = OMPParallelDoDirective(parent=node_parent,
                                            children=[node],
                                            omp_schedule=self.omp_schedule)
@@ -1396,6 +1400,8 @@ class ColourTrans(LoopTrans):
         colours_loop.loop_body.addchild(colour_loop)
 
         # add contents of node to colour loop
+        for child in node.loop_body:
+            child.parent = None
         colour_loop.loop_body.children.extend(node.loop_body)
 
         # change the parent of the node's contents to the colour loop
@@ -1687,8 +1693,11 @@ class ParallelRegionTrans(RegionTrans):
         # (although the actual items in the list are still those in the
         # original). If we don't do this then we get an infinite
         # recursion in the new schedule.
+        node_list_copy = node_list[:]
+        for node in node_list_copy:
+            node.parent = None
         directive = self._pdirective(parent=node_parent,
-                                     children=node_list[:])
+                                     children=node_list_copy)
 
         # Change all of the affected children so that they have
         # the region directive's Schedule as their parent. Note

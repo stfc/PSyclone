@@ -158,10 +158,12 @@ def test_is_bound_full_extent():
     assert ("'array' argument should be an ArrayReference type but found "
             "'NoneType'." in str(excinfo.value))
 
-    one = Literal("1", INTEGER_TYPE)
+    one = []
+    for index in range(30):
+        one.append(Literal("1", INTEGER_TYPE))
     array_type = ArrayType(REAL_TYPE, [20])
     symbol = DataSymbol('a', array_type)
-    my_range = Range.create(one, one)
+    my_range = Range.create(one[0], one[1])
     array_reference = ArrayReference.create(symbol, [my_range])
 
     with pytest.raises(TypeError) as excinfo:
@@ -174,8 +176,8 @@ def test_is_bound_full_extent():
                                      BinaryOperation.Operator.UBOUND)
 
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, one, one)
-    my_range = Range.create(operator, one)
+        BinaryOperation.Operator.UBOUND, one[2], one[3])
+    my_range = Range.create(operator, one[4])
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting operator to be Operator.LBOUND, but found
@@ -184,8 +186,8 @@ def test_is_bound_full_extent():
                                      BinaryOperation.Operator.LBOUND)
 
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, one, one)
-    my_range = Range.create(operator, one)
+        BinaryOperation.Operator.LBOUND, one[5], one[6])
+    my_range = Range.create(operator, one[7])
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference but found Literal
@@ -194,8 +196,8 @@ def test_is_bound_full_extent():
 
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(DataSymbol("x", INTEGER_TYPE)), one)
-    my_range = Range.create(operator, one)
+        Reference(DataSymbol("x", INTEGER_TYPE)), one[8])
+    my_range = Range.create(operator, one[9])
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference symbol x to be the same as array symbol a
@@ -205,7 +207,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1.0", REAL_TYPE))
-    my_range = Range.create(operator, one)
+    my_range = Range.create(operator, one[10])
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting integer but found real
@@ -215,7 +217,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("2", INTEGER_TYPE))
-    my_range = Range.create(operator, one)
+    my_range = Range.create(operator, one[11])
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting literal value 2 to be the same as the current array
@@ -226,7 +228,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1", INTEGER_TYPE))
-    my_range = Range.create(operator, one)
+    my_range = Range.create(operator, one[12])
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # valid
@@ -315,16 +317,19 @@ def test_is_range_full_extent():
     _is_range_full_extent(my_range)
 
     # Invalid start (as 1st argument should be lower bound)
+    one = Literal("1", INTEGER_TYPE)
     my_range = Range.create(ubound_op, ubound_op, one)
     _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
     # Invalid stop (as 2nd argument should be upper bound)
+    one = Literal("1", INTEGER_TYPE)
     my_range = Range.create(lbound_op, lbound_op, one)
     _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
     # Invalid step (as 3rd argument should be Literal)
+    one = Literal("1", INTEGER_TYPE)
     my_range = Range.create(lbound_op, ubound_op, ubound_op)
     _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
@@ -401,7 +406,9 @@ def test_array_notation_rank():
     assert result == 2
 
     # Make one of the array notation dimensions differ from what is required.
+    range1.parent = None
     range2 = Range.create(lbound_op3, one)
+    one = Literal("1", INTEGER_TYPE)
     array = ArrayReference.create(symbol, [range1, one, range2])
     with pytest.raises(NotImplementedError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
