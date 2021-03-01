@@ -1109,11 +1109,6 @@ class GOKern(CodedKern):
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
         '''
 
-        # First handle go_pointwise:
-        if not arg.stencil.has_stencil:
-            var_accesses.add_access(var_name, arg.access, self, ["i", "j"])
-            return
-
         # Now we have a valid depth. Query each of the combinations, and add
         # a variable access for the possible values.
         for j in [-1, 0, 1]:
@@ -2317,6 +2312,9 @@ class GOStencil():
             # We currently only support one valid name ('pointwise')
             # which indicates that there is no stencil
             self._has_stencil = False
+            # Define a 'stencil' for pointwise so that depth() can be used for
+            # pointwise kernels without handling pointwise as special case
+            self._stencil = [[0, 0, 0], [0, 1, 0], [0, 0, 0]]
 
     def _check_init(self):
         '''Internal method which checks that the stencil information has been
