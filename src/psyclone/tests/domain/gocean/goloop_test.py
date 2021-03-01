@@ -41,7 +41,8 @@
 from __future__ import absolute_import, print_function
 import pytest
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
-from psyclone.psyir.nodes import Schedule, Reference, StructureReference
+from psyclone.psyir.nodes import Schedule, Reference, StructureReference, \
+    Literal
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.errors import GenerationError
 from psyclone.tests.utilities import get_invoke
@@ -164,3 +165,20 @@ def test_goloop_grid_property_psyir_expression():
     assert isinstance(gref, StructureReference)
     assert gref.parent is loop
     assert gref.symbol.name == "cv_fld"
+
+
+def test_goloop_lower_to_language_level(monkeypatch):
+    ''' Tests that the GOLoop lower_to_language_level method provides the start
+    and stop expressions for the loops using the upper/lower_bound methods. '''
+    schedule = Schedule()
+    goloop = GOLoop(loop_type="inner", parent=schedule)
+    assert goloop.start_expr.value == 'NOT_INITIALISED'
+    assert goloop.stop_expr.value == 'NOT_INITIALISED'
+    monkeypatch.setattr(GOLoop, "lower_bound",
+                        lambda x: Literal("1", INTEGER_TYPE))
+    monkeypatch.setattr(GOLoop, "upper_bound",
+                        lambda x: Literal("1", INTEGER_TYPE))
+
+    goloop.lower_to_language_level()
+    assert goloop.start_expr.value == '1'
+    assert goloop.stop_expr.value == '1'
