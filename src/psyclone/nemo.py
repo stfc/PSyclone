@@ -179,8 +179,6 @@ class NemoInvokes(Invokes):
     '''
     def __init__(self, ast, psy):
         # pylint: disable=super-init-not-called
-        from fparser.two.Fortran2003 import Main_Program,  \
-            Subroutine_Subprogram, Function_Subprogram, Function_Stmt, Name
         self._psy = psy
         self.invoke_map = {}
         self.invoke_list = []
@@ -192,36 +190,13 @@ class NemoInvokes(Invokes):
         # Use the fparser2 frontend to construct the PSyIR from the parse tree
         processor = NemoFparser2Reader()
 
-        if psy.container:
-            routines = psy.container.walk(Routine)
-        else:
-            # Find all the subroutines contained in the file
-            parse_tree_routines = walk(ast.content, (Subroutine_Subprogram,
-                                                     Function_Subprogram))
-            # Add the main program as a routine to analyse - take care
-            # here as the Fortran source file might not contain a
-            # main program (might just be a subroutine in a module)
-            main_prog = get_child(ast, Main_Program)
-            if main_prog:
-                parse_tree_routines.append(main_prog)
+        # TODO currently this does not work in several tests as generate_psyir
+        # creates a CodeBlock if it encounters a Program.
+        # This is being tackled in #1138.
+        self._container = processor.generate_psyir(ast)
+        routines = self._container.walk(Routine)
 
-            routines = []
-            for routine in parse_tree_routines:
-                # Get the name of this subroutine, program or function
-                substmt = routine.content[0]
-                if isinstance(substmt, Function_Stmt):
-                    for item in substmt.items:
-                        if isinstance(item, Name):
-                            sub_name = str(item)
-                            break
-                else:
-                    sub_name = str(substmt.get_name())
-                print("sub-name = {0}".format(sub_name))
-                # ARPDBG This needs to make a Routine, not a
-                # NemoInvokeSchedule...
-                routines.append(processor.generate_schedule(sub_name,
-                                                            routine))
-        # Analyse each routine we've found
+        # Create an Invoke for each routine we've found
         for subroutine in routines:
 
             my_invoke = NemoInvoke(subroutine, subroutine.name, self)
@@ -233,6 +208,11 @@ class NemoInvokes(Invokes):
         to reflect any transformations. '''
         for invoke in self.invoke_list:
             invoke.update()
+
+    @property
+    def container(self):
+        # TODO move this to base class?
+        return self._container
 
 
 class NemoPSy(PSy):
@@ -257,10 +237,9 @@ class NemoPSy(PSy):
             raise InternalError("Found no names in supplied Fortran - should "
                                 "be impossible!")
         self._name = str(names[0]) + "_psy"
-        processor = NemoFparser2Reader()
-        # Create a Container representing any Fortran module contained in the
-        # parse tree. This will be None if there is no module.
-        self._container = processor.generate_container(ast)
+        # TODO this is now done in the NemoInvokes class
+        self._container = None
+        # TODO #435 remove this reference to the parse tree
         self._ast = ast
         self._invokes = NemoInvokes(ast, self)
 

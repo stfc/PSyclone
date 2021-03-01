@@ -177,29 +177,6 @@ class PSyDataTrans(RegionTrans):
 
         super(PSyDataTrans, self).validate(node_list, options)
 
-        # The checks below are only for the NEMO API and can be removed
-        # once #435 is done.
-        sched = node_list[0].ancestor(InvokeSchedule)
-        if not sched:
-            # Some tests construct PSyIR fragments that do not have an
-            # InvokeSchedule
-            return
-        invoke = sched.invoke
-        if not isinstance(invoke, NemoInvoke):
-            return
-
-        # Get the parse tree of the routine containing this region
-        # pylint: disable=protected-access
-        ptree = invoke._ast
-        # pylint: enable=protected-access
-        # Search for the Specification_Part
-        if not walk([ptree], Fortran2003.Specification_Part):
-            raise TransformationError(
-                "For the NEMO API, PSyData can only be added to routines "
-                "which contain existing variable declarations (i.e. a "
-                "Specification Part) but '{0}' does not have any.".format(
-                    invoke.name))
-
     def apply(self, nodes, options=None):
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a

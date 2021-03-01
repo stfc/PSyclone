@@ -78,22 +78,22 @@ def test_transform_apply_mixed_implicit_do():
     writer = FortranWriter()
     result = writer(schedule)
     expected = (
-        "do jk = 1, jpk, 1\n"
-        "  do jj = 1, jpj, 1\n"
-        "    umask(:,jj,jk) = vmask(:,jj,jk) + 1.0\n"
-        "  enddo\n"
-        "enddo")
+        "  do jk = 1, jpk, 1\n"
+        "    do jj = 1, jpj, 1\n"
+        "      umask(:,jj,jk) = vmask(:,jj,jk) + 1.0\n"
+        "    enddo\n"
+        "  enddo")
     assert expected in result
     trans.apply(assignment)
     result = writer(schedule)
     expected = (
-        "do jk = 1, jpk, 1\n"
-        "  do jj = 1, jpj, 1\n"
-        "    do ji = 1, jpi, 1\n"
-        "      umask(ji,jj,jk) = vmask(ji,jj,jk) + 1.0\n"
+        "  do jk = 1, jpk, 1\n"
+        "    do jj = 1, jpj, 1\n"
+        "      do ji = 1, jpi, 1\n"
+        "        umask(ji,jj,jk) = vmask(ji,jj,jk) + 1.0\n"
+        "      enddo\n"
         "    enddo\n"
-        "  enddo\n"
-        "enddo")
+        "  enddo")
     assert expected in result
 
 

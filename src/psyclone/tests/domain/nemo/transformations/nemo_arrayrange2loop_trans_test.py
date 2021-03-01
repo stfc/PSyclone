@@ -98,17 +98,17 @@ def test_apply_bounds():
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "do idx = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
-        "  do jt = 1, UBOUND(umask, 4), 1\n"
-        "    do jk = 1, jpk, 1\n"
-        "      do jj = 1, jpj, 1\n"
-        "        do ji = 1, jpi, 1\n"
-        "          umask(ji,jj,jk,jt,idx) = vmask(ji,jj,jk,jt,idx) + 1.0\n"
+        "  do idx = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
+        "    do jt = 1, UBOUND(umask, 4), 1\n"
+        "      do jk = 1, jpk, 1\n"
+        "        do jj = 1, jpj, 1\n"
+        "          do ji = 1, jpi, 1\n"
+        "            umask(ji,jj,jk,jt,idx) = vmask(ji,jj,jk,jt,idx) + 1.0\n"
+        "          enddo\n"
         "        enddo\n"
         "      enddo\n"
         "    enddo\n"
-        "  enddo\n"
-        "enddo" in result)
+        "  enddo" in result)
 
 
 def test_apply_fixed_bounds():
@@ -127,13 +127,13 @@ def test_apply_fixed_bounds():
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "do jk = 1, jpk, 1\n"
-        "  do jj = 2, 4, 1\n"
-        "    do ji = 1, jpi, 1\n"
-        "      umask(ji,jj,jk) = 0.0e0\n"
+        "  do jk = 1, jpk, 1\n"
+        "    do jj = 2, 4, 1\n"
+        "      do ji = 1, jpi, 1\n"
+        "        umask(ji,jj,jk) = 0.0e0\n"
+        "      enddo\n"
         "    enddo\n"
-        "  enddo\n"
-        "enddo" in result)
+        "  enddo" in result)
 
 
 def test_apply_reference_literal():
@@ -160,17 +160,17 @@ def test_apply_reference_literal():
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "do idx = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
-        "  do jt = 1, UBOUND(umask, 4), 1\n"
-        "    do jk = jpk, 1, 1\n"
-        "      do jj = 1, jpj, 1\n"
-        "        do ji = jpi, 1, 1\n"
-        "          umask(ji,jj,jk,jt,idx) = vmask(ji,jj,jk,jt,idx) + 1.0\n"
+        "  do idx = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
+        "    do jt = 1, UBOUND(umask, 4), 1\n"
+        "      do jk = jpk, 1, 1\n"
+        "        do jj = 1, jpj, 1\n"
+        "          do ji = jpi, 1, 1\n"
+        "            umask(ji,jj,jk,jt,idx) = vmask(ji,jj,jk,jt,idx) + 1.0\n"
+        "          enddo\n"
         "        enddo\n"
         "      enddo\n"
         "    enddo\n"
-        "  enddo\n"
-        "enddo" in result)
+        "  enddo" in result)
 
 
 def test_apply_different_dims():
@@ -189,13 +189,13 @@ def test_apply_different_dims():
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "do idx = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
-        "  do jk = 1, jpk, 1\n"
-        "    do ji = 1, jpi, 1\n"
-        "      umask(ji,jpj,jk,ndim,idx) = vmask(jpi,ji,jk,idx,ndim) + 1.0\n"
+        "  do idx = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
+        "    do jk = 1, jpk, 1\n"
+        "      do ji = 1, jpi, 1\n"
+        "        umask(ji,jpj,jk,ndim,idx) = vmask(jpi,ji,jk,idx,ndim) + 1.0\n"
+        "      enddo\n"
         "    enddo\n"
-        "  enddo\n"
-        "enddo" in result)
+        "  enddo" in result)
 
 
 def test_apply_var_name():
@@ -215,9 +215,9 @@ def test_apply_var_name():
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "do idx_1 = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
-        "  umask(:,:,:,:,idx_1) = vmask(:,:,:,:,idx_1) + 1.0\n"
-        "enddo" in result)
+        "  do idx_1 = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
+        "    umask(:,:,:,:,idx_1) = vmask(:,:,:,:,idx_1) + 1.0\n"
+        "  enddo" in result)
 
 
 def test_apply_existing_names():
@@ -242,13 +242,13 @@ def test_apply_existing_names():
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "do jk = 1, jpk, 1\n"
-        "  do jj = 1, jpj, 1\n"
-        "    do ji = 1, jpi, 1\n"
-        "      umask(ji,jj,jk) = 0.0e0\n"
+        "  do jk = 1, jpk, 1\n"
+        "    do jj = 1, jpj, 1\n"
+        "      do ji = 1, jpi, 1\n"
+        "        umask(ji,jj,jk) = 0.0e0\n"
+        "      enddo\n"
         "    enddo\n"
-        "  enddo\n"
-        "enddo" in result)
+        "  enddo" in result)
 
 
 def test_apply_different_num_dims():
@@ -284,10 +284,10 @@ def test_apply_array_valued_function():
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "jn = 2\n"
-        "do jk = 1, jpk, 1\n"
-        "  z3d(1,:,jk) = ptr_sjk(pvtr(:,:,:),btmsk(:,:,jn) * btm30(:,:))\n"
-        "enddo" in result)
+        "  jn = 2\n"
+        "  do jk = 1, jpk, 1\n"
+        "    z3d(1,:,jk) = ptr_sjk(pvtr(:,:,:),btmsk(:,:,jn) * btm30(:,:))\n"
+        "  enddo" in result)
 
 
 def test_apply_calls_validate():

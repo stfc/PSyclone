@@ -698,7 +698,8 @@ def test_gen_decls_routine(fort_writer):
     with pytest.raises(VisitorError) as info:
         _ = fort_writer.gen_decls(symbol_table)
     assert (
-        "Routine symbols without a global or local interface are not supported"
+        "Routine symbol 'arg_sub' does not have a global or localinterface "
+        "and is not a Fortran intrinsic. This is not supported"
         " by the Fortran back-end." in str(info.value))
 
 
@@ -1709,9 +1710,9 @@ def test_fw_nemokern(fort_writer, parser):
 
     result = fort_writer(schedule)
     assert (
-        "    do i = 1, n, 1\n"
-        "      a(i,j,k) = 0.0\n"
-        "    enddo\n" in result)
+        "      do i = 1, n, 1\n"
+        "        a(i,j,k) = 0.0\n"
+        "      enddo\n" in result)
 
 
 def test_fw_query_intrinsics(fort_writer, tmpdir):
