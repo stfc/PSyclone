@@ -130,8 +130,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         outer_loop = inner_loop.ancestor(Loop)
         cursor = outer_loop.position
 
-        # Create new symbols in the PSylayer and initialise them with the
-        # boundary values provided by the Loop construct
+        # Make sure the boundary symbols in the PSylayer exist
         inv_xstart = invoke_st.symbol_from_tag(
             "xstart_" + node.name, root_name="xstart", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE)
@@ -145,6 +144,18 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
             "ystop_" + node.name, root_name="ystop", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE)
 
+        # If the kernel acts on the whole iteration space, the boundary values
+        # are not needed. This also avoids adding duplicated arguments if this
+        # transformation is applied more than once to the same kernel. But the
+        # declaration and initialisation above still needs to exist because the
+        # boundary variables are expected to exist by the generation code.
+        if (inner_loop.field_space == "go_every" and
+                outer_loop.field_space == "go_every" and
+                inner_loop.iteration_space == "go_all_pts" and
+                outer_loop.iteration_space == "go_all_pts"):
+            return node.root, None
+
+        # Initialise the boundary values provided by the Loop construct
         assign1 = Assignment.create(Reference(inv_xstart),
                                     inner_loop.lower_bound())
         outer_loop.parent.children.insert(cursor, assign1)
@@ -161,10 +172,9 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
                                     outer_loop.upper_bound())
         outer_loop.parent.children.insert(cursor, assign4)
 
-        # Update Kernel Call (only works with the gen_ocl_code)
-        raw_arguments = node.arguments.raw_arg_list()
+        # Update Kernel Call argument list
         for symbol in [inv_xstart, inv_xstop, inv_ystart, inv_ystop]:
-            raw_arguments.append(symbol.name)
+            node.arguments.append(symbol.name, "go_i_scalar")
 
         # Now that the boundaries are inside the kernel, the looping should go
         # through all the field points

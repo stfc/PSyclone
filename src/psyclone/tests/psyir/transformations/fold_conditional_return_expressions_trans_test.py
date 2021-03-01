@@ -159,6 +159,4 @@ def test_transformation(parser, test_case):
     subroutine = processor.generate_psyir(parse_tree)
     trans.apply(subroutine)
     writer = FortranWriter()
-    print(writer(subroutine))
-    print(expected)
     assert writer(subroutine) == expected

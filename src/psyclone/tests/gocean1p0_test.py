@@ -1698,6 +1698,7 @@ def test_gokernelarguments_append():
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
+    symtab = invoke.schedule.symbol_table
     kernelcall = invoke.schedule.coded_kernels()[0]
     argument_list = kernelcall.arguments
     assert isinstance(argument_list, GOKernelArguments)
@@ -1709,8 +1710,8 @@ def test_gokernelarguments_append():
            "should be a string, but found 'int' instead." in str(err.value)
 
     # Append well-constructed arguments
-    argument_list.append("var1", "go_r_scalar")
-    argument_list.append("var2", "go_i_scalar")
+    argument_list.append(symtab.new_symbol("var1").name, "go_r_scalar")
+    argument_list.append(symtab.new_symbol("var2").name, "go_i_scalar")
 
     assert isinstance(kernelcall.args[-1], GOKernelArgument)
     assert isinstance(kernelcall.args[-2], GOKernelArgument)
@@ -1719,6 +1720,7 @@ def test_gokernelarguments_append():
 
     # And the generated code looks as expected
     generated_code = str(psy.gen)
+    print(generated_code)
     assert "CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data," \
            " var1, var2)" in generated_code
 

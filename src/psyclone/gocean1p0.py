@@ -64,7 +64,8 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolTable, ScalarType, ArrayType, \
     INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, \
-    TypeSymbol, UnresolvedInterface, REAL_TYPE
+    TypeSymbol, LocalInterface, ArgumentInterface, UnresolvedInterface, \
+    REAL_TYPE
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 import psyclone.expression as expr
 from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
@@ -324,14 +325,34 @@ class GOInvoke(Invoke):
                                        entity_decls=real_decls)
             invoke_sub.add(my_decl_rscalars)
 
-        # add the subroutine argument declarations for integer scalars
-        # which are not global symbols
         int_decls = list(filter(lambda x: x not in global_names,
                                 self.unique_args_iscalars))
-        if int_decls:
+
+        def split_by_interface(symbol_names):
+            arg_symbols = []
+            local_symbols = []
+            other_symbols = []
+            symtab = self.schedule.symbol_table
+            for name in symbol_names:
+                interface = symtab.lookup(name).interface
+                if isinstance(interface, LocalInterface):
+                    local_symbols.append(name)
+                elif isinstance(interface, ArgumentInterface):
+                    arg_symbols.append(name)
+                else:
+                    other_symbols.append(name)
+            return arg_symbols, local_symbols, other_symbols
+
+        # add the subroutine argument declarations for integer scalars
+        int_args, int_locals, _ = split_by_interface(self.unique_args_iscalars)
+        if int_args:
             my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
                                        intent="inout",
-                                       entity_decls=int_decls)
+                                       entity_decls=int_args)
+            invoke_sub.add(my_decl_iscalars)
+        if int_locals:
+            my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
+                                       entity_decls=int_locals)
             invoke_sub.add(my_decl_iscalars)
 
         if self._schedule.const_loop_bounds and self.unique_args_arrays:
@@ -928,6 +949,19 @@ class GOLoop(Loop):
             props["go_grid_{0}_{1}_start".format(key,
                                                  self._loop_type)].fortran)
 
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of DSL or high-level concepts into generic
+        PSyIR constructs. A GOLoop needs to make sure the start and stop
+        expression of the Loop contain the boundaries defined by the API.
+
+        '''
+        # Generate the upper and lower loop bounds
+        self.start_expr = self.lower_bound()
+        self.stop_expr = self.upper_bound()
+
+        return super(GOLoop, self).lower_to_language_level()
+
     def node_str(self, colour=True):
         ''' Creates a text description of this node with (optional) control
         codes to generate coloured output in a terminal that supports it.
@@ -1209,30 +1243,33 @@ class GOKern(CodedKern):
         # Retrieve kernel name
         kernel = symtab.lookup_with_tag("kernel_" + self.name).name
 
-        # Then we set the kernel arguments
+        # Find the symbol that defines each boundary for this kernel.
         # In OpenCL the iteration boundaries are passed as arguments to the
         # kernel because the global work size may exceed the dimensions and
-        # therefore the updates outsides the boundaries should be masked.
-        arguments = [kernel]
+        # therefore the updates outside the boundaries should be masked.
+        # If any of the boundaries is not found, it can not proceed.
+        boundaries = []
         try:
             for boundary in ["xstart", "xstop", "ystart", "ystop"]:
-                # We need to find the symbol that defines each boundary for
-                # this kernel, make sure it is declared, and subtract 1 from
-                # each boundary value as OpenCL is  0-indexed.
                 tag = boundary + "_" + self.name
                 symbol = symtab.lookup_with_tag(tag)
-                arguments.append(symbol.name + " - 1")
-                parent.add(DeclGen(parent, datatype="integer",
-                                   entity_decls=[symbol.name]))
+                boundaries.append(symbol.name)
         except KeyError as err:
             six.raise_from(GenerationError(
                 "Boundary symbol tag '{0}' not found while generating the "
                 "OpenCL code for kernel '{1}'. Make sure to apply the "
-                "GOMoveIterationBoundariesInsideKernelTrans for correct OpenCL"
-                "code generation.".format(tag, self.name)), err)
+                "GOMoveIterationBoundariesInsideKernelTrans before attempting"
+                " the OpenCL code generation.".format(tag, self.name)), err)
+
+        # Then we set the kernel arguments
+        arguments = [kernel]
         for arg in self._arguments.args:
             if arg.argument_type == "scalar":
-                arguments.append(arg.name)
+                if arg.name in boundaries:
+                    # Boundary values are 0-indexed in OpenCL
+                    arguments.append(arg.name + " - 1")
+                else:
+                    arguments.append(arg.name)
             elif arg.argument_type == "field":
                 arguments.append(arg.name + "%device_ptr")
             elif arg.argument_type == "grid_property":
@@ -1324,20 +1361,8 @@ class GOKern(CodedKern):
         # Add an argument symbol for the kernel object
         kobj = argsetter_st.new_symbol("kernel_obj").name
 
-        # Add argument symbols to provide the iteration boundary values
-        xstart_name = argsetter_st.new_symbol(
-            "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
-        xstop_name = argsetter_st.new_symbol(
-            "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
-        ystart_name = argsetter_st.new_symbol(
-            "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
-        ystop_name = argsetter_st.new_symbol(
-            "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE).name
-        boundary_names = [xstart_name, xstop_name, ystart_name, ystop_name]
-
-        # Join argument list
-        args = [kobj] + boundary_names + \
-               [arg.name for arg in self._arguments.args]
+        # Keep track of the argument names
+        argument_names = [arg.name for arg in self.arguments.args]
 
         # Declare the subroutine in the Invoke SymbolTable and the argsetter
         # subroutine SymbolTable. Subroutine names should be an exact match.
@@ -1348,7 +1373,7 @@ class GOKern(CodedKern):
             self.root.symbol_table.add(RoutineSymbol(sub_name), tag=sub_name)
         argsetter_st.add(RoutineSymbol(sub_name), tag=sub_name)
 
-        sub = SubroutineGen(parent, name=sub_name, args=args)
+        sub = SubroutineGen(parent, name=sub_name)
         parent.add(sub)
         sub.add(UseGen(sub, name="ocl_utils_mod", only=True,
                        funcnames=["check_status"]))
@@ -1360,9 +1385,6 @@ class GOKern(CodedKern):
         sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
                         target=True, entity_decls=[kobj]))
 
-        sub.add(DeclGen(sub, datatype="integer", target=True, intent='in',
-                        entity_decls=boundary_names))
-
         # Get all Grid property arguments
         grid_prop_args = args_filter(self._arguments.args,
                                      arg_types=["field", "grid_property"])
@@ -1370,37 +1392,61 @@ class GOKern(CodedKern):
         # Array grid properties are c_intptr_t
         args = [x for x in grid_prop_args if not x.is_scalar]
         if args:
+            # Use symbol table to avoid name clashes
+            names = []
+            for arg in args:
+                name = argsetter_st.new_symbol(arg.name).name
+                argument_names[self.arguments.args.index(arg)] = name
+                names.append(name)
             sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
-                            intent="in", target=True,
-                            entity_decls=[arg.name for arg in args]))
+                            intent="in", target=True, entity_decls=names))
 
         # Scalar integer grid properties
         args = [x for x in grid_prop_args
                 if x.is_scalar and x.intrinsic_type == "integer"]
         if args:
+            # Use symbol table to avoid name clashes
+            names = []
+            for arg in args:
+                name = argsetter_st.new_symbol(arg.name).name
+                argument_names[self.arguments.args.index(arg)] = name
+                names.append(name)
             sub.add(DeclGen(sub, datatype="integer", intent="in",
-                            target=True,
-                            entity_decls=[arg.name for arg in args]))
+                            target=True, entity_decls=names))
 
         # Scalar real grid properties
         args = [x for x in grid_prop_args
                 if x.is_scalar and x.intrinsic_type == "real"]
         if args:
+            # Use symbol table to avoid name clashes
+            names = []
+            for arg in args:
+                name = argsetter_st.new_symbol(arg.name).name
+                argument_names[self.arguments.args.index(arg)] = name
+                names.append(name)
             sub.add(DeclGen(sub, datatype="real", intent="in", kind="go_wp",
-                            target=True,
-                            entity_decls=[arg.name for arg in args]))
+                            target=True, entity_decls=names))
 
         # Scalar arguments
-        args = args_filter(self._arguments.args, arg_types=["scalar"],
-                           is_literal=False)
-        for arg in args:
+        scalar_args = args_filter(self._arguments.args, arg_types=["scalar"],
+                                  is_literal=False)
+        go_r_scalars = []
+        other_scalars = []
+        for arg in scalar_args:
+            # Use symbol table to avoid name clashes
+            name = argsetter_st.new_symbol(arg.name).name
+            argument_names[self.arguments.args.index(arg)] = name
             if arg.space.lower() == "go_r_scalar":
-                sub.add(DeclGen(
-                    sub, datatype="REAL", intent="in", kind="go_wp",
-                    target=True, entity_decls=[arg.name]))
+                go_r_scalars.append(name)
             else:
-                sub.add(DeclGen(sub, datatype="INTEGER", intent="in",
-                                target=True, entity_decls=[arg.name]))
+                other_scalars.append(name)
+        if go_r_scalars:
+            sub.add(DeclGen(
+                sub, datatype="REAL", intent="in", kind="go_wp",
+                target=True, entity_decls=go_r_scalars))
+        if other_scalars:
+            sub.add(DeclGen(sub, datatype="INTEGER", intent="in",
+                            target=True, entity_decls=other_scalars))
 
         # Declare local variables
         err_name = argsetter_st.new_symbol(
@@ -1412,18 +1458,20 @@ class GOKern(CodedKern):
             sub,
             " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
         index = 0
-        # First the PSy-layer kernel arguments and then the boundary values
-        names = [arg.name for arg in self.arguments.args] + boundary_names
-        for symbol_name in names:
+        # Add a SetKenrelArg for each Argument and check the OpenCL status
+        for variable in argument_names:
             sub.add(AssignGen(
                 sub, lhs=err_name,
                 rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-                format(kobj, index, symbol_name)))
+                format(kobj, index, variable)))
             sub.add(CallGen(
                 sub, "check_status",
                 ["'clSetKernelArg: arg {0} of {1}'".format(index, self.name),
                  err_name]))
             index = index + 1
+
+        # Update the argument list with the final names
+        sub.args = [kobj] + argument_names
 
     def gen_data_on_ocl_device(self, parent):
         # pylint: disable=too-many-locals
@@ -1795,9 +1843,10 @@ class GOKernelArguments(Arguments):
         descriptor = Descriptor(None, argument_type)
 
         # Create the argument and append it to the argument list
-        arg = Arg("variable", name, name)
+        arg = Arg("variable", name)
         argument = GOKernelArgument(descriptor, arg, self._parent_call)
         self.args.append(argument)
+        # self.raw_arg_list().append(name)
 
 
 class GOKernelArgument(KernelArgument):
@@ -1817,8 +1866,10 @@ class GOKernelArgument(KernelArgument):
                                "scalar".
 
         '''
-        tag = "AlgArgs_" + self._text
-        symbol = self._call.root.symbol_table.symbol_from_tag(tag)
+        #if self._text:
+        #    tag = "AlgArgs_" + self._text
+        #symbol = self._call.root.symbol_table.symbol_from_tag(tag)
+        symbol = self._call.scope.symbol_table.lookup(self.name)
 
         # Gocean field arguments are StructureReferences to the %data attribute
         if self.argument_type == "field":
