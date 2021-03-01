@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 
 # Makefile for the 3rd NEMO example. Uses PSyclone (which must
 # be installed) to generate Fortran with OpenACC directives for
@@ -47,27 +48,20 @@
 # export LDFLAGS="-acc -ta=tesla,cc70"
 include ../../common.mk
 
-GENERATED_FILES += psy.f90 psy.o traadv.exe
+GENERATED_FILES += psy.f90 psy.o traadv.exe output.dat
 
 F90FLAGS ?= -fopenmp
 LDFLAGS ?= -fopenmp
 
-# Location of the dl_timer library
-DL_TIMER_ROOT ?= ${HOME}/Projects/dl_timer
-TIMER_INC = ${DL_TIMER_ROOT}/src
-TIMER_LIB = ${DL_TIMER_ROOT}/libdl_timer_omp.a
+.PHONY: allclean
 
-.PHONY: allclean dl_timer
-
-# Compilation requires that dl_timer be installed
 compile: traadv.exe
 
-traadv.exe: dl_timer psy.o
-	${F90} ${LDFLAGS} psy.o ${TIMER_LIB} -o traadv.exe
+run: compile
+	 IT=2 JPI=10 JPJ=10 JPK=5  ./traadv.exe
 
-dl_timer:
-	${MAKE} -C ${DL_TIMER_ROOT} F90="${F90}" F90FLAGS="${F90FLAGS}" \
-   LDFLAGS="${LDFLAGS}" sm_lib
+traadv.exe: psy.o
+	${F90} ${LDFLAGS} psy.o -o traadv.exe
 
 transform: kernels managed_mem
 
@@ -85,12 +79,4 @@ managed_mem:
 psy.f90: kernels
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -I${TIMER_INC} -c $<
-
-all: transform compile
-
-allclean: clean
-	# Only clean DL_TIMER if it actually exists
-	if [ -d ${DL_TIMER_ROOT}  ]; then \
-		${MAKE} -C ${DL_TIMER_ROOT} allclean; \
-	fi
+	$(F90) $(F90FLAGS) -c $<
