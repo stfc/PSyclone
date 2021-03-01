@@ -143,6 +143,7 @@ class LFRicBuiltInCallFactory(object):
         return dofloop
 
 
+# TODO #1140 'LFRicBuiltIn' should be an abstract class.
 class LFRicBuiltIn(BuiltIn):
     '''
     Parent class for a call to an LFRic Built-in.

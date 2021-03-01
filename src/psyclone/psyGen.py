@@ -2632,10 +2632,10 @@ class Kern(Statement):
         Generate the appropriate code to place after the end parallel
         region.
 
-        :param parent: the Node in the AST to which to add new code.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param parent: the Node in the f2pygen AST to which to add new code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
-        :raises GenerationError: for an nsupported reduction access in \
+        :raises GenerationError: for an unsupported reduction access in \
                                  LFRicBuiltIn.
 
         '''
@@ -2646,13 +2646,14 @@ class Kern(Statement):
         reduction_access = self._reduction_arg.access
         try:
             reduction_operator = REDUCTION_OPERATOR_MAPPING[reduction_access]
-        except KeyError:
+        except KeyError as err:
             api_strings = [access.api_specific_name()
                            for access in REDUCTION_OPERATOR_MAPPING]
-            raise GenerationError(
+            six.raise_from(GenerationError(
                 "Unsupported reduction access '{0}' found in LFRicBuiltIn:"
                 "reduction_sum_loop(). Expected one of {1}.".
-                format(reduction_access.api_specific_name(), api_strings))
+                format(reduction_access.api_specific_name(),
+                       api_strings)), err)
         symtab = self.root.symbol_table
         thread_idx = symtab.lookup_with_tag("omp_thread_index").name
         nthreads = symtab.lookup_with_tag("omp_num_threads").name

@@ -55,8 +55,9 @@ from psyclone.parse.utils import ParseError
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric.lfric_builtins import (BUILTIN_ITERATION_SPACES,
-                                                  LFRicBuiltInCallFactory)
+from psyclone.domain.lfric.lfric_builtins import (
+    BUILTIN_ITERATION_SPACES, LFRicBuiltInCallFactory,
+    LFRicBuiltIn, BUILTIN_MAP)
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface)
@@ -607,7 +608,6 @@ class DynKernMetadata(KernelType):
                             data type (other than 'gh_real').
 
         '''
-        from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
         # We must have at least one argument that is written to
         write_count = 0
         for arg in self._arg_descriptors:
@@ -3989,7 +3989,6 @@ class DynBasisFunctions(DynCollection):
                       "face": ["weights_xyz"]}
 
     def __init__(self, node):
-        from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 
         super(DynBasisFunctions, self).__init__(node)
 
@@ -6165,7 +6164,6 @@ def halo_check_arg(field, access_types):
             "In HaloInfo class, field '{0}' should be one of {1}, but found "
             "'{2}'".format(field.name, api_strings,
                            field.access.api_specific_name()))
-    from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
     if not isinstance(call, (LFRicBuiltIn, DynKern)):
         raise GenerationError(
             "In HaloInfo class, field '{0}' should be from a call but "
@@ -6516,7 +6514,6 @@ class DynLoop(Loop):
         # Loop bounds
         self.set_lower_bound("start")
 
-        from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
         if isinstance(kern, LFRicBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs

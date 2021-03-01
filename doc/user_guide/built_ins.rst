@@ -273,28 +273,29 @@ Adding new Built-in operations
 ------------------------------
 
  1. Identify the PSyclone source file for the API to be extended. *e.g.* for
-    LFRic API it is ``src/psyclone/domain/lfric/lfric_builtins.py``.
+    the LFRic API it is ``src/psyclone/domain/lfric/lfric_builtins.py``.
  2. Edit this source file to create the class for this new call. It must
     inherit from the API-specific parent class for Built-in operations
-    (``LFRicBuiltInKern`` for LFRic API).
+    (``LFRicBuiltInKern`` for the LFRic API).
  3. Implement ``__str__`` and ``gen_code()`` methods for this new class.
  4. Add the name of the new Built-in operation and its corresponding class
     to the ``BUILTIN_MAP`` dictionary in that source file.
  5. Add metadata describing this call to the appropriate file specified in
-    the ``BUILTIN_DEFINITIONS_FILE`` in that source file. For LFRic API
+    the ``BUILTIN_DEFINITIONS_FILE`` in that source file. For the LFRic API
     this is ``src/psyclone/parse/lfric_builtins_mod.f90``.
  6. Add relevant tests to the PSyclone test files for the API to be extended.
-    *e.g.* for LFRic API they are
+    *e.g.* for the LFRic API they are
     * ``src/psyclone/tests/domain/lfric/lfric_builtins_test.py``,
     * ``src/psyclone/tests/domain/lfric/lfric_integer_builtins_test.py``.
     The tests rely on ``single_invoke`` Fortran examples in the relevant
     ``src/psyclone/tests/test_files/`` subdirectory.
  7. Add an appropriate Fortran ``single_invoke`` example for the new
     Built-in in the relevant ``src/psyclone/tests/test_files/`` subdirectory.
-    *e.g.* for LFRic API it is ``src/psyclone/tests/test_files/dynamo0p3/``.
+    *e.g.* for the LFRic API it is
+    ``src/psyclone/tests/test_files/dynamo0p3/``.
     Names of examples follow the template
     ``<category.number>.<subcategory.number>_<built-in_name>.f90``.
-    *e.g.* for LFRic API ``<category.number>`` is 15 and
+    *e.g.* for the LFRic API ``<category.number>`` is 15 and
     ``<built-in_name>`` follows the :ref:`LFRic API Built-in naming
     scheme <lfric-built-ins-names>`.
  8. Document the new Built-in in the documentation of the
@@ -304,8 +305,8 @@ Adding new Built-in operations
 If the API being extended does not currently support any Built-ins
 then the ``BUILTIN_MAP`` and ``BUILTIN_DEFINITIONS_FILE`` module
 variables must be added to the source file for the API.  A Fortran
-module file must be created in the PSyclone ``src`` directory (with the
-name specified in ``BUILTIN_DEFINITIONS_FILE``) containing metadata
-describing the Built-in operations. Finally,
+module file must be created in the PSyclone ``src/parse`` directory
+(with the name specified in ``BUILTIN_DEFINITIONS_FILE``) containing
+metadata describing the Built-in operations. Finally,
 ``parse.get_builtin_defs()`` must be extended to import
 ``BUILTIN_MAP`` and ``BUILTIN_DEFINITIONS_FILE`` for this API.

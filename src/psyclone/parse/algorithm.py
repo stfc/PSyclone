@@ -449,6 +449,7 @@ def get_builtin_defs(api):
     # Check that the supplied API is valid
     check_api(api)
 
+    # pylint: disable=import-outside-toplevel
     if api == "dynamo0.3":
         from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP \
             as builtins

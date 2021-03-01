@@ -50,6 +50,8 @@ from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError
 from psyclone.configuration import Config
 from psyclone.domain.lfric import lfric_builtins
+from psyclone.domain.lfric.lfric_builtins import (
+    VALID_BUILTIN_ARG_TYPES, LFRicBuiltInCallFactory, LFRicBuiltIn)
 
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -224,7 +226,6 @@ def test_builtin_no_field_args():
 def test_builtin_operator_arg():
     ''' Check that we raise appropriate error if we encounter a built-in
     that takes something other than a field or scalar argument. '''
-    from psyclone.domain.lfric.lfric_builtins import VALID_BUILTIN_ARG_TYPES
     old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Change the builtin-definitions file to point to one that has
     # various invalid definitions
@@ -275,8 +276,7 @@ def test_builtin_args_not_same_space():
 
 def test_lfricbuiltincallfactory_str():
     ''' Check that the str method of LFRicBuiltInCallFactory works as
-    expected '''
-    from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
+    expected. '''
     lfricinf = LFRicBuiltInCallFactory()
     assert str(lfricinf) == "Factory for a call to an LFRic built-in."
 
@@ -284,7 +284,6 @@ def test_lfricbuiltincallfactory_str():
 def test_lfricbuiltin_wrong_name():
     ''' Check that LFRicBuiltInCallFactory.create() raises an error if it
     doesn't recognise the name of the kernel it is passed. '''
-    from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
     lfricinf = LFRicBuiltInCallFactory()
     # We use 'duck-typing' - rather than attempt to create a rather
     # complex Kernel object we use a ParseError object and monkey
@@ -312,7 +311,6 @@ def test_invalid_builtin_kernel():
 def test_lfricbuiltin_str(dist_mem):
     ''' Check that we raise an error if we attempt to call the __str__
     method on the parent LFRicBuiltIn class. '''
-    from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
@@ -328,7 +326,6 @@ def test_lfricbuiltin_str(dist_mem):
 def test_lfricbuiltin_gen_code(dist_mem):
     ''' Check that we raise an error if we attempt to call the gen_code()
     method on the parent LFRicBuiltIn class. '''
-    from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
@@ -358,7 +355,6 @@ def test_lfricbuiltin_cma(dist_mem):
 def test_lfricbuiltfactory_str():
     ''' Check that the str method of LFRicBuiltInCallFactory works as
     expected. '''
-    from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
     factory = LFRicBuiltInCallFactory()
     assert "Factory for a call to an LFRic built-in." in str(factory)
 
