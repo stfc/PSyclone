@@ -172,11 +172,11 @@ subroutine sample_poly_adv_code( nlayers,              &
   integer(kind=i_def), intent(in)                    :: undf_wx
   integer(kind=i_def), dimension(ndf_wx), intent(in) :: map_wx
 
-  real(kind=r_def), dimension(undf_wt), intent(out)  :: advection
-  real(kind=r_def), dimension(undf_w2), intent(in)   :: wind
-  real(kind=r_def), dimension(undf_wt), intent(in)   :: tracer
-  real(kind=r_def), dimension(undf_wx), intent(in)   :: chi1, chi2, chi3
-  real(kind=r_def), dimension(undf_wt), intent(in)   :: mt_lumped_inv
+  real(kind=r_def), dimension(undf_wt), intent(inout) :: advection
+  real(kind=r_def), dimension(undf_w2), intent(in)    :: wind
+  real(kind=r_def), dimension(undf_wt), intent(in)    :: tracer
+  real(kind=r_def), dimension(undf_wx), intent(in)    :: chi1, chi2, chi3
+  real(kind=r_def), dimension(undf_wt), intent(in)    :: mt_lumped_inv
 
   real(kind=r_def), dimension(3,ndf_w2,ndf_wt), intent(in) :: basis_w2
   real(kind=r_def), dimension(1,ndf_wx,ndf_wt), intent(in) :: basis_wx

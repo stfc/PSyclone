@@ -119,8 +119,8 @@ contains
                                      cma_indirection_map_adspc1
     integer(kind=i_def), intent(in), dimension(cma_op_ncol) :: &
                                      cma_indirection_map_aspc1
-    real(kind=r_def), intent(out), dimension(undf_adspc1) :: field1
-    real(kind=r_def), intent(in), dimension(undf_aspc1)   :: field2
+    real(kind=r_def), intent(inout), dimension(undf_adspc1) :: field1
+    real(kind=r_def), intent(in), dimension(undf_aspc1)     :: field2
     real(kind=r_def), intent(in), dimension(cma_op_bandwidth,cma_op_nrow,ncell_2d) :: cma_op
 
     write(*,*) "A kernel that applies CMA operator to a field on &

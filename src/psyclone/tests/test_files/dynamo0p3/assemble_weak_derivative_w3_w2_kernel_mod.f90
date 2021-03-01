@@ -86,7 +86,7 @@ contains
     integer(kind=i_def), intent(in) :: ndf_w3, ndf_w2, undf_w0
     integer(kind=i_def), intent(in) :: np_xy, np_z
     integer(kind=i_def), intent(in), dimension(ndf_w0) :: map_w0
-    real(kind=r_def), intent(out), dimension(ndf_w3,ndf_w2,ncell_3d) :: local_stencil
+    real(kind=r_def), intent(inout), dimension(ndf_w3,ndf_w2,ncell_3d) :: local_stencil
     real(kind=r_def), intent(in), dimension(undf_w0) :: xdata
     real(kind=r_def), intent(in), dimension(undf_w0) :: ydata
     real(kind=r_def), intent(in), dimension(undf_w0) :: zdata

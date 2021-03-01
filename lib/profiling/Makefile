@@ -54,6 +54,10 @@ $(ALL_LIBS):
 
 clean:
 	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) clean; )
+
+allclean: clean
+	# These libs are not cleaned by 'clean' (since they
+	# depend on external libraries)
 	$(MAKE) -C nvidia clean
-	$(MAKE) -C dl_timer clean
 	$(MAKE) -C drhook clean
+	$(MAKE) -C dl_timer clean
