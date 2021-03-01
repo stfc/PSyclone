@@ -1118,7 +1118,7 @@ class GOKern(CodedKern):
                     i_value = GOKern._format_access("i", i, current_depth)
                     # The j direction is mirrored: a negative value means
                     # positive direction
-                    j_value = GOKern._format_access("j", -j, current_depth)
+                    j_value = GOKern._format_access("j", j, current_depth)
                     var_accesses.add_access(var_name, arg.access, self,
                                             [i_value, j_value])
 
@@ -2298,7 +2298,12 @@ class GOStencil():
             # order
             for idx0 in range(3):
                 for idx1 in range(3):
-                    self._stencil[idx0][idx1] = int(args[idx1][idx0])
+                    # The j coordincate needs to be 'reversed': the first
+                    # row (index 0 in args) is 'top', which should be
+                    # accessed using '+1', and the last row (index 2 in args)
+                    # needs to be accessed using '-1' (see depth()). Using
+                    # 2-idx1 mirrors the rows appropriately.
+                    self._stencil[idx0][2-idx1] = int(args[idx1][idx0])
         else:
             # stencil info is of the form 'name' so should be one of
             # our valid names

@@ -229,17 +229,16 @@ def test_stencil_case_1():
     '''
     stencil = GOStencil()
 
-    stencil_string = "go_StEnCiL(000,011,000)"
+    stencil_string = "go_StEnCiL(234,915,876)"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     stencil.load(parsed_stencil, "kernel_stencil")
     assert stencil.has_stencil
+    expected = [8, 7, 6, 9, 1, 5, 2, 3, 4]
+    exp_index = 0
     for idx2 in range(-1, 2):
         for idx1 in range(-1, 2):
-            if idx1 in [0, 1] and idx2 == 0:
-                expected_depth = 1
-            else:
-                expected_depth = 0
-            assert stencil.depth(idx1, idx2) == expected_depth
+            assert stencil.depth(idx1, idx2) == expected[exp_index]
+            exp_index += 1
 
 
 def test_stencil_case_2():
