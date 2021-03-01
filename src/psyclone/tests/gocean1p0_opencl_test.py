@@ -132,9 +132,8 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode):
       integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)
       integer, save :: num_cmd_queues
       '''
-    print(generated_code)
     assert expected in generated_code
-    # assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_invoke_opencl_initialisation(kernel_outputdir):
@@ -246,7 +245,6 @@ C_NULL_PTR)
       ierr = clFinish(cmd_queues(1))
       CALL check_status('Errors during compute_cu_code', ierr)'''
 
-    print(generated_code)
     assert expected in generated_code
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -640,7 +638,8 @@ def test_set_kern_args(kernel_outputdir):
     assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_set_kern_args_real_grid_property(kernel_outputdir):
+@pytest.mark.usefixtures("kernel_outputdir")
+def test_set_kern_args_real_grid_property():
     ''' Check that we generate correct code to set a real scalar grid
     property. '''
     psy, _ = get_invoke("driver_test.f90", API, idx=0)
@@ -664,9 +663,9 @@ in_fld, dx, dx_1, gphiu, xstart, xstop, ystart, ystop)
 in_fld, dx, gphiu
       REAL(KIND=go_wp), intent(in), target :: dx_1
       INTEGER, intent(in), target :: xstart, xstop, ystart, ystop'''
-    print(generated_code)
     assert expected in generated_code
-    #assert GOcean1p0OpenCLBuild(kernel_outputdir).code_compiles(psy)
+    # This example can not be compile because it needs to import the
+    # kernel_driver_test module and it doesn't find it on kernel_outputdir
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -699,7 +698,6 @@ tmask, xstart, xstop_1, ystart, ystop)
       INTEGER ierr
       INTEGER(KIND=c_intptr_t), target :: kernel_obj
 '''
-    print(generated_code)
     assert expected in generated_code
     expected = '''\
       ! Set the arguments for the bc_ssh_code OpenCL Kernel
