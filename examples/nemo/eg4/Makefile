@@ -55,7 +55,8 @@ tra_adv:
 -opsy /dev/null
 
 # We don't do any compilation for this example
-compile:
+compile: transform
 	@echo "No compilation supported for nemo/eg4"
 
-all: transform compile
+run: compile
+	@echo "No run targets for nemo/eg4"

@@ -32,13 +32,16 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified by: R. W. Ford, STFC Daresbury Lab
+#              A. R. Porter, STFC Daresbury Lab
+#              S. Siso, STFC Daresbury Lab
 
 '''Transformation module, containing all generic (API independent)
 transformations and base classes.
 '''
 
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
+from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
@@ -70,6 +73,7 @@ __all__ = ['ExtractTrans',
            'ReadOnlyVerifyTrans',
            'RegionTrans',
            'Abs2CodeTrans',
+           'LoopTrans',
            'Matmul2CodeTrans',
            'Min2CodeTrans',
            'Sign2CodeTrans',

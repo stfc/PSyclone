@@ -70,7 +70,7 @@ $(LIB_NAME): $(LFRIC_DIR)/liblfric.a $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
 $(LFRIC_DIR)/liblfric.a:
-	$(MAKE) F90=$(F90) F90FLAGS=$(F90FLAGS) -C $(LFRIC_DIR)
+	$(MAKE) F90="$(F90)" F90FLAGS="$(F90FLAGS)" -C $(LFRIC_DIR)
 
 
 # Add all dependencies. The LFRic NAN checkin library extends the
@@ -97,4 +97,4 @@ nan_test_base.f90: ../nan_test_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > nan_test_base.f90
 
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* nan_test_base.* nan_test.f90
+	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* nan_test_base.*

@@ -371,7 +371,7 @@
 
 	119) PR #1090. Adds support for LFRic builtins that accept integer-
 	valued fields.
-	
+
 	120) PR #1105 for #1104. Adds support for program, module and subroutine
 	to Fparser2Reader
 
@@ -385,6 +385,13 @@
 
 	124) PR #1063 towards #935. Add basic support for specialisation of
 	symbols.
+
+        125) PR #1073 for #1022. Updates the Makefiles for the examples
+        and tutorials to make them consistent. Default target for the tutorials
+        is now 'transform'.
+
+	126) PR #1095 for #1083. Adds a LoopTrans base class that Loop
+	transformations can subclass and use any common functionality.
 
 release 1.9.0 20th May 2020
 
