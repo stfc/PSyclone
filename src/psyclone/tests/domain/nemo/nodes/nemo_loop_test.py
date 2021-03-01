@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the NemoLoop node. '''
 
@@ -103,7 +103,7 @@ def test_create():
     result = writer(nemo_loop)
     assert (
         "do ji = 2, 10, 1\n"
-        "  X=3.0\n"
+        "  X = 3.0\n"
         "enddo" in result)
 
 

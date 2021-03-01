@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
@@ -43,6 +44,10 @@ ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 transform: basic openmp mpi loop_fuse dag openacc opencl
 
 compile: transform
+	@echo "No compilation targets for example gocean/eg1"
+
+run: compile
+	@echo "No run targets for example gocean/eg1"
 
 basic:
 	$(ENV) ${PYTHON} ./runme.py

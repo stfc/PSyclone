@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -109,6 +109,7 @@ def test_container_create():
     result = FortranWriter().container_node(container)
     assert result == (
         "module container_name\n"
+        "  implicit none\n"
         "  real :: tmp\n\n"
         "  contains\n"
         "  subroutine mod_1()\n\n\n"
@@ -149,7 +150,7 @@ def test_container_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = Container.create("mod_name", symbol_table, ["invalid"])
     assert ("Item 'str' can't be child 0 of 'Container'. The valid format is:"
-            " '[Container | KernelSchedule | InvokeSchedule]*'."
+            " '[Container | Routine | CodeBlock]*'."
             in str(excinfo.value))
 
 
@@ -169,5 +170,5 @@ def test_container_children_validation():
     with pytest.raises(GenerationError) as excinfo:
         container.addchild(ret)
     assert ("Item 'Return' can't be child 1 of 'Container'. The valid format"
-            " is: '[Container | KernelSchedule | InvokeSchedule]*'."
+            " is: '[Container | Routine | CodeBlock]*'."
             "" in str(excinfo.value))

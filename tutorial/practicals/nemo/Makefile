@@ -35,12 +35,6 @@
 
 # Top-level Makefile to test all of the NEMO hands-on tutorials.
 
-TUTORIAL_DIRS = $(wildcard ?_nemo_*)
+TUTORIALS = $(sort $(wildcard ?_nemo_*))
 
-.PHONY: test ${TUTORIAL_DIRS}
-
-test: ${TUTORIAL_DIRS}
-
-${TUTORIAL_DIRS}:
-	${MAKE} -C $@ test
-
+include ./top_level.mk

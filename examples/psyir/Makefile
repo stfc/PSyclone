@@ -31,16 +31,18 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Authors: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
 include ../common.mk
 
 transform:
 	${PYTHON} create.py
 	${PYTHON} create_structure_types.py
-
-all: transform
+	${PYTHON} modify.py
 
 compile:
-	@echo "No compilation supported for the PSyIR creation examples"
+	@echo "No compilation supported for the PSyIR examples"
+
+run: compile
+	@echo "No run targets for PSyIR creation examples"
 

@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 
+.PHONY: default clean allclean
 
 # Assume that apeg-dl_timer is 'next' to psyclone
 DL_TIMER_ROOT?=../../../../apeg-dl_timer
@@ -67,3 +68,4 @@ clean:
 	rm -f $(libname) $(OBJS) profile_psy_data_mod.mod \
 		psy_data_base_mod.mod psy_data_base.f90
 
+allclean: clean
