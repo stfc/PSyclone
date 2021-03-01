@@ -338,7 +338,6 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
     gen_code = str(psy.gen)
-    print(gen_code)
     expected = ("      !\n"
                 "      !\n"
                 "      CALL testkern_domain_code(nlayers, b, f1_proxy%data, "

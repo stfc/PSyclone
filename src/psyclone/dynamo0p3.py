@@ -7674,20 +7674,19 @@ class DynKern(CodedKern):
         parent_loop = self.ancestor(DynLoop)
 
         # Check whether this kernel reads from an operator
-        if parent_loop:
-            op_args = parent_loop.args_filter(
-                arg_types=LFRicArgDescriptor.VALID_OPERATOR_NAMES,
-                arg_accesses=[AccessType.READ, AccessType.READWRITE])
-            if op_args:
-                # It does. We must check that our parent loop does not
-                # go beyond the L1 halo.
-                if parent_loop.upper_bound_name == "cell_halo" and \
-                   parent_loop.upper_bound_halo_depth > 1:
-                    raise GenerationError(
-                        "Kernel '{0}' reads from an operator and therefore "
-                        "cannot be used for cells beyond the level 1 halo. "
-                        "However the containing loop goes out to level {1}".
-                        format(self._name, parent_loop.upper_bound_halo_depth))
+        op_args = parent_loop.args_filter(
+            arg_types=LFRicArgDescriptor.VALID_OPERATOR_NAMES,
+            arg_accesses=[AccessType.READ, AccessType.READWRITE])
+        if op_args:
+            # It does. We must check that our parent loop does not
+            # go beyond the L1 halo.
+            if parent_loop.upper_bound_name == "cell_halo" and \
+               parent_loop.upper_bound_halo_depth > 1:
+                raise GenerationError(
+                    "Kernel '{0}' reads from an operator and therefore "
+                    "cannot be used for cells beyond the level 1 halo. "
+                    "However the containing loop goes out to level {1}".
+                    format(self._name, parent_loop.upper_bound_halo_depth))
 
         # If this kernel is being called from within a coloured
         # loop then we have to look-up the name of the colour map
