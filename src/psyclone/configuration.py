@@ -866,20 +866,20 @@ class DynConfig(APISpecificConfig):
                 self._compute_annexed_dofs = section.getboolean(
                     "compute_annexed_dofs")
             except ValueError as err:
-                raise ConfigurationError(
+                six.raise_from(ConfigurationError(
                     "error while parsing COMPUTE_ANNEXED_DOFS in the "
                     "'[{0}]' section of the configuration file: '{1}'."
-                    .format(section.name, str(err)), config=self._config)
+                    .format(section.name, str(err)), config=self._config), err)
 
             # Parse setting for run_time_checks flag
             try:
                 self._run_time_checks = section.getboolean(
                     "run_time_checks")
             except ValueError as err:
-                raise ConfigurationError(
+                six.raise_from(ConfigurationError(
                     "error while parsing RUN_TIME_CHECKS in the "
                     "'[{0}]' section of the configuration file: '{1}'."
-                    .format(section.name, str(err)), config=self._config)
+                    .format(section.name, str(err)), config=self._config), err)
 
             # Parse setting for the supported Fortran datatypes
             self._supported_fortran_datatypes = \
@@ -924,9 +924,9 @@ class DynConfig(APISpecificConfig):
             try:
                 self._num_any_space = section.getint("NUM_ANY_SPACE")
             except ValueError as err:
-                raise ConfigurationError(
+                six.raise_from(ConfigurationError(
                     "error while parsing NUM_ANY_SPACE: {0}".
-                    format(str(err)), config=self._config)
+                    format(str(err)), config=self._config), err)
             if self._num_any_space <= 0:
                 raise ConfigurationError(
                     "The supplied number of ANY_SPACE function spaces "
@@ -941,9 +941,9 @@ class DynConfig(APISpecificConfig):
                 self._num_any_discontinuous_space = section.getint(
                     "NUM_ANY_DISCONTINUOUS_SPACE")
             except ValueError as err:
-                raise ConfigurationError(
+                six.raise_from(ConfigurationError(
                     "error while parsing NUM_ANY_DISCONTINUOUS_SPACE: {0}".
-                    format(str(err)), config=self._config)
+                    format(str(err)), config=self._config), err)
             if self._num_any_discontinuous_space <= 0:
                 raise ConfigurationError(
                     "The supplied number of ANY_DISCONTINUOUS_SPACE function "
