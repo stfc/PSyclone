@@ -637,7 +637,7 @@ class ParallelLoopTrans(LoopTrans):
 
         :raises TransformationError: if the \
                 :py:class:`psyclone.psyir.nodes.Loop` loop iterates over \
-                colours or is a 'null' loop.
+                colours.
         :raises TransformationError: if 'collapse' is supplied with an \
                 invalid number of loops.
 
@@ -652,9 +652,6 @@ class ParallelLoopTrans(LoopTrans):
             raise TransformationError("Error in "+self.name+" transformation. "
                                       "The target loop is over colours and "
                                       "must be computed serially.")
-        if node.loop_type == 'null':
-            raise TransformationError("Error in "+self.name+" transformation. "
-                                      "A 'null' loop cannot be parallelised.")
 
         if not options:
             options = {}
@@ -1341,25 +1338,6 @@ class ColourTrans(LoopTrans):
     '''
     def __str__(self):
         return "Split a loop into colours"
-
-    def validate(self, node, options=None):
-        '''
-        Perform validation checks that the supplied node is a Loop that
-        can be coloured.
-
-        :param node: The target loop node to be coloured.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
-
-        :raises TransformationError: if the supplied loop is of 'null' type.
-
-        '''
-        super(ColourTrans, self).validate(node, options)
-
-        if node.loop_type == "null":
-            raise TransformationError("Cannot apply a loop colouring "
-                                      "transformation to a null loop.")
 
     def apply(self, node, options=None):
         '''
