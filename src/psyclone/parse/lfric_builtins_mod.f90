@@ -484,6 +484,31 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: int_inc_X_plus_Y_code
   end type int_inc_X_plus_Y
 
+  !> ifield2 = iscalar + ifield1
+  type, public, extends(kernel_type) :: int_a_plus_X
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_SPACE_1),     &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ,  ANY_SPACE_1),     &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_SPACE_1)      &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_a_plus_X_code
+  end type int_a_plus_X
+
+  !> ifield1 = iscalar + ifield1
+  type, public, extends(kernel_type) :: int_inc_a_plus_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ                  ), &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READWRITE, ANY_SPACE_1)  &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_inc_a_plus_X_code
+  end type int_inc_a_plus_X
+
 ! ------------------------------------------------------------------- !
 ! ============== Subtracting integer fields ========================= !
 ! ------------------------------------------------------------------- !
@@ -704,6 +729,12 @@ contains
 
   subroutine int_inc_X_plus_Y_code()
   end subroutine int_inc_X_plus_Y_code
+
+  subroutine int_a_plus_X_code()
+  end subroutine int_a_plus_X_code
+
+  subroutine int_inc_a_plus_X_code()
+  end subroutine int_inc_a_plus_X_code
 
   ! Subtracting integer fields
   subroutine int_X_minus_Y_code()

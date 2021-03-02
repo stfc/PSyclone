@@ -1135,6 +1135,30 @@ class LFRicIntIncXPlusYKern(LFRicIncXPlusYKern):
         return "Built-in: Increment an integer-valued field"
 
 
+class LFRicIntAPlusXKern(LFRicAPlusXKern):
+    ''' Add an integer scalar value, `a`, to each element of an
+    integer-valued field, `X`, and return the result as a second,
+    integer-valued, field, `Y`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `LFRicAPlusXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: int_a_plus_X (integer-valued fields)"
+
+
+class LFRicIntIncAPlusXKern(LFRicIncAPlusXKern):
+    ''' Add an integer scalar value, `a`, to each element of an
+    integer-valued field, `X`, and return the result in the
+    same field.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `LFRicIncAPlusXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: int_inc_a_plus_X (integer-valued fields)"
+
+
 # ------------------------------------------------------------------- #
 # ============== Subtracting integer fields ========================= #
 # ------------------------------------------------------------------- #
@@ -1301,6 +1325,8 @@ INT_BUILTIN_MAP_CAPITALISED = {
     # Adding integer fields
     "int_X_plus_Y": LFRicIntXPlusYKern,
     "int_inc_X_plus_Y": LFRicIntIncXPlusYKern,
+    "int_a_plus_X": LFRicIntAPlusXKern,
+    "int_inc_a_plus_X": LFRicIntIncAPlusXKern,
     # Subtracting integer fields
     "int_X_minus_Y": LFRicIntXMinusYKern,
     "int_inc_X_minus_Y": LFRicIntIncXMinusYKern,
