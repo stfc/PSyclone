@@ -868,7 +868,7 @@ class DynConfig(APISpecificConfig):
             except ValueError as err:
                 six.raise_from(ConfigurationError(
                     "error while parsing COMPUTE_ANNEXED_DOFS in the "
-                    "'[{0}]' section of the configuration file: '{1}'."
+                    "'[{0}]' section of the configuration file: {1}."
                     .format(section.name, str(err)), config=self._config), err)
 
             # Parse setting for run_time_checks flag
@@ -878,12 +878,12 @@ class DynConfig(APISpecificConfig):
             except ValueError as err:
                 six.raise_from(ConfigurationError(
                     "error while parsing RUN_TIME_CHECKS in the "
-                    "'[{0}]' section of the configuration file: '{1}'."
+                    "'[{0}]' section of the configuration file: {1}."
                     .format(section.name, str(err)), config=self._config), err)
 
             # Parse setting for the supported Fortran datatypes
             self._supported_fortran_datatypes = \
-                [loop.strip() for loop in
+                [dtype.strip() for dtype in
                  section["supported_fortran_datatypes"].split(",")]
             # Check for the currently supported datatypes ("real",
             # "integer" and "logical")
