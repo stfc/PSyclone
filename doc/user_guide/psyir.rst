@@ -584,12 +584,10 @@ Replacing PSyIR nodes
 ---------------------
 
 In certain cases one might want to replace a node in a PSyIR tree with
-another node. All nodes provide the `replace_with()` method to support
-this.
+another node. All nodes provide the `replace_with()` method to replace
+the node and its descendants with another given node and its
+descendants.
 
 .. code-block:: python
 
     node.replace_with(new_node)
-
-Note, the node and all of its children is replaced with new_node and
-all of its children.

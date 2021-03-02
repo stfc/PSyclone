@@ -1150,15 +1150,17 @@ class Node(object):
             "are Container or Schedule nodes.".format(self))
 
     def replace_with(self, node):
-        '''Replaces self with the supplied node in the PSyIR tree.
+        '''Removes self, and its descendants, from the PSyIR tree to which it
+        is connected, and replaces it with the supplied node (and its
+        descendants).
 
         :param node: the node that will replace self in the PSyIR \
             tree.
-        :type node: subclass of :py:class:`psyclone.psyir.nodes.node`
+        :type node: :py:class:`psyclone.psyir.nodes.node`
 
         :raises TypeError: if the argument 'node' is not a Node.
-        :raises SymbolError: if this node does not have a parent.
-        :raises SymbolError: if the argument 'node' has a parent.
+        :raises GenerationError: if this node does not have a parent.
+        :raises GenerationError: if the argument 'node' has a parent.
 
         '''
         if not isinstance(node, Node):
@@ -1176,11 +1178,8 @@ class Node(object):
                 "Node class should be None but found '{0}'."
                 "".format(type(node.parent).__name__))
 
-        parent = self.parent
-        position = self.position
-        node.parent = parent
-        self.parent.children.remove(self)
-        parent.children.insert(position, node)
+        node.parent = self.parent
+        self.parent.children[self.position] = node
         self.parent = None
 
 
