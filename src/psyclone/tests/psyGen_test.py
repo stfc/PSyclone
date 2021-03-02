@@ -223,7 +223,7 @@ def test_invalid_name():
 def test_valid_return_object_from_name():
     ''' check get_trans_name method return the correct object type '''
     trans = TransInfo()
-    transform = trans.get_trans_name("LoopFuse")
+    transform = trans.get_trans_name("LoopFuseTrans")
     assert isinstance(transform, Transformation)
 
 

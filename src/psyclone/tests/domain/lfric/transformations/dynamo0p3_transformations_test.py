@@ -39,16 +39,19 @@
 
 from __future__ import absolute_import, print_function
 import pytest
+import inspect
+from importlib import import_module
 from psyclone.core.access_type import AccessType
 from psyclone import psyGen
 from psyclone import psyir
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import LocalInterface, ScalarType, ArrayType, \
     REAL_TYPE, INTEGER_TYPE
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.nodes import Loop
+from psyclone.psyir.transformations import TransformationError, LoopTrans
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import OMPParallelTrans, \
+from psyclone.transformations import OMPParallelTrans, LoopFuseTrans, \
     Dynamo0p3ColourTrans, \
     Dynamo0p3OMPLoopTrans, \
     DynamoOMPParallelLoopTrans, \
@@ -344,8 +347,9 @@ def test_colouring_not_a_loop(dist_mem):
     # Erroneously attempt to colour the schedule rather than the loop
     with pytest.raises(TransformationError) as excinfo:
         _, _ = ctrans.apply(schedule)
-    assert "Error in DynamoColour transformation" in str(excinfo.value)
-    assert "The supplied node is not a loop" in str(excinfo.value)
+    assert ("Target of Dynamo0p3ColourTrans transformation must be a "
+            "sub-class of Loop but got 'DynInvokeSchedule'" in
+            str(excinfo.value))
 
 
 def test_no_colour_dofs(dist_mem):
@@ -362,13 +366,6 @@ def test_no_colour_dofs(dist_mem):
     assert "Error in DynamoColour transformation" in val
     assert ("Only loops over cells may be coloured but this loop is over "
             "dofs" in val)
-
-
-def test_omp_name():
-    ''' Test the name property of the Dynamo0p3OMPLoopTrans class. '''
-    olooptrans = Dynamo0p3OMPLoopTrans()
-    oname = olooptrans.name
-    assert oname == "Dynamo0p3OMPLoopTrans"
 
 
 def test_omp_str():
@@ -392,8 +389,8 @@ def test_omp_not_a_loop(dist_mem):
     with pytest.raises(TransformationError) as excinfo:
         _, _ = otrans.apply(schedule)
 
-    assert ("Cannot apply a parallel-loop directive to something "
-            "that is not a loop" in str(excinfo.value))
+    assert ("Target of Dynamo0p3OMPLoopTrans transformation must be a sub-"
+            "class of Loop but got 'DynInvokeSchedule'" in str(excinfo.value))
 
 
 def test_omp_parallel_not_a_loop(dist_mem):
@@ -409,15 +406,8 @@ def test_omp_parallel_not_a_loop(dist_mem):
     # the loop
     with pytest.raises(TransformationError) as excinfo:
         _, _ = otrans.apply(schedule)
-    assert "Error in DynamoOMPParallelLoopTrans tra" in str(excinfo.value)
-    assert "The node is not a loop" in str(excinfo.value)
-
-
-def test_colour_name():
-    ''' Test the name property of the Dynamo0p3ColourTrans class. '''
-    ctrans = Dynamo0p3ColourTrans()
-    cname = ctrans.name
-    assert cname == "Dynamo0p3LoopColourTrans"
+    assert ("Target of DynamoOMPParallelLoopTrans transformation must be a "
+            "sub-class of Loop" in str(excinfo.value))
 
 
 def test_colour_str():
@@ -565,7 +555,7 @@ def test_check_seq_colours_omp_parallel_do(monkeypatch, annexed, dist_mem):
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = otrans.apply(cschedule.children[index])
     assert "Error in DynamoOMPParallelLoopTrans" in str(excinfo.value)
-    assert "requested loop is over colours" in str(excinfo.value)
+    assert "target loop is over colours" in str(excinfo.value)
     assert "must be computed serially" in str(excinfo.value)
 
 
@@ -2374,10 +2364,9 @@ def test_multi_reduction_real_fuse():
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
                                            schedule.children[1])
-            assert (
-                "Error in DynamoLoopFuse transformation: Cannot fuse loops "
-                "when each loop already contains a "
-                "reduction") in str(excinfo.value)
+            assert ("Error in DynamoLoopFuseTrans transformation: Cannot "
+                    "fuse loops when each loop already contains a "
+                    "reduction" in str(excinfo.value))
 
 
 def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
@@ -3852,8 +3841,6 @@ def test_rc_str():
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_name = str(rc_trans)
     assert rc_name == "Change iteration space to perform redundant computation"
-    name = rc_trans.name
-    assert name == "RedundantComputation"
 
 
 def test_rc_node_not_loop():
@@ -3865,8 +3852,9 @@ def test_rc_node_not_loop():
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[0])
-    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
-            "the first argument is not a Loop") in str(excinfo.value)
+    assert ("Target of Dynamo0p3RedundantComputationTrans transformation must "
+            "be a sub-class of Loop but got \'DynHaloExchange\'" in
+            str(excinfo.value))
 
 
 def test_rc_invalid_loop(monkeypatch):
@@ -5044,8 +5032,9 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
     f_trans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[index], schedule.children[index+1])
-    assert ("Error in DynamoLoopFuse transformation: The halo-depth indices "
-            "are not the same. Found '3' and '1'" in str(excinfo.value))
+    assert ("Error in DynamoLoopFuseTrans transformation: The halo-depth "
+            "indices are not the same. Found '3' and '1'" in
+            str(excinfo.value))
     # now redundantly compute to the full halo
     rc_trans.apply(schedule.children[index+1])
     if annexed:
@@ -5059,8 +5048,9 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
     f_trans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[index], schedule.children[index+1])
-    assert ("Error in DynamoLoopFuse transformation: The halo-depth indices "
-            "are not the same. Found '3' and 'None'" in str(excinfo.value))
+    assert ("Error in DynamoLoopFuseTrans transformation: The halo-depth "
+            "indices are not the same. Found '3' and 'None'" in
+            str(excinfo.value))
 
 
 def test_loop_fusion_different_loop_name(monkeypatch):
@@ -5078,8 +5068,8 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     with pytest.raises(TransformationError) as excinfo:
         # Indices of loops to fuse in the schedule
         f_trans.apply(schedule.children[2], schedule.children[3])
-    assert ("Error in DynamoLoopFuse transformation: The upper bound names "
-            "are not the same. Found 'cell_halo' and 'ncells'"
+    assert ("Error in DynamoLoopFuseTrans transformation: The upper bound "
+            "names are not the same. Found 'cell_halo' and 'ncells'"
             in str(excinfo.value))
     # Now test for f1 write to read dependency
     _, invoke = get_invoke("4.12_multikernel_invokes_w2v.f90",
@@ -5093,8 +5083,8 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     rc_trans.apply(schedule.children[0], {"depth": 3})
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[1], schedule.children[2])
-    assert ("Error in DynamoLoopFuse transformation: The upper bound names "
-            "are not the same. Found 'cell_halo' and 'ncells'"
+    assert ("Error in DynamoLoopFuseTrans transformation: The upper bound "
+            "names are not the same. Found 'cell_halo' and 'ncells'"
             in str(excinfo.value))
 
 
@@ -7391,3 +7381,37 @@ def test_kern_const_invalid_make_constant2():
         _, _ = kctrans.apply(kernel, {"element_order": 0})
     assert ("Expected entry to be a scalar integer argument but found "
             "a constant." in str(excinfo.value))
+
+
+def test_all_loop_trans_base_validate(monkeypatch):
+    ''' Check that all LFRic (Dynamo) transformations that sub-class LoopTrans
+    call the base validate() method. '''
+    # First get a valid Loop object that we can pass in.
+    _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
+                           name="invoke_0_testkern_type", dist_mem=False)
+    loop = invoke.schedule.walk(Loop)[0]
+
+    # LFRic-domain transformations should live in the `domain` module. However,
+    # there are still others in psyclone.transformations but these are tested
+    # by the generic tests/psyir/transformations/loop_trans_test.py file.
+    transmod = import_module("psyclone.domain.lfric.transformations")
+    all_trans_classes = inspect.getmembers(transmod, inspect.isclass)
+
+    # To ensure that we identify that the validate() method in the LoopTrans
+    # base class has been called, we monkeypatch it to raise an exception.
+
+    def fake_validate(_1, _2, options=None):
+        raise NotImplementedError("validate test exception")
+    monkeypatch.setattr(LoopTrans, "validate", fake_validate)
+
+    for name, cls_type in all_trans_classes:
+        trans = cls_type()
+        if isinstance(trans, LoopTrans):
+            with pytest.raises(NotImplementedError) as err:
+                if isinstance(trans, LoopFuseTrans):
+                    trans.validate(loop, loop)
+                else:
+                    trans.validate(loop)
+            assert "validate test exception" in str(err.value), \
+                "{0}.validate() does not call LoopTrans.validate()".format(
+                    name)
