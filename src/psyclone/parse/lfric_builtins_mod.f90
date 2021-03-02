@@ -87,6 +87,31 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: inc_X_plus_Y_code
   end type inc_X_plus_Y
 
+  !> field2 = scalar + field1
+  type, public, extends(kernel_type) :: a_plus_X
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: a_plus_X_code
+  end type a_plus_X
+
+  !> field1 = scalar + field1
+  type, public, extends(kernel_type) :: inc_a_plus_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ                  ),    &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1)     &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: inc_a_plus_X_code
+  end type inc_a_plus_X
+
   !> field3 = scalar*field1 + field2
   type, public, extends(kernel_type) :: aX_plus_Y
      private
@@ -583,6 +608,12 @@ contains
 
   subroutine inc_X_plus_Y_code()
   end subroutine inc_X_plus_Y_code
+
+  subroutine a_plus_X_code()
+  end subroutine a_plus_X_code
+
+  subroutine inc_a_plus_X_code()
+  end subroutine inc_a_plus_X_code
 
   subroutine aX_plus_Y_code()
   end subroutine aX_plus_Y_code

@@ -378,6 +378,57 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
                              rhs=field_name1 + " + " + field_name2))
 
 
+class LFRicAPlusXKern(LFRicBuiltIn):
+    ''' Y = a + X where 'a' is a real scalar and 'X' and 'Y' are
+    real-valued fields (DoF-wise addition of a scalar value).
+
+    '''
+    def __str__(self):
+        return "Built-in: a_plus_X (real-valued fields)"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        a_plus_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # We add a scalar value to each element of f1 and store the
+        # result in f2 (real-valued fields).
+        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
+        scalar_name = self._arguments.args[1].name
+        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        parent.add(AssignGen(parent, lhs=field_name2,
+                             rhs=scalar_name + " + " + field_name1))
+
+
+class LFRicIncAPlusXKern(LFRicBuiltIn):
+    ''' X = a + X where 'a' is a real scalar and 'X' is a real-valued
+    field (DoF-wise addition of a scalar value).
+
+    '''
+    def __str__(self):
+        return "Built-in: inc_a_plus_X (real-valued fields)"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        inc_a_plus_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # We add a scalar value to each element of f1 and return the
+        # result in f1 (real-valued fields).
+        field_name = self.array_ref(self._arguments.args[1].proxy_name)
+        scalar_name = self._arguments.args[0].name
+        parent.add(AssignGen(parent, lhs=field_name,
+                             rhs=scalar_name + " + " + field_name))
+
+
 class LFRicAXPlusYKern(LFRicBuiltIn):
     ''' Z = a.X + Y where 'a' is a real scalar and 'Z', 'X' and
     'Y' are real-valued fields.
@@ -1209,6 +1260,8 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Adding (scaled) real fields
     "X_plus_Y": LFRicXPlusYKern,
     "inc_X_plus_Y": LFRicIncXPlusYKern,
+    "a_plus_X": LFRicAPlusXKern,
+    "inc_a_plus_X": LFRicIncAPlusXKern,
     "aX_plus_Y": LFRicAXPlusYKern,
     "inc_aX_plus_Y": LFRicIncAXPlusYKern,
     "inc_X_plus_bY": LFRicIncXPlusBYKern,
