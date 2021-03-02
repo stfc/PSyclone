@@ -95,28 +95,29 @@ def test_node_coloured_name():
 
 def test_node_coloured_name_exception(monkeypatch):
     '''Test that the expected exception is raised if the colour provided
-    to the colored function is invalid. Note, an exception if the
-    termcolor package is installed. Therefore we monkeypatch the
-    function to force the exception whether termcolor is installed or
-    not.
+    to the colored function is invalid. Note, an exception is only
+    raised if the termcolor package is installed. Therefore we
+    monkeypatch the function to force the exception whether termcolor
+    is installed or not.
 
     '''
-    def dummy(error):
-        '''Utility used to raise the required error from a lambda function.'''
-        raise error()
+    def dummy(_1, _2):
+        '''Utility used to raise the required exception.'''
+        raise KeyError()
 
-    monkeypatch.setattr(node, "colored", lambda _1, _2: dummy(KeyError))
+    monkeypatch.setattr(node, "colored", dummy)
+
     tnode = Node()
     tnode._text_name = "ATest"
     tnode._colour = "invalid"
     with pytest.raises(InternalError) as err:
         _ = tnode.coloured_name()
-    assert ("The _colour attribute in class 'Node' has been set to an "
-            "unsupported colour 'invalid'." in str(err.value))
+    assert ("The _colour attribute in class 'Node' has been set to a "
+            "colour ('invalid') that is not supported by the termcolor "
+            "package." in str(err.value))
 
 
 def test_node_str():
-
     ''' Tests for the Node.node_str method. '''
     tnode = Node()
     # Node is an abstract class

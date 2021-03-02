@@ -339,9 +339,9 @@ class Node(object):
                 return colored(self._text_name, self._colour)
             except KeyError as info:
                 message = (
-                    "The _colour attribute in class '{0}' has been set to an "
-                    "unsupported colour '{1}'."
-                    "".format(type(self).__name__, self._colour))
+                    "The _colour attribute in class '{0}' has been set to a "
+                    "colour ('{1}') that is not supported by the termcolor "
+                    "package.".format(type(self).__name__, self._colour))
                 six.raise_from(InternalError(message), info)
         return self._text_name
 
