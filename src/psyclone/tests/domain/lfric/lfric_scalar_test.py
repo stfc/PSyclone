@@ -42,6 +42,7 @@ functionality for the LFRic scalar arguments.
 from __future__ import absolute_import, print_function
 import os
 import pytest
+import six
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.dynamo0p3 import LFRicScalarArgs
 from psyclone.f2pygen import ModuleGen
@@ -77,9 +78,12 @@ def test_lfricscalars_call_err():
     scalar_arg._intrinsic_type = "double-type"
     with pytest.raises(InternalError) as err:
         LFRicScalarArgs(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
+    test_str = str(err.value)
+    if six.PY2:
+        test_str = test_str.replace("u'", "'")
     assert ("Found unsupported intrinsic types for the scalar arguments "
             "['a'] to Invoke 'invoke_0_testkern_two_scalars_type'. Supported "
-            "types are ['real', 'integer']." in str(err.value))
+            "types are ['real', 'integer']." in test_str)
 
 
 def test_int_real_scalar_invalid():

@@ -42,6 +42,7 @@ from __future__ import absolute_import
 
 import re
 import pytest
+import six
 
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.core.access_type import AccessType
@@ -177,8 +178,8 @@ def test_invalid_fortran_datatype(tmpdir):
 
         assert ("Invalid Fortran datatype found in the \'[dynamo0.3]\' "
                 "section 'supported_fortran_datatypes'" in str(err.value))
-        assert ("Supported Fortran datatypes are: ['real', 'integer', "
-                "'logical']." in str(err.value))
+        assert ("Supported Fortran datatypes are: [\'real\', \'integer\', "
+                "\'logical\']." in str(err.value))
 
 
 def test_invalid_default_kind(tmpdir):
@@ -198,10 +199,13 @@ def test_invalid_default_kind(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=str(config_file))
 
+        test_str = str(err.value)
+        if six.PY2:
+            test_str = test_str.replace("u'", "'")
         assert ("Fortran datatypes in the 'default_kind' mapping in the "
-                "\'[dynamo0.3]\' section " in str(err.value))
-        assert ("do not match the supported Fortran datatypes ['real', "
-                "'integer', 'logical']." in str(err.value))
+                "\'[dynamo0.3]\' section " in test_str)
+        assert ("do not match the supported Fortran datatypes [\'real\', "
+                "\'integer\', \'logical\']." in test_str)
 
     # Test invalid kind (precision)
     content = re.sub("integer: i_def,", "integer: ,", _CONFIG_CONTENT)
@@ -213,11 +217,13 @@ def test_invalid_default_kind(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=str(config_file))
 
+        test_str = str(err.value)
+        if six.PY2:
+            test_str = test_str.replace("u'", "'")
         assert ("Supplied kind parameters [\'l_def\', \'r_def\'] in "
-                "the \'[dynamo0.3]\' section" in str(err.value))
+                "the \'[dynamo0.3]\' section" in test_str)
         assert ("do not define the default kind for one or more supported "
-                "datatypes [\'real\', \'integer\', \'logical\']."
-                in str(err.value))
+                "datatypes [\'real\', \'integer\', \'logical\']." in test_str)
 
 
 def test_invalid_num_any_anyd_spaces(tmpdir):
