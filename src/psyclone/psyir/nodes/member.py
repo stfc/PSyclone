@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the Member node.'''
@@ -57,7 +58,7 @@ class Member(Node):
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "Member"
-    _colour_key = "Reference"
+    _colour = "yellow"
 
     def __init__(self, member_name, parent=None):
         # Avoid circular dependency
