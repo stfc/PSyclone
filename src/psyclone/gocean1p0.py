@@ -765,7 +765,7 @@ class GOLoop(Loop):
                 "not begin with '{{0}}': '{0}'".format(grid_property))
 
         fld_sym = self.scope.symbol_table.lookup(self.field_name)
-        return StructureReference.create(fld_sym, members[1:], parent=self)
+        return StructureReference.create(fld_sym, members[1:])
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches

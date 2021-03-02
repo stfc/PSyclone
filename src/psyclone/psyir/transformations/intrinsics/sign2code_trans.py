@@ -142,10 +142,14 @@ class Sign2CodeTrans(Operator2CodeTrans):
         oper_parent.children[node.position] = Reference(res_var_symbol,
                                                         parent=oper_parent)
 
+        # Extract the operator nodes
+        op1, op2 = node.children.pop_all()
+        op1.parent = None
+        op2.parent = None
+
         # res_var=ABS(A)
         lhs = Reference(res_var_symbol)
-        rhs = UnaryOperation.create(UnaryOperation.Operator.ABS,
-                                    node.children[0])
+        rhs = UnaryOperation.create(UnaryOperation.Operator.ABS, op1)
         new_assignment = Assignment.create(lhs, rhs)
         new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
@@ -156,7 +160,7 @@ class Sign2CodeTrans(Operator2CodeTrans):
 
         # tmp_var=B
         lhs = Reference(tmp_var_symbol)
-        new_assignment = Assignment.create(lhs, node.children[1])
+        new_assignment = Assignment.create(lhs, op2)
         new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 

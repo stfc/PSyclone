@@ -176,12 +176,14 @@ class ChildrenList(list):
 
         :raises GenerationError: if the given item is not orpahn.
         '''
+        def identifier(node):
+            return node.coloured_name(False) + " with id " + str(id(node))
         if item.parent and item.parent is not self._node_reference:
             raise GenerationError(
                 "Item '{0}' can't be child of '{1}' because it already has "
-                "'{2}' as a parent.".format(str(item),
-                                            str(self._node_reference),
-                                            str(item.parent)))
+                "'{2}' as a parent.".format(identifier(item),
+                                            identifier(self._node_reference),
+                                            identifier(item.parent)))
 
     def append(self, item):
         ''' Extends list append method with children node validation.
@@ -269,9 +271,18 @@ class ChildrenList(list):
 
         '''
         positiveindex = index if index >= 0 else len(self) - index
-        for position in range(positiveindex, len(self)):
+        # Check if the items after this positiveindex will be valid at their
+        # position - 1
+        for position in range(positiveindex + 1, len(self)):
             self._validate_item(position - 1, self[position])
         return super(ChildrenList, self).pop(index)
+
+    def pop_all(self):
+        ''' Remove all items from the list and return them.
+
+        '''
+        result, self = list(self[:]), []
+        return result
 
     def reverse(self):
         ''' Extends list reverse method with children node validation. '''

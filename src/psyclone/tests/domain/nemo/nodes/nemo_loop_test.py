@@ -171,6 +171,8 @@ def test_kernel():
 
     schedule = nemo_loop.loop_body
     loop_content = schedule.children
+    for node in loop_content:
+        node.parent = None
     nemo_kern = NemoKern(loop_content, None)
     nemo_kern.parent = schedule
     schedule.children = [nemo_kern]

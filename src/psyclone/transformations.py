@@ -3303,6 +3303,8 @@ class ACCKernelsTrans(RegionTrans):
         # as it may just be a reference to the parent.children list
         # that we are about to modify.
         from psyclone.psyGen import ACCKernelsDirective
+        for child in node_list:
+            child.parent = None
         directive = ACCKernelsDirective(parent=parent,
                                         children=node_list[:],
                                         default_present=default_present)
@@ -3423,6 +3425,8 @@ class ACCDataTrans(RegionTrans):
         # as it may just be a reference to the parent.children list
         # that we are about to modify.
         from psyclone.psyGen import ACCDataDirective
+        for node in node_list:
+            node.parent = None
         directive = ACCDataDirective(parent=parent, children=node_list[:])
         start_index = parent.children.index(node_list[0])
 

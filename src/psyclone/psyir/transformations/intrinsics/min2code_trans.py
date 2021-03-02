@@ -148,12 +148,15 @@ class Min2CodeTrans(Operator2CodeTrans):
 
         # res_var=A
         lhs = Reference(res_var_symbol)
-        new_assignment = Assignment.create(lhs, node.children[0])
+        rhs = node.children.pop(0)
+        rhs.parent = None
+        new_assignment = Assignment.create(lhs, rhs)
         new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # For each of the remaining min arguments (B,C...)
-        for expression in node.children[1:]:
+        for expression in node.children.pop_all():
+            expression.parent = None
 
             # tmp_var=(B or C or ...)
             lhs = Reference(tmp_var_symbol)
