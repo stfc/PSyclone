@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -61,8 +61,10 @@ def setup():
 
 
 def test_stub_stencil_extent():
-    ''' Check that correct stub code is produced when there is a stencil
-    access '''
+    '''
+    Check that correct stub code is produced when there is a stencil
+    access
+    '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -84,8 +86,10 @@ def test_stub_stencil_extent():
 
 
 def test_stub_cross2d_stencil():
-    '''Check that the correct stub code is generated when using a CROSS2D
-    stencil'''
+    '''
+    Check that the correct stub code is generated when using a CROSS2D
+    stencil
+    '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_cross2d_mod.f90"),
                       ignore_comments=False)
@@ -112,8 +116,10 @@ def test_stub_cross2d_stencil():
 
 
 def test_stub_stencil_direction():
-    '''Check that correct stub code is produced when there is a stencil
-    access which requires a direction argument '''
+    '''
+    Check that correct stub code is produced when there is a stencil
+    access which requires a direction argument
+    '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_xory1d_mod.f90"),
                       ignore_comments=False)
@@ -136,8 +142,10 @@ def test_stub_stencil_direction():
 
 
 def test_stub_stencil_vector():
-    '''Check that correct stub code is produced when there is a stencil
-    access which is a vector '''
+    '''
+    Check that correct stub code is produced when there is a stencil
+    access which is a vector
+    '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_vector_mod.f90"),
                       ignore_comments=False)
@@ -160,8 +168,10 @@ def test_stub_stencil_vector():
 
 
 def test_stub_stencil_multi():
-    '''Check that correct stub code is produced when there are multiple
-    stencils'''
+    '''
+    Check that correct stub code is produced when there are multiple
+    stencils
+    '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_multi_mod.f90"),
                       ignore_comments=False)

@@ -1466,7 +1466,6 @@ class DynStencils(DynCollection):
         unique = DynStencils.stencil_unique_str(arg, "length")
         return symtab.symbol_from_tag(unique, root_name).name
 
-    @property
     def _unique_max_branch_length_vars(self):
         '''
         :returns: list of all the unique max stencil extent argument names in
@@ -1493,11 +1492,11 @@ class DynStencils(DynCollection):
         '''
         api_config = Config.get().api_conf("dynamo0.3")
 
-        if self._unique_max_branch_length_vars:
+        if self._unique_max_branch_length_vars():
             parent.add(DeclGen(
                 parent, datatype="integer",
                 kind=api_config.default_kind["integer"],
-                entity_decls=self._unique_max_branch_length_vars, intent="in"
+                entity_decls=self._unique_max_branch_length_vars(), intent="in"
             ))
 
     @staticmethod
@@ -1555,25 +1554,30 @@ class DynStencils(DynCollection):
 
         if self._unique_extent_vars:
             for arg in self._kern_args:
-                if arg.descriptor.stencil['type'] == "cross2d":
-                    if self._kernel:
+                if self._kernel:
+                    if arg.descriptor.stencil['type'] == "cross2d":
                         parent.add(DeclGen(
                             parent, datatype="integer",
                             kind=api_config.default_kind["integer"],
                             dimension="4",
                             entity_decls=self._unique_extent_vars, intent="in"
                         ))
-                    elif self._invoke:
+                    else:
                         parent.add(DeclGen(
                             parent, datatype="integer",
                             kind=api_config.default_kind["integer"],
-                            entity_decls=self._unique_extent_vars, intent="in"
-                        ))
-                else:
+                            entity_decls=self._unique_extent_vars,
+                            intent="in"))
+                elif self._invoke:
                     parent.add(DeclGen(
                         parent, datatype="integer",
                         kind=api_config.default_kind["integer"],
-                        entity_decls=self._unique_extent_vars, intent="in"))
+                        entity_decls=self._unique_extent_vars, intent="in"
+                    ))
+                else:
+                    raise InternalError(
+                        "_unique_extent_vars: have neither Invoke "
+                        "or Kernel. Should be impossible.")
 
     @property
     def _unique_direction_vars(self):

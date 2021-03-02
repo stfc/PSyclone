@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -238,7 +238,7 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariableAccessInfo instance to store \
+        :param var_accesses: optional `VariableAccessInfo` instance to store \
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariableAccessInfo`
@@ -259,7 +259,7 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional `VariablesAccessInfo` instance to store \
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
@@ -277,7 +277,7 @@ class KernStubArgList(ArgOrdering):
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional `VariablesAccessInfo` instance to store \
             the information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
@@ -289,7 +289,7 @@ class KernStubArgList(ArgOrdering):
         # branch_in_stencil) where the branch_in_stencil is always ordered
         # West, South, East, North which is standard in LFRic. This allows
         # for knowledge of what direction a stencil cell is in relation
-        # to the center even when the stencil is truncated at boundaries.
+        # to the centre even when the stencil is truncated at boundaries.
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
