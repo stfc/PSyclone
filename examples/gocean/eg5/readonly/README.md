@@ -1,4 +1,4 @@
-# PSyclone GOcean PSyData Example 3 - ReadOnly-Verification
+# PSyclone GOcean PSyData - ReadOnly-Verification Example
 
 **Author:** J. Henrichs, Bureau of Meteorology
 

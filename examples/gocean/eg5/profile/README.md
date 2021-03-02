@@ -1,4 +1,4 @@
-# PSyclone GOcean PSyData Example 2 - Profiling
+# PSyclone GOcean PSyData Profiling Example
 
 **Author:** J. Henrichs, Bureau of Meteorology
 

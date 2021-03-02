@@ -72,10 +72,10 @@ compile: transform $(NAME)
 
 transform: psy.f90
 
-# The name of the stand-alone driver that will do the init invokes.
+# The name of the stand-alone driver that will call the init kernel.
 DRIVER_INIT = driver-main-init
 
-# The name of the stand-alone driver that will call the update function.
+# The name of the stand-alone driver that will call the update kernel.
 DRIVER_UPDATE = driver-main-update
 
 F90FLAGS += $$(nf-config --fflags) -I$(INF_INC) -I$(EXTRACT_DIR)

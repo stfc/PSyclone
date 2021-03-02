@@ -1,4 +1,4 @@
-# PSyclone GOcean PSyData Example 1 - Extraction
+# PSyclone GOcean PSyData Kernel-Extraction Example
 
 **Author** J. Henrichs, Bureau of Meteorology
 
@@ -24,8 +24,8 @@ corresponding subdirectories.
 To create and compile the example, modify the Makefile if required
 and type ``make``.
 
-PSyclone is invoked with the script ``extract_transform.py`` which will 
-add extract regions around the invokes:
+PSyclone is supplied with the ``extract_transform.py`` transformation script
+which will add extract regions around the invokes:
 ```
 psyclone -nodm -l -api "gocean1.0"             \
          --config ../../../../config/psyclone.cfg \

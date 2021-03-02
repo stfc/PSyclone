@@ -33,8 +33,6 @@
 # ------------------------------------------------------------------------------
 # Author: . Henrichs, Bureau of Meteorology
 
-EXAMPLES=extract profile readonly
-
 # Get the PSyclone root directory as absolute path. This way
 # directories can be provided as absolute paths to other build
 # directories and be valid in these directories. For example,here
@@ -79,8 +77,9 @@ simple_timing:
 	        WRAPPER_NAME="simple_timing"               \
 	        simple_timing_lib $(NAME).simple_timing
 
-# Needs to additionally link with DrHook library. As default
-# assume DrHook is installed 'next' to PSyclone
+# Needs to additionally link with DrHook library. This library is
+# not public, access to it must be requested from ECMWF.
+# As default assume DrHook is installed 'next' to PSyclone
 DRHOOK_DIR?=$(ROOT_DIR)/../drhook
 drhook:
 	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/drhook"                \
@@ -88,9 +87,11 @@ drhook:
 			PROFILE_LINK="-L $(DRHOOK_DIR)/build/lib -ldrhook" \
 	        drhook_lib $(NAME).drhook
 
-# As default assume apeg-dl_timer is installed 'next' to PSyclone.
+# The dl-timer library is available from:
+# https://bitbucket.org/apeg/dl_timer/src/master/
+# As default assume dl_timer is installed 'next' to PSyclone.
 DL_TIMER_ROOT?=$(ROOT_DIR)/../apeg-dl_timer
-# Needs to link with openmp because apeg-dl_timer library needs openmp. 
+# Needs to link with openmp because the dl_timer library needs openmp.
 dl_timer:
 	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/dl_timer"                     \
 	        WRAPPER_NAME="dl_timer_psy"                               \
