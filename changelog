@@ -395,6 +395,9 @@
 
 	127) PR #1138 for #1137. Add support for Fortran Program in the PSyIR.
 
+        128) PR #1122 for #1112. Restructures the way the colour to use
+        for a given PSyIR node is specified.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
