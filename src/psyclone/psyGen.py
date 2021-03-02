@@ -1160,7 +1160,7 @@ class Directive(Statement):
     # Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "Directive"
-    _colour_key = "Directive"
+    _colour = "green"
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
@@ -2240,7 +2240,7 @@ class GlobalSum(Statement):
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "GlobalSum"
-    _colour_key = "GlobalSum"
+    _colour = "cyan"
 
     def __init__(self, scalar, parent=None):
         Node.__init__(self, children=[], parent=parent)
@@ -2308,7 +2308,7 @@ class HaloExchange(Statement):
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "HaloExchange"
-    _colour_key = "HaloExchange"
+    _colour = "blue"
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
@@ -2762,7 +2762,7 @@ class CodedKern(Kern):
     '''
     # Textual description of the node.
     _text_name = "CodedKern"
-    _colour_key = "CodedKern"
+    _colour = "magenta"
 
     def __init__(self, KernelArguments, call, parent=None, check=True):
         self._parent = parent
@@ -3387,7 +3387,7 @@ class InlinedKern(Kern):
     # Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "InlinedKern"
-    _colour_key = "InlinedKern"
+    _colour = "magenta"
 
     def __init__(self, psyir_nodes):
         # pylint: disable=non-parent-init-called, super-init-not-called
@@ -3442,7 +3442,7 @@ class BuiltIn(Kern):
     '''
     # Textual description of the node.
     _text_name = "BuiltIn"
-    _colour_key = "BuiltIn"
+    _colour = "magenta"
 
     def __init__(self):
         # We cannot call Kern.__init__ as don't have necessary information

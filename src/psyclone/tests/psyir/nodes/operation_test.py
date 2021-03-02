@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE, \
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
+from psyclone.psyir.nodes.node import colored
 
 
 # Test BinaryOperation class
@@ -73,14 +74,12 @@ def test_binaryoperation_operator():
 
 def test_binaryoperation_node_str():
     ''' Check the node_str method of the Binary Operation class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     op1 = Literal("1", INTEGER_SINGLE_TYPE, parent=binary_operation)
     op2 = Literal("1", INTEGER_SINGLE_TYPE, parent=binary_operation)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
-    coloredtext = colored("BinaryOperation",
-                          SCHEDULE_COLOUR_MAP["Operation"])
+    coloredtext = colored("BinaryOperation", BinaryOperation._colour)
     assert coloredtext+"[operator:'ADD']" in binary_operation.node_str()
 
 
@@ -193,12 +192,10 @@ def test_unaryoperation_operator():
 
 def test_unaryoperation_node_str():
     ''' Check the view method of the UnaryOperation class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     ref1 = Reference(DataSymbol("a", REAL_SINGLE_TYPE))
     unary_operation = UnaryOperation.create(UnaryOperation.Operator.MINUS,
                                             ref1)
-    coloredtext = colored("UnaryOperation",
-                          SCHEDULE_COLOUR_MAP["Operation"])
+    coloredtext = colored("UnaryOperation", UnaryOperation._colour)
     assert coloredtext+"[operator:'MINUS']" in unary_operation.node_str()
 
 
@@ -268,7 +265,6 @@ def test_unaryoperation_children_validation():
 
 def test_naryoperation_node_str():
     ''' Check the node_str method of the Nary Operation class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     nary_operation = NaryOperation(NaryOperation.Operator.MAX)
     nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE,
                                     parent=nary_operation))
@@ -277,8 +273,7 @@ def test_naryoperation_node_str():
     nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE,
                                     parent=nary_operation))
 
-    coloredtext = colored("NaryOperation",
-                          SCHEDULE_COLOUR_MAP["Operation"])
+    coloredtext = colored("NaryOperation", NaryOperation._colour)
     assert coloredtext+"[operator:'MAX']" in nary_operation.node_str()
 
 

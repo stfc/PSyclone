@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ class Reference(DataNode):
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "Reference"
-    _colour_key = "Reference"
+    _colour = "yellow"
 
     def __init__(self, symbol, parent=None):
         if not isinstance(symbol, Symbol):

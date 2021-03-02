@@ -5864,6 +5864,7 @@ class DynHaloExchangeStart(DynHaloExchange):
     '''
     # Textual description of the node.
     _text_name = "HaloExchangeStart"
+    _colour = "yellow"
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
@@ -5976,6 +5977,7 @@ class DynHaloExchangeEnd(DynHaloExchange):
     '''
     # Textual description of the node.
     _text_name = "HaloExchangeEnd"
+    _colour = "yellow"
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):

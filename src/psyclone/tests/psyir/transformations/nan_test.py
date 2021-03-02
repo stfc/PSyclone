@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified by: R. W. Ford, STFC Daresbury
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for NanTestTrans and NanTestNode
@@ -42,8 +43,7 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import (colored, Node, NanTestNode,
-                                  SCHEDULE_COLOUR_MAP)
+from psyclone.psyir.nodes import colored, Node, NanTestNode, Schedule
 from psyclone.psyir.transformations import (NanTestTrans,
                                             TransformationError)
 from psyclone.tests.utilities import get_invoke
@@ -86,9 +86,8 @@ def test_nan_test_basic(capsys):
     result, _ = capsys.readouterr()
 
     # Create the coloured text (if required)
-    read_node = colored("NanTest",
-                        SCHEDULE_COLOUR_MAP["NanTest"])
-    sched_node = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    read_node = colored("NanTest", NanTestNode._colour)
+    sched_node = colored("Schedule", Schedule._colour)
     assert """{0}[]
             0: {1}[]
                 {0}[]""".format(sched_node, read_node) in result

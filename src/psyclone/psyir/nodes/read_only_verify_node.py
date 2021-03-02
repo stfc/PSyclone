@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified by: R. W. Ford, STFC Daresbury Lab
 
 '''
 This module provides support for verification that read-only variables are
@@ -77,7 +78,7 @@ class ReadOnlyVerifyNode(PSyDataNode):
                                                  parent=parent,
                                                  options=my_options)
         self._text_name = "ReadOnlyVerify"
-        self._colour_key = "ReadOnlyVerify"
+        self._colour = "green"
 
     @property
     def read_only_verify_body(self):
