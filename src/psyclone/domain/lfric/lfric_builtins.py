@@ -410,7 +410,7 @@ class LFRicIncAPlusXKern(LFRicBuiltIn):
 
     '''
     def __str__(self):
-        return "Built-in: inc_a_plus_X (real-valued fields)"
+        return "Built-in: inc_a_plus_X (real-valued field)"
 
     def gen_code(self, parent):
         '''

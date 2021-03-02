@@ -92,7 +92,7 @@ use argument_mod,  only : arg_type,            &
      private
      type(arg_type) :: meta_args(3) = (/                              &
           arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
-          arg_type(GH_SCALAR, GH_REAL, GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
           arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
           /)
      integer :: operates_on = DOF
