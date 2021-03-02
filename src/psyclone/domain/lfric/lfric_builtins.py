@@ -1156,7 +1156,7 @@ class LFRicIntIncAPlusXKern(LFRicIncAPlusXKern):
 
     '''
     def __str__(self):
-        return "Built-in: int_inc_a_plus_X (integer-valued fields)"
+        return "Built-in: int_inc_a_plus_X (integer-valued field)"
 
 
 # ------------------------------------------------------------------- #
