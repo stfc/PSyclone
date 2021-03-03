@@ -285,9 +285,9 @@ class GOInvoke(Invoke):
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
         '''
 
-        def split_by_interface(symbol_names):
+        def sort_by_interface(symbol_names):
             ''' Utility to help differentiate between arguments, local symbols
-            and other symbols (globals, unresolved, ...)
+            and other symbols (globals, unresolved, ...).
 
             :param symbol_names: a list of symbols to categorise.
             :type symbol_names: list of str
@@ -295,7 +295,7 @@ class GOInvoke(Invoke):
             :returns: a tuple of 3 lists with the given symbol_names \
                       categorised as argument symbols, local symbols and \
                       other symbols.
-            :rtype: 3-tuple
+            :rtype: 3-tuple of lists of str
             '''
             arg_symbols = []
             local_symbols = []
@@ -339,7 +339,7 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_arrays)
 
         # Add the subroutine argument declarations for real scalars
-        r_args, _, _ = split_by_interface(self.unique_args_rscalars)
+        r_args, _, _ = sort_by_interface(self.unique_args_rscalars)
         if r_args:
             my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
                                        intent="inout", kind="go_wp",
@@ -347,7 +347,7 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_rscalars)
 
         # Add the subroutine declarations for integer scalars
-        int_args, int_locals, _ = split_by_interface(self.unique_args_iscalars)
+        int_args, int_locals, _ = sort_by_interface(self.unique_args_iscalars)
         if int_args:
             my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
                                        intent="inout",
@@ -956,7 +956,7 @@ class GOLoop(Loop):
         '''
         In-place replacement of DSL or high-level concepts into generic
         PSyIR constructs. A GOLoop needs to make sure the start and stop
-        expression of the Loop contain the boundaries defined by the API.
+        expressions of the Loop contain the boundaries defined by the API.
 
         '''
         # Generate the upper and lower loop bounds
@@ -1376,14 +1376,37 @@ class GOKern(CodedKern):
             self.root.symbol_table.add(RoutineSymbol(sub_name), tag=sub_name)
         argsetter_st.add(RoutineSymbol(sub_name), tag=sub_name)
 
+        # Create the f2pygen Subroutine node, the subroutine arguments are not
+        # provided yet as they have to be processed to avoid name clashes
         sub = SubroutineGen(parent, name=sub_name)
         parent.add(sub)
+
+        def resolve_argument_names(args):
+            ''' Utility to declare the given arguments in the argsetter_st and
+            if any name is already used, update the argument_names list with
+            a new name to avoid the clash.
+
+            :params args: A subset of arguments from self.arguments.args
+            :type args: list of :py:class:`psyclone.psyGen.Arguments`
+
+            :returns: Updated name list for the arguments
+            :rtype: list of str
+            '''
+            names = []
+            for arg in args:
+                name = argsetter_st.new_symbol(arg.name).name
+                argument_names[self.arguments.args.index(arg)] = name
+                names.append(name)
+            return names
+
+        # Add module imports
         sub.add(UseGen(sub, name="ocl_utils_mod", only=True,
                        funcnames=["check_status"]))
         sub.add(UseGen(sub, name="iso_c_binding", only=True,
                        funcnames=["c_sizeof", "c_loc", "c_intptr_t"]))
         sub.add(UseGen(sub, name="clfortran", only=True,
                        funcnames=["clSetKernelArg"]))
+
         # Declare arguments
         sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
                         target=True, entity_decls=[kobj]))
@@ -1395,25 +1418,16 @@ class GOKern(CodedKern):
         # Array grid properties are c_intptr_t
         args = [x for x in grid_prop_args if not x.is_scalar]
         if args:
-            # Use symbol table to avoid name clashes
-            names = []
-            for arg in args:
-                name = argsetter_st.new_symbol(arg.name).name
-                argument_names[self.arguments.args.index(arg)] = name
-                names.append(name)
+            names = resolve_argument_names(args)
             sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
                             intent="in", target=True, entity_decls=names))
 
         # Scalar integer grid properties
         args = [x for x in grid_prop_args
                 if x.is_scalar and x.intrinsic_type == "integer"]
+
         if args:
-            # Use symbol table to avoid name clashes
-            names = []
-            for arg in args:
-                name = argsetter_st.new_symbol(arg.name).name
-                argument_names[self.arguments.args.index(arg)] = name
-                names.append(name)
+            names = resolve_argument_names(args)
             sub.add(DeclGen(sub, datatype="integer", intent="in",
                             target=True, entity_decls=names))
 
@@ -1421,12 +1435,7 @@ class GOKern(CodedKern):
         args = [x for x in grid_prop_args
                 if x.is_scalar and x.intrinsic_type == "real"]
         if args:
-            # Use symbol table to avoid name clashes
-            names = []
-            for arg in args:
-                name = argsetter_st.new_symbol(arg.name).name
-                argument_names[self.arguments.args.index(arg)] = name
-                names.append(name)
+            names = resolve_argument_names(args)
             sub.add(DeclGen(sub, datatype="real", intent="in", kind="go_wp",
                             target=True, entity_decls=names))
 
@@ -1473,7 +1482,7 @@ class GOKern(CodedKern):
                  err_name]))
             index = index + 1
 
-        # Update the argument list with the final names
+        # Finally we can provide the updated argument list without name clashes
         sub.args = [kobj] + argument_names
 
     def gen_data_on_ocl_device(self, parent):
