@@ -720,6 +720,38 @@ class LFRicIncXMinusBYKern(LFRicBuiltIn):
         parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
 
 
+class LFRicAXMinusBYKern(LFRicBuiltIn):
+    ''' `Z = a*X - b*Y` where `a` and `b` are real scalars and `Z`, `X` and
+    `Y` are real-valued fields.
+
+    '''
+    def __str__(self):
+        return "Built-in: aX_minus_bY (real-valued fields)"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        aX_minus_bY Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # We multiply one element of field f1 (3rd arg) by the first, real,
+        # scalar (2nd arg), subtract it from the product of the corresponding
+        # element of a second field (5th arg) with the second, real, scalar
+        # (4th arg) and write the value to the corresponding element of
+        # field f3 (1st arg) (real-valued fields).
+        field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
+        scalar_name1 = self._arguments.args[1].name
+        scalar_name2 = self._arguments.args[3].name
+        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[4].proxy_name)
+        rhs_expr = (scalar_name1 + "*" + field_name1 + " - " +
+                    scalar_name2 + "*" + field_name2)
+        parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
+
+
 # ------------------------------------------------------------------- #
 # ============== Multiplying (scaled) real fields =================== #
 # ------------------------------------------------------------------- #
@@ -1355,6 +1387,7 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "aX_minus_Y": LFRicAXMinusYKern,
     "X_minus_bY": LFRicXMinusBYKern,
     "inc_X_minus_bY": LFRicIncXMinusBYKern,
+    "aX_minus_bY": LFRicAXMinusBYKern,
     # Multiplying (scaled) real fields
     "X_times_Y": LFRicXTimesYKern,
     "inc_X_times_Y": LFRicIncXTimesYKern,

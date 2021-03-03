@@ -251,6 +251,21 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: inc_X_minus_bY_code
   end type inc_X_minus_bY
 
+  !> field3 = scalar1*field1 - scalar2*field2
+  type, public, extends(kernel_type) :: aX_minus_bY
+     private
+     type(arg_type) :: meta_args(5) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: aX_minus_bY_code
+  end type aX_minus_bY
+
 ! ------------------------------------------------------------------- !
 ! ============== Multiplying (scaled) real fields =================== !
 ! ------------------------------------------------------------------- !
@@ -699,6 +714,9 @@ contains
 
   subroutine inc_X_minus_bY_code()
   end subroutine inc_X_minus_bY_code
+
+  subroutine aX_minus_bY_code()
+  end subroutine aX_minus_bY_code
 
   ! Multiplying (scaled) real fields
   subroutine X_times_Y_code()
