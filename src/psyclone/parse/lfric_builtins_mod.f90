@@ -728,10 +728,10 @@ contains
   ! Dividing a real scalar by elements of a
   ! real field (inverse scaling of fields)
   subroutine a_divideby_X_code()
-  subroutine a_divideby_X_code
+  end subroutine a_divideby_X_code
 
   subroutine inc_a_divideby_X_code()
-  subroutine inc_a_divideby_X_code
+  end subroutine inc_a_divideby_X_code
 
   ! Raising a real field to a scalar
   subroutine inc_X_powreal_a_code()
