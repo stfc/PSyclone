@@ -105,6 +105,11 @@ class Operation(DataNode):
         return self.coloured_name(colour) + \
             "[operator:'" + self._operator.name + "']"
 
+    def copy(self):
+        result = type(self)(self.operator)
+        result.children = [child.copy() for child in self.children]
+        return result
+
     def __str__(self):
         result = self.node_str(False) + "\n"
         for entity in self._children:

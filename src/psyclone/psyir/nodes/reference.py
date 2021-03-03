@@ -135,6 +135,9 @@ class Reference(DataNode):
             return
         var_accesses.add_access(self.name, AccessType.READ, self)
 
+    def copy(self):
+        return type(self)(self.symbol)
+
 
 # For AutoAPI documentation generation
 __all__ = ['Reference']

@@ -1179,6 +1179,11 @@ class Node(object):
             "Unable to find the scope of node '{0}' as none of its ancestors "
             "are Container or Schedule nodes.".format(self))
 
+    def copy(self):
+        ''' Return a copy of this node and its branching subtree '''
+        raise NotImplementedError(
+            "Please implement {0} copy() method.".format(type(self)))
+
 
 # For automatic documentation generation
 # TODO #913 the 'colored' routine shouldn't be in this module.
