@@ -577,6 +577,36 @@ class LFRicIncAXPlusBYKern(LFRicBuiltIn):
         parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
 
 
+class LFRicAXPlusAYKern(LFRicBuiltIn):
+    ''' `Z = a*X + a*Y = a*(X + Y)` where `a` is a real scalars and `Z`,
+    `X` and `Y` are real-valued fields.
+
+    '''
+    def __str__(self):
+        return "Built-in: aX_plus_aY (real-valued fields)"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        aX_plus_aY Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # We add each element of field f1 (3rd arg) to the corresponding
+        # element of field f2 (4th arg), multiply the sum by a real
+        # scalar (2nd arg) and write the value to the corresponding
+        # element of field f3 (1st arg) (real-valued fields).
+        field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
+        scalar_name = self._arguments.args[1].name
+        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[3].proxy_name)
+        rhs_expr = (scalar_name + "*(" + field_name1 + " + " +
+                    field_name2 + ")")
+        parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
+
+
 # ------------------------------------------------------------------- #
 # ============== Subtracting (scaled) real fields =================== #
 # ------------------------------------------------------------------- #
@@ -1381,6 +1411,7 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "inc_X_plus_bY": LFRicIncXPlusBYKern,
     "aX_plus_bY": LFRicAXPlusBYKern,
     "inc_aX_plus_bY": LFRicIncAXPlusBYKern,
+    "aX_plus_aY": LFRicAXPlusAYKern,
     # Subtracting (scaled) real fields
     "X_minus_Y": LFRicXMinusYKern,
     "inc_X_minus_Y": LFRicIncXMinusYKern,
