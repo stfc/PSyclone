@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import ScalarType, ArrayType, \
     REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.nodes.node import colored
 
 
 def test_literal_init():
@@ -161,14 +161,14 @@ def test_literal_node_str():
     ''' Check the node_str method of the Literal class.'''
     # scalar literal
     literal = Literal("1", INTEGER_SINGLE_TYPE)
-    coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+    coloredtext = colored("Literal", Literal._colour)
     assert (coloredtext+"[value:'1', Scalar<INTEGER, SINGLE>]"
             in literal.node_str())
 
     # array literal
     array_type = ArrayType(REAL_DOUBLE_TYPE, [10, 10])
     literal = Literal("1", array_type)
-    coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+    coloredtext = colored("Literal", Literal._colour)
     assert (coloredtext+"[value:'1', Array<Scalar<REAL, DOUBLE>, "
             "shape=[Literal[value:'10', Scalar<INTEGER, UNDEFINED>], "
             "Literal[value:'10', Scalar<INTEGER, UNDEFINED>]]>]"

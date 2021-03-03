@@ -34,10 +34,7 @@
 ! Author: A. R. Porter, STFC Daresbury Laboratory
 program runner
   use tra_adv_mod, only: tra_adv
-  use profile_psy_data_mod, only: profile_psydatashutdown
 
   call tra_adv()
-
-  call profile_psydatashutdown()
 
 end program runner

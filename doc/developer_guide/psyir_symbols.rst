@@ -156,6 +156,64 @@ the `__contains__` method has no mechanism to pass a `scope_limit`
 optional argument. This would probably require a separate `setter` and
 `getter` to specify whether to check ancestors or not.
 
+Specialising Symbols
+====================
+
+When code is translated into PSyIR there may be symbols with unknown
+types, perhaps due to symbols being declared in different files. For
+example, in the following declaration it is not possible to know the
+type of symbol `fred` without knowing the contents of the `my_module`
+module:
+
+.. code-block:: fortran
+
+    use my_module, only : fred
+
+In such cases a generic `Symbol` is created and added to the symbol
+table.
+
+Later on in the code translation it may be that `fred` is used as the
+name of a subroutine call:
+
+.. code-block:: fortran
+
+    call fred()
+
+It is now known that `fred` is a `RoutineSymbol` so the original
+`Symbol` should be replaced by a `RoutineSymbol`.
+
+A simple way to do this would be to remove the original symbol for
+`fred` from the symbol table and replace it with a new one that is a
+`RoutineSymbol`. However, the problem with this is that there may be
+separate references to this symbol from other parts of the PSyIR and
+these references would continue to reference the original symbol.
+
+One solution would be to search through all places where references
+could occur and update them accordingly. Another would be to modify
+the current implementation so that either a) references went in both
+directions or b) references were replaced with names and lookups. Each
+of these solutions has their benefits and disadvantages.
+
+What is currently done is to specialise the symbol in place (so that
+any references to it do not need to change). This is implemented by the
+`specialise` method in the `Symbol` class. It takes a subclass of a
+`Symbol` as an argument and modifies the instance so that it becomes
+the subclass. For example:
+
+.. code-block:: python
+
+    sym = Symbol("a")
+    # sym is an instance of the Symbol class
+    sym.specialise(RoutineSymbol)
+    # sym is now an instance of the RoutineSymbol class
+
+In the current implementation, any additional properties (associated
+with a `RoutineSymbol` in the above example) that are not in the
+original class would need to be set explicitly after
+specialisation. It may be possible to structure `Symbol` (and subclasses
+of `Symbol`) constructors so that the `specialise` method could take
+additional arguments to initialise properties.
+
 
 Dependence Analysis
 ===================

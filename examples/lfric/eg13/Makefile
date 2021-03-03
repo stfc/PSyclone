@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
@@ -43,5 +44,8 @@ transform:
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
   -oalg alg.f90 -opsy psy.f90
 
-compile:
+compile: transform
 	@echo "No compilation supported for lfric/eg13"
+
+run: compile
+	@echo "No run targets for lfric/eg13"

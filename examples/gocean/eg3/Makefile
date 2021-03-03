@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
@@ -40,8 +41,6 @@ KERNELS=compute_cu_mod.o compute_cv_mod.o compute_z_mod.o compute_h_mod.o
 GENERATED_FILES += compute_cu_*.cl compute_cv_*.cl compute_h_*.cl \
 	compute_z_*.cl psy_gen.f90 alg_gen.f90 ${KERNELS} ${KERNELS:.o=.mod} \
 	alg_opencl.exe allkernels.cl alg_gen_dm.f90 psy_gen_dm.f90 *.exe *.o
-
-all: transform compile
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -99,8 +98,10 @@ compile-mpi-ocl: dm_fd_lib ${FORTCL_LIB} ${KERNELS} psy_gen_dm.o alg_gen_dm.f90
 %.o: %.f90
 	${F90} ${LDFLAGS} -I${INF_INC} -I${FORTCL_INC} -c $<
 
-compile:
-	echo "This example needs to be compiled with 'make compile-ocl'"
+compile: compile-ocl
+
+run: compile
+	@echo "No run targets for example gocean/eg3"
 
 # Override allclean rule to include INF_DIR library
 allclean: clean
