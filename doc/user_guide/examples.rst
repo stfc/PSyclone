@@ -165,7 +165,7 @@ Example 5.2: Profiling
 This example shows how to use the profiling support in PSyclone.
 It instruments two invoke statements and can link in with any
 of the following profiling wrapper libraries: template,
-simple_timer, apeg-dl_timer, and DrHook (see
+simple_timer, dl_timer, and DrHook (see
 :ref:`profiling_third_party_tools`). The ``README.md``
 file contains detailed instructions on how to build the
 different executables. By default (i.e. just using ``make``
@@ -216,10 +216,10 @@ read-only variables:
     New value:         123.00000000000000     
     --------------------------------------
 
-Example 6: Code Creation using PSyIR
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-This examples shows how the new PSyIR will be used to create compilable
-code.
+Example 6: PSy-layer Code Creation using PSyIR
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This example informs the development of the code generation of PSy-layer
+code using the PSyIR language backends.
 
 
 .. _examples_lfric:
