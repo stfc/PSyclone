@@ -685,7 +685,7 @@ def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
     else:
@@ -693,7 +693,7 @@ def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "

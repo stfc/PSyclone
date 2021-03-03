@@ -1474,7 +1474,7 @@ def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = a*f1_proxy%data(df) * "
+            "        f1_proxy%data(df) = a * f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -1486,7 +1486,7 @@ def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = a*f1_proxy%data(df) * "
+            "        f1_proxy%data(df) = a * f1_proxy%data(df) * "
             "f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -1614,7 +1614,7 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
     else:
@@ -1622,7 +1622,7 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2043,7 +2043,7 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
         assert output_seq in code
@@ -2058,7 +2058,7 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
@@ -2112,7 +2112,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)*f1_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n")
         assert output_seq in code
@@ -2127,7 +2127,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)*f1_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f1_proxy%data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
@@ -2180,7 +2180,7 @@ def test_sum_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)\n"
             "      END DO")
         assert output in code
     else:
@@ -2194,7 +2194,7 @@ def test_sum_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()")
@@ -2679,12 +2679,12 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = b*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = b * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2693,7 +2693,7 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "      CALL f1_proxy%set_dirty()\n"
             "      !\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = asum*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = asum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2724,13 +2724,13 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = b*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = b * f1_proxy%data(df)\n"
             "      END DO\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = asum*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = asum * f1_proxy%data(df)\n"
             "      END DO\n") in code
 
 

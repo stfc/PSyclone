@@ -799,7 +799,7 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
         scalar_name = self._arguments.args[0].name
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        rhs_expr = scalar_name + "*" + field_name1 + " * " + field_name2
+        rhs_expr = scalar_name + " * " + field_name1 + " * " + field_name2
         parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
 
 
@@ -855,7 +855,7 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
         field_name = self.array_ref(self._arguments.args[1].proxy_name)
         scalar_name = self._arguments.args[0].name
         parent.add(AssignGen(parent, lhs=field_name,
-                             rhs=scalar_name + "*" + field_name))
+                             rhs=scalar_name + " * " + field_name))
 
 
 # ------------------------------------------------------------------- #
@@ -911,6 +911,62 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
         field_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         parent.add(AssignGen(parent, lhs=field_name1,
                              rhs=field_name1 + " / " + field_name2))
+
+
+# # ------------------------------------------------------------------- #
+# # ============== Scaling real fields ================================ #
+# # ------------------------------------------------------------------- #
+
+
+# class LFRicADividebyXKern(LFRicBuiltIn):
+    # ''' Multiply the first, real-valued, field by a real scalar and
+    # return the result as a second, real-valued, field (Y = a.X).
+
+    # '''
+    # def __str__(self):
+        # return "Built-in: Copy a scaled real-valued field"
+
+    # def gen_code(self, parent):
+        # '''
+        # Generates LFRic API specific PSy code for a call to the
+        # a_times_X Built-in.
+
+        # :param parent: Node in f2pygen tree to which to add call.
+        # :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        # '''
+        # # We multiply each element of f1 by the real scalar argument and
+        # # store the result in f2 (real-valued fields).
+        # field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
+        # scalar_name = self._arguments.args[1].name
+        # field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        # parent.add(AssignGen(parent, lhs=field_name2,
+                             # rhs=scalar_name + " / " + field_name1))
+
+
+# class LFRicIncADividebyXKern(LFRicBuiltIn):
+    # ''' Multiply a real-valued field by a real scalar and return it.
+
+    # '''
+    # def __str__(self):
+        # return "Built-in: Scale a real-valued field"
+
+    # def gen_code(self, parent):
+        # '''
+        # Generates LFRic API specific PSy code for a call to the
+        # inc_a_times_X Built-in.
+
+        # :param parent: Node in f2pygen tree to which to add call.
+        # :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        # '''
+        # # In this case we're multiplying each element of a real-valued
+        # # field by the supplied real scalar value.
+        # field_name = self.array_ref(self._arguments.args[1].proxy_name)
+        # scalar_name = self._arguments.args[0].name
+        # parent.add(AssignGen(parent, lhs=field_name,
+                             # rhs=scalar_name + " / " + field_name))
+
 
 
 # ------------------------------------------------------------------- #
@@ -1045,7 +1101,7 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        rhs_expr = innprod_name + "+" + field_name1 + "*" + field_name2
+        rhs_expr = innprod_name + " + " + field_name1 + "*" + field_name2
         parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
 
 
@@ -1071,7 +1127,7 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
         # in the PSy layer.
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
         field_name = self.array_ref(self._arguments.args[1].proxy_name)
-        rhs_expr = innprod_name + "+" + field_name + "*" + field_name
+        rhs_expr = innprod_name + " + " + field_name + "*" + field_name
         parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
 
 
@@ -1100,7 +1156,7 @@ class LFRicSumXKern(LFRicBuiltIn):
         # variable holding the sum is initialised to zero in the PSy layer.
         field_name = self.array_ref(self._arguments.args[1].proxy_name)
         sum_name = self._reduction_ref(self._arguments.args[0].name)
-        rhs_expr = sum_name + "+" + field_name
+        rhs_expr = sum_name + " + " + field_name
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
 
