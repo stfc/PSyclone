@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,41 +40,10 @@
 This module contains the abstract Node implementation.
 
 '''
-
 import abc
+import six
 from psyclone.psyir.symbols import SymbolError
 from psyclone.errors import GenerationError, InternalError
-
-
-#: Colour map to use when writing Invoke schedule to terminal. (Requires
-#: that the termcolor package be installed. If it isn't then output is not
-#: coloured.) See https://pypi.python.org/pypi/termcolor for details.
-SCHEDULE_COLOUR_MAP = {"Schedule": "white",
-                       "Loop": "red",
-                       "GlobalSum": "cyan",
-                       "Directive": "green",
-                       "HaloExchange": "blue",
-                       "HaloExchangeStart": "yellow",
-                       "HaloExchangeEnd": "yellow",
-                       "BuiltIn": "magenta",
-                       "CodedKern": "magenta",
-                       "InlinedKern": "magenta",
-                       "PSyData": "green",
-                       "Profile": "green",
-                       "Extract": "green",
-                       "ReadOnlyVerify": "green",
-                       "NanTest": "green",
-                       "If": "red",
-                       "Assignment": "blue",
-                       "Range": "white",
-                       "Reference": "yellow",
-                       "Member": "yellow",
-                       "Operation": "blue",
-                       "Literal": "yellow",
-                       "Return": "yellow",
-                       "CodeBlock": "red",
-                       "Container": "green",
-                       "Call": "cyan"}
 
 # Default indentation string
 INDENTATION_STRING = "    "
@@ -295,7 +264,7 @@ class Node(object):
     # properties for each of them and chain the ABC @abstractmethod annotation.
     _children_valid_format = None
     _text_name = None
-    _colour_key = None
+    _colour = None
 
     def __init__(self, ast=None, children=None, parent=None, annotations=None):
         self._children = ChildrenList(self, self._validate_child,
@@ -361,11 +330,19 @@ class Node(object):
                 "given a string value in the concrete class '{0}'."
                 "".format(type(self).__name__))
         if colour:
+            if self._colour is None:
+                raise NotImplementedError(
+                    "The _colour attribute is abstract so needs to be given "
+                    "a string value in the concrete class '{0}'."
+                    "".format(type(self).__name__))
             try:
-                return colored(self._text_name,
-                               SCHEDULE_COLOUR_MAP[self._colour_key])
-            except KeyError:
-                pass
+                return colored(self._text_name, self._colour)
+            except KeyError as info:
+                message = (
+                    "The _colour attribute in class '{0}' has been set to a "
+                    "colour ('{1}') that is not supported by the termcolor "
+                    "package.".format(type(self).__name__, self._colour))
+                six.raise_from(InternalError(message), info)
         return self._text_name
 
     def node_str(self, colour=True):
@@ -1153,6 +1130,5 @@ class Node(object):
 # For automatic documentation generation
 # TODO #913 the 'colored' routine shouldn't be in this module.
 __all__ = ["colored",
-           "SCHEDULE_COLOUR_MAP",
            "ChildrenList",
            "Node"]

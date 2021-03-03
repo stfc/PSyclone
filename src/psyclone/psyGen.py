@@ -879,7 +879,7 @@ class InvokeSchedule(Routine):
      creating Kernels. e.g. :py:class:`psyclone.dynamo0p3.DynKernCallFactory`.
     :param type BuiltInFactory: class instance of the factory to use when \
      creating built-ins. e.g. \
-     :py:class:`psyclone.dynamo0p3_builtins.DynBuiltInCallFactory`.
+     :py:class:`psyclone.domain.lfric.lfric_builtins.LFRicBuiltInCallFactory`.
     :param alg_calls: list of Kernel calls in the schedule.
     :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
 
@@ -1160,7 +1160,7 @@ class Directive(Statement):
     # Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "Directive"
-    _colour_key = "Directive"
+    _colour = "green"
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
@@ -2240,7 +2240,7 @@ class GlobalSum(Statement):
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "GlobalSum"
-    _colour_key = "GlobalSum"
+    _colour = "cyan"
 
     def __init__(self, scalar, parent=None):
         Node.__init__(self, children=[], parent=parent)
@@ -2308,7 +2308,7 @@ class HaloExchange(Statement):
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "HaloExchange"
-    _colour_key = "HaloExchange"
+    _colour = "blue"
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
@@ -2628,8 +2628,17 @@ class Kern(Statement):
                                  rhs=zero), position=position)
 
     def reduction_sum_loop(self, parent):
-        '''generate the appropriate code to place after the end parallel
-        region'''
+        '''
+        Generate the appropriate code to place after the end parallel
+        region.
+
+        :param parent: the Node in the f2pygen AST to which to add new code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises GenerationError: for an unsupported reduction access in \
+                                 LFRicBuiltIn.
+
+        '''
         from psyclone.f2pygen import DoGen, AssignGen, DeallocateGen
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
@@ -2637,13 +2646,14 @@ class Kern(Statement):
         reduction_access = self._reduction_arg.access
         try:
             reduction_operator = REDUCTION_OPERATOR_MAPPING[reduction_access]
-        except KeyError:
+        except KeyError as err:
             api_strings = [access.api_specific_name()
                            for access in REDUCTION_OPERATOR_MAPPING]
-            raise GenerationError(
-                "unsupported reduction access '{0}' found in DynBuiltin:"
-                "reduction_sum_loop(). Expected one of '{1}'".
-                format(reduction_access.api_specific_name(), api_strings))
+            six.raise_from(GenerationError(
+                "Unsupported reduction access '{0}' found in LFRicBuiltIn:"
+                "reduction_sum_loop(). Expected one of {1}.".
+                format(reduction_access.api_specific_name(),
+                       api_strings)), err)
         symtab = self.root.symbol_table
         thread_idx = symtab.lookup_with_tag("omp_thread_index").name
         nthreads = symtab.lookup_with_tag("omp_num_threads").name
@@ -2752,7 +2762,7 @@ class CodedKern(Kern):
     '''
     # Textual description of the node.
     _text_name = "CodedKern"
-    _colour_key = "CodedKern"
+    _colour = "magenta"
 
     def __init__(self, KernelArguments, call, parent=None, check=True):
         self._parent = parent
@@ -3377,7 +3387,7 @@ class InlinedKern(Kern):
     # Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "InlinedKern"
-    _colour_key = "InlinedKern"
+    _colour = "magenta"
 
     def __init__(self, psyir_nodes):
         # pylint: disable=non-parent-init-called, super-init-not-called
@@ -3432,7 +3442,7 @@ class BuiltIn(Kern):
     '''
     # Textual description of the node.
     _text_name = "BuiltIn"
-    _colour_key = "BuiltIn"
+    _colour = "magenta"
 
     def __init__(self):
         # We cannot call Kern.__init__ as don't have necessary information
