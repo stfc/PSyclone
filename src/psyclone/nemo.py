@@ -533,13 +533,14 @@ class NemoLoop(Loop):
 
         # Create the loop
         loop = NemoLoop(variable=variable)
-        schedule = Schedule(parent=loop, children=children)
+        schedule = Schedule(children=children)
         loop.children = [start, stop, step, schedule]
         for child in children:
             child.parent = schedule
         start.parent = loop
         stop.parent = loop
         step.parent = loop
+        schedule.parent = loop
 
         # Indicate the type of loop
         loop_type_mapping = Config.get().api_conf("nemo") \

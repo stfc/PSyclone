@@ -174,5 +174,5 @@ def test_goloop_grid_property_psyir_expression():
             "not begin with '{0}': 'wrong%one'" in str(err.value))
     gref = loop._grid_property_psyir_expression("{0}%grid%xstart")
     assert isinstance(gref, StructureReference)
-    assert gref.parent is loop
+    assert gref.parent is None
     assert gref.symbol.name == "cv_fld"

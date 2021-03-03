@@ -231,8 +231,13 @@ class NemoArrayRange2LoopTrans(Transformation):
             idx = get_outer_index(array)
             array.children[idx] = Reference(loop_variable_symbol, parent=array)
         position = assignment.position
+        #assignment.parent = None
+        #lower_bound.parent = None
+        #upper_bound.parent = None
+        #step.parent = None
         loop = NemoLoop.create(loop_variable_symbol, lower_bound,
                                upper_bound, step, [assignment])
+        assignment.parent = loop
         parent.children[position] = loop
         loop.parent = parent
 
