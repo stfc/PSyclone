@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# Modified: A. R. Porter, S. Siso and R. W. Ford, STFC Daresbury Laboratory
 # -----------------------------------------------------------------------------
 
 ''' This module implementes a PSyData node, i.e.a node that at code
@@ -93,7 +93,7 @@ class PSyDataNode(Statement):
     # Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "PSyData"
-    _colour_key = "PSyData"
+    _colour = "green"
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
 

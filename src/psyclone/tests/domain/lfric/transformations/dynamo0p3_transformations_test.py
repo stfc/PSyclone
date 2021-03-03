@@ -62,6 +62,11 @@ from psyclone.transformations import OMPParallelTrans, LoopFuseTrans, \
     Dynamo0p3AsyncHaloExchangeTrans, \
     Dynamo0p3KernelConstTrans
 from psyclone.configuration import Config
+from psyclone.dynamo0p3 import DynLoop
+from psyclone.psyir.nodes.node import colored
+from psyclone.psyGen import OMPDoDirective, InvokeSchedule, Directive, \
+    GlobalSum, BuiltIn
+from psyclone.psyir.nodes import Loop, Schedule, Literal
 
 
 # The version of the API that the tests in this file
@@ -3520,18 +3525,15 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
     '''
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    from psyclone.dynamo0p3 import DynLoop
-    from psyclone.psyGen import OMPDoDirective
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
     # Ensure we check for text containing the correct (colour) control codes
-    isched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
-    gsum = colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
-    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-    call = colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"])
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+    isched = colored("InvokeSchedule", InvokeSchedule._colour)
+    directive = colored("Directive", Directive._colour)
+    gsum = colored("GlobalSum", GlobalSum._colour)
+    loop = colored("Loop", Loop._colour)
+    call = colored("BuiltIn", BuiltIn._colour)
+    sched = colored("Schedule", Schedule._colour)
+    lit = colored("Literal", Literal._colour)
     lit_uninit = (lit + "[value:'NOT_INITIALISED', Scalar<INTEGER, "
                   "UNDEFINED>]\n")
     lit_one = lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
@@ -3643,7 +3645,7 @@ def test_reprod_view(capsys, monkeypatch, annexed, dist_mem):
 
 
 def test_reductions_reprod():
-    '''Check that the optional reprod argument to reductions() method
+    ''' Check that the optional reprod argument to reductions() method
     works as expected. '''
     file_name = "15.9.1_X_innerproduct_Y_builtin.f90"
     for reprod in [False, True]:
@@ -3662,9 +3664,10 @@ def test_reductions_reprod():
             assert len(schedule.reductions(reprod=reprod)) == 1
             assert not schedule.reductions(reprod=not reprod)
             assert len(schedule.reductions()) == 1
-            from psyclone.dynamo0p3_builtins import DynXInnerproductYKern
+            from psyclone.domain.lfric.lfric_builtins import \
+                LFRicXInnerproductYKern
             assert (isinstance(schedule.reductions(reprod=reprod)[0],
-                               DynXInnerproductYKern))
+                               LFRicXInnerproductYKern))
 
 
 def test_list_multiple_reductions(dist_mem):
@@ -4459,9 +4462,9 @@ def test_discontinuous_no_set_clean():
 
 
 def test_dofs_no_set_clean(monkeypatch, annexed):
-    '''Test that set_clean is not added for the default iteration space of
-    a loop over dofs. This is probably covered from tests in
-    dynamo0p3_builtins_test.py but it is good to have a specific
+    ''' Test that set_clean is not added for the default iteration space
+    of a loop over dofs. This is probably covered from tests in
+    lfric_builtins_test.py but it is good to have a specific
     test. Also test with and without annexed dofs being computed as
     this affects the generated code.
 

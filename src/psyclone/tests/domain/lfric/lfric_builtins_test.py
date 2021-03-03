@@ -35,7 +35,7 @@
 # Modified I. Kavcic, Met Office
 # Modified R. W. Ford, STFC Daresbury Lab
 
-''' This module tests the support for built-in operations in the Dynamo 0.3 API
+''' This module tests the support for built-in operations in the LFRic API
     using pytest. Currently all built-in operations are 'pointwise' in that
     they iterate over DOFs. However this may change in the future. '''
 
@@ -49,13 +49,17 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError
 from psyclone.configuration import Config
-from psyclone import dynamo0p3_builtins
+from psyclone.domain.lfric import lfric_builtins
+from psyclone.domain.lfric.lfric_builtins import (
+    VALID_BUILTIN_ARG_TYPES, LFRicBuiltInCallFactory, LFRicBuiltIn)
 
 from psyclone.tests.lfric_build import LFRicBuild
 
-# constants
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
+# Constants
+BASE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))),
+    "test_files", "dynamo0p3")
 
 # The PSyclone API under test
 API = "dynamo0.3"
@@ -63,17 +67,17 @@ API = "dynamo0.3"
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
+    '''Make sure that all tests here use LFRic (Dynamo0.3) as API.'''
     Config.get().api = "dynamo0.3"
 
 
 # ------------- Tests for built-ins methods and arguments ------------------- #
 
 
-def test_dynbuiltin_missing_defs(monkeypatch):
+def test_lfricbuiltin_missing_defs(monkeypatch):
     ''' Check that we raise an appropriate error if we cannot find the
     file specifying meta-data for built-in kernels '''
-    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+    monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
                         "broken")
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
@@ -83,11 +87,11 @@ def test_dynbuiltin_missing_defs(monkeypatch):
             "Built-in operations" in str(excinfo.value))
 
 
-def test_dynbuiltin_not_over_dofs():
+def test_lfricbuiltin_not_over_dofs():
     ''' Check that we raise an appropriate error if we encounter a
     built-in that does not iterate over dofs. '''
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "not_dofs_builtins_mod.f90")
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -95,7 +99,7 @@ def test_dynbuiltin_not_over_dofs():
         api=API)
     # Restore the original file name before doing the assert in case
     # it fails
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
@@ -107,17 +111,17 @@ def test_builtin_multiple_writes():
     ''' Check that we raise an appropriate error if we encounter a built-in
     that writes to more than one argument. '''
     # The file containing broken meta-data for the built-ins
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "aX_plus_Y"
     test_builtin_file = "15.13.1_" + test_builtin_name + \
                         "_builtin_set_by_value.f90"
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         test_builtin_file),
                            api=API)
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
@@ -133,16 +137,16 @@ def test_builtin_write_and_readwrite():
 
     '''
     # The file containing broken meta-data for the built-ins
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "inc_aX_plus_bY"
     test_builtin_file = "15.1.7_" + test_builtin_name + "_builtin.f90"
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         test_builtin_file),
                            api=API)
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
@@ -158,16 +162,16 @@ def test_builtin_sum_and_readwrite():
 
     '''
     # The file containing broken meta-data for the built-ins
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "inc_aX_plus_Y"
     test_builtin_file = "15.1.4_" + test_builtin_name + "_builtin.f90"
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         test_builtin_file),
                            api=API)
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
@@ -186,7 +190,7 @@ def test_builtin_zero_writes(monkeypatch):
     # Define the built-in name and test file
     test_builtin_name = "aX_plus_bY"
     test_builtin_file = "15.1.6_" + test_builtin_name + "_builtin.f90"
-    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+    monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "invalid_builtins_mod.f90"))
     with pytest.raises(ParseError) as excinfo:
@@ -201,16 +205,16 @@ def test_builtin_zero_writes(monkeypatch):
 def test_builtin_no_field_args():
     ''' Check that we raise appropriate error if we encounter a built-in
     that does not have any field arguments. '''
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "setval_X"
     test_builtin_file = "15.7.2_" + test_builtin_name + "_builtin.f90"
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         test_builtin_file),
                            api=API)
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
@@ -222,20 +226,19 @@ def test_builtin_no_field_args():
 def test_builtin_operator_arg():
     ''' Check that we raise appropriate error if we encounter a built-in
     that takes something other than a field or scalar argument. '''
-    from psyclone.dynamo0p3_builtins import VALID_BUILTIN_ARG_TYPES
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Change the builtin-definitions file to point to one that has
     # various invalid definitions
     # Define the built-in name and test file
     test_builtin_name = "a_times_X"
     test_builtin_file = "15.4.1_" + test_builtin_name + "_builtin.f90"
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      test_builtin_file),
         api=API)
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
@@ -249,19 +252,19 @@ def test_builtin_args_not_same_space():
     ''' Check that we raise the correct error if we encounter a built-in
     that has arguments on different function spaces. '''
     # Save the name of the actual builtin-definitions file
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "inc_X_divideby_Y"
     test_builtin_file = "15.5.2_" + test_builtin_name + "_builtin.f90"
     # Change the builtin-definitions file to point to one that has
     # various invalid definitions
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      test_builtin_file),
         api=API)
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
@@ -271,26 +274,24 @@ def test_builtin_args_not_same_space():
             format(test_builtin_name.lower()) in str(excinfo.value))
 
 
-def test_dynbuiltincallfactory_str():
-    ''' Check that the str method of DynBuiltInCallFactory works as
-    expected '''
-    from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
-    dyninf = DynBuiltInCallFactory()
-    assert str(dyninf) == "Factory for a call to a Dynamo built-in."
+def test_lfricbuiltincallfactory_str():
+    ''' Check that the str method of LFRicBuiltInCallFactory works as
+    expected. '''
+    lfricinf = LFRicBuiltInCallFactory()
+    assert str(lfricinf) == "Factory for a call to an LFRic built-in."
 
 
-def test_dynbuiltin_wrong_name():
-    ''' Check that DynInfCallFactory.create() raises an error if it
-    doesn't recognise the name of the kernel it is passed '''
-    from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
-    dyninf = DynBuiltInCallFactory()
+def test_lfricbuiltin_wrong_name():
+    ''' Check that LFRicBuiltInCallFactory.create() raises an error if it
+    doesn't recognise the name of the kernel it is passed. '''
+    lfricinf = LFRicBuiltInCallFactory()
     # We use 'duck-typing' - rather than attempt to create a rather
     # complex Kernel object we use a ParseError object and monkey
     # patch it so that it has a func_name member.
     fake_kern = ParseError("blah")
     fake_kern.func_name = "pw_blah"
     with pytest.raises(ParseError) as excinfo:
-        _ = dyninf.create(fake_kern)
+        _ = lfricinf.create(fake_kern)
     assert ("Unrecognised built-in call in LFRic API: found 'pw_blah' "
             "but expected one of [" in str(excinfo.value))
 
@@ -307,10 +308,9 @@ def test_invalid_builtin_kernel():
             "recognised built-in" in str(excinfo.value))
 
 
-def test_dynbuiltin_str(dist_mem):
+def test_lfricbuiltin_str(dist_mem):
     ''' Check that we raise an error if we attempt to call the __str__
-    method on the parent DynBuiltIn class '''
-    from psyclone.dynamo0p3_builtins import DynBuiltIn
+    method on the parent LFRicBuiltIn class. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
@@ -319,14 +319,13 @@ def test_dynbuiltin_str(dist_mem):
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     with pytest.raises(NotImplementedError) as excinfo:
-        DynBuiltIn.__str__(kern)
-    assert "DynBuiltIn.__str__ must be overridden" in str(excinfo.value)
+        LFRicBuiltIn.__str__(kern)
+    assert "LFRicBuiltIn.__str__ must be overridden" in str(excinfo.value)
 
 
-def test_dynbuiltin_gen_code(dist_mem):
+def test_lfricbuiltin_gen_code(dist_mem):
     ''' Check that we raise an error if we attempt to call the gen_code()
-    method on the parent DynBuiltIn class '''
-    from psyclone.dynamo0p3_builtins import DynBuiltIn
+    method on the parent LFRicBuiltIn class. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
@@ -335,13 +334,13 @@ def test_dynbuiltin_gen_code(dist_mem):
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     with pytest.raises(NotImplementedError) as excinfo:
-        DynBuiltIn.gen_code(kern, None)
-    assert "DynBuiltIn.gen_code must be overridden" in str(excinfo.value)
+        LFRicBuiltIn.gen_code(kern, None)
+    assert "LFRicBuiltIn.gen_code must be overridden" in str(excinfo.value)
 
 
-def test_dynbuiltin_cma(dist_mem):
-    ''' Check that a DynBuiltIn returns None for CMA type (because
-    built-ins don't work with CMA operators) '''
+def test_lfricbuiltin_cma(dist_mem):
+    ''' Check that an LFRicBuiltIn returns None for CMA type (because
+    built-ins don't work with CMA operators). '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
@@ -353,19 +352,18 @@ def test_dynbuiltin_cma(dist_mem):
     assert cma_type is None
 
 
-def test_dynbuiltfactory_str():
-    ''' Check that the str method of DynBuiltInCallFactory works as
+def test_lfricbuiltfactory_str():
+    ''' Check that the str method of LFRicBuiltInCallFactory works as
     expected. '''
-    from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
-    factory = DynBuiltInCallFactory()
-    assert "Factory for a call to a Dynamo built-in" in str(factory)
+    factory = LFRicBuiltInCallFactory()
+    assert "Factory for a call to an LFRic built-in." in str(factory)
 
 
 # ------------- Adding (scaled) real fields --------------------------------- #
 
 
 def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynXPlusYKern returns the expected
+    ''' Test that 1) the str method of LFRicXPlusYKern returns the expected
     string and 2) we generate correct code for the built-in Z = X + Y
     where X and Y are real-valued fields. Also check that we generate correct
     bounds when Config.api_conf(API)._compute_annexed_dofs is False and True.
@@ -434,7 +432,7 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynIncXPlusYKern returns the
+    ''' Test that 1) the str method of LFRicIncXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
     X = X + Y where X and Y are real-valued fields. Test with and without
     annexed dofs being computed as this affects the generated code.
@@ -486,7 +484,7 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynAXPlusYKern returns the
+    ''' Test that 1) the str method of LFRicAXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*X + Y where 'a' is a real scalar and Z, X and Y
     are real-valued fields. Test with and without annexed dofs being
@@ -558,7 +556,7 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynIncAXPlusYKern returns the
+    ''' Test that 1) the str method of LFRicIncAXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X + Y where 'a' is a real scalar and X and Y are
     real-valued fields. Test with and without annexed dofs being
@@ -628,7 +626,7 @@ def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynIncXPlusBYKern returns the
+    ''' Test that 1) the str method of LFRicIncXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X + b*Y where 'b' is a real scalar and X and Y are
     real-valued fields. Test with and without annexed dofs being
@@ -698,7 +696,7 @@ def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynAXPlusBYKern returns the
+    ''' Test that 1) the str method of LFRicAXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*X + b*Y where 'a' and 'b' are real scalars and Z, X
     and Y are real-valued fields. Test with and without annexed dofs
@@ -769,7 +767,7 @@ def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynIncAXPlusBYKern returns the
+    ''' Test that 1) the str method of LFRicIncAXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X + b*Y where 'a' and 'b' are real scalars and X
     and Y are real-valued fields. Test with and without annexed dofs
@@ -843,7 +841,7 @@ def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynXMinusYKern returns the expected
+    ''' Test that 1) the str method of LFRicXMinusYKern returns the expected
     string and 2) we generate correct code for the built-in operation
     Z = X - Y where Z, X and Y are real-valued fields. Test with and without
     annexed dofs being computed as this affects the generated code.
@@ -902,7 +900,7 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynIncXMinusYKern returns the
+    ''' Test that 1) the str method of LFRicIncXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X - Y where X and Y are real-valued fields. Test with and
     without annexed dofs being computed as this affects the generated code.
@@ -958,7 +956,7 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynAXMinusYKern returns the
+    ''' Test that 1) the str method of LFRicAXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*X - Y where 'a' is a real scalar and Z, X and Y
     are real-valued fields. Test with and without annexed dofs being
@@ -1029,7 +1027,7 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynXMinusBYKern returns the
+    ''' Test that 1) the str method of LFRicXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = X - b*Y where 'b' is a real scalar and Z, X and Y
     are real-valued fields. Test with and without annexed dofs being
@@ -1100,7 +1098,7 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynIncXMinusBYKern returns the
+    ''' Test that 1) the str method of LFRicIncXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X - b*Y where 'b' is a real scalar and X and Y are
     real-valued  fields. Test with and without annexed dofs being
@@ -1173,7 +1171,7 @@ def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynXTimesYKern returns the expected
+    ''' Test that 1) the str method of LFRicXTimesYKern returns the expected
     string and 2) we generate correct code for the built-in operation
     Z = X*Y where Z, X and Y are real-valued fields. Test with and without
     annexed dofs being computed as this affects the generated code.
@@ -1238,7 +1236,7 @@ def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynIncXTimesYKern returns the
+    ''' Test that 1) the str method of LFRicIncXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X*Y where X and Y are real-valued fields. Test with and
     without annexed dofs being computed as this affects the generated code.
@@ -1297,7 +1295,7 @@ def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynIncAXTimesYKern returns the
+    ''' Test that 1) the str method of LFRicIncAXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X*Y where 'a' is a real scalar and X and Y are
     real-valued fields. Test with and without annexed dofs being
@@ -1370,7 +1368,7 @@ def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynATimesXKern returns the expected
+    ''' Test that 1) the str method of LFRicATimesXKern returns the expected
     string and 2) we generate correct code for the built-in operation
     Y = a*X where 'a' is a real scalar and X and Y are real-valued fields.
     Test with and without annexed dofs being computed as this affects the
@@ -1428,7 +1426,7 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynIncATimesXKern returns the
+    ''' Test that 1) the str method of LFRicIncATimesXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X where 'a' is a real scalar and X is a real-valued
     field. Test with and without annexed dofs being computed as this
@@ -1504,7 +1502,7 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynXDividebyYKern returns the
+    ''' Test that 1) the str method of LFRicXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = X/Y where Z, X and Y are fields real-valued. Test with and
     without annexed dofs being computed as this affects the generated code.
@@ -1563,7 +1561,7 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynIncXDividebyYKern returns the
+    ''' Test that 1) the str method of LFRicIncXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X/Y where X and Y are real-valued fields. Test with and
     without annexed dofs being computed as this affects the generated code.
@@ -1624,7 +1622,7 @@ def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynIncXPowrealAKern returns the
+    ''' Test that 1) the str method of LFRicIncXPowrealAKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**a where 'a' is a real scalar and X is a
     real-valued field. Test with and without annexed dofs being computed
@@ -1676,7 +1674,7 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynIncXPowintNKern returns the
+    ''' Test that 1) the str method of LFRicIncXPowintNKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**n where 'n' is an integer scalar and X is a
     real-valued field. Also test with and without annexed dofs being
@@ -1732,7 +1730,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynSetvalCKern returns the expected
+    ''' Test that 1) the str method of LFRicSetvalCKern returns the expected
     string and 2) we generate correct code for the built-in operation
     X = c where 'c' is a real constant scalar value and X is a real-valued
     field. Test with and without annexed dofs being computed as this affects
@@ -1798,7 +1796,7 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of DynSetvalXKern returns the expected
+    ''' Test that 1) the str method of LFRicSetvalXKern returns the expected
     string and 2) we generate correct code for the built-in operation
     Y = X where X and Y are real-valued fields. Also test with and without
     annexed dofs being computed as this affects the generated code.
@@ -1866,7 +1864,7 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_X_innerproduct_Y(tmpdir, dist_mem):
-    ''' Test that 1) the str method of DynXInnerproductYKern returns the
+    ''' Test that 1) the str method of LFRicXInnerproductYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation which calculates inner product of real-valued fields X and Y
     as innprod = innprod + X(:)*Y(:).
@@ -1936,7 +1934,7 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
 
 
 def test_X_innerproduct_X(tmpdir, dist_mem):
-    ''' Test that 1) the str method of DynXInnerproductXKern returns the
+    ''' Test that 1) the str method of LFRicXInnerproductXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation which calculates inner product of a real-valued field X by
     itself as innprod = innprod + X(:)*X(:).
@@ -2008,7 +2006,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
 
 
 def test_sum_X(tmpdir, dist_mem):
-    ''' Test that 1) the str method of DynSumXKern returns the expected
+    ''' Test that 1) the str method of LFRicSumXKern returns the expected
     string and 2) we generate correct code for the built-in operation which
     sums elements of a real-valued field X as sumfld = sum(X(:)).
 
@@ -2607,7 +2605,7 @@ def test_scalar_int_builtin_error(monkeypatch):
     ''' Test that specifying incorrect meta-data for built-in such that it
     claims to perform a reduction into an integer variable raises the
     expected error. '''
-    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+    monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "int_reduction_builtins_mod.f90"))
     with pytest.raises(ParseError) as excinfo:

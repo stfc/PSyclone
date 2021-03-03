@@ -40,7 +40,7 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
     Literal, BinaryOperation, Range, KernelSchedule
 from psyclone.psyir.symbols import DataSymbol, ArrayType, \
@@ -58,7 +58,7 @@ def test_array_node_str():
     kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
     array = ArrayReference(symbol, parent=assignment)
-    coloredtext = colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
+    coloredtext = colored("ArrayReference", ArrayReference._colour)
     assert coloredtext+"[name:'aname']" in array.node_str()
 
 

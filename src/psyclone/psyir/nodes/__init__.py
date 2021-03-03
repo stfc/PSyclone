@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
-# Modified: A. R. Porter, STFC Daresbury Lab
+# Modified: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' PSyIR nodes package module '''
 
-from psyclone.psyir.nodes.node import colored, Node, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.nodes.node import colored, Node
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.return_stmt import Return
 from psyclone.psyir.nodes.assignment import Assignment
@@ -75,7 +75,6 @@ from psyclone.psyir.nodes.call import Call
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
 __all__ = [
         'colored',
-        'SCHEDULE_COLOUR_MAP',
         'ArrayMember',
         'ArrayReference',
         'ArrayOfStructuresMember',

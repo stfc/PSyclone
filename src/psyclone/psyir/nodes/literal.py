@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,7 @@ class Literal(DataNode):
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "Literal"
-    _colour_key = "Literal"
+    _colour = "yellow"
     _real_value = r'^[+-]?[0-9]+(\.[0-9]*)?(e[+-]?[0-9]+)?$'
 
     def __init__(self, value, datatype, parent=None):

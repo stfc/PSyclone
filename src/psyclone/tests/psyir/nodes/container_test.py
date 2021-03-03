@@ -45,6 +45,7 @@ from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
+from psyclone.psyir.nodes.node import colored
 
 
 def test_container_init():
@@ -80,9 +81,8 @@ def test_container_symbol_table():
 
 def test_container_node_str():
     '''Check the node_str method of the Container class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     cont_stmt = Container("bin")
-    coloredtext = colored("Container", SCHEDULE_COLOUR_MAP["Container"])
+    coloredtext = colored("Container", Container._colour)
     assert coloredtext+"[bin]" in cont_stmt.node_str()
 
 

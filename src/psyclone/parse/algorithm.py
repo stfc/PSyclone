@@ -435,12 +435,13 @@ class Parser(object):
 
 
 def get_builtin_defs(api):
-    '''Get the names of the supported built-in operations and the file
+    '''
+    Get the names of the supported built-in operations and the file
     containing the associated meta-data for the supplied API
 
-    :param str api: the specified PSyclone api
+    :param str api: the specified PSyclone API.
     :returns: a 2-tuple containing a dictionary of the supported \
-    builtins and the filename where these builtins are specified.
+              built-ins and the filename where these built-ins are specified.
     :rtype: (dict, str)
 
     '''
@@ -448,10 +449,12 @@ def get_builtin_defs(api):
     # Check that the supplied API is valid
     check_api(api)
 
+    # pylint: disable=import-outside-toplevel
     if api == "dynamo0.3":
-        from psyclone.dynamo0p3_builtins import BUILTIN_MAP as builtins
-        from psyclone.dynamo0p3_builtins import BUILTIN_DEFINITIONS_FILE as \
-            fname
+        from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP \
+            as builtins
+        from psyclone.domain.lfric.lfric_builtins import \
+            BUILTIN_DEFINITIONS_FILE as fname
     else:
         # We don't support any built-ins for this API
         builtins = {}
