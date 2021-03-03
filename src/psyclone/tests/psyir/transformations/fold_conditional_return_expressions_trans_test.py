@@ -94,7 +94,11 @@ SUB_OUT1 = (
     "  end if\n\n"
     "end subroutine sub1\n")
 
-# Tests with preceding code that is not part of the mask
+# Tests with preceding code before the mask condition, this part of the code
+# won't be folded. Note that this includes If blocks with return statements
+# similar, but not exactly, like a conditional mask because:
+#  SUB_IN2_2: has an execution statement before the return statement.
+#  SUB_IN2_3: has an else conditional branch.
 SUB_IN2 = (
     "subroutine sub1(i, a)\n"
     "  real, intent(inout) :: a\n"

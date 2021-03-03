@@ -417,7 +417,7 @@ The transformations listed below have to be applied specifically to a PSyclone
 kernel. There are a number of transformations not listed here that can be
 applied to either or both the PSy-layer and Kernel-layer PSyIR.
 
-.. note:: Some of this transformation modifies the PSyIR tree of both: the
+.. note:: Some of these transformations modify the PSyIR tree of both the
           InvokeSchedule where the transformed CodedKernel is located and its
           associated KernelSchedule.
 

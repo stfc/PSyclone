@@ -34,8 +34,8 @@
 # Author S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Module containing tests for PSyclone
-GOMoveIterationBoundariesInsideKernelTrans transformations.
+''' Module containing tests for the PSyclone
+GOMoveIterationBoundariesInsideKernelTrans transformation.
 '''
 
 from __future__ import absolute_import
@@ -154,8 +154,8 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
 
 def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice():
     ''' Tests that the GOMoveIterationBoundariesInsideKernelTrans
-    transformation for the GOcean API produces the expect code when the invoke
-    has two kernels and the transformation is applied twice.
+    transformation for the GOcean API produces the expected code when the
+    invoke has two kernels and the transformation is applied twice.
     We check that the kernels don't use the same boundary values (some are
     postfixed with a number) and that kernels don't duplicate boundary
     arguments themself when applying the transformation twice.

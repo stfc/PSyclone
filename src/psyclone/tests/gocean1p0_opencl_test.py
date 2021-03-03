@@ -664,8 +664,8 @@ in_fld, dx, gphiu
       REAL(KIND=go_wp), intent(in), target :: dx_1
       INTEGER, intent(in), target :: xstart, xstop, ystart, ystop'''
     assert expected in generated_code
-    # This example can not be compile because it needs to import the
-    # kernel_driver_test module and it doesn't find it on kernel_outputdir
+    # TODO 284: Currently this example cannot be compiled because it needs to
+    # import a module which won't be found on kernel_outputdir
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
