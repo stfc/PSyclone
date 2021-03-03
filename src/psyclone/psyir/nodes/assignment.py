@@ -55,7 +55,7 @@ class Assignment(Statement):
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode"
     _text_name = "Assignment"
-    _colour_key = "Assignment"
+    _colour = "blue"
 
     @staticmethod
     def _validate_child(position, child):

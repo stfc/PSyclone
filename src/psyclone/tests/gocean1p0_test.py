@@ -48,18 +48,18 @@ from psyclone.parse.algorithm import parse, Arg
 from psyclone.parse.kernel import Descriptor
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, CodedKern, HaloExchange
 from psyclone.gocean1p0 import GOKern, GOLoop, \
     GOKernelArgument, GOKernelArguments, GOKernelGridArgument, \
-    GOBuiltInCallFactory, GOSymbolTable
+    GOBuiltInCallFactory, GOSymbolTable, GOInvokeSchedule
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.psyir.symbols import SymbolTable, DeferredType, \
     ContainerSymbol, DataSymbol, GlobalInterface, REAL_TYPE, INTEGER_TYPE, \
     ArgumentInterface, TypeSymbol
 from psyclone.psyir.nodes import Node, StructureReference, Member, \
-    StructureMember, Reference
-from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    StructureMember, Reference, Loop, Schedule, Literal, BinaryOperation
+from psyclone.psyir.nodes.node import colored
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1022,16 +1022,16 @@ def test_goschedule_view(capsys, dist_mem):
     invoke = psy.invokes.invoke_list[0]
 
     # Ensure we check for the correct (colour) control codes in the output
-    isched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-    call = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    sref = colored("StructureReference", SCHEDULE_COLOUR_MAP["Reference"])
-    smem = colored("StructureMember", SCHEDULE_COLOUR_MAP["Reference"])
-    mem = colored("Member", SCHEDULE_COLOUR_MAP["Reference"])
-    bop = colored("BinaryOperation", SCHEDULE_COLOUR_MAP["Operation"])
-    haloex = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
+    isched = colored("GOInvokeSchedule", GOInvokeSchedule._colour)
+    loop = colored("Loop", Loop._colour)
+    call = colored("CodedKern", CodedKern._colour)
+    sched = colored("Schedule", Schedule._colour)
+    lit = colored("Literal", Literal._colour)
+    sref = colored("StructureReference", StructureReference._colour)
+    smem = colored("StructureMember", StructureMember._colour)
+    mem = colored("Member", Member._colour)
+    bop = colored("BinaryOperation", BinaryOperation._colour)
+    haloex = colored("HaloExchange", HaloExchange._colour)
 
     if dist_mem:
         # View without constant loop bounds and with distributed memory

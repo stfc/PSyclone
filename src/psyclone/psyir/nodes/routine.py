@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Routine node implementation.'''
@@ -63,7 +64,6 @@ class Routine(Schedule):
     # Textual description of the node.
     _children_valid_format = "[Statement]*"
     _text_name = "Routine"
-    _colour_key = "Schedule"
 
     def __init__(self, name, is_program=False, return_type=None, parent=None):
         super(Routine, self).__init__(parent=parent)

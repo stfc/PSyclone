@@ -393,6 +393,14 @@
 	126) PR #1095 for #1083. Adds a LoopTrans base class that Loop
 	transformations can subclass and use any common functionality.
 
+	127) PR #1138 for #1137. Add support for Fortran Program in the PSyIR.
+
+        128) PR #1122 for #1112. Restructures the way the colour to use
+        for a given PSyIR node is specified.
+
+        129) PR #1125 for #1114. Harmonises LFRic built-in and module names to
+        consistently use "LFRic" rather than "Dyn".
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
