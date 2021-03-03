@@ -379,7 +379,7 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
 
 
 class LFRicAPlusXKern(LFRicBuiltIn):
-    ''' Y = a + X where 'a' is a real scalar and 'X' and 'Y' are
+    ''' `Y = a + X` where `a` is a real scalar and `X` and `Y` are
     real-valued fields (DoF-wise addition of a scalar value).
 
     '''
@@ -405,7 +405,7 @@ class LFRicAPlusXKern(LFRicBuiltIn):
 
 
 class LFRicIncAPlusXKern(LFRicBuiltIn):
-    ''' X = a + X where 'a' is a real scalar and 'X' is a real-valued
+    ''' `X = a + X` where `a` is a real scalar and `X` is a real-valued
     field (DoF-wise addition of a scalar value).
 
     '''
@@ -430,8 +430,8 @@ class LFRicIncAPlusXKern(LFRicBuiltIn):
 
 
 class LFRicAXPlusYKern(LFRicBuiltIn):
-    ''' Z = a.X + Y where 'a' is a real scalar and 'Z', 'X' and
-    'Y' are real-valued fields.
+    ''' `Z = a*X + Y` where `a` is a real scalar and `Z`, `X` and
+    `Y` are real-valued fields.
 
     '''
     def __str__(self):
@@ -459,7 +459,7 @@ class LFRicAXPlusYKern(LFRicBuiltIn):
 
 
 class LFRicIncAXPlusYKern(LFRicBuiltIn):
-    ''' X = a.X + Y where 'a' is a real scalar and 'X' and 'Y' are
+    ''' `X = a*X + Y` where `a` is a real scalar and `X` and `Y` are
     real-valued fields.
 
     '''
@@ -487,7 +487,7 @@ class LFRicIncAXPlusYKern(LFRicBuiltIn):
 
 
 class LFRicIncXPlusBYKern(LFRicBuiltIn):
-    ''' X = X + b.Y where 'b' is a real scalar and 'X' and 'Y' are
+    ''' `X = X + b*Y` where `b` is a real scalar and `X` and `Y` are
     real-valued fields.
 
     '''
@@ -515,8 +515,8 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
 
 
 class LFRicAXPlusBYKern(LFRicBuiltIn):
-    ''' Z = a.X + b.Y where 'a' and 'b' are real scalars and 'Z', 'X' and
-    'Y' are real-valued fields.
+    ''' `Z = a*X + b*Y` where `a` and `b` are real scalars and `Z`, `X` and
+    `Y` are real-valued fields.
 
     '''
     def __str__(self):
@@ -547,7 +547,7 @@ class LFRicAXPlusBYKern(LFRicBuiltIn):
 
 
 class LFRicIncAXPlusBYKern(LFRicBuiltIn):
-    ''' X = a.X + b.Y where 'a' and 'b' are real scalars and 'X' and 'Y'
+    ''' `X = a*X + b*Y` where `a` and `b` are real scalars and `X` and `Y`
     are real-valued fields.
 
     '''
@@ -635,8 +635,8 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
 
 
 class LFRicAXMinusYKern(LFRicBuiltIn):
-    ''' Z = a.X - Y where 'a' is a real scalar and 'Z', 'X' and
-    'Y' are real-valued fields.
+    ''' `Z = a*X - Y` where `a` is a real scalar and `Z`, `X` and
+    `Y` are real-valued fields.
 
     '''
     def __str__(self):
@@ -664,8 +664,8 @@ class LFRicAXMinusYKern(LFRicBuiltIn):
 
 
 class LFRicXMinusBYKern(LFRicBuiltIn):
-    ''' Z = X - b.Y where 'b' is a real scalar and 'Z', 'X' and
-    'Y' are real-valued fields.
+    ''' `Z = X - b*Y` where `b` is a real scalar and `Z`, `X` and
+    `Y` are real-valued fields.
 
     '''
     def __str__(self):
@@ -693,7 +693,7 @@ class LFRicXMinusBYKern(LFRicBuiltIn):
 
 
 class LFRicIncXMinusBYKern(LFRicBuiltIn):
-    ''' X = X - b.Y where 'b' is a real scalar and 'X' and 'Y' are
+    ''' `X = X - b*Y` where `b` is a real scalar and `X` and `Y` are
     real-valued fields.
 
     '''
@@ -777,7 +777,7 @@ class LFRicIncXTimesYKern(LFRicBuiltIn):
 
 
 class LFRicIncAXTimesYKern(LFRicBuiltIn):
-    ''' X = a.X.Y where 'a' is a real scalar and 'X' and 'Y' are
+    ''' `X = a*X*Y` where `a` is a real scalar and `X` and `Y` are
     real-valued fields.
 
     '''
@@ -810,7 +810,7 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
 
 class LFRicATimesXKern(LFRicBuiltIn):
     ''' Multiply the first, real-valued, field by a real scalar and
-    return the result as a second, real-valued, field (Y = a.X).
+    return the result as a second, real-valued, field (`Y = a*X`).
 
     '''
     def __str__(self):
@@ -913,60 +913,62 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
                              rhs=field_name1 + " / " + field_name2))
 
 
-# # ------------------------------------------------------------------- #
-# # ============== Scaling real fields ================================ #
-# # ------------------------------------------------------------------- #
+# ------------------------------------------------------------------- #
+# ============== Inverse scaling of real fields ===================== #
+# ------------------------------------------------------------------- #
 
 
-# class LFRicADividebyXKern(LFRicBuiltIn):
-    # ''' Multiply the first, real-valued, field by a real scalar and
-    # return the result as a second, real-valued, field (Y = a.X).
+class LFRicADividebyXKern(LFRicBuiltIn):
+    ''' DoF-wise division of a scalar value `a` by the elements of
+    a real-valued field, `X` and storing the result in another,
+    real-valued, field `Y` (`Y = a/X`).
 
-    # '''
-    # def __str__(self):
-        # return "Built-in: Copy a scaled real-valued field"
+    '''
+    def __str__(self):
+        return "Built-in: Inverse scaling of a real-valued field (Y = a/X)"
 
-    # def gen_code(self, parent):
-        # '''
-        # Generates LFRic API specific PSy code for a call to the
-        # a_times_X Built-in.
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        a_divideby_X Built-in.
 
-        # :param parent: Node in f2pygen tree to which to add call.
-        # :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
-        # '''
-        # # We multiply each element of f1 by the real scalar argument and
-        # # store the result in f2 (real-valued fields).
-        # field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
-        # scalar_name = self._arguments.args[1].name
-        # field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
-        # parent.add(AssignGen(parent, lhs=field_name2,
-                             # rhs=scalar_name + " / " + field_name1))
+        '''
+        # We divide the real scalar argument by each element of f1 and
+        # store the result in f2 (real-valued fields).
+        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
+        scalar_name = self._arguments.args[1].name
+        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        parent.add(AssignGen(parent, lhs=field_name2,
+                             rhs=scalar_name + " / " + field_name1))
 
 
-# class LFRicIncADividebyXKern(LFRicBuiltIn):
-    # ''' Multiply a real-valued field by a real scalar and return it.
+class LFRicIncADividebyXKern(LFRicBuiltIn):
+    ''' DoF-wise division of a scalar value `a` by the elements of
+    a real-valued field, `X` and storing the result in the same
+    field (`X = a/X`).
 
-    # '''
-    # def __str__(self):
-        # return "Built-in: Scale a real-valued field"
+    '''
+    def __str__(self):
+        return "Built-in: Inverse scaling of a real-valued field (X = a/X)"
 
-    # def gen_code(self, parent):
-        # '''
-        # Generates LFRic API specific PSy code for a call to the
-        # inc_a_times_X Built-in.
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        inc_a_divideby_X Built-in.
 
-        # :param parent: Node in f2pygen tree to which to add call.
-        # :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
-        # '''
-        # # In this case we're multiplying each element of a real-valued
-        # # field by the supplied real scalar value.
-        # field_name = self.array_ref(self._arguments.args[1].proxy_name)
-        # scalar_name = self._arguments.args[0].name
-        # parent.add(AssignGen(parent, lhs=field_name,
-                             # rhs=scalar_name + " / " + field_name))
-
+        '''
+        # We divide the real scalar argument by each element of f1 and
+        # return the result in f1 (real-valued fields).
+        field_name = self.array_ref(self._arguments.args[1].proxy_name)
+        scalar_name = self._arguments.args[0].name
+        parent.add(AssignGen(parent, lhs=field_name,
+                             rhs=scalar_name + " / " + field_name))
 
 
 # ------------------------------------------------------------------- #
@@ -1080,7 +1082,7 @@ class LFRicSetvalXKern(LFRicBuiltIn):
 
 class LFRicXInnerproductYKern(LFRicBuiltIn):
     ''' Calculates the inner product of two real-valued fields,
-    innprod = SUM( X(:)*Y(:) ).
+    `innprod = SUM( X(:)*Y(:) )`.
 
     '''
     def __str__(self):
@@ -1107,7 +1109,7 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
 
 class LFRicXInnerproductXKern(LFRicBuiltIn):
     ''' Calculates the inner product of one real-valued field by itself,
-    innprod = SUM( X(:)*X(:) ).
+    `innprod = SUM( X(:)*X(:) )`.
 
     '''
     def __str__(self):
@@ -1363,6 +1365,10 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Dividing real fields
     "X_divideby_Y": LFRicXDividebyYKern,
     "inc_X_divideby_Y": LFRicIncXDividebyYKern,
+    # Dividing a real scalar by elements of a real field
+    # (inverse scaling of fields)
+    "a_divideby_X": LFRicADividebyXKern,
+    "inc_a_divideby_X": LFRicIncADividebyXKern,
     # Raising a real field to a scalar
     "inc_X_powreal_a": LFRicIncXPowrealAKern,
     "inc_X_powint_n": LFRicIncXPowintNKern,
