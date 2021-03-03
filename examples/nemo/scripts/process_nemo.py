@@ -93,10 +93,10 @@ if __name__ == "__main__":
     PARSER.add_argument('-s', dest='script_file',
                         help="PSyclone transformation script")
     PARSER.add_argument('-x', dest='exit_on_error', action='store_true',
-                        help="eXit immediately if PSyclone fails")
+                        help="Exit immediately if PSyclone fails")
     ARGS = PARSER.parse_args()
 
-    # Check whether the PSycone command has been specified in an environment
+    # Check whether the PSyclone command has been specified in an environment
     # variable. We default to just using the 'psyclone' in the PATH.
     PSYCLONE_CMD = os.environ.get("PSYCLONE", "psyclone")
 

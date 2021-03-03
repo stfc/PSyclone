@@ -11,8 +11,8 @@ the resulting code.
 A more sophisticated `kernels_trans.py` script is provided in the
 `../scripts` directory. This is designed to work with the NVIDIA (PGI)
 compiler's 'managed memory' option (`-ta=tesla:managed`) and therefore makes
-no attempt to control data movement to/from the GPU. However, it does
-add profiling instrumentation around those parts of the code that have
+no attempt to control data movement to/from the GPU. It also adds
+profiling instrumentation around those parts of the code that have
 not been enclosed within an OpenACC KERNELS region.
 
 Once you have installed PSyclone, either script may be supplied to

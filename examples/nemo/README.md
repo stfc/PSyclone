@@ -52,7 +52,7 @@ Contains:
 
 ## Scripts
 
-Contains two scripts used to process the NEMO code base and add profiling
+Contains two scripts used to process the NEMO code base and to add profiling
 instrumentation (https://psyclone.readthedocs.io/en/stable/profiling.html)
 and OpenACC directives:
 
@@ -73,18 +73,22 @@ and OpenACC directives:
          -h, --help      show this help message and exit
          -o OUT_DIR      Destination directory for processed source files
          -s SCRIPT_FILE  PSyclone transformation script
-         -x              eXit immediately if PSyclone fails
+         -x              exit immediately if PSyclone fails
 
-   In addition to the command-line flags, the script itself has two variables
-   that may be used to control its behaviour:
+   In addition to the command-line flags, the script itself contains two
+   variables that may be used to control its behaviour:
 
    - `EXCLUDED_FILES`: list of filenames that will not have OpenACC directives
      added.
    - `PROFILE_ALL`: whether or not to add profiling instrumentation to every
      file, irrespective of whether the file is listed in `EXCLUDED_FILES`.
-   
+
+   Finally, the precise invocation to use when running PSyclone may be
+   specified by setting the `PSYCLONE` environment variable. If this is not set
+   then `psyclone` must be in the user's PATH.
+
 2. `kernels_trans.py` is a PSyclone transformation script that adds
-   OpenACC directives and puts fine-grained profiling instrumentation around
+   OpenACC directives and places fine-grained profiling instrumentation around
    any regions that haven't had OpenACC added.
 
 ## Example 1
@@ -97,9 +101,13 @@ OpenMP parallelisation of traldf_iso over levels.
 
 ## Example 3
 
-OpenACC parallelisation of tra_adv using the 'data' and 'kernels'
-directives. Makes use of the `kernels_trans.py` script from the `scripts`
-directory.
+OpenACC parallelisation of tra_adv. Contains a local transformation
+script that adds both 'data' and 'kernels' directives to the
+code. Also demonstrates the use of the `kernels_trans.py` script from
+the `scripts` directory which adds 'kernels' and 'loop' directives as
+well as profiling instrumentation. This script is designed for use
+with NVIDIA's managed memory technology and therefore does not insert
+data regions.
 
 ## Example 4
 

@@ -74,6 +74,9 @@ kernels:
 
 # Example of using the more sophisticated script in ../scripts to
 # transform for OpenACC assuming the use of managed memory.
+# The second part of this rule demonstrates the use of the
+# ../scripts/process_nemo.py script. The precise invocation of PSyclone to
+# use is overridden by setting the PSYCLONE environment variable.
 # TODO #852 - simplify that script and merge it with the functionality of
 # the scripts in this directory.
 managed_mem:
