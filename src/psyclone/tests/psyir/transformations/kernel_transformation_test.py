@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified by: R. W. Ford, STFC Daresbury Lab.
+# Modified by: R. W. Ford, STFC Daresbury Lab,
+#              I. Kavcic, Met Office.
 
 ''' Module containing tests for kernel transformations. '''
 
@@ -410,11 +411,11 @@ def test_2kern_trans(kernel_outputdir):
 
 def test_builtin_no_trans():
     ''' Check that we reject attempts to transform built-in kernels. '''
-    from psyclone.dynamo0p3_builtins import DynBuiltIn
+    from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
     _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90",
                            api="dynamo0.3", idx=0)
     sched = invoke.schedule
-    kernels = sched.walk(DynBuiltIn)
+    kernels = sched.walk(LFRicBuiltIn)
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         _ = rtrans.apply(kernels[0])
