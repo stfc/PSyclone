@@ -497,6 +497,7 @@ use argument_mod,  only : arg_type,            &
 ! ------------------------------------------------------------------- !
 ! ============== Sum real field elements ============================ !
 ! ------------------------------------------------------------------- !
+
   !> sumfld = SUM(field(:,:,...))
   type, public, extends(kernel_type) :: sum_X
      private
@@ -508,6 +509,23 @@ use argument_mod,  only : arg_type,            &
    contains
      procedure, nopass :: sum_X_code
   end type sum_X
+
+! ------------------------------------------------------------------- !
+! ============== Sign of a real field elements ====================== !
+! ------------------------------------------------------------------- !
+
+  !> field2 = SIGN(scalar, field1)
+  type, public, extends(kernel_type) :: sign_X
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: sign_X_code
+  end type sign_X
 
 ! ******************************************************************* !
 ! ************** Built-ins for integer-valued fields **************** !
@@ -793,6 +811,10 @@ contains
   ! Sum values of a real field
   subroutine sum_X_code()
   end subroutine sum_X_code
+
+  ! Sign of a real field elements
+  subroutine sign_X_code()
+  end subroutine sign_X_code
 
   ! ***** Integer-valued fields ***** !
   ! Adding integer fields

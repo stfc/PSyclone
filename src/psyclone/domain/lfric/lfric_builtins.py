@@ -602,7 +602,7 @@ class LFRicAXPlusAYKern(LFRicBuiltIn):
         scalar_name = self._arguments.args[1].name
         field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[3].proxy_name)
-        rhs_expr = (scalar_name + "*(" + field_name1 + " + " +
+        rhs_expr = (scalar_name + " * (" + field_name1 + " + " +
                     field_name2 + ")")
         parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
 
@@ -1224,6 +1224,39 @@ class LFRicSumXKern(LFRicBuiltIn):
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
 
+# ------------------------------------------------------------------- #
+# ============== Sign of a real field elements ====================== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicSignXKern(LFRicBuiltIn):
+    ''' Returns the sign of a real-valued field elements using the
+    Fortran intrinsic `sign` function, `Y = sign(a, X)`, where `a` is
+    a real scalar and `Y` and `X` and are real-valued fields. The
+    results are `a` for `a > 0`, `0` for `a = 0` and `-a` for `a < 0`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Sign of a real-valued field"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        sign_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # Return the sign of all the elements of a real-valued field using
+        # the supplied real scalar.
+        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
+        scalar_name = self._reduction_ref(self._arguments.args[1].name)
+        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        rhs_expr = ("sign(" + scalar_name + ", " + field_name1 + ")")
+        parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
+
+
 # ******************************************************************* #
 # ************** Built-ins for integer-valued fields **************** #
 # ******************************************************************* #
@@ -1444,7 +1477,9 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "X_innerproduct_Y": LFRicXInnerproductYKern,
     "X_innerproduct_X": LFRicXInnerproductXKern,
     # Sum values of a real field
-    "sum_X": LFRicSumXKern}
+    "sum_X": LFRicSumXKern,
+    # Sign of a real field elements
+    "sign_X": LFRicSignXKern}
 
 # Built-ins for integer-valued fields
 INT_BUILTIN_MAP_CAPITALISED = {
