@@ -1428,6 +1428,24 @@ class LFRicIntSetvalXKern(LFRicSetvalXKern):
                 "such field")
 
 
+# ------------------------------------------------------------------- #
+# ============== Sign of an integer field elements ================== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntSignXKern(LFRicSignXKern):
+    ''' Returns the sign of an integer-valued field elements using the
+    Fortran intrinsic `sign` function, `Y = sign(a, X)`, where `a` is
+    an integer scalar and `Y` and `X` and are integer-valued fields. The
+    results are `a` for `a > 0`, `0` for `a = 0` and `-a` for `a < 0`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `LFRicSignXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Sign of an integer-valued field"
+
+
 # The built-in operations that we support for this API. The meta-data
 # describing these kernels is in lfric_builtins_mod.f90. This dictionary
 # can only be defined after all of the necessary 'class' statements have
@@ -1500,7 +1518,9 @@ INT_BUILTIN_MAP_CAPITALISED = {
     # Setting an integer field elements to an integer scalar
     # or other integer field's values
     "int_setval_c": LFRicIntSetvalCKern,
-    "int_setval_X": LFRicIntSetvalXKern}
+    "int_setval_X": LFRicIntSetvalXKern,
+    # Sign of an integer field elements
+    "int_sign_X": LFRicIntSignXKern}
 
 # Built-in map dictionary for all built-ins
 BUILTIN_MAP_CAPITALISED = REAL_BUILTIN_MAP_CAPITALISED

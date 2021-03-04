@@ -700,6 +700,23 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: int_setval_X_code
   end type int_setval_X
 
+! ------------------------------------------------------------------- !
+! ============== Sign of an integer field elements ================== !
+! ------------------------------------------------------------------- !
+
+  !> ifield2 = SIGN(iscalar, ifield1)
+  type, public, extends(kernel_type) :: int_sign_X
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_SPACE_1),     &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ              ),     &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_SPACE_1)      &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_sign_X_code
+  end type int_sign_X
+
 contains
 
   ! ***** Real-valued fields ***** !
@@ -859,5 +876,9 @@ contains
 
   subroutine int_setval_X_code()
   end subroutine int_setval_X_code
+
+  ! Sign of an integer field elements
+  subroutine int_sign_X_code()
+  end subroutine int_sign_X_code
 
 end module lfric_builtins_mod
