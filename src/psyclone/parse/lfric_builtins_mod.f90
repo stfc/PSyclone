@@ -511,7 +511,7 @@ use argument_mod,  only : arg_type,            &
   end type sum_X
 
 ! ------------------------------------------------------------------- !
-! ============== Sign of a real field elements ====================== !
+! ============== Sign of real field elements ======================== !
 ! ------------------------------------------------------------------- !
 
   !> field2 = SIGN(scalar, field1)
@@ -701,7 +701,7 @@ use argument_mod,  only : arg_type,            &
   end type int_setval_X
 
 ! ------------------------------------------------------------------- !
-! ============== Sign of an integer field elements ================== !
+! ============== Sign of integer field elements ===================== !
 ! ------------------------------------------------------------------- !
 
   !> ifield2 = SIGN(iscalar, ifield1)
@@ -829,7 +829,7 @@ contains
   subroutine sum_X_code()
   end subroutine sum_X_code
 
-  ! Sign of a real field elements
+  ! Sign of real field elements
   subroutine sign_X_code()
   end subroutine sign_X_code
 
@@ -877,7 +877,7 @@ contains
   subroutine int_setval_X_code()
   end subroutine int_setval_X_code
 
-  ! Sign of an integer field elements
+  ! Sign of integer field elements
   subroutine int_sign_X_code()
   end subroutine int_sign_X_code
 

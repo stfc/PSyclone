@@ -578,7 +578,7 @@ class LFRicIncAXPlusBYKern(LFRicBuiltIn):
 
 
 class LFRicAXPlusAYKern(LFRicBuiltIn):
-    ''' `Z = a*X + a*Y = a*(X + Y)` where `a` is a real scalars and `Z`,
+    ''' `Z = a*X + a*Y = a*(X + Y)` where `a` is a real scalar and `Z`,
     `X` and `Y` are real-valued fields.
 
     '''
@@ -767,10 +767,10 @@ class LFRicAXMinusBYKern(LFRicBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # We multiply one element of field f1 (3rd arg) by the first, real,
-        # scalar (2nd arg), subtract it from the product of the corresponding
-        # element of a second field (5th arg) with the second, real, scalar
-        # (4th arg) and write the value to the corresponding element of
+        # We multiply one element of field f2 (5th arg) by the second, real,
+        # scalar (4th arg), subtract it from the product of the corresponding
+        # element of the first field (3rd arg) with the first, real, scalar
+        # (2nd arg) and write the value to the corresponding element of
         # field f3 (1st arg) (real-valued fields).
         field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
         scalar_name1 = self._arguments.args[1].name
@@ -982,8 +982,8 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
 
 class LFRicADividebyXKern(LFRicBuiltIn):
     ''' DoF-wise division of a scalar value `a` by the elements of
-    a real-valued field, `X` and storing the result in another,
-    real-valued, field `Y` (`Y = a/X`).
+    a real-valued field, `X`, and storing the result in another,
+    real-valued, field, `Y` (`Y = a/X`).
 
     '''
     def __str__(self):
@@ -1009,7 +1009,7 @@ class LFRicADividebyXKern(LFRicBuiltIn):
 
 class LFRicIncADividebyXKern(LFRicBuiltIn):
     ''' DoF-wise division of a scalar value `a` by the elements of
-    a real-valued field, `X` and storing the result in the same
+    a real-valued field, `X`, and storing the result in the same
     field (`X = a/X`).
 
     '''
@@ -1225,7 +1225,7 @@ class LFRicSumXKern(LFRicBuiltIn):
 
 
 # ------------------------------------------------------------------- #
-# ============== Sign of a real field elements ====================== #
+# ============== Sign of real field elements ======================== #
 # ------------------------------------------------------------------- #
 
 
@@ -1429,7 +1429,7 @@ class LFRicIntSetvalXKern(LFRicSetvalXKern):
 
 
 # ------------------------------------------------------------------- #
-# ============== Sign of an integer field elements ================== #
+# ============== Sign of integer field elements ===================== #
 # ------------------------------------------------------------------- #
 
 
@@ -1496,7 +1496,7 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "X_innerproduct_X": LFRicXInnerproductXKern,
     # Sum values of a real field
     "sum_X": LFRicSumXKern,
-    # Sign of a real field elements
+    # Sign of real field elements
     "sign_X": LFRicSignXKern}
 
 # Built-ins for integer-valued fields
@@ -1519,7 +1519,7 @@ INT_BUILTIN_MAP_CAPITALISED = {
     # or other integer field's values
     "int_setval_c": LFRicIntSetvalCKern,
     "int_setval_X": LFRicIntSetvalXKern,
-    # Sign of an integer field elements
+    # Sign of integer field elements
     "int_sign_X": LFRicIntSignXKern}
 
 # Built-in map dictionary for all built-ins

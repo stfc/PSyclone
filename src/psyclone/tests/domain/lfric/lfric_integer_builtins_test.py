@@ -839,7 +839,7 @@ def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-# ------------- Sign of an integer field elements --------------------------- #
+# ------------- Sign of integer field elements ------------------------------ #
 
 
 def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):

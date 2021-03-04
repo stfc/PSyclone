@@ -2480,7 +2480,7 @@ def test_sum_X(tmpdir, dist_mem):
         assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
 
 
-# ------------- Sign of a real field elements ------------------------------- #
+# ------------- Sign of real field elements --------------------------------- #
 
 
 def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
