@@ -1056,7 +1056,7 @@ class Node(object):
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
-        raise NotImplementedError("Please implement me")
+        raise NotImplementedError("Please implement me: {0}".format(type(self)))
 
     def update(self):
         ''' By default we assume there is no need to update the existing
