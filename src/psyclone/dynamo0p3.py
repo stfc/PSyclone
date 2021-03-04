@@ -1574,10 +1574,6 @@ class DynStencils(DynCollection):
                         kind=api_config.default_kind["integer"],
                         entity_decls=self._unique_extent_vars, intent="in"
                     ))
-                else:
-                    raise InternalError(
-                        "_unique_extent_vars: have neither Invoke "
-                        "or Kernel. Should be impossible.")
 
     @property
     def _unique_direction_vars(self):
