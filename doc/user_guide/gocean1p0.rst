@@ -913,3 +913,9 @@ the GOcean 1.0 API. For an overview of transformations in general see
    :members:
    :noindex:
 
+####
+
+.. autoclass:: psyclone.domain.gocean.transformations.GOMoveIterationBoundariesInsideKernelTrans
+    :members:
+    :noindex:
+
