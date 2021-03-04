@@ -143,7 +143,7 @@ class Sign2CodeTrans(Operator2CodeTrans):
                                                         parent=oper_parent)
 
         # Extract the operator nodes
-        op1, op2 = node.children.pop_all()
+        op1, op2 = node.pop_all_children()
         op1.parent = None
         op2.parent = None
 

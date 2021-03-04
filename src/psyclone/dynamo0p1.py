@@ -310,7 +310,6 @@ class DynKernCallFactory(object):
         kern.load(call, cloop)
 
         # Add the kernel as a child of the loop
-        kern.parent = None
         cloop.loop_body.addchild(kern)
         kern.parent = cloop.children[3]
 
@@ -329,7 +328,7 @@ class DynKern(CodedKern):
         if False:
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
 
-    def load(self, call, parent=None):
+    def load(self, call, parent):
         '''
         Load this DynKern object with state pulled from the call object.
 
@@ -340,6 +339,7 @@ class DynKern(CodedKern):
 
         '''
         super(DynKern, self).__init__(DynKernelArguments, call, parent)
+        self._parent = None  # It is never added as a children of another node
 
     def local_vars(self):
         return ["cell", "map"]

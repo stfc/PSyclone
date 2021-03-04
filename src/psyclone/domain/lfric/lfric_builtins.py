@@ -136,8 +136,7 @@ class LFRicBuiltInCallFactory(object):
 
         # As it is the innermost loop it has the kernel as a loop_body
         # child.
-        builtin.parent = None
-        dofloop.loop_body.addchild(builtin)
+        dofloop.loop_body.addchild(builtin.move())
         builtin.parent = dofloop.loop_body
 
         # Return the outermost loop
@@ -181,6 +180,7 @@ class LFRicBuiltIn(BuiltIn):
         self._idx_name = \
             self.root.symbol_table.symbol_from_tag("dof_loop_idx", "df").name
         # Check that this built-in kernel is valid
+        self._parent = None  # It is not a child
         self._validate()
 
     def _validate(self):

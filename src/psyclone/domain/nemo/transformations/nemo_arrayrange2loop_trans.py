@@ -231,10 +231,10 @@ class NemoArrayRange2LoopTrans(Transformation):
             idx = get_outer_index(array)
             array.children[idx] = Reference(loop_variable_symbol, parent=array)
         position = assignment.position
-        assignment.parent = None
+        # assignment.parent = None
         loop = NemoLoop.create(loop_variable_symbol, lower_bound,
-                               upper_bound, step, [assignment])
-        parent.children[position] = loop
+                               upper_bound, step, [assignment.move()])
+        parent.children.insert(position, loop)
         loop.parent = parent
 
         try:
@@ -247,8 +247,7 @@ class NemoArrayRange2LoopTrans(Transformation):
             # We do not provide the fparser2 ast of the code as we are
             # moving towards using visitors rather than gen_code when
             # outputting nemo api code
-            assignment.parent = None
-            inlined_kernel = NemoKern([assignment], None)
+            inlined_kernel = NemoKern([assignment.move()], None)
             parent.children = [inlined_kernel]
             inlined_kernel.parent = parent
 

@@ -147,6 +147,7 @@ class ChildrenList(list):
         '''
         def identifier(node):
             return node.coloured_name(False) + " with id " + str(id(node))
+        # "and item.parent is not self._node_reference:" must be removed
         if item.parent and item.parent is not self._node_reference:
             raise GenerationError(
                 "Item '{0}' can't be child of '{1}' because it already has "
@@ -245,13 +246,6 @@ class ChildrenList(list):
         for position in range(positiveindex + 1, len(self)):
             self._validate_item(position - 1, self[position])
         return super(ChildrenList, self).pop(index)
-
-    def pop_all(self):
-        ''' Remove all items from the list and return them.
-
-        '''
-        result, self = list(self[:]), []
-        return result
 
     def reverse(self):
         ''' Extends list reverse method with children node validation. '''
@@ -1155,6 +1149,22 @@ class Node(object):
         raise SymbolError(
             "Unable to find the scope of node '{0}' as none of its ancestors "
             "are Container or Schedule nodes.".format(self))
+
+    def pop_all_children(self):
+        free_children = []
+        while self.children:
+            child = self.children.pop()
+            child.parent = None
+            free_children.insert(0, child)
+        return free_children
+
+    def move(self):
+        ''' Withdraw this node from the tree it belongs to so it can be moved
+        into another position. '''
+        if self.parent:
+            self.parent.children.remove(self)
+            self.parent = None
+        return self
 
     def copy(self):
         ''' Return a copy of this node and its branching subtree '''

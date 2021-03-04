@@ -155,8 +155,7 @@ class Min2CodeTrans(Operator2CodeTrans):
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # For each of the remaining min arguments (B,C...)
-        for expression in node.children.pop_all():
-            expression.parent = None
+        for expression in node.pop_all_children():
 
             # tmp_var=(B or C or ...)
             lhs = Reference(tmp_var_symbol)

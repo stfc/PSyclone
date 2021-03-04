@@ -116,18 +116,13 @@ class NemoFparser2Reader(Fparser2Reader):
             # Create a new kernel object and make it the only
             # child of this Loop node. The PSyIR of the loop body becomes
             # the schedule of this kernel.
-            children = fakeparent.children
-            for child in children:
-                child.parent = None
+            children = fakeparent.pop_all_children()
             nemokern = NemoKern(children, node, parent=loop_body)
             loop_body.children.append(nemokern)
         else:
             # Otherwise just connect the new children into the tree.
-            children = fakeparent.children
-            for child in fakeparent.children:
-                child.parent = None
-            loop_body.children.extend(fakeparent.children)
-            for child in fakeparent.children:
+            loop_body.children.extend(fakeparent.pop_all_children())
+            for child in loop_body.children:
                 child.parent = loop_body
 
 
