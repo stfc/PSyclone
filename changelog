@@ -401,6 +401,8 @@
         129) PR #1125 for #1114. Harmonises LFRic built-in and module names to
         consistently use "LFRic" rather than "Dyn".
 
+        130) PR #1065 for #1061. Re-structures the GOcean PSyData examples.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
