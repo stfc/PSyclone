@@ -251,12 +251,12 @@ def test_builtin_operator_arg():
 def test_builtin_args_not_same_space():
     ''' Check that we raise the correct error if we encounter a built-in
     that has arguments on different function spaces. '''
-    # Save the name of the actual builtin-definitions file
+    # Save the name of the actual built-in-definitions file
     old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "inc_X_divideby_Y"
     test_builtin_file = "15.5.2_" + test_builtin_name + "_builtin.f90"
-    # Change the builtin-definitions file to point to one that has
+    # Change the built-in-definitions file to point to one that has
     # various invalid definitions
     lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
@@ -2551,7 +2551,7 @@ def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-# ------------- Xfail builtins ---------------------------------------------- #
+# ------------- Xfail built-ins --------------------------------------------- #
 
 
 @pytest.mark.xfail(
@@ -2591,11 +2591,11 @@ def test_X_times_Y_deduce_space(dist_mem):
     assert output in code
 
 
-# ------------- Builtins that pass scalars by value ------------------------- #
+# ------------- Built-ins that pass scalars by value ------------------------ #
 
 
 def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Tests that we generate correct code for a serial builtin setval_c
+    ''' Tests that we generate correct code for a serial built-in setval_c
     operation with a scalar passed by value. Test with and without annexed
     dofs being computed as this affects the generated code.
 
@@ -2656,7 +2656,7 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that we generate correct code for the builtin operation
+    ''' Test that we generate correct code for the built-in operation
     Z = a*X + Y when a scalar is passed by value. Also test with and
     without annexed dofs being computed as this affects the generated
     code.
@@ -2721,7 +2721,7 @@ def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that we generate correct code for the builtin operation
+    ''' Test that we generate correct code for the built-in operation
     Z = a*X + b*Y when scalars 'a' and 'b' are passed by value. Test
     with and without annexed dofs being computed as this affects the
     generated code.
@@ -2785,7 +2785,70 @@ def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-# ------------- Builtins with multiple calls or mixed with kernels ---------- #
+def test_sign_X_by_value(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that we generate correct code for the built-in operation
+    Y = sign(a, X) when a scalar is passed by value. Also test with and
+    without annexed dofs being computed as this affects the generated
+    code.
+
+    '''
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.2_sign_X_builtin_set_by_value.f90"),
+        api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    code = str(psy.gen)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if not dist_mem:
+        output = (
+            "    SUBROUTINE invoke_0(f2, f1)\n"
+            "      TYPE(field_type), intent(in) :: f2, f1\n"
+            "      INTEGER df\n"
+            "      TYPE(field_proxy_type) f2_proxy, f1_proxy\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
+            "      !\n"
+            "      ! Initialise field and/or operator proxies\n"
+            "      !\n"
+            "      f2_proxy = f2%get_proxy()\n"
+            "      f1_proxy = f1%get_proxy()\n"
+            "      !\n"
+            "      ! Initialise number of DoFs for aspc1_f2\n"
+            "      !\n"
+            "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
+            "      !\n"
+            "      ! Call our kernels\n"
+            "      !\n"
+            "      DO df=1,undf_aspc1_f2\n"
+            "        f2_proxy%data(df) = sign(- 2.0_r_def, "
+            "f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "    END SUBROUTINE invoke_0\n")
+        assert output in code
+    else:
+        output_dm_2 = (
+            "      !\n"
+            "      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
+            "        f2_proxy%data(df) = sign(- 2.0_r_def, "
+            "f1_proxy%data(df))\n"
+            "      END DO\n"
+            "      !\n"
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL f2_proxy%set_dirty()\n"
+            "      !\n")
+        if not annexed:
+            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
+        assert output_dm_2 in code
+
+
+# ------------- Built-ins with multiple calls or mixed with kernels --------- #
 
 
 def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
@@ -2882,7 +2945,7 @@ def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Tests that we generate correct code for a builtin set operation
+    ''' Tests that we generate correct code for a built-in set operation
     when the invoke also contains a normal kernel. Test with and
     without annexed dofs being computed as this affects the generated
     code.
@@ -2990,11 +3053,11 @@ def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-# ------------- Builtins with reductions ------------------------------------ #
+# ------------- Built-ins with reductions ----------------------------------- #
 
 
 def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that multiple builtins, including one with reductions, produce
+    ''' Test that multiple built-ins, including one with reductions, produce
     correct code. Also test with and without annexed dofs being
     computed as this affects the generated code.
 
@@ -3107,9 +3170,9 @@ def test_scalar_int_builtin_error(monkeypatch):
 
 def mesh_code_present(field_str, code):
     '''This test checks for the existance of mesh code. This exists for
-    all builtins with dm = True (although it is not actually required!) so
+    all built-ins with dm = True (although it is not actually required!) so
     each test can call this function. Mesh code is generated from the first
-    field in a builtin arguments list, here denoted with field_str.'''
+    field in a built-in arguments list, here denoted with field_str.'''
     assert "      USE mesh_mod, ONLY: mesh_type" in code
     assert "      TYPE(mesh_type), pointer :: mesh => null()" in code
     output_dm_1 = (
