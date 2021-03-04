@@ -371,7 +371,7 @@
 
 	119) PR #1090. Adds support for LFRic builtins that accept integer-
 	valued fields.
-	
+
 	120) PR #1105 for #1104. Adds support for program, module and subroutine
 	to Fparser2Reader
 
@@ -389,6 +389,19 @@
         125) PR #1073 for #1022. Updates the Makefiles for the examples
         and tutorials to make them consistent. Default target for the tutorials
         is now 'transform'.
+
+	126) PR #1095 for #1083. Adds a LoopTrans base class that Loop
+	transformations can subclass and use any common functionality.
+
+	127) PR #1138 for #1137. Add support for Fortran Program in the PSyIR.
+
+        128) PR #1122 for #1112. Restructures the way the colour to use
+        for a given PSyIR node is specified.
+
+        129) PR #1125 for #1114. Harmonises LFRic built-in and module names to
+        consistently use "LFRic" rather than "Dyn".
+
+        130) PR #1065 for #1061. Re-structures the GOcean PSyData examples.
 
 release 1.9.0 20th May 2020
 

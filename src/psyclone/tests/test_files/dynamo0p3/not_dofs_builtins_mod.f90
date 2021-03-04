@@ -36,7 +36,8 @@
 !
 !> @brief Meta-data for the LFRic built-in operations, broken for
 !>        testing purposes to operate on cell-columns.
-module dynamo0p3_builtins_mod
+module lfric_builtins_mod
+
   use argument_mod
   use kernel_mod
 
@@ -48,7 +49,7 @@ module dynamo0p3_builtins_mod
           arg_type(GH_SCALAR, GH_REAL, GH_READ            )           &
           /)
      ! Deliberately BREAK the meta-data - we only support operates_on
-     ! DOFS for built-ins in the LFRic (Dynamo 0.3) API
+     ! DOFS for built-ins in the LFRic API
      integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: setval_c_code
@@ -59,4 +60,4 @@ contains
   subroutine setval_c_code()
   end subroutine setval_c_code
   
-end module dynamo0p3_builtins_mod
+end module lfric_builtins_mod

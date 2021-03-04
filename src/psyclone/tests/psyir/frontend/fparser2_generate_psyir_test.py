@@ -83,10 +83,10 @@ PROGRAM_IN = (
     "a=0.0\n"
     "end program main\n")
 PROGRAM_OUT = (
-    "PROGRAM main\n"
-    "  REAL :: a\n"
-    "  a = 0.0\n"
-    "END PROGRAM main")
+    "program main\n"
+    "  real :: a\n\n"
+    "  a = 0.0\n\n"
+    "end program main\n")
 FUNCTION_IN = (
     "integer function tmp(a)\n"
     "real :: a\n"
@@ -102,7 +102,7 @@ FUNCTION_OUT = (
 @pytest.mark.parametrize("code,expected,node_class",
                          [(MODULE_IN, MODULE_OUT, Container),
                           (SUB_IN, SUB_OUT, Routine),
-                          (PROGRAM_IN, PROGRAM_OUT, CodeBlock),
+                          (PROGRAM_IN, PROGRAM_OUT, Routine),
                           (FUNCTION_IN, FUNCTION_OUT, CodeBlock)])
 def test_generate_psyir(parser, code, expected, node_class):
     '''Test that generate_psyir generates PSyIR from an fparser2 parse

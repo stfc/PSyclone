@@ -31,15 +31,42 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: S. Siso, STFC Daresbury Laboratory
+# Author: A. R. Porter, STFC Daresbury Lab
 
-include ../../common.mk
+''' Module containing tests for the NEMO-specific loop transformations. '''
 
-GENERATED_FILES += 
-ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
+from __future__ import absolute_import
+import inspect
+from importlib import import_module
+import pytest
+from psyclone.psyir.nodes import Loop
+from psyclone.psyir.transformations import LoopTrans
+from psyclone.tests.utilities import get_invoke
 
-.PHONY: transform
 
-transform:
-	${PSYCLONE} -nodm -s ./backends_transform.py -api gocean1.0 alg.f90 \
-		-oalg /dev/null -opsy /dev/null
+def test_all_nemo_loop_trans_base_validate(monkeypatch):
+    ''' Check that all transformations that sub-class LoopTrans call the
+    base validate() method. '''
+    # First get a valid Loop object that we can pass in.
+    _, invoke = get_invoke("explicit_over_implicit.f90", api="nemo", idx=0)
+    loop = invoke.schedule.walk(Loop)[0]
+
+    # Get all transformations for the NEMO domain
+    transmod = import_module("psyclone.domain.nemo.transformations")
+    all_trans_classes = inspect.getmembers(transmod, inspect.isclass)
+
+    # To ensure that we identify that the validate() method in the LoopTrans
+    # base class has been called, we monkeypatch it to raise an exception.
+
+    def fake_validate(_1, _2, options=None):
+        raise NotImplementedError("validate test exception")
+    monkeypatch.setattr(LoopTrans, "validate", fake_validate)
+
+    for name, cls_type in all_trans_classes:
+        trans = cls_type()
+        if isinstance(trans, LoopTrans):
+            with pytest.raises(NotImplementedError) as err:
+                trans.validate(loop)
+            assert "validate test exception" in str(err.value), \
+                "{0}.validate() does not call LoopTrans.validate()".format(
+                    name)

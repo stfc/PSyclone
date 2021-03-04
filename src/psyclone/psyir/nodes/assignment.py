@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@ class Assignment(Statement):
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode"
     _text_name = "Assignment"
-    _colour_key = "Assignment"
+    _colour = "blue"
 
     @staticmethod
     def _validate_child(position, child):
