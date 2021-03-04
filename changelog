@@ -403,6 +403,9 @@
 
         130) PR #1065 for #1061. Re-structures the GOcean PSyData examples.
 
+        131) PR #1141 for #1132. Small fix to ensure depth() returns correct
+        values for a GOcean kernel with 'pointwise' access.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
