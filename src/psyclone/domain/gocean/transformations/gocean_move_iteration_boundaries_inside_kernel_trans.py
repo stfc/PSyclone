@@ -243,3 +243,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         if_statement.parent = kschedule
 
         return node.root, None
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ['GOMoveIterationBoundariesInsideKernelTrans']

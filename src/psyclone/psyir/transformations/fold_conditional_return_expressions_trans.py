@@ -149,3 +149,7 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
                     move = statement.parent.children.pop()
                     statement.if_body.children.insert(0, move)
                     move.parent = statement.if_body
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ['FoldConditionalReturnExpressionsTrans']
