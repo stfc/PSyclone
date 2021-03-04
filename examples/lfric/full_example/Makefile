@@ -39,11 +39,10 @@
 #
 # export F90=gfortran
 # export F90FLAGS="-Wall -g -fcheck=bound"
+
 include ../../common.mk
 
-.DEFAULT_GOAL := $(EXEC)
-
-GENERATED_FILES = main_psy.f90 main_alg.f90
+GENERATED_FILES = main_psy.f90 main_alg.f90 *.o *.mod $(EXEC)
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
@@ -57,7 +56,10 @@ LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 F90FLAGS += -I$(LFRIC_PATH)
 
-compile: $(EXEC)
+run: compile
+	./example
+
+compile: transform $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
@@ -68,6 +70,7 @@ $(LFRIC_LIB):
 # Dependencies
 main_psy.o:	testkern_w0_mod.o
 main_alg.o:	main_psy.o
+testkern_w0_mod.o: $(LFRIC_LIB)
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
@@ -85,6 +88,5 @@ transform: main_psy.f90
 %_psy.f90:	%.x90
 	${PSYCLONE} -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
-clean:
-	rm -f *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
-	make -C $(LFRIC_PATH) clean
+allclean: clean
+	make -C $(LFRIC_PATH) allclean

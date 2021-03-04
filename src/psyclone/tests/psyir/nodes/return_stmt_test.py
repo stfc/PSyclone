@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,13 +42,13 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Return
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.node import colored
 
 
 def test_return_node_str():
     ''' Check the node_str method of the Return class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     return_stmt = Return()
-    coloredtext = colored("Return", SCHEDULE_COLOUR_MAP["Return"])
+    coloredtext = colored("Return", Return._colour)
     assert coloredtext+"[]" in return_stmt.node_str()
 
 

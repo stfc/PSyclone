@@ -76,9 +76,9 @@ contains
     integer(kind=i_def), intent(in) :: iscalar
     integer(kind=i_def), intent(in) :: np_xy, np_z
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
-    real(kind=r_def), intent(out), dimension(undf_w3) :: xdata
-    real(kind=r_def), intent(out), dimension(undf_w3) :: ydata
-    real(kind=r_def), intent(out), dimension(undf_w3) :: zdata
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: xdata
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: ydata
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: zdata
     real(kind=r_def), intent(in), dimension(ndf_w3,ndf_w3,ncell_3d) :: local_stencil
     real(kind=r_def), intent(in), dimension(1,ndf_w3,np_xy,np_z) :: basis_w3
     real(kind=r_def), intent(in), dimension(3,ndf_w3,np_xy,np_z) :: diff_basis_w3

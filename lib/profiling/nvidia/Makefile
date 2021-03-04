@@ -36,6 +36,8 @@
 
 # Makefile for the PSyclone wrapper to the NVTX profiling library.
 
+.PHONY: default clean allclean
+
 F90?=gfortran
 FFLAGS?=-g
 
@@ -50,3 +52,5 @@ $(libname): $(name).f90
 
 clean:
 	rm -f $(libname) $(name).o profile_mod.mod
+
+allclean: clean
