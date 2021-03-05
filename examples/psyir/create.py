@@ -104,38 +104,39 @@ def create_psyir_tree():
 
     # Binary Operation
     oper = BinaryOperation.Operator.ADD
-    binaryoperation = BinaryOperation.create(oper, one, unaryoperation)
+    binaryoperation = BinaryOperation.create(oper, one.copy(), unaryoperation)
 
     # Nary Operation
     oper = NaryOperation.Operator.MAX
-    naryoperation = NaryOperation.create(oper, [tmp1, tmp2, one])
+    naryoperation = NaryOperation.create(oper, [tmp1, tmp2.copy(), one.copy()])
 
     # Array reference using a range
     lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
                                     Reference(array), int_one)
     ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                    Reference(array), int_one)
+                                    Reference(array), int_one.copy())
     my_range = Range.create(lbound, ubound)
     tmparray = ArrayReference.create(array, [my_range])
 
     # Assignments
-    assign1 = Assignment.create(tmp1, zero)
-    assign2 = Assignment.create(tmp2, zero)
-    assign3 = Assignment.create(tmp2, binaryoperation)
-    assign4 = Assignment.create(tmp1, tmp2)
-    assign5 = Assignment.create(tmp1, naryoperation)
-    assign6 = Assignment.create(tmparray, two)
+    assign1 = Assignment.create(tmp1.copy(), zero.copy())
+    assign2 = Assignment.create(tmp2.copy(), zero.copy())
+    assign3 = Assignment.create(tmp2.copy(), binaryoperation)
+    assign4 = Assignment.create(tmp1.copy(), tmp2.copy())
+    assign5 = Assignment.create(tmp1.copy(), naryoperation)
+    assign6 = Assignment.create(tmparray, two.copy())
 
     # Call
-    call = Call.create(routine_symbol, [tmp1, binaryoperation])
+    call = Call.create(routine_symbol, [tmp1.copy(), binaryoperation.copy()])
 
     # If statement
     if_condition = BinaryOperation.create(BinaryOperation.Operator.GT,
-                                          tmp1, zero)
+                                          tmp1.copy(), zero.copy())
     ifblock = IfBlock.create(if_condition, [assign3, assign4])
 
     # Loop
-    loop = Loop.create(index_symbol, int_zero, int_one, int_one, [ifblock])
+    loop = Loop.create(index_symbol, int_zero, int_one.copy(), int_one.copy(),
+                       [ifblock])
 
     # KernelSchedule
     kernel_schedule = KernelSchedule.create(
