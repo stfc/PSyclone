@@ -125,6 +125,25 @@ class NemoFparser2Reader(Fparser2Reader):
                 child.parent = loop_body
 
 
+def raise_psyir(psyir):
+    '''
+    Takes generic PSyIR and replaces recognised structures with
+    NEMO-specific PSyIR.
+
+    :param psyir: TODO
+
+    '''
+    for loop in psyir.walk(Loop):
+        # Convert a generic loop into a NEMO Loop by creating a new
+        # NemoLoop object and inserting it into the PSyIR.
+        new_loop = NemoLoop.create(loop.variable, loop.children[0],
+                                   loop.children[1],
+                                   loop.children[2], loop.loop_body.children)
+        loop.parent.children.insert(loop.position, new_loop)
+        new_loop.parent = loop.parent
+        loop.parent.children.remove(loop)
+
+
 class NemoInvoke(Invoke):
     '''
     Represents a NEMO 'Invoke' which, since NEMO is existing code, means
@@ -143,6 +162,7 @@ class NemoInvoke(Invoke):
         self._invokes = invokes
         # We have generic PSyIR and need to raise it into NEMO-specific PSyIR
         self._schedule = sched
+        raise_psyir(sched)
         self._name = name
         self._schedule.invoke = self
 
@@ -177,7 +197,7 @@ class NemoInvokes(Invokes):
         # TODO #737 - this routine should really process generic PSyIR to
         # create domain-specific PSyIR (D-PSyIR) for the NEMO domain.
         # Use the fparser2 frontend to construct the PSyIR from the parse tree
-        processor = NemoFparser2Reader()
+        processor = Fparser2Reader() #NemoFparser2Reader()
 
         self._container = processor.generate_psyir(ast)
         routines = self._container.walk(Routine)
