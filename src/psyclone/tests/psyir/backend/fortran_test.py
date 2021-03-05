@@ -1287,18 +1287,17 @@ def test_fw_range(fort_writer):
     '''
     array_type = ArrayType(REAL_TYPE, [10, 10])
     symbol = DataSymbol("a", array_type)
+    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
+    three = Literal("3", INTEGER_TYPE)
     dim1_bound_start = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol),
-        Literal("1", INTEGER_TYPE))
+        one.copy())
     dim1_bound_stop = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
         Reference(symbol),
-        Literal("1", INTEGER_TYPE))
-    dim1_bound_stop_1 = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND,
-        Reference(symbol),
-        Literal("1", INTEGER_TYPE))  # Could use .copy()
+        one.copy())
     dim2_bound_start = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol),
@@ -1311,21 +1310,13 @@ def test_fw_range(fort_writer):
         BinaryOperation.Operator.UBOUND,
         Reference(symbol),
         Literal("3", INTEGER_TYPE))
-    one = Literal("1", INTEGER_TYPE)
-    one_1 = Literal("1", INTEGER_TYPE)  # Could use .copy()
-    two = Literal("2", INTEGER_TYPE)
-    three = Literal("3", INTEGER_TYPE)
-    three_1 = Literal("3", INTEGER_TYPE)  # Could use .copy()
-    three_2 = Literal("3", INTEGER_TYPE)  # Could use .copy()
-    three_3 = Literal("3", INTEGER_TYPE)  # Could use .copy()
-    three_4 = Literal("3", INTEGER_TYPE)  # Could use .copy()
     plus = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
         Reference(DataSymbol("b", REAL_TYPE)),
         Reference(DataSymbol("c", REAL_TYPE)))
-    array = ArrayReference.create(symbol, [Range.create(one, dim1_bound_stop),
-                                           Range.create(dim2_bound_start, plus,
-                                                        step=three)])
+    array = ArrayReference.create(
+        symbol, [Range.create(one.copy(), dim1_bound_stop),
+                 Range.create(dim2_bound_start, plus, step=three)])
     result = fort_writer.arrayreference_node(array)
     assert result == "a(1:,:b + c:3)"
 
@@ -1333,9 +1324,9 @@ def test_fw_range(fort_writer):
     symbol = DataSymbol("a", array_type)
     array = ArrayReference.create(
         symbol,
-        [Range.create(dim1_bound_start, dim1_bound_stop_1),
-         Range.create(one_1, two, step=three_1),
-         Range.create(dim3_bound_start, dim3_bound_stop, step=three_2)])
+        [Range.create(dim1_bound_start, dim1_bound_stop.copy()),
+         Range.create(one.copy(), two.copy(), step=three.copy()),
+         Range.create(dim3_bound_start, dim3_bound_stop, step=three.copy())])
     result = fort_writer.arrayreference_node(array)
     assert result == "a(:,1:2:3,::3)"
 
@@ -1347,16 +1338,17 @@ def test_fw_range(fort_writer):
     b_dim1_bound_start = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol_b),
-        Literal("1", INTEGER_TYPE))
+        one.copy())
     b_dim1_bound_stop = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
         Reference(symbol_b),
-        Literal("1", INTEGER_TYPE))
+        one.copy())
     array = ArrayReference.create(
         symbol,
         [Range.create(b_dim1_bound_start, b_dim1_bound_stop),
-         Range.create(one, two, step=three_3),
-         Range.create(dim3_bound_stop, dim3_bound_start, step=three_4)])
+         Range.create(one.copy(), two.copy(), step=three.copy()),
+         Range.create(dim3_bound_stop.copy(), dim3_bound_start.copy(),
+                      step=three.copy())])
     result = fort_writer.arrayreference_node(array)
     assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),1:2:3,"
                       "UBOUND(a, 3):LBOUND(a, 3):3)")

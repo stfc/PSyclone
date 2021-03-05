@@ -6180,7 +6180,8 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     # Manually add an un-coloured kernel to the loop that we coloured
     loop = loops[2]
     monkeypatch.setattr(loops[3].loop_body[0], "is_coloured", lambda: True)
-    return  # We need a node copy operation here
+    return  # FIXME
+    loops[3].loop_body[0].parent = None
     loop.loop_body.children.append(loops[3].loop_body[0])
     with pytest.raises(InternalError) as err:
         _ = loops[1]._upper_bound_fortran()

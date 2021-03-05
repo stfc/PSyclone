@@ -281,7 +281,7 @@ def test_is_array_range_literal():
     # 1st dimension, first argument to range is an operator, not a literal
     assert not _is_array_range_literal(array_reference, 1, 0, 1)
 
-    my_range = Range.create(operator, one)
+    my_range = Range.create(operator.copy(), one.copy())
 
     # Range.create checks for valid datatype. Therefore change to
     # invalid after creation.
@@ -292,7 +292,7 @@ def test_is_array_range_literal():
     # not an integer literal.
     assert not _is_array_range_literal(array_reference, 1, 1, 1)
 
-    my_range = Range.create(operator, one)
+    my_range = Range.create(operator.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     # 1st dimension, second argument to range has an unexpected
     # value.
@@ -317,20 +317,18 @@ def test_is_range_full_extent():
     _is_range_full_extent(my_range)
 
     # Invalid start (as 1st argument should be lower bound)
-    one = Literal("1", INTEGER_TYPE)
-    my_range = Range.create(ubound_op, ubound_op, one)
+    my_range = Range.create(ubound_op.copy(), ubound_op.copy(), one.copy())
     _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
     # Invalid stop (as 2nd argument should be upper bound)
-    one = Literal("1", INTEGER_TYPE)
-    my_range = Range.create(lbound_op, lbound_op, one)
+    my_range = Range.create(lbound_op.copy(), lbound_op.copy(), one.copy())
     _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
     # Invalid step (as 3rd argument should be Literal)
-    one = Literal("1", INTEGER_TYPE)
-    my_range = Range.create(lbound_op, ubound_op, ubound_op)
+    my_range = Range.create(lbound_op.copy(), ubound_op.copy(),
+                            ubound_op.copy())
     _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
@@ -400,16 +398,15 @@ def test_array_notation_rank():
     range1 = Range.create(lbound_op1, ubound_op1)
     range2 = Range.create(lbound_op3, ubound_op3)
     one = Literal("1", INTEGER_TYPE)
-    array = ArrayReference.create(symbol, [range1, one, range2])
+    array = ArrayReference.create(symbol, [range1, one.copy(), range2])
     result = Fparser2Reader._array_notation_rank(array)
     # Two array dimensions use array notation.
     assert result == 2
 
     # Make one of the array notation dimensions differ from what is required.
     range1.parent = None
-    range2 = Range.create(lbound_op3, one)
-    one = Literal("1", INTEGER_TYPE)
-    array = ArrayReference.create(symbol, [range1, one, range2])
+    range2 = Range.create(lbound_op3.copy(), one.copy())
+    array = ArrayReference.create(symbol, [range1, one.copy(), range2])
     with pytest.raises(NotImplementedError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
     assert ("Only array notation of the form my_array(:, :, ...) is "

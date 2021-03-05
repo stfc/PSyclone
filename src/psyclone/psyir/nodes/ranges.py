@@ -200,7 +200,6 @@ class Range(Node):
         '''
         self._check_valid_input(value, "start")
         if not self.children:
-            value.parent = None
             self.children.append(value)
         else:
             self.children[0] = value
@@ -230,7 +229,6 @@ class Range(Node):
                 "The Stop value '{0}' can not be inserted into range '{1}'"
                 " before the Start value is provided.".format(value, self))
         if len(self.children) == 1:
-            value.parent = None
             self.children.append(value)
         else:
             self._children[1] = value

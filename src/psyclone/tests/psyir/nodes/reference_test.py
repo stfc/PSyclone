@@ -138,7 +138,7 @@ def test_reference_accesses_bounds(operator_type):
     # test when first or second argument to LBOUND or UBOUND is an
     # array reference
     operator = BinaryOperation.create(operator_type, array_ref1, array_ref2)
-    array_access.children[0] = Range.create(operator, one, one)
+    array_access.children[0] = Range.create(operator, one.copy(), one.copy())
     var_access_info = VariablesAccessInfo()
     array_ref1.reference_accesses(var_access_info)
     assert str(var_access_info) == ""
