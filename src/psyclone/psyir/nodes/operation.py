@@ -106,6 +106,13 @@ class Operation(DataNode):
             "[operator:'" + self._operator.name + "']"
 
     def copy(self):
+        ''' Return a copy of this node, including a copy of each of its
+        children.
+
+        :returns: a copy of this node and its children.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
         result = type(self)(self.operator)
         result.children = [child.copy() for child in self.children]
         return result

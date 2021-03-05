@@ -111,7 +111,7 @@ INDEX_SYMBOL = SYMBOL_TABLE.new_symbol(root_name="i", symbol_type=DataSymbol,
                                        datatype=INTEGER4_TYPE)
 
 
-# Some predefined scalar datatypes
+# Some predefined scalar literal nodes
 def two():
     ''' Generate a Literal'''
     return Literal("2.0", SCALAR_TYPE)

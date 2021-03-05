@@ -248,8 +248,7 @@ class ChildrenList(list):
 
         '''
         positiveindex = index if index >= 0 else len(self) - index
-        # Check if the items after this positiveindex will be valid at their
-        # position - 1
+        # Check if displaced items after 'positiveindex' will still be valid
         for position in range(positiveindex + 1, len(self)):
             self._validate_item(position - 1, self[position])
         return super(ChildrenList, self).pop(index)
@@ -1158,6 +1157,13 @@ class Node(object):
             "are Container or Schedule nodes.".format(self))
 
     def pop_all_children(self):
+        ''' Remove from the children list and return all the children of this
+        node.
+
+        :returns: all the children of this node as orphan nodes.
+        :rtype: list of :py:class:`psyclone.psyir.node.Node`
+
+        '''
         free_children = []
         while self.children:
             child = self.children.pop()
@@ -1168,6 +1174,10 @@ class Node(object):
     def detach(self):
         ''' Detach this node from the tree it belongs to. This is necessary to
         insert it as the child of another node.
+
+        :returns: this node detached from its parent.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         if self.parent:
             self.parent.children.remove(self)
@@ -1175,7 +1185,13 @@ class Node(object):
         return self
 
     def copy(self):
-        ''' Return a copy of this node and its branching subtree '''
+        ''' Return a copy of this node, including a copy of each of its
+        children.
+
+        :returns: a copy of this node and its children.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
         raise NotImplementedError(
             "Please implement {0} copy() method.".format(type(self)))
 

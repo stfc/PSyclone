@@ -206,8 +206,3 @@ class Assignment(Statement):
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
         parent.add(PSyIRGen(parent, self))
-
-    def copy(self):
-        result = type(self)()
-        result.children = [child.copy() for child in self.children]
-        return result

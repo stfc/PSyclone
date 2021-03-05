@@ -136,6 +136,13 @@ class Reference(DataNode):
         var_accesses.add_access(self.name, AccessType.READ, self)
 
     def copy(self):
+        ''' Return a copy of this node, including a copy of each of its
+        children.
+
+        :returns: a copy of this node and its children.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
         return type(self)(self.symbol)
 
 
