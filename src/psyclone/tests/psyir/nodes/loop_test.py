@@ -238,7 +238,7 @@ def test_loop_create_invalid():
     one = Literal("1", INTEGER_SINGLE_TYPE)
     children = [Assignment.create(
         Reference(DataSymbol("x", INTEGER_SINGLE_TYPE)),
-        one)]
+        one.copy())]
 
     # invalid variable (test_check_variable tests check all ways a
     # variable could be invalid. Here we just check that the
@@ -263,7 +263,6 @@ def test_loop_create_invalid():
             "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
 
     # step not a Node.
-    return
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create(variable, zero, one, "invalid", children)
     assert ("Item 'str' can't be child 2 of 'Loop'. The valid format is: "

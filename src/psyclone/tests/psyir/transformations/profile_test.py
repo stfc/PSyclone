@@ -851,8 +851,7 @@ def test_auto_invoke_no_return(capsys):
         symbol_type=DataSymbol, datatype=REAL_TYPE)
     zero = Literal("0.0", REAL_TYPE)
     assign1 = Assignment.create(Reference(arg1), zero)
-    zero = Literal("0.0", REAL_TYPE)
-    assign2 = Assignment.create(Reference(arg1), zero)
+    assign2 = Assignment.create(Reference(arg1), zero.copy())
 
     # Create Schedule with Return at the start.
     kschedule = KernelSchedule.create(

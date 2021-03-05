@@ -126,13 +126,12 @@ class PSyDataNode(Statement):
             node_position = children[0].position
 
         # A PSyData node always contains a Schedule
+        # FIXME: this shouldn't be needed (whoever calls PSyDataNode should
+        # first detach the children?)
         if children:
             for child in children:
                 child.parent = None
         sched = self._insert_schedule(children)
-        if children:
-            for child in children:
-                child.parent = sched
         super(PSyDataNode, self).__init__(ast=ast, children=[sched],
                                           parent=parent)
 

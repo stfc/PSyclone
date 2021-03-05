@@ -339,7 +339,10 @@ class DynKern(CodedKern):
 
         '''
         super(DynKern, self).__init__(DynKernelArguments, call, parent)
-        self._parent = None  # It is never added as a children of another node
+        # parent was needed for DynKernelArguments but is never added as a
+        # children of another node during the load(), so the link must be
+        # reverted
+        self._parent = None
 
     def local_vars(self):
         return ["cell", "map"]

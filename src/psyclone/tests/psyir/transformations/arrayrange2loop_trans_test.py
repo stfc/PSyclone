@@ -70,10 +70,9 @@ def create_range(array_symbol, dim):
     lbound = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(array_symbol), int_dim)
-    int_dim = Literal(str(dim), INTEGER_TYPE)
     ubound = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
-        Reference(array_symbol), int_dim)
+        Reference(array_symbol), int_dim.copy())
     return Range.create(lbound, ubound)
 
 

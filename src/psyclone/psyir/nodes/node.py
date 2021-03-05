@@ -147,7 +147,14 @@ class ChildrenList(list):
         '''
         def identifier(node):
             return node.coloured_name(False) + " with id " + str(id(node))
-        # "and item.parent is not self._node_reference:" must be removed
+        # The `item.parent is not self._node_reference` below should ideally be
+        # removed as this still allows a single node to be a child of another
+        # one multiple times. However expressions like:
+        # node = NodeClass(parent=node2)
+        # node2.addchild(node)
+        # are used extensively and this condition is left to support these
+        # constructs.
+        # TODO #294 would solve this issue.
         if item.parent and item.parent is not self._node_reference:
             raise GenerationError(
                 "Item '{0}' can't be child of '{1}' because it already has "

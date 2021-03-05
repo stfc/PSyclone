@@ -142,10 +142,8 @@ class Sign2CodeTrans(Operator2CodeTrans):
         oper_parent.children[node.position] = Reference(res_var_symbol,
                                                         parent=oper_parent)
 
-        # Extract the operator nodes
+        # Extract the operand nodes
         op1, op2 = node.pop_all_children()
-        op1.parent = None
-        op2.parent = None
 
         # res_var=ABS(A)
         lhs = Reference(res_var_symbol)

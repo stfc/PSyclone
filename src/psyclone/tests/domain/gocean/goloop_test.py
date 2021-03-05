@@ -72,10 +72,8 @@ def test_goloop_no_children():
     kernel calls '''
     gosched = GOInvokeSchedule('name', [])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
-    gojloop.parent = None
-    goiloop.parent = None
     gosched.addchild(gojloop)
+    goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
     gojloop.loop_body.addchild(goiloop)
     gojloop.parent = gosched
     goiloop.parent = gojloop.loop_body
@@ -92,10 +90,8 @@ def test_goloop_unsupp_offset():
     # This test expects constant loop bounds
     gosched._const_loop_bounds = True
     gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
-    gojloop.parent = None
-    goiloop.parent = None
     gosched.addchild(gojloop)
+    goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
     gojloop.loop_body.addchild(goiloop)
     gojloop.parent = gosched
     goiloop.parent = gojloop.loop_body
@@ -113,10 +109,8 @@ def test_goloop_unmatched_offsets():
     two different index offsets '''
     gosched = GOInvokeSchedule('name', [])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
-    gojloop.parent = None
-    goiloop.parent = None
     gosched.addchild(gojloop)
+    goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
     gojloop.loop_body.addchild(goiloop)
     gojloop.parent = gosched
     goiloop.parent = gojloop.loop_body

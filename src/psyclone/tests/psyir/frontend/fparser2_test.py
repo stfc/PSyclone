@@ -158,12 +158,10 @@ def test_is_bound_full_extent():
     assert ("'array' argument should be an ArrayReference type but found "
             "'NoneType'." in str(excinfo.value))
 
-    one = []
-    for index in range(30):
-        one.append(Literal("1", INTEGER_TYPE))
+    one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
     symbol = DataSymbol('a', array_type)
-    my_range = Range.create(one[0], one[1])
+    my_range = Range.create(one.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     with pytest.raises(TypeError) as excinfo:
@@ -176,8 +174,8 @@ def test_is_bound_full_extent():
                                      BinaryOperation.Operator.UBOUND)
 
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, one[2], one[3])
-    my_range = Range.create(operator, one[4])
+        BinaryOperation.Operator.UBOUND, one.copy(), one.copy())
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting operator to be Operator.LBOUND, but found
@@ -186,8 +184,8 @@ def test_is_bound_full_extent():
                                      BinaryOperation.Operator.LBOUND)
 
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, one[5], one[6])
-    my_range = Range.create(operator, one[7])
+        BinaryOperation.Operator.LBOUND, one.copy(), one.copy())
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference but found Literal
@@ -196,8 +194,8 @@ def test_is_bound_full_extent():
 
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(DataSymbol("x", INTEGER_TYPE)), one[8])
-    my_range = Range.create(operator, one[9])
+        Reference(DataSymbol("x", INTEGER_TYPE)), one.copy())
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference symbol x to be the same as array symbol a
@@ -207,7 +205,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1.0", REAL_TYPE))
-    my_range = Range.create(operator, one[10])
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting integer but found real
@@ -217,7 +215,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("2", INTEGER_TYPE))
-    my_range = Range.create(operator, one[11])
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting literal value 2 to be the same as the current array
@@ -228,7 +226,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1", INTEGER_TYPE))
-    my_range = Range.create(operator, one[12])
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # valid

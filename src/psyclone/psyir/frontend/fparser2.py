@@ -2296,11 +2296,10 @@ class Fparser2Reader(object):
                                    nodes=[clause.items[0]])
 
                 # Create if-body as second child
-                ifbody = Schedule()
+                ifbody = Schedule(parent=newifblock)
                 ifbody.ast = node.content[start_idx + 1]
                 ifbody.ast_end = node.content[end_idx - 1]
                 newifblock.addchild(ifbody)
-                ifbody.parent = newifblock
                 self.process_nodes(parent=ifbody,
                                    nodes=node.content[start_idx + 1:end_idx])
 
@@ -2412,8 +2411,7 @@ class Fparser2Reader(object):
             clause = node.content[start_idx]
             case = clause.items[0]
 
-            ifblock = IfBlock(parent=currentparent,
-                              annotations=['was_case'])
+            ifblock = IfBlock(parent=currentparent, annotations=['was_case'])
             if idx == 0:
                 # If this is the first IfBlock then have it point to
                 # the original SELECT CASE in the parse tree
@@ -2441,9 +2439,10 @@ class Fparser2Reader(object):
             if rootif:
                 # If rootif is already initialised we chain the new
                 # case in the last else branch.
-                elsebody = Schedule()
+                elsebody = Schedule(parent=currentparent)
                 currentparent.addchild(elsebody)
-                elsebody.parent = currentparent
+                # The parent=currentparent if the IfBlock constructor was
+                # wrong, but its needed for symbol table resolutions
                 ifblock.parent = None
                 elsebody.addchild(ifblock)
                 ifblock.parent = elsebody
@@ -2919,10 +2918,7 @@ class Fparser2Reader(object):
                 array_name = child.children[0].string
                 subscript_list = child.children[1].children
                 self.process_nodes(parent=fake_parent, nodes=subscript_list)
-                subscripts = fake_parent.children
-                for sub in subscripts:
-                    sub.parent = None
-                members.append((array_name, fake_parent.children))
+                members.append((array_name, fake_parent.pop_all_children()))
             else:
                 # Found an unsupported entry in the parse tree. This will
                 # result in a CodeBlock.
@@ -2935,7 +2931,6 @@ class Fparser2Reader(object):
             sym = _find_or_create_imported_symbol(
                 parent, node.children[0].string.lower(),
                 symbol_type=DataSymbol, datatype=DeferredType())
-            
             return StructureReference.create(sym, members=members,
                                              parent=parent)
 
@@ -2955,11 +2950,8 @@ class Fparser2Reader(object):
             # ArrayOfStructuresReference.
             self.process_nodes(parent=fake_parent,
                                nodes=part_ref.children[1].children)
-            children=fake_parent.children
-            for child in children:
-                child.parent = None
             ref = ArrayOfStructuresReference.create(
-                sym, children, members, parent=parent)
+                sym, fake_parent.pop_all_children(), members, parent=parent)
             return ref
 
         # Not a Part_Ref or a Name so this will result in a CodeBlock.

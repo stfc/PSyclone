@@ -148,9 +148,7 @@ class Min2CodeTrans(Operator2CodeTrans):
 
         # res_var=A
         lhs = Reference(res_var_symbol)
-        rhs = node.children.pop(0)
-        rhs.parent = None
-        new_assignment = Assignment.create(lhs, rhs)
+        new_assignment = Assignment.create(lhs, node.children[0].move())
         new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 

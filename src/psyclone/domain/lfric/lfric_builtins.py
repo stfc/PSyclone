@@ -179,8 +179,11 @@ class LFRicBuiltIn(BuiltIn):
         self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
         self._idx_name = \
             self.root.symbol_table.symbol_from_tag("dof_loop_idx", "df").name
+        # parent was needed for DynKernelArguments but is never added as a
+        # children of another node during the load(), so the link must be
+        # reverted
+        self._parent = None
         # Check that this built-in kernel is valid
-        self._parent = None  # It is not a child
         self._validate()
 
     def _validate(self):

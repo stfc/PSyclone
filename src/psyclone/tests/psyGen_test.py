@@ -729,8 +729,7 @@ def test_ompdo_constructor():
         ompdo.dir_body
     assert ("malformed or incomplete. It should have a single Schedule as a "
             "child but found: []" in str(err.value))
-    child = schedule.children.pop(0)
-    child.parent = None
+    child = schedule.children[0].move()
     ompdo = OMPDoDirective(parent=schedule, children=[child])
     assert len(ompdo.dir_body.children) == 1
 
