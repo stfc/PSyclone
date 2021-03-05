@@ -363,7 +363,8 @@ def test_within_assignment():
     array_ref = assignment.lhs
     trans = NemoArrayRange2LoopTrans()
     my_range = array_ref.children[2]
-    for parent, result in [(schedule, "NemoInvokeSchedule"),
+    # TODO put back NemoInvokeSchedule instead of Routine?
+    for parent, result in [(schedule, "Routine"),
                            (None, "NoneType")]:
         array_ref.parent = parent
         with pytest.raises(TransformationError) as info:

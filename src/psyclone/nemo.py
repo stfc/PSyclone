@@ -141,20 +141,9 @@ class NemoInvoke(Invoke):
     def __init__(self, sched, name, invokes):
         # pylint: disable=super-init-not-called
         self._invokes = invokes
+        # We have generic PSyIR and need to raise it into NEMO-specific PSyIR
         self._schedule = sched
         self._name = name
-        # Store the whole fparser2 AST
-        # TODO #435 remove this line.
-        #self._ast = ast
-
-        # We now walk through the fparser2 parse tree and construct the
-        # PSyIR with a NemoInvokeSchedule at its root.
-        #processor = NemoFparser2Reader()
-        # TODO #737 the fparser2 processor should really first be used
-        # to explicitly get the Container for this particular Invoke and
-        # then be used to generate a 'subroutine' rather than a Schedule.
-        #self._schedule = processor.generate_schedule(name, ast,
-        #                                             self.invokes.container)
         self._schedule.invoke = self
 
     def update(self):
@@ -190,9 +179,6 @@ class NemoInvokes(Invokes):
         # Use the fparser2 frontend to construct the PSyIR from the parse tree
         processor = NemoFparser2Reader()
 
-        # TODO currently this does not work in several tests as generate_psyir
-        # creates a CodeBlock if it encounters a Program.
-        # This is being tackled in #1138.
         self._container = processor.generate_psyir(ast)
         routines = self._container.walk(Routine)
 

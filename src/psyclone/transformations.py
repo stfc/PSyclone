@@ -62,7 +62,7 @@ from psyclone.psyir.symbols import SymbolError, ScalarType, DeferredType, \
 from psyclone.psyir.nodes import CodeBlock, Loop, Assignment
 from psyclone.dynamo0p3 import DynInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
-from psyclone.gocean1p0 import GOLoop
+from psyclone.gocean1p0 import GOLoop, GOInvokeSchedule
 
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -3329,8 +3329,12 @@ class ACCKernelsTrans(RegionTrans):
         node_list = self.get_node_list(nodes)
 
         # Check that the front-end is valid
-        sched = node_list[0].ancestor((NemoInvokeSchedule, DynInvokeSchedule))
-        if not sched:
+        # TODO can no longer check for a NemoInvokeSchedule as generic frontend
+        # just produces a Schedule now.
+        #sched = node_list[0].ancestor((NemoInvokeSchedule, DynInvokeSchedule))
+        sched = node_list[0].ancestor(GOInvokeSchedule)
+        #if not sched:
+        if sched:
             raise NotImplementedError(
                 "OpenACC kernels regions are currently only supported for the "
                 "nemo and dynamo0.3 front-ends")
