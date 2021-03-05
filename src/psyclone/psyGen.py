@@ -3185,7 +3185,6 @@ class CodedKern(Kern):
             from psyclone.psyir.backend.opencl import OpenCLWriter
             ocl_writer = OpenCLWriter(
                 kernels_local_size=self._opencl_options['local_size'])
-            self._prepare_opencl_kernel_schedule()
             new_kern_code = ocl_writer(self.get_kernel_schedule())
         elif self._kern_schedule:
             # A PSyIR kernel schedule has been created. This means
@@ -3285,12 +3284,6 @@ class CodedKern(Kern):
                 orig_declaration = sym.datatype.declaration
                 sym.datatype.declaration = orig_declaration.replace(
                     orig_kern_name, new_kern_name)
-
-    def _prepare_opencl_kernel_schedule(self):
-        ''' Generic method to introduce kernel modifications when generating
-        OpenCL kernels. By default this does nothing, but it can be
-        sub-classed by the APIs to introduce kernel modifications.
-        '''
 
     def _rename_ast(self, suffix):
         '''
