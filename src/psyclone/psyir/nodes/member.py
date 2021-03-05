@@ -103,6 +103,11 @@ class Member(Node):
     def __str__(self):
         return self.node_str(False)
 
+    def copy(self):
+        result = type(self)(self.name)
+        result.children = [child.copy() for child in self.children]
+        return result
+
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ['Member']

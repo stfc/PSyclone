@@ -241,6 +241,11 @@ class StructureReference(Reference):
 
         '''
 
+    def copy(self):
+        result = super(StructureReference, self).copy()
+        result.children = [child.copy() for child in self.children]
+        return result
+
 
 # For AutoAPI documentation generation
 __all__ = ['StructureReference']
