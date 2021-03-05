@@ -2036,7 +2036,12 @@ following rules:
    ``integer`` scalar arguments;
 
 7) Built-ins that update ``integer``-valued fields can only read from
-   other ``integer``-valued fields and take ``integer`` scalar arguments
+   other ``integer``-valued fields and take ``integer`` scalar arguments;
+
+8) The only two exceptions from the rules 6) and 7) above regarding the
+   same data type of "write" and "read" field arguments are Built-ins
+   that convert field data from ``real`` to ``integer``, ``real2int_X``,
+   and from ``integer`` to ``real``, ``int2real_X``.
 
 The Built-ins supported for the LFRic API are listed in the related
 subsections, grouped first by the data type of fields they operate on
@@ -2184,6 +2189,11 @@ scheme presented below. Any new Built-in needs to comply with these rules.
       ``real``-valued arguments and ``"LFRicInt"`` for the Built-in
       operations on the ``integer``-valued fields.
 
+7) As in the case of Built-in field argument rules, the names of
+   the field data type conversion Built-ins, ``real2int_X`` and
+   ``int2real_X``, are the only exceptions to the rules for
+   Built-ins names in Fortran above.
+
 .. _lfric-built-ins-real:
 
 Built-in operations on ``real``-valued fields
@@ -2220,6 +2230,36 @@ Adds the second field to the first and returns it (``X = X + Y``)::
 where:
 
 * ``type(field_type), intent(in) ::`` **field1**, *field2*
+
+a_plus_X
+^^^^^^^^
+
+**a_plus_X** (*field2*, *rscalar*, *field1*)
+
+Adds a ``real`` scalar value to all elements of a field and stores
+the result in another field (``Y = a + X``)::
+
+  field2(:) = rscalar + field1(:)
+
+where:
+
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field2**, *field1*
+
+inc_a_plus_X
+^^^^^^^^^^^^
+
+**inc_a_plus_X** (*rscalar*, *field*)
+
+Adds a ``real`` scalar value to all elements of a field and returns
+the field (``X = a + X``)::
+
+  field(:) = rscalar + field(:)
+
+where:
+
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field**
 
 aX_plus_Y
 ^^^^^^^^^
@@ -2290,6 +2330,20 @@ where:
 
 * ``real(r_def), intent(in) ::`` *rscalar1*, *rscalar2*
 * ``type(field_type), intent(in) ::`` **field1**, *field2*
+
+aX_plus_aY
+^^^^^^^^^^
+
+**aX_plus_aY** (*field3*, *rscalar*, *field1*, *field2*)
+
+Performs ``Z = aX + aY = a(X + Y)``::
+
+  field3(:) = rscalar*(field1(:) + field2(:))
+
+where:
+
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
 
 Subtraction
 ###########
@@ -2365,6 +2419,20 @@ where:
 
 * ``real(r_def), intent(in) ::`` *rscalar*
 * ``type(field_type), intent(in) ::`` **field1**, *field2*
+
+aX_minus_bY
+^^^^^^^^^^^
+
+**aX_minus_bY** (*field3*, *rscalar1*, *field1*, *rscalar2*, *field2*)
+
+Performs ``Z = aX - bY``::
+
+  field3(:) = rscalar1*field1(:) - rscalar2*field2(:)
+
+where:
+
+* ``real(r_def), intent(in) ::`` *rscalar1*, *rscalar2*
+* ``type(field_type), intent(in) ::`` **field3**, *field1*, *field2*
 
 Multiplication
 ##############
@@ -2483,6 +2551,43 @@ where:
 
 * ``type(field_type), intent(in) ::`` **field1**, *field2*
 
+Inverse scaling
+###############
+
+Built-ins which perform inverse scaling of ``real``-valued fields are
+also denoted with the keyword **divideby** as they divide a ``real``
+scalar by elements of a ``real``-valued field.
+
+a_divideby_X
+^^^^^^^^^^^^
+
+**a_divideby_X** (*field2*, *rscalar*, *field1*)
+
+Divides a ``real`` scalar value by each field element and stores the
+result in another field (``Y = a/X``)::
+
+  field2(:) = rscalar/field1(:)
+
+where:
+
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field2**, *field1*
+
+inc_a_divideby_X
+^^^^^^^^^^^^^^^^
+
+**inc_a_divideby_X** (*rscalar*, *field*)
+
+Divides a ``real`` scalar value by each field element and returns
+the field (``X = a/X``)::
+
+  field(:) = rscalar/field(:)
+
+where:
+
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field**
+
 Setting to a value
 ##################
 
@@ -2600,7 +2705,7 @@ Sum of elements
 ###############
 
 A Built-in which sums the elements of a ``real``-valued field and returns
-the result as a `real` scalar is denoted with the keyword *sum*.
+the result as a ``real`` scalar is denoted with the keyword **sum**.
 
 .. note:: When used with distributed memory this Built-in will trigger
           the addition of a global sum which may affect the
@@ -2620,6 +2725,56 @@ where:
 
 * ``real(r_def), intent(out) ::`` **sumfld**
 * ``type(field_type), intent(in) ::`` *field*
+
+Sign of elements
+################
+
+A Built-in which returns the sign of a ``real``-valued field elements
+is denoted with the keyword **sign**.
+
+sign_X
+^^^^^^
+
+**sign_X** (*field2*, *rscalar*, *field1*)
+
+Returns the sign of a ``real``-valued field elements using the Fortran
+intrinsic ``sign`` function as ``Y = sign(a, X)``, where ``a`` is a
+``real`` scalar and ``Y`` and ``X`` are ``real``-valued fields.
+The results are ``a`` for ``a > 0``, ``0`` for ``a = 0`` and ``-a``
+for ``a < 0``::
+
+  field2 = SIGN(rscalar, field1)
+
+where:
+
+* ``real(r_def), intent(in) ::`` *rscalar*
+* ``type(field_type), intent(in) ::`` **field2**, *field1*
+
+Conversion of ``real`` to ``integer`` field elements
+####################################################
+
+A Built-in which takes a ``real`` field elements and converts them to
+an ``integer`` field elements is denoted with the keyword **real2int**.
+
+real2int_X
+^^^^^^^^^^
+
+**real2int_X** (*ifield2*, *field1*)
+
+Converts a ``real``-valued field elements to an ``integer``-valued
+field elements using the Fortran intrinsic ``int`` function as
+``Y = int(X, i_def)``. Here ``Y`` is an ``integer``-valued field and
+``X`` is the ``real``-valued field being converted::
+
+  ifield2 = INT(field1, i_def)
+
+where:
+
+* ``type(integer_field_type), intent(in) ::`` **ifield2**
+* ``type(field_type), intent(in) ::`` *field1*
+
+.. note:: The correct ``integer`` kind, ``i_def``, is read from the
+          PSyclone :ref:`configuration file <configuration>`.
 
 .. _lfric-built-ins-int:
 
@@ -2662,6 +2817,36 @@ Adds the second field to the first and returns it (``X = X + Y``)::
 where:
 
 * ``type(integer_field_type), intent(in) ::`` **ifield1**, *ifield2*
+
+int_a_plus_X
+^^^^^^^^^^^^
+
+**int_a_plus_X** (*ifield2*, *iscalar*, *ifield1*)
+
+Adds an ``integer`` scalar value to all elements of a field and stores
+the result in another field (``Y = a + X``)::
+
+  ifield2(:) = iscalar + ifield1(:)
+
+where:
+
+* ``integer(i_def), intent(in) ::`` *iscalar*
+* ``type(integer_field_type), intent(in) ::`` **ifield2**, *ifield1*
+
+int_inc_a_plus_X
+^^^^^^^^^^^^^^^^
+
+**int_inc_a_plus_X** (*iscalar*, *ifield*)
+
+Adds an ``integer`` scalar value to all elements of a field and returns
+the field (``X = a + X``)::
+
+  ifield(:) = iscalar + ifield(:)
+
+where:
+
+* ``integer(i_def), intent(in) ::`` *iscalar*
+* ``type(integer_field_type), intent(in) ::`` **ifield**
 
 Subtraction
 ###########
@@ -2801,6 +2986,56 @@ Sets a field *ifield2* equal (DoF per DoF) to another field
 where:
 
 * ``type(integer_field_type), intent(in) ::`` **ifield2**, *ifield1*
+
+Sign of elements
+################
+
+A Built-in which returns the sign of an ``integer``-valued field
+elements is denoted with the keyword **sign** and the prefix **int**.
+
+int_sign_X
+^^^^^^^^^^
+
+**int_sign_X** (*ifield2*, *iscalar*, *ifield1*)
+
+Returns the sign of an ``integer``-valued field elements using the
+Fortran intrinsic ``sign`` function as ``Y = sign(a, X)``, where ``a``
+is an ``integer`` scalar and ``Y`` and ``X`` are ``integer``-valued
+fields. The results are ``a`` for ``a > 0``, ``0`` for ``a = 0`` and
+``-a`` for ``a < 0``::
+
+  ifield2 = SIGN(iscalar, ifield1)
+
+where:
+
+* ``integer(i_def), intent(in) ::`` *iscalar*
+* ``type(integer_field_type), intent(in) ::`` **ifield2**, *ifield1*
+
+Conversion of ``integer`` to ``real`` field elements
+####################################################
+
+A Built-in which takes an ``integer`` field elements and converts them
+to a ``real`` field elements is denoted with the keyword **int2real**.
+
+int2real_X
+^^^^^^^^^^
+
+**int2real_X** (*field2*, *ifield1*)
+
+Converts an ``integer``-valued field elements to a ``real``-valued
+field elements using the Fortran intrinsic ``real`` function as
+``Y = real(X, r_def)``. Here ``Y`` is a ``real``-valued field and
+``X`` is the ``integer``-valued field being converted::
+
+  field2 = REAL(ifield1, r_def)
+
+where:
+
+* ``type(field_type), intent(in) ::`` **field2**
+* ``type(integer_field_type), intent(in) ::`` *ifield1*
+
+.. note:: The correct ``real`` kind, ``r_def``, is read from the
+          PSyclone :ref:`configuration file <configuration>`.
 
 Boundary Conditions
 -------------------

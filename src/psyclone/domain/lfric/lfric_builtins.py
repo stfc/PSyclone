@@ -1233,8 +1233,8 @@ class LFRicSumXKern(LFRicBuiltIn):
 class LFRicSignXKern(LFRicBuiltIn):
     ''' Returns the sign of a real-valued field elements using the
     Fortran intrinsic `sign` function, `Y = sign(a, X)`, where `a` is
-    a real scalar and `Y` and `X` and are real-valued fields. The
-    results are `a` for `a > 0`, `0` for `a = 0` and `-a` for `a < 0`.
+    a real scalar and `Y` and `X` are real-valued fields. The results
+    are `a` for `a > 0`, `0` for `a = 0` and `-a` for `a < 0`.
 
     '''
     def __str__(self):
@@ -1473,7 +1473,7 @@ class LFRicIntSetvalXKern(LFRicSetvalXKern):
 class LFRicIntSignXKern(LFRicSignXKern):
     ''' Returns the sign of an integer-valued field elements using the
     Fortran intrinsic `sign` function, `Y = sign(a, X)`, where `a` is
-    an integer scalar and `Y` and `X` and are integer-valued fields. The
+    an integer scalar and `Y` and `X` are integer-valued fields. The
     results are `a` for `a > 0`, `0` for `a = 0` and `-a` for `a < 0`.
     Inherits the `gen_code` method from the real-valued built-in
     equivalent `LFRicSignXKern`.
