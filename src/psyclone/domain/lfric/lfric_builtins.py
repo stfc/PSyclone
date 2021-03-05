@@ -46,6 +46,7 @@ from psyclone.psyGen import BuiltIn
 from psyclone.parse.utils import ParseError
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.f2pygen import AssignGen
+from psyclone.configuration import Config
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -1257,6 +1258,42 @@ class LFRicSignXKern(LFRicBuiltIn):
         parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
 
 
+# ------------------------------------------------------------------- #
+# ============== Converting real to integer field elements ========== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicReal2IntXKern(LFRicBuiltIn):
+    ''' Converts a real-valued field elements to an integer-valued
+    field elements using the Fortran intrinsic `int` function,
+    `Y = int(X, i_def)`. Here `Y` is an integer-valued field and
+    `X` is the real-valued field being converted. The correct `kind`
+    is read from the PSyclone configuration file.
+
+    '''
+    def __str__(self):
+        return "Built-in: Convert a real-valued to an integer-valued field"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        real2int_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        api_config = Config.get().api_conf("dynamo0.3")
+        # Convert all the elements of a real-valued field to the
+        # corresponding elements of an integer-valued field using
+        # the PSyclone configuration for the correct 'kind'.
+        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        rhs_expr = ("int(" + field_name1 + ", " +
+                    api_config.default_kind["integer"] + ")")
+        parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
+
+
 # ******************************************************************* #
 # ************** Built-ins for integer-valued fields **************** #
 # ******************************************************************* #
@@ -1497,7 +1534,9 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Sum values of a real field
     "sum_X": LFRicSumXKern,
     # Sign of real field elements
-    "sign_X": LFRicSignXKern}
+    "sign_X": LFRicSignXKern,
+    # Converting real to integer field elements
+    "real2int_X": LFRicReal2IntXKern}
 
 # Built-ins for integer-valued fields
 INT_BUILTIN_MAP_CAPITALISED = {
