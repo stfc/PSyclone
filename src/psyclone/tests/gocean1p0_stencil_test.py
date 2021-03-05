@@ -275,6 +275,14 @@ def test_stencil_information(tmpdir):
         assert pointwise_arg.stencil
         assert not pointwise_arg.stencil.has_stencil
         assert pointwise_arg.stencil.name == "go_pointwise"
+        # Check that a pointwise access patterns returns
+        # a depth of (000, 010, 000)
+        for j in [-1, 0, 1]:
+            for i in [-1, 0, 1]:
+                if i == 0 and j == 0:
+                    assert pointwise_arg.stencil.depth(i, j) == 1
+                else:
+                    assert pointwise_arg.stencil.depth(i, j) == 0
 
     # arg 4 provides grid information so knows nothing about stencils
     grid_arg = kernel.args[3]
