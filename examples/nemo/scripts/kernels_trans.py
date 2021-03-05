@@ -474,24 +474,6 @@ def contains_minloc(intrinsics):
     return False
 
 
-def have_loops(nodes):
-    '''
-    Checks to see whether there are any Loops in the list of nodes and
-    their sub-trees.
-
-    :param nodes: list of PSyIR nodes to check for Loops.
-    :type nodes: list of :py:class:`psyclone.psyGen.Node`
-
-    :returns: True if a Loop is found, False otherwise.
-    :rtype: bool
-
-    '''
-    for node in nodes:
-        if node.walk(Loop):
-            return True
-    return False
-
-
 def add_kernels(children):
     '''
     Walks through the PSyIR inserting OpenACC KERNELS directives at as
@@ -630,11 +612,19 @@ def try_kernels_trans(nodes):
 
     '''
     # We only enclose the proposed region if it contains a loop.
+    have_loop = False
     for node in nodes:
         if node.walk(Loop):
+            have_loop = True
             break
-    else:
+        assigns = node.walk(Assignment)
+        for assign in assigns:
+            if assign.is_array_range:
+                have_loop = True
+                break
+    if not have_loop:
         return False
+
     invokesched = nodes[0].ancestor(NemoInvokeSchedule)
     routine_name = invokesched.invoke.name.lower()
     try:
