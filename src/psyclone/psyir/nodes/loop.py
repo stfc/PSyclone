@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@
 
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import Schedule, Literal
 from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core.access_info import AccessType
@@ -79,7 +80,7 @@ class Loop(Statement):
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode, DataNode, Schedule"
     _text_name = "Loop"
-    _colour_key = "Loop"
+    _colour = "red"
 
     def __init__(self, parent=None, variable=None, valid_loop_types=None,
                  annotations=None):
@@ -338,9 +339,8 @@ class Loop(Statement):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
         return ("{0}[type='{1}', field_space='{2}', it_space='{3}']".
-                format(colored("Loop", SCHEDULE_COLOUR_MAP["Loop"]),
+                format(colored("Loop", self._colour),
                        self._loop_type, self._field_space,
                        self.iteration_space))
 

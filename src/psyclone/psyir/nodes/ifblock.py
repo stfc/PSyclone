@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,7 @@ class IfBlock(Statement):
     # Textual description of the node.
     _children_valid_format = "DataNode, Schedule [, Schedule]"
     _text_name = "If"
-    _colour_key = "If"
+    _colour = "red"
 
     def __init__(self, parent=None, annotations=None):
         super(IfBlock, self).__init__(parent=parent)
