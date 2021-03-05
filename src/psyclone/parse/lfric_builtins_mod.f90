@@ -535,8 +535,8 @@ use argument_mod,  only : arg_type,            &
   type, public, extends(kernel_type) :: real2int_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_SPACE_1),     &
-          arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_SPACE_1)      &
+          arg_type(GH_FIELD, GH_INTEGER, GH_WRITE, ANY_SPACE_1),      &
+          arg_type(GH_FIELD, GH_REAL,    GH_READ,  ANY_SPACE_1)       &
           /)
      integer :: operates_on = DOF
    contains
@@ -733,6 +733,22 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: int_sign_X_code
   end type int_sign_X
 
+! ------------------------------------------------------------------- !
+! ============== Converting integer to real field elements ========== !
+! ------------------------------------------------------------------- !
+
+  !> field2 = real(ifield1, r_def)
+  type, public, extends(kernel_type) :: int2real_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD, GH_REAL,    GH_WRITE, ANY_SPACE_1),      &
+          arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_SPACE_1)       &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int2real_X_code
+  end type int2real_X
+
 contains
 
   ! ***** Real-valued fields ***** !
@@ -900,5 +916,9 @@ contains
   ! Sign of integer field elements
   subroutine int_sign_X_code()
   end subroutine int_sign_X_code
+
+  ! Converting integer to real field elements
+  subroutine int2real_X_code()
+  end subroutine int2real_X_code
 
 end module lfric_builtins_mod

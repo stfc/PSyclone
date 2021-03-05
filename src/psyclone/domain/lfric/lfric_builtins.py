@@ -1483,6 +1483,42 @@ class LFRicIntSignXKern(LFRicSignXKern):
         return "Built-in: Sign of an integer-valued field"
 
 
+# ------------------------------------------------------------------- #
+# ============== Converting integer to real field elements ========== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicInt2RealXKern(LFRicBuiltIn):
+    ''' Converts an integer-valued field elements to a real-valued
+    field elements using the Fortran intrinsic `real` function,
+    `Y = real(X, r_def)`. Here `Y` is a real-valued field and `X`
+    is the integer-valued field being converted. The correct `kind`
+    is read from the PSyclone configuration file.
+
+    '''
+    def __str__(self):
+        return "Built-in: Convert an integer-valued to a real-valued field"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        int2real_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        api_config = Config.get().api_conf("dynamo0.3")
+        # Convert all the elements of an integer-valued field to
+        # the corresponding elements of a real-valued field using
+        # the PSyclone configuration for the correct 'kind'.
+        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        rhs_expr = ("real(" + field_name1 + ", " +
+                    api_config.default_kind["real"] + ")")
+        parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
+
+
 # The built-in operations that we support for this API. The meta-data
 # describing these kernels is in lfric_builtins_mod.f90. This dictionary
 # can only be defined after all of the necessary 'class' statements have
@@ -1559,7 +1595,9 @@ INT_BUILTIN_MAP_CAPITALISED = {
     "int_setval_c": LFRicIntSetvalCKern,
     "int_setval_X": LFRicIntSetvalXKern,
     # Sign of integer field elements
-    "int_sign_X": LFRicIntSignXKern}
+    "int_sign_X": LFRicIntSignXKern,
+    # Converting integer to real field elements
+    "int2real_X": LFRicInt2RealXKern}
 
 # Built-in map dictionary for all built-ins
 BUILTIN_MAP_CAPITALISED = REAL_BUILTIN_MAP_CAPITALISED
