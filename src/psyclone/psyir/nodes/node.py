@@ -1165,9 +1165,10 @@ class Node(object):
             free_children.insert(0, child)
         return free_children
 
-    def move(self):
-        ''' Withdraw this node from the tree it belongs to so it can be moved
-        into another position. '''
+    def detach(self):
+        ''' Detach this node from the tree it belongs to. This is necessary to
+        insert it as the child of another node.
+        '''
         if self.parent:
             self.parent.children.remove(self)
             self.parent = None

@@ -963,7 +963,7 @@ class Fparser2Reader(object):
         node = Container("dummy")
         self.process_nodes(node, [parse_tree])
         result = node.children[0]
-        return result.move()
+        return result.detach()
 
     def generate_container(self, module_ast):
         '''

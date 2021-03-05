@@ -270,7 +270,7 @@ def test_sirwriter_node_1(parser):
     unsupported = Unsupported()
 
     # Add the unsupported node as the root of the tree
-    unsupported.children = [schedule.move()]
+    unsupported.children = [schedule.detach()]
 
     sir_writer = SIRWriter(skip_nodes=False)
     with pytest.raises(VisitorError) as excinfo:

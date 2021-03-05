@@ -134,7 +134,7 @@ class Abs2CodeTrans(Operator2CodeTrans):
 
         # tmp_var=X
         lhs = Reference(symbol_tmp_var)
-        rhs = node.children[0].move()
+        rhs = node.children[0].detach()
         new_assignment = Assignment.create(lhs, rhs)
         new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)

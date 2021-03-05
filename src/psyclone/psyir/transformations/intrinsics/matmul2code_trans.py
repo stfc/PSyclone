@@ -301,14 +301,14 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         if len(result.children) > 1:
             # Add any additional dimensions (in case of an array slice)
             for child in result.children[1:]:
-                result_dims.append(child.move())
+                result_dims.append(child.detach())
         result = ArrayReference.create(result_symbol, result_dims)
         # Create "vector(j)"
         vector_dims = [Reference(j_loop_symbol)]
         if len(vector.children) > 1:
             # Add any additional dimensions (in case of an array slice)
             for child in vector.children[1:]:
-                vector_dims.append(child.move())
+                vector_dims.append(child.detach())
         vector_array_reference = ArrayReference.create(
             vector.symbol, vector_dims)
         # Create "matrix(i,j)"
@@ -316,7 +316,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         if len(matrix.children) > 2:
             # Add any additional dimensions (in case of an array slice)
             for child in matrix.children[2:]:
-                array_dims.append(child.move())
+                array_dims.append(child.detach())
         matrix_array_reference = ArrayReference.create(matrix.symbol,
                                                        array_dims)
         # Create "matrix(i,j) * vector(j)"
@@ -332,7 +332,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         if len(result.children) > 1:
             # Add any additional dimensions (in case of an array slice)
             for child in result.children[1:]:
-                result_dims.append(child.move())
+                result_dims.append(child.detach())
         result = ArrayReference.create(result_symbol, result_dims)
         assign = Assignment.create(result, rhs)
         # Create j loop and add the above code as a child
@@ -346,7 +346,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         if len(result.children) > 1:
             # Add any additional dimensions (in case of an array slice)
             for child in result.children[1:]:
-                result_dims.append(child.move())
+                result_dims.append(child.detach())
         result = ArrayReference.create(result_symbol, result_dims)
         assign = Assignment.create(result, Literal("0.0", REAL_TYPE))
         # Create i loop and add assigment and j loop as children
