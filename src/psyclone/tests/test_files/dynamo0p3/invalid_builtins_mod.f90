@@ -143,8 +143,19 @@ module lfric_builtins_mod
      procedure, nopass :: inc_X_divideby_Y_code
   end type inc_X_divideby_Y
 
-  ! TODO in #1107: Add a check that mixing will only be allowed for the
-  ! built-ins that convert 'real'- to 'integer'-valued fields and vice-versa.
+  !> Invalid built-in that has different data type of its field
+  !> arguments and is not a data type conversion built-in
+  type, public, extends(kernel_type) :: X_minus_Y
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_SPACE_1),     &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_SPACE_1),     &
+          arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_SPACE_1)      &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: X_minus_Y_code
+  end type X_minus_Y
 
 contains
 
@@ -168,5 +179,8 @@ contains
 
   subroutine inc_X_divideby_Y_code()
   end subroutine inc_X_divideby_Y_code
+
+  subroutine X_minus_Y_code()
+  end subroutine X_minus_Y_code
 
 end module lfric_builtins_mod

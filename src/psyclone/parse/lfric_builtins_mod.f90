@@ -100,7 +100,7 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: a_plus_X_code
   end type a_plus_X
 
-  !> field1 = scalar + field1
+  !> field = scalar + field
   type, public, extends(kernel_type) :: inc_a_plus_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
@@ -589,7 +589,7 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: int_a_plus_X_code
   end type int_a_plus_X
 
-  !> ifield1 = iscalar + ifield1
+  !> ifield = iscalar + ifield
   type, public, extends(kernel_type) :: int_inc_a_plus_X
      private
      type(arg_type) :: meta_args(2) = (/                              &

@@ -274,6 +274,37 @@ def test_builtin_args_not_same_space():
             format(test_builtin_name.lower()) in str(excinfo.value))
 
 
+def test_builtin_fld_args_different_data_type():
+    ''' Check that we raise the correct error if we encounter a built-in
+    that has has different data type of its field arguments and is not one
+    of the data type conversion built-ins ("real2int_X" and "int2real_X").
+
+    '''
+    # Save the name of the actual built-in-definitions file
+    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Define the built-in name and test file
+    test_builtin_name = "X_minus_Y"
+    test_builtin_file = "15.2.1_" + test_builtin_name + "_builtin.f90"
+    # Change the built-in-definitions file to point to one that has
+    # various invalid definitions
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
+        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     test_builtin_file),
+        api=API)
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    with pytest.raises(ParseError) as excinfo:
+        _ = PSyFactory(API,
+                       distributed_memory=False).create(invoke_info)
+    assert ("In the LFRic API only the data type conversion built-ins "
+            "['real2int_X', 'int2real_X'] are allowed to have "
+            "different data types of their field arguments. However, "
+            "found different data types ['gh_integer', 'gh_real'] "
+            "for field arguments to '{0}'".
+            format(test_builtin_name.lower()) in str(excinfo.value))
+
+
 def test_lfricbuiltincallfactory_str():
     ''' Check that the str method of LFRicBuiltInCallFactory works as
     expected. '''

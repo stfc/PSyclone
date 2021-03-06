@@ -195,6 +195,8 @@ class LFRicBuiltIn(BuiltIn):
         :raises ParseError: if a built-in kernel does not have at least \
                             one field argument.
         :raises ParseError: if all field arguments are not on the same space.
+        :raises ParseError: if all field arguments of a non-conversion \
+                            built-in do not have the same data type.
 
         '''
         # Check that our assumption that we're looping over DoFs is valid
@@ -207,6 +209,8 @@ class LFRicBuiltIn(BuiltIn):
         write_count = 0  # Only one argument must be written to
         field_count = 0  # We must have one or more fields as arguments
         spaces = set()   # All field arguments must be on the same space
+        # Field data types must be the same except for the conversion built-ins
+        data_types = set()
         for arg in self.arg_descriptors:
             # Check valid argument types
             if arg.argument_type not in VALID_BUILTIN_ARG_TYPES:
@@ -223,6 +227,7 @@ class LFRicBuiltIn(BuiltIn):
             if arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
                 field_count += 1
                 spaces.add(arg.function_space)
+                data_types.add(arg.data_type)
 
         if write_count != 1:
             raise ParseError("A built-in kernel in the LFRic API must "
@@ -239,6 +244,17 @@ class LFRicBuiltIn(BuiltIn):
                 "All field arguments to a built-in in the LFRic API "
                 "must be on the same space. However, found spaces {0} for "
                 "arguments to '{1}'".format(spaces_str, self.name))
+
+        conversion_builtins = ["real2int_X", "int2real_X"]
+        conversion_builtins_lower = [x.lower() for x in conversion_builtins]
+        if len(data_types) != 1 and self.name not in conversion_builtins_lower:
+            data_types_str = [str(x) for x in sorted(data_types)]
+            raise ParseError(
+                "In the LFRic API only the data type conversion built-ins "
+                "{0} are allowed to have different data types of their "
+                "field arguments. However, found different data types "
+                "{1} for field arguments to '{2}'.".
+                format(conversion_builtins, data_types_str, self.name))
 
     def array_ref(self, fld_name):
         '''
