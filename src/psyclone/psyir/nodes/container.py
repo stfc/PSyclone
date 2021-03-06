@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ class Container(Node):
     # Textual description of the node.
     _children_valid_format = "[Container | Routine | CodeBlock]*"
     _text_name = "Container"
-    _colour_key = "Container"
+    _colour = "green"
 
     def __init__(self, name, parent=None):
         super(Container, self).__init__(parent=parent)

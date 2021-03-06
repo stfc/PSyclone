@@ -42,17 +42,18 @@
 # The read-only wrapper library:
 #     export READ_ONLY_DIR = ../../../lib/read_only/dl_esm_inf
 
-include ../../common.mk
+PSYROOT=../../../..
+include $(PSYROOT)/examples/common.mk
 
 GENERATED_FILES += *.o *.mod read_only_test alg.f90 psy.f90
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
-SHARED_DIR ?= ../../../external
+SHARED_DIR ?= $(PSYROOT)/external
 INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
-READ_ONLY_DIR = ../../../lib/read_only/dl_esm_inf
+READ_ONLY_DIR = $(PSYROOT)/lib/read_only/dl_esm_inf
 F90FLAGS += -I$(INF_INC) -I $(READ_ONLY_DIR) 
 LIB_NAME = lib_read_only.a
 

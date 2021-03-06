@@ -54,6 +54,8 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.transformations import DynamoLoopFuseTrans
 from psyclone.tests.utilities import get_invoke
+# pylint: disable=redefined-outer-name
+from psyclone.psyir.nodes.node import colored
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -73,29 +75,50 @@ def test_node_abstract_methods():
 
 def test_node_coloured_name():
     ''' Tests for the coloured_name method of the Node class. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     tnode = Node()
     # Node is an abstract class
     with pytest.raises(NotImplementedError) as err:
         tnode.node_str()
     assert ("_text_name is an abstract attribute which needs to be given a "
             "string value in the concrete class 'Node'." in str(err.value))
-
-    # Check that we can change the name of the Node and the colour associated
-    # with it
+    # Exception as _colour has not been set
     tnode._text_name = "ATest"
-    tnode._colour_key = "Schedule"
+    with pytest.raises(NotImplementedError) as err:
+        _ = tnode.coloured_name()
+    assert ("The _colour attribute is abstract so needs to be given a string "
+            "value in the concrete class 'Node'." in str(err.value))
+    # Valid values
+    tnode._colour = "white"
     assert tnode.coloured_name(False) == "ATest"
-    assert tnode.coloured_name(True) == colored(
-        "ATest", SCHEDULE_COLOUR_MAP["Schedule"])
-    # Check that an unrecognised colour-map entry gives us un-coloured text
-    tnode._colour_key = "not-recognised"
-    assert tnode.coloured_name(True) == "ATest"
+    assert tnode.coloured_name(True) == colored("ATest", "white")
+
+
+def test_node_coloured_name_exception(monkeypatch):
+    '''Test that the expected exception is raised if the colour provided
+    to the colored function is invalid. Note, an exception is only
+    raised if the termcolor package is installed. Therefore we
+    monkeypatch the function to force the exception whether termcolor
+    is installed or not.
+
+    '''
+    def dummy(_1, _2):
+        '''Utility used to raise the required exception.'''
+        raise KeyError()
+
+    monkeypatch.setattr(node, "colored", dummy)
+
+    tnode = Node()
+    tnode._text_name = "ATest"
+    tnode._colour = "invalid"
+    with pytest.raises(InternalError) as err:
+        _ = tnode.coloured_name()
+    assert ("The _colour attribute in class 'Node' has been set to a "
+            "colour ('invalid') that is not supported by the termcolor "
+            "package." in str(err.value))
 
 
 def test_node_str():
     ''' Tests for the Node.node_str method. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     tnode = Node()
     # Node is an abstract class
     with pytest.raises(NotImplementedError) as err:
@@ -103,14 +126,13 @@ def test_node_str():
     assert ("_text_name is an abstract attribute which needs to be given a "
             "string value in the concrete class 'Node'." in str(err.value))
 
-    # Manually set the _text_name and _colour_key for this node to something
-    # that will result in coloured output (if requested *and* termcolor is
-    # installed).
+    # Manually set the _text_name and _colour for this node to
+    # something that will result in coloured output (if requested
+    # *and* termcolor is installed).
     tnode._text_name = "FakeName"
-    tnode._colour_key = "Loop"
+    tnode._colour = "green"
     assert tnode.node_str(False) == "FakeName[]"
-    assert tnode.node_str(True) == colored("FakeName",
-                                           SCHEDULE_COLOUR_MAP["Loop"]) + "[]"
+    assert tnode.node_str(True) == colored("FakeName", "green") + "[]"
 
 
 def test_node_depth():
