@@ -90,7 +90,7 @@ def create_psyir_tree():
 
     # Nodes which do not have Nodes as children and (some) predefined
     # scalar datatypes
-    # Issue #1136 looks at how to avoid all of the _x versions
+    # TODO: Issue #1136 looks at how to avoid all of the _x versions
     zero_1 = Literal("0.0", REAL_TYPE)
     zero_2 = Literal("0.0", REAL_TYPE)
     zero_3 = Literal("0.0", REAL_TYPE)

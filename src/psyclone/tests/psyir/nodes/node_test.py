@@ -683,7 +683,7 @@ def test_children_validation():
 
     assert isinstance(assignment.children, (ChildrenList, list))
 
-    # Try adding a invalid child (e.g. a return_stmt into an assingment)
+    # Try adding a invalid child (e.g. a return_stmt into an assignment)
     with pytest.raises(GenerationError) as error:
         assignment.addchild(return_stmt)
     assert "Item 'Return' can't be child 0 of 'Assignment'. The valid format" \
@@ -804,7 +804,28 @@ def test_replace_with():
     assert node2.parent is None
 
 
-def test_replace_with_error():
+def test_replace_with_error1():
+    '''Check that the replace_with method raises the expected exception if
+    the type of node is invalid for the location it is being added
+    to.
+
+    '''
+    iterator = DataSymbol("i", INTEGER_TYPE)
+    start = Literal("0", INTEGER_TYPE)
+    stop = Literal("1", INTEGER_TYPE)
+    step = Literal("1", INTEGER_TYPE)
+    loop = Loop.create(iterator, start, stop, step, [])
+    new_node = Assignment()
+    # The first child of a loop is the loop start value which should
+    # be a DataNode.
+    with pytest.raises(GenerationError) as info:
+        loop.children[0].replace_with(new_node)
+    assert("Item 'Assignment' can't be child 0 of 'Loop'. The valid "
+           "format is: 'DataNode, DataNode, DataNode, Schedule'"
+           in str(info.value))
+
+
+def test_replace_with_error2():
     '''Check that the replace_with method raises the expected exceptions
     if either node is invalid.
 
