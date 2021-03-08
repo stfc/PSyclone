@@ -40,16 +40,13 @@ Algorithm PSyIR.
 from __future__ import absolute_import
 import pytest
 
-from fparser.two.parser import ParserFactory
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Reference, Literal, Node
+from psyclone.psyir.nodes import Reference, Node
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
     StructureType, Symbol
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
     KernelLayerRef
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import GenerationError
 
 
 def test_algorithminvokecall():

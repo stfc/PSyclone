@@ -47,7 +47,7 @@ from psyclone.domain.lfric.algorithm.psyir_to_algpsyir import psyir_to_algpsyir
 # from psyclone.algorithm import psyir_to_alg_psyir
 
 __all__ = [
-    'psyir_to_alg_psyir',
+    'psyir_to_algpsyir',
     'LfricAlgorithmInvokeCall',
     'LfricCodedKernelRef',
     'LfricBuiltinRef']
