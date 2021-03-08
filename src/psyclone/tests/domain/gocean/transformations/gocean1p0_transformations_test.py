@@ -55,6 +55,8 @@ from psyclone.transformations import ACCKernelsTrans, GOConstLoopBoundsTrans, \
     GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, KernelModuleInlineTrans, \
     GOceanLoopFuseTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, \
     OCLTrans, OMPLoopTrans
+from psyclone.domain.gocean.transformations import \
+    GOMoveIterationBoundariesInsideKernelTrans
 from psyclone.tests.gocean1p0_build import GOcean1p0Build, GOcean1p0OpenCLBuild
 from psyclone.tests.utilities import count_lines, get_invoke, Compile
 
@@ -1561,6 +1563,11 @@ def test_ocl_apply(kernel_outputdir):
     psy, invoke = get_invoke("test11_different_iterates_over_"
                              "one_invoke.f90", API, idx=0, dist_mem=False)
     schedule = invoke.schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for the GOcean gen_ocl() code generation.
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in schedule.coded_kernels():
+        trans.apply(kernel)
     ocl = OCLTrans()
 
     # Check that we raise the correct error if we attempt to apply the

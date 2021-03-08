@@ -52,7 +52,7 @@ from psyclone.domain.lfric import FunctionSpace
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, \
@@ -3623,7 +3623,7 @@ def test_fs_anyspace_dofs_inc_error():
 
 def test_halo_exchange_view(capsys):
     ''' Test that the halo exchange view method returns what we expect. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -3632,8 +3632,8 @@ def test_halo_exchange_view(capsys):
     result, _ = capsys.readouterr()
 
     # Ensure we test for text containing the correct (colour) control codes
-    sched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    exch = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
+    sched = colored("InvokeSchedule", InvokeSchedule._colour)
+    exch = colored("HaloExchange", HaloExchange._colour)
 
     expected = (
         sched + "[invoke='invoke_0_testkern_stencil_type', dm=True]\n"

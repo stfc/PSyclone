@@ -55,8 +55,9 @@ from psyclone.parse.utils import ParseError
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.dynamo0p3_builtins import (BUILTIN_ITERATION_SPACES,
-                                         DynBuiltInCallFactory)
+from psyclone.domain.lfric.lfric_builtins import (
+    BUILTIN_ITERATION_SPACES, LFRicBuiltInCallFactory,
+    LFRicBuiltIn, BUILTIN_MAP)
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface)
@@ -608,7 +609,6 @@ class DynKernMetadata(KernelType):
                             data type (other than 'gh_real').
 
         '''
-        from psyclone.dynamo0p3_builtins import BUILTIN_MAP
         # We must have at least one argument that is written to
         write_count = 0
         for arg in self._arg_descriptors:
@@ -3991,7 +3991,6 @@ class DynBasisFunctions(DynCollection):
                       "face": ["weights_xyz"]}
 
     def __init__(self, node):
-        from psyclone.dynamo0p3_builtins import DynBuiltIn
 
         super(DynBasisFunctions, self).__init__(node)
 
@@ -4012,7 +4011,7 @@ class DynBasisFunctions(DynCollection):
 
         for call in self._calls:
 
-            if isinstance(call, DynBuiltIn) or not call.eval_shapes:
+            if isinstance(call, LFRicBuiltIn) or not call.eval_shapes:
                 # Skip this kernel if it doesn't require basis/diff basis fns
                 continue
 
@@ -5249,7 +5248,7 @@ class DynInvokeSchedule(InvokeSchedule):
 
     def __init__(self, name, arg, reserved_names=None):
         InvokeSchedule.__init__(self, name, DynKernCallFactory,
-                                DynBuiltInCallFactory, arg, reserved_names)
+                                LFRicBuiltInCallFactory, arg, reserved_names)
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this node.
@@ -5867,6 +5866,7 @@ class DynHaloExchangeStart(DynHaloExchange):
     '''
     # Textual description of the node.
     _text_name = "HaloExchangeStart"
+    _colour = "yellow"
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
@@ -5979,6 +5979,7 @@ class DynHaloExchangeEnd(DynHaloExchange):
     '''
     # Textual description of the node.
     _text_name = "HaloExchangeEnd"
+    _colour = "yellow"
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
@@ -6153,7 +6154,7 @@ def halo_check_arg(field, access_types):
 
     '''
     try:
-        # get the kernel/builtin call associated with this field
+        # Get the kernel/built-in call associated with this field
         call = field.call
     except AttributeError:
         raise GenerationError(
@@ -6167,8 +6168,7 @@ def halo_check_arg(field, access_types):
             "In HaloInfo class, field '{0}' should be one of {1}, but found "
             "'{2}'".format(field.name, api_strings,
                            field.access.api_specific_name()))
-    from psyclone.dynamo0p3_builtins import DynBuiltIn
-    if not isinstance(call, (DynBuiltIn, DynKern)):
+    if not isinstance(call, (LFRicBuiltIn, DynKern)):
         raise GenerationError(
             "In HaloInfo class, field '{0}' should be from a call but "
             "found {1}".format(field.name, type(call)))
@@ -6532,8 +6532,7 @@ class DynLoop(Loop):
         # Loop bounds
         self.set_lower_bound("start")
 
-        from psyclone.dynamo0p3_builtins import DynBuiltIn
-        if isinstance(kern, DynBuiltIn):
+        if isinstance(kern, LFRicBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
             if Config.get().api_conf("dynamo0.3").compute_annexed_dofs \

@@ -393,6 +393,27 @@
 	126) PR #1095 for #1083. Adds a LoopTrans base class that Loop
 	transformations can subclass and use any common functionality.
 
+	127) PR #1138 for #1137. Add support for Fortran Program in the PSyIR.
+
+        128) PR #1122 for #1112. Restructures the way the colour to use
+        for a given PSyIR node is specified.
+
+        129) PR #1125 for #1114. Harmonises LFRic built-in and module names to
+        consistently use "LFRic" rather than "Dyn".
+
+        130) PR #1065 for #1061. Re-structures the GOcean PSyData examples.
+
+        131) PR #1141 for #1132. Small fix to ensure depth() returns correct
+        values for a GOcean kernel with 'pointwise' access.
+
+        132) PR #1096 for #1056. Add GOcean transformations to insert
+        boundary masks inside kernels and eliminate return statements.
+
+	133) PR #1109 for issue #402. Add NEMO processing scripts to the
+	repository.
+
+	134) PR #1135 for issue #1124. Add a replace_with method to PSyIR node.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
