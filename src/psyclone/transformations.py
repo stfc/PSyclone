@@ -1295,6 +1295,28 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an OpenMP DO directive to a GOcean loop"
 
+    def validate(self, node, options=None):
+        '''
+        Checks that the supplied node is a valid target for parallelisation
+        using OMP Do.
+
+        :param node: the candidate loop for parallelising using OMP Do.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param options: a dictionary with options for transformations.
+        :type options: dictionary of string:values or None
+
+        :raises TransformationError: if the loop_type of the supplied Loop is \
+                                     not "inner" or "outer".
+
+        '''
+        super(GOceanOMPLoopTrans, self).validate(node, options=options)
+
+        # Check we are either an inner or outer loop
+        if node.loop_type not in ["inner", "outer"]:
+            raise TransformationError("Error in "+self.name+" transformation."
+                                      " The requested loop is not of type "
+                                      "inner or outer.")
+
     def apply(self, node, options=None):
         '''Perform GOcean specific loop validity checks then call
         :py:meth:`OMPLoopTrans.apply`.
@@ -1304,17 +1326,9 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
-        :raises TransformationError: if the loop_type of the supplied Loop is \
-                                     not "inner" or "outer".
         '''
         # Check node is a loop
         self.validate(node, options=options)
-
-        # Check we are either an inner or outer loop
-        if node.loop_type not in ["inner", "outer"]:
-            raise TransformationError("Error in "+self.name+" transformation."
-                                      " The requested loop is not of type "
-                                      "inner or outer.")
 
         return OMPLoopTrans.apply(self, node, options)
 
