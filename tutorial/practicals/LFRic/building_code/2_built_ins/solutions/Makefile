@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
 
 # Compiler settings
 F90 ?= gfortran
@@ -51,7 +52,7 @@ PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
 PSYCLONE_CMD = -nodm -l all
 
 # Executable
-EXEC = builtins
+EXEC = ./builtins
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../../..
@@ -69,9 +70,12 @@ EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ)
 # Targets
 .DEFAULT_GOAL := compile
 
-.PHONY: compile test clean
+.PHONY: transform compile run clean allclean
 
-compile: test $(EXEC)
+compile: transform $(EXEC)
+
+run: compile
+	$(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(EXAMPLE_OBJ)
 	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
@@ -80,8 +84,9 @@ $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
-$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ)
-$(ALGORITHM_OBJ): $(PSY_OBJ)
+$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(LFRIC_LIB)
+$(ALGORITHM_OBJ): $(PSY_OBJ) $(LFRIC_LIB)
+$(PSY_OBJ): $(LFRIC_LIB)
 
 %.o %.mod: %.F90
 	$(F90) $(F90FLAGS) -c $<
@@ -95,7 +100,7 @@ $(ALGORITHM_SRC): $(PSY_SRC)
 .precious: $(ALGORITHM_SRC) $(PSY_SRC)
 
 # Test PSyclone target for continuous integration
-test: $(PSY_SRC) $(ALGORITHM_SRC)
+transform: $(PSY_SRC) $(ALGORITHM_SRC)
 
 %_psy.f90: %.x90
 	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
@@ -103,4 +108,6 @@ test: $(PSY_SRC) $(ALGORITHM_SRC)
 
 clean:
 	rm -f *.o *.mod $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
+
+allclean: clean
 	make -C $(LFRIC_PATH) clean

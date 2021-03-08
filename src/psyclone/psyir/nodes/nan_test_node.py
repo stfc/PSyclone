@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified by: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''
@@ -70,7 +71,7 @@ class NanTestNode(PSyDataNode):
     '''
     # Textual description of the node.
     _text_name = "NanTest"
-    _colour_key = "NanTest"
+    _colour = "green"
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
         if options:

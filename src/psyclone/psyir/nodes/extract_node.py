@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
-# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by A. R. Porter, S. Siso and R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''
@@ -77,7 +77,7 @@ class ExtractNode(PSyDataNode):
     '''
     # Textual description of the node.
     _text_name = "Extract"
-    _colour_key = "Extract"
+    _colour = "green"
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
         if options:

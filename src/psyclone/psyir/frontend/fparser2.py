@@ -768,6 +768,7 @@ class Fparser2Reader(object):
             Fortran2003.Call_Stmt: self._call_handler,
             Fortran2003.Subroutine_Subprogram: self._subroutine_handler,
             Fortran2003.Module: self._module_handler,
+            Fortran2003.Main_Program: self._main_program_handler,
             Fortran2003.Program: self._program_handler,
         }
 
@@ -3347,19 +3348,28 @@ class Fparser2Reader(object):
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Call`
 
+        :raises GenerationError: if the symbol associated with the \
+            name of the call is an unsupported type.
+
         '''
+        # pylint: disable="unidiomatic-typecheck"
         call_name = node.items[0].string
         symbol_table = parent.scope.symbol_table
         try:
             routine_symbol = symbol_table.lookup(call_name)
             # pylint: disable=unidiomatic-typecheck
             if type(routine_symbol) is Symbol:
-                # TODO PR #1063: Symbol should be specialised to a
-                # RoutineSymbol here (if the symbol is part of a use
-                # statement). Without specialising, the Call class
-                # constructor will raise an exception. As a temporary
-                # fix, just change the class name.
-                routine_symbol.__class__ = RoutineSymbol
+                # Specialise routine_symbol from a Symbol to a
+                # RoutineSymbol
+                routine_symbol.specialise(RoutineSymbol)
+            elif type(routine_symbol) is RoutineSymbol:
+                # This symbol is already the expected type
+                pass
+            else:
+                raise GenerationError(
+                    "Expecting the symbol '{0}', to be of type 'Symbol' or "
+                    "'RoutineSymbol', but found '{1}'.".format(
+                        call_name, type(routine_symbol).__name__))
         except KeyError:
             routine_symbol = RoutineSymbol(
                 call_name, interface=UnresolvedInterface())
@@ -3424,6 +3434,45 @@ class Fparser2Reader(object):
             pass
         else:
             self.process_nodes(routine, sub_exec.content)
+
+        return routine
+
+    def _main_program_handler(self, node, parent):
+        '''Transforms an fparser2 Main_Program statement into a PSyIR
+        Routine node.
+
+        :param node: node in fparser2 parse tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Main_Program`
+        :param parent: parent node of the PSyIR node being constructed.
+        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: PSyIR representation of node.
+        :rtype: :py:class:`psyclone.psyir.nodes.Routine`
+
+        '''
+        name = node.children[0].children[1].string
+        routine = Routine(name, parent=parent, is_program=True)
+
+        try:
+            prog_spec = _first_type_match(node.content,
+                                          Fortran2003.Specification_Part)
+            decl_list = prog_spec.content
+        except ValueError:
+            # program has no Specification_Part so has no
+            # declarations. Continue with empty list.
+            decl_list = []
+        finally:
+            self.process_declarations(routine, decl_list, [])
+
+        try:
+            prog_exec = _first_type_match(node.content,
+                                          Fortran2003.Execution_Part)
+        except ValueError:
+            # Routines without any execution statements are still
+            # valid.
+            pass
+        else:
+            self.process_nodes(routine, prog_exec.content)
 
         return routine
 

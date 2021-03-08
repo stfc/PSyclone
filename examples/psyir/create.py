@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -90,52 +90,72 @@ def create_psyir_tree():
 
     # Nodes which do not have Nodes as children and (some) predefined
     # scalar datatypes
-    zero = Literal("0.0", REAL_TYPE)
-    one = Literal("1.0", REAL4_TYPE)
+    # TODO: Issue #1136 looks at how to avoid all of the _x versions
+    zero_1 = Literal("0.0", REAL_TYPE)
+    zero_2 = Literal("0.0", REAL_TYPE)
+    zero_3 = Literal("0.0", REAL_TYPE)
+    one_1 = Literal("1.0", REAL4_TYPE)
+    one_2 = Literal("1.0", REAL4_TYPE)
+    one_3 = Literal("1.0", REAL4_TYPE)
     two = Literal("2.0", scalar_type)
     int_zero = Literal("0", INTEGER_SINGLE_TYPE)
-    int_one = Literal("1", INTEGER8_TYPE)
-    tmp1 = Reference(arg1)
-    tmp2 = Reference(tmp_symbol)
+    int_one_1 = Literal("1", INTEGER8_TYPE)
+    int_one_2 = Literal("1", INTEGER8_TYPE)
+    int_one_3 = Literal("1", INTEGER8_TYPE)
+    int_one_4 = Literal("1", INTEGER8_TYPE)
+    tmp1_1 = Reference(arg1)
+    tmp1_2 = Reference(arg1)
+    tmp1_3 = Reference(arg1)
+    tmp1_4 = Reference(arg1)
+    tmp1_5 = Reference(arg1)
+    tmp1_6 = Reference(arg1)
+    tmp2_1 = Reference(tmp_symbol)
+    tmp2_2 = Reference(tmp_symbol)
+    tmp2_3 = Reference(tmp_symbol)
+    tmp2_4 = Reference(tmp_symbol)
+    tmp2_5 = Reference(tmp_symbol)
+    tmp2_6 = Reference(tmp_symbol)
 
     # Unary Operation
     oper = UnaryOperation.Operator.SIN
-    unaryoperation = UnaryOperation.create(oper, tmp2)
+    unaryoperation_1 = UnaryOperation.create(oper, tmp2_1)
+    unaryoperation_2 = UnaryOperation.create(oper, tmp2_2)
 
     # Binary Operation
     oper = BinaryOperation.Operator.ADD
-    binaryoperation = BinaryOperation.create(oper, one, unaryoperation)
+    binaryoperation_1 = BinaryOperation.create(oper, one_1, unaryoperation_1)
+    binaryoperation_2 = BinaryOperation.create(oper, one_2, unaryoperation_2)
 
     # Nary Operation
     oper = NaryOperation.Operator.MAX
-    naryoperation = NaryOperation.create(oper, [tmp1, tmp2, one])
+    naryoperation = NaryOperation.create(oper, [tmp1_1, tmp2_3, one_3])
 
     # Array reference using a range
     lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                    Reference(array), int_one)
+                                    Reference(array), int_one_1)
     ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                    Reference(array), int_one)
+                                    Reference(array), int_one_2)
     my_range = Range.create(lbound, ubound)
     tmparray = ArrayReference.create(array, [my_range])
 
     # Assignments
-    assign1 = Assignment.create(tmp1, zero)
-    assign2 = Assignment.create(tmp2, zero)
-    assign3 = Assignment.create(tmp2, binaryoperation)
-    assign4 = Assignment.create(tmp1, tmp2)
-    assign5 = Assignment.create(tmp1, naryoperation)
+    assign1 = Assignment.create(tmp1_2, zero_1)
+    assign2 = Assignment.create(tmp2_4, zero_2)
+    assign3 = Assignment.create(tmp2_5, binaryoperation_1)
+    assign4 = Assignment.create(tmp1_3, tmp2_6)
+    assign5 = Assignment.create(tmp1_4, naryoperation)
     assign6 = Assignment.create(tmparray, two)
 
     # Call
-    call = Call.create(routine_symbol, [tmp1, binaryoperation])
+    call = Call.create(routine_symbol, [tmp1_5, binaryoperation_2])
 
     # If statement
     if_condition = BinaryOperation.create(BinaryOperation.Operator.GT,
-                                          tmp1, zero)
+                                          tmp1_6, zero_3)
     ifblock = IfBlock.create(if_condition, [assign3, assign4])
 
     # Loop
-    loop = Loop.create(index_symbol, int_zero, int_one, int_one, [ifblock])
+    loop = Loop.create(index_symbol, int_zero, int_one_3, int_one_4, [ifblock])
 
     # KernelSchedule
     kernel_schedule = KernelSchedule.create(

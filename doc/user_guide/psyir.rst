@@ -534,7 +534,7 @@ The rest of this section introduces examples of the available direct PSyIR
 modification methods.
 
 Renaming symbols
------------------
+----------------
 The symbol table provides the method ``rename_symbol()`` that given a symbol
 and an unused name will rename the symbol. The symbol renaming will affect
 all the references in the PSyIR AST to that symbol. For example, the PSyIR
@@ -562,3 +562,32 @@ which would result in the following Fortran output code:
         real, intent(inout) :: new_variable
         new_variable=0.0
     end subroutine
+
+Specialising symbols
+--------------------
+
+The Symbol class provides the method ``specialise()`` that given a
+subclass of Symbol will change the Symbol instance to the specified
+subclass. If the subclass has any additional properties then these
+would need to be set explicitly.
+
+.. code-block:: python
+
+    symbol = Symbol("name")
+    symbol.specialise(RoutineSymbol)
+    # Symbol is now a RoutineSymbol
+
+This method is useful as it allows the class of a symbol to be changed
+without affecting any references to it.
+
+Replacing PSyIR nodes
+---------------------
+
+In certain cases one might want to replace a node in a PSyIR tree with
+another node. All nodes provide the `replace_with()` method to replace
+the node and its descendants with another given node and its
+descendants.
+
+.. code-block:: python
+
+    node.replace_with(new_node)

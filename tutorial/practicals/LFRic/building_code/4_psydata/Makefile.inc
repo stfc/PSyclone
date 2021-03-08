@@ -75,9 +75,7 @@ F90FLAGS += -I$(GHLIB_PATH)
 
 
 # Targets
-.PHONY: build test clean
-
-build: test $(EXEC)
+.PHONY: transform compile run clean allclean
 
 $(EXEC): $(LFRIC_LIB) $(GHLIB_LIB) $(PSYDATA_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(PSY_OBJ) -o $(EXEC)        \
@@ -92,7 +90,9 @@ $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH) netcdf
 
 $(PSYDATA_LIB): $(LFRIC_LIB)
+ifneq ($(PSYDATA_PATH),)
 	$(MAKE) -C $(PSYDATA_PATH)
+endif
 
 # Dependencies
 $(OBJ): $(LFRIC_LIB) $(GHLIB) $(PSYDATA_LIB)
@@ -100,15 +100,12 @@ time_evolution_driver.o:  time_evolution_alg_mod_psy.o time_evolution_alg_mod.o
 
 time_evolution_alg_mod.o: init_perturbation_kernel_mod.o \
 	prop_perturbation_kernel_mod.o time_evolution_alg_mod_psy.o
+
 time_evolution_alg_mod_psy.o: init_perturbation_kernel_mod.o \
 	prop_perturbation_kernel_mod.o
-time_evolution_driver.o: time_evolution_alg_mod.o
 
-%.o %.mod: %.f90
+%.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
-
-# Test PSyclone target for continuous integration
-test: $(PSY_SRC) time_evolution_alg_mod.f90
 
 %.f90 %_psy.f90: %.x90
 	psyclone $(PSYCLONE_CMD) \
