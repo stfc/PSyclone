@@ -36,7 +36,8 @@
 #          C. M. Maynard, Met Office/University of Reading,
 #          J. Henrichs, Bureau of Meteorology.
 
-''' This module tests the Loop support in the LFRic API using pytest. '''
+''' This module uses pytest to test the DynLoop class. This is the LFRic-
+    specific subclass of the Loop class. '''
 
 from __future__ import absolute_import, print_function
 import os
@@ -59,8 +60,8 @@ TEST_API = "dynamo0.3"
 
 
 def test_set_lower_bound_functions():
-    '''test that we raise appropriate exceptions when the lower bound of
-    a loop is set to invalid values '''
+    ''' Test that we raise appropriate exceptions when the lower bound of
+    a DynLoop is set to invalid values. '''
     schedule = Schedule()
     my_loop = DynLoop(parent=schedule)
     schedule.children = [my_loop]
@@ -74,8 +75,8 @@ def test_set_lower_bound_functions():
 
 
 def test_set_upper_bound_functions():
-    '''test that we raise appropriate exceptions when the upper bound of
-    a loop is set to invalid values '''
+    ''' Test that we raise appropriate exceptions when the upper bound of
+    a DynLoop is set to invalid values. '''
     schedule = Schedule()
     my_loop = DynLoop(parent=schedule)
     schedule.children = [my_loop]

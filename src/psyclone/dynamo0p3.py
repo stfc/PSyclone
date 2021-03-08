@@ -6434,24 +6434,24 @@ class DynLoop(Loop):
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
 
-        # set our variable at initialisation as it might be required
-        # by other classes before code generation
-        if self.loop_type == "colours":
-            tag = "colours_loop_idx"
-            suggested_name = "colour"
-        elif self.loop_type == "colour":
-            tag = "cell_loop_idx"
-            suggested_name = "cell"
-        elif self.loop_type == "dofs":
-            tag = "dof_loop_idx"
-            suggested_name = "df"
-        elif self.loop_type == "null":
-            tag = ""
-        else:
-            tag = "cell_loop_idx"
-            suggested_name = "cell"
+        # Set our variable at initialisation as it might be required
+        # by other classes before code generation. A 'null' loop does not
+        # have an associated variable.
+        if self.loop_type != "null":
 
-        if tag:
+            if self.loop_type == "colours":
+                tag = "colours_loop_idx"
+                suggested_name = "colour"
+            elif self.loop_type == "colour":
+                tag = "cell_loop_idx"
+                suggested_name = "cell"
+            elif self.loop_type == "dofs":
+                tag = "dof_loop_idx"
+                suggested_name = "df"
+            else:
+                tag = "cell_loop_idx"
+                suggested_name = "cell"
+
             symtab = self.scope.symbol_table
             try:
                 self.variable = symtab.lookup_with_tag(tag)
@@ -7055,13 +7055,13 @@ class DynLoop(Loop):
             if fields:
                 parent.add(CommentGen(parent, ""))
                 if self._loop_type != "null":
-                    parent.add(CommentGen(parent,
-                                          " Set halos dirty/clean for fields "
-                                          "modified in the above loop"))
+                    prev_node_name = "loop"
                 else:
-                    parent.add(CommentGen(parent,
-                                          " Set halos dirty/clean for fields "
-                                          "modified in the above kernel"))
+                    prev_node_name = "kernel"
+                parent.add(
+                    CommentGen(parent, " Set halos dirty/clean for fields "
+                               "modified in the above {0}".format(
+                                          prev_node_name)))
                 parent.add(CommentGen(parent, ""))
                 from psyclone.psyGen import OMPParallelDoDirective
                 use_omp_master = False
@@ -8725,7 +8725,9 @@ class DynKernelArgument(KernelArgument):
 class DynKernCallFactory(object):
     ''' Create the necessary framework for a Dynamo kernel call.
     This consists of a Loop over cells containing a call to the
-    user-supplied kernel routine. '''
+    user-supplied kernel routine.
+
+    '''
     @staticmethod
     def create(call, parent=None):
         '''
@@ -8743,10 +8745,11 @@ class DynKernCallFactory(object):
             # Kernel operates on whole domain so there is no loop.
             # We still need a loop object though as that is where the logic
             # for handling halo exchanges is currently implemented.
-            cloop = DynLoop(parent=parent, loop_type="null")
+            loop_type = "null"
         else:
-            # Loop over cells
-            cloop = DynLoop(parent=parent)
+            # Loop over cells, indicated by an empty string.
+            loop_type = ""
+        cloop = DynLoop(parent=parent, loop_type=loop_type)
 
         # The kernel itself
         kern = DynKern()

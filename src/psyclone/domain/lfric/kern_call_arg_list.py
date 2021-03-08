@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -413,8 +413,8 @@ class KernCallArgList(ArgOrdering):
         self.append(undf_name, var_accesses)
         map_name = function_space.map_name
         if self._kern.iterates_over == 'domain':
-            # This kernel is not within a loop over cells so pass the whole
-            # dofmap.
+            # This kernel takes responsibility for iterating over cells so
+            # pass the whole dofmap.
             self.append("{0}".format(map_name),
                         var_accesses, var_access_name=map_name)
         else:

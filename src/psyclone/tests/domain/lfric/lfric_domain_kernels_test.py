@@ -288,12 +288,18 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir):
     _, info = parse(os.path.join(BASE_PATH, "25.0_domain.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-    gen_code = str(psy.gen)
-    # Kernel call should include whole dofmap
-    assert ("CALL testkern_domain_code(nlayers, b, f1_proxy%data, ndf_w3, "
-            "undf_w3, map_w3)" in gen_code)
-    # Should have no loop over cells
-    assert "DO cell=" not in gen_code
+    gen_code = str(psy.gen).lower()
+
+    # Kernel call should include whole dofmap and not be within a loop
+    if dist_mem:
+        expected = "      ! call kernels and communication routines\n"
+    else:
+        expected = "      ! call our kernels\n"
+    assert (expected + "      !\n"
+            "      !\n"
+            "      call testkern_domain_code(nlayers, b, f1_proxy%data, "
+            "ndf_w3, undf_w3, map_w3)" in gen_code)
+
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -337,44 +343,59 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     _, info = parse(os.path.join(BASE_PATH, "25.2_multikern_domain.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-    gen_code = str(psy.gen)
+    gen_code = str(psy.gen).lower()
     expected = ("      !\n"
                 "      !\n"
-                "      CALL testkern_domain_code(nlayers, b, f1_proxy%data, "
+                "      call testkern_domain_code(nlayers, b, f1_proxy%data, "
                 "ndf_w3, undf_w3, map_w3)\n")
     if dist_mem:
         expected += ("      !\n"
-                     "      ! Set halos dirty/clean for fields modified in "
+                     "      ! set halos dirty/clean for fields modified in "
                      "the above kernel\n"
                      "      !\n"
-                     "      CALL f1_proxy%set_dirty()\n"
-                     "      !\n")
+                     "      call f1_proxy%set_dirty()\n"
+                     "      !\n"
+                     "      if (f2_proxy%is_dirty(depth=1)) then\n"
+                     "        call f2_proxy%halo_exchange(depth=1)\n"
+                     "      end if\n"
+                     "      !\n"
+                     "      if (f3_proxy%is_dirty(depth=1)) then\n"
+                     "        call f3_proxy%halo_exchange(depth=1)\n"
+                     "      end if\n"
+                     "      !\n"
+                     "      if (f4_proxy%is_dirty(depth=1)) then\n"
+                     "        call f4_proxy%halo_exchange(depth=1)\n"
+                     "      end if\n"
+                     "      !\n"
+                     "      call f1_proxy%halo_exchange(depth=1)\n"
+                     "      !\n"
+                     "      do cell=1,mesh%get_last_halo_cell(1)\n")
     else:
-        expected += "      DO cell=1,f2_proxy%vspace%get_ncell()\n"
+        expected += "      do cell=1,f2_proxy%vspace%get_ncell()\n"
     assert expected in gen_code
 
     expected = (
-        "      END DO\n"
+        "      end do\n"
         "      !\n")
     if dist_mem:
         expected += (
-            "      ! Set halos dirty/clean for fields modified in the above "
+            "      ! set halos dirty/clean for fields modified in the above "
             "loop\n"
             "      !\n"
-            "      CALL f1_proxy%set_dirty()\n"
+            "      call f1_proxy%set_dirty()\n"
             "      !\n"
             "      !\n")
     expected += (
-        "      CALL testkern_domain_code(nlayers, c, f1_proxy%data, "
+        "      call testkern_domain_code(nlayers, c, f1_proxy%data, "
         "ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
-        assert ("      ! Set halos dirty/clean for fields modified in the "
+        assert ("      ! set halos dirty/clean for fields modified in the "
                 "above kernel\n"
                 "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
+                "      call f1_proxy%set_dirty()\n"
                 "      !\n"
                 "      !\n"
-                "    END SUBROUTINE invoke_0" in gen_code)
+                "    end subroutine invoke_0" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
