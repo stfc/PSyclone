@@ -250,9 +250,9 @@ def generate(filename, api="", kernel_path="", script_name=None,
                 psyir.view()
                 # Transform psyir to algorithm-specific psyir
                 psyir_to_algpsyir(psyir)
-                algpsyir.view()
+                psyir.view()
                 # Transform algpsyir to processed_algpsyir
-                # processed_algpsyir = algpsyir_to_processed_algpsyir(algpsyir, names)
+                # algpsyir_to_processed_algpsyir(psyir, names)
                 # psyir.view()
                 # Transform processed_algpsyir to Fortran
                 # from psyclone.psyir.backend.fortran import FortranWriter
@@ -276,19 +276,6 @@ def add_use(parse_tree, name):
     use = Use_Stmt("use {0}".format(name))
     spec_part = parse_tree.children[0].children[1]
     spec_part.content.insert(0, use)
-
-
-def fparser2psyir(parse_tree):
-    ''' xxx '''
-    from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-    from psyclone.psyir.symbols import RoutineSymbol
-    processor = Fparser2Reader()
-    container = processor.generate_container(parse_tree)
-    for symbol in container.symbol_table.symbols:
-        if isinstance(symbol, RoutineSymbol):
-            schedule = processor.generate_schedule(
-                symbol.name, parse_tree, container=container)
-    return container
 
 
 def main(args):

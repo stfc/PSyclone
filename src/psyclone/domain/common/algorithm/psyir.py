@@ -46,10 +46,7 @@ class AlgorithmInvokeCall(Call):
 
     _children_valid_format = "[KernelLayerRef]*"
     _text_name = "AlgorithmInvokeCall"
-
-    # Change this when PR #1122 is on master
-    # _colour = "green"
-    _colour_key = "Container"
+    _colour = "green"
 
     @staticmethod
     def _validate_child(position, child):
@@ -71,12 +68,9 @@ class KernelLayerRef(Node):
     into the PSy layer.
 
     '''
-    # Change this when PR #1122 is on master
-    # _colour = "green"
-    _colour_key = "Container"  # green
-    # Textual description of the node.
     _children_valid_format = "[DataNode]*"
     _text_name = "KernelLayerRef"
+    _colour = "green"
 
     def __init__(self, symbol, parent=None):
         # pylint: disable=super-with-arguments

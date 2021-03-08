@@ -63,10 +63,7 @@ def psyir_to_algpsyir(psyir):
                     routine_symbol = call_arg.symbol
                     # pylint: disable=unidiomatic-typecheck
                     if type(routine_symbol) is Symbol:
-                        # TODO Use specialise method from PR #1063
-                        # when it is on master
-                        # routine_symbol.specialise_to(TypeSymbol)
-                        routine_symbol.__class__ = TypeSymbol
+                        routine_symbol.specialise(TypeSymbol)
                         routine_symbol.datatype = StructureType()
                     kernel_calls.append(KernelLayerRef.create(
                         routine_symbol, call_arg.children))
@@ -78,11 +75,7 @@ def psyir_to_algpsyir(psyir):
 
             invoke_call = AlgorithmInvokeCall.create(
                 call.routine, kernel_calls)
-            # issue #1124, use Node.replace_with() here
-            invoke_call.parent = call.parent
-            position = call.position
-            call.parent.children.remove(call)
-            invoke_call.parent.children.insert(position, invoke_call)
+            call.replace_with(invoke_call)
 
 
 __all__ = ['psyir_to_algpsyir']

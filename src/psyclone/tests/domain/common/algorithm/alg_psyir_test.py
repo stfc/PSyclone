@@ -44,7 +44,7 @@ from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Reference, Literal, Node
-from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import RoutineSymbol, TypeSymbol, \
     StructureType, Symbol
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
@@ -60,7 +60,7 @@ def test_algorithminvokecall():
     routine = RoutineSymbol("hello")
     call = AlgorithmInvokeCall(routine)
     assert call._text_name == "AlgorithmInvokeCall"
-    assert call._colour_key == "Container"
+    assert call._colour == "green"
 
 
 def test_algorithminvokecall_invalid_arg():
@@ -86,7 +86,7 @@ def test_kernellayerref():
     klr = KernelLayerRef(symbol)
     assert klr._symbol == symbol
     assert klr.symbol == symbol
-    assert klr._colour_key == "Container"
+    assert klr._colour == "green"
     assert klr._text_name == "KernelLayerRef"
     assert klr.parent is None
 
@@ -180,7 +180,7 @@ def test_kernellayerref_node_str():
     symbol = TypeSymbol("hello", StructureType())
     arg = Reference(Symbol("dummy"))
     klr = KernelLayerRef.create(symbol, [arg])
-    coloredtext = colored("KernelLayerRef", SCHEDULE_COLOUR_MAP["Container"])
+    coloredtext = colored("KernelLayerRef", KernelLayerRef._colour)
     assert klr.node_str() == coloredtext+"[name='hello']"
 
 

@@ -47,7 +47,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Reference
 from psyclone.domain.common.algorithm import \
     AlgorithmInvokeCall, KernelLayerRef, psyir_to_algpsyir
-from psyclone.errors import GenerationError
+from psyclone.errors import InternalError
 
 
 def check_kernel(klr, name):
@@ -158,7 +158,7 @@ def test_arg_error():
     psyir_reader = Fparser2Reader()
     psyir = psyir_reader.generate_psyir(parse_tree)
 
-    with pytest.raises(GenerationError) as info:
+    with pytest.raises(InternalError) as info:
         psyir_to_algpsyir(psyir)
     assert ("Unsupported argument type found. Expecting a reference to kernel "
             "metadata, but found 'Literal'." in str(info.value))

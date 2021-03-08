@@ -44,7 +44,7 @@ from psyclone.psyir.symbols import Symbol, TypeSymbol, \
     StructureType
 from psyclone.domain.lfric.algorithm import \
     LfricBuiltinRef, LfricCodedKernelRef, LfricAlgorithmInvokeCall
-from psyclone.dynamo0p3_builtins import BUILTIN_MAP as builtins
+from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
 from psyclone.errors import GenerationError, InternalError
 
 
@@ -107,10 +107,7 @@ def psyir_to_algpsyir(psyir):
                         # pylint: disable=unidiomatic-typecheck
                         if type(routine_symbol) is Symbol:
                             # Needs setting to a RoutineSymbol
-                            # TODO Use specialise method from PR #1063
-                            # when it is on master
-                            # routine_symbol.specialise_to(TypeSymbol)
-                            routine_symbol.__class__ = TypeSymbol
+                            routine_symbol.specialise(TypeSymbol)
                             routine_symbol.datatype = StructureType()
                         kernel_calls.append(LfricBuiltinRef.create(
                             routine_symbol, call_arg.children))
@@ -118,10 +115,7 @@ def psyir_to_algpsyir(psyir):
                         routine_symbol = call_arg.symbol
                         # pylint: disable=unidiomatic-typecheck
                         if type(routine_symbol) is Symbol:
-                            # TODO Use specialise method from PR #1063
-                            # when it is on master
-                            # routine_symbol.specialise(RoutineSymbol)
-                            routine_symbol.__class__ = TypeSymbol
+                            routine_symbol.specialise(TypeSymbol)
                             routine_symbol.datatype = StructureType()
                         kernel_calls.append(LfricCodedKernelRef.create(
                             routine_symbol, call_arg.children))
@@ -133,11 +127,7 @@ def psyir_to_algpsyir(psyir):
 
             invoke_call = LfricAlgorithmInvokeCall.create(
                 call.routine, kernel_calls, description=call_description)
-            # issue #1124, use Node.replace_with() here
-            invoke_call.parent = call.parent
-            position = call.position
-            call.parent.children.remove(call)
-            invoke_call.parent.children.insert(position, invoke_call)
+            call.replace_with(invoke_call)
 
 
 __all__ = ['psyir_to_algpsyir']
