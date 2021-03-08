@@ -51,9 +51,9 @@ import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
-    Literal, Node, Schedule, KernelSchedule, Call
+    Literal, Node, Schedule, KernelSchedule, Call, Loop
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
-    GlobalInterface, ContainerSymbol, Symbol
+    GlobalInterface, ContainerSymbol, Symbol, SymbolTable
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     OMPParallelDoDirective, InlinedKern, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
@@ -66,7 +66,8 @@ from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
     DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans, \
-    ACCEnterDataTrans, ACCParallelTrans, ACCLoopTrans, ACCKernelsTrans
+    Dynamo0p3ColourTrans, ACCEnterDataTrans, ACCParallelTrans, ACCLoopTrans, \
+    ACCKernelsTrans
 from psyclone.generator import generate
 from psyclone.configuration import Config
 from psyclone.tests.utilities import get_invoke
@@ -706,6 +707,56 @@ def test_incremented_arg():
         CodedKern.incremented_arg(my_kern)
     assert ("does not have an argument with gh_inc access"
             in str(excinfo.value))
+
+
+def test_kern_is_coloured1():
+    ''' Check that the is_coloured method behaves as expected. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.walk(Kern)[0]
+    assert not kern.is_coloured()
+    # Colour the loop around the kernel
+    ctrans = Dynamo0p3ColourTrans()
+    cschedule, _ = ctrans.apply(schedule[0])
+    assert kern.is_coloured()
+    # Test when the Kernel appears to have no parent loop
+    kern.parent = schedule
+    assert not kern.is_coloured()
+
+
+def test_kern_is_coloured2():
+    ''' Check that the is_coloured() works, independent of which loop in a
+    loop nest is of type "colour". '''
+    table = SymbolTable()
+    # Create the loop variables
+    for idx in range(3):
+        table.new_symbol("cell{0}".format(idx), symbol_type=DataSymbol,
+                         datatype=INTEGER_TYPE)
+    # Create a loop nest of depth 3 containing the kernel, innermost first
+    my_kern = DynKern()
+    loops = [Loop.create(table.lookup("cell0"), Literal("1", INTEGER_TYPE),
+                         Literal("10", INTEGER_TYPE),
+                         Literal("1", INTEGER_TYPE), [my_kern])]
+    loops.append(Loop.create(table.lookup("cell1"), Literal("1", INTEGER_TYPE),
+                             Literal("10", INTEGER_TYPE),
+                             Literal("1", INTEGER_TYPE), [loops[-1]]))
+    loops.append(Loop.create(table.lookup("cell2"), Literal("1", INTEGER_TYPE),
+                             Literal("10", INTEGER_TYPE),
+                             Literal("1", INTEGER_TYPE), [loops[-1]]))
+    # As we're using the generic Loop class, we have to manually set the list
+    # of valid Loop types
+    for loop in loops:
+        loop._valid_loop_types = ["colour", ""]
+    # We have no coloured loops at this point
+    assert not my_kern.is_coloured()
+    # Test that things work as expected, independent of which loop is coloured
+    for loop in loops:
+        loop.loop_type = "colour"
+        assert my_kern.is_coloured()
+        loop.loop_type = ""
+    assert not my_kern.is_coloured()
 
 
 def test_ompdo_constructor():
