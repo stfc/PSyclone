@@ -1553,8 +1553,8 @@ class DynStencils(DynCollection):
         api_config = Config.get().api_conf("dynamo0.3")
 
         if self._unique_extent_vars:
-            for arg in self._kern_args:
-                if self._kernel:
+            if self._kernel:
+                for arg in self._kern_args:
                     if arg.descriptor.stencil['type'] == "cross2d":
                         parent.add(DeclGen(
                             parent, datatype="integer",
@@ -1568,12 +1568,12 @@ class DynStencils(DynCollection):
                             kind=api_config.default_kind["integer"],
                             entity_decls=self._unique_extent_vars,
                             intent="in"))
-                elif self._invoke:
-                    parent.add(DeclGen(
-                        parent, datatype="integer",
-                        kind=api_config.default_kind["integer"],
-                        entity_decls=self._unique_extent_vars, intent="in"
-                    ))
+            elif self._invoke:
+                parent.add(DeclGen(
+                    parent, datatype="integer",
+                    kind=api_config.default_kind["integer"],
+                    entity_decls=self._unique_extent_vars, intent="in"
+                ))
 
     @property
     def _unique_direction_vars(self):
