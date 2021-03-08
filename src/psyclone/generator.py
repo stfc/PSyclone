@@ -234,48 +234,13 @@ def generate(filename, api="", kernel_path="", script_name=None,
             Profiler.add_profile_nodes(invoke.schedule, Loop)
 
         if api not in API_WITHOUT_ALGORITHM:
-            if False:
-                if api=="dynamo0.3":
-                    from psyclone.domain.lfric.algorithm import psyir_to_algpsyir
-                    # Add a use statement to the ast to declare builtins
-                    add_use(ast, "psyclone_builtins")
-                elif api == "gocean1.0":
-                    from psyclone.domain.common.algorithm import psyir_to_algpsyir
-                else:
-                    raise Exception("Unsupported API found")
-                # Create psyir from fparser2 ast
-                from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-                processor = Fparser2Reader()
-                psyir = processor.generate_psyir(ast)
-                psyir.view()
-                # Transform psyir to algorithm-specific psyir
-                psyir_to_algpsyir(psyir)
-                psyir.view()
-                # Transform algpsyir to processed_algpsyir
-                # algpsyir_to_processed_algpsyir(psyir, names)
-                # psyir.view()
-                # Transform processed_algpsyir to Fortran
-                # from psyclone.psyir.backend.fortran import FortranWriter
-                # writer = FortranWriter()
-                # alg_gen = writer(psyir)
-                exit(1)
-            else:
-                alg_gen = Alg(ast, psy).gen
+            alg_gen = Alg(ast, psy).gen
         else:
             alg_gen = None
     except Exception:
         raise
 
     return alg_gen, psy.gen
-
-
-def add_use(parse_tree, name):
-    ''' xxx '''
-    from fparser.two.Fortran2003 import Use_Stmt
-    # Needs type checking (see alg_gen.py.adduse())
-    use = Use_Stmt("use {0}".format(name))
-    spec_part = parse_tree.children[0].children[1]
-    spec_part.content.insert(0, use)
 
 
 def main(args):
