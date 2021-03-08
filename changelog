@@ -412,6 +412,8 @@
 	133) PR #1109 for issue #402. Add NEMO processing scripts to the
 	repository.
 
+	134) PR #1135 for issue #1124. Add a replace_with method to PSyIR node.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
