@@ -251,8 +251,8 @@ class LFRicBuiltIn(BuiltIn):
             data_types_str = [str(x) for x in sorted(data_types)]
             raise ParseError(
                 "In the LFRic API only the data type conversion built-ins "
-                "{0} are allowed to have different data types of their "
-                "field arguments. However, found different data types "
+                "{0} are allowed to have field arguments of different "
+                "data types. However, found different data types "
                 "{1} for field arguments to '{2}'.".
                 format(conversion_builtins, data_types_str, self.name))
 
@@ -998,8 +998,8 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
 
 
 class LFRicADividebyXKern(LFRicBuiltIn):
-    ''' DoF-wise division of a scalar value `a` by the elements of
-    a real-valued field, `X`, and storing the result in another,
+    ''' DoF-wise division of a scalar value `a` by the elements
+    of a real-valued field, `X`, storing the result in another,
     real-valued, field, `Y` (`Y = a/X`).
 
     '''
@@ -1025,8 +1025,8 @@ class LFRicADividebyXKern(LFRicBuiltIn):
 
 
 class LFRicIncADividebyXKern(LFRicBuiltIn):
-    ''' DoF-wise division of a scalar value `a` by the elements of
-    a real-valued field, `X`, and storing the result in the same
+    ''' DoF-wise division of a scalar value `a` by the elements
+    of a real-valued field, `X`, storing the result in the same
     field (`X = a/X`).
 
     '''
@@ -1043,7 +1043,7 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
 
         '''
         # We divide the real scalar argument by each element of f1 and
-        # return the result in f1 (real-valued fields).
+        # return the result in f1 (real-valued field).
         field_name = self.array_ref(self._arguments.args[1].proxy_name)
         scalar_name = self._arguments.args[0].name
         parent.add(AssignGen(parent, lhs=field_name,
@@ -1248,9 +1248,7 @@ class LFRicSumXKern(LFRicBuiltIn):
 
 class LFRicSignXKern(LFRicBuiltIn):
     ''' Returns the sign of a real-valued field elements using the
-    Fortran intrinsic `sign` function, `Y = sign(a, X)`, where `a` is
-    a real scalar and `Y` and `X` are real-valued fields. The results
-    are `a` for `a > 0`, `0` for `a = 0` and `-a` for `a < 0`.
+    Fortran intrinsic `sign` function, `Y = sign(a, X)`.
 
     '''
     def __str__(self):
@@ -1265,8 +1263,8 @@ class LFRicSignXKern(LFRicBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
-        # Return the sign of all the elements of a real-valued field using
-        # the supplied real scalar.
+        # Return the sign of all the elements of a real-valued field
+        # applied to the supplied real scalar.
         field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
         scalar_name = self._reduction_ref(self._arguments.args[1].name)
         field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -1280,7 +1278,7 @@ class LFRicSignXKern(LFRicBuiltIn):
 
 
 class LFRicReal2IntXKern(LFRicBuiltIn):
-    ''' Converts a real-valued field elements to an integer-valued
+    ''' Converts real-valued field elements to integer-valued
     field elements using the Fortran intrinsic `int` function,
     `Y = int(X, i_def)`. Here `Y` is an integer-valued field and
     `X` is the real-valued field being converted. The correct `kind`
@@ -1488,9 +1486,7 @@ class LFRicIntSetvalXKern(LFRicSetvalXKern):
 
 class LFRicIntSignXKern(LFRicSignXKern):
     ''' Returns the sign of an integer-valued field elements using the
-    Fortran intrinsic `sign` function, `Y = sign(a, X)`, where `a` is
-    an integer scalar and `Y` and `X` are integer-valued fields. The
-    results are `a` for `a > 0`, `0` for `a = 0` and `-a` for `a < 0`.
+    Fortran intrinsic `sign` function, `Y = sign(a, X)`.
     Inherits the `gen_code` method from the real-valued built-in
     equivalent `LFRicSignXKern`.
 
@@ -1505,7 +1501,7 @@ class LFRicIntSignXKern(LFRicSignXKern):
 
 
 class LFRicInt2RealXKern(LFRicBuiltIn):
-    ''' Converts an integer-valued field elements to a real-valued
+    ''' Converts integer-valued field elements to real-valued
     field elements using the Fortran intrinsic `real` function,
     `Y = real(X, r_def)`. Here `Y` is a real-valued field and `X`
     is the integer-valued field being converted. The correct `kind`
@@ -1585,7 +1581,7 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "X_innerproduct_X": LFRicXInnerproductXKern,
     # Sum values of a real field
     "sum_X": LFRicSumXKern,
-    # Sign of real field elements
+    # Sign of real field elements applied to a scalar value
     "sign_X": LFRicSignXKern,
     # Converting real to integer field elements
     "real2int_X": LFRicReal2IntXKern}
@@ -1610,7 +1606,7 @@ INT_BUILTIN_MAP_CAPITALISED = {
     # or other integer field's values
     "int_setval_c": LFRicIntSetvalCKern,
     "int_setval_X": LFRicIntSetvalXKern,
-    # Sign of integer field elements
+    # Sign of integer field elements applied to a scalar value
     "int_sign_X": LFRicIntSignXKern,
     # Converting integer to real field elements
     "int2real_X": LFRicInt2RealXKern}

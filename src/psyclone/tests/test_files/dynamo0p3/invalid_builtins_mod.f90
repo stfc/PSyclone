@@ -143,8 +143,8 @@ module lfric_builtins_mod
      procedure, nopass :: inc_X_divideby_Y_code
   end type inc_X_divideby_Y
 
-  !> Invalid built-in that has different data type of its field
-  !> arguments and is not a data type conversion built-in
+  !> Invalid built-in that has field arguments of different primitive
+  !> types and is not a data-type conversion built-in
   type, public, extends(kernel_type) :: X_minus_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &

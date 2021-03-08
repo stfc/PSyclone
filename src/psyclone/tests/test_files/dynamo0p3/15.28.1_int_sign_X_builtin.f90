@@ -43,7 +43,7 @@ program single_invoke
   implicit none
 
   type(integer_field_type) :: f1, f2
-  real(i_def)              :: a
+  integer(i_def)           :: a
 
   a = 1
 

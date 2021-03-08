@@ -38,16 +38,16 @@
 ''' Tests of transformations with the Dynamo 0.3 API '''
 
 from __future__ import absolute_import, print_function
-import pytest
 import inspect
 from importlib import import_module
+import pytest
 from psyclone.core.access_type import AccessType
 from psyclone import psyGen
 from psyclone import psyir
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import LocalInterface, ScalarType, ArrayType, \
     REAL_TYPE, INTEGER_TYPE
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Schedule, Literal
 from psyclone.psyir.transformations import TransformationError, LoopTrans
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
@@ -66,7 +66,6 @@ from psyclone.dynamo0p3 import DynLoop
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyGen import OMPDoDirective, InvokeSchedule, Directive, \
     GlobalSum, BuiltIn
-from psyclone.psyir.nodes import Loop, Schedule, Literal
 
 
 # The version of the API that the tests in this file
@@ -3433,8 +3432,6 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
     ''' Test that we generate correct reproducible OpenMP DO reductions
     when we have three different built-ins, first a reduction, then a
     normal built-in then a reduction. '''
-    from psyclone.dynamo0p3 import DynLoop
-    from psyclone.psyGen import OMPDoDirective
     file_name = "15.19.1_three_builtins_two_reductions.f90"
     psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
@@ -6479,7 +6476,6 @@ def test_async_hex_wrong_node():
     exchange.
 
     '''
-    from psyclone.psyGen import Loop
     node = Loop()
     ahex = Dynamo0p3AsyncHaloExchangeTrans()
     with pytest.raises(TransformationError) as err:
@@ -6902,7 +6898,7 @@ def test_vector_halo_exchange_remove():
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[3], {"depth": 2})
     assert len(schedule.children) == 5
-    from psyclone.dynamo0p3 import DynHaloExchange, DynLoop
+    from psyclone.dynamo0p3 import DynHaloExchange
     for index in [0, 1, 2]:
         assert isinstance(schedule.children[index], DynHaloExchange)
     assert isinstance(schedule.children[3], DynLoop)
@@ -6962,7 +6958,7 @@ def test_vector_async_halo_exchange(tmpdir):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[6], {"depth": 2})
     schedule.view()
-    from psyclone.dynamo0p3 import DynLoop, DynHaloExchangeStart, \
+    from psyclone.dynamo0p3 import DynHaloExchangeStart, \
         DynHaloExchangeEnd
     assert len(schedule.children) == 8
     for index in [0, 2, 4]:

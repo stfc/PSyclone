@@ -274,34 +274,34 @@ def test_builtin_args_not_same_space():
             format(test_builtin_name.lower()) in str(excinfo.value))
 
 
-def test_builtin_fld_args_different_data_type():
+def test_builtin_fld_args_different_data_type(monkeypatch):
     ''' Check that we raise the correct error if we encounter a built-in
     that has has different data type of its field arguments and is not one
     of the data type conversion built-ins ("real2int_X" and "int2real_X").
 
     '''
-    # Save the name of the actual built-in-definitions file
-    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "X_minus_Y"
     test_builtin_file = "15.2.1_" + test_builtin_name + "_builtin.f90"
     # Change the built-in-definitions file to point to one that has
     # various invalid definitions
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
+    monkeypatch.setattr(
+        lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
+        os.path.join(BASE_PATH, "invalid_builtins_mod.f90"))
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      test_builtin_file),
         api=API)
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    # Restore the actual built-in-definitions file name
+    monkeypatch.undo()
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert ("In the LFRic API only the data type conversion built-ins "
-            "['real2int_X', 'int2real_X'] are allowed to have "
-            "different data types of their field arguments. However, "
-            "found different data types ['gh_integer', 'gh_real'] "
-            "for field arguments to '{0}'".
+            "['real2int_X', 'int2real_X'] are allowed to have field "
+            "arguments of different data types. However, found "
+            "different data types ['gh_integer', 'gh_real'] for "
+            "field arguments to '{0}'.".
             format(test_builtin_name.lower()) in str(excinfo.value))
 
 
@@ -540,22 +540,6 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
 
     if not dist_mem:
         output = (
-            "    SUBROUTINE invoke_0(f2, a, f1)\n"
-            "      REAL(KIND=r_def), intent(in) :: a\n"
-            "      TYPE(field_type), intent(in) :: f2, f1\n"
-            "      INTEGER df\n"
-            "      TYPE(field_proxy_type) f2_proxy, f1_proxy\n"
-            "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
-            "      !\n"
-            "      ! Initialise field and/or operator proxies\n"
-            "      !\n"
-            "      f2_proxy = f2%get_proxy()\n"
-            "      f1_proxy = f1%get_proxy()\n"
-            "      !\n"
-            "      ! Initialise number of DoFs for aspc1_f2\n"
-            "      !\n"
-            "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
-            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f2\n"
@@ -608,21 +592,6 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
 
     if not dist_mem:
         output = (
-            "    SUBROUTINE invoke_0(a, f1)\n"
-            "      REAL(KIND=r_def), intent(in) :: a\n"
-            "      TYPE(field_type), intent(in) :: f1\n"
-            "      INTEGER df\n"
-            "      TYPE(field_proxy_type) f1_proxy\n"
-            "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
-            "      !\n"
-            "      ! Initialise field and/or operator proxies\n"
-            "      !\n"
-            "      f1_proxy = f1%get_proxy()\n"
-            "      !\n"
-            "      ! Initialise number of DoFs for aspc1_f1\n"
-            "      !\n"
-            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
-            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
@@ -1029,23 +998,6 @@ def test_aX_plus_aY(tmpdir, monkeypatch, annexed, dist_mem):
 
     if not dist_mem:
         output = (
-            "    SUBROUTINE invoke_0(f3, a, f1, f2)\n"
-            "      REAL(KIND=r_def), intent(in) :: a\n"
-            "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
-            "      INTEGER df\n"
-            "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
-            "      !\n"
-            "      ! Initialise field and/or operator proxies\n"
-            "      !\n"
-            "      f3_proxy = f3%get_proxy()\n"
-            "      f1_proxy = f1%get_proxy()\n"
-            "      f2_proxy = f2%get_proxy()\n"
-            "      !\n"
-            "      ! Initialise number of DoFs for aspc1_f3\n"
-            "      !\n"
-            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
-            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f3\n"
@@ -2016,30 +1968,6 @@ def test_inc_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem):
 
     if not dist_mem:
         output = (
-            "    SUBROUTINE invoke_0(a, f1, b, f2, f3)\n"
-            "      REAL(KIND=r_def), intent(in) :: a, b\n"
-            "      TYPE(field_type), intent(in) :: f1, f2, f3\n"
-            "      INTEGER df\n"
-            "      INTEGER(KIND=i_def) ndf_aspc1_f1, "
-            "undf_aspc1_f1\n"
-            "      INTEGER(KIND=i_def) nlayers\n"
-            "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
-            "      !\n"
-            "      ! Initialise field and/or operator proxies\n"
-            "      !\n"
-            "      f1_proxy = f1%get_proxy()\n"
-            "      f2_proxy = f2%get_proxy()\n"
-            "      f3_proxy = f3%get_proxy()\n"
-            "      !\n"
-            "      ! Initialise number of layers\n"
-            "      !\n"
-            "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-            "      !\n"
-            "      ! Initialise number of DoFs for aspc1_f1\n"
-            "      !\n"
-            "      ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()\n"
-            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
-            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f1\n"
@@ -2539,22 +2467,6 @@ def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
 
     if not dist_mem:
         output = (
-            "    SUBROUTINE invoke_0(f2, a, f1)\n"
-            "      REAL(KIND=r_def), intent(in) :: a\n"
-            "      TYPE(field_type), intent(in) :: f2, f1\n"
-            "      INTEGER df\n"
-            "      TYPE(field_proxy_type) f2_proxy, f1_proxy\n"
-            "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
-            "      !\n"
-            "      ! Initialise field and/or operator proxies\n"
-            "      !\n"
-            "      f2_proxy = f2%get_proxy()\n"
-            "      f1_proxy = f1%get_proxy()\n"
-            "      !\n"
-            "      ! Initialise number of DoFs for aspc1_f2\n"
-            "      !\n"
-            "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
-            "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_aspc1_f2\n"
