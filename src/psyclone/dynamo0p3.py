@@ -7176,6 +7176,9 @@ class DynKern(CodedKern):
         self._reference_element = None
         # The mesh properties required by this kernel
         self._mesh_properties = None
+        # This constructor doesn't call the super() constructor but still
+        # some generic attributes should exist.
+        self._parent = None
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked

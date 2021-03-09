@@ -2421,11 +2421,8 @@ class GOLoopSwapTrans(LoopTrans):
         outer.loop_body.children.remove(inner)
 
         # Move inner's schedule to outer
-        loop_body = inner.children.pop(3)
-        loop_body.parent = None
-        outer.children[3] = loop_body
-        for child in outer.loop_body:
-            child.parent = outer.loop_body
+        outer.children[3] = inner.loop_body.detach()
+        outer.loop_body.parent = outer
 
         # Move outer under inner (create new Schedule to remove old entries)
         inner.children.append(nodes.Schedule())
