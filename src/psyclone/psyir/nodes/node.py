@@ -147,12 +147,14 @@ class ChildrenList(list):
         '''
         # The `item.parent is not self._node_reference` below should ideally be
         # removed as this still allows a single node to be a child of another
-        # one multiple times. However expressions like:
-        # node = NodeClass(parent=node2)
-        # node2.addchild(node)
-        # are used extensively and this condition is left to support these
-        # constructs.
-        # TODO #294 would solve this issue.
+        # one multiple times.
+        # However expressions like:
+        #   > node = NodeClass(parent=node2)
+        #   > node2.addchild(node)
+        # are used extensively. So this condition is left for the moment to
+        # support these 2-step parent-child construction operations.
+        # TODO #294 could solve this issue by making the parent-child
+        # connection an atomic (and transparent) operation.
         if item.parent and item.parent is not self._node_reference:
             raise GenerationError(
                 "Item '{0}' can't be added as child of '{1}' because it is not"
