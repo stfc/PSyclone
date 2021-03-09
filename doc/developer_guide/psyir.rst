@@ -135,6 +135,10 @@ to perform the following steps:
     generated automatically, hence avoiding the duplication. Issue #765
     explores this alternative.
 
+4. If any of the attributes introduced by this method should not be
+   shallow-copied when creating a duplicate of this PSyIR branch, specialise
+   the ``_refine_copy`` method to perform the appropriate copy actions.
+
 For example, if we want to create a node that can be found anywhere where a
 statement is valid, and in turn it accepts one and only one DataNode as a
 child, we would write something like:
