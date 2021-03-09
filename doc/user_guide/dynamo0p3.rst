@@ -2031,17 +2031,18 @@ following rules:
    means that we can determine the number of DoFs uniquely when a
    scalar is written to;
 
-6) Built-ins that update ``real``-valued fields can only read from
-   other ``real``-valued fields, but they can take both ``real`` and
-   ``integer`` scalar arguments;
+6) Built-ins that update ``real``-valued fields can, in general, only
+   read from other ``real``-valued fields, but they can take both ``real``
+   and ``integer`` scalar arguments (see rule 8 for exceptions);
 
-7) Built-ins that update ``integer``-valued fields can only read from
-   other ``integer``-valued fields and take ``integer`` scalar arguments;
+7) Built-ins that update ``integer``-valued fields can, in general, only
+   read from other ``integer``-valued fields and take ``integer`` scalar
+   arguments (see rule 8 for exceptions);
 
 8) The only two exceptions from the rules 6) and 7) above regarding the
    same data type of "write" and "read" field arguments are Built-ins
-   that convert field data from ``real`` to ``integer``, ``real2int_X``,
-   and from ``integer`` to ``real``, ``int2real_X``.
+   that convert field data from ``real`` to ``integer``, ``int_X``,
+   and from ``integer`` to ``real``, ``real_X``.
 
 The Built-ins supported for the LFRic API are listed in the related
 subsections, grouped first by the data type of fields they operate on
@@ -2056,6 +2057,13 @@ As described in the PSy-layer :ref:`Argument Intents
 <dynamo0.3-psy-arg-intents>` section, the Fortran intent of LFRic
 :ref:`field <dynamo0.3-field>` objects is always ``in``. The field or
 scalar that has its data modified by a Built-in is marked in **bold**.
+
+.. note:: The field arguments in Built-ins are the derived types that
+          represent the :ref:`LFRic fields <dynamo0.3-field>`, however
+          mathematical operations are actually performed on the data of
+          the *field proxies* (e.g. ``field1_proxy_data(:)``). PSyclone
+          issue #1149 will revisit the representation of declarations
+          and computations in the descriptions of individual Built-ins.
 
 .. _dynamo0.3-api-built-ins-metadata:
 
@@ -2173,7 +2181,9 @@ scheme presented below. Any new Built-in needs to comply with these rules.
       arguments (i.e. ``"inc_"<RHSargs>_<operationname>_<RHSargs>``);
 
    4) Prefix ``"int_"`` for the Built-in operations on the ``integer``-valued
-      field arguments (i.e. ``"int_inc_"<RHSargs>_<operationname>_<RHSargs>``).
+      field arguments (i.e. ``"int_inc_"<RHSargs>_<operationname>_<RHSargs>``),
+      except for the Built-in that converts the data type of field arguments
+      from ``integer`` to ``real`` (see rule 7 below).
 
 6) Built-ins names in Python definitions are similar to their Fortran
    counterparts, with a few differences:
@@ -2187,12 +2197,14 @@ scheme presented below. Any new Built-in needs to comply with these rules.
 
    3) Common prefix is ``"LFRic"`` for the Built-in operations on the
       ``real``-valued arguments and ``"LFRicInt"`` for the Built-in
-      operations on the ``integer``-valued fields.
+      operations on the ``integer``-valued fields (except for the
+      data-type conversion Built-ins, see rule 7 below).
 
-7) As in the case of Built-in field argument rules, the names of
-   the field data-type conversion Built-ins, ``real2int_X`` and
-   ``int2real_X``, are the only exceptions to the rules for
-   Built-ins names in Fortran above.
+7) As in the case of Built-in field argument rules, the names of the
+   field data-type conversion Built-ins, ``int_X`` (converts field data
+   from ``real`` to ``integer``) and ``real_X`` (converts field data
+   from ``integer`` to ``real``), are the only exceptions for the
+   naming of Built-ins in Fortran above.
 
 .. _lfric-built-ins-real:
 
@@ -2753,12 +2765,12 @@ Conversion of ``real`` to ``integer`` field elements
 ####################################################
 
 A Built-in which takes a ``real`` field and converts it to an
-``integer`` field is denoted with the keyword **real2int**.
+``integer`` field is denoted with the keyword **int**.
 
-real2int_X
-^^^^^^^^^^
+int_X
+^^^^^
 
-**real2int_X** (*ifield2*, *field1*)
+**int_X** (*ifield2*, *field1*)
 
 Converts ``real``-valued field elements to ``integer``-valued field
 elements using the Fortran intrinsic ``int`` function as
@@ -3013,12 +3025,12 @@ Conversion of ``integer`` to ``real`` field elements
 ####################################################
 
 A Built-in which takes an ``integer`` field and converts it to
-a ``real`` field is denoted with the keyword **int2real**.
+a ``real`` field is denoted with the keyword **real**.
 
-int2real_X
-^^^^^^^^^^
+real_X
+^^^^^^
 
-**int2real_X** (*field2*, *ifield1*)
+**real_X** (*field2*, *ifield1*)
 
 Converts ``integer``-valued field elements to ``real``-valued
 field elements using the Fortran intrinsic ``real`` function as
