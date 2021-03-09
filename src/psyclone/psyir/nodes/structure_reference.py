@@ -241,18 +241,6 @@ class StructureReference(Reference):
 
         '''
 
-    def copy(self):
-        ''' Return a copy of this node, including a copy of each of its
-        children.
-
-        :returns: a copy of this node and its children.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
-
-        '''
-        result = super(StructureReference, self).copy()
-        result.children = [child.copy() for child in self.children]
-        return result
-
 
 # For AutoAPI documentation generation
 __all__ = ['StructureReference']

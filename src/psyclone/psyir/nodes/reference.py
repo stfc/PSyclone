@@ -143,7 +143,9 @@ class Reference(DataNode):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        return type(self)(self.symbol)
+        result = type(self)(self.symbol)
+        result.children = [child.copy() for child in self.children]
+        return result
 
 
 # For AutoAPI documentation generation
