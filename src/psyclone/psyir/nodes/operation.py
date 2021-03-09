@@ -183,6 +183,9 @@ class BinaryOperation(Operation):
     '''
     Node representing a BinaryOperation expression. As such it has two operands
     as children 0 and 1, and an attribute with the operator type.
+
+    :param: TODO
+
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators. ('REM' is remainder AKA 'MOD' in Fortran.)
@@ -222,6 +225,13 @@ class BinaryOperation(Operation):
        :returns: the value of the upper bound of the `index` dimension of \
                  `array`.
 
+    Casting Operators:
+
+    .. function:: REAL(arg0, nbytes)
+
+       :returns: `arg0` converted to a floating point number represented by a \
+                 word of `nbytes` of storage.
+
     Matrix and Vector Operators:
 
     .. function:: MATMUL(array1, array2) -> array
@@ -249,6 +259,11 @@ class BinaryOperation(Operation):
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode"
     _text_name = "BinaryOperation"
+
+    def __init__(self, operator, parent=None, annotations=None):
+        super(BinaryOperation, self).__init__(operator, parent=parent)
+        if annotations:
+            self._annotations = annotations
 
     @staticmethod
     def _validate_child(position, child):
