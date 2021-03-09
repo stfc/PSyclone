@@ -145,8 +145,6 @@ class ChildrenList(list):
 
         :raises GenerationError: if the given item is not orpahn.
         '''
-        def identifier(node):
-            return node.coloured_name(False) + " with id " + str(id(node))
         # The `item.parent is not self._node_reference` below should ideally be
         # removed as this still allows a single node to be a child of another
         # one multiple times. However expressions like:
@@ -157,10 +155,11 @@ class ChildrenList(list):
         # TODO #294 would solve this issue.
         if item.parent and item.parent is not self._node_reference:
             raise GenerationError(
-                "Item '{0}' can't be child of '{1}' because it already has "
-                "'{2}' as a parent.".format(identifier(item),
-                                            identifier(self._node_reference),
-                                            identifier(item.parent)))
+                "Item '{0}' can't be added as child of '{1}' because it is not"
+                " an orphan. It already has a '{2}' as a parent.".format(
+                    item.coloured_name(False),
+                    self._node_reference.coloured_name(False),
+                    item.parent.coloured_name(False)))
 
     def append(self, item):
         ''' Extends list append method with children node validation.
