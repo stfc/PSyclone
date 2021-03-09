@@ -866,8 +866,8 @@ def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
 # ------------- Converting integer to real field elements ------------------- #
 
 
-def test_int2real_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicInt2RealXKern returns the
+def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicRealXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Y = real(X, r_def) where Y is a real-valued field, X is the
     integer-valued field being converted and the correct kind, 'r_def',
@@ -878,7 +878,7 @@ def test_int2real_X(tmpdir, monkeypatch, annexed, dist_mem):
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.28.2_int2real_X_builtin.f90"),
+                                        "15.28.2_real_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method

@@ -738,7 +738,7 @@ use argument_mod,  only : arg_type,            &
 ! ------------------------------------------------------------------- !
 
   !> field2 = real(ifield1, r_def)
-  type, public, extends(kernel_type) :: int2real_X
+  type, public, extends(kernel_type) :: real_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_FIELD, GH_REAL,    GH_WRITE, ANY_SPACE_1),      &
@@ -746,8 +746,8 @@ use argument_mod,  only : arg_type,            &
           /)
      integer :: operates_on = DOF
    contains
-     procedure, nopass :: int2real_X_code
-  end type int2real_X
+     procedure, nopass :: real_X_code
+  end type real_X
 
 contains
 
@@ -918,7 +918,7 @@ contains
   end subroutine int_sign_X_code
 
   ! Converting integer to real field elements
-  subroutine int2real_X_code()
-  end subroutine int2real_X_code
+  subroutine real_X_code()
+  end subroutine real_X_code
 
 end module lfric_builtins_mod

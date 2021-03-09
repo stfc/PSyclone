@@ -277,7 +277,7 @@ def test_builtin_args_not_same_space():
 def test_builtin_fld_args_different_data_type(monkeypatch):
     ''' Check that we raise the correct error if we encounter a built-in
     that has has different data type of its field arguments and is not one
-    of the data type conversion built-ins ("real2int_X" and "int2real_X").
+    of the data type conversion built-ins ("real2int_X" and "real_X").
 
     '''
     # Define the built-in name and test file
@@ -298,7 +298,7 @@ def test_builtin_fld_args_different_data_type(monkeypatch):
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert ("In the LFRic API only the data type conversion built-ins "
-            "['real2int_X', 'int2real_X'] are allowed to have field "
+            "['real2int_X', 'real_X'] are allowed to have field "
             "arguments of different data types. However, found "
             "different data types ['gh_integer', 'gh_real'] for "
             "field arguments to '{0}'.".
