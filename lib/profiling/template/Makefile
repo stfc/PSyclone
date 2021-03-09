@@ -41,6 +41,8 @@ OBJS = dummy_lib.o psy_data_base.o
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
 PROCESS=$$(../../get_python.sh) ../../process.py
 
+.PHONY: clean allclean
+
 default: libdummy.a
 
 libdummy.a: $(OBJS)
@@ -57,3 +59,4 @@ psy_data_base.f90: ../../psy_data_base.jinja
 clean:
 	rm -f libdummy.a $(OBJS) *.mod psy_data_base.f90
 
+allclean: clean

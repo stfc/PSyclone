@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the StructureMember PSyIR node. '''
@@ -41,7 +42,7 @@ import pytest
 from psyclone.psyir import nodes
 from psyclone.psyir import symbols
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.nodes.node import colored
 
 
 def create_structure_symbol(table):
@@ -92,8 +93,7 @@ def test_sm_node_str():
     # The first child of the StructureReference is itself a reference to a
     # structure and is therefore a StructureMember
     assert isinstance(grid_ref.children[0], nodes.StructureMember)
-    coloredtext = colored("StructureMember",
-                          SCHEDULE_COLOUR_MAP["Member"])
+    coloredtext = colored("StructureMember", nodes.StructureMember._colour)
     assert coloredtext+"[name:'area']" in grid_ref.children[0].node_str()
 
 
@@ -107,7 +107,7 @@ def test_sm_can_be_printed():
                                                parent=assignment)
     structure_member_ref = grid_ref.children[0]
     assert ("StructureMember[name:'area']\n"
-            "Member[name:'nx']\n" in str(structure_member_ref))
+            "Member[name:'nx']" in str(structure_member_ref))
 
 
 def test_sm_child_validate():

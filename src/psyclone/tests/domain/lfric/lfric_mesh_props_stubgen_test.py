@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified: I. Kavcic, Met Office
 
 '''
 Module containing pytest tests for the mesh-property support in the kernel-stub
@@ -63,9 +64,9 @@ def setup():
 MESH_PROP_MDATA = '''
 module testkern_mesh_prop_quad_mod
   type, extends(kernel_type) :: testkern_mesh_prop_quad_type
-    type(arg_type), dimension(2) :: meta_args =  &
-        (/ arg_type(gh_field, gh_read,  w1),     &
-           arg_type(gh_field, gh_write, wtheta) /)
+    type(arg_type), dimension(2) :: meta_args =       &
+        (/ arg_type(gh_field, gh_real, gh_read,  w1), &
+           arg_type(gh_field, gh_real, gh_write, wtheta) /)
     type(func_type), meta_funcs(2) = &
         (/ func_type(w1, gh_basis),  &
            func_type(wtheta, gh_basis) /)

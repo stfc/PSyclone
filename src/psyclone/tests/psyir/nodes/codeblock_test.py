@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,9 @@ from psyclone.errors import GenerationError
 
 def test_codeblock_node_str():
     ''' Check the node_str method of the Code Block class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored
     cblock = CodeBlock([], "dummy")
-    coloredtext = colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
+    coloredtext = colored("CodeBlock", CodeBlock._colour)
     output = cblock.node_str()
     assert coloredtext+"[" in output
     assert "]" in output

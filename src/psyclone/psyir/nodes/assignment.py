@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,9 +41,10 @@
 import re
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.errors import InternalError
+from psyclone.f2pygen import PSyIRGen
 
 
 class Assignment(Statement):
@@ -54,7 +55,7 @@ class Assignment(Statement):
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode"
     _text_name = "Assignment"
-    _colour_key = "Assignment"
+    _colour = "blue"
 
     @staticmethod
     def _validate_child(position, child):
@@ -145,8 +146,8 @@ class Assignment(Statement):
         self.lhs.reference_accesses(accesses_left)
 
         # Now change the (one) access to the assigned variable to be WRITE:
-        if isinstance(self.lhs, CodeBlock):
-            # TODO #363: Assignment to user defined type, not supported yet.
+        if isinstance(self.lhs, StructureReference):
+            # TODO #1028: Assignment to user defined type, not supported yet.
             # Here an absolute hack to get at least some information out
             # from the AST - though indices are just strings, which will
             # likely cause problems later as well.
@@ -197,3 +198,11 @@ class Assignment(Statement):
         if not isinstance(self.lhs, ArrayReference):
             return False
         return any(dim for dim in self.lhs.children if isinstance(dim, Range))
+
+    def gen_code(self, parent):
+        '''F2pygen code generation of an Assignment.
+
+        :param parent: the parent of this Node in the PSyIR.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        parent.add(PSyIRGen(parent, self))

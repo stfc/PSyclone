@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -701,19 +701,22 @@ def test_dynkern_setup(monkeypatch):
 BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(12) =                                  &
-          (/ arg_type(gh_field,    gh_inc,       w0),                 &
-             arg_type(gh_operator, gh_readwrite, w1, w1),             &
-             arg_type(gh_field,    gh_read,      w2),                 &
-             arg_type(gh_operator, gh_write,     w3, w3),             &
-             arg_type(gh_field,    gh_write,     wtheta),             &
-             arg_type(gh_operator, gh_readwrite, w2h, w2h),           &
-             arg_type(gh_field,    gh_read,      w2v),                &
-             arg_type(gh_operator, gh_readwrite, w2broken, w2broken), &
-             arg_type(gh_field,    gh_read,      wchi),               &
-             arg_type(gh_operator, gh_write,     w2trace,  w2trace),  &
-             arg_type(gh_field,    gh_inc,       w2htrace),           &
-             arg_type(gh_operator, gh_read,      w2vtrace, w2vtrace)  &
+     type(arg_type), meta_args(12) =                                 &
+          (/ arg_type(gh_field,    gh_real, gh_inc,       w0),       &
+             arg_type(gh_operator, gh_real, gh_readwrite, w1, w1),   &
+             arg_type(gh_field,    gh_real, gh_read,      w2),       &
+             arg_type(gh_operator, gh_real, gh_write,     w3, w3),   &
+             arg_type(gh_field,    gh_real, gh_write,     wtheta),   &
+             arg_type(gh_operator, gh_real, gh_readwrite, w2h, w2h), &
+             arg_type(gh_field,    gh_real, gh_read,      w2v),      &
+             arg_type(gh_operator, gh_real, gh_readwrite, w2broken,  &
+                                                          w2broken), &
+             arg_type(gh_field,    gh_real, gh_read,      wchi),     &
+             arg_type(gh_operator, gh_real, gh_write,     w2trace,   &
+                                                          w2trace),  &
+             arg_type(gh_field,    gh_real, gh_inc,       w2htrace), &
+             arg_type(gh_operator, gh_real, gh_read,      w2vtrace,  &
+                                                          w2vtrace)  &
            /)
      type(func_type), meta_funcs(12) =      &
           (/ func_type(w0, gh_basis),       &
@@ -794,7 +797,7 @@ def test_qr_basis_stub():
         ":: field_1_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2) "
         ":: field_3_w2\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_wtheta) "
         ":: field_5_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) "
         ":: field_7_w2v\n"
@@ -807,7 +810,7 @@ def test_qr_basis_stub():
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
         "op_2_ncell_3d) :: op_2\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
@@ -816,7 +819,7 @@ def test_qr_basis_stub():
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2broken,"
         "ndf_w2broken,op_8_ncell_3d) :: op_8\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w2trace,"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2trace,"
         "ndf_w2trace,op_10_ncell_3d) :: op_10\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w2vtrace,"

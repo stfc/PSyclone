@@ -1,4 +1,4 @@
-# PSyclone GOcean Example 7
+# PSyclone GOcean PSyData - ReadOnly-Verification Example
 
 **Author:** J. Henrichs, Bureau of Meteorology
 
@@ -13,7 +13,7 @@ A makefile is provided to compile this example. If required
 it will compile the dl_esm_inf library and the read-only verification
 wrapper library. By default, the compilation uses the version
 of the dl_esm_inf library provided as a git submodule (under
-``../../../external/dl_esm_inf/finite_difference``- see
+``../../../../external/dl_esm_inf/finite_difference``- see
 https://psyclone-dev.readthedocs.io/en/latest/working_practises.html)
 within the PSyclone repository. You can set the environment variable
 ``INF_DIR`` for the ``make`` command to pick a different version.
@@ -60,7 +60,7 @@ that the value of the scalar variable ``z`` has changed from 1.0 to
 
 BSD 3-Clause License
 
-Copyright (c) 2020, Science and Technology Facilities Council.
+Copyright (c) 2020-2021, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

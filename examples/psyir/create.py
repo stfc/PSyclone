@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,101 +57,137 @@ from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, SymbolTable, \
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.c import CWriter
 
-# Symbol table, symbols and scalar datatypes
-SYMBOL_TABLE = SymbolTable()
-ARG1 = SYMBOL_TABLE.new_symbol(
+
+# pylint: disable=too-many-locals
+def create_psyir_tree():
+    ''' Create an example PSyIR Tree.
+
+    :returns: an example PSyIR tree.
+    :rtype: :py:class:`psyclone.psyir.nodes.Container`
+
+    '''
+    # Symbol table, symbols and scalar datatypes
+    symbol_table = SymbolTable()
+    arg1 = symbol_table.new_symbol(
         symbol_type=DataSymbol, datatype=REAL_TYPE,
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
-SYMBOL_TABLE.specify_argument_list([ARG1])
-TMP_SYMBOL = SYMBOL_TABLE.new_symbol(symbol_type=DataSymbol,
-                                     datatype=REAL_DOUBLE_TYPE)
-INDEX_SYMBOL = SYMBOL_TABLE.new_symbol(root_name="i", symbol_type=DataSymbol,
-                                       datatype=INTEGER4_TYPE)
-REAL_KIND = SYMBOL_TABLE.new_symbol(root_name="RKIND", symbol_type=DataSymbol,
-                                    datatype=INTEGER_TYPE, constant_value=8)
-ROUTINE_SYMBOL = RoutineSymbol("my_sub")
+    symbol_table.specify_argument_list([arg1])
+    tmp_symbol = symbol_table.new_symbol(symbol_type=DataSymbol,
+                                         datatype=REAL_DOUBLE_TYPE)
+    index_symbol = symbol_table.new_symbol(root_name="i",
+                                           symbol_type=DataSymbol,
+                                           datatype=INTEGER4_TYPE)
+    real_kind = symbol_table.new_symbol(root_name="RKIND",
+                                        symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE,
+                                        constant_value=8)
+    routine_symbol = RoutineSymbol("my_sub")
 
-# Array using precision defined by another symbol
-SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
-ARRAY = SYMBOL_TABLE.new_symbol(root_name="a", symbol_type=DataSymbol,
-                                datatype=ArrayType(SCALAR_TYPE, [10]))
+    # Array using precision defined by another symbol
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, real_kind)
+    array = symbol_table.new_symbol(root_name="a", symbol_type=DataSymbol,
+                                    datatype=ArrayType(scalar_type, [10]))
 
-# Nodes which do not have Nodes as children and (some) predefined
-# scalar datatypes
-ZERO = Literal("0.0", REAL_TYPE)
-ONE = Literal("1.0", REAL4_TYPE)
-TWO = Literal("2.0", SCALAR_TYPE)
-INT_ZERO = Literal("0", INTEGER_SINGLE_TYPE)
-INT_ONE = Literal("1", INTEGER8_TYPE)
-TMP1 = Reference(ARG1)
-TMP2 = Reference(TMP_SYMBOL)
+    # Nodes which do not have Nodes as children and (some) predefined
+    # scalar datatypes
+    # TODO: Issue #1136 looks at how to avoid all of the _x versions
+    zero_1 = Literal("0.0", REAL_TYPE)
+    zero_2 = Literal("0.0", REAL_TYPE)
+    zero_3 = Literal("0.0", REAL_TYPE)
+    one_1 = Literal("1.0", REAL4_TYPE)
+    one_2 = Literal("1.0", REAL4_TYPE)
+    one_3 = Literal("1.0", REAL4_TYPE)
+    two = Literal("2.0", scalar_type)
+    int_zero = Literal("0", INTEGER_SINGLE_TYPE)
+    int_one_1 = Literal("1", INTEGER8_TYPE)
+    int_one_2 = Literal("1", INTEGER8_TYPE)
+    int_one_3 = Literal("1", INTEGER8_TYPE)
+    int_one_4 = Literal("1", INTEGER8_TYPE)
+    tmp1_1 = Reference(arg1)
+    tmp1_2 = Reference(arg1)
+    tmp1_3 = Reference(arg1)
+    tmp1_4 = Reference(arg1)
+    tmp1_5 = Reference(arg1)
+    tmp1_6 = Reference(arg1)
+    tmp2_1 = Reference(tmp_symbol)
+    tmp2_2 = Reference(tmp_symbol)
+    tmp2_3 = Reference(tmp_symbol)
+    tmp2_4 = Reference(tmp_symbol)
+    tmp2_5 = Reference(tmp_symbol)
+    tmp2_6 = Reference(tmp_symbol)
 
-# Unary Operation
-OPER = UnaryOperation.Operator.SIN
-UNARYOPERATION = UnaryOperation.create(OPER, TMP2)
+    # Unary Operation
+    oper = UnaryOperation.Operator.SIN
+    unaryoperation_1 = UnaryOperation.create(oper, tmp2_1)
+    unaryoperation_2 = UnaryOperation.create(oper, tmp2_2)
 
-# Binary Operation
-OPER = BinaryOperation.Operator.ADD
-BINARYOPERATION = BinaryOperation.create(OPER, ONE, UNARYOPERATION)
+    # Binary Operation
+    oper = BinaryOperation.Operator.ADD
+    binaryoperation_1 = BinaryOperation.create(oper, one_1, unaryoperation_1)
+    binaryoperation_2 = BinaryOperation.create(oper, one_2, unaryoperation_2)
 
-# Nary Operation
-OPER = NaryOperation.Operator.MAX
-NARYOPERATION = NaryOperation.create(OPER, [TMP1, TMP2, ONE])
+    # Nary Operation
+    oper = NaryOperation.Operator.MAX
+    naryoperation = NaryOperation.create(oper, [tmp1_1, tmp2_3, one_3])
 
-# Array reference using a range
-LBOUND = BinaryOperation.create(
-    BinaryOperation.Operator.LBOUND,
-    Reference(ARRAY), INT_ONE)
-UBOUND = BinaryOperation.create(
-    BinaryOperation.Operator.UBOUND,
-    Reference(ARRAY), INT_ONE)
-MY_RANGE = Range.create(LBOUND, UBOUND)
-TMPARRAY = ArrayReference.create(ARRAY, [MY_RANGE])
+    # Array reference using a range
+    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                    Reference(array), int_one_1)
+    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                    Reference(array), int_one_2)
+    my_range = Range.create(lbound, ubound)
+    tmparray = ArrayReference.create(array, [my_range])
 
-# Assignments
-ASSIGN1 = Assignment.create(TMP1, ZERO)
-ASSIGN2 = Assignment.create(TMP2, ZERO)
-ASSIGN3 = Assignment.create(TMP2, BINARYOPERATION)
-ASSIGN4 = Assignment.create(TMP1, TMP2)
-ASSIGN5 = Assignment.create(TMP1, NARYOPERATION)
-ASSIGN6 = Assignment.create(TMPARRAY, TWO)
+    # Assignments
+    assign1 = Assignment.create(tmp1_2, zero_1)
+    assign2 = Assignment.create(tmp2_4, zero_2)
+    assign3 = Assignment.create(tmp2_5, binaryoperation_1)
+    assign4 = Assignment.create(tmp1_3, tmp2_6)
+    assign5 = Assignment.create(tmp1_4, naryoperation)
+    assign6 = Assignment.create(tmparray, two)
 
-# Call
-CALL = Call.create(ROUTINE_SYMBOL, [TMP1, BINARYOPERATION])
+    # Call
+    call = Call.create(routine_symbol, [tmp1_5, binaryoperation_2])
 
-# If statement
-IF_CONDITION = BinaryOperation.create(BinaryOperation.Operator.GT, TMP1, ZERO)
-IFBLOCK = IfBlock.create(IF_CONDITION, [ASSIGN3, ASSIGN4])
+    # If statement
+    if_condition = BinaryOperation.create(BinaryOperation.Operator.GT,
+                                          tmp1_6, zero_3)
+    ifblock = IfBlock.create(if_condition, [assign3, assign4])
 
-# Loop
-LOOP = Loop.create(INDEX_SYMBOL, INT_ZERO, INT_ONE, INT_ONE, [IFBLOCK])
+    # Loop
+    loop = Loop.create(index_symbol, int_zero, int_one_3, int_one_4, [ifblock])
 
-# KernelSchedule
-KERNEL_SCHEDULE = KernelSchedule.create(
-    "work", SYMBOL_TABLE, [CALL, ASSIGN2, LOOP, ASSIGN5, ASSIGN6])
+    # KernelSchedule
+    kernel_schedule = KernelSchedule.create(
+        "work", symbol_table, [assign1, call, assign2, loop, assign5, assign6])
 
-# Container
-CONTAINER_SYMBOL_TABLE = SymbolTable()
-CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
-                             [KERNEL_SCHEDULE])
+    # Container
+    container_symbol_table = SymbolTable()
+    container = Container.create("CONTAINER", container_symbol_table,
+                                 [kernel_schedule])
 
-# Import data from another container
-EXTERNAL_CONTAINER = ContainerSymbol("some_mod")
-CONTAINER_SYMBOL_TABLE.add(EXTERNAL_CONTAINER)
-EXTERNAL_VAR = DataSymbol("some_var", INTEGER_TYPE,
-                          interface=GlobalInterface(EXTERNAL_CONTAINER))
-CONTAINER_SYMBOL_TABLE.add(EXTERNAL_VAR)
-ROUTINE_SYMBOL.interface = GlobalInterface(EXTERNAL_CONTAINER)
-CONTAINER_SYMBOL_TABLE.add(ROUTINE_SYMBOL)
+    # Import data from another container
+    external_container = ContainerSymbol("some_mod")
+    container_symbol_table.add(external_container)
+    external_var = DataSymbol("some_var", INTEGER_TYPE,
+                              interface=GlobalInterface(external_container))
+    container_symbol_table.add(external_var)
+    routine_symbol.interface = GlobalInterface(external_container)
+    container_symbol_table.add(routine_symbol)
+    return container
 
-# Write out the code as Fortran
-WRITER = FortranWriter()
-RESULT = WRITER(CONTAINER)
-print(RESULT)
 
-# Write out the code as C. At the moment NaryOperator, KernelSchedule
-# and Container are not supported in the C backend so the full example
-# can't be output.
-WRITER = CWriter()
-RESULT = WRITER(LOOP)
-print(RESULT)
+if __name__ == "__main__":
+    psyir_tree = create_psyir_tree()
+
+    # Write out the code as Fortran
+    writer = FortranWriter()
+    result = writer(psyir_tree)
+    print(result)
+
+    # Write out the code as C. At the moment NaryOperator, KernelSchedule
+    # and Container are not supported in the C backend so the full example
+    # can't be output.
+    writer = CWriter()
+    result = writer(psyir_tree.children[0].children[3])
+    print(result)

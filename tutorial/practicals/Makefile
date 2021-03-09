@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2020, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,16 +30,14 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: S. Siso, STFC Daresbury Laboratory
+# ------------------------------------------------------------------------------
+# Author: J. Henrichs, Bureau of Meteorology
 
-include ../../common.mk
+.DEFAULT_GOAL := transform
 
-GENERATED_FILES += 
-ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
+ALL_TARGETS = transform compile run clean allclean
+.PHONY: $(ALL_TARGETS)
 
-.PHONY: transform
-
-transform:
-	${PSYCLONE} -nodm -s ./backends_transform.py -api gocean1.0 alg.f90 \
-		-oalg /dev/null -opsy /dev/null
+$(ALL_TARGETS):
+	$(MAKE) -C LFRic $@
+	$(MAKE) -C nemo $@

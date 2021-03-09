@@ -55,8 +55,9 @@ from psyclone.parse.utils import ParseError
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.dynamo0p3_builtins import (BUILTIN_ITERATION_SPACES,
-                                         DynBuiltInCallFactory)
+from psyclone.domain.lfric.lfric_builtins import (
+    BUILTIN_ITERATION_SPACES, LFRicBuiltInCallFactory,
+    LFRicBuiltIn, BUILTIN_MAP)
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface)
@@ -100,6 +101,8 @@ SUPPORTED_FORTRAN_DATATYPES = ["real", "integer", "logical"]
 # ---------- Mapping from metadata data_type to Fortran intrinsic type ------ #
 MAPPING_DATA_TYPES = OrderedDict(zip(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
                                      SUPPORTED_FORTRAN_DATATYPES[0:2]))
+
+VALID_INTRINSIC_TYPES = list(MAPPING_DATA_TYPES.values())
 
 # ---------- Loops (bounds, types, names) ----------------------------------- #
 # These are loop bound names which identify positions in a field's
@@ -154,6 +157,9 @@ psyGen.VALID_SCALAR_NAMES = LFRicArgDescriptor.VALID_SCALAR_NAMES
 
 # psyGen argument types translate to LFRic argument types.
 psyGen.VALID_ARG_TYPE_NAMES = LFRicArgDescriptor.VALID_ARG_TYPE_NAMES
+
+# psyGen intrinsic types for kernel argument data as defined in LFRic.
+psyGen.VALID_INTRINSIC_TYPES = VALID_INTRINSIC_TYPES
 
 # ---------- Functions ------------------------------------------------------ #
 
@@ -602,7 +608,6 @@ class DynKernMetadata(KernelType):
                             data type (other than 'gh_real').
 
         '''
-        from psyclone.dynamo0p3_builtins import BUILTIN_MAP
         # We must have at least one argument that is written to
         write_count = 0
         for arg in self._arg_descriptors:
@@ -2664,7 +2669,7 @@ class DynFunctionSpaces(DynCollection):
                                          "%get_undf()"))
 
 
-class DynFields(DynCollection):
+class LFRicFields(DynCollection):
     '''
     Manages the declarations for all field arguments required by an Invoke
     or Kernel stub.
@@ -2682,54 +2687,52 @@ class DynFields(DynCollection):
                        routine to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
-        :raises InternalError: for an unsupported intrinsic type of field \
+        :raises InternalError: for unsupported intrinsic types of field \
                                argument data.
         :raises GenerationError: if the same field has different data \
                                  types in different kernel calls within \
                                  the same Invoke.
 
         '''
-        # Add the Invoke subroutine argument declarations for fields
-        fld_args = []
-        for kern in self._invoke.schedule.kernels():
-            fld_args.extend(psyGen.args_filter(
-                kern.arguments.args,
-                arg_types=LFRicArgDescriptor.VALID_FIELD_NAMES))
+        # Create dict of all field arguments for checks
+        fld_args = self._invoke.unique_declarations(
+            argument_types=LFRicArgDescriptor.VALID_FIELD_NAMES)
+        # Filter field arguments by intent and intrinsic type
+        real_fld_args = self._invoke.unique_declarations(
+            argument_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
+            intrinsic_type=MAPPING_DATA_TYPES["gh_real"])
+        int_fld_args = self._invoke.unique_declarations(
+            argument_types=LFRicArgDescriptor.VALID_FIELD_NAMES,
+            intrinsic_type=MAPPING_DATA_TYPES["gh_integer"])
+
         # Create lists of field names for real- and integer-valued fields
-        # TODO in #1047: Improve implementation of argument lists creation
-        # and intrinsic type checks.
-        real_fld_arg_list = []
-        int_fld_arg_list = []
-        for fld in fld_args:
-            declname = fld.declaration_name
-            if fld.intrinsic_type == "real":
-                real_fld_arg_list.append(declname)
-            elif fld.intrinsic_type == "integer":
-                int_fld_arg_list.append(declname)
-            else:
-                raise InternalError(
-                    "Found an unsupported intrinsic type '{0}' in "
-                    "Invoke declarations for the field argument '{1}'. "
-                    "Supported types are {2}.".
-                    format(fld.intrinsic_type, declname,
-                           list(MAPPING_DATA_TYPES.values())))
-        # Remove duplicates using OrderedDict
-        real_fld_arg_list = list(OrderedDict.fromkeys(real_fld_arg_list))
-        int_fld_arg_list = list(OrderedDict.fromkeys(int_fld_arg_list))
+        fld_arg_list = [arg.declaration_name for arg in fld_args]
+        real_fld_arg_list = [arg.declaration_name for arg in real_fld_args]
+        int_fld_arg_list = [arg.declaration_name for arg in int_fld_args]
+        # Check for unsupported intrinsic types
+        fld_inv = (set(fld_arg_list) -
+                   set(real_fld_arg_list).union(set(int_fld_arg_list)))
+        if fld_inv:
+            raise InternalError(
+                "Found unsupported intrinsic types for the field "
+                "arguments {0} to Invoke '{1}'. Supported types are {2}.".
+                format(list(fld_inv), self._invoke.name,
+                       VALID_INTRINSIC_TYPES))
         # Check that the same field name is not found in both real and
         # integer field lists (for instance if passed to one kernel as a
         # real-valued and to another kernel as an integer-valued field)
-        flds_multi_type_list = list(
-            set(real_fld_arg_list).intersection(set(int_fld_arg_list)))
-        if flds_multi_type_list:
+        fld_multi_type = \
+            set(real_fld_arg_list).intersection(set(int_fld_arg_list))
+        if fld_multi_type:
             raise GenerationError(
-                "At least one field ({0}) in Invoke '{1}' has different "
+                "Field argument(s) {0} in Invoke '{1}' have different "
                 "metadata for data type ({2}) in different kernels. "
                 "This is invalid.".
-                format(flds_multi_type_list, self._invoke.name,
+                format(list(fld_multi_type), self._invoke.name,
                        list(MAPPING_DATA_TYPES.keys())))
 
-        # Declare real and integer fields
+        # Add the Invoke subroutine argument declarations for real
+        # and integer fields
         if real_fld_arg_list:
             dtype = "field_type"
             parent.add(TypeDeclGen(parent, datatype=dtype,
@@ -2995,7 +2998,8 @@ class DynProxies(DynCollection):
         '''
         # Declarations of real and integer field proxies
         real_field_proxy_decs = self._invoke.unique_proxy_declarations(
-            LFRicArgDescriptor.VALID_FIELD_NAMES, intrinsic_type="real")
+            LFRicArgDescriptor.VALID_FIELD_NAMES,
+            intrinsic_type=MAPPING_DATA_TYPES["gh_real"])
         if real_field_proxy_decs:
             dtype = "field_proxy_type"
             parent.add(TypeDeclGen(parent,
@@ -3004,7 +3008,8 @@ class DynProxies(DynCollection):
             (self._invoke.invokes.psy.infrastructure_modules["field_mod"].
              add(dtype))
         int_field_proxy_decs = self._invoke.unique_proxy_declarations(
-            LFRicArgDescriptor.VALID_FIELD_NAMES, intrinsic_type="integer")
+            LFRicArgDescriptor.VALID_FIELD_NAMES,
+            intrinsic_type=MAPPING_DATA_TYPES["gh_integer"])
         if int_field_proxy_decs:
             dtype = "integer_field_proxy_type"
             parent.add(TypeDeclGen(parent,
@@ -3149,96 +3154,153 @@ class DynCellIterators(DynCollection):
                 self._first_var.ref_name() + "%get_nlayers()"))
 
 
-class DynScalarArgs(DynCollection):
+class LFRicScalarArgs(DynCollection):
     '''
-    Handles the declaration of scalar kernel arguments appearing in either
-    an Invoke or Kernel stub.
+    Handles the declarations of scalar kernel arguments appearing in either
+    an Invoke or a Kernel stub.
 
-    :param node: the Kernel stub or Invoke for which to manage the scalar \
+    :param node: the Invoke or Kernel stub for which to manage the scalar \
                  arguments.
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
                 :py:class:`psyclone.dynamo0p3.DynInvoke`
 
-    :raises InternalError: for an unsupported argument intrinsic type.
-
     '''
     def __init__(self, node):
-        super(DynScalarArgs, self).__init__(node)
+        super(LFRicScalarArgs, self).__init__(node)
 
-        # Create lists of real and integer scalar arguments
-        # TODO in #1047: Improve implementation of argument lists creation
-        # and intrinsic type checks (also checking that the same
-        # scalar argument is declared as `gh_real` and `gh_integer`
-        # in different kernels within the same Invoke).
-        self._real_scalar_names = {}
-        self._int_scalar_names = {}
-        scalar_args = {}
-        # Filter scalar arguments by intent
+        # Initialise dictionaries of real and integer scalar
+        # arguments by data type and intent
+        self._scalar_args = {}
+        self._real_scalars = {}
+        self._int_scalars = {}
         for intent in FORTRAN_INTENT_NAMES:
-            self._real_scalar_names[intent] = []
-            self._int_scalar_names[intent] = []
-            scalar_args[intent] = []
-        if self._invoke:
-            scalar_args = self._invoke.unique_declns_by_intent(
-                LFRicArgDescriptor.VALID_SCALAR_NAMES)
-        else:
-            for arg in self._calls[0].arguments.args:
-                if arg.is_scalar:
-                    scalar_args[arg.intent].append(arg)
-        # Separate scalars by their intrinsic types
-        for intent in FORTRAN_INTENT_NAMES:
-            for arg in scalar_args[intent]:
-                declname = arg.declaration_name
-                if arg.intrinsic_type == "real":
-                    self._real_scalar_names[intent].append(declname)
-                elif arg.intrinsic_type == "integer":
-                    self._int_scalar_names[intent].append(declname)
-                else:
-                    raise InternalError(
-                        "Found an unsupported intrinsic type '{0}' for the "
-                        "scalar argument '{1}'. Supported types are {2}.".
-                        format(arg.intrinsic_type, declname,
-                               list(MAPPING_DATA_TYPES.values())))
+            self._scalar_args[intent] = []
+            self._real_scalars[intent] = []
+            self._int_scalars[intent] = []
 
     def _invoke_declarations(self, parent):
         '''
-        Insert declarations for all of the scalar arguments.
+        Create argument lists and declarations for all scalar arguments
+        in an Invoke.
 
-        :param parent: the f2pygen node in which to insert declarations.
+        :param parent: the f2pygen node representing the PSy-layer routine \
+                       to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises InternalError: for unsupported argument intrinsic types.
+        :raises GenerationError: if the same scalar argument has different \
+                                 data types in different Kernel calls \
+                                 within the same Invoke.
+
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        # Create dict of all scalar arguments for checks
+        self._scalar_args = self._invoke.unique_declns_by_intent(
+            LFRicArgDescriptor.VALID_SCALAR_NAMES)
+        # Filter scalar arguments by intent and intrinsic type
+        self._real_scalars = self._invoke.unique_declns_by_intent(
+            LFRicArgDescriptor.VALID_SCALAR_NAMES,
+            intrinsic_type=MAPPING_DATA_TYPES["gh_real"])
+        self._int_scalars = self._invoke.unique_declns_by_intent(
+            LFRicArgDescriptor.VALID_SCALAR_NAMES,
+            intrinsic_type=MAPPING_DATA_TYPES["gh_integer"])
 
         for intent in FORTRAN_INTENT_NAMES:
-            if self._real_scalar_names[intent]:
-                dtype = "real"
-                parent.add(
-                    DeclGen(parent, datatype=dtype,
-                            kind=api_config.default_kind[dtype],
-                            entity_decls=self._real_scalar_names[intent],
-                            intent=intent))
+            scal = [arg.declaration_name for arg in self._scalar_args[intent]]
+            rscal = [arg.declaration_name for
+                     arg in self._real_scalars[intent]]
+            iscal = [arg.declaration_name for
+                     arg in self._int_scalars[intent]]
+            # Check for unsupported intrinsic types
+            scal_inv = set(scal) - set(rscal).union(set(iscal))
+            if scal_inv:
+                raise InternalError(
+                    "Found unsupported intrinsic types for the scalar "
+                    "arguments {0} to Invoke '{1}'. Supported types are {2}.".
+                    format(list(scal_inv), self._invoke.name,
+                           VALID_INTRINSIC_TYPES))
+            # Check that the same scalar name is not found in both real and
+            # integer scalar lists (for instance if passed to one kernel as
+            # a real and to another kernel as an integer scalar)
+            scal_multi_type = set(rscal).intersection(set(iscal))
+            if scal_multi_type:
+                raise GenerationError(
+                    "Scalar argument(s) {0} in Invoke '{1}' have different "
+                    "metadata for data type ({2}) in different kernels. "
+                    "This is invalid.".
+                    format(list(scal_multi_type), self._invoke.name,
+                           list(MAPPING_DATA_TYPES.keys())))
 
-        for intent in FORTRAN_INTENT_NAMES:
-            if self._int_scalar_names[intent]:
-                dtype = "integer"
-                parent.add(
-                    DeclGen(parent, datatype=dtype,
-                            kind=api_config.default_kind[dtype],
-                            entity_decls=self._int_scalar_names[intent],
-                            intent=intent))
+        # Create declarations
+        self._create_declarations(parent)
 
     def _stub_declarations(self, parent):
         '''
-        Declarations for scalars in Kernel stubs are the same as for those
-        in Invokes.
+        Create and add declarations for all scalar arguments in
+        a Kernel stub.
 
         :param parent: node in the f2pygen AST representing the Kernel stub \
                        to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises InternalError: for an unsupported argument data type.
+
         '''
-        self._invoke_declarations(parent)
+        # Extract all scalar arguments
+        for arg in self._calls[0].arguments.args:
+            if arg.is_scalar:
+                self._scalar_args[arg.intent].append(arg)
+
+        # Filter scalar arguments by intent and data type
+        for intent in FORTRAN_INTENT_NAMES:
+            for arg in self._scalar_args[intent]:
+                if arg.descriptor.data_type == "gh_real":
+                    self._real_scalars[intent].append(arg)
+                elif arg.descriptor.data_type == "gh_integer":
+                    self._int_scalars[intent].append(arg)
+                else:
+                    raise InternalError(
+                        "Found an unsupported data type '{0}' for the "
+                        "scalar argument '{1}'. Supported types are {2}.".
+                        format(arg.descriptor.data_type, arg.declaration_name,
+                               LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES))
+
+        # Create declarations
+        self._create_declarations(parent)
+
+    def _create_declarations(self, parent):
+        '''
+        Add declarations for the scalar arguments.
+
+        :param parent: the f2pygen node in which to insert declarations \
+                       (Invoke or Kernel).
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        # Real scalar arguments
+        dtype = MAPPING_DATA_TYPES["gh_real"]
+        for intent in FORTRAN_INTENT_NAMES:
+            if self._real_scalars[intent]:
+                real_scalar_names = [arg.declaration_name for arg
+                                     in self._real_scalars[intent]]
+                parent.add(
+                    DeclGen(parent, datatype=dtype,
+                            kind=api_config.default_kind[dtype],
+                            entity_decls=real_scalar_names,
+                            intent=intent))
+
+        # Integer scalar arguments
+        dtype = MAPPING_DATA_TYPES["gh_integer"]
+        for intent in FORTRAN_INTENT_NAMES:
+            if self._int_scalars[intent]:
+                int_scalar_names = [arg.declaration_name for arg
+                                    in self._int_scalars[intent]]
+                parent.add(
+                    DeclGen(parent, datatype=dtype,
+                            kind=api_config.default_kind[dtype],
+                            entity_decls=int_scalar_names,
+                            intent=intent))
 
 
 class DynLMAOperators(DynCollection):
@@ -3927,7 +3989,6 @@ class DynBasisFunctions(DynCollection):
                       "face": ["weights_xyz"]}
 
     def __init__(self, node):
-        from psyclone.dynamo0p3_builtins import DynBuiltIn
 
         super(DynBasisFunctions, self).__init__(node)
 
@@ -3948,7 +4009,7 @@ class DynBasisFunctions(DynCollection):
 
         for call in self._calls:
 
-            if isinstance(call, DynBuiltIn) or not call.eval_shapes:
+            if isinstance(call, LFRicBuiltIn) or not call.eval_shapes:
                 # Skip this kernel if it doesn't require basis/diff basis fns
                 continue
 
@@ -4891,7 +4952,7 @@ class DynInvoke(Invoke):
         # list. However, the base class currently ignores any stencil and qr
         # arguments so we need to add them in.
 
-        self.scalar_args = DynScalarArgs(self)
+        self.scalar_args = LFRicScalarArgs(self)
 
         # initialise our invoke stencil information
         self.stencil = DynStencils(self)
@@ -4904,7 +4965,7 @@ class DynInvoke(Invoke):
         self.dofmaps = DynDofmaps(self)
 
         # Initialise information on all of the fields accessed in this Invoke.
-        self.fields = DynFields(self)
+        self.fields = LFRicFields(self)
 
         # Initialise info. on all of the LMA operators used in this Invoke.
         self.lma_ops = DynLMAOperators(self)
@@ -5017,12 +5078,10 @@ class DynInvoke(Invoke):
             raise InternalError(
                 "Expected one of {0} as a valid access type but found '{1}'.".
                 format(valid_names, access))
-        if (intrinsic_type and intrinsic_type not in
-                MAPPING_DATA_TYPES.values()):
+        if (intrinsic_type and intrinsic_type not in VALID_INTRINSIC_TYPES):
             raise InternalError(
                 "Expected one of {0} as a valid intrinsic type but found "
-                "'{1}'.".format(str(MAPPING_DATA_TYPES.values()),
-                                intrinsic_type))
+                "'{1}'.".format(VALID_INTRINSIC_TYPES, intrinsic_type))
         # Create declarations list
         declarations = []
         for call in self.schedule.kernels():
@@ -5187,7 +5246,7 @@ class DynInvokeSchedule(InvokeSchedule):
 
     def __init__(self, name, arg, reserved_names=None):
         InvokeSchedule.__init__(self, name, DynKernCallFactory,
-                                DynBuiltInCallFactory, arg, reserved_names)
+                                LFRicBuiltInCallFactory, arg, reserved_names)
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this node.
@@ -5805,6 +5864,7 @@ class DynHaloExchangeStart(DynHaloExchange):
     '''
     # Textual description of the node.
     _text_name = "HaloExchangeStart"
+    _colour = "yellow"
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
@@ -5917,6 +5977,7 @@ class DynHaloExchangeEnd(DynHaloExchange):
     '''
     # Textual description of the node.
     _text_name = "HaloExchangeEnd"
+    _colour = "yellow"
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
@@ -6091,7 +6152,7 @@ def halo_check_arg(field, access_types):
 
     '''
     try:
-        # get the kernel/builtin call associated with this field
+        # Get the kernel/built-in call associated with this field
         call = field.call
     except AttributeError:
         raise GenerationError(
@@ -6105,8 +6166,7 @@ def halo_check_arg(field, access_types):
             "In HaloInfo class, field '{0}' should be one of {1}, but found "
             "'{2}'".format(field.name, api_strings,
                            field.access.api_specific_name()))
-    from psyclone.dynamo0p3_builtins import DynBuiltIn
-    if not isinstance(call, (DynBuiltIn, DynKern)):
+    if not isinstance(call, (LFRicBuiltIn, DynKern)):
         raise GenerationError(
             "In HaloInfo class, field '{0}' should be from a call but "
             "found {1}".format(field.name, type(call)))
@@ -6456,8 +6516,7 @@ class DynLoop(Loop):
         # Loop bounds
         self.set_lower_bound("start")
 
-        from psyclone.dynamo0p3_builtins import DynBuiltIn
-        if isinstance(kern, DynBuiltIn):
+        if isinstance(kern, LFRicBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
             if Config.get().api_conf("dynamo0.3").compute_annexed_dofs \
@@ -7532,7 +7591,7 @@ class DynKern(CodedKern):
 
         # Add all the declarations
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
-                         DynCMAOperators, DynScalarArgs, DynFields,
+                         DynCMAOperators, LFRicScalarArgs, LFRicFields,
                          DynLMAOperators, DynStencils, DynBasisFunctions,
                          DynBoundaryConditions, DynReferenceElement,
                          LFRicMeshProperties]:
@@ -8580,21 +8639,18 @@ class DynKernelArgument(KernelArgument):
         :rtype: str
 
         '''
+        write_accesses = AccessType.all_write_accesses()
         if self.access == AccessType.READ:
             return "in"
-        elif self.access == AccessType.WRITE:
-            return "out"
-        elif self.access == AccessType.READWRITE:
+        if self.access in write_accesses:
             return "inout"
-        elif self.access in [AccessType.INC] + \
-                AccessType.get_valid_reduction_modes():
-            return "inout"
-        else:
-            valid_reductions = AccessType.get_valid_reduction_names()
-            raise GenerationError(
-                "Expecting argument access to be one of 'gh_read, gh_write, "
-                "gh_inc', 'gh_readwrite' or one of {0}, but found '{1}'".
-                format(valid_reductions, self.access))
+        # An argument access other than the pure "read" or one of
+        # the "write" accesses is invalid
+        valid_accesses = [AccessType.READ.api_specific_name()] + \
+            [access.api_specific_name() for access in write_accesses]
+        raise GenerationError(
+            "In the LFRic API the argument access must be one of {0}, "
+            "but found '{1}'.".format(valid_accesses, self.access))
 
     @property
     def discontinuous(self):
@@ -8690,10 +8746,10 @@ __all__ = [
     'DynStencils',
     'DynDofmaps',
     'DynFunctionSpaces',
-    'DynFields',
+    'LFRicFields',
     'DynProxies',
     'DynCellIterators',
-    'DynScalarArgs',
+    'LFRicScalarArgs',
     'DynLMAOperators',
     'DynCMAOperators',
     'DynMeshes',

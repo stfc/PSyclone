@@ -90,5 +90,5 @@ def test_kernelschedule_create():
     assert result == (
         "subroutine mod_name()\n"
         "  real :: tmp\n\n"
-        "  tmp=0.0\n\n"
+        "  tmp = 0.0\n\n"
         "end subroutine mod_name\n")

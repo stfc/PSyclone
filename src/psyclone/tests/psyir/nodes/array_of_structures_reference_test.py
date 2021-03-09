@@ -104,6 +104,13 @@ def test_asr_create(component_symbol):
     assert isinstance(asref.children[1], nodes.Range)
     check_links(asref, asref.children)
     check_links(asref.children[1], asref.children[1].children)
+    # Reference to a symbol of DeferredType
+    ssym = symbols.DataSymbol("grid", symbols.DeferredType())
+    asref = nodes.ArrayOfStructuresReference.create(
+        ssym, [int_one], ["region", "startx"])
+    assert isinstance(asref.symbol.datatype, symbols.DeferredType)
+    assert isinstance(asref.children[0], nodes.StructureMember)
+    assert isinstance(asref.children[0].children[0], nodes.Member)
 
 
 def test_asr_create_errors(component_symbol):
@@ -117,7 +124,8 @@ def test_asr_create_errors(component_symbol):
     scalar_symbol = symbols.DataSymbol("scalar", symbols.INTEGER_TYPE)
     with pytest.raises(TypeError) as err:
         _ = nodes.ArrayOfStructuresReference.create(scalar_symbol, [], [])
-    assert "ArrayType but symbol 'scalar' has type 'Scalar" in str(err.value)
+    assert ("ArrayType, DeferredType or UnknownType but symbol 'scalar' has "
+            "type 'Scalar" in str(err.value))
     # Missing children (for array-index expressions)
     with pytest.raises(TypeError) as err:
         _ = nodes.ArrayOfStructuresReference.create(component_symbol,
@@ -144,4 +152,4 @@ def test_ast_str():
         ssym, [nodes.Literal("2", symbols.INTEGER_TYPE)], ["nx"])
     assert (str(asref) == "ArrayOfStructuresReference[name:'grid']\n"
             "Member[name:'nx']\n"
-            "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n")
+            "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]")

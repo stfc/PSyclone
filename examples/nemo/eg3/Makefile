@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 
 # Makefile for the 3rd NEMO example. Uses PSyclone (which must
 # be installed) to generate Fortran with OpenACC directives for
@@ -47,27 +48,21 @@
 # export LDFLAGS="-acc -ta=tesla,cc70"
 include ../../common.mk
 
-GENERATED_FILES += psy.f90 psy.o traadv.exe
+GENERATED_FILES += psy.f90 psy.o traadv.exe output.dat psyclone.log \
+  traldf_iso.F90
 
 F90FLAGS ?= -fopenmp
 LDFLAGS ?= -fopenmp
 
-# Location of the dl_timer library
-DL_TIMER_ROOT ?= ${HOME}/Projects/dl_timer
-TIMER_INC = ${DL_TIMER_ROOT}/src
-TIMER_LIB = ${DL_TIMER_ROOT}/libdl_timer_omp.a
+.PHONY: allclean
 
-.PHONY: allclean dl_timer
-
-# Compilation requires that dl_timer be installed
 compile: traadv.exe
 
-traadv.exe: dl_timer psy.o
-	${F90} ${LDFLAGS} psy.o ${TIMER_LIB} -o traadv.exe
+run: compile
+	 IT=2 JPI=10 JPJ=10 JPK=5  ./traadv.exe
 
-dl_timer:
-	${MAKE} -C ${DL_TIMER_ROOT} F90="${F90}" F90FLAGS="${F90FLAGS}" \
-   LDFLAGS="${LDFLAGS}" sm_lib
+traadv.exe: psy.o
+	${F90} ${LDFLAGS} psy.o -o traadv.exe
 
 transform: kernels managed_mem
 
@@ -77,20 +72,21 @@ kernels:
 	${PSYCLONE} -l all -api "nemo" -s ./kernels_trans.py -opsy psy.f90 \
    ../code/tra_adv.F90
 
+# Example of using the more sophisticated script in ../scripts to
+# transform for OpenACC assuming the use of managed memory.
+# The second part of this rule demonstrates the use of the
+# ../scripts/process_nemo.py script. The precise invocation of PSyclone to
+# use is overridden by setting the PSYCLONE environment variable.
+# TODO #852 - simplify that script and merge it with the functionality of
+# the scripts in this directory.
 managed_mem:
-	${PSYCLONE} -l all -api "nemo" -s ./kernels_managed_mem_trans.py \
+	${PSYCLONE} -l all -api "nemo" -s ../scripts/kernels_trans.py \
    ../code/tra_adv.F90
+	PSYCLONE="${PSYCLONE}" ../scripts/process_nemo.py \
+   -s ../scripts/kernels_trans.py ../code/traldf_iso.F90
 
 # Compilation uses the 'kernels' transformed code
 psy.f90: kernels
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -I${TIMER_INC} -c $<
-
-all: transform compile
-
-allclean: clean
-	# Only clean DL_TIMER if it actually exists
-	if [ -d ${DL_TIMER_ROOT}  ]; then \
-		${MAKE} -C ${DL_TIMER_ROOT} allclean; \
-	fi
+	$(F90) $(F90FLAGS) -c $<

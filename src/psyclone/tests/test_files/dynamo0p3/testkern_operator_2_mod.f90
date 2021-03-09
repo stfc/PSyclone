@@ -60,7 +60,7 @@ contains
     integer(kind=i_def), intent(in) :: ndf_w2, ndf_w3
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_3d
-    real(kind=r_def), intent(out), dimension(ndf_w2,ndf_w3,ncell_3d) :: local_stencil
+    real(kind=r_def), intent(inout), dimension(ndf_w2,ndf_w3,ncell_3d) :: local_stencil
 
   end subroutine testkern_operator_2_code
 

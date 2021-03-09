@@ -44,11 +44,12 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern, LFRicScalarArgs
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.gen_kernel_stub import generate
+from psyclone.f2pygen import ModuleGen
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -84,27 +85,27 @@ def test_kernel_stub_invalid_iteration_space():
             "'testkern_dofs_code'." in str(excinfo.value))
 
 
-def test_dynscalars_stub_err():
-    ''' Check that the DynScalarArgs constructor raises the expected
-    internal error if it encounters an unrecognised intrinsic type of
-    scalar when generating a kernel stub.
+def test_lfricscalars_stub_err():
+    ''' Check that LFRicScalarArgs._stub_declarations() raises the
+    expected internal error if it encounters an unrecognised data
+    type of a scalar argument when generating a kernel stub.
 
     '''
-    from psyclone.dynamo0p3 import DynScalarArgs
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    # Sabotage the scalar argument to make it have an invalid intrinsic type
+    # Sabotage the scalar argument to make it have an invalid data type
     arg = kernel.arguments.args[1]
-    arg._intrinsic_type = "invalid-scalar-type"
+    arg.descriptor._data_type = "gh_invalid_scalar"
     with pytest.raises(InternalError) as err:
-        DynScalarArgs(kernel)
-    assert ("Found an unsupported intrinsic type 'invalid-scalar-type' "
-            "for the scalar argument 'iscalar_2'. Supported types are "
-            "['real', 'integer']." in str(err.value))
+        LFRicScalarArgs(kernel)._stub_declarations(ModuleGen(name="my_mod"))
+    assert ("Found an unsupported data type 'gh_invalid_scalar' for the "
+            "scalar argument 'iscalar_2'. Supported types are {0}.".
+            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES)
+            in str(err.value))
 
 
 def test_stub_generate_with_anyw2():
@@ -195,7 +196,7 @@ SCALAR_SUMS = (
     "      INTEGER(KIND=i_def), intent(inout) :: iscalar_2\n"
     "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
     "      INTEGER(KIND=i_def), intent(in) :: undf_w3\n"
-    "      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_3_w3\n"
+    "      REAL(KIND=r_def), intent(inout), dimension(undf_w3) :: field_3_w3\n"
     "      REAL(KIND=r_def), intent(inout) :: rscalar_4\n"
     "      INTEGER(KIND=i_def), intent(inout) :: iscalar_5\n"
     "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
@@ -220,10 +221,10 @@ def test_stub_generate_with_scalar_sums():
 INTENT = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =            &
-          (/ arg_type(gh_field, gh_write, w3), &
-             arg_type(gh_field, gh_inc,   w1), &
-             arg_type(gh_field, gh_read,  w1)  &
+     type(arg_type), meta_args(3) =                     &
+          (/ arg_type(gh_field, gh_real, gh_write, w3), &
+             arg_type(gh_field, gh_real, gh_inc,   w1), &
+             arg_type(gh_field, gh_real, gh_read,  w1)  &
            /)
      integer :: operates_on = cell_column
    contains
@@ -273,7 +274,7 @@ def test_intent():
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
         "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
         "      INTEGER(KIND=i_def), intent(in) :: undf_w3, undf_w1\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w3) :: "
         "field_1_w3\n"
         "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
         "field_2_w1\n"
@@ -288,19 +289,19 @@ def test_intent():
 SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(12) =                 &
-          (/ arg_type(gh_field, gh_inc,   w0),       &
-             arg_type(gh_field, gh_inc,   w1),       &
-             arg_type(gh_field, gh_inc,   w2),       &
-             arg_type(gh_field, gh_write, w2broken), &
-             arg_type(gh_field, gh_inc,   w2trace),  &
-             arg_type(gh_field, gh_write, w3),       &
-             arg_type(gh_field, gh_write, wtheta),   &
-             arg_type(gh_field, gh_inc,   w2h),      &
-             arg_type(gh_field, gh_write, w2v),      &
-             arg_type(gh_field, gh_inc,   w2htrace), &
-             arg_type(gh_field, gh_write, w2vtrace), &
-             arg_type(gh_field, gh_read,  wchi)      &
+     type(arg_type), meta_args(12) =                          &
+          (/ arg_type(gh_field, gh_real, gh_inc,   w0),       &
+             arg_type(gh_field, gh_real, gh_inc,   w1),       &
+             arg_type(gh_field, gh_real, gh_inc,   w2),       &
+             arg_type(gh_field, gh_real, gh_write, w2broken), &
+             arg_type(gh_field, gh_real, gh_inc,   w2trace),  &
+             arg_type(gh_field, gh_real, gh_write, w3),       &
+             arg_type(gh_field, gh_real, gh_write, wtheta),   &
+             arg_type(gh_field, gh_real, gh_inc,   w2h),      &
+             arg_type(gh_field, gh_real, gh_write, w2v),      &
+             arg_type(gh_field, gh_real, gh_inc,   w2htrace), &
+             arg_type(gh_field, gh_real, gh_write, w2vtrace), &
+             arg_type(gh_field, gh_real, gh_read,  wchi)      &
            /)
      integer :: operates_on = cell_column
    contains
@@ -381,21 +382,21 @@ def test_spaces():
         ":: field_2_w1\n"
         "      REAL(KIND=r_def), intent(inout), dimension(undf_w2) "
         ":: field_3_w2\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w2broken) "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2broken) "
         ":: field_4_w2broken\n"
         "      REAL(KIND=r_def), intent(inout), dimension(undf_w2trace) "
         ":: field_5_w2trace\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w3) "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w3) "
         ":: field_6_w3\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_wtheta) "
         ":: field_7_wtheta\n"
         "      REAL(KIND=r_def), intent(inout), dimension(undf_w2h) "
         ":: field_8_w2h\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w2v) "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2v) "
         ":: field_9_w2v\n"
         "      REAL(KIND=r_def), intent(inout), dimension(undf_w2htrace) "
         ":: field_10_w2htrace\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w2vtrace) "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2vtrace) "
         ":: field_11_w2vtrace\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_wchi) "
         ":: field_12_wchi\n"
@@ -407,10 +408,12 @@ def test_spaces():
 ANY_SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =                                       &
-          (/ arg_type(gh_field, gh_read,      any_discontinuous_space_1), &
-             arg_type(gh_field, gh_inc,       any_space_7),               &
-             arg_type(gh_field, gh_readwrite, any_discontinuous_space_4)  &
+     type(arg_type), meta_args(3) =                                  &
+          (/ arg_type(gh_field, gh_real, gh_read,                    &
+                                         any_discontinuous_space_1), &
+             arg_type(gh_field, gh_real, gh_inc,       any_space_7), &
+             arg_type(gh_field, gh_real, gh_readwrite,               &
+                                         any_discontinuous_space_4)  &
            /)
      integer :: operates_on = cell_column
    contains
@@ -471,8 +474,8 @@ def test_any_spaces():
 VECTORS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =           &
-          (/ arg_type(gh_field*3, gh_inc, w0) &
+     type(arg_type), meta_args(1) =                    &
+          (/ arg_type(gh_field*3, gh_real, gh_inc, w0) &
            /)
      integer :: operates_on = cell_column
    contains
@@ -689,8 +692,8 @@ def test_qr_plus_eval_stub_gen():
 SUB_NAME = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =         &
-          (/ arg_type(gh_field, gh_inc, w1) &
+     type(arg_type), meta_args(1) =                  &
+          (/ arg_type(gh_field, gh_real, gh_inc, w1) &
            /)
      integer :: operates_on = cell_column
    contains
