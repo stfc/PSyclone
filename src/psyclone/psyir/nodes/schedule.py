@@ -85,6 +85,19 @@ class Schedule(Node):
         else:
             self._symbol_table = self._symbol_table_class(self)
 
+    def _copy_refining(self, other):
+        ''' Refine the object attributes when a shallow copy is not the most
+        appropriate operation during a call to the copy() method.
+
+        :param other: object we are copying from.
+        :type other: :py:class:`psyclone.psyir.node.Node`
+
+        :raises NotImplementedError: Schedule copy is not supported yet.
+        '''
+        raise NotImplementedError(
+            "Schedule copies are currently not supported.")
+        # super(Schedule, self)._copy_refining(other)
+
     @property
     def dag_name(self):
         '''

@@ -932,13 +932,11 @@ def test_replace_with_error2():
 
 
 def test_copy_not_yet_implemented():
-    ''' Check that the copy method of a generic Node has not been
-    implemented yet. '''
+    ''' Check that the copy method of a generic Node'''
     tnode = Node()
-    with pytest.raises(NotImplementedError) as err:
-        tnode.copy()
-    assert ("Please implement " + str(type(tnode)) + " copy() method."
-            in str(err.value))
+    duplicated_instance = tnode.copy()
+    assert isinstance(duplicated_instance, type(tnode))
+    assert duplicated_instance is not tnode
 
 
 def test_pop_all_children():

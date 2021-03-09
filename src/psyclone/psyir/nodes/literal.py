@@ -148,6 +148,3 @@ class Literal(DataNode):
         '''
 
         return self.value == other.value
-
-    def copy(self):
-        return type(self)(self.value, self.datatype)

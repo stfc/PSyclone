@@ -368,10 +368,13 @@ def test_operations_can_be_copied():
     assert operation1.operator is NaryOperation.Operator.MAX
     assert operation1.children[0].symbol.name == "tmp1"
     assert operation1.children[0] is not operands[0]
+    assert operation1.children[0].parent is operation1
     assert operation1.children[1].symbol.name == "tmp2"
     assert operation1.children[1] is not operands[1]
+    assert operation1.children[1].parent is operation1
     assert operation1.children[2].symbol.name == "tmp3"
     assert operation1.children[2] is not operands[2]
+    assert operation1.children[2].parent is operation1
     assert len(operation.children) == 3
 
     # Modifying the new operation does not affect the original

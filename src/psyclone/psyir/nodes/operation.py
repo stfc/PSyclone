@@ -64,7 +64,7 @@ class Operation(DataNode):
     '''
     # Must be overridden in sub-class to hold an Enumeration of the Operators
     # that it can represent.
-    Operator = None
+    Operator = object
     # Textual description of the node.
     _text_name = "Operation"
     _colour = "blue"
@@ -104,18 +104,6 @@ class Operation(DataNode):
         '''
         return self.coloured_name(colour) + \
             "[operator:'" + self._operator.name + "']"
-
-    def copy(self):
-        ''' Return a copy of this node, including a copy of each of its
-        children.
-
-        :returns: a copy of this node and its children.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
-
-        '''
-        result = type(self)(self.operator)
-        result.children = [child.copy() for child in self.children]
-        return result
 
     def __str__(self):
         result = self.node_str(False) + "\n"

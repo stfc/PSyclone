@@ -42,6 +42,7 @@ This module contains the abstract Node implementation.
 '''
 import abc
 import six
+import copy
 from psyclone.psyir.symbols import SymbolError
 from psyclone.errors import GenerationError, InternalError
 
@@ -1219,16 +1220,36 @@ class Node(object):
             self.parent = None
         return self
 
+    def _copy_refining(self, other):
+        ''' Refine the object attributes when a shallow copy is not the most
+        appropriate operation during a call to the copy() method.
+
+        :param other: object we are copying from.
+        :type other: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        self._parent = None
+        self._annotations = other.annotations[:]
+        self.children = [child.copy() for child in other.children]
+        for child in self.children:
+            child.parent = self
+
     def copy(self):
-        ''' Return a copy of this node, including a copy of each of its
-        children.
+        ''' Return a copy of this node. This is a bespoke implementation for
+        PSyIR nodes copy operations that will deepcopy some of its recursive
+        data-structure (e.g. the children tree), while not copy other
+        attributes (e.g. top-level parent reference).
 
         :returns: a copy of this node and its children.
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        raise NotImplementedError(
-            "Please implement {0} copy() method.".format(type(self)))
+        # Start with a Shallow copy of the object
+        new_instance = copy.copy(self)
+        # and then refine the elements that shouldn't be shallow copied
+        # pylint: disable=protected-access
+        new_instance._copy_refining(self)
+        return new_instance
 
 
 # For automatic documentation generation

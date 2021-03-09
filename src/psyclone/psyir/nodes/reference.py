@@ -135,18 +135,6 @@ class Reference(DataNode):
             return
         var_accesses.add_access(self.name, AccessType.READ, self)
 
-    def copy(self):
-        ''' Return a copy of this node, including a copy of each of its
-        children.
-
-        :returns: a copy of this node and its children.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
-
-        '''
-        result = type(self)(self.symbol)
-        result.children = [child.copy() for child in self.children]
-        return result
-
 
 # For AutoAPI documentation generation
 __all__ = ['Reference']
