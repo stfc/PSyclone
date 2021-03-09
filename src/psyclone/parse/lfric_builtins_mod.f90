@@ -532,7 +532,7 @@ use argument_mod,  only : arg_type,            &
 ! ------------------------------------------------------------------- !
 
   !> ifield2 = int(field1, i_def)
-  type, public, extends(kernel_type) :: real2int_X
+  type, public, extends(kernel_type) :: int_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_FIELD, GH_INTEGER, GH_WRITE, ANY_SPACE_1),      &
@@ -540,8 +540,8 @@ use argument_mod,  only : arg_type,            &
           /)
      integer :: operates_on = DOF
    contains
-     procedure, nopass :: real2int_X_code
-  end type real2int_X
+     procedure, nopass :: int_X_code
+  end type int_X
 
 ! ******************************************************************* !
 ! ************** Built-ins for integer-valued fields **************** !
@@ -866,8 +866,8 @@ contains
   end subroutine sign_X_code
 
   ! Converting real to integer field elements
-  subroutine real2int_X_code()
-  end subroutine real2int_X_code
+  subroutine int_X_code()
+  end subroutine int_X_code
 
   ! ***** Integer-valued fields ***** !
   ! Adding integer fields

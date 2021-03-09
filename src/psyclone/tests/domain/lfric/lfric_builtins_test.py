@@ -277,7 +277,7 @@ def test_builtin_args_not_same_space():
 def test_builtin_fld_args_different_data_type(monkeypatch):
     ''' Check that we raise the correct error if we encounter a built-in
     that has has different data type of its field arguments and is not one
-    of the data type conversion built-ins ("real2int_X" and "real_X").
+    of the data type conversion built-ins ("int_X" and "real_X").
 
     '''
     # Define the built-in name and test file
@@ -298,7 +298,7 @@ def test_builtin_fld_args_different_data_type(monkeypatch):
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert ("In the LFRic API only the data type conversion built-ins "
-            "['real2int_X', 'real_X'] are allowed to have field "
+            "['int_X', 'real_X'] are allowed to have field "
             "arguments of different data types. However, found "
             "different data types ['gh_integer', 'gh_real'] for "
             "field arguments to '{0}'.".
@@ -2497,8 +2497,8 @@ def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
 # ------------- Converting real to integer field elements ------------------- #
 
 
-def test_real2int_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicReal2IntXKern returns the
+def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
+    ''' Test that 1) the str method of LFRicIntXKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Y = int(X, i_def) where Y is an integer-valued field, X is
     the real-valued field being converted and the correct kind, 'i_def',
@@ -2509,7 +2509,7 @@ def test_real2int_X(tmpdir, monkeypatch, annexed, dist_mem):
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.10.3_real2int_X_builtin.f90"),
+                                        "15.10.3_int_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method

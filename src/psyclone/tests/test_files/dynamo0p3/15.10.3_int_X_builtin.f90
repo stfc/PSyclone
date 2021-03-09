@@ -45,6 +45,6 @@ program single_invoke
   type(integer_field_type) :: f2
   type(field_type)         :: f1
 
-  call invoke( real2int_X(f2, f1) )
+  call invoke( int_X(f2, f1) )
 
 end program single_invoke

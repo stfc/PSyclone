@@ -245,7 +245,7 @@ class LFRicBuiltIn(BuiltIn):
                 "must be on the same space. However, found spaces {0} for "
                 "arguments to '{1}'".format(spaces_str, self.name))
 
-        conversion_builtins = ["real2int_X", "real_X"]
+        conversion_builtins = ["int_X", "real_X"]
         conversion_builtins_lower = [x.lower() for x in conversion_builtins]
         if len(data_types) != 1 and self.name not in conversion_builtins_lower:
             data_types_str = [str(x) for x in sorted(data_types)]
@@ -1277,7 +1277,7 @@ class LFRicSignXKern(LFRicBuiltIn):
 # ------------------------------------------------------------------- #
 
 
-class LFRicReal2IntXKern(LFRicBuiltIn):
+class LFRicIntXKern(LFRicBuiltIn):
     ''' Converts real-valued field elements to integer-valued
     field elements using the Fortran intrinsic `int` function,
     `Y = int(X, i_def)`. Here `Y` is an integer-valued field and
@@ -1291,7 +1291,7 @@ class LFRicReal2IntXKern(LFRicBuiltIn):
     def gen_code(self, parent):
         '''
         Generates LFRic API specific PSy code for a call to the
-        real2int_X Built-in.
+        int_X Built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
@@ -1584,7 +1584,7 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Sign of real field elements applied to a scalar value
     "sign_X": LFRicSignXKern,
     # Converting real to integer field elements
-    "real2int_X": LFRicReal2IntXKern}
+    "int_X": LFRicIntXKern}
 
 # Built-ins for integer-valued fields
 INT_BUILTIN_MAP_CAPITALISED = {
