@@ -477,6 +477,44 @@ def test_apply3(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
+def test_apply4(tmpdir):
+    '''Test that the matmul2code apply method produces the expected
+    PSyIR. We use the Fortran backend to help provide the test for
+    correctness. This example make the lhs be the same array as the
+    one of the matmul second operand (the vector in this case).
+
+    Note: Is this equivalent to matmul?
+    '''
+    trans = Matmul2CodeTrans()
+    matmul = create_matmul()
+    assignment = matmul.parent
+    vector = assignment.scope.symbol_table.lookup("y")
+    assignment.children[0] = ArrayReference.create(
+        vector, [Literal("1", INTEGER_TYPE), Literal("1", INTEGER_TYPE)])
+    trans.apply(matmul)
+    writer = FortranWriter()
+    result = writer(matmul.root)
+    print(result)
+    assert (
+        "subroutine my_kern()\n"
+        "  integer, parameter :: idx = 3\n"
+        "  real, dimension(5,10,15) :: x\n"
+        "  real, dimension(10,20) :: y\n"
+        "  real, dimension(10) :: result\n"
+        "  integer :: i\n"
+        "  integer :: j\n"
+        "\n"
+        "  do i = 1, 5, 1\n"
+        "    y(i,1) = 0.0\n"
+        "    do j = 1, 10, 1\n"
+        "      y(i,1) = y(i,1) + x(i,j,idx) * y(j,idx)\n"
+        "    enddo\n"
+        "  enddo\n"
+        "\n"
+        "end subroutine my_kern" in result)
+    assert Compile(tmpdir).string_compiles(result)
+
+
 def test_get_array_bound_error():
     '''Test that the _get_array_bound() utility function raises the
     expected exception if the shape of the array's symbol is not
