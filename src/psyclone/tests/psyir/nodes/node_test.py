@@ -931,12 +931,14 @@ def test_replace_with_error2():
             str(info.value))
 
 
-def test_copy_not_yet_implemented():
-    ''' Check that the copy method of a generic Node'''
+def test_copy():
+    ''' Check that the copy method of a generic Node creates a duplicate of
+    the original node'''
     tnode = Node()
     duplicated_instance = tnode.copy()
     assert isinstance(duplicated_instance, type(tnode))
     assert duplicated_instance is not tnode
+    assert duplicated_instance.parent is None
 
 
 def test_pop_all_children():

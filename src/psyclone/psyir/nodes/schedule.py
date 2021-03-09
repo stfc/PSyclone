@@ -85,7 +85,7 @@ class Schedule(Node):
         else:
             self._symbol_table = self._symbol_table_class(self)
 
-    def _copy_refining(self, other):
+    def _refine_copy(self, other):
         ''' Refine the object attributes when a shallow copy is not the most
         appropriate operation during a call to the copy() method.
 
@@ -96,7 +96,7 @@ class Schedule(Node):
         '''
         raise NotImplementedError(
             "Schedule copies are currently not supported.")
-        # super(Schedule, self)._copy_refining(other)
+        # super(Schedule, self)._refine_copy(other)
 
     @property
     def dag_name(self):

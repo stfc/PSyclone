@@ -137,23 +137,23 @@ def test_is_array_range():
     false otherwise.
 
     '''
+    one = Literal("1.0", REAL_TYPE)
+    int_one = Literal("1", INTEGER_TYPE)
     var = DataSymbol("x", REAL_TYPE)
     reference = Reference(var)
 
     # lhs is not an array
-    one = Literal("1.0", REAL_TYPE)
     assignment = Assignment.create(reference, one)
     assert not assignment.is_array_range
 
     # lhs is an array reference but has no range
     array_type = ArrayType(REAL_TYPE, [10, 10])
     symbol = DataSymbol("x", array_type)
-    array_ref = ArrayReference(symbol)
+    array_ref = Reference(symbol)
     assignment = Assignment.create(array_ref, one.copy())
     assert not assignment.is_array_range
 
     # lhs is an array reference with a range
-    int_one = Literal("1", INTEGER_TYPE)
     my_range = Range.create(int_one, int_one.copy(), int_one.copy())
     array_ref = ArrayReference.create(symbol, [my_range, int_one.copy()])
     assignment = Assignment.create(array_ref, one.copy())

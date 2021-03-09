@@ -114,7 +114,8 @@ class ChildrenList(list):
 
     def _validate_item(self, index, item):
         '''
-        Validates the provided index and item are valid for this type of node.
+        Validates the provided index and item before continuing inserting the
+        item into the list.
 
         :param int index: position where the item is inserted into.
         :param item: object that needs to be validated in the given position.
@@ -1220,7 +1221,7 @@ class Node(object):
             self.parent = None
         return self
 
-    def _copy_refining(self, other):
+    def _refine_copy(self, other):
         ''' Refine the object attributes when a shallow copy is not the most
         appropriate operation during a call to the copy() method.
 
@@ -1248,7 +1249,7 @@ class Node(object):
         new_instance = copy.copy(self)
         # and then refine the elements that shouldn't be shallow copied
         # pylint: disable=protected-access
-        new_instance._copy_refining(self)
+        new_instance._refine_copy(self)
         return new_instance
 
 
