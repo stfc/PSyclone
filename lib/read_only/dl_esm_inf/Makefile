@@ -102,3 +102,6 @@ $(INF_LIB):
 
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.*
+
+allclean: clean
+	$(MAKE) -C $(INF_DIR) clean

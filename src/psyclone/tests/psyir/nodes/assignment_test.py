@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,13 +47,13 @@ from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
-from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.nodes.node import colored
 
 
 def test_assignment_node_str():
     ''' Check the node_str method of the Assignment class.'''
     assignment = Assignment()
-    coloredtext = colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
+    coloredtext = colored("Assignment", Assignment._colour)
     assert coloredtext+"[]" in assignment.node_str()
 
 
@@ -100,7 +100,7 @@ def test_assignment_create():
     assignment = Assignment.create(lhs, rhs)
     check_links(assignment, [lhs, rhs])
     result = FortranWriter().assignment_node(assignment)
-    assert result == "tmp=0.0\n"
+    assert result == "tmp = 0.0\n"
 
 
 def test_assignment_children_validation():

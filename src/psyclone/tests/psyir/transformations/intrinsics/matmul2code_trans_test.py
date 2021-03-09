@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the matmul2code transformation.'''
 
@@ -386,9 +386,9 @@ def test_apply1(tmpdir):
         "  integer :: j\n"
         "\n"
         "  do i = 1, 5, 1\n"
-        "    result(i)=0.0\n"
+        "    result(i) = 0.0\n"
         "    do j = 1, 10, 1\n"
-        "      result(i)=result(i) + x(i,j,idx) * y(j,idx)\n"
+        "      result(i) = result(i) + x(i,j,idx) * y(j,idx)\n"
         "    enddo\n"
         "  enddo\n"
         "\n"
@@ -420,9 +420,9 @@ def test_apply2(tmpdir):
         "  integer :: j\n"
         "\n"
         "  do i = 1, 5, 1\n"
-        "    result(i)=0.0\n"
+        "    result(i) = 0.0\n"
         "    do j = 1, 10, 1\n"
-        "      result(i)=result(i) + x(i,j,1) * y(j,2)\n"
+        "      result(i) = result(i) + x(i,j,1) * y(j,2)\n"
         "    enddo\n"
         "  enddo\n"
         "\n"
@@ -465,9 +465,9 @@ def test_apply3(tmpdir):
         "  integer :: j\n"
         "\n"
         "  do i = 1, 10, 1\n"
-        "    result(i)=0.0\n"
+        "    result(i) = 0.0\n"
         "    do j = 1, 20, 1\n"
-        "      result(i)=result(i) + x(i,j) * y(j)\n"
+        "      result(i) = result(i) + x(i,j) * y(j)\n"
         "    enddo\n"
         "  enddo\n"
         "\n"

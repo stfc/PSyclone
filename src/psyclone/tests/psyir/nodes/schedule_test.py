@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import os
 import pytest
 from psyclone.psyir.nodes import Schedule, Assignment, Range, Statement
-from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse
@@ -78,8 +78,7 @@ def test_sched_init():
 def test_sched_node_str():
     ''' Check the node_str method of the Schedule class'''
     sched = Schedule()
-    assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in \
-        sched.node_str()
+    assert colored("Schedule", Schedule._colour) in sched.node_str()
 
 
 def test_sched_getitem():
