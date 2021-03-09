@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,8 +59,8 @@ from psyclone.errors import InternalError
 ITERATES_OVER_CODE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
-    "    type(arg_type), dimension(1) :: meta_args =    &\n"
-    "          (/ arg_type(gh_field, gh_inc, w1) /)\n"
+    "    type(arg_type), dimension(1) :: meta_args =       &\n"
+    "          (/ arg_type(gh_field, gh_real, gh_inc, w1) /)\n"
     "     integer :: iterates_over = cells\n"
     "   contains\n"
     "     procedure, nopass :: code => test_code\n"
@@ -75,8 +75,8 @@ ITERATES_OVER_CODE = (
 CODE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
-    "    type(arg_type), dimension(1) :: meta_args =    &\n"
-    "          (/ arg_type(gh_field, gh_inc, w1) /)\n"
+    "    type(arg_type), dimension(1) :: meta_args =       &\n"
+    "          (/ arg_type(gh_field, gh_real, gh_inc, w1) /)\n"
     "     integer :: operates_on = cell_column\n"
     "   contains\n"
     "     procedure, nopass :: code => test_code\n"
@@ -92,8 +92,8 @@ CODE = (
 CODE_INTERFACE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
-    "    type(arg_type), dimension(1) :: meta_args =    &\n"
-    "          (/ arg_type(gh_field,gh_inc,w1) /)\n"
+    "    type(arg_type), dimension(1) :: meta_args =       &\n"
+    "          (/ arg_type(gh_field, gh_real, gh_inc, w1) /)\n"
     "     integer :: operates_on = cell_column\n"
     "   contains\n"
     "  end type test_type\n"
@@ -112,8 +112,8 @@ CODE_INTERFACE = (
 CODE_DOUBLE_INTERFACE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
-    "    type(arg_type), dimension(1) :: meta_args =    &\n"
-    "          (/ arg_type(gh_field,gh_inc,w1) /)\n"
+    "    type(arg_type), dimension(1) :: meta_args =       &\n"
+    "          (/ arg_type(gh_field, gh_real, gh_inc, w1) /)\n"
     "     integer :: operates_on = cell_column\n"
     "   contains\n"
     "  end type test_type\n"
@@ -133,8 +133,8 @@ CODE_DOUBLE_INTERFACE = (
 CODE_DOUBLE_PROCEDURE = (
     "module test_mod\n"
     "  type, extends(kernel_type) :: test_type\n"
-    "    type(arg_type), dimension(1) :: meta_args =    &\n"
-    "          (/ arg_type(gh_field,gh_inc,w1) /)\n"
+    "    type(arg_type), dimension(1) :: meta_args =       &\n"
+    "          (/ arg_type(gh_field, gh_real, gh_inc, w1) /)\n"
     "     integer :: operates_on = cell_column\n"
     "   contains\n"
     "  end type test_type\n"
@@ -324,9 +324,9 @@ def test_builtinfactory_metadataerror(monkeypatch):
     (which gives a TypeError as it is not callable).
 
     '''
-    from psyclone.dynamo0p3_builtins import BUILTIN_MAP as builtins
-    from psyclone.dynamo0p3_builtins import BUILTIN_DEFINITIONS_FILE as \
-        fname
+    from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
+    from psyclone.domain.lfric.lfric_builtins import \
+        BUILTIN_DEFINITIONS_FILE as fname
     from fparser import api as fpapi
     monkeypatch.setattr(fpapi, "parse", None)
     factory = BuiltInKernelTypeFactory()
@@ -556,9 +556,9 @@ def test_kerneltype_both_operates_on_iterates_over():
 DIFF_BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(2) =                         &
-          (/ arg_type(gh_field,    gh_inc,       w0),       &
-             arg_type(gh_operator, gh_readwrite, w1, w1)    &
+     type(arg_type), meta_args(2) =                               &
+          (/ arg_type(gh_field,    gh_real, gh_inc,       w0),    &
+             arg_type(gh_operator, gh_real, gh_readwrite, w1, w1) &
            /)
      type(func_type), meta_funcs(2) =          &
           (/ func_type(w0, gh_diff_basis),     &

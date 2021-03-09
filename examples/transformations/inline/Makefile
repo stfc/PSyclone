@@ -32,11 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
 transform:
-	${PYTHON} module_inline_example.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} module_inline_example.py
 
-compile:
-	@echo "No compilation target supported for inlining example"
+compile: transform
+	@echo "No compilation target supported for transformations/inline"
+
+run: compile
+	@echo "No run targets for transformations/inline"

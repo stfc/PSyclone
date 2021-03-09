@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -45,11 +45,11 @@ module testkern_w3_only_vector_mod
 
   ! Description: discontinuous field vector writer and reader (w3)
   type, extends(kernel_type) :: testkern_w3_only_vector_type
-     type(arg_type), dimension(2) :: meta_args =  &
-          (/  arg_type(gh_field*3, gh_write, w3), &
-              arg_type(gh_field*3, gh_read,  w3)  &
+     type(arg_type), dimension(2) :: meta_args =           &
+          (/  arg_type(gh_field*3, gh_real, gh_write, w3), &
+              arg_type(gh_field*3, gh_real, gh_read,  w3)  &
            /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_w3_only_vector_code
   end type testkern_w3_only_vector_type
@@ -71,9 +71,9 @@ contains
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: undf_w3
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
-    real(kind=r_def), intent(out), dimension(undf_w3) :: field1_v1
-    real(kind=r_def), intent(out), dimension(undf_w3) :: field1_v2
-    real(kind=r_def), intent(out), dimension(undf_w3) :: field1_v3
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: field1_v1
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: field1_v2
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: field1_v3
     real(kind=r_def), intent(in), dimension(undf_w3)  :: field2_v1
     real(kind=r_def), intent(in), dimension(undf_w3)  :: field2_v2
     real(kind=r_def), intent(in), dimension(undf_w3)  :: field2_v3

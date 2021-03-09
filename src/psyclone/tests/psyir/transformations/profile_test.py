@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,13 +45,16 @@ import pytest
 
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler
-from psyclone.psyir.nodes import (colored, Node, ProfileNode, Loop,
-                                  SCHEDULE_COLOUR_MAP)
+from psyclone.psyir.nodes import (colored, Node, ProfileNode, Loop, Literal,
+                                  Assignment, Return, Reference,
+                                  KernelSchedule, Schedule)
+from psyclone.psyir.symbols import (SymbolTable, REAL_TYPE, DataSymbol)
 from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import ProfileTrans
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
+from psyclone.gocean1p0 import GOInvokeSchedule
 
 
 # -----------------------------------------------------------------------------
@@ -106,8 +109,8 @@ def test_profile_basic(capsys):
     invoke.schedule.view()
     out, _ = capsys.readouterr()
 
-    gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    gsched = colored("GOInvokeSchedule", GOInvokeSchedule._colour)
+    sched = colored("Schedule", Schedule._colour)
     loop = Loop().coloured_name(True)
     profile = invoke.schedule[0].coloured_name(True)
 
@@ -644,10 +647,10 @@ End Schedule""")
     sched3.view()
     out, _ = capsys.readouterr()
 
-    gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    prof = colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+    gsched = colored("GOInvokeSchedule", GOInvokeSchedule._colour)
+    prof = colored("Profile", ProfileNode._colour)
+    sched = colored("Schedule", Schedule._colour)
+    loop = colored("Loop", Loop._colour)
 
     indent = 4*" "
     correct = (gsched+"[invoke='invoke_loop1', Constant loop bounds=True]\n" +
@@ -686,11 +689,11 @@ def test_transform_errors(capsys):
     # out is unicode, and has no replace function, so convert to string first
     out = str(out).replace("\n", "")
 
-    correct_re = (".*GOInvokeSchedule.*"
-                  r"    .*Profile.*"
-                  r"        .*Loop.*\[type='outer'.*"
-                  r"        .*Loop.*\[type='outer'.*"
-                  r"        .*Loop.*\[type='outer'.*")
+    correct_re = (".*GOInvokeSchedule.*?"
+                  r"Profile.*?"
+                  r"Loop.*\[type='outer'.*?"
+                  r"Loop.*\[type='outer'.*?"
+                  r"Loop.*\[type='outer'")
     assert re.search(correct_re, out)
 
     # Test that we don't add a profile node inside a OMP do loop (which
@@ -814,3 +817,68 @@ def test_omp_transform():
       CALL profile_psy_data%PostEnd'''
 
     assert correct in code
+
+
+def test_auto_invoke_return_last_stmt(parser):
+    ''' Check that using the auto-invoke profiling option avoids including
+    a return statement within the profiling region if it is the last statement
+    in the routine. '''
+    symbol_table = SymbolTable()
+    arg1 = symbol_table.new_symbol(
+        symbol_type=DataSymbol, datatype=REAL_TYPE)
+    zero = Literal("0.0", REAL_TYPE)
+    assign1 = Assignment.create(Reference(arg1), zero)
+    kschedule = KernelSchedule.create(
+        "work", symbol_table, [assign1, Return()])
+    # Double-check that the tree is as we expect
+    assert isinstance(kschedule[-1], Return)
+
+    Profiler.set_options([Profiler.INVOKES])
+    Profiler.add_profile_nodes(kschedule, Loop)
+    # The Return should be a sibling of the ProfileNode rather than a child
+    assert isinstance(kschedule[0], ProfileNode)
+    assert isinstance(kschedule[0].children[0].children[0], Assignment)
+    assert isinstance(kschedule[1], Return)
+
+
+def test_auto_invoke_no_return(parser, capsys):
+    ''' Check that using the auto-invoke profiling option does not add any
+    profiling if the invoke contains a Return anywhere other than as the
+    last statement. '''
+    Profiler.set_options([Profiler.INVOKES])
+    symbol_table = SymbolTable()
+    arg1 = symbol_table.new_symbol(
+        symbol_type=DataSymbol, datatype=REAL_TYPE)
+    zero = Literal("0.0", REAL_TYPE)
+    assign1 = Assignment.create(Reference(arg1), zero)
+    assign2 = Assignment.create(Reference(arg1), zero)
+
+    # Create Schedule with Return at the start.
+    kschedule = KernelSchedule.create(
+        "work1", symbol_table, [Return(), assign1, assign2])
+    Profiler.add_profile_nodes(kschedule, Loop)
+    # No profiling should have been added
+    assert not kschedule.walk(ProfileNode)
+    _, err = capsys.readouterr()
+    assert ("Not adding profiling to routine 'work1' because it contains one "
+            "or more Return statements" in err)
+
+    # Create Schedule with Return in the middle.
+    kschedule = KernelSchedule.create(
+        "work2", symbol_table, [assign1, Return(), assign2])
+    Profiler.add_profile_nodes(kschedule, Loop)
+    # No profiling should have been added
+    assert not kschedule.walk(ProfileNode)
+    _, err = capsys.readouterr()
+    assert ("Not adding profiling to routine 'work2' because it contains one "
+            "or more Return statements" in err)
+
+    # Create Schedule with a Return at the end as well as in the middle.
+    kschedule = KernelSchedule.create(
+        "work3", symbol_table, [assign1, Return(), assign2, Return()])
+    Profiler.add_profile_nodes(kschedule, Loop)
+    # No profiling should have been added
+    assert not kschedule.walk(ProfileNode)
+    _, err = capsys.readouterr()
+    assert ("Not adding profiling to routine 'work3' because it contains one "
+            "or more Return statements" in err)

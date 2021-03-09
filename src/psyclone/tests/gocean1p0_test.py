@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,17 +48,18 @@ from psyclone.parse.algorithm import parse, Arg
 from psyclone.parse.kernel import Descriptor
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyGen import PSyFactory
-from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule, \
+from psyclone.psyGen import PSyFactory, CodedKern, HaloExchange
+from psyclone.gocean1p0 import GOKern, GOLoop, \
     GOKernelArgument, GOKernelArguments, GOKernelGridArgument, \
-    GOBuiltInCallFactory, GOSymbolTable
+    GOBuiltInCallFactory, GOSymbolTable, GOInvokeSchedule
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.gocean1p0_build import GOcean1p0Build
 from psyclone.psyir.symbols import SymbolTable, DeferredType, \
     ContainerSymbol, DataSymbol, GlobalInterface, REAL_TYPE, INTEGER_TYPE, \
-    ArgumentInterface
-from psyclone.psyir.nodes import Schedule, Node
-from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    ArgumentInterface, TypeSymbol
+from psyclone.psyir.nodes import Node, StructureReference, Member, \
+    StructureMember, Reference, Loop, Schedule, Literal, BinaryOperation
+from psyclone.psyir.nodes.node import colored
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1021,13 +1022,16 @@ def test_goschedule_view(capsys, dist_mem):
     invoke = psy.invokes.invoke_list[0]
 
     # Ensure we check for the correct (colour) control codes in the output
-    isched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-    call = colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"])
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    lit = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    bop = colored("BinaryOperation", SCHEDULE_COLOUR_MAP["Operation"])
-    haloex = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
+    isched = colored("GOInvokeSchedule", GOInvokeSchedule._colour)
+    loop = colored("Loop", Loop._colour)
+    call = colored("CodedKern", CodedKern._colour)
+    sched = colored("Schedule", Schedule._colour)
+    lit = colored("Literal", Literal._colour)
+    sref = colored("StructureReference", StructureReference._colour)
+    smem = colored("StructureMember", StructureMember._colour)
+    mem = colored("Member", Member._colour)
+    bop = colored("BinaryOperation", BinaryOperation._colour)
+    haloex = colored("HaloExchange", HaloExchange._colour)
 
     if dist_mem:
         # View without constant loop bounds and with distributed memory
@@ -1044,18 +1048,22 @@ def test_goschedule_view(capsys, dist_mem):
             "check_dirty=False]\n"
             "    1: " + loop + "[type='outer', field_space='go_cu', "
             "it_space='go_internal_pts']\n"
-            "        " + lit + "[value:'cu_fld%internal%ystart', "
-            "Scalar<INTEGER, UNDEFINED>]\n"
-            "        " + lit + "[value:'cu_fld%internal%ystop', "
-            "Scalar<INTEGER, UNDEFINED>]\n"
+            "        " + sref + "[name:'cu_fld']\n"
+            "            " + smem + "[name:'internal']\n"
+            "                " + mem + "[name:'ystart']\n"
+            "        " + sref + "[name:'cu_fld']\n"
+            "            " + smem + "[name:'internal']\n"
+            "                " + mem + "[name:'ystop']\n"
             "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "        " + sched + "[]\n"
             "            0: " + loop + "[type='inner', field_space='go_cu', "
             "it_space='go_internal_pts']\n"
-            "                " + lit + "[value:'cu_fld%internal%xstart', "
-            "Scalar<INTEGER, UNDEFINED>]\n"
-            "                " + lit + "[value:'cu_fld%internal%xstop', "
-            "Scalar<INTEGER, UNDEFINED>]\n"
+            "                " + sref + "[name:'cu_fld']\n"
+            "                    " + smem + "[name:'internal']\n"
+            "                        " + mem + "[name:'xstart']\n"
+            "                " + sref + "[name:'cu_fld']\n"
+            "                    " + smem + "[name:'internal']\n"
+            "                        " + mem + "[name:'xstop']\n"
             "                " + lit + "[value:'1', Scalar<INTEGER, "
             "UNDEFINED>]\n"
             "                " + sched + "[]\n"
@@ -1066,8 +1074,8 @@ def test_goschedule_view(capsys, dist_mem):
             "it_space='go_internal_pts']\n"
             "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "        " + bop + "[operator:'SIZE']\n"
-            "            " + lit + "[value:'uold_fld%data', Scalar<INTEGER, "
-            "UNDEFINED>]\n"
+            "            " + sref + "[name:'uold_fld']\n"
+            "                " + mem + "[name:'data']\n"
             "            " + lit + "[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
             "        " + lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "        " + sched + "[]\n"
@@ -1076,10 +1084,10 @@ def test_goschedule_view(capsys, dist_mem):
             "                " + lit + "[value:'1', Scalar<INTEGER, "
             "UNDEFINED>]\n"
             "                " + bop + "[operator:'SIZE']\n"
-            "                    " + lit + "[value:'uold_fld%data', "
-            "Scalar<INTEGER, UNDEFINED>]\n"
-            "                    " + lit + "[value:'1', "
-            "Scalar<INTEGER, UNDEFINED>]\n"
+            "                    " + sref + "[name:'uold_fld']\n"
+            "                        " + mem + "[name:'data']\n"
+            "                    " + lit + "[value:'1', Scalar<INTEGER, "
+            "UNDEFINED>]\n"
             "                " + lit + "[value:'1', Scalar<INTEGER, "
             "UNDEFINED>]\n"
             "                " + sched + "[]\n"
@@ -1161,17 +1169,21 @@ def test_goschedule_str(dist_mem):
             "HaloExchange[field='p_fld', type='None', depth=None, "
             "check_dirty=False]\n"
             "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
-            "Literal[value:'cu_fld%internal%ystart', Scalar<INTEGER, "
-            "UNDEFINED>]\n"
-            "Literal[value:'cu_fld%internal%ystop', Scalar<INTEGER, "
-            "UNDEFINED>]\n"
+            "StructureReference[name:'cu_fld']\n"
+            "StructureMember[name:'internal']\n"
+            "Member[name:'ystart']\n"
+            "StructureReference[name:'cu_fld']\n"
+            "StructureMember[name:'internal']\n"
+            "Member[name:'ystop']\n"
             "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "Schedule:\n"
             "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
-            "Literal[value:'cu_fld%internal%xstart', Scalar<INTEGER, "
-            "UNDEFINED>]\n"
-            "Literal[value:'cu_fld%internal%xstop', Scalar<INTEGER, "
-            "UNDEFINED>]\n"
+            "StructureReference[name:'cu_fld']\n"
+            "StructureMember[name:'internal']\n"
+            "Member[name:'xstart']\n"
+            "StructureReference[name:'cu_fld']\n"
+            "StructureMember[name:'internal']\n"
+            "Member[name:'xstop']\n"
             "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "Schedule:\n"
             "kern call: compute_cu_code\n"
@@ -1182,14 +1194,16 @@ def test_goschedule_str(dist_mem):
             "GOLoop[id:'', variable:'j', loop_type:'outer']\n"
             "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "BinaryOperation[operator:'SIZE']\n"
-            "Literal[value:'uold_fld%data', Scalar<INTEGER, UNDEFINED>]\n"
+            "StructureReference[name:'uold_fld']\n"
+            "Member[name:'data']\n"
             "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
             "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "Schedule:\n"
             "GOLoop[id:'', variable:'i', loop_type:'inner']\n"
             "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "BinaryOperation[operator:'SIZE']\n"
-            "Literal[value:'uold_fld%data', Scalar<INTEGER, UNDEFINED>]\n"
+            "StructureReference[name:'uold_fld']\n"
+            "Member[name:'data']\n"
             "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
             "Schedule:\n"
@@ -1259,97 +1273,6 @@ def test_gosched_ijstop():
     # Attempt to query the upper bound of the j loop
     with pytest.raises(GenerationError):
         _ = schedule.jloop_stop
-
-
-def test_goloop_no_parent():
-    ''' Attempt to generate code for a loop that has no GOInvokeSchedule
-    as a parent '''
-    # First create with a schedule as one is required to declare the
-    # loop variable
-    schedule = Schedule()
-    goloop = GOLoop(loop_type="inner", parent=schedule)
-    schedule.children = [goloop]
-    # Now remove parent and children
-    goloop.parent = None
-    goloop.children = None
-    # Try and generate the code for this loop even though it
-    # has no parent schedule and no children
-    with pytest.raises(GenerationError):
-        goloop.gen_code(None)
-
-
-def test_goloop_no_children():
-    ''' Attempt to generate code for a loop that has no child
-    kernel calls '''
-    gosched = GOInvokeSchedule([])
-    gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
-    gosched.addchild(gojloop)
-    gojloop.loop_body.addchild(goiloop)
-    # Try and generate the code for this loop even though it
-    # has no children
-    with pytest.raises(GenerationError):
-        goiloop.gen_code(None)
-
-
-def test_goloop_unsupp_offset():
-    ''' Attempt to generate code for a loop with constant bounds with
-    an unsupported index offset '''
-    gosched = GOInvokeSchedule([])
-    # This test expects constant loop bounds
-    gosched._const_loop_bounds = True
-    gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
-    gosched.addchild(gojloop)
-    gojloop.loop_body.addchild(goiloop)
-    gokern = GOKern()
-    # Set the index-offset of this kernel to a value that is not
-    # supported when using constant loop bounds
-    gokern._index_offset = "offset_se"
-    goiloop.loop_body.addchild(gokern)
-    with pytest.raises(GenerationError):
-        goiloop.gen_code(None)
-
-
-def test_goloop_unmatched_offsets():
-    ''' Attempt to generate code for a loop with constant bounds with
-    two different index offsets '''
-    gosched = GOInvokeSchedule([])
-    gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
-    gosched.addchild(gojloop)
-    gojloop.loop_body.addchild(goiloop)
-    gokern1 = GOKern()
-    gokern2 = GOKern()
-    # Set the index-offset of this kernel to a value that is not
-    # supported when using constant loop bounds
-    gokern1._index_offset = "go_offset_ne"
-    gokern2._index_offset = "go_offset_sw"
-    goiloop.loop_body.addchild(gokern1)
-    goiloop.loop_body.addchild(gokern2)
-    with pytest.raises(GenerationError) as excinfo:
-        goiloop.gen_code(None)
-    # Note that the kernels do not have a name, so there is a double space
-    assert "All Kernels must expect the same grid offset but kernel  " \
-        "has offset go_offset_sw which does not match go_offset_ne" \
-        in str(excinfo.value)
-
-
-def test_goloop_bounds_invalid_iteration_space():
-    ''' Check that the _upper/lower_bound() methods raise the expected error
-    if the iteration space is not recognised. '''
-    gosched = GOInvokeSchedule([])
-    gojloop = GOLoop(parent=gosched, loop_type="outer")
-    # Have to turn-off constant loop bounds to get to the error condition
-    gosched._const_loop_bounds = False
-    # Set the iteration space to something invalid
-    gojloop._iteration_space = "broken"
-    with pytest.raises(GenerationError) as err:
-        gojloop._upper_bound()
-    assert "Unrecognised iteration space, 'broken'." in str(err.value)
-    with pytest.raises(GenerationError) as err:
-        gojloop._lower_bound()
-    assert "Unrecognised iteration space, 'broken'." in str(err.value)
 
 
 def test_writetoread_dag(tmpdir, have_graphviz):
@@ -1705,7 +1628,7 @@ def test08_kernel_invalid_grid_property():
             self.grid_prop = "does not exist"
     descriptor = DummyDescriptor()
     with pytest.raises(GenerationError) as err:
-        GOKernelGridArgument(descriptor)
+        GOKernelGridArgument(descriptor, None)
     assert re.search("Unrecognised grid property specified. Expected one "
                      "of.* but found 'does not exist'", str(err.value)) \
         is not None
@@ -1775,6 +1698,7 @@ def test_gokernelarguments_append():
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
+    symtab = invoke.schedule.symbol_table
     kernelcall = invoke.schedule.coded_kernels()[0]
     argument_list = kernelcall.arguments
     assert isinstance(argument_list, GOKernelArguments)
@@ -1786,8 +1710,8 @@ def test_gokernelarguments_append():
            "should be a string, but found 'int' instead." in str(err.value)
 
     # Append well-constructed arguments
-    argument_list.append("var1", "go_r_scalar")
-    argument_list.append("var2", "go_i_scalar")
+    argument_list.append(symtab.new_symbol("var1").name, "go_r_scalar")
+    argument_list.append(symtab.new_symbol("var2").name, "go_i_scalar")
 
     assert isinstance(kernelcall.args[-1], GOKernelArgument)
     assert isinstance(kernelcall.args[-2], GOKernelArgument)
@@ -1800,6 +1724,154 @@ def test_gokernelarguments_append():
            " var1, var2)" in generated_code
 
 
+def test_gokernelargument_infer_datatype():
+    ''' Check the GOcean specialisation of the infer_datatype works for each
+    possible type of KernelArgument. '''
+
+    # Parse an invoke with a scalar float and a field
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+
+    # The first argument is a scalar Real
+    assert argument_list.args[0].infer_datatype() == REAL_TYPE
+
+    # The second argument is a r2d_type (imported TypeSymbol)
+    assert isinstance(argument_list.args[1].infer_datatype(), TypeSymbol)
+    assert argument_list.args[1].infer_datatype().name == "r2d_type"
+
+    # Parse an invoke with a scalar int and a field
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_int_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+
+    # The first argument is a scalar Integer
+    assert argument_list.args[0].infer_datatype() == INTEGER_TYPE
+
+    # The second argument is a r2d_type (imported TypeSymbol)
+    assert isinstance(argument_list.args[1].infer_datatype(), TypeSymbol)
+    assert argument_list.args[1].infer_datatype().name == "r2d_type"
+
+    # Test an incompatible Kernel Argument
+    argument_list.args[0]._arg._space = "incompatible"
+    with pytest.raises(InternalError) as excinfo:
+        _ = argument_list.args[0].infer_datatype()
+    assert ("GOcean expects scalar arguments to be of 'go_r_scalar' or "
+            "'go_i_scalar' type but found 'incompatible'."
+            in str(excinfo.value))
+
+    argument_list.args[0]._arg._argument_type = "incompatible"
+    with pytest.raises(InternalError) as excinfo:
+        _ = argument_list.args[0].infer_datatype()
+    assert ("GOcean expects the Argument.argument_type() to be 'field' or "
+            "'scalar' but found 'incompatible'." in str(excinfo.value))
+
+
+def test_gokernelarguments_psyir_expressions():
+    ''' Check the GOcean specialisation of psyir_expressions returns the
+    expected list of PSyIR expressions for each argument'''
+
+    # Parse an invoke with grid properties
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_grid_props.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments.psyir_expressions()
+
+    # It has 2 indices arguments plus the kernel arguments
+    assert len(argument_list) == len(kernelcall.arguments.args) + 2
+
+    # Second argument is a reference to the symbol tagged contiguous_kidx
+    assert isinstance(argument_list[0], Reference)
+    assert (argument_list[0].symbol is
+            kernelcall.scope.symbol_table.lookup_with_tag("contiguous_kidx"))
+
+    # Second argument is a reference to the symbol tagged noncontiguous_kidx
+    assert isinstance(argument_list[1], Reference)
+    assert (argument_list[1].symbol is
+            kernelcall.scope.symbol_table.lookup_with_tag(
+                "noncontiguous_kidx"))
+
+    # Other arguments are also PSyIR expressions generated depending on the
+    # argument type. In this case it has 5 more arguments, all of them are
+    # structure references.
+    for argument in argument_list[2:7]:
+        assert isinstance(argument, StructureReference)
+
+
+def test_gokernelargument_psyir_expression():
+    ''' Check the GOcean specialisation of psyir_expression returns the
+    expected expression for any GOKernelArgument and GOKernelGridArguments'''
+
+    # Parse an invoke with grid properties
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_grid_props.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+
+    # The first argument is a field
+    expr1 = argument_list.args[0].psyir_expression()
+    assert isinstance(expr1, StructureReference)
+    assert isinstance(expr1.member, Member)
+    assert expr1.member.name == "data"
+
+    # Third argument is a tmask grid property
+    expr2 = argument_list.args[2].psyir_expression()
+    assert isinstance(expr2, StructureReference)
+    assert isinstance(expr2.member, StructureMember)
+    assert isinstance(expr2.member.member, Member)
+    assert expr2.member.name == "grid"
+    assert expr2.member.member.name == "tmask"
+
+    # Parse an invoke with a scalar int and a field
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_int_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernelcall = invoke.schedule.coded_kernels()[0]
+    argument_list = kernelcall.arguments
+
+    # The first argument is a scalar
+    expr3 = argument_list.args[0].psyir_expression()
+    assert isinstance(expr3, Reference)
+
+    # Test an incompatible Kernel Argument
+    argument_list.args[0]._arg._argument_type = "incompatible"
+    with pytest.raises(InternalError) as excinfo:
+        _ = argument_list.args[0].psyir_expression()
+    assert ("GOcean expects the Argument.argument_type() to be 'field' or "
+            "'scalar' but found 'incompatible'." in str(excinfo.value))
+
+
 def test_gokernelargument_type(monkeypatch):
     ''' Check the type property of the GOKernelArgument'''
 
@@ -1808,7 +1880,7 @@ def test_gokernelargument_type(monkeypatch):
     dummy_node.symbol_table = SymbolTable()
 
     # Create a dummy GOKernelArgument
-    descriptor = Descriptor(None, "")
+    descriptor = Descriptor(None, "go_r_scalar")
     arg = Arg("variable", "arg", "arg")
     argument = GOKernelArgument(descriptor, arg, dummy_node)
 

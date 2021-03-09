@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,8 @@ from collections import OrderedDict, namedtuple
 from enum import Enum
 import six
 from psyclone.errors import InternalError
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.symbols import TypeSymbol, DataSymbol
+from psyclone.psyir.symbols.symbol import Symbol
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -89,7 +90,8 @@ class UnknownType(DataType):
                 "UnknownType constructor expects the original variable "
                 "declaration as a string but got an argument of type '{0}'".
                 format(type(declaration_txt).__name__))
-        self._declaration = declaration_txt
+        self._declaration = None
+        self.declaration = declaration_txt
 
     @abc.abstractmethod
     def __str__(self):
@@ -103,6 +105,16 @@ class UnknownType(DataType):
         :rtype: str
         '''
         return self._declaration
+
+    @declaration.setter
+    def declaration(self, value):
+        '''
+        Sets the original declaration that this instance represents.
+
+        :param str value: the original declaration.
+
+        '''
+        self._declaration = value[:]
 
 
 class UnknownFortranType(UnknownType):
@@ -212,17 +224,20 @@ class ScalarType(DataType):
 
 
 class ArrayType(DataType):
-    '''Describes an array datatype.
+    '''Describes an array datatype. Can be an array of intrinsic types (e.g.
+    integer) or of structure types. For the latter, the type must currently be
+    specified as a TypeSymbol (see #1031).
 
     :param datatype: the datatype of the array elements.
-    :type datatype: :py:class:`psyclone.psyir.datatypes.DataType`
+    :type datatype: :py:class:`psyclone.psyir.datatypes.DataType` or \
+        :py:class:`psyclone.psyir.symbols.TypeSymbol`
     :param list shape: shape of the symbol in column-major order \
         (leftmost index is contiguous in memory). Each entry \
         represents an array dimension. If it is \
-        DataSymbol.Extent.ATTRIBUTE the extent of that dimension is \
+        ArrayType.Extent.ATTRIBUTE the extent of that dimension is \
         unknown but can be obtained by querying the run-time system \
         (e.g. using the SIZE intrinsic in Fortran). If it is \
-        DataSymbol.Extent.DEFERRED then the extent is also unknown and \
+        ArrayType.Extent.DEFERRED then the extent is also unknown and \
         may or may not be defined at run-time (e.g. the array is \
         ALLOCATABLE in Fortran). Otherwise it can be an int or a \
         DataNode (that returns an int). Note that providing an int is \
@@ -230,7 +245,8 @@ class ArrayType(DataType):
         internally as a Literal node.
 
     :raises TypeError: if the arguments are of the wrong type.
-
+    :raises NotImplementedError: if a structure type does not have a \
+                                 TypeSymbol as its type.
     '''
     class Extent(Enum):
         '''
@@ -251,10 +267,22 @@ class ArrayType(DataType):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Literal
 
-        if not isinstance(datatype, DataType):
+        if isinstance(datatype, DataType):
+            if isinstance(datatype, StructureType):
+                # TODO #1031 remove this restriction.
+                raise NotImplementedError(
+                    "When creating an array of structures, the type of "
+                    "those structures must be supplied as a TypeSymbol but "
+                    "got a StructureType instead.")
+            self._intrinsic = datatype.intrinsic
+            self._precision = datatype.precision
+        elif isinstance(datatype, TypeSymbol):
+            self._intrinsic = datatype
+            self._precision = None
+        else:
             raise TypeError(
                 "ArrayType expected 'datatype' argument to be of type "
-                "DataType but found '{0}'."
+                "DataType or TypeSymbol but found '{0}'."
                 "".format(type(datatype).__name__))
         # We do not have a setter for shape as it is an immutable property,
         # therefore we have a separate validation routine.
@@ -264,15 +292,14 @@ class ArrayType(DataType):
         # declaration.
         self._shape = [Literal(str(dim), INTEGER_TYPE)
                        if isinstance(dim, int) else dim for dim in shape]
-        self._intrinsic = datatype.intrinsic
-        self._precision = datatype.precision
         self._datatype = datatype
 
     @property
     def intrinsic(self):
         '''
-        :returns: the intrinsic of each element in the array
-        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
+        :returns: the intrinsic type of each element in the array.
+        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic` or \
+                :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return self._intrinsic
 
@@ -292,13 +319,13 @@ class ArrayType(DataType):
             (leftmost index is contiguous in memory) with each entry \
             representing an array dimension.
 
-        :rtype: a list of DataSymbol.Extent.ATTRIBUTE, \
-            DataSymbol.Extent.DEFERRED, or \
+        :rtype: a list of ArrayType.Extent.ATTRIBUTE, \
+            ArrayType.Extent.DEFERRED, or \
             :py:class:`psyclone.psyir.nodes.DataNode`. If an entry is \
-            DataSymbol.Extent.ATTRIBUTE the extent of that dimension \
+            ArrayType.Extent.ATTRIBUTE the extent of that dimension \
             is unknown but can be obtained by querying the run-time \
             system (e.g. using the SIZE intrinsic in Fortran). If it \
-            is DataSymbol.Extent.DEFERRED then the extent is also \
+            is ArrayType.Extent.DEFERRED then the extent is also \
             unknown and may or may not be defined at run-time \
             (e.g. the array is ALLOCATABLE in Fortran). Otherwise an \
             entry is a DataNode that returns an int.
@@ -351,19 +378,9 @@ class ArrayType(DataType):
                             "declaration then it should be a scalar "
                             "integer or an unknown type, but '{0}' is a "
                             "'{1}'.".format(symbol.name, symbol.datatype))
-                # Check that any references are not to a local
-                # datasymbol that is not constant (as this would have
+                # TODO #1089 - add check that any References are not to a
+                # local datasymbol that is not constant (as this would have
                 # no value).
-                references = dimension.walk(Reference)
-                if references:
-                    for reference in references:
-                        if reference.symbol.is_local and \
-                           not reference.symbol.is_constant:
-                            raise TypeError(
-                                "If a local datasymbol is used as part of a "
-                                "dimension declaration then it should be a "
-                                "constant, but '{0}' is not."
-                                "".format(reference.symbol.name))
             elif not isinstance(dimension, (self.Extent, int)):
                 raise TypeError(
                     "DataSymbol shape list elements can only be "
@@ -467,9 +484,6 @@ class StructureType(DataType):
         :raises TypeError: if any of the supplied values are of the wrong type.
 
         '''
-        # This import has to be here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols import Symbol, TypeSymbol
         if not isinstance(name, str):
             raise TypeError(
                 "The name of a component of a StructureType must be a 'str' "

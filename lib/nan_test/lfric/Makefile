@@ -70,7 +70,7 @@ $(LIB_NAME): $(LFRIC_DIR)/liblfric.a $(OBJS)
 	${AR} ${ARFLAGS} ${LIB_NAME} $^
 
 $(LFRIC_DIR)/liblfric.a:
-	$(MAKE) F90=$(F90) F90FLAGS=$(F90FLAGS) -C $(LFRIC_DIR)
+	$(MAKE) F90="$(F90)" F90FLAGS="$(F90FLAGS)" -C $(LFRIC_DIR)
 
 
 # Add all dependencies. The LFRic NAN checkin library extends the
@@ -84,9 +84,6 @@ nan_test_base.o: psy_data_base.o
 
 # Rules for file creation:
 # ------------------------
-nan_test.f90:	nan_test.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) nan_test.jinja > nan_test.f90
-
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
@@ -94,10 +91,10 @@ nan_test.f90:	nan_test.jinja Makefile
 # and the NAN-checking base library. So add the rules to process
 # these files to get the plain Fortran files:
 psy_data_base.f90: ../../psy_data_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
 nan_test_base.f90: ../nan_test_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) $< > nan_test_base.f90
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > nan_test_base.f90
 
 clean:
-	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* nan_test_base.* nan_test.f90
+	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* nan_test_base.*

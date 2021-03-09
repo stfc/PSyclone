@@ -5,9 +5,11 @@ transformations to instrument the previous LFRic example.
 Initially we will be using kernel extraction as an example
 but a list of other PSyData applications is provided at the end.
 The ``solutions`` directory contains working versions of the
-transformation scripts and a Makefile. If you are having problems,
-you can just copy the corresponding Makefile and python script
-into this directory.
+transformation scripts and a ``Makefile``. If you are having problems,
+you can look at the scripts and various makefiles in that directory.
+You can also directly invoke them using for example:
+
+    make -f solutions/Makefile.extract_one
 
 
 ## Step 1: Create a transformation script
@@ -73,7 +75,7 @@ using the environment variables F90 and F90FLAGS:
 
     F90=ifort F90flags="-O2 -traceback" make -f Makefile.extract_one
 
-By default gfortran will be used. The Makefile will automatically
+By default gfortran will be used. The makefile will automatically
 compile the required PSyData library as well.
 
 If you should get an error message that your script is not found,
@@ -145,8 +147,8 @@ have to do a
 
     make clean
 
-since the Makefile does not have a dependency on your script (though it would be
-recommended to add this to the Makefile so that a change in your script automatically
+since the makefile does not have a dependency on your script (though it would be
+recommended to add this to the makefile so that a change in your script automatically
 triggers running PSyclone again).
 
 You should now see that the psy-layer contains:
@@ -197,7 +199,7 @@ two NetCDF files at run time - one for each invoke in the file.
 
 ## Step 8: Try other PSyData libraries
 The following set of PSyData libraries is available and can be tested.
-Corresponding Makefiles are provided.
+Corresponding makefiles are provided.
 
 ### Readonly Verification
 This library makes sure that kernel arguments that are declared as read-only
@@ -242,13 +244,13 @@ in the file, Obviously you need make sure not to enable any array bounds
 checking in the compiler. After recompiling and running (even without
 setting ``PSYDATA_VERBOSE``), you will see:
 
-    20201120203040.272+1100:INFO : time_evolution_alg_step: Propagating perturbation field at timestep 1
+    20201204115251.691+1100:INFO : time_evolution_alg_step: Propagating perturbation field at time-step 1
      ------------- PSyData -------------------------
      Double precision field chi(1) has been modified in time_evolution : invoke_propagate_perturbation
      Original checksum:   4657399313863802880
      New checksum:       -5811961289819291648
      ------------- PSyData -------------------------
-    20201120203040.286+1100:INFO : Min/max perturbation =   0.00000000E+00  0.41618197E+04
+    20201204115251.712+1100:INFO : Min/max perturbation =   0.00000000E+00  0.32369708E+04
 
 Note that this error is only printed in the first time step. After the first modification
 the modified value is not changed again in the application, so no change to the read-only
@@ -259,8 +261,9 @@ This library verifies that all input- and output-parameters of a kernel are
 neither NAN nor an infinite number. If such a value is detected, a message
 like this will be printed:
 
-     PSYDATA: Variable perturbation has the invalid value
-                       NaN  at index/indices        85241
+     PSyData: Variable perturbation has the invalid value
+                           NaN  at index/indices           11
+
 
 The transformation ``NanTestTrans`` is imported from ``psyclone.psyir.transformations``.
 You can use the template ``nan_all_transform.py`` for your script, and ``Makefile.nan_all``

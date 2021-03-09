@@ -39,22 +39,25 @@ F90 ?= gfortran
 F90FLAGS ?= -Wall -g
 
 # Source rules
-DRIVER_SRC = write_diagnostics_mod.f90 time_evolution_driver.f90
-ALGORITHMS = $(wildcard *_alg_mod.x90)
-ALGORITHM_SRC = $(ALGORITHMS:.x90=.f90)
-PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
-KERNEL_SRC = $(wildcard *_kernel_mod.f90)
+SRC = prop_perturbation_kernel_mod.f90 time_evolution_driver.f90  \
+	  time_evolution_alg_mod.x90 init_perturbation_kernel_mod.f90
 
+# Object rules
+OBJ = $(addsuffix .o,$(basename $(SRC)))
+PSY = $(filter %.x90,$(SRC))
+# Each .x90 file also creates a _psy.* file:
+PSY_SRC = $(addsuffix _psy.f90,$(basename $(PSY)))
+PSY_OBJ = $(PSY_SRC:.f90=.o)
 
 # PSyclone command-line options
-PSYCLONE_CMD = -nodm -l all
+PSYCLONE_CMD = -nodm -l all --config $(PSYCLONE_RELPATH)/config/psyclone.cfg
 
 # Executable
 EXEC = time_evolution
 
-# Settings from the PSyData-specific library are done by the
-# Makefile including this file.
-PSYDATA_LIB=$(PSYDATA_PATH)/lib_$(PSYDATA_LIB_NAME).a
+# Settings of the PSyData-specific variables are done by the
+# Makefiles that include this file.
+PSYDATA_LIB=$(PSYDATA_PATH)/lib$(PSYDATA_LIB_NAME).a
 F90FLAGS += -I $(PSYDATA_PATH)
 
 # LFRic infrastructure library
@@ -65,62 +68,59 @@ LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 F90FLAGS += -I$(LFRIC_PATH) $$(nf-config --fflags)
 
 # GungHo auxiliary libraries
-GHLIB_PATH = gungho_lib
+GHLIB_PATH = ../gungho_lib
 GHLIB_NAME = gungho
 GHLIB_LIB = $(GHLIB_PATH)/lib$(GHLIB_NAME).a
 F90FLAGS += -I$(GHLIB_PATH)
 
-# Object rules
-DRIVER_OBJ = $(filter %.o,$(DRIVER_SRC:.f90=.o))
-ALGORITHM_OBJ = $(filter %.o,$(ALGORITHM_SRC:.f90=.o))
-PSY_OBJ = $(filter %.o,$(PSY_SRC:.f90=.o))
-KERNEL_OBJ = $(filter %.o,$(KERNEL_SRC:.F90=.o) $(KERNEL_SRC:.f90=.o))
-EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
 
 # Targets
-.PHONY: build test clean
+.PHONY: transform compile run clean allclean
 
-build: test $(EXEC)
+$(EXEC): $(LFRIC_LIB) $(GHLIB_LIB) $(PSYDATA_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) $(PSY_OBJ) -o $(EXEC)        \
+	-L$(PSYDATA_PATH) -l$(PSYDATA_LIB_NAME)                \
+	-L$(GHLIB_PATH)   -l$(GHLIB_NAME)                      \
+	-L$(LFRIC_PATH)   -l$(LFRIC_NAME) $$(nf-config --flibs)
 
-$(EXEC): $(LFRIC_LIB) $(GHLIB_LIB) $(EXAMPLE_OBJ)
-	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) \
-	-l$(LFRIC_NAME) -L$(PSYDATA_PATH) -l$(PSYDATA_LIB_NAME) $$(nf-config --flibs) -L$(GHLIB_PATH) -l$(GHLIB_NAME)
-
-$(GHLIB_LIB):
+$(GHLIB_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(GHLIB_PATH)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH) netcdf
 
-$(PSYDATA_LIB):
+$(PSYDATA_LIB): $(LFRIC_LIB)
+ifneq ($(PSYDATA_PATH),)
 	$(MAKE) -C $(PSYDATA_PATH)
+endif
 
 # Dependencies
-$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
-$(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ)
-$(PSY_OBJ): $(KERNEL_OBJ) $(PSYDATA_LIB)
+$(OBJ): $(LFRIC_LIB) $(GHLIB) $(PSYDATA_LIB)
+time_evolution_driver.o:  time_evolution_alg_mod_psy.o time_evolution_alg_mod.o
 
-%.o %.mod: %.F90
+time_evolution_alg_mod.o: init_perturbation_kernel_mod.o \
+	prop_perturbation_kernel_mod.o time_evolution_alg_mod_psy.o
+
+time_evolution_alg_mod_psy.o: init_perturbation_kernel_mod.o \
+	prop_perturbation_kernel_mod.o
+
+%.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
-%.o %.mod: %.f90
-	$(F90) $(F90FLAGS) -c $<
-
-$(ALGORITHM_SRC): $(PSY_SRC)
-
-# Keep the generated Alg and PSy files
-.precious: $(ALGORITHM_SRC) $(PSY_SRC)
-
-# Test PSyclone target for continuous integration
-test: $(PSY_SRC) $(ALGORITHM_SRC)
-
-%_psy.f90: %.x90
-	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
+%.f90 %_psy.f90: %.x90
+	psyclone $(PSYCLONE_CMD) \
 	-opsy $*_psy.f90 -oalg $*.f90 $<
 
 clean:
-	rm -f *.o *.mod *.txt $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
+	rm -f *.o *.mod *.txt $(EXEC)  time_evolution_alg_mod.f90 $(PSY_SRC)
 
 allclean: clean
-	make -C $(GHLIB_PATH) clean
-	make -C $(LFRIC_PATH) clean
+	$(MAKE) -C $(GHLIB_PATH)   clean
+	$(MAKE) -C $(LFRIC_PATH)   clean
+
+# If PSYDATA_PATH is not defined (i.e. this is invoked from
+# Makefile, not solution/Makefile.*), we don't know which
+# PSyData library to clean ...
+ifneq ($(PSYDATA_PATH),)
+	$(MAKE) -C $(PSYDATA_PATH) clean
+endif

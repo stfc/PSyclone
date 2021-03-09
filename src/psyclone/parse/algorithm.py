@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,8 +47,10 @@ from fparser.two.utils import walk
 from fparser.two.Fortran2003 import Main_Program, Module, \
     Subroutine_Subprogram, Function_Subprogram, Use_Stmt, Call_Stmt, \
     Actual_Arg_Spec, Data_Ref, Part_Ref, Char_Literal_Constant, \
-    Section_Subscript_List, Name, Real_Literal_Constant, Int_Literal_Constant,\
-    Function_Reference, Level_2_Unary_Expr, Add_Operand, Parenthesis
+    Section_Subscript_List, Name, Real_Literal_Constant, \
+    Int_Literal_Constant, Function_Reference, Level_2_Unary_Expr, \
+    Add_Operand, Parenthesis, Structure_Constructor, Component_Spec_List, \
+    Proc_Component_Ref
 # pylint: enable=no-name-in-module
 
 from psyclone.configuration import Config
@@ -256,7 +258,8 @@ class Parser(object):
                         format(str(statement), self._alg_filename))
                 invoke_label = self.check_invoke_label(argument)
 
-            elif isinstance(argument, (Data_Ref, Part_Ref)):
+            elif isinstance(
+                    argument, (Data_Ref, Part_Ref, Structure_Constructor)):
                 # This should be a kernel call.
                 kernel_call = self.create_kernel_call(argument)
                 kernel_calls.append(kernel_call)
@@ -278,12 +281,14 @@ class Parser(object):
         information.
 
         :param argument: Parse tree of an invoke argument. This \
-        should contain a kernel name and associated arguments.
-        :type argument: :py:class:`fparser.two.Fortran2003.Part_Ref`
+            should contain a kernel name and associated arguments.
+        :type argument: :py:class:`fparser.two.Fortran2003.Part_Ref` or \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+
         :returns: A builtin or coded kernel call object which contains \
-        relevant information about the Kernel.
+            relevant information about the Kernel.
         :rtype: :py:class:`psyclone.parse.algorithm.KernelCall` or \
-        :py:class:`psyclone.parse.algorithm.BuiltInCall`
+            :py:class:`psyclone.parse.algorithm.BuiltInCall`
 
         '''
         kernel_name, args = get_kernel(argument, self._alg_filename)
@@ -430,12 +435,13 @@ class Parser(object):
 
 
 def get_builtin_defs(api):
-    '''Get the names of the supported built-in operations and the file
+    '''
+    Get the names of the supported built-in operations and the file
     containing the associated meta-data for the supplied API
 
-    :param str api: the specified PSyclone api
+    :param str api: the specified PSyclone API.
     :returns: a 2-tuple containing a dictionary of the supported \
-    builtins and the filename where these builtins are specified.
+              built-ins and the filename where these built-ins are specified.
     :rtype: (dict, str)
 
     '''
@@ -443,10 +449,12 @@ def get_builtin_defs(api):
     # Check that the supplied API is valid
     check_api(api)
 
+    # pylint: disable=import-outside-toplevel
     if api == "dynamo0.3":
-        from psyclone.dynamo0p3_builtins import BUILTIN_MAP as builtins
-        from psyclone.dynamo0p3_builtins import BUILTIN_DEFINITIONS_FILE as \
-            fname
+        from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP \
+            as builtins
+        from psyclone.domain.lfric.lfric_builtins import \
+            BUILTIN_DEFINITIONS_FILE as fname
     else:
         # We don't support any built-ins for this API
         builtins = {}
@@ -526,37 +534,41 @@ def get_kernel(parse_tree, alg_filename):
     relevant information about the arguments associated with the
     kernel.
 
-    :param parse_tree: Parse tree of an invoke argument. This \
-    should contain a kernel name and associated arguments.
-    :type argument: :py:class:`fparser.two.Fortran2003.Part_Ref`
+    :param parse_tree: parse tree of an invoke argument. This \
+        should contain a kernel name and associated arguments.
+    :type parse_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` or \
+        :py:class:`fparser.two.Fortran2003.Structure_Constructor`
     :param str alg_filename: The file containing the algorithm code.
 
     :returns: a 2-tuple with the name of the kernel being called and a \
-    list of 'Arg' instances containing the required information for \
-    the arguments being passed from the algorithm layer. The list \
-    order is the same as the argument order.
-
+        list of 'Arg' instances containing the required information for \
+        the arguments being passed from the algorithm layer. The list \
+        order is the same as the argument order.
     :rtype: (str, list of :py:class:`psyclone.parse.algorithm.Arg`)
+
     :raises InternalError: if the parse tree is of the wrong type.
     :raises InternalError: if an unsupported argument format is found.
 
     '''
     # pylint: disable=too-many-branches
-    if not isinstance(parse_tree, Part_Ref):
+    if not isinstance(parse_tree, (Part_Ref, Structure_Constructor)):
         raise InternalError(
-            "algorithm.py:get_kernel: Expected a parse tree (type Part_Ref) "
-            "but found instance of '{0}'.".format(type(parse_tree)))
+            "algorithm.py:get_kernel: Expected a parse tree (type Part_Ref "
+            "or Structure_Constructor) but found instance of '{0}'."
+            "".format(type(parse_tree)))
 
     if len(parse_tree.items) != 2:
         raise InternalError(
-            "algorithm.py:get_kernel: Expected Part_Ref to have 2 children "
+            "algorithm.py:get_kernel: Expected Part_Ref or "
+            "Structure_Constructor to have 2 children "
             "but found {0}.".format(len(parse_tree.items)))
 
     kernel_name = str(parse_tree.items[0])
 
     # Extract argument list. This can be removed when fparser#211 is fixed.
     argument_list = []
-    if isinstance(parse_tree.items[1], Section_Subscript_List):
+    if isinstance(parse_tree.items[1],
+                  (Section_Subscript_List, Component_Spec_List)):
         argument_list = parse_tree.items[1].items
     else:
         # Expecting a single entry rather than a list
@@ -587,8 +599,10 @@ def get_kernel(parse_tree, alg_filename):
             var_name = "{0}_{1}".format(lhs, rhs)
             var_name = var_name.lower()
             arguments.append(Arg('indexed_variable', full_text, var_name))
-        elif isinstance(argument, Data_Ref):
-            # A structure dereference e.g. base%arg, base%arg(n)
+        elif isinstance(argument, (Data_Ref, Proc_Component_Ref)):
+            # A structure dereference e.g. base%arg, base%arg(n) It is
+            # a Proc_Component_Ref if the structure constructor uses
+            # self e.g. self%arg
             full_text = argument.tostr().lower()
             var_name = create_var_name(argument).lower()
             arguments.append(Arg('variable', full_text, var_name))
@@ -618,34 +632,44 @@ def get_kernel(parse_tree, alg_filename):
 
 
 def create_var_name(arg_parse_tree):
-    '''Creates a valid variable name from an argument that includes
-    brackets and potentially dereferences using '%'.
+    '''Creates a valid variable name from an argument that optionally
+    includes brackets and potentially dereferences using '%'.
 
     :param arg_parse_tree: the input argument. Contains braces and \
-    potentially dereferencing. e.g. a%b(c)
-    :type arg_parse_tree: fparser.two.Fortran2003.Data_Ref
-    :returns: a valid variable name as a string
+        potentially dereferencing. e.g. a%b(c).
+    :type arg_parse_tree: :py:class:`fparser.two.Fortran2003.Name` or \
+        :py:class:`fparser.two.Fortran2003.Data_Ref` or \
+        :py:class:`fparser.two.Fortran2003.Part_Ref` or \
+        :py:class:`fparser.two.Fortran2003.Proc_Component_Ref`
+
+    :returns: a valid variable name.
     :rtype: str
+
     :raises InternalError: if unrecognised fparser content is found.
 
     '''
-    var_name = ""
     tree = arg_parse_tree
-    while isinstance(tree, Data_Ref):
-        # replace '%' with '_'
-        var_name += str(tree.items[0]) + "_"
-        tree = tree.items[1]
     if isinstance(tree, Name):
-        # add name to the end
-        var_name += str(tree)
-    elif isinstance(tree, Part_Ref):
-        # add name before the brackets to the end
-        var_name += str(tree.items[0])
-    else:
-        raise InternalError(
-            "algorithm.py:create_var_name unrecognised structure "
-            "'{0}'".format(type(tree)))
-    return var_name
+        return str(tree)
+    if isinstance(tree, Part_Ref):
+        return str(tree.items[0])
+    if isinstance(tree, Proc_Component_Ref):
+        return "{0}_{1}".format(tree.items[0], tree.items[2])
+    if isinstance(tree, Data_Ref):
+        component_names = []
+        for item in tree.items:
+            if isinstance(item, (Data_Ref, Part_Ref)):
+                component_names.append(str(item.items[0]))
+            elif isinstance(item, Name):
+                component_names.append(str(item))
+            else:
+                raise InternalError(
+                    "algorithm.py:create_var_name unrecognised structure "
+                    "'{0}' in '{1}'.".format(type(item), type(tree)))
+        return "_".join(component_names)
+    raise InternalError(
+        "algorithm.py:create_var_name unrecognised structure "
+        "'{0}'".format(type(tree)))
 
 # Section 3: Classes holding algorithm information.
 
@@ -954,3 +978,8 @@ class Arg(object):
 
         '''
         return self._form == "literal"
+
+
+__all__ = ["parse", "Parser", "get_builtin_defs", "get_invoke_label",
+           "get_kernel", "create_var_name", "FileInfo", "InvokeCall",
+           "ParsedCall", "KernelCall", "BuiltInCall", "Arg"]

@@ -86,13 +86,15 @@ read_only_base.o: psy_data_base.o
 	$(F90) $(F90FLAGS) -c $<
 
 # The dl_esm_inf ReadOnly library is built on the psy-data base library
-# and the read-only base library. So add the rules to process
-# these files to get the plain Fortran files:
+# and the read-only base library. This library uses the `declareXXX`
+# functions implemented in `psy_data_base`, hence the parameter
+# `-generic-declare`. It also uses the `provideXXX` functions implemented
+# in `read_only_base`, which are added with the `-generic-provide` parameter.
 psy_data_base.f90: ../../psy_data_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
 read_only_base.f90: ../read_only_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) $< > read_only_base.f90
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > read_only_base.f90
 
 # The dl_esm_inf library
 $(INF_LIB):
@@ -100,3 +102,6 @@ $(INF_LIB):
 
 clean:
 	rm -f *.o *.mod $(LIB_NAME) psy_data_base.* read_only_base.*
+
+allclean: clean
+	$(MAKE) -C $(INF_DIR) clean

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -43,13 +43,13 @@ module testkern_stencil_depth_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_stencil_depth_type
-     type(arg_type), dimension(4) :: meta_args =               &
-          (/ arg_type(gh_field, gh_write, w3),                 &
-             arg_type(gh_field, gh_read,  w1, stencil(cross)), &
-             arg_type(gh_field, gh_read,  w2, stencil(cross)), &
-             arg_type(gh_field, gh_read,  w3, stencil(cross))  &
+     type(arg_type), dimension(4) :: meta_args =                        &
+          (/ arg_type(gh_field, gh_real, gh_write, w3),                 &
+             arg_type(gh_field, gh_real, gh_read,  w1, stencil(cross)), &
+             arg_type(gh_field, gh_real, gh_read,  w2, stencil(cross)), &
+             arg_type(gh_field, gh_real, gh_read,  w3, stencil(cross))  &
            /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_stencil_depth_code
   end type testkern_stencil_depth_type
@@ -81,10 +81,10 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_w1,fld2_st_size) :: fld2_st_dofmap
     integer(kind=i_def), intent(in), dimension(ndf_w2,fld3_st_size) :: fld3_st_dofmap
     integer(kind=i_def), intent(in), dimension(ndf_w3,fld4_st_size) :: fld4_st_dofmap
-    real(kind=r_def), intent(out), dimension(undf_w3) :: fld1
-    real(kind=r_def), intent(in), dimension(undf_w1)  :: fld2
-    real(kind=r_def), intent(in), dimension(undf_w2)  :: fld3
-    real(kind=r_def), intent(in), dimension(undf_w3)  :: fld4
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: fld1
+    real(kind=r_def), intent(in), dimension(undf_w1)    :: fld2
+    real(kind=r_def), intent(in), dimension(undf_w2)    :: fld3
+    real(kind=r_def), intent(in), dimension(undf_w3)    :: fld4
 
   end subroutine testkern_stencil_depth_code
 

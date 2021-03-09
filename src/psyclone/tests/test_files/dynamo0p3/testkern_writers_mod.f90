@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -46,15 +46,15 @@ module testkern_writers_mod
   ! Test halo_dirty calls only for field "writers", that is write, readwrite
   ! and inc fields (not for read)
   type, extends(kernel_type) :: testkern_writers_type
-     type(arg_type) :: meta_args(8) = (/        &
-          arg_type(GH_FIELD, GH_WRITE,     W3), &
-          arg_type(GH_FIELD, GH_READ,      W1), &
-          arg_type(GH_FIELD, GH_INC,       W1), &
-          arg_type(GH_FIELD, GH_READ,      W1), &
-          arg_type(GH_FIELD, GH_READWRITE, W3), &
-          arg_type(GH_FIELD, GH_WRITE,     W3), &
-          arg_type(GH_FIELD, GH_INC,       W1), &
-          arg_type(GH_FIELD, GH_INC,       W1)  &
+     type(arg_type) :: meta_args(8) = (/                 &
+          arg_type(GH_FIELD, GH_REAL, GH_WRITE,     W3), &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,      W1), &
+          arg_type(GH_FIELD, GH_REAL, GH_INC,       W1), &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,      W1), &
+          arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3), &
+          arg_type(GH_FIELD, GH_REAL, GH_WRITE,     W3), &
+          arg_type(GH_FIELD, GH_REAL, GH_INC,       W1), &
+          arg_type(GH_FIELD, GH_REAL, GH_INC,       W1)  &
           /)
      integer :: operates_on = CELL_COLUMN
    contains
@@ -77,12 +77,12 @@ contains
     integer(kind=i_def), intent(in) :: undf_w3, undf_w1
     integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
-    real(kind=r_def), intent(out),   dimension(undf_w3) :: fld1
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: fld1
     real(kind=r_def), intent(in),    dimension(undf_w1) :: fld2
     real(kind=r_def), intent(inout), dimension(undf_w1) :: fld3
     real(kind=r_def), intent(in),    dimension(undf_w1) :: fld4
     real(kind=r_def), intent(inout), dimension(undf_w3) :: fld5
-    real(kind=r_def), intent(out),   dimension(undf_w3) :: fld6
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: fld6
     real(kind=r_def), intent(inout), dimension(undf_w1) :: fld7
     real(kind=r_def), intent(inout), dimension(undf_w1) :: fld8
 

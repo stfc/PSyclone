@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -61,14 +61,14 @@ private
 type, public, extends(kernel_type) :: apply_variable_hx_kernel_type
   private
   type(arg_type) :: meta_args(10) = (/                                 &
-       arg_type(GH_FIELD,             GH_WRITE, W3),                   &
-       arg_type(GH_FIELD,             GH_READ,  W2),                   &
-       arg_type(GH_FIELD,             GH_READ,  ANY_SPACE_1),          &
-       arg_type(GH_FIELD,             GH_READ,  W3),                   &
-       arg_type(GH_OPERATOR,          GH_READ,  W3, W2),               &
-       arg_type(GH_OPERATOR,          GH_READ,  W3, ANY_SPACE_1),      &
-       arg_type(GH_OPERATOR,          GH_READ,  ANY_SPACE_1, W2),      &
-       arg_type(GH_OPERATOR,          GH_READ,  W3, W3),               &
+       arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W3),                   &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),                   &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_SPACE_1),          &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),                   &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W2),               &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, ANY_SPACE_1),      &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  ANY_SPACE_1, W2),      &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W3),               &
        arg_type(GH_SCALAR,   GH_REAL, GH_READ),                        &
        arg_type(GH_SCALAR,   GH_REAL, GH_READ)                         &
        /)
@@ -79,14 +79,14 @@ end type
 type, public, extends(kernel_type) :: opt_apply_variable_hx_kernel_type
   private
   type(arg_type) :: meta_args(10) = (/                                 &
-       arg_type(GH_FIELD,             GH_WRITE, W3),                   &
-       arg_type(GH_FIELD,             GH_READ,  W2),                   &
-       arg_type(GH_FIELD,             GH_READ,  ANY_SPACE_1),          &
-       arg_type(GH_FIELD,             GH_READ,  W3),                   &
-       arg_type(GH_OPERATOR,          GH_READ,  W3, W2),               &
-       arg_type(GH_OPERATOR,          GH_READ,  W3, ANY_SPACE_1),      &
-       arg_type(GH_OPERATOR,          GH_READ,  ANY_SPACE_1, W2),      &
-       arg_type(GH_OPERATOR,          GH_READ,  W3, W3),               &
+       arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W3),                   &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),                   &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_SPACE_1),          &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),                   &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W2),               &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, ANY_SPACE_1),      &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  ANY_SPACE_1, W2),      &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W3),               &
        arg_type(GH_SCALAR,   GH_REAL, GH_READ),                        &
        arg_type(GH_SCALAR,   GH_REAL, GH_READ)                         &
        /)
@@ -114,20 +114,20 @@ contains
 !>        operators as well as the application of the mass matrix M
 !> @param[in] cell Horizontal cell index
 !> @param[in] nlayers Number of layers
-!> @param[in,out] lhs pressure field with helmholtz operator applied to it
-!> @param[in] x gradient of the pressure field in the velocity space
-!> @param[in] mt_inv lumped inverse mass matrix for the temperature space
-!> @param[in] pressure field that helmholtz operator is being applied to
+!> @param[in,out] lhs Pressure field with helmholtz operator applied to it
+!> @param[in] x Gradient of the pressure field in the velocity space
+!> @param[in] mt_inv Lumped inverse mass matrix for the temperature space
+!> @param[in] pressure Field that helmholtz operator is being applied to
 !> @param[in] ncell_3d_1 Total number of cells for divergence matrix
-!> @param[in] div generalised divergence matrix
+!> @param[in] div Generalised divergence matrix
 !> @param[in] ncell_3d_2 Total number of cells for p3t matrix
-!> @param[in] p3t mapping from temperature space to pressure space
+!> @param[in] p3t Mapping from temperature space to pressure space
 !> @param[in] ncell_3d_3 Total number of cells for pt2 matrix
-!> @param[in] pt2 mapping from velocity space to temperature space
+!> @param[in] pt2 Mapping from velocity space to temperature space
 !> @param[in] ncell_3d_4 Total number of cells for m3 matrix
-!> @param[in] m3 mass matrix for the pressure space
-!> @param[in] tau relaxtation weight
-!> @param[in] dt weight based upon the timestep
+!> @param[in] m3 Mass matrix for the pressure space
+!> @param[in] tau Relaxation weight
+!> @param[in] dt Weight based upon the timestep
 !> @param[in] ndf_w3 Number of degrees of freedom per cell for the pressure space
 !> @param[in] undf_w3 Unique number of degrees of freedom  for the pressure space
 !> @param[in] map_w3 Dofmap for the cell at the base of the column for the pressure space

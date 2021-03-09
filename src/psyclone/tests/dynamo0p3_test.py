@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,11 +52,11 @@ from psyclone.domain.lfric import FunctionSpace
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, \
-    KernCallArgList, DynACCEnterDataDirective
+    KernCallArgList, DynACCEnterDataDirective, VALID_INTRINSIC_TYPES
 
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
@@ -83,22 +83,18 @@ def setup():
 
 
 # tests
-def test_get_op_orientation_name():
-    ''' Test that get_operator_name() works for the orientation operator '''
-    name = FunctionSpace("w3", None).get_operator_name("gh_orientation")
-    assert name == "orientation_w3"
 
 
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
-     type(arg_type), meta_args(6) =                   &
-          (/ arg_type(gh_scalar, gh_real, gh_read),   &
-             arg_type(gh_field, gh_inc, w1),          &
-             arg_type(gh_field, gh_read, w2),         &
-             arg_type(gh_operator, gh_read, w2, w2),  &
-             arg_type(gh_field, gh_read, w3),         &
-             arg_type(gh_scalar, gh_integer, gh_read) &
+     type(arg_type), meta_args(6) =                              &
+          (/ arg_type(gh_scalar,   gh_real,    gh_read),         &
+             arg_type(gh_field,    gh_real,    gh_inc,  w1),     &
+             arg_type(gh_field,    gh_real,    gh_read, w2),     &
+             arg_type(gh_operator, gh_real,    gh_read, w2, w2), &
+             arg_type(gh_field,    gh_real,    gh_read, w3),     &
+             arg_type(gh_scalar,   gh_integer, gh_read)          &
            /)
      type(func_type), dimension(3) :: meta_funcs =  &
           (/ func_type(w1, gh_basis),               &
@@ -123,8 +119,8 @@ def test_arg_descriptor_wrong_type():
     ''' Tests that an error is raised when the argument descriptor
     metadata is not of type arg_type. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_field, gh_read, w2)",
-                        "arg_typ(gh_field, gh_read, w2)", 1)
+    code = CODE.replace("arg_type(gh_field,    gh_real,    gh_read, w2)",
+                        "arg_typ(gh_field,    gh_real,    gh_read, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -138,7 +134,8 @@ def test_arg_descriptor_vector():
     as expected when we have a field vector. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the meta-data so that the second argument is a vector
-    code = CODE.replace("gh_field, gh_inc, w1", "gh_field*3, gh_inc, w1", 1)
+    code = CODE.replace("(gh_field,    gh_real,    gh_inc,  w1)",
+                        "(gh_field*3,  gh_real,    gh_inc,  w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     dkm = DynKernMetadata(ast, name=name)
@@ -210,9 +207,8 @@ def test_ad_scalar_init_wrong_argument_type():
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
             wrong_arg, metadata.iterates_over)._init_scalar(wrong_arg)
-    assert ("LFRicArgDescriptor._init_scalar(): expected a scalar "
-            "argument but got an argument of type 'gh_operator'." in
-            str(excinfo.value))
+    assert ("Expected a scalar argument but got an argument of type "
+            "'gh_operator'." in str(excinfo.value))
 
 
 def test_ad_scalar_type_too_few_args():
@@ -226,8 +222,8 @@ def test_ad_scalar_type_too_few_args():
     # TODO in #874: Remove support for old-style scalar metadata by removing
     #               index [0] and restoring the scalar names list
     for argname in [LFRicArgDescriptor.VALID_SCALAR_NAMES[0]]:
-        code = CODE.replace("arg_type(" + argname + ", gh_real, gh_read)",
-                            "arg_type(" + argname + ", gh_real)", 1)
+        code = CODE.replace("arg_type(" + argname + ",   gh_real,    gh_read)",
+                            "arg_type(" + argname + ",   gh_real)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
@@ -245,8 +241,8 @@ def test_ad_scalar_type_too_many_args():
     #               index [0] and restoring the scalar names list
     for argname in [LFRicArgDescriptor.VALID_SCALAR_NAMES[0]]:
         code = CODE.replace(
-            "arg_type(" + argname + ", gh_integer, gh_read)",
-            "arg_type(" + argname + ", gh_integer, gh_read, w1)", 1)
+            "arg_type(" + argname + ",   gh_integer, gh_read)",
+            "arg_type(" + argname + ",   gh_integer, gh_read, w1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
@@ -261,15 +257,15 @@ def test_ad_scalar_invalid_data_type():
     metadata for a scalar has an invalid data type. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    code = CODE.replace("arg_type(gh_scalar, gh_real, gh_read)",
-                        "arg_type(gh_scalar, gh_read)", 1)
+    code = CODE.replace("arg_type(gh_scalar,   gh_real,    gh_read)",
+                        "arg_type(gh_scalar,   gh_read)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("In the LFRic API the 2nd argument of a 'meta_arg' "
-            "scalar entry should be a valid data type (one of "
+            "entry should be a valid data type (one of "
             "['gh_real', 'gh_integer']), but found 'gh_read' in "
-            "'gh_scalar'." in str(excinfo.value))
+            "'arg_type(gh_scalar, gh_read)'." in str(excinfo.value))
 
 
 def test_ad_scalar_init_wrong_data_type(monkeypatch):
@@ -289,8 +285,7 @@ def test_ad_scalar_init_wrong_data_type(monkeypatch):
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
             scalar_arg, metadata.iterates_over)._init_scalar(scalar_arg)
-    assert ("LFRicArgDescriptor._init_scalar(): expected one of {0} "
-            "as the data type but got 'gh_double'.".
+    assert ("Expected one of {0} as the scalar data type but got 'gh_double'.".
             format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES) in
             str(excinfo.value))
 
@@ -304,8 +299,8 @@ def test_ad_scalar_type_no_write():
     #               index [0] and restoring the scalar names list
     for argname in [LFRicArgDescriptor.VALID_SCALAR_NAMES[0]]:
         code = CODE.replace(
-            "arg_type(" + argname + ", gh_integer, gh_read)",
-            "arg_type(" + argname + ", gh_integer, gh_write)", 1)
+            "arg_type(" + argname + ",   gh_integer, gh_read)",
+            "arg_type(" + argname + ",   gh_integer, gh_write)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
@@ -322,8 +317,8 @@ def test_ad_scalar_type_no_inc():
     # TODO in #874: Remove support for old-style scalar metadata by removing
     #               index [0] and restoring the scalar names list
     for argname in [LFRicArgDescriptor.VALID_SCALAR_NAMES[0]]:
-        code = CODE.replace("arg_type(" + argname + ", gh_real, gh_read)",
-                            "arg_type(" + argname + ", gh_real, gh_inc)", 1)
+        code = CODE.replace("arg_type(" + argname + ",   gh_real,    gh_read)",
+                            "arg_type(" + argname + ",   gh_real, gh_inc)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
@@ -336,8 +331,8 @@ def test_ad_int_scalar_type_no_sum():
     ''' Tests that an error is raised when the argument descriptor metadata
     for an integer scalar specifies 'GH_SUM' access (reduction). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_scalar, gh_integer, gh_read)",
-                        "arg_type(gh_scalar, gh_integer, gh_sum)", 1)
+    code = CODE.replace("arg_type(gh_scalar,   gh_integer, gh_read)",
+                        "arg_type(gh_scalar,   gh_integer, gh_sum)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -359,9 +354,8 @@ def test_ad_field_init_wrong_type():
         LFRicArgDescriptor(
             wrong_arg, metadata.iterates_over)._init_field(
                 wrong_arg, metadata.iterates_over)
-    assert ("LFRicArgDescriptor._init_field(): expected a field "
-            "argument but got an argument of type 'gh_scalar'" in
-            str(excinfo.value))
+    assert ("Expected a field argument but got an argument of type "
+            "'gh_scalar'" in str(excinfo.value))
 
 
 def test_ad_field_init_wrong_iteration_space():
@@ -391,13 +385,13 @@ def test_ad_field_type_too_few_args():
     ''' Tests that an error is raised when the field argument descriptor
     metadata for a field has fewer than 3 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_field, gh_inc, w1)",
-                        "arg_type(gh_field, gh_inc)", 1)
+    code = CODE.replace("arg_type(gh_field,    gh_real,    gh_inc,  w1)",
+                        "arg_type(gh_field,    gh_real,    gh_inc)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("each 'meta_arg' entry must have at least 3 arguments if its "
+    assert ("each 'meta_arg' entry must have at least 4 arguments if its "
             "first argument is of ['gh_field'] type" in str(excinfo.value))
 
 
@@ -405,21 +399,22 @@ def test_ad_fld_type_too_many_args():
     ''' Tests that an error is raised when the field argument descriptor
     metadata has more than 4 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_field, gh_inc, w1)",
-                        "arg_type(gh_field, gh_inc, w1, w1, w2)", 1)
+    code = CODE.replace(
+        "arg_type(gh_field,    gh_real,    gh_inc,  w1)",
+        "arg_type(gh_field,    gh_real,    gh_inc,  w1, w1, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("each 'meta_arg' entry must have at most 4 arguments if its "
+    assert ("each 'meta_arg' entry must have at most 5 arguments if its "
             "first argument is of ['gh_field'] type" in str(excinfo.value))
 
 
 def test_ad_fld_type_1st_arg():
     ''' Tests that an error is raised when the 1st argument is invalid. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_field, gh_inc, w1)",
-                        "arg_type(gh_hedge, gh_inc, w1)", 1)
+    code = CODE.replace("arg_type(gh_field,    gh_real,    gh_inc,  w1)",
+                        "arg_type(gh_hedge,    gh_real,    gh_inc,  w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -463,8 +458,8 @@ def test_ad_invalid_access_type():
     ''' Tests that an error is raised when an invalid access
     name is provided as the second argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("(gh_scalar, gh_integer, gh_read)",
-                        "(gh_scalar, gh_integer, gh_ead)", 1)
+    code = CODE.replace("(gh_scalar,   gh_integer, gh_read)",
+                        "(gh_scalar,   gh_integer, gh_ead)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     api_config = Config.get().api_conf("dynamo0.3")
@@ -494,42 +489,13 @@ def test_ad_invalid_iteration_space():
             "'colours'." in str(excinfo.value))
 
 
-def test_arg_descriptor_invalid_fs1():
-    ''' Tests that an error is raised when an invalid function space
-    name is provided as the third argument for a field. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("gh_field, gh_read, w3", "gh_field, gh_read, w4", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_qr_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("3rd argument of a 'meta_arg' entry must be a valid "
-            "function space name (one of {0}) if its first argument "
-            "is of ['gh_field'] type, but found 'w4'".
-            format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES)
-            in str(excinfo.value))
-
-
-def test_arg_descriptor_invalid_fs2():
-    ''' Tests that an error is raised when an invalid function space
-    name is provided as the third argument for an operator. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("w2, w2", "w2, w4", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_qr_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("4th argument of a 'meta_arg' operator entry must be a "
-            "valid function space name (one of {0}), but found 'w4'".
-            format(FunctionSpace.VALID_FUNCTION_SPACE_NAMES)
-            in str(excinfo.value))
-
-
 def test_invalid_vector_operator():
     ''' Tests that an error is raised when a vector does not use "*"
     as its operator. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("gh_field, gh_inc, w1", "gh_field+3, gh_inc, w1", 1)
+    code = CODE.replace(
+        "(gh_field,    gh_real,    gh_inc,  w1)",
+        "(gh_field+3,  gh_real,    gh_inc,  w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -541,7 +507,8 @@ def test_invalid_vector_value_type():
     ''' Tests that an error is raised when a vector value is not a valid
     integer. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("gh_field, gh_inc, w1", "gh_field*n, gh_inc, w1", 1)
+    code = CODE.replace("(gh_field,    gh_real,    gh_inc,  w1)",
+                        "(gh_field*n,  gh_real,    gh_inc,  w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -555,7 +522,8 @@ def test_invalid_vector_value_range():
     ''' Tests that an error is raised when a vector value is not a valid
     value (<2). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("gh_field, gh_inc, w1", "gh_field*1, gh_inc, w1", 1)
+    code = CODE.replace("(gh_field,    gh_real,    gh_inc,  w1)",
+                        "(gh_field*1,  gh_real,    gh_inc,  w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -1606,7 +1574,7 @@ def test_no_vector_scalar():
     #               index [0] and restoring the scalar names list
     for argname in [LFRicArgDescriptor.VALID_SCALAR_NAMES[0]]:
         vectname = argname + " * 3"
-        code = CODE.replace("arg_type(" + argname + ", gh_real, gh_read)",
+        code = CODE.replace("arg_type(" + argname + ",   gh_real,    gh_read)",
                             "arg_type(" + vectname + ", gh_real, gh_read)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
@@ -1614,30 +1582,6 @@ def test_no_vector_scalar():
         assert ("vector notation is only supported for ['gh_field'] "
                 "argument types but found '{0}'".format(vectname) in
                 str(excinfo.value))
-
-
-def test_dynscalars_call_err():
-    ''' Check that the DynScalarArgs constructor raises the expected
-    internal error if it encounters an unrecognised intrinsic type of
-    scalar when generating a kernel call.
-
-    '''
-    from psyclone.dynamo0p3 import DynScalarArgs
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.9_single_invoke_2_real_scalars.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    first_kernel = first_invoke.schedule.coded_kernels()[0]
-    # Sabotage the scalar argument to make it have an invalid intrinsic type
-    first_argument = first_kernel.arguments.args[0]
-    first_argument._intrinsic_type = "double-type"
-    with pytest.raises(InternalError) as err:
-        _ = DynScalarArgs(first_kernel)
-    assert ("DynScalarArgs.__init__(): Found an unsupported intrinsic "
-            "type 'double-type' for the scalar argument 'a'. Supported "
-            "types are ['real', 'integer']." in str(err.value))
 
 
 def test_vector_field(tmpdir):
@@ -1688,21 +1632,6 @@ def test_vector_field_deref(tmpdir, dist_mem):
             generated_code)
     assert ("TYPE(field_type), intent(in) :: f1, box_chi(3), f2" in
             generated_code)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_orientation(tmpdir):
-    ''' Tests that orientation information is created correctly in
-    the PSy layer. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "9_orientation.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    generated_code = str(psy.gen)
-    assert ("INTEGER(KIND=i_def), pointer :: orientation_w2(:) "
-            "=> null()") in generated_code
-    assert ("orientation_w2 => f2_proxy%vspace%"
-            "get_cell_orientation(cell)" in generated_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -1886,7 +1815,7 @@ def test_op_any_discontinuous_space_2(tmpdir):
             in generated_code)
 
 
-def test_invoke_uniq_declns():
+def test_invoke_uniq_declns_invalid_argtype():
     ''' Tests that we raise an error when Invoke.unique_declarations() is
     called with at least one invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1916,8 +1845,23 @@ def test_invoke_uniq_declns_invalid_access():
             in str(excinfo.value))
 
 
+def test_invoke_uniq_declns_invalid_intrinsic():
+    ''' Tests that we raise an error when Invoke.unique_declarations() is
+    called for an invalid intrinsic type. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    with pytest.raises(InternalError) as excinfo:
+        psy.invokes.invoke_list[0].unique_declarations(
+            ["gh_scalar"], intrinsic_type="double")
+    assert ("Invoke.unique_declarations() called with an invalid intrinsic "
+            "argument data type. Expected one of {0} but found 'double'.".
+            format(VALID_INTRINSIC_TYPES) in str(excinfo.value))
+
+
 def test_invoke_uniq_declns_valid_access():
-    ''' Tests that all valid access modes for user-defined field arguments
+    ''' Tests that all valid access modes for user-defined arguments
     (AccessType.READ, AccessType.INC, AccessType.WRITE, AccessType.READWRITE)
     are accepted by Invoke.unique_declarations(). '''
 
@@ -1967,8 +1911,7 @@ def test_invoke_uniq_proxy_declns():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations(["not_a_type"])
-    assert ("DynInvoke.unique_proxy_declarations() called with at least "
-            "one invalid argument type. Expected one of {0} but found "
+    assert ("Expected one of {0} as a valid argument type but found "
             "['not_a_type'].".format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
             in str(excinfo.value))
 
@@ -1986,9 +1929,23 @@ def test_uniq_proxy_declns_invalid_access():
         psy.invokes.invoke_list[0].unique_proxy_declarations(
             ["gh_field"],
             access="invalid_acc")
-    assert ("DynInvoke.unique_proxy_declarations() called with an invalid "
-            "access type. Expected one of {0} but found 'invalid_acc'.".
-            format(valid_access_names) in str(excinfo.value))
+    assert ("Expected one of {0} as a valid access type but found "
+            "'invalid_acc'.".format(valid_access_names) in str(excinfo.value))
+
+
+def test_uniq_proxy_declns_invalid_intrinsic_type():
+    ''' Tests that we raise an error when DynInvoke.unique_proxy_declarations()
+    is called for an invalid intrinsic type. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    with pytest.raises(InternalError) as excinfo:
+        psy.invokes.invoke_list[0].unique_proxy_declarations(
+            ["gh_field"], intrinsic_type="not_intrinsic_type")
+    assert ("Expected one of {0} as a valid intrinsic type but found "
+            "'not_intrinsic_type'.".format(VALID_INTRINSIC_TYPES)
+            in str(excinfo.value))
 
 
 def test_dyninvoke_first_access():
@@ -2004,7 +1961,7 @@ def test_dyninvoke_first_access():
         in str(excinfo.value)
 
 
-def test_dyninvoke_uniq_declns_inv_type():
+def test_dyninvoke_uniq_declns_intent_inv_argtype():
     ''' Tests that we raise an error when DynInvoke.unique_declns_by_intent()
     is called with at least one invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2017,6 +1974,22 @@ def test_dyninvoke_uniq_declns_inv_type():
             " argument type. Expected one of {0} but found ['gh_invalid'].".
             format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES) in
             str(excinfo.value))
+
+
+def test_dyninvoke_uniq_declns_intent_invalid_intrinsic():
+    ''' Tests that we raise an error when Invoke.unique_declns_by_intent()
+    is called for an invalid intrinsic type. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    with pytest.raises(InternalError) as excinfo:
+        psy.invokes.invoke_list[0].unique_declns_by_intent(
+            ["gh_scalar"], intrinsic_type="triple")
+    assert ("Invoke.unique_declns_by_intent() called with an invalid "
+            "intrinsic argument data type. Expected one of {0} but "
+            "found 'triple'.".format(VALID_INTRINSIC_TYPES)
+            in str(excinfo.value))
 
 
 def test_dyninvoke_uniq_declns_intent_fields():
@@ -2041,18 +2014,18 @@ def test_dyninvoke_uniq_declns_intent_scalar():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    args = psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_scalar"])
-    assert args['inout'] == []
-    assert args['out'] == []
-    args_in_names = [arg.declaration_name for arg in args['in']]
-    assert args_in_names == ['a', 'istep']
-    # Assert the correct intrinsic types of scalar arguments
-    assert args['in'][0].name == 'a'
-    assert args['in'][0].descriptor.data_type == 'gh_real'
-    assert args['in'][0].intrinsic_type == 'real'
-    assert args['in'][1].name == 'istep'
-    assert args['in'][1].descriptor.data_type == 'gh_integer'
-    assert args['in'][1].intrinsic_type == 'integer'
+    real_args = psy.invokes.invoke_list[0].unique_declns_by_intent(
+        ["gh_scalar"], intrinsic_type="real")
+    int_args = psy.invokes.invoke_list[0].unique_declns_by_intent(
+        ["gh_scalar"], intrinsic_type="integer")
+    assert real_args['inout'] == []
+    assert real_args['out'] == []
+    assert int_args['inout'] == []
+    assert int_args['out'] == []
+    real_args_in = [arg.declaration_name for arg in real_args['in']]
+    int_args_in = [arg.declaration_name for arg in int_args['in']]
+    assert real_args_in == ['a']
+    assert int_args_in == ['istep']
 
 
 def test_dyninvoke_uniq_declns_intent_ops(tmpdir):
@@ -2370,26 +2343,6 @@ def test_mkern_invoke_vec_fields():
             not in generated_code)
 
 
-def test_multikern_invoke_orient(tmpdir):
-    ''' Test that correct code is produced when there are multiple
-    kernels within an invoke with orientation. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4.3_multikernel_invokes.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    generated_code = str(psy.gen)
-    # 1st test for duplication of orientation pointer
-    assert generated_code.count("orientation_w2(:) => null()") == 1
-    # 2nd test for duplication of name vector-field declaration
-    assert ("TYPE(field_type), intent(in) :: f2, f3(3), f3(3)" not in
-            generated_code)
-    # 3rd test for duplication of name vector-field declaration
-    assert ("TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy(3), "
-            "f3_proxy(3)" not in generated_code)
-    # Compilation test
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
 def test_multikern_invoke_oper():
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke with operators '''
@@ -2650,9 +2603,9 @@ def test_kernel_datatype_not_found():
 STENCIL_CODE = '''
 module stencil_mod
   type, extends(kernel_type) :: stencil_type
-     type(arg_type), meta_args(2) =          &
-          (/ arg_type(gh_field, gh_inc, w1), &
-             arg_type(gh_field, gh_read, w2, stencil(cross)) &
+     type(arg_type), meta_args(2) =                                   &
+          (/ arg_type(gh_field, gh_real, gh_inc, w1),                 &
+             arg_type(gh_field, gh_real, gh_read, w2, stencil(cross)) &
            /)
      integer :: operates_on = cell_column
    contains
@@ -2692,147 +2645,13 @@ def test_field_metadata_too_many_arguments():
     ''' Check that we raise an exception if more than 4 arguments are
     provided in the metadata for a 'gh_field' argument type. '''
     result = STENCIL_CODE.replace(
-        "gh_field, gh_read, w2, stencil(cross)",
-        "gh_field, gh_read, w2, stencil(cross), w1", 1)
+        "(gh_field, gh_real, gh_read, w2, stencil(cross))",
+        "(gh_field, gh_real, gh_read, w2, stencil(cross), w1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
-    assert ("each 'meta_arg' entry must have at most 4 arguments" in
+    assert ("each 'meta_arg' entry must have at most 5 arguments" in
             str(excinfo.value))
-
-
-def test_invalid_stencil_form_1():
-    '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>[,<extent>]) format by being a literal integer or
-    just "stencil" '''
-    result = STENCIL_CODE.replace("stencil(cross)", "1", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert "entry must be either a valid stencil specification" \
-        in str(excinfo.value)
-    assert "Unrecognised metadata entry" in str(excinfo.value)
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert "entry must be either a valid stencil specification" \
-        in str(excinfo.value)
-    assert "Expecting format stencil(<type>[,<extent>]) but found stencil" \
-        in str(excinfo.value)
-
-
-def test_invalid_stencil_form_2():
-    '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>[,<extent>]) format by having an invalid name'''
-    result = STENCIL_CODE.replace("stencil(cross)", "stenci(cross)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert "entry must be either a valid stencil specification" \
-        in str(excinfo.value)
-
-
-def test_invalid_stencil_form_3():
-    '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>[,<extent>]) format by not having brackets'''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert "entry must be either a valid stencil specification" \
-        in str(excinfo.value)
-
-
-def test_invalid_stencil_form_4():
-    '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>[,<extent>]) format by containing no values in
-    the brackets '''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil()", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert "but found stencil()" in str(excinfo.value)
-
-
-def test_invalid_stencil_form_5():
-    '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>[,<extent>]) format by containing no values in
-    the brackets, with a separator '''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(,)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert "Kernel metadata has an invalid format" \
-        in str(excinfo.value)
-
-
-def test_invalid_stencil_form_6():
-    '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>[,<extent>]) format by containing more than two
-    values in in the brackets '''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(cross,1,1)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert "entry must be either a valid stencil specification" \
-        in str(excinfo.value)
-    assert "there must be at most two arguments inside the brackets" \
-        in str(excinfo.value)
-
-
-def test_invalid_stencil_first_arg_1():
-    '''Check that we raise an exception if the value of the stencil type in
-    stencil(<type>[,<extent>]) is not valid and is an integer'''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(1)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert "not one of the valid types" in str(excinfo.value)
-    assert "is a literal" in str(excinfo.value)
-
-
-def test_invalid_stencil_first_arg_2():
-    '''Check that we raise an exception if the value of the stencil type in
-    stencil(<type>[,<extent>]) is not valid and is a name'''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(cros)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert "not one of the valid types" in str(excinfo.value)
-
-
-def test_invalid_stencil_first_arg_3():
-    '''Check that we raise an exception if the value of the stencil type in
-    stencil(<type>[,<extent>]) is not valid and has brackets'''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d(xx))", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert "the specified <type>" in str(excinfo.value)
-    assert "includes brackets" in str(excinfo.value)
-
-
-def test_invalid_stencil_second_arg_1():
-    '''Check that we raise an exception if the value of the stencil extent in
-    stencil(<type>[,<extent>]) is not an integer'''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,x1d)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert "the specified <extent>" in str(excinfo.value)
-    assert "is not an integer" in str(excinfo.value)
-
-
-def test_invalid_stencil_second_arg_2():
-    '''Check that we raise an exception if the value of the stencil extent in
-    stencil(<type>[,<extent>]) is less than 1'''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,0)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert "the specified <extent>" in str(excinfo.value)
-    assert "is less than 1" in str(excinfo.value)
 
 
 def test_unsupported_second_argument():
@@ -2844,15 +2663,6 @@ def test_unsupported_second_argument():
         _ = DynKernMetadata(ast)
     assert "Kernels with fixed stencil extents are not currently supported" \
         in str(excinfo.value)
-
-
-def test_valid_stencil_types():
-    ''' Check that we successfully parse all valid stencil types. '''
-    for stencil_type in LFRicArgDescriptor.VALID_STENCIL_TYPES:
-        result = STENCIL_CODE.replace("stencil(cross)",
-                                      "stencil("+stencil_type+")", 1)
-        ast = fpapi.parse(result, ignore_comments=False)
-        _ = DynKernMetadata(ast)
 
 
 def test_arg_descriptor_funcs_method_error():
@@ -2869,8 +2679,8 @@ def test_arg_descriptor_funcs_method_error():
     field_descriptor._argument_type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
         _ = field_descriptor.function_spaces
-    assert ("LFRicArgDescriptor.function_spaces(), should not get "
-            "to here." in str(excinfo.value))
+    assert ("Expected a valid argument type but got 'gh_fire_starter'."
+            in str(excinfo.value))
 
 
 def test_dynkernmetadata_read_fs_error():
@@ -2885,9 +2695,9 @@ def test_dynkernmetadata_read_fs_error():
         "  use kernel_mod\n"
         "  use constants_mod\n"
         "  type, extends(kernel_type) :: testkern_chi_write_type\n"
-        "     type(arg_type), dimension(2) :: meta_args =  &\n"
-        "          (/ arg_type(gh_field,gh_write,wchi),    &\n"
-        "             arg_type(gh_field,gh_read,wchi)      &\n"
+        "     type(arg_type), dimension(2) :: meta_args =          &\n"
+        "          (/ arg_type(gh_field, gh_real, gh_write, wchi), &\n"
+        "             arg_type(gh_field, gh_real, gh_read,  wchi)  &\n"
         "           /)\n"
         "     integer :: operates_on = cell_column\n"
         "   contains\n"
@@ -2924,8 +2734,9 @@ def test_dynkernelargument_intent_invalid(dist_mem):
     arg._access = "invalid"
     with pytest.raises(GenerationError) as excinfo:
         _ = arg.intent
-    assert "Expecting argument access to be one of 'gh_read," in \
-        str(excinfo.value)
+    assert ("In the LFRic API the argument access must be one of "
+            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_sum'], "
+            "but found 'invalid'." in str(excinfo.value))
 
 
 def test_arg_ref_name_method_error1():
@@ -2978,9 +2789,9 @@ def test_arg_intent_error():
     first_argument._access = "gh_not_an_intent"
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.intent()
-    assert ("Expecting argument access to be one of 'gh_read, gh_write, "
-            "gh_inc', 'gh_readwrite' or one of ['gh_sum'], but found "
-            "'gh_not_an_intent'" in str(excinfo.value))
+    assert ("In the LFRic API the argument access must be one of "
+            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_sum'], "
+            "but found 'gh_not_an_intent'." in str(excinfo.value))
 
 
 def test_arg_intrinsic_type_error():
@@ -3060,8 +2871,8 @@ def test_arg_descriptor_func_method_error():
     field_descriptor._argument_type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
         _ = field_descriptor.function_space
-    assert ("LFRicArgDescriptor.function_space(), should not get "
-            "to here." in str(excinfo.value))
+    assert ("Expected a valid argument type but got 'gh_fire_starter'."
+            in str(excinfo.value))
 
 
 def test_arg_descriptor_fld():
@@ -3163,8 +2974,8 @@ def test_arg_descriptor_str_error():
     field_descriptor._argument_type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
         _ = str(field_descriptor)
-    assert ("LFRicArgDescriptor.__str__(), should not get to here." in
-            str(excinfo.value))
+    assert ("Expected a valid argument type but got 'gh_fire_starter'."
+            in str(excinfo.value))
 
 
 def test_arg_desc_func_space_tofrom_err():
@@ -3314,7 +3125,11 @@ def test_arg_descriptor_init_error(monkeypatch):
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(CODE, ignore_comments=False)
+    # TODO in #874: Remove code replacement for the old-syle field metadata
+    code = CODE.replace(
+        "arg_type(gh_field,    gh_real,    gh_inc,  w1)",
+        "arg_type(gh_field, gh_inc, w1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[1]
     # Extract an arg_type object that we can use to create an
@@ -3328,9 +3143,9 @@ def test_arg_descriptor_init_error(monkeypatch):
     arg_type.args[0].name = "GH_INVALID"
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, metadata.iterates_over)
-    assert ("LFRicArgDescriptor.__init__(): failed argument validation for "
-            "the 'meta_arg' entry 'arg_type(GH_INVALID, gh_inc, w1)', "
-            "should not get to here." in str(excinfo.value))
+    assert ("Failed argument validation for the 'meta_arg' entry "
+            "'arg_type(GH_INVALID, gh_inc, w1)', should not get to "
+            "here." in str(excinfo.value))
 
 
 def test_func_descriptor_repr():
@@ -3726,28 +3541,14 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_stencil_read_only():
-    ''' Test that an error is raised if a field with a stencil is not
-    accessed as 'gh_read'. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    code = STENCIL_CODE.replace("gh_read, w2, stencil(cross)",
-                                "gh_inc, w2, stencil(cross)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name="stencil_type")
-    assert ("In the LFRic API a field with a stencil access must be "
-            "read-only ('gh_read'), but found 'gh_inc'" in
-            str(excinfo.value))
-
-
 def test_fs_discontinuous_inc_error():
     ''' Test that an error is raised if a discontinuous function space
     and 'gh_inc' are provided for the same field in the metadata. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     for fspace in FunctionSpace.VALID_DISCONTINUOUS_NAMES:
-        code = CODE.replace("arg_type(gh_field, gh_read, w3)",
-                            "arg_type(gh_field, gh_inc, " +
-                            fspace + ")", 1)
+        code = CODE.replace(
+            "arg_type(gh_field,    gh_real,    gh_read, w3)",
+            "arg_type(gh_field, gh_real, gh_inc, " + fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
@@ -3767,9 +3568,9 @@ def test_fs_continuous_cells_write_or_readwrite_error():
     fparser.logging.disable(fparser.logging.CRITICAL)
     for fspace in FunctionSpace.CONTINUOUS_FUNCTION_SPACES:
         for acc in ["gh_write", "gh_readwrite"]:
-            code = CODE.replace("arg_type(gh_field, gh_read, w2)",
-                                "arg_type(gh_field, " + acc + ", " +
-                                fspace + ")", 1)
+            code = CODE.replace(
+                "arg_type(gh_field,    gh_real,    gh_read, w2)",
+                "arg_type(gh_field, gh_real, " + acc + ", " + fspace + ")", 1)
             ast = fpapi.parse(code, ignore_comments=False)
             with pytest.raises(ParseError) as excinfo:
                 _ = DynKernMetadata(ast, name="testkern_qr_type")
@@ -3789,9 +3590,9 @@ def test_fs_anyspace_cells_write_or_readwrite_error():
     fparser.logging.disable(fparser.logging.CRITICAL)
     for fspace in FunctionSpace.VALID_ANY_SPACE_NAMES:
         for acc in ["gh_write", "gh_readwrite"]:
-            code = CODE.replace("arg_type(gh_field, gh_read, w2)",
-                                "arg_type(gh_field, " + acc + ", " +
-                                fspace + ")", 1)
+            code = CODE.replace(
+                "arg_type(gh_field,    gh_real,    gh_read, w2)",
+                "arg_type(gh_field, gh_real, " + acc + ", " + fspace + ")", 1)
             ast = fpapi.parse(code, ignore_comments=False)
             with pytest.raises(ParseError) as excinfo:
                 _ = DynKernMetadata(ast, name="testkern_qr_type")
@@ -3809,9 +3610,9 @@ def test_fs_anyspace_dofs_inc_error():
     dof_code = CODE.replace("integer :: operates_on = cell_column",
                             "integer :: operates_on = dof", 1)
     for fspace in FunctionSpace.VALID_ANY_SPACE_NAMES:
-        code = dof_code.replace("arg_type(gh_field, gh_inc, w1)",
-                                "arg_type(gh_field, gh_inc, " +
-                                fspace + ")", 1)
+        code = dof_code.replace(
+            "arg_type(gh_field,    gh_real,    gh_inc,  w1)",
+            "arg_type(gh_field, gh_real, gh_inc, " + fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
@@ -3823,7 +3624,7 @@ def test_fs_anyspace_dofs_inc_error():
 
 def test_halo_exchange_view(capsys):
     ''' Test that the halo exchange view method returns what we expect. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -3832,8 +3633,8 @@ def test_halo_exchange_view(capsys):
     result, _ = capsys.readouterr()
 
     # Ensure we test for text containing the correct (colour) control codes
-    sched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    exch = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
+    sched = colored("InvokeSchedule", InvokeSchedule._colour)
+    exch = colored("HaloExchange", HaloExchange._colour)
 
     expected = (
         sched + "[invoke='invoke_0_testkern_stencil_type', dm=True]\n"
@@ -4020,8 +3821,8 @@ def test_field_gh_sum_invalid():
     ''' Tests that an error is raised when a field is specified with
     access type 'gh_sum'. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_field, gh_read, w2)",
-                        "arg_type(gh_field, gh_sum, w2)", 1)
+    code = CODE.replace("arg_type(gh_field,    gh_real,    gh_read, w2)",
+                        "arg_type(gh_field,    gh_real,    gh_sum,  w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -4036,8 +3837,9 @@ def test_operator_gh_sum_invalid():
     ''' Tests that an error is raised when an operator is specified with
     access type 'gh_sum'. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
-                        "arg_type(gh_operator, gh_sum, w2, w2)", 1)
+    code = CODE.replace(
+        "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
+        "arg_type(gh_operator, gh_real,    gh_sum,  w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -4142,1008 +3944,6 @@ def test_multiple_derived_type_args(dist_mem, tmpdir):
         "undf_w3, map_w3(:,cell))" in gen)
 
 
-def test_single_stencil_extent(dist_mem, tmpdir):
-    ''' Test a single stencil access with an extent value passed from the
-    algorithm layer is treated correctly in the PSy layer. Test both
-    sequential and distributed memory.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    output1 = (
-        "SUBROUTINE invoke_0_testkern_stencil_type(f1, f2, f3, f4, "
-        "f2_extent)")
-    assert output1 in result
-    assert "USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n" in result
-    assert "USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n" in result
-    output3 = ("      INTEGER(KIND=i_def), intent(in) :: f2_extent\n")
-    assert output3 in result
-    output4 = (
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-        "null()\n")
-    assert output4 in result
-    output5 = (
-        "      !\n"
-        "      ! Initialise stencil dofmaps\n"
-        "      !\n"
-        "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,f2_extent)\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
-        "      !\n")
-    assert output5 in result
-    output6 = (
-        "        CALL testkern_stencil_code(nlayers, f1_proxy%data,"
-        " f2_proxy%data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell),"
-        " f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-        "map_w3(:,cell))")
-    assert output6 in result
-
-
-def test_single_stencil_xory1d(dist_mem, tmpdir):
-    ''' Test a single stencil access with an extent and direction value
-    passed from the algorithm layer is treated correctly in the PSy
-    layer. Test both sequential and distributed memory.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.3_single_stencil_xory1d.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    output1 = (
-        "    SUBROUTINE invoke_0_testkern_stencil_xory1d_type(f1, f2, f3, "
-        "f4, f2_extent, f2_direction)")
-    assert output1 in result
-    output2 = (
-        "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
-        "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
-        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
-    assert output2 in result
-    output3 = (
-        "      INTEGER(KIND=i_def), intent(in) :: f2_extent\n"
-        "      INTEGER(KIND=i_def), intent(in) :: f2_direction\n")
-    assert output3 in result
-    output4 = (
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-        "null()\n")
-    assert output4 in result
-    output5 = (
-        "      !\n"
-        "      ! Initialise stencil dofmaps\n"
-        "      !\n"
-        "      IF (f2_direction .eq. x_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,f2_extent)\n"
-        "      END IF\n"
-        "      IF (f2_direction .eq. y_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DY,f2_extent)\n"
-        "      END IF\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
-        "      !\n")
-    assert output5 in result
-    output6 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size(cell), f2_direction, "
-        "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
-        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
-    assert output6 in result
-
-
-def test_single_stencil_literal(dist_mem, tmpdir):
-    ''' Test extent value is used correctly from the algorithm layer when
-    it is a literal value so is not passed by argument. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.4_single_stencil_literal.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    output1 = ("    SUBROUTINE invoke_0_testkern_stencil_type(f1, f2, "
-               "f3, f4)")
-    assert output1 in result
-    output2 = (
-        "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
-        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
-    assert output2 in result
-    output3 = (
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-        "null()\n")
-    assert output3 in result
-    output4 = (
-        "      !\n"
-        "      ! Initialise stencil dofmaps\n"
-        "      !\n"
-        "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,1)\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
-        "      !\n")
-    assert output4 in result
-    if dist_mem:
-        output5 = (
-            "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
-            "        CALL f2_proxy%halo_exchange(depth=2)\n"
-            "      END IF\n")
-        assert output5 in result
-    output6 = (
-        "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell), "
-        "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-        "map_w3(:,cell))")
-    assert output6 in result
-
-
-def test_stencil_region_unsupported(dist_mem):
-    '''Check that we raise an exception if the value of the stencil type
-    in stencil(<type>[,<extent>]) is region. This is not a parse error
-    as region is a valid value, it is just that the LFRic
-    infrastructure does not yet support it. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.12_single_stencil_region.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = str(psy.gen)
-    assert "Unsupported stencil type 'region' supplied" in \
-        str(excinfo.value)
-
-
-def test_single_stencil_cross2d(dist_mem, tmpdir):
-    ''' Test a single stencil access with an extent value passed from the
-    algorithm layer is treated correctly in the PSy layer. Test both
-    sequential and distributed memory.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.25_single_stencil_cross2d.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    output1 = (
-        "SUBROUTINE invoke_0_testkern_stencil_cross2d_type(f1, f2, f3, f4, "
-        "f2_extent)")
-    assert output1 in result
-    output2 = ("USE stencil_2D_dofmap_mod, ONLY: stencil_2D_dofmap_type, "
-               "STENCIL_2D_CROSS\n")
-    assert output2 in result
-    output3 = ("      INTEGER(KIND=i_def), intent(in) :: f2_extent\n")
-    assert output3 in result
-    output4 = (
-        "      INTEGER(KIND=i_def) f2_max_branch_length\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:,:) => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_2D_dofmap_type), pointer :: f2_stencil_map => "
-        "null()\n")
-    assert output4 in result
-    output5 = (
-        "      !\n"
-        "      ! Initialise stencil dofmaps\n"
-        "      !\n"
-        "      f2_stencil_map => f2_proxy%vspace%get_stencil_2D_dofmap("
-        "STENCIL_2D_CROSS,f2_extent)\n"
-        "      f2_max_branch_length = f2_extent + 1_i_def\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
-        "      !\n")
-    assert output5 in result
-    output6 = (
-        "        CALL testkern_stencil_cross2d_code(nlayers, f1_proxy%data,"
-        " f2_proxy%data, f2_stencil_size(:,cell), f2_max_branch_length,"
-        " f2_stencil_dofmap(:,:,:,cell), f3_proxy%data, f4_proxy%data,"
-        " ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell),"
-        " ndf_w3, undf_w3, map_w3(:,cell))")
-    assert output6 in result
-
-
-def test_single_stencil_xory1d_literal(dist_mem, tmpdir):
-    ''' Test extent value is used correctly from the algorithm layer when
-    it is a literal value so is not passed by argument.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.5_single_stencil_xory1d_literal.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type("
-               "f1, f2, f3, f4)")
-    assert output1 in result
-    output2 = (
-        "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
-        "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
-        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
-    assert output2 in result
-    output3 = (
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-        "null()\n")
-    assert output3 in result
-    output4 = (
-        "      ! Initialise stencil dofmaps\n"
-        "      !\n"
-        "      IF (x_direction .eq. x_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,2)\n"
-        "      END IF\n"
-        "      IF (x_direction .eq. y_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DY,2)\n"
-        "      END IF\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
-        "      !\n")
-    assert output4 in result
-    if dist_mem:
-        output5 = (
-            "      IF (f2_proxy%is_dirty(depth=3)) THEN\n"
-            "        CALL f2_proxy%halo_exchange(depth=3)\n"
-            "      END IF\n")
-        assert output5 in result
-    output6 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size(cell), x_direction, "
-        "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
-        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
-    assert output6 in result
-
-
-def test_single_stencil_xory1d_literal_mixed(dist_mem, tmpdir):
-    ''' Test extent value is used correctly from the algorithm layer when
-    it is a literal value so is not passed by argument and the case of the
-    literal is specified in mixed case.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "19.5.1_single_stencil_xory1d_literal.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type("
-               "f1, f2, f3, f4)")
-    assert output1 in result
-    output2 = (
-        "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
-        "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
-        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
-    assert output2 in result
-    output3 = (
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-        "null()\n")
-    assert output3 in result
-    output4 = (
-        "      ! Initialise stencil dofmaps\n"
-        "      !\n"
-        "      IF (x_direction .eq. x_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,2)\n"
-        "      END IF\n"
-        "      IF (x_direction .eq. y_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DY,2)\n"
-        "      END IF\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
-        "      !\n")
-    assert output4 in result
-    if dist_mem:
-        output5 = (
-            "      IF (f2_proxy%is_dirty(depth=3)) THEN\n"
-            "        CALL f2_proxy%halo_exchange(depth=3)\n"
-            "      END IF\n")
-        assert output5 in result
-    output6 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size(cell), x_direction, "
-        "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
-        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
-    assert output6 in result
-
-
-def test_multiple_stencils(dist_mem, tmpdir):
-    ''' Test for correct output when there is more than one stencil in a
-    kernel. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.7_multiple_stencils.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    output1 = (
-        "    SUBROUTINE invoke_0_testkern_stencil_multi_type(f1, f2, f3, "
-        "f4, f2_extent, f3_extent, f3_direction)")
-    assert output1 in result
-    output2 = (
-        "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
-        "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
-        "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
-        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
-    assert output2 in result
-    output3 = (
-        "      INTEGER(KIND=i_def), intent(in) :: f2_extent, f3_extent\n"
-        "      INTEGER(KIND=i_def), intent(in) :: f3_direction\n")
-    assert output3 in result
-    output4 = (
-        "      INTEGER(KIND=i_def), pointer :: f4_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f4_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f3_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-        "null()\n")
-    assert output4 in result
-    output5 = (
-        "      ! Initialise stencil dofmaps\n"
-        "      !\n"
-        "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,f2_extent)\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
-        "      IF (f3_direction .eq. x_direction) THEN\n"
-        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,f3_extent)\n"
-        "      END IF\n"
-        "      IF (f3_direction .eq. y_direction) THEN\n"
-        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DY,f3_extent)\n"
-        "      END IF\n"
-        "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
-        "      f3_stencil_size => f3_stencil_map%get_stencil_sizes()\n"
-        "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,1)\n"
-        "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
-        "      f4_stencil_size => f4_stencil_map%get_stencil_sizes()\n"
-        "      !\n")
-    assert output5 in result
-    if dist_mem:
-        output6 = (
-            "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
-            "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
-            "      END IF\n"
-            "      !\n"
-            "      IF (f3_proxy%is_dirty(depth=f3_extent+1)) THEN\n"
-            "        CALL f3_proxy%halo_exchange(depth=f3_extent+1)\n"
-            "      END IF\n")
-        assert output6 in result
-    output7 = (
-        "        CALL testkern_stencil_multi_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell), "
-        "f3_proxy%data, f3_stencil_size(cell), f3_direction, "
-        "f3_stencil_dofmap(:,:,cell), f4_proxy%data, f4_stencil_size(cell), "
-        "f4_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-        "map_w3(:,cell))")
-    assert output7 in result
-
-
-def test_multiple_stencil_same_name(dist_mem, tmpdir):
-    ''' Test the case when there is more than one stencil in a kernel with
-    the same name for extent. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.8_multiple_stencils_same_name.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    output1 = (
-        "    SUBROUTINE invoke_0_testkern_stencil_multi_type(f1, f2, f3, "
-        "f4, extent, f3_direction)")
-    assert output1 in result
-    output2 = (
-        "      INTEGER(KIND=i_def), intent(in) :: extent\n"
-        "      INTEGER(KIND=i_def), intent(in) :: f3_direction\n")
-    assert output2 in result
-    output3 = (
-        "      INTEGER(KIND=i_def), pointer :: f4_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f4_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f3_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-        "null()\n")
-    assert output3 in result
-    output4 = (
-        "      ! Initialise stencil dofmaps\n"
-        "      !\n"
-        "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,extent)\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
-        "      IF (f3_direction .eq. x_direction) THEN\n"
-        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,extent)\n"
-        "      END IF\n"
-        "      IF (f3_direction .eq. y_direction) THEN\n"
-        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DY,extent)\n"
-        "      END IF\n"
-        "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
-        "      f3_stencil_size => f3_stencil_map%get_stencil_sizes()\n"
-        "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,extent)\n"
-        "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
-        "      f4_stencil_size => f4_stencil_map%get_stencil_sizes()\n"
-        "      !\n")
-    assert output4 in result
-    output5 = (
-        "        CALL testkern_stencil_multi_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell), "
-        "f3_proxy%data, f3_stencil_size(cell), f3_direction, "
-        "f3_stencil_dofmap(:,:,cell), f4_proxy%data, f4_stencil_size(cell), "
-        "f4_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-        "map_w3(:,cell))")
-    assert output5 in result
-
-
-def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
-    ''' Test the case where there is more than one stencil in a kernel
-    with the same name for direction.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.9_multiple_stencils_same_name.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    output1 = (
-        "SUBROUTINE invoke_0_testkern_stencil_multi_2_type(f1, f2, f3, "
-        "f4, extent, direction)")
-    assert output1 in result
-    output2 = (
-        "      INTEGER(KIND=i_def), intent(in) :: extent\n"
-        "      INTEGER(KIND=i_def), intent(in) :: direction\n")
-    assert output2 in result
-    output3 = (
-        "      INTEGER(KIND=i_def), pointer :: f4_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f4_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f3_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-        "null()\n")
-    assert output3 in result
-    output4 = (
-        "      ! Initialise stencil dofmaps\n"
-        "      !\n"
-        "      IF (direction .eq. x_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,extent)\n"
-        "      END IF\n"
-        "      IF (direction .eq. y_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DY,extent)\n"
-        "      END IF\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
-        "      IF (direction .eq. x_direction) THEN\n"
-        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,extent)\n"
-        "      END IF\n"
-        "      IF (direction .eq. y_direction) THEN\n"
-        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DY,extent)\n"
-        "      END IF\n"
-        "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
-        "      f3_stencil_size => f3_stencil_map%get_stencil_sizes()\n"
-        "      IF (direction .eq. x_direction) THEN\n"
-        "        f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,extent)\n"
-        "      END IF\n"
-        "      IF (direction .eq. y_direction) THEN\n"
-        "        f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DY,extent)\n"
-        "      END IF\n"
-        "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
-        "      f4_stencil_size => f4_stencil_map%get_stencil_sizes()\n"
-        "      !\n")
-    assert output4 in result
-    output5 = (
-        "     CALL testkern_stencil_multi_2_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, f2_stencil_size(cell), direction, "
-        "f2_stencil_dofmap(:,:,cell), "
-        "f3_proxy%data, f3_stencil_size(cell), direction, "
-        "f3_stencil_dofmap(:,:,cell), "
-        "f4_proxy%data, f4_stencil_size(cell), direction, "
-        "f4_stencil_dofmap(:,:,cell), "
-        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_adspc1_f4, undf_adspc1_f4, "
-        "map_adspc1_f4(:,cell))")
-    assert output5 in result
-
-    # Check compilation
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_multi_kerns_stencils_diff_fields(dist_mem, tmpdir):
-    ''' Test the case where we have multiple kernels with stencils and
-    different fields for each. We also test extent names by having both
-    shared and individual names.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.20_multiple_kernels_stencils.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    output1 = (
-        "    SUBROUTINE invoke_0(f1, f2a, f3, f4, f2b, f2c, f2a_extent, "
-        "extent)")
-    assert output1 in result
-    assert "USE testkern_stencil_mod, ONLY: testkern_stencil_code\n" in result
-    output2 = (
-        "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
-        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
-    assert output2 in result
-    output3 = (
-        "      INTEGER(KIND=i_def), intent(in) :: f2a_extent, extent\n")
-    assert output3 in result
-    output4 = (
-        "      INTEGER(KIND=i_def), pointer :: f2b_stencil_size(:) => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2b_stencil_dofmap(:,:,:) "
-        "=> null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2b_stencil_map "
-        "=> null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2a_stencil_size(:) => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2a_stencil_dofmap(:,:,:) "
-        "=> null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2a_stencil_map "
-        "=> null()\n")
-    assert output4 in result
-    output5 = (
-        "      !\n"
-        "      f2a_stencil_map => f2a_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,f2a_extent)\n"
-        "      f2a_stencil_dofmap => f2a_stencil_map%get_whole_dofmap()\n"
-        "      f2a_stencil_size => f2a_stencil_map%get_stencil_sizes()\n"
-        "      f2b_stencil_map => f2b_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,extent)\n"
-        "      f2b_stencil_dofmap => f2b_stencil_map%get_whole_dofmap()\n"
-        "      f2b_stencil_size => f2b_stencil_map%get_stencil_sizes()\n"
-        "      !\n")
-    assert output5 in result
-    output6 = (
-        "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-        "f2a_proxy%data, f2a_stencil_size(cell), "
-        "f2a_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, ndf_w1, "
-        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-        "undf_w3, map_w3(:,cell))")
-    assert output6 in result
-    output7 = (
-        "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-        "f2b_proxy%data, f2b_stencil_size(cell), "
-        "f2b_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, ndf_w1, "
-        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-        "undf_w3, map_w3(:,cell))")
-    assert output7 in result
-    output8 = (
-        "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-        "f2c_proxy%data, f2b_stencil_size(cell), "
-        "f2b_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, ndf_w1, "
-        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-        "undf_w3, map_w3(:,cell))")
-    assert output8 in result
-
-
-def test_extent_name_clash(dist_mem, tmpdir):
-    ''' Test we can deal with name clashes for stencils. We have a single
-    kernel with argument names passed from the algorithm layer that
-    would clash with stencil-name, stencil-dofmap and stencil-size
-    variables.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.13_single_stencil.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    output1 = (
-        "    SUBROUTINE invoke_0(f2_stencil_map, f2, f2_stencil_dofmap, "
-        "stencil_cross_1, f3_stencil_map, f3, f3_stencil_dofmap, "
-        "f2_extent, f3_stencil_size)")
-    assert output1 in result
-    output2 = (
-        "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
-        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type")
-    assert output2 in result
-    assert ("INTEGER(KIND=i_def), intent(in) :: f2_extent, f3_stencil_size\n"
-            in result)
-    output3 = (
-        "      TYPE(field_type), intent(in) :: f2_stencil_map, f2, "
-        "f2_stencil_dofmap, stencil_cross_1, f3_stencil_map, f3, "
-        "f3_stencil_dofmap\n")
-    assert output3 in result
-    output4 = (
-        "      INTEGER(KIND=i_def), pointer :: f3_stencil_size_1(:) => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap_1(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map_1 => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap_1(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 => "
-        "null()\n")
-    assert output4 in result
-    output5 = (
-        "      TYPE(field_proxy_type) f2_stencil_map_proxy, f2_proxy, "
-        "f2_stencil_dofmap_proxy, stencil_cross_1_proxy, "
-        "f3_stencil_map_proxy, f3_proxy, f3_stencil_dofmap_proxy\n")
-    assert output5 in result
-    output6 = (
-        "      stencil_cross_1_proxy = stencil_cross_1%get_proxy()")
-    assert output6 in result
-    output7 = (
-        "      ! Initialise stencil dofmaps\n"
-        "      !\n"
-        "      f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,f2_extent)\n"
-        "      f2_stencil_dofmap_1 => "
-        "f2_stencil_map_1%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map_1%get_stencil_sizes()\n"
-        "      f3_stencil_map_1 => f3_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,f3_stencil_size)\n"
-        "      f3_stencil_dofmap_1 => "
-        "f3_stencil_map_1%get_whole_dofmap()\n"
-        "      f3_stencil_size_1 => f3_stencil_map_1%get_stencil_sizes()\n"
-        "      !\n")
-    assert output7 in result
-    output8 = (
-        "        CALL testkern_stencil_code(nlayers, "
-        "f2_stencil_map_proxy%data, f2_proxy%data, f2_stencil_size(cell), "
-        "f2_stencil_dofmap_1(:,:,cell), f2_stencil_dofmap_proxy%data, "
-        "stencil_cross_1_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-        "map_w3(:,cell))")
-    assert output8 in result
-    output9 = (
-        "        CALL testkern_stencil_code(nlayers, "
-        "f3_stencil_map_proxy%data, f3_proxy%data, f3_stencil_size_1(cell), "
-        "f3_stencil_dofmap_1(:,:,cell), f3_stencil_dofmap_proxy%data, "
-        "stencil_cross_1_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-        "map_w3(:,cell))")
-    assert output9 in result
-
-
-def test_two_stencils_same_field(tmpdir, dist_mem):
-    ''' Test two Kernels within an invoke, with the same field having a
-    stencil access in each kernel. f2_w2 is the field we care
-    about.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.14_two_stencils_same_field.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    output1 = (
-        "    SUBROUTINE invoke_0(f1_w1, f2_w2, f3_w2, f4_w3, f1_w3, "
-        "f2_extent, extent)")
-    assert output1 in result
-    output2 = (
-        "      INTEGER(KIND=i_def), pointer :: f2_w2_stencil_size_1(:) => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_w2_stencil_dofmap_1(:,:,:) "
-        "=> null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_w2_stencil_map_1 "
-        "=> null()")
-    assert output2 in result
-    output3 = (
-        "      INTEGER(KIND=i_def), pointer :: f2_w2_stencil_size(:) => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_w2_stencil_dofmap(:,:,:) "
-        "=> null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_w2_stencil_map "
-        "=> null()")
-    assert output3 in result
-    output4 = (
-        "      f2_w2_stencil_map => f2_w2_proxy%vspace%get_stencil_dofmap"
-        "(STENCIL_CROSS,f2_extent)\n"
-        "      f2_w2_stencil_dofmap => "
-        "f2_w2_stencil_map%get_whole_dofmap()\n"
-        "      f2_w2_stencil_size => f2_w2_stencil_map%get_stencil_sizes()\n")
-    assert output4 in result
-    output5 = (
-        "      f2_w2_stencil_map_1 => "
-        "f2_w2_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS,extent)\n"
-        "      f2_w2_stencil_dofmap_1 => "
-        "f2_w2_stencil_map_1%get_whole_dofmap()\n"
-        "      f2_w2_stencil_size_1 => "
-        "f2_w2_stencil_map_1%get_stencil_sizes()\n")
-    assert output5 in result
-    output6 = (
-        "        CALL testkern_stencil_code(nlayers, f1_w1_proxy%data, "
-        "f2_w2_proxy%data, f2_w2_stencil_size(cell), "
-        "f2_w2_stencil_dofmap(:,:,cell), "
-        "f3_w2_proxy%data, f4_w3_proxy%data, ndf_w1, undf_w1, "
-        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-        "undf_w3, map_w3(:,cell))")
-    assert output6 in result
-    output7 = (
-        "        CALL testkern_stencil_depth_code(nlayers, "
-        "f1_w3_proxy%data, f1_w1_proxy%data, f1_w1_stencil_size(cell), "
-        "f1_w1_stencil_dofmap(:,:,cell), f2_w2_proxy%data, "
-        "f2_w2_stencil_size_1(cell), "
-        "f2_w2_stencil_dofmap_1(:,:,cell), f4_w3_proxy%data, "
-        "f4_w3_stencil_size(cell), "
-        "f4_w3_stencil_dofmap(:,:,cell), ndf_w3, undf_w3, map_w3(:,cell), "
-        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell))")
-    assert output7 in result
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_stencils_same_field_literal_extent(dist_mem, tmpdir):
-    ''' Test three Kernels within an invoke, with the same field having a
-    stencil access in each kernel and the extent being passed as a
-    literal value. Extent is the same in two kernels and different in
-    the third.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "19.15_stencils_same_field_literal_extent.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    output1 = (
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size_1(:) => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap_1(:,:,:) "
-        "=> null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 "
-        "=> null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) "
-        "=> null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map "
-        "=> null()")
-    assert output1 in result
-    output2 = (
-        "      !\n"
-        "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,1)\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
-        "      f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,2)\n"
-        "      f2_stencil_dofmap_1 => "
-        "f2_stencil_map_1%get_whole_dofmap()\n"
-        "      f2_stencil_size_1 => f2_stencil_map_1%get_stencil_sizes()\n"
-        "      !")
-    assert output2 in result
-    output3 = (
-        "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell), "
-        "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-        "map_w3(:,cell))")
-    assert result.count(output3) == 2
-    output4 = (
-        "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, f2_stencil_size_1(cell), "
-        "f2_stencil_dofmap_1(:,:,cell), f3_proxy%data, f4_proxy%data, "
-        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
-        "ndf_w3, undf_w3, map_w3(:,cell))")
-    assert result.count(output4) == 1
-
-    if dist_mem:
-        assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
-        assert "CALL f2_proxy%halo_exchange(depth=3)" in result
-        assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
-        assert "CALL f3_proxy%halo_exchange(depth=1)" in result
-        assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
-        assert "CALL f4_proxy%halo_exchange(depth=1)" in result
-
-
-def test_stencils_same_field_literal_direct(dist_mem, tmpdir):
-    ''' Test three Kernels within an invoke, with the same field having a
-    stencil access in each kernel and the direction being passed as a
-    literal value. In two kernels the direction value is the same and
-    in the third it is different.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "19.16_stencils_same_field_literal_direction.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    output1 = (
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size_1(:) => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap_1(:,:,:) "
-        "=> null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 "
-        "=> null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) "
-        "=> null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map "
-        "=> null()")
-    assert output1 in result
-    output2 = (
-        "      !\n"
-        "      IF (x_direction .eq. x_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,2)\n"
-        "      END IF\n"
-        "      IF (x_direction .eq. y_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DY,2)\n"
-        "      END IF\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
-        "      IF (y_direction .eq. x_direction) THEN\n"
-        "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,2)\n"
-        "      END IF\n"
-        "      IF (y_direction .eq. y_direction) THEN\n"
-        "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DY,2)\n"
-        "      END IF\n"
-        "      f2_stencil_dofmap_1 => "
-        "f2_stencil_map_1%get_whole_dofmap()\n"
-        "      f2_stencil_size_1 => f2_stencil_map_1%get_stencil_sizes()\n"
-        "      !")
-    assert output2 in result
-    output3 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size(cell), x_direction, "
-        "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
-        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
-    assert result.count(output3) == 2
-    output4 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size_1(cell), y_direction, "
-        "f2_stencil_dofmap_1(:,:,cell), f3_proxy%data, f4_proxy%data, "
-        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
-    assert result.count(output4) == 1
-
-    if dist_mem:
-        assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
-        assert "CALL f2_proxy%halo_exchange(depth=3)" in result
-        assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
-        assert "CALL f3_proxy%halo_exchange(depth=1)" in result
-        assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
-        assert "CALL f4_proxy%halo_exchange(depth=1)" in result
-
-
-def test_stencil_extent_specified():
-    ''' The function stencil_unique_str() raises an error if a stencil
-    with an extent provided in the metadata is passed in. This is because
-    this is not currently supported. This test checks that the appropriate
-    error is raised.
-
-    '''
-    # load an example with an argument that has stencil metadata
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    # access the argument with stencil metadata
-    schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[4].loop_body[0]
-    stencil_arg = kernel.arguments.args[1]
-    # artificially add an extent to the stencil metadata info
-    stencil_arg.descriptor.stencil['extent'] = 1
-    from psyclone.dynamo0p3 import DynStencils
-    stencils = DynStencils(psy.invokes.invoke_list[0])
-    with pytest.raises(GenerationError) as err:
-        stencils.stencil_unique_str(stencil_arg, "")
-    assert ("Found a stencil with an extent specified in the metadata. "
-            "This is not coded for." in str(err.value))
-
-
 def test_haloexchange_unknown_halo_depth():
     ''' If a stencil extent is provided in the kernel metadata then the
     value is stored in an instance of the DynHaloExchange class. This test
@@ -5176,467 +3976,6 @@ def test_haloexchange_correct_parent():
     schedule = psy.invokes.invoke_list[0].schedule
     for child in schedule.children:
         assert child.parent == schedule
-
-
-def test_one_kern_multi_field_same_stencil(tmpdir, dist_mem):
-    ''' This test checks for the case where we have the same stencil used
-    by more than one field in a kernel. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "19.17_single_kernel_multi_field_same_stencil.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    output1 = (
-        "    SUBROUTINE invoke_0_testkern_multi_field_same_stencil_type("
-        "f0, f1, f2, f3, f4, extent, direction)")
-    assert output1 in result
-    output2 = (
-        "      INTEGER(KIND=i_def), intent(in) :: extent\n"
-        "      INTEGER(KIND=i_def), intent(in) :: direction\n")
-    assert output2 in result
-    output3 = (
-        "      INTEGER(KIND=i_def), pointer :: f3_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f3_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f1_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f1_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f1_stencil_map => "
-        "null()\n")
-    assert output3 in result
-    output4 = (
-        "      ! Initialise stencil dofmaps\n"
-        "      !\n"
-        "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,extent)\n"
-        "      f1_stencil_dofmap => f1_stencil_map%get_whole_dofmap()\n"
-        "      f1_stencil_size => f1_stencil_map%get_stencil_sizes()\n"
-        "      IF (direction .eq. x_direction) THEN\n"
-        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,extent)\n"
-        "      END IF\n"
-        "      IF (direction .eq. y_direction) THEN\n"
-        "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DY,extent)\n"
-        "      END IF\n"
-        "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
-        "      f3_stencil_size => f3_stencil_map%get_stencil_sizes()\n"
-        "      !\n")
-    assert output4 in result
-    output5 = (
-        "        CALL testkern_multi_field_same_stencil_code(nlayers, "
-        "f0_proxy%data, f1_proxy%data, f1_stencil_size(cell), "
-        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size(cell), "
-        "f1_stencil_dofmap(:,:,cell), f3_proxy%data, f3_stencil_size(cell), "
-        "direction, f3_stencil_dofmap(:,:,cell), f4_proxy%data, "
-        "f3_stencil_size(cell), direction, f3_stencil_dofmap(:,:,cell), "
-        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell))")
-    assert output5 in result
-
-
-def test_single_kernel_any_space_stencil(dist_mem, tmpdir):
-    ''' This is a test for stencils and any_space within a single kernel
-    and between kernels. We test when any_space is the same and when
-    it is different within kernels and between kernels for the case of
-    different fields. When it is the same we should have the same
-    stencil dofmap (as all other stencil information is the same) and
-    when it is different we should have a different stencil dofmap (as
-    we do not know whether they are on the same space).
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "19.18_anyspace_stencil_1.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    output1 = (
-        "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,extent)\n"
-        "      f1_stencil_dofmap => f1_stencil_map%get_whole_dofmap()\n"
-        "      f1_stencil_size => f1_stencil_map%get_stencil_sizes()\n"
-        "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,extent)\n"
-        "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
-        "      f4_stencil_size => f4_stencil_map%get_stencil_sizes()\n"
-        "      f5_stencil_map => f5_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,extent)\n"
-        "      f5_stencil_dofmap => f5_stencil_map%get_whole_dofmap()\n"
-        "      f5_stencil_size => f5_stencil_map%get_stencil_sizes()\n"
-        "      !\n")
-    assert output1 in result
-    # Use the same stencil dofmap
-    output2 = (
-        "        CALL testkern_same_anyspace_stencil_code(nlayers, "
-        "f0_proxy%data, f1_proxy%data, f1_stencil_size(cell), "
-        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size(cell), "
-        "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1(:,cell))")
-    assert output2 in result
-    output3 = (
-        "        CALL testkern_different_anyspace_stencil_code(nlayers, "
-        "f3_proxy%data, f4_proxy%data, f4_stencil_size(cell), "
-        "f4_stencil_dofmap(:,:,cell), f5_proxy%data, f5_stencil_size(cell), "
-        "f5_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_aspc1_f4, undf_aspc1_f4, map_aspc1_f4(:,cell), ndf_aspc2_f5, "
-        "undf_aspc2_f5, map_aspc2_f5(:,cell))")
-    # Use a different stencil dofmap
-    assert output3 in result
-
-
-@pytest.mark.xfail(reason="stencils and any_space produces too many dofmaps")
-def test_multi_kernel_any_space_stencil_1(dist_mem):
-    ''' This is a test for stencils and any_space with two kernels. We test
-    when any_space is the same and when it is different for the same
-    field. In our example we should have a single dofmap. However, at
-    the moment we produce two. This is valid but not optimal. It is
-    not a big deal at the moment as the Met Office do not plan to use
-    any_space but it should be able to be fixed when we get dependence
-    analysis within invokes working. Therefore making it xfail for the
-    moment.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "19.19_anyspace_stencil_2.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    output1 = (
-        "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,extent)\n"
-        "      f1_stencil_dofmap => f1_stencil_map%get_whole_dofmap()\n"
-        "      f1_stencil_size => f1_stencil_map%get_stencil_sizes()\n"
-        "      !\n")
-    assert output1 in result
-    output2 = (
-        "        CALL testkern_same_anyspace_stencil_code(nlayers, "
-        "f0_proxy%data, f1_proxy%data, f1_stencil_size(cell), "
-        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size(cell), "
-        "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1)")
-    assert output2 in result
-    output3 = (
-        "        CALL testkern_different_anyspace_stencil_code(nlayers, "
-        "f3_proxy%data, f1_proxy%data, f1_stencil_size(cell), "
-        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size(cell), "
-        "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1, "
-        "ndf_aspc2_f2, undf_aspc2_f2, map_aspc2_f2)")
-    assert output3 in result
-
-
-def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
-    ''' Tests for stencils and any_discontinuous_space space within
-    a single kernel and between kernels. We test when
-    any_discontinuous_space is the same and when it is different
-    within kernels and between kernels for the case of different fields.
-    When it is the same we should have the same stencil dofmap
-    (as all other stencil information is the same) and when it is
-    different we should have a different stencil dofmap (as we do not
-    know whether they are on the same space).
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "19.24_any_discontinuous_space_stencil.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    # Check compilation
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    # Use the same stencil dofmap
-    output1 = (
-        "        CALL testkern_same_any_dscnt_space_stencil_code("
-        "nlayers, f0_proxy%data, f1_proxy%data, f1_stencil_size(cell), "
-        "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size(cell), "
-        "f1_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
-        "map_wtheta(:,cell), ndf_adspc1_f1, undf_adspc1_f1, "
-        "map_adspc1_f1(:,cell))")
-    assert output1 in result
-    # Use a different stencil dofmap
-    output2 = (
-        "        CALL testkern_different_any_dscnt_space_stencil_code("
-        "nlayers, f3_proxy%data, f4_proxy%data, f4_stencil_size(cell), "
-        "f4_stencil_dofmap(:,:,cell), f5_proxy%data, f5_stencil_size(cell), "
-        "f5_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
-        "map_wtheta(:,cell), ndf_adspc1_f4, "
-        "undf_adspc1_f4, map_adspc1_f4(:,cell), "
-        "ndf_adspc2_f5, undf_adspc2_f5, map_adspc2_f5(:,cell))")
-    assert output2 in result
-    # Check for halo exchanges and correct loop bounds
-    if dist_mem:
-        assert result.count("_proxy%halo_exchange(depth=extent)") == 4
-        assert result.count("DO cell=1,mesh%get_last_edge_cell()") == 2
-    else:
-        assert "halo_exchange(depth=extent)" not in result
-        assert "DO cell=1,f0_proxy%vspace%get_ncell()" in result
-        assert "DO cell=1,f3_proxy%vspace%get_ncell()" in result
-
-
-def test_stencil_args_unique_1(dist_mem, tmpdir):
-    ''' This test checks that stencil extent and direction arguments do not
-    clash with internal names generated in the PSy-layer. f2_stencil_size
-    and nlayers are chosen as the names that would clash.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "19.21_stencil_names_clash.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    # we use f2_stencil_size for extent and nlayers for direction
-    # as arguments
-    output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type(f1, "
-               "f2, f3, f4, f2_stencil_size, nlayers)")
-    assert output1 in result
-    output2 = ("      INTEGER(KIND=i_def), intent(in) :: f2_stencil_size\n"
-               "      INTEGER(KIND=i_def), intent(in) :: nlayers")
-    assert output2 in result
-    output3 = ("      INTEGER(KIND=i_def), pointer :: f2_stencil_size_1(:)"
-               " => null()")
-    assert output3 in result
-    # therefore the local variable is now declared as nlayers_1"
-    output4 = "      INTEGER(KIND=i_def) nlayers_1"
-    assert output4 in result
-    output5 = "      nlayers_1 = f1_proxy%vspace%get_nlayers()"
-    assert output5 in result
-    output6 = (
-        "      IF (nlayers .eq. x_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,f2_stencil_size)\n"
-        "      END IF\n"
-        "      IF (nlayers .eq. y_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DY,f2_stencil_size)\n"
-        "      END IF\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size_1 => f2_stencil_map%get_stencil_sizes()")
-    assert output6 in result
-    output7 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers_1, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size_1(cell), nlayers, "
-        "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
-        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
-    assert output7 in result
-
-
-def test_stencil_args_unique_2(dist_mem, tmpdir):
-    '''This test checks that stencil extent and direction arguments are
-    unique within the generated PSy-layer when they are accessed as
-    indexed arrays, with the same array name, from the algorithm
-    layer.'''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "19.22_stencil_names_indexed.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    output1 = ("    SUBROUTINE invoke_0(f1, f2, f3, f4, f2_info, "
-               "f2_info_2, f2_info_1, f2_info_3)")
-    assert output1 in result
-    output2 = (
-        "      INTEGER(KIND=i_def), intent(in) :: f2_info, f2_info_2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: f2_info_1, f2_info_3")
-    assert output2 in result
-    output3 = (
-        "      IF (f2_info_1 .eq. x_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,f2_info)\n"
-        "      END IF\n"
-        "      IF (f2_info_1 .eq. y_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DY,f2_info)\n"
-        "      END IF\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n"
-        "      IF (f2_info_3 .eq. x_direction) THEN\n"
-        "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DX,f2_info_2)\n"
-        "      END IF\n"
-        "      IF (f2_info_3 .eq. y_direction) THEN\n"
-        "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_1DY,f2_info_2)\n"
-        "      END IF")
-    assert output3 in result
-    output4 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size(cell), f2_info_1, "
-        "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
-        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
-    assert output4 in result
-    output5 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers, "
-        "f1_proxy%data, f2_proxy%data, f2_stencil_size_1(cell), f2_info_3, "
-        "f2_stencil_dofmap_1(:,:,cell), f3_proxy%data, f4_proxy%data, "
-        "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
-    assert output5 in result
-    if dist_mem:
-        assert (
-            "IF (f2_proxy%is_dirty(depth=max(f2_info+1,"
-            "f2_info_2+1))) THEN" in result)
-        assert (
-            "CALL f2_proxy%halo_exchange(depth=max(f2_info+1,"
-            "f2_info_2+1))" in result)
-        assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
-        assert "CALL f3_proxy%halo_exchange(depth=1)" in result
-        assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
-        assert "CALL f4_proxy%halo_exchange(depth=1)" in result
-
-
-def test_stencil_args_unique_3(dist_mem, tmpdir):
-    ''' This test checks that stencil extent and direction arguments are
-    unique within the generated PSy-layer when they are dereferenced,
-    with the same type/class name, from the algorithm layer.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "19.23_stencil_names_deref.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    assert (
-        "      INTEGER(KIND=i_def), intent(in) :: my_info_f2_info, "
-        "my_info_f2_info_2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: my_info_f2_info_1, "
-        "my_info_f2_info_3\n"
-        in result)
-    assert (
-        "f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap(STENCIL_1DX,"
-        "my_info_f2_info)" in result)
-    if dist_mem:
-        assert (
-            "IF (f2_proxy%is_dirty(depth=max(my_info_f2_info+1,"
-            "my_info_f2_info_2+1))) THEN" in result)
-        assert (
-            "CALL f2_proxy%halo_exchange(depth=max(my_info_f2_info+1,"
-            "my_info_f2_info_2+1))" in result)
-        assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
-        assert "CALL f3_proxy%halo_exchange(depth=1)" in result
-        assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
-        assert "CALL f4_proxy%halo_exchange(depth=1)" in result
-
-
-def test_stencil_vector(dist_mem, tmpdir):
-    ''' Test that the expected declarations and lookups are produced when
-    we have a stencil access with a vector field. Any stencil could be
-    chosen here (other than xory1d) as they all produce the same code
-    structure, but STENCIL_CROSS is chosen as it is already used in an
-    existing suitable example (14.4).
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "14.4_halo_vector.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-    assert (
-        "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
-        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
-        in str(result)
-    assert(
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-        "null()\n") \
-        in str(result)
-    assert(
-        "      f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
-        "(STENCIL_CROSS,f2_extent)\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n") \
-        in str(result)
-    assert(
-        "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, "
-        "f2_proxy(4)%data, f2_stencil_size(cell), "
-        "f2_stencil_dofmap(:,:,cell)") in str(result)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_stencil_xory_vector(dist_mem, tmpdir):
-    '''Test that the expected declarations and lookups are produced when
-    we have a stencil access of type x or y with a vector field.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "14.4.2_halo_vector_xory.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    result = str(psy.gen)
-    assert(
-        "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
-        "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
-        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
-        in result
-    assert(
-        "      INTEGER(KIND=i_def), intent(in) :: f2_extent\n"
-        "      INTEGER(KIND=i_def), intent(in) :: f2_direction\n") \
-        in result
-    assert(
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_size(:) => null()\n"
-        "      INTEGER(KIND=i_def), pointer :: f2_stencil_dofmap(:,:,:) => "
-        "null()\n"
-        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-        "null()\n") \
-        in result
-    assert(
-        "      IF (f2_direction .eq. x_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
-        "(STENCIL_1DX,f2_extent)\n"
-        "      END IF\n"
-        "      IF (f2_direction .eq. y_direction) THEN\n"
-        "        f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
-        "(STENCIL_1DY,f2_extent)\n"
-        "      END IF\n"
-        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map%get_stencil_sizes()\n") \
-        in result
-    assert(
-        "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, "
-        "f2_proxy(4)%data, f2_stencil_size(cell), f2_direction, "
-        "f2_stencil_dofmap(:,:,cell)") \
-        in result
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_dynloop_load_unexpected_func_space():
@@ -5675,32 +4014,6 @@ def test_dynloop_load_unexpected_func_space():
     assert ("Generation Error: Unexpected function space found. Expecting "
             "one of " + str(FunctionSpace.VALID_FUNCTION_SPACES) +
             " but found 'broken'" in str(err.value))
-
-
-def test_dynkernargs_unexpect_stencil_extent():
-    '''This test checks that we raise an error in DynKernelArguments if
-    metadata is provided with an extent value. This is a litle tricky
-    to raise as the parser does not allow this to happen. We therefore
-    modify the results from the parser to raise the error.
-
-    '''
-    # parse some valid code with a stencil
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
-        api=TEST_API)
-    # find the parsed code's call class
-    call = invoke_info.calls[0].kcalls[0]
-    # add an extent to the stencil metadata
-    kernel_metadata = call.ktype
-    kernel_metadata._arg_descriptors[1].stencil['extent'] = 2
-    # remove the extra argument (as the extent value no longer needs
-    # to be passed so an associated error will be raised)
-    del call.args[2]
-    # finally call our object to raise the error
-    from psyclone.dynamo0p3 import DynKernelArguments
-    with pytest.raises(GenerationError) as err:
-        _ = DynKernelArguments(call, None)
-    assert "extent metadata not yet supported" in str(err.value)
 
 
 def test_unsupported_halo_read_access():
@@ -5801,15 +4114,15 @@ def test_no_updated_args():
     ''' Check that we raise the expected exception when we encounter a
     kernel that does not write to any of its arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_field, gh_inc, w1)",
-                        "arg_type(gh_field, gh_read, w1)", 1)
+    code = CODE.replace("arg_type(gh_field,    gh_real,    gh_inc,  w1)",
+                        "arg_type(gh_field,    gh_real,    gh_read, w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("A Dynamo 0.3 kernel must have at least one argument that is "
+    assert ("An LFRic kernel must have at least one argument that is "
             "updated (written to) but found none for kernel "
-            "testkern_qr_type" in str(excinfo.value))
+            "'testkern_qr_type'." in str(excinfo.value))
 
 
 def test_scalars_only_invalid():
@@ -5836,17 +4149,17 @@ end module testkern
     name = "testkern_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("A Dynamo 0.3 kernel must have at least one argument that is "
+    assert ("An LFRic kernel must have at least one argument that is "
             "updated (written to) but found none for kernel "
-            "testkern_type" in str(excinfo.value))
+            "'testkern_type'." in str(excinfo.value))
 
 
 def test_multiple_updated_field_args():
     ''' Check that we successfully parse a kernel that writes to more
     than one of its field arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_field, gh_read, w2)",
-                        "arg_type(gh_field, gh_inc, w1)", 1)
+    code = CODE.replace("arg_type(gh_field,    gh_real,    gh_read, w2)",
+                        "arg_type(gh_field,    gh_real,    gh_inc,  w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
@@ -5862,8 +4175,9 @@ def test_multiple_updated_op_args():
     ''' Check that we successfully parse the metadata for a kernel that
     writes to more than one of its field and operator arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",
-                        "arg_type(gh_operator, gh_write, w1, w1)", 1)
+    code = CODE.replace(
+        "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
+        "arg_type(gh_operator, gh_real,    gh_write, w1, w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
@@ -5880,8 +4194,8 @@ def test_multiple_updated_scalar_args():
     ''' Check that we raise the expected exception when we encounter a
     kernel that writes to more than one of its field and scalar arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("arg_type(gh_scalar, gh_real, gh_read)",
-                        "arg_type(gh_scalar, gh_real, gh_sum)", 1)
+    code = CODE.replace("arg_type(gh_scalar,   gh_real,    gh_read)",
+                        "arg_type(gh_scalar,   gh_real,    gh_sum)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -6861,40 +5175,6 @@ def test_dyncollection_err2(monkeypatch):
     with pytest.raises(InternalError) as err:
         proxies.declarations(ModuleGen(name="testmodule"))
     assert "DynCollection has neither a Kernel or an Invoke" in str(err.value)
-
-
-def test_dynstencils_extent_vars_err(monkeypatch):
-    ''' Check that the _unique_extent_vars method of DynStencils raises
-    the expected internal error. '''
-    from psyclone.dynamo0p3 import DynStencils
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    stencils = DynStencils(invoke)
-    # Monkeypatch it to break internal state
-    monkeypatch.setattr(stencils, "_invoke", None)
-    with pytest.raises(InternalError) as err:
-        _ = stencils._unique_extent_vars
-    assert ("_unique_extent_vars: have neither Invoke or Kernel"
-            in str(err.value))
-
-
-def test_dynstencils_initialise_err():
-    ''' Check that DynStencils.initialise raises the expected InternalError
-    if an unsupported stencil type is encountered. '''
-    from psyclone.f2pygen import ModuleGen
-    from psyclone.dynamo0p3 import DynStencils
-    _, info = parse(os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    stencils = DynStencils(invoke)
-    # Break internal state
-    stencils._kern_args[0].descriptor.stencil['type'] = "not-a-type"
-    with pytest.raises(GenerationError) as err:
-        stencils.initialise(ModuleGen(name="testmodule"))
-    assert "Unsupported stencil type 'not-a-type' supplied." in str(err.value)
 
 
 def test_dyncelliterators_err(monkeypatch):

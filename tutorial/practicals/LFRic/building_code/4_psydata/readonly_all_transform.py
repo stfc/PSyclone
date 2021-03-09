@@ -67,11 +67,10 @@ def trans(psy):
         # Now get the schedule, to which we want to apply the transformation
         schedule = invoke.schedule
 
-
         # ------------------------------------------------------
         # TODO: Apply the transformation
         # ------------------------------------------------------
-        ....apply(schedule, {"region_name": ("time_evolution", name)})
+        ....apply(schedule, {"region_name": ("time_evolution", invoke_name)})
 
         # Just as feedback: show the modified schedule, which should have
         # a new node at the top:

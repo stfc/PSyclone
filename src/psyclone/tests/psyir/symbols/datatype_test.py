@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,9 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
     ArrayType, UnknownFortranType, DataSymbol, StructureType, \
-    INTEGER_TYPE, REAL_TYPE, Symbol, TypeSymbol
-from psyclone.psyir.nodes import Literal, BinaryOperation, Reference
+    INTEGER_TYPE, REAL_TYPE, Symbol, TypeSymbol, SymbolTable
+from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
+    Container, KernelSchedule
 from psyclone.errors import InternalError
 
 
@@ -235,8 +236,31 @@ def test_arraytype_invalid_datatype():
     '''
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(None, None)
-    assert ("ArrayType expected 'datatype' argument to be of type "
-            "DataType but found 'NoneType'." in str(excinfo.value))
+    assert ("ArrayType expected 'datatype' argument to be of type DataType "
+            "or TypeSymbol but found 'NoneType'." in str(excinfo.value))
+
+
+def test_arraytype_typesymbol_only():
+    ''' Test that we currently refuse to make an ArrayType with an intrinsic
+    type of StructureType. (This limitation is the subject of #1031.) '''
+    with pytest.raises(NotImplementedError) as err:
+        _ = ArrayType(StructureType.create(
+            [("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)]),
+                      [5])
+    assert ("When creating an array of structures, the type of those "
+            "structures must be supplied as a TypeSymbol but got a "
+            "StructureType instead." in str(err.value))
+
+
+def test_arraytype_typesymbol():
+    ''' Test that we can correctly create an ArrayType when the type of the
+    elements is specified as a TypeSymbol. '''
+    tsym = TypeSymbol("my_type", DeferredType())
+    atype = ArrayType(tsym, [5])
+    assert isinstance(atype, ArrayType)
+    assert len(atype.shape) == 1
+    assert atype.intrinsic is tsym
+    assert atype.precision is None
 
 
 def test_arraytype_invalid_shape():
@@ -281,22 +305,9 @@ def test_arraytype_invalid_shape_dimension_2():
             in str(excinfo.value))
 
 
-@pytest.mark.xfail(reason="issue #948. Support for this check "
-                   "needs to be added")
+@pytest.mark.xfail(reason="issue #1089. Support for this check needs to be"
+                   "implemented")
 def test_arraytype_invalid_shape_dimension_3():
-    '''Test that the ArrayType class raises an exception when one of the
-    dimensions of the shape list argument is a local datasymbol that does
-    not have a constant value (as this will not be initialised).'''
-
-    scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
-    data_symbol = DataSymbol("var", scalar_type)
-    with pytest.raises(TypeError) as info:
-        _ = ArrayType(scalar_type, [data_symbol])
-    assert ("If a local datasymbol is used to declare a dimension then it "
-            "should be a constant, but 'var' is not." in str(info.value))
-
-
-def test_arraytype_invalid_shape_dimension_4():
     '''Test that the ArrayType class raises an exception when one of the
     dimensions of the shape list argument is a DataNode that contains
     a local datasymbol that does not have a constant value (as this
@@ -313,6 +324,21 @@ def test_arraytype_invalid_shape_dimension_4():
     assert ("If a local datasymbol is used as part of a dimension "
             "declaration then it should be a constant, but 'var' is "
             "not." in str(info.value))
+
+
+def test_arraytype_shape_dim_from_parent_scope():
+    ''' Check that the shape checking in the ArrayType class permits the
+    use of a reference to a symbol in a parent scope. '''
+    cont = Container("test_mod")
+    dim_sym = cont.symbol_table.new_symbol("dim1", symbol_type=DataSymbol,
+                                           datatype=INTEGER_TYPE)
+    kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
+    cont.addchild(kernel1)
+    kernel1.parent = cont
+    asym = kernel1.symbol_table.new_symbol(
+        "array1", symbol_type=DataSymbol,
+        datatype=ArrayType(INTEGER_TYPE, [Reference(dim_sym)]))
+    assert isinstance(asym, DataSymbol)
 
 
 def test_arraytype_str():

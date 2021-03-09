@@ -1,6 +1,6 @@
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019-2020, Science and Technology Facilities Council
+! Copyright (c) 2019-2021, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,11 +43,11 @@ module testkern_stencil_vector_xory_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_stencil_vector_xory_type
-     type(arg_type), dimension(2) :: meta_args =                &
-          (/ arg_type(gh_field*3, gh_inc,  w0),                 &
-             arg_type(gh_field*4, gh_read, w3, stencil(xory1d)) &
+     type(arg_type), dimension(2) :: meta_args =                         &
+          (/ arg_type(gh_field*3, gh_real, gh_inc,  w0),                 &
+             arg_type(gh_field*4, gh_real, gh_read, w3, stencil(xory1d)) &
            /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_stencil_vector_xory_code
   end type testkern_stencil_vector_xory_type

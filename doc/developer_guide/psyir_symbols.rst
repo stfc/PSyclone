@@ -84,27 +84,29 @@ the same functionality.
 Symbols
 =======
 
-At the moment, root nodes (e.g. `InvokeSchedules`, `KernelSchedules`
-and `Containers`) have a symbol table which contains the symbols used by their
-descendant nodes.
+At the moment, nodes that represent a scope (all `Schedules` and `Containers`)
+have a symbol table which contains the symbols used by their descendant nodes.
+Nested scopes with their associated symbol table are allowed in the PSyIR.
 
-The `new_symbol_name` method is provided to avoid name clashes when defining
-a new symbol in the symbol table.
 
-.. automethod:: psyclone.psyir.symbols.SymbolTable.new_symbol_name
+The `new_symbol` method is provided to create new symbols while avoiding name
+clashes:
+
+.. automethod:: psyclone.psyir.symbols.SymbolTable.new_symbol
 
 However, if this symbol needs to be retrieved later on, one must keep track
 of the symbol or the returned name. As this is not always feasible when
 accessed from different routines, there is also the option to provide a tag to
 uniquely identify the symbol internally (the tag is not displayed in the
 generated code). Therefore, to create a new symbol and associate it with a
-tag, the following lines can be used:
+tag, the following code can be used:
 
 .. code-block:: python
 
-    variable = node.symbol_table.new_symbol_name("variable_name")
-    node.symbol_table.add(DataSymbol(variable, DataType.INTEGER),
-                          tag="variable_with_the_result_x")
+    variable = node.symbol_table.new_symbol("variable_name",
+                                            tag="variable_with_the_result_x"
+                                            symbol_type=DataSymbol,
+                                            datatype=DataType.INTEGER)
 
 There are two ways to retrieve the symbol from a symbol table. Using the
 `name` or using the `tag` as lookup keys. This is done with the two following
@@ -114,28 +116,23 @@ methods:
 
 .. automethod:: psyclone.psyir.symbols.SymbolTable.lookup_with_tag
 
-Sometimes, particularly in the dynamo0p3 API, we have no way of knowing if
-a symbol has already been defined. In this case we can use a try/catch around
+Sometimes, we have no way of knowing if a symbol we need has already been
+defined. In this case we can use a try/catch around
 the `lookup_with_tag` method and if a KeyError is raised (the tag was not
 found), then proceed to declare the symbol. As this situation occurs frequently
-the Symbol Table provides the `name_from_tag` helper method that encapsulates the
-described behaviour and declares generic symbols, which have no datatype
-properties, when needed.
+the Symbol Table provides the `symbol_from_tag` helper method that encapsulates
+the described behaviour and declares symbols when needed.
 
-.. automethod:: psyclone.psyir.symbols.SymbolTable.name_from_tag
+.. automethod:: psyclone.psyir.symbols.SymbolTable.symbol_from_tag
 
-.. warning:: The `name_from_tag` method should not be used for new
-    code as the method will be deprecated in favour of a finer control
-    of when variables are defined and used.
-
-By default the `new_symbol_name`, `add`, `lookup`, `lookup_with_tag`,
-and `name_from_tag` methods in a symbol table will also take into
-account the symbols in any ancestor symbol tables. Ancestor symbol
+By default the `get_symbol`, `new_symbol`, `add`, `lookup`,
+`lookup_with_tag`, and `symbol_from_tag` methods in a symbol table will also
+take into account the symbols in any ancestor symbol tables. Ancestor symbol
 tables are symbol tables attached to nodes that are ancestors of the
-node that the current symbol table is attached to. This functionality
-is controllable via the optional `check_ancestors` argument. This
-functionality is supported by the `all_symbols` and `all_tags`
-properties.
+node that the current symbol table is attached to. These are found in order
+with the `parent_symbol_table` method. This method provides a `scope_limit`
+argument to limit the extend of the upwards recursion provided to each
+method that uses it.
 
 Sibling symbol tables are currently not checked. The argument for
 doing this is that a symbol in a sibling scope should not be visible
@@ -155,9 +152,67 @@ particular `__contains__`, `remove`, `get_unresolved_data_symbols`,
 `global_symbols`, `precision_datasymbols` and `containersymbols`. It
 is currently not clear whether this is the best solution and it is
 possible that these should reflect a global view. One issue is that
-the `__contains__` method has no mechanism to pass a `check_ancestors`
+the `__contains__` method has no mechanism to pass a `scope_limit`
 optional argument. This would probably require a separate `setter` and
 `getter` to specify whether to check ancestors or not.
+
+Specialising Symbols
+====================
+
+When code is translated into PSyIR there may be symbols with unknown
+types, perhaps due to symbols being declared in different files. For
+example, in the following declaration it is not possible to know the
+type of symbol `fred` without knowing the contents of the `my_module`
+module:
+
+.. code-block:: fortran
+
+    use my_module, only : fred
+
+In such cases a generic `Symbol` is created and added to the symbol
+table.
+
+Later on in the code translation it may be that `fred` is used as the
+name of a subroutine call:
+
+.. code-block:: fortran
+
+    call fred()
+
+It is now known that `fred` is a `RoutineSymbol` so the original
+`Symbol` should be replaced by a `RoutineSymbol`.
+
+A simple way to do this would be to remove the original symbol for
+`fred` from the symbol table and replace it with a new one that is a
+`RoutineSymbol`. However, the problem with this is that there may be
+separate references to this symbol from other parts of the PSyIR and
+these references would continue to reference the original symbol.
+
+One solution would be to search through all places where references
+could occur and update them accordingly. Another would be to modify
+the current implementation so that either a) references went in both
+directions or b) references were replaced with names and lookups. Each
+of these solutions has their benefits and disadvantages.
+
+What is currently done is to specialise the symbol in place (so that
+any references to it do not need to change). This is implemented by the
+`specialise` method in the `Symbol` class. It takes a subclass of a
+`Symbol` as an argument and modifies the instance so that it becomes
+the subclass. For example:
+
+.. code-block:: python
+
+    sym = Symbol("a")
+    # sym is an instance of the Symbol class
+    sym.specialise(RoutineSymbol)
+    # sym is now an instance of the RoutineSymbol class
+
+In the current implementation, any additional properties (associated
+with a `RoutineSymbol` in the above example) that are not in the
+original class would need to be set explicitly after
+specialisation. It may be possible to structure `Symbol` (and subclasses
+of `Symbol`) constructors so that the `specialise` method could take
+additional arguments to initialise properties.
 
 
 Dependence Analysis

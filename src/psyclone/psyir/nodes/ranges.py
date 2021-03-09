@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,8 @@
 
 ''' Module containing the definition of the Range node. '''
 
-from psyclone.psyir.nodes import Node, Literal
+from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE
 
@@ -90,7 +91,7 @@ class Range(Node):
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode, DataNode"
     _text_name = "Range"
-    _colour_key = "Range"
+    _colour = "white"
 
     @staticmethod
     def _validate_child(position, child):

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -42,8 +42,9 @@
 module init_perturbation_kernel_mod
 
   use argument_mod,      only: arg_type, func_type,   &
-                               GH_FIELD, GH_READ,     &
-                               GH_READWRITE, CELLS
+                               GH_FIELD, GH_REAL,     &
+                               GH_READ, GH_READWRITE, &
+                               CELL_COLUMN
   use fs_continuity_mod, only: W3
   use constants_mod,     only: r_def, i_def
   use kernel_mod,        only: kernel_type
@@ -63,11 +64,11 @@ module init_perturbation_kernel_mod
   !-----------------------------------------------------------------------------
   type, public, extends(kernel_type) :: init_perturbation_kernel_type
     private
-    type(arg_type), dimension(2) :: meta_args = (/ &
-         arg_type(GH_FIELD,   GH_READWRITE, W3),   &
-         arg_type(GH_FIELD*3, GH_READ,      W3)    &
+    type(arg_type), dimension(2) :: meta_args = (/        &
+         arg_type(GH_FIELD,   GH_REAL, GH_READWRITE, W3), &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,      W3)  &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: init_perturbation_code
   end type init_perturbation_kernel_type
@@ -98,7 +99,7 @@ module init_perturbation_kernel_mod
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: undf_w3
-    integer(kind=i_def), intent(in), dimension(ndf_w3)   :: map_w3
+    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
     real(kind=r_def), intent(inout), dimension(undf_w3) :: perturbation
     real(kind=r_def), intent(in),    dimension(undf_w3) :: chi_1
     real(kind=r_def), intent(in),    dimension(undf_w3) :: chi_2
@@ -119,7 +120,7 @@ module init_perturbation_kernel_mod
         x(3) = chi_3(map_w3(df) + k)
 
         !-----------------------------------------------------------------------
-        ! TO COMPLETE: Initialise perturbation field to the prescribed
+        ! Initialise perturbation field to the prescribed
         ! analytical expression on each DoF, i.e. perturbation( map_w3(df) + k )
         ampl = max(perturbation_height - x(3), 0.0_r_def)/perturbation_scale
         xt = ( x(1) - x_centre )/half_width_x
