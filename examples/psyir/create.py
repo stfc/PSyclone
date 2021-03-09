@@ -88,9 +88,8 @@ def create_psyir_tree():
     array = symbol_table.new_symbol(root_name="a", symbol_type=DataSymbol,
                                     datatype=ArrayType(scalar_type, [10]))
 
-    # Nodes which do not have Nodes as children and (some) predefined
-    # scalar datatypes
-    # TODO: Issue #1136 looks at how to avoid all of the _x versions
+    # Make generators for nodes which do not have other Nodes as children,
+    # with some predefined scalar datatypes
     def zero():
         return Literal("0.0", REAL_TYPE)
 
