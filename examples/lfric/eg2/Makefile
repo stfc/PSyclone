@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
@@ -40,16 +41,16 @@ include ../../common.mk
 transform: vanilla openmp loopfuse
 
 vanilla:
-	${PYTHON} ./runme.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./runme.py
 
 openmp:
-	${PYTHON} ./runme_openmp.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./runme_openmp.py
 
 loopfuse:
-	${PYTHON} ./runme_loop_fuse.py
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${PYTHON} ./runme_loop_fuse.py
 
-compile:
+compile: transform
 	@echo "No compilation supported for lfric/eg2"
 
-
-all: transform compile
+run: compile
+	@echo "No run targets for lfric/eg2"

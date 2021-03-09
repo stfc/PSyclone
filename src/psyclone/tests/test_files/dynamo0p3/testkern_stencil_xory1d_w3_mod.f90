@@ -71,8 +71,8 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
     integer(kind=i_def), intent(in), dimension(ndf_w2,fld2_st_size) :: fld2_st_dofmap
-    real(kind=r_def), intent(out), dimension(undf_w3) :: fld1
-    real(kind=r_def), intent(in), dimension(undf_w2)  :: fld2
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: fld1
+    real(kind=r_def), intent(in), dimension(undf_w2)    :: fld2
 
   end subroutine testkern_stencil_xory1d_w3_code
 

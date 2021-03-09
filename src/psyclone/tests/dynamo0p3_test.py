@@ -52,7 +52,7 @@ from psyclone.domain.lfric import FunctionSpace
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, \
@@ -2734,8 +2734,9 @@ def test_dynkernelargument_intent_invalid(dist_mem):
     arg._access = "invalid"
     with pytest.raises(GenerationError) as excinfo:
         _ = arg.intent
-    assert "Expecting argument access to be one of 'gh_read," in \
-        str(excinfo.value)
+    assert ("In the LFRic API the argument access must be one of "
+            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_sum'], "
+            "but found 'invalid'." in str(excinfo.value))
 
 
 def test_arg_ref_name_method_error1():
@@ -2788,9 +2789,9 @@ def test_arg_intent_error():
     first_argument._access = "gh_not_an_intent"
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.intent()
-    assert ("Expecting argument access to be one of 'gh_read, gh_write, "
-            "gh_inc', 'gh_readwrite' or one of ['gh_sum'], but found "
-            "'gh_not_an_intent'" in str(excinfo.value))
+    assert ("In the LFRic API the argument access must be one of "
+            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_sum'], "
+            "but found 'gh_not_an_intent'." in str(excinfo.value))
 
 
 def test_arg_intrinsic_type_error():
@@ -3623,7 +3624,7 @@ def test_fs_anyspace_dofs_inc_error():
 
 def test_halo_exchange_view(capsys):
     ''' Test that the halo exchange view method returns what we expect. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -3632,8 +3633,8 @@ def test_halo_exchange_view(capsys):
     result, _ = capsys.readouterr()
 
     # Ensure we test for text containing the correct (colour) control codes
-    sched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    exch = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
+    sched = colored("InvokeSchedule", InvokeSchedule._colour)
+    exch = colored("HaloExchange", HaloExchange._colour)
 
     expected = (
         sched + "[invoke='invoke_0_testkern_stencil_type', dm=True]\n"

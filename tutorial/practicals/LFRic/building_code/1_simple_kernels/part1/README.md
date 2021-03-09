@@ -151,7 +151,7 @@ The completed algorithm can be found in the
 ## Step 4: Use PSyclone to generate algorithm and PSy-layer source
 
 We will first check that the kernels and the algorithm are correctly created
-and updated by running `make test` to process the algorithm source with
+and updated by running `make transform` to process the algorithm source with
 PSyclone. If the code is correct, this will result in the generated algorithm
 source file `simple_kernels_alg_mod.f90` and the generated PSy-layer source
 file `simple_kernels_alg_mod_psy.f90`.
