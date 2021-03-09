@@ -46,12 +46,13 @@ from psyclone.psyir.symbols import RoutineSymbol, UnresolvedInterface, \
     GlobalInterface
 from psyclone.psyir.nodes import Literal, CodeBlock, Schedule, Call, \
     Reference, BinaryOperation
+from psyclone.errors import GenerationError
 
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_call_noargs():
-    '''Test that fparser2 transforms a Fortran subroutine call with no
-    arguments into the equivalent PSyIR Call node. Also test that a
+    '''Test that fparser2reader transforms a Fortran subroutine call with
+    no arguments into the equivalent PSyIR Call node. Also test that a
     new RoutineSymbol is added to the symbol table (with an unresolved
     interface) when one does not already exist. Also test that the
     Call node ast property is set to reference the original fparser2
@@ -80,11 +81,11 @@ def test_call_noargs():
 
 
 def test_call_declared_routine(f2008_parser):
-    '''Test that fparser2 transforms a Fortran subroutine call into the
-     equivalent PSyIR Call node when the call name has already been
-     declared. The example includes the call twice as the first time
-     the symbol needs to be specialised to a RoutineSymbol and the
-     second time it should already be a RoutineSymbol.
+    '''Test that fparser2reader transforms a Fortran subroutine call into
+     the equivalent PSyIR Call node when the call name has already
+     been declared. The example includes the call twice as the first
+     time the symbol needs to be specialised to a RoutineSymbol and
+     the second time it should already be a RoutineSymbol.
 
     '''
     test_code = (
@@ -105,8 +106,29 @@ def test_call_declared_routine(f2008_parser):
         assert routine_symbol in call_node.scope.symbol_table.symbols
 
 
+def test_call_incorrect_type(f2008_parser):
+    '''Test that fparser2reader raises the expected exception if the name
+    of the call is already declared as an incompatible symbol
+    type. Note, fparser2 should really pick this up but currently its
+    consistency checks are limited.
+
+    '''
+    test_code = (
+        "subroutine test()\n"
+        "real :: kernel\n"
+        "  call kernel()\n"
+        "end subroutine")
+    reader = FortranStringReader(test_code)
+    ptree = f2008_parser(reader)
+    processor = Fparser2Reader()
+    with pytest.raises(GenerationError) as info:
+        _ = processor.generate_schedule("test", ptree)
+    assert ("Expecting the symbol 'kernel', to be of type 'Symbol' or "
+            "'RoutineSymbol', but found 'DataSymbol'." in str(info.value))
+
+
 def test_call_args(f2008_parser):
-    '''Test that fparser2 transforms a Fortran subroutine call with
+    '''Test that fparser2reader transforms a Fortran subroutine call with
     arguments into the equivalent PSyIR Call node.
 
     '''

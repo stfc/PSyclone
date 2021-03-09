@@ -67,8 +67,8 @@ def test_fusetrans_error_incomplete():
     # Check first loop
     with pytest.raises(TransformationError) as err:
         fuse.validate(loop1, loop2)
-    assert "Error in LoopFuse transformation. The first loop does not have " \
-        "4 children." in str(err.value)
+    assert ("Error in LoopFuseTrans transformation. The target loop must have "
+            "four children but found: []" in str(err.value))
 
     loop1.addchild(Literal("start", INTEGER_TYPE, parent=loop1))
     loop1.addchild(Literal("stop", INTEGER_TYPE, parent=loop1))
@@ -79,8 +79,8 @@ def test_fusetrans_error_incomplete():
     # Check second loop
     with pytest.raises(TransformationError) as err:
         fuse.validate(loop1, loop2)
-    assert "Error in LoopFuse transformation. The second loop does not have " \
-        "4 children." in str(err.value)
+    assert ("Error in LoopFuseTrans transformation. The target loop must have "
+            "four children but found: []" in str(err.value))
 
     loop2.addchild(Literal("start", INTEGER_TYPE, parent=loop2))
     loop2.addchild(Literal("stop", INTEGER_TYPE, parent=loop2))
@@ -119,9 +119,8 @@ def test_fusetrans_error_not_same_parent():
     # Try to fuse loops with different parents
     with pytest.raises(TransformationError) as err:
         fuse.validate(loop1, loop2)
-    assert "Error in LoopFuse transformation. Loops do not have the " \
-        "same parent" in str(err.value)
-
+    assert ("Error in LoopFuseTrans transformation. Loops do not have the "
+            "same parent" in str(err.value))
 
 # ----------------------------------------------------------------------------
 def fuse_loops(parser=None, fortran_code=None):
@@ -172,10 +171,10 @@ def test_fuse_ok(parser):
     out, schedule = fuse_loops(parser, code)
     expected = """do jj = 1, n, 1
   do ji = 1, 10, 1
-    s(ji,jj)=t(ji,jj) + 1
+    s(ji,jj) = t(ji,jj) + 1
   enddo
   do ji = 1, 10, 1
-    s(ji,jj)=t(ji,jj) + 1
+    s(ji,jj) = t(ji,jj) + 1
   enddo
 enddo"""
     assert expected in out
@@ -190,8 +189,8 @@ enddo"""
 
     expected = """do jj = 1, n, 1
   do ji = 1, 10, 1
-    s(ji,jj)=t(ji,jj) + 1
-    s(ji,jj)=t(ji,jj) + 1
+    s(ji,jj) = t(ji,jj) + 1
+    s(ji,jj) = t(ji,jj) + 1
   enddo
 enddo"""
     assert expected in out
@@ -216,10 +215,10 @@ enddo"""
     out, _ = fuse_loops(parser, code)
     expected = """do jj = 2 - 1, n + 1 - 1, 1
   do ji = 1, 10, 1
-    s(ji,jj)=t(ji,jj) + 1
+    s(ji,jj) = t(ji,jj) + 1
   enddo
   do ji = 1, 10, 1
-    s(ji,jj)=t(ji,jj) + 1
+    s(ji,jj) = t(ji,jj) + 1
   enddo
 enddo"""
     assert expected in out

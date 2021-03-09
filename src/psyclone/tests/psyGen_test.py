@@ -51,18 +51,19 @@ import pytest
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
-    Literal, Node, Schedule, KernelSchedule, Call
+    Literal, Node, Schedule, KernelSchedule, Call, Loop
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
     GlobalInterface, ContainerSymbol, Symbol
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     OMPParallelDoDirective, InlinedKern, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, \
     ACCEnterDataDirective, ACCKernelsDirective, HaloExchange, Invoke, \
-    DataAccess, Kern, Arguments, CodedKern, Argument
+    DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
+    InvokeSchedule
 from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
 from psyclone.psyir.symbols import INTEGER_TYPE, DeferredType
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
-    DynKernelArguments
+    DynKernelArguments, DynGlobalSum
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
     DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans, \
@@ -71,6 +72,7 @@ from psyclone.generator import generate
 from psyclone.configuration import Config
 from psyclone.tests.utilities import get_invoke
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.psyir.nodes.node import colored
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -221,7 +223,7 @@ def test_invalid_name():
 def test_valid_return_object_from_name():
     ''' check get_trans_name method return the correct object type '''
     trans = TransInfo()
-    transform = trans.get_trans_name("LoopFuse")
+    transform = trans.get_trans_name("LoopFuseTrans")
     assert isinstance(transform, Transformation)
 
 
@@ -330,8 +332,6 @@ end module dummy_mod
 def test_invokeschedule_node_str():
     ''' Check the node_str method of the InvokeSchedule class. We need an
     Invoke object for this which we get using the dynamo0.3 API. '''
-    from psyclone.psyGen import InvokeSchedule
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -341,7 +341,7 @@ def test_invokeschedule_node_str():
     # Manually supply it with an Invoke object created with the Dynamo API.
     sched._invoke = psy.invokes.invoke_list[0]
     output = sched.node_str()
-    assert colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
+    assert colored("InvokeSchedule", InvokeSchedule._colour) in output
 
 
 def test_sched_ocl_setter():
@@ -358,7 +358,6 @@ def test_sched_ocl_setter():
 
 def test_invokeschedule_can_be_printed():
     ''' Check the InvokeSchedule class can always be printed'''
-    from psyclone.psyGen import InvokeSchedule
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -386,16 +385,17 @@ def test_kern_get_kernel_schedule():
 
 
 def test_codedkern_node_str():
-    ''' Tests the node_str method in the CodedKern class. The simplest way to
-    do this is via the dynamo0.3 subclass '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    '''Tests the node_str method in the CodedKern class. The simplest way
+    to do this is via the dynamo0.3 subclass.
+
+    '''
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     out = my_kern.node_str()
     expected_output = (
-        colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"]) +
+        colored("CodedKern", DynKern._colour) +
         " dummy_code(field_1,field_2,field_3) [module_inline=False]")
     assert expected_output in out
 
@@ -566,9 +566,10 @@ def test_codedkern_lower_to_language_level(monkeypatch):
 
 
 def test_kern_coloured_text():
-    ''' Check that the coloured_name method of both CodedKern and
-    BuiltIn return what we expect. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    '''Check that the coloured_name method of both CodedKern and BuiltIn
+    return what we expect.
+
+    '''
     # Use LFRic example with both a CodedKern and a BuiltIn
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -580,9 +581,9 @@ def test_kern_coloured_text():
     ckern = schedule.children[0].loop_body[0]
     bkern = schedule.children[1].loop_body[0]
     ret_str = ckern.coloured_name(True)
-    assert colored("CodedKern", SCHEDULE_COLOUR_MAP["CodedKern"]) in ret_str
+    assert colored("CodedKern", ckern._colour) in ret_str
     ret_str = bkern.coloured_name(True)
-    assert colored("BuiltIn", SCHEDULE_COLOUR_MAP["BuiltIn"]) in ret_str
+    assert colored("BuiltIn", bkern._colour) in ret_str
 
 
 def test_kern_abstract_methods():
@@ -733,9 +734,10 @@ def test_ompdo_constructor():
 
 
 def test_ompdo_directive_class_node_str(dist_mem):
-    ''' Tests the node_str method in the OMPDoDirective class. We create a
-    sub-class object then call this method from it. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    '''Tests the node_str method in the OMPDoDirective class. We create a
+    sub-class object then call this method from it.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
 
@@ -765,7 +767,7 @@ def test_ompdo_directive_class_node_str(dist_mem):
         # Call the OMPDirective node_str method
         out = case["current_class"].node_str(omp_parallel_loop)
 
-        directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
+        directive = colored("Directive", Directive._colour)
         expected_output = directive + case["current_string"]
 
         assert expected_output in out
@@ -773,14 +775,13 @@ def test_ompdo_directive_class_node_str(dist_mem):
 
 def test_acc_dir_node_str():
     ''' Test the node_str() method of OpenACC directives '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
     acclt = ACCLoopTrans()
     accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
                            dist_mem=False)
-    colour = SCHEDULE_COLOUR_MAP["Directive"]
+    colour = Directive._colour
     schedule = invoke.schedule
 
     # Enter-data
@@ -817,24 +818,23 @@ def test_haloexchange_unknown_halo_depth():
 
 
 def test_globalsum_node_str():
-    '''test the node_str method in the GlobalSum class. The simplest way to do
-    this is to use a dynamo0p3 builtin example which contains a scalar and
-    then call node_str() on that.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    from psyclone import dynamo0p3
+    '''test the node_str method in the GlobalSum class. The simplest way
+    to do this is to use a dynamo0p3 builtin example which contains a
+    scalar and then call node_str() on that.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gsum = None
     for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, dynamo0p3.DynGlobalSum):
+        if isinstance(child, DynGlobalSum):
             gsum = child
             break
     assert gsum
     output = gsum.node_str()
-    expected_output = (colored("GlobalSum",
-                               SCHEDULE_COLOUR_MAP["GlobalSum"]) +
+    expected_output = (colored("GlobalSum", GlobalSum._colour) +
                        "[scalar='asum']")
     assert expected_output in output
 
@@ -950,8 +950,8 @@ def test_reduction_sum_error():
         with pytest.raises(GenerationError) as err:
             call.reduction_sum_loop(None)
         assert (
-            "unsupported reduction access 'gh_inc' found in DynBuiltin:"
-            "reduction_sum_loop(). Expected one of '['gh_sum']"
+            "Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
+            "reduction_sum_loop(). Expected one of ['gh_sum']."
             in str(err.value))
 
 
@@ -960,8 +960,8 @@ def test_call_multi_reduction_error(monkeypatch):
     Kernel or a Builtin) with more than one reduction in it. Since we have
     a rule that only Builtins can write to scalars we need a built-in that
     attempts to perform two reductions. '''
-    from psyclone import dynamo0p3_builtins
-    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+    from psyclone.domain.lfric import lfric_builtins
+    monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "multi_reduction_builtins_mod.f90"))
     for dist_mem in [False, True]:
@@ -1423,7 +1423,7 @@ def test_haloexchange_can_be_printed():
 
 def test_haloexchange_node_str():
     ''' Test the node_str() method of HaloExchange. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+
     # We have to use the LFRic (Dynamo0.3) API as that's currently the only
     # one that supports halo exchanges.
     _, invoke_info = parse(
@@ -1435,8 +1435,7 @@ def test_haloexchange_node_str():
     # We have to manually call the correct node_str() method as the one we want
     # to test is overridden in DynHaloExchange.
     out = HaloExchange.node_str(schedule.children[2])
-    colour = SCHEDULE_COLOUR_MAP["HaloExchange"]
-    assert (colored("HaloExchange", colour) +
+    assert (colored("HaloExchange", HaloExchange._colour) +
             "[field='m1', type='None', depth=None, check_dirty=True]" in out)
 
 
@@ -1800,22 +1799,17 @@ def test_acckernelsdirective_node_str():
     as expected.
 
     '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
-
-    dcolour = SCHEDULE_COLOUR_MAP["Directive"]
-    lcolour = SCHEDULE_COLOUR_MAP["Loop"]
 
     trans = ACCKernelsTrans()
     _, _ = trans.apply(sched)
 
     out = sched[0].node_str()
     assert out.startswith(
-        colored("Directive", dcolour)+"[ACC Kernels]")
-    assert colored("Loop", lcolour) in sched[0].dir_body[0].node_str()
+        colored("Directive", Directive._colour)+"[ACC Kernels]")
+    assert colored("Loop", Loop._colour) in sched[0].dir_body[0].node_str()
     assert "CodedKern" in sched[0].dir_body[0].loop_body[0].node_str()
 
 

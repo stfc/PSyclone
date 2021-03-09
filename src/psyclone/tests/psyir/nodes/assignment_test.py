@@ -47,13 +47,13 @@ from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
-from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.nodes.node import colored
 
 
 def test_assignment_node_str():
     ''' Check the node_str method of the Assignment class.'''
     assignment = Assignment()
-    coloredtext = colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
+    coloredtext = colored("Assignment", Assignment._colour)
     assert coloredtext+"[]" in assignment.node_str()
 
 

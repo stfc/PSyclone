@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by A. R. Porter and R, W, Ford, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
@@ -47,8 +47,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.domain.lfric import FunctionSpace
-from psyclone.psyir.nodes import (colored, ExtractNode, Loop,
-                                  SCHEDULE_COLOUR_MAP)
+from psyclone.psyir.nodes import colored, ExtractNode, Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
@@ -277,7 +276,7 @@ def test_extract_node_representation(capsys):
     # Test view() method
     schedule.view()
     output, _ = capsys.readouterr()
-    expected_output = colored("Extract", SCHEDULE_COLOUR_MAP["Extract"])
+    expected_output = colored("Extract", ExtractNode._colour)
     assert expected_output in output
 
     # Test dag_name method
