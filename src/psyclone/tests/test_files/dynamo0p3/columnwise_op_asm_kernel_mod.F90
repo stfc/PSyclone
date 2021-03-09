@@ -133,7 +133,7 @@ contains
     integer(kind=i_def), dimension(ndf_to,nlayers), intent(in)   :: column_banded_dofmap_to
     integer(kind=i_def), dimension(ndf_from,nlayers), intent(in) :: column_banded_dofmap_from
     real(kind=r_def), dimension(ndf_to,ndf_from,ncell_3d), intent(in) :: local_stencil
-    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(out) :: columnwise_matrix
+    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(inout) :: columnwise_matrix
 
     write(*,*) "Hello CMA World"
 

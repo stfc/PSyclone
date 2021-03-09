@@ -945,6 +945,34 @@ def test_fw_routine(fort_writer, monkeypatch, tmpdir):
         _ = fort_writer(schedule)
     assert "Expected node name to have a value." in str(excinfo.value)
 
+
+def test_fw_routine_program(parser, fort_writer, tmpdir):
+    '''Check the FortranWriter class outputs correct code when a routine node
+    is found with is_program set to True i.e. it should be output as a program.
+
+    '''
+    # Generate PSyIR from Fortran code via fparser2 ast
+    code = (
+        "program test\n"
+        "  real :: a\n"
+        "  a = 0.0\n"
+        "end program test")
+    reader = FortranStringReader(code)
+    fp2_ast = parser(reader)
+    fp2_reader = Fparser2Reader()
+    psyir = fp2_reader.generate_psyir(fp2_ast)
+
+    # Generate Fortran from PSyIR
+    result = fort_writer(psyir)
+
+    assert(
+        "program test\n"
+        "  real :: a\n\n"
+        "  a = 0.0\n\n"
+        "end program test\n" in result)
+    assert Compile(tmpdir).string_compiles(result)
+
+
 # assignment and binaryoperation (not intrinsics) are already checked
 # within previous tests
 
