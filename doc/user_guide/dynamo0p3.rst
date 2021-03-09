@@ -2190,7 +2190,7 @@ scheme presented below. Any new Built-in needs to comply with these rules.
       operations on the ``integer``-valued fields.
 
 7) As in the case of Built-in field argument rules, the names of
-   the field data type conversion Built-ins, ``real2int_X`` and
+   the field data-type conversion Built-ins, ``real2int_X`` and
    ``int2real_X``, are the only exceptions to the rules for
    Built-ins names in Fortran above.
 
@@ -2729,19 +2729,18 @@ where:
 Sign of elements
 ################
 
-A Built-in which returns the sign of a ``real``-valued field elements
-is denoted with the keyword **sign**.
+A Built-in which returns the sign of a ``real``-valued field is denoted
+with the keyword **sign**.
 
 sign_X
 ^^^^^^
 
 **sign_X** (*field2*, *rscalar*, *field1*)
 
-Returns the sign of a ``real``-valued field elements using the Fortran
-intrinsic ``sign`` function as ``Y = sign(a, X)``, where ``a`` is a
-``real`` scalar and ``Y`` and ``X`` are ``real``-valued fields.
-The results are ``a`` for ``a > 0``, ``0`` for ``a = 0`` and ``-a``
-for ``a < 0``::
+Returns the sign of a ``real``-valued field using the Fortran intrinsic
+``sign`` function as ``Y = sign(a, X)``, where ``a`` is a ``real``
+scalar and ``Y`` and ``X`` are ``real``-valued fields.
+The results are ``a`` for ``X >= 0`` and ``-a`` for ``X < 0``::
 
   field2 = SIGN(rscalar, field1)
 
@@ -2753,16 +2752,16 @@ where:
 Conversion of ``real`` to ``integer`` field elements
 ####################################################
 
-A Built-in which takes a ``real`` field elements and converts them to
-an ``integer`` field elements is denoted with the keyword **real2int**.
+A Built-in which takes a ``real`` field and converts it to an
+``integer`` field is denoted with the keyword **real2int**.
 
 real2int_X
 ^^^^^^^^^^
 
 **real2int_X** (*ifield2*, *field1*)
 
-Converts a ``real``-valued field elements to an ``integer``-valued
-field elements using the Fortran intrinsic ``int`` function as
+Converts ``real``-valued field elements to ``integer``-valued field
+elements using the Fortran intrinsic ``int`` function as
 ``Y = int(X, i_def)``. Here ``Y`` is an ``integer``-valued field and
 ``X`` is the ``real``-valued field being converted::
 
@@ -2991,18 +2990,17 @@ Sign of elements
 ################
 
 A Built-in which returns the sign of an ``integer``-valued field
-elements is denoted with the keyword **sign** and the prefix **int**.
+is denoted with the keyword **sign** and the prefix **int**.
 
 int_sign_X
 ^^^^^^^^^^
 
 **int_sign_X** (*ifield2*, *iscalar*, *ifield1*)
 
-Returns the sign of an ``integer``-valued field elements using the
-Fortran intrinsic ``sign`` function as ``Y = sign(a, X)``, where ``a``
-is an ``integer`` scalar and ``Y`` and ``X`` are ``integer``-valued
-fields. The results are ``a`` for ``a > 0``, ``0`` for ``a = 0`` and
-``-a`` for ``a < 0``::
+Returns the sign of an ``integer``-valued field using the Fortran
+intrinsic ``sign`` function as ``Y = sign(a, X)``, where ``a`` is an
+``integer`` scalar and ``Y`` and ``X`` are ``integer``-valued fields.
+The results are ``a`` for ``X >= 0`` and ``-a`` for ``a < 0``::
 
   ifield2 = SIGN(iscalar, ifield1)
 
@@ -3014,15 +3012,15 @@ where:
 Conversion of ``integer`` to ``real`` field elements
 ####################################################
 
-A Built-in which takes an ``integer`` field elements and converts them
-to a ``real`` field elements is denoted with the keyword **int2real**.
+A Built-in which takes an ``integer`` field and converts it to
+a ``real`` field is denoted with the keyword **int2real**.
 
 int2real_X
 ^^^^^^^^^^
 
 **int2real_X** (*field2*, *ifield1*)
 
-Converts an ``integer``-valued field elements to a ``real``-valued
+Converts ``integer``-valued field elements to ``real``-valued
 field elements using the Fortran intrinsic ``real`` function as
 ``Y = real(X, r_def)``. Here ``Y`` is a ``real``-valued field and
 ``X`` is the ``integer``-valued field being converted::
