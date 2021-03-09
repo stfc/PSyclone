@@ -70,9 +70,10 @@ def trans(psy):
         if invoke.name == "invoke_2":
             continue
 
-        # Remove the globals from inside each kernel
+        # Remove the globals from inside each kernel and move PSy-layer
+        # loop boundaries inside the kernel as a mask.
         for kern in schedule.kernels():
-            print("Remove globals from kernel: " + kern.name)
+            print("Update kernel: " + kern.name)
             move_boundaries_trans.apply(kern)
             globaltrans.apply(kern)
 

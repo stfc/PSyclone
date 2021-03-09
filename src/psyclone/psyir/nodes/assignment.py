@@ -44,6 +44,7 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.errors import InternalError
+from psyclone.f2pygen import PSyIRGen
 
 
 class Assignment(Statement):
@@ -54,7 +55,7 @@ class Assignment(Statement):
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode"
     _text_name = "Assignment"
-    _colour_key = "Assignment"
+    _colour = "blue"
 
     @staticmethod
     def _validate_child(position, child):
@@ -199,10 +200,9 @@ class Assignment(Statement):
         return any(dim for dim in self.lhs.children if isinstance(dim, Range))
 
     def gen_code(self, parent):
-        '''Abstract base class for code generation function.
+        '''F2pygen code generation of an Assignment.
 
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
-        from psyclone.f2pygen import PSyIRGen
         parent.add(PSyIRGen(parent, self))

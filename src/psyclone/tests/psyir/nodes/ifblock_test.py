@@ -46,6 +46,7 @@ from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, BOOLEAN_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
+from psyclone.psyir.nodes.node import colored
 
 
 def test_ifblock_invalid_annotation():
@@ -60,8 +61,7 @@ def test_ifblock_invalid_annotation():
 
 def test_ifblock_node_str():
     ''' Check the node_str method of the IfBlock class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    colouredif = colored("If", SCHEDULE_COLOUR_MAP["If"])
+    colouredif = colored("If", IfBlock._colour)
 
     ifblock = IfBlock()
     output = ifblock.node_str()
@@ -75,10 +75,9 @@ def test_ifblock_node_str():
 def test_ifblock_view_indices(capsys):
     ''' Check that the view method only displays indices on the nodes
     in the body (and else body) of an IfBlock. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
-    colouredif = colored("If", SCHEDULE_COLOUR_MAP["If"])
-    colouredreturn = colored("Return", SCHEDULE_COLOUR_MAP["Return"])
-    colouredref = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
+    colouredif = colored("If", IfBlock._colour)
+    colouredreturn = colored("Return", Return._colour)
+    colouredref = colored("Reference", Reference._colour)
     condition = Reference(DataSymbol('condition1', REAL_SINGLE_TYPE))
     then_content = [Return()]
     ifblock = IfBlock.create(condition, then_content)

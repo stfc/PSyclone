@@ -94,8 +94,7 @@ jobs:
         ( make -C examples notebook )
     - name: Run tutorials
       run: |
-        ( make -C tutorial/practicals/nemo test > /dev/null )
-        ( make -C tutorial/practicals/LFRic test > /dev/null )
+        ( make -C tutorial/practicals transform > /dev/null )
     - name: Test with pytest
       if: ${{ !(matrix.python-version == 3.8) }}
       run: |

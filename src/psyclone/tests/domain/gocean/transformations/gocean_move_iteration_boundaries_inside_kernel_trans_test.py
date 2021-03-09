@@ -34,8 +34,8 @@
 # Author S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Module containing tests for PSyclone
-GOMoveIterationBoundariesInsideKernelTrans transformations.
+''' Module containing tests for the PSyclone
+GOMoveIterationBoundariesInsideKernelTrans transformation.
 '''
 
 from __future__ import absolute_import
@@ -47,6 +47,7 @@ from psyclone.psyir.nodes import Assignment, IfBlock, Return
 from psyclone.psyir.symbols import ArgumentInterface
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.backend.fortran import FortranWriter
 
 API = "gocean1.0"
 
@@ -64,9 +65,9 @@ def test_validation():
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert("Error in GOMoveIterationBoundariesInsideKernelTrans transformation"
-           ". This transformation can only be applied to CodedKern nodes."
-           in str(info.value))
+    assert("Error in GOMoveIterationBoundariesInsideKernelTrans "
+           "transformation. This transformation can only be applied to "
+           "'GOKern' nodes, but found 'NoneType'." in str(info.value))
 
 
 def test_go_move_iteration_boundaries_inside_kernel_trans():
@@ -77,6 +78,7 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
     psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=False)
     sched = psy.invokes.invoke_list[0].schedule
     kernel = sched.children[0].loop_body[0].loop_body[0]  # compute_cu kernel
+    num_args = len(kernel.arguments.args)
 
     # Add some name conflicting symbols in the Invoke and the Kernel
     kernel.root.symbol_table.new_symbol("xstop")
@@ -104,6 +106,17 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
     assert isinstance(sched.children[4].loop_body[0], GOLoop)
     assert sched.children[4].loop_body[0].field_space == "go_every"
     assert sched.children[4].loop_body[0].iteration_space == "go_all_pts"
+
+    # -  And the appropriate arguments have been added to the kernel call
+    assert len(kernel.arguments.args) == num_args + 4
+    assert kernel.arguments.args[-4].name == "xstart"
+    assert kernel.arguments.args[-4].argument_type == "scalar"
+    assert kernel.arguments.args[-3].name == "xstop_1"
+    assert kernel.arguments.args[-3].argument_type == "scalar"
+    assert kernel.arguments.args[-2].name == "ystart"
+    assert kernel.arguments.args[-1].argument_type == "scalar"
+    assert kernel.arguments.args[-1].name == "ystop"
+    assert kernel.arguments.args[-1].argument_type == "scalar"
 
     # Check that the kernel subroutine has been transformed:
     kschedule = kernel.get_kernel_schedule()
@@ -137,3 +150,71 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
                       ArgumentInterface)
     assert isinstance(kschedule.symbol_table.lookup("ystop").interface,
                       ArgumentInterface)
+
+
+def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice():
+    ''' Tests that the GOMoveIterationBoundariesInsideKernelTrans
+    transformation for the GOcean API produces the expected code when the
+    invoke has two kernels and the transformation is applied twice.
+    We check that the kernels don't use the same boundary values (some are
+    postfixed with a number) and that kernels don't duplicate boundary
+    arguments themself when applying the transformation twice.
+    '''
+    psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
+                        dist_mem=False)
+    sched = psy.invokes.invoke_list[0].schedule
+
+    # Apply the transformation twice
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    for kernel in sched.coded_kernels():
+        trans.apply(kernel)
+        trans.apply(kernel)
+
+    expected = '''subroutine invoke_0(cu_fld, p_fld, u_fld, u_fld, unew_fld, \
+uold_fld)
+  use compute_cu_mod, only : compute_cu_code
+  use time_smooth_mod, only : time_smooth_code
+  type(r2d_type), intent(out) :: cu_fld
+  type(r2d_type), intent(in) :: p_fld
+  type(r2d_type), intent(in) :: u_fld
+  type(r2d_type), intent(in) :: unew_fld
+  type(r2d_type), intent(inout) :: uold_fld
+  integer :: j
+  integer :: xstart
+  integer :: xstop
+  integer :: ystart
+  integer :: ystop
+  integer :: xstart_1
+  integer :: xstop_1
+  integer :: ystart_1
+  integer :: ystop_1
+  integer :: i
+  integer :: i_1
+
+  xstart = cu_fld%internal%xstart
+  xstop = cu_fld%internal%xstop
+  ystart = cu_fld%internal%ystart
+  ystop = cu_fld%internal%ystop
+  do j = 1, SIZE(cu_fld%data, 2), 1
+    do i = 1, SIZE(cu_fld%data, 1), 1
+      call compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data, xstart, \
+xstop, ystart, ystop)
+    enddo
+  enddo
+  xstart_1 = 1
+  xstop_1 = SIZE(uold_fld%data, 1)
+  ystart_1 = 1
+  ystop_1 = SIZE(uold_fld%data, 2)
+  do j = 1, SIZE(uold_fld%data, 2), 1
+    do i_1 = 1, SIZE(uold_fld%data, 1), 1
+      call time_smooth_code(i_1, j, u_fld%data, unew_fld%data, uold_fld%data, \
+xstart_1, xstop_1, ystart_1, ystop_1)
+    enddo
+  enddo
+
+end subroutine invoke_0
+'''
+
+    writer = FortranWriter()
+    sched.lower_to_language_level()
+    assert writer(sched) == expected

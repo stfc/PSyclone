@@ -51,8 +51,8 @@ def test_description():
     ''' Check that the transformation returns the expected strings '''
     trans = FoldConditionalReturnExpressionsTrans()
     assert trans.name == "FoldConditionalReturnExpressionsTrans"
-    assert str(trans) == \
-        "Fold all conditional expressions with Return statements."
+    assert str(trans) == ("Re-structure kernel statements to eliminate "
+                          "conditional Return expressions.")
 
 
 def test_validation():
@@ -61,8 +61,8 @@ def test_validation():
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
     assert("Error in FoldConditionalReturnExpressionsTrans transformation. "
-           "This transformation can only be applied to Routine nodes."
-           in str(info.value))
+           "This transformation can only be applied to 'Routine' nodes, but "
+           "found 'NoneType'." in str(info.value))
 
 
 SUB_IN1 = (
@@ -75,9 +75,11 @@ SUB_IN1 = (
     "  if (i > 10) then\n"
     "    ! Comments do not matter\n"
     "    return\n"
-    "    a=2.0 ! Dead code do not matter\n"
+    "    a=2.0 ! Dead code does not matter\n"
     "  endif\n"
     "  a=0.0\n"
+    "  a=1.0\n"
+    "  a=2.0\n"
     "end subroutine\n")
 SUB_OUT1 = (
     "subroutine sub1(i, a)\n"
@@ -86,11 +88,17 @@ SUB_OUT1 = (
     "  if (.NOT.i < 5) then\n"
     "    if (.NOT.i > 10) then\n"
     "      a = 0.0\n"
+    "      a = 1.0\n"
+    "      a = 2.0\n"
     "    end if\n"
     "  end if\n\n"
     "end subroutine sub1\n")
 
-# Tests with preceding code that is not part of the mask
+# Tests with preceding code before the mask condition, this part of the code
+# won't be folded. Note that this includes If blocks with return statements
+# similar, but not exactly, like a conditional mask because:
+#  SUB_IN2_2: has an execution statement before the return statement.
+#  SUB_IN2_3: has an else conditional branch.
 SUB_IN2 = (
     "subroutine sub1(i, a)\n"
     "  real, intent(inout) :: a\n"
@@ -155,6 +163,4 @@ def test_transformation(parser, test_case):
     subroutine = processor.generate_psyir(parse_tree)
     trans.apply(subroutine)
     writer = FortranWriter()
-    print(writer(subroutine))
-    print(expected)
     assert writer(subroutine) == expected

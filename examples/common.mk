@@ -80,12 +80,12 @@ GENERATED_FILES =
 
 NOTEBOOK_FILES = $(wildcard ./*ipynb)
 
-.PHONY: all compile transform notebook clean test allclean ${NOTEBOOK_FILES}
+.PHONY: compile run notebook clean transform allclean ${NOTEBOOK_FILES}
 .DEFAULT_GOAL := transform
 
 # Rule that attempts to execute all Jupyter notebooks in the current dir
 ${NOTEBOOK_FILES}:
-	${JUPYTER} $@
+	PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg ${JUPYTER} $@
 
 # Standard targets that we want available for every example
 
