@@ -140,3 +140,5 @@ timer_mod.o: constants_mod.o io_utility_mod.o log_mod.o mpi_mod.o scalar_mod.o
 
 clean:
 	rm -f *.o *.mod  $(LIB) liblfric.a liblfric_netcdf.a
+
+allclean: clean

@@ -21,7 +21,8 @@ be installed first.
 ## Example 3
 
 Illustrates the use of PSyclone to generate an OpenCL driver layer for
-a four-kernel invoke and an OpenCL version of each of the kernels.
+a four-kernel invoke and matching OpenCL kernels. Some useful optimisations
+for OpenCL are applied to each kernel.
 
 ## Example 4
 

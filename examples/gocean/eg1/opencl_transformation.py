@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,10 @@
 ''' Module providing a PSyclone transformation script that converts the
 Schedule of each Invoke to use OpenCL. '''
 
+from psyclone.psyGen import TransInfo
+from psyclone.domain.gocean.transformations import \
+    GOMoveIterationBoundariesInsideKernelTrans
+
 
 def trans(psy):
     '''
@@ -49,11 +53,11 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    from psyclone.psyGen import TransInfo
 
     # Get the necessary transformations
     tinfo = TransInfo()
     globaltrans = tinfo.get_trans_name('KernelGlobalsToArguments')
+    move_boundaries_trans = GOMoveIterationBoundariesInsideKernelTrans()
     cltrans = tinfo.get_trans_name('OCLTrans')
 
     for invoke in psy.invokes.invoke_list:
@@ -66,9 +70,11 @@ def trans(psy):
         if invoke.name == "invoke_2":
             continue
 
-        # Remove the globals from inside each kernel
+        # Remove the globals from inside each kernel and move PSy-layer
+        # loop boundaries inside the kernel as a mask.
         for kern in schedule.kernels():
-            print("Remove globals from kernel: " + kern.name)
+            print("Update kernel: " + kern.name)
+            move_boundaries_trans.apply(kern)
             globaltrans.apply(kern)
 
         # Transform invoke to OpenCL

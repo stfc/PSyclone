@@ -324,9 +324,9 @@ def test_builtinfactory_metadataerror(monkeypatch):
     (which gives a TypeError as it is not callable).
 
     '''
-    from psyclone.dynamo0p3_builtins import BUILTIN_MAP as builtins
-    from psyclone.dynamo0p3_builtins import BUILTIN_DEFINITIONS_FILE as \
-        fname
+    from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
+    from psyclone.domain.lfric.lfric_builtins import \
+        BUILTIN_DEFINITIONS_FILE as fname
     from fparser import api as fpapi
     monkeypatch.setattr(fpapi, "parse", None)
     factory = BuiltInKernelTypeFactory()

@@ -1997,9 +1997,9 @@ logic determined by their :ref:`access modes <dynamo0.3-kernel-valid-access>`.
 * ``GH_READ`` indicates ``intent(in)`` as the argument is only ever read from.
 
 * ``GH_WRITE`` (for discontinuous function spaces) indicates that the argument
-  is only written to in a kernel. When the argument is defined inside a kernel
-  its intent is ``intent(out)`` and when it is defined outside of a kernel its
-  intent is ``intent(inout)``.
+  is only written to in a kernel. The field and operator arguments' data in
+  LFRic are always defined outside of a kernel so the argument intent for
+  this access type is ``intent(inout)``.
 
 * ``GH_INC`` and ``GH_READWRITE`` indicate ``intent(inout)`` as the arguments
   are updated (albeit in a different way due to different access to DoFs, see
@@ -2180,10 +2180,9 @@ scheme presented below. Any new Built-in needs to comply with these rules.
 
    4) Common suffix is ``"Kern"``;
 
-   3) Common prefix is ``"Dyn"`` for the Built-in operations on the
+   3) Common prefix is ``"LFRic"`` for the Built-in operations on the
       ``real``-valued arguments and ``"LFRicInt"`` for the Built-in
-      operations on the ``integer``-valued fields (TODO: the class
-      names will be harmonised in #1114).
+      operations on the ``integer``-valued fields.
 
 .. _lfric-built-ins-real:
 
