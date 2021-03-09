@@ -302,13 +302,13 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             # Add any additional dimensions (in case of an array slice)
             for child in result.children[1:]:
                 result_dims.append(child.copy())
-        result = ArrayReference.create(result_symbol, result_dims)
+        result_ref = ArrayReference.create(result_symbol, result_dims)
         # Create "vector(j)"
         vector_dims = [Reference(j_loop_symbol)]
         if len(vector.children) > 1:
             # Add any additional dimensions (in case of an array slice)
             for child in vector.children[1:]:
-                vector_dims.append(child.detach())
+                vector_dims.append(child.copy())
         vector_array_reference = ArrayReference.create(
             vector.symbol, vector_dims)
         # Create "matrix(i,j)"
@@ -316,7 +316,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         if len(matrix.children) > 2:
             # Add any additional dimensions (in case of an array slice)
             for child in matrix.children[2:]:
-                array_dims.append(child.detach())
+                array_dims.append(child.copy())
         matrix_array_reference = ArrayReference.create(matrix.symbol,
                                                        array_dims)
         # Create "matrix(i,j) * vector(j)"
@@ -325,16 +325,17 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             vector_array_reference)
         # Create "result(i) + matrix(i,j) * vector(j)"
         rhs = BinaryOperation.create(
-            BinaryOperation.Operator.ADD, result, multiply)
+            BinaryOperation.Operator.ADD, result_ref, multiply)
         # Create "result(i) = result(i) + matrix(i,j) * vector(j)"
-        assign = Assignment.create(result.copy(), rhs)
+        assign = Assignment.create(result_ref.copy(), rhs)
         # Create j loop and add the above code as a child
         # Work out the bounds
         lower_bound, upper_bound, step = _get_array_bound(vector, 0)
         jloop = Loop.create(j_loop_symbol, lower_bound, upper_bound, step,
                             [assign])
         # Create "result(i) = 0.0"
-        assign = Assignment.create(result.copy(), Literal("0.0", REAL_TYPE))
+        assign = Assignment.create(result_ref.copy(),
+                                   Literal("0.0", REAL_TYPE))
         # Create i loop and add assigment and j loop as children
         lower_bound, upper_bound, step = _get_array_bound(matrix, 0)
         iloop = Loop.create(i_loop_symbol, lower_bound, upper_bound, step,
