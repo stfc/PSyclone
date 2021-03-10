@@ -103,10 +103,7 @@ class NemoLoopFuseTrans(LoopFuseTrans):
 
             if var_name in symbol_table:
                 # Find the symbol for this variable. We only need to check
-                # one
-                symbol = symbol_table.lookup(var_name)
-                is_array = symbol.is_array
-            elif var_name in var_info1:
+                # one symboltable.
                 symbol = symbol_table.lookup(var_name)
                 is_array = symbol.is_array
             else:
