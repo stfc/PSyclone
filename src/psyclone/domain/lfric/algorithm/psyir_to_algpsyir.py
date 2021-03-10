@@ -38,14 +38,15 @@ LFRic algorithm-layer-specific PSyIR which uses specialised classes.
 
 '''
 from fparser.two.Fortran2003 import \
-    Actual_Arg_Spec, Name, Char_Literal_Constant
+    Actual_Arg_Spec, Name, Char_Literal_Constant, Structure_Constructor
 from psyclone.psyir.nodes import Call, CodeBlock, ArrayReference
 from psyclone.psyir.symbols import Symbol, TypeSymbol, \
-    StructureType
+    StructureType, RoutineSymbol
 from psyclone.domain.lfric.algorithm import \
     LfricBuiltinRef, LfricCodedKernelRef, LfricAlgorithmInvokeCall
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
 from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
 def psyir_to_algpsyir(psyir):
@@ -73,40 +74,84 @@ def psyir_to_algpsyir(psyir):
                 # Children should be a named argument, builtin or
                 # kernelcall.
                 # pylint: disable=protected-access
-                if (isinstance(call_arg, CodeBlock) and
-                        len(call_arg._fp2_nodes) > 1):
-                    raise GenerationError(
-                        "If the PSyIR contains a CodeBlock as an invoke "
-                        "argument it should be a Fortran named argument. "
-                        "There should only be one named argument. However, "
-                        "this code block contains multiple nodes.")
+                if isinstance(call_arg, CodeBlock):
+                    for fp2_node in call_arg._fp2_nodes:
+                        if isinstance(fp2_node, Actual_Arg_Spec):
+                            # This child is a named argument
+                            if not (isinstance(fp2_node.children[0], Name) and
+                                    fp2_node.children[0].string.lower() ==
+                                    "name"
+                                    and isinstance(fp2_node.children[1],
+                                                   Char_Literal_Constant)):
+                                raise GenerationError(
+                                    "If there is a named argument, it must "
+                                    "take the form name='str', but found "
+                                    "'{0}'.".format(str(fp2_node)))
+                            if call_description:
+                                raise GenerationError(
+                                    "There should be at most one named "
+                                    "argument in an invoke, but there are at "
+                                    "least two: '{0}' and "
+                                    "'{1}'.".format(
+                                        call_description,
+                                        fp2_node.children[1].string))
+                            call_description = fp2_node.children[1].string
+                        elif isinstance(fp2_node, Structure_Constructor):
+                            # This child is a kernelcall or builtin
+                            # argument which has been correctly
+                            # recognised as a structure
+                            # constructor.
 
-                if (isinstance(call_arg, CodeBlock) and
-                        isinstance(call_arg.ast, Actual_Arg_Spec)):
-                    # This child is a named argument
-                    if not (isinstance(call_arg.ast.children[0], Name) and
-                            call_arg.ast.children[0].string.lower() == "name"
-                            and isinstance(call_arg.ast.children[1],
-                                           Char_Literal_Constant)):
-                        raise GenerationError(
-                            "If there is a named argument, it must take the "
-                            "form name='str', but found '{0}'."
-                            "".format(str(call_arg.ast)))
-                    if call_description:
-                        raise GenerationError(
-                            "There should be at most one named argument in an "
-                            "invoke, but there are at least two: '{0}' and "
-                            "'{1}'.".format(call_description,
-                                            call_arg.ast.children[1].string))
-                    call_description = call_arg.ast.children[1].string
+                            # Use the fparser2 reader to parse the
+                            # arguments into PSyIR
+                            dummy_call = Call(RoutineSymbol("dummy"),
+                                              parent=call_arg.parent)
+                            fparser2 = Fparser2Reader()
+                            for arg in fp2_node.children[1].children:
+                                fparser2.process_nodes(dummy_call, [arg])
+                            args = dummy_call.children
+                            dummy_call.parent = None
+
+                            # Create or find the kernelcall or
+                            # builtin's RoutineSymbol
+                            name = fp2_node.children[0].string
+                            symbol_table = call.scope.symbol_table
+                            try:
+                                routine_symbol = symbol_table.lookup(name)
+                            except KeyError:
+                                routine_symbol = TypeSymbol(name,
+                                                            StructureType())
+                                symbol_table.add(routine_symbol)
+                            # pylint: disable=unidiomatic-typecheck
+                            if type(routine_symbol) is Symbol:
+                                # Existing symbol needs specialising
+                                # to a TypeSymbol
+                                routine_symbol.specialise(TypeSymbol)
+                                routine_symbol.datatype = StructureType()
+
+                            if name in builtins:
+                                kernel_calls.append(LfricBuiltinRef.create(
+                                    routine_symbol, args))
+                            else:
+                                kernel_calls.append(LfricCodedKernelRef.create(
+                                    routine_symbol, args))
+                        else:
+                            raise InternalError(
+                                "Expecting an algorithm invoke codeblock to "
+                                "contain either Structure-Constructor or "
+                                "actual-arg-spec, but found '{0}'."
+                                "".format(type(fp2_node).__name__))
+
                 elif isinstance(call_arg, ArrayReference):
                     # This child is a kernelcall or builtin argument
+                    # which has been incorrectly recognised as an
+                    # array.
                     name = call_arg.name
                     if name in builtins:
                         routine_symbol = call.scope.symbol_table.lookup(name)
                         # pylint: disable=unidiomatic-typecheck
                         if type(routine_symbol) is Symbol:
-                            # Needs setting to a RoutineSymbol
+                            # Needs setting to a TypeSymbol
                             routine_symbol.specialise(TypeSymbol)
                             routine_symbol.datatype = StructureType()
                         kernel_calls.append(LfricBuiltinRef.create(

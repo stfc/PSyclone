@@ -62,8 +62,10 @@ def check_kernel(call):
     assert call.symbol.name == "kern_type"
     assert len(call.children) == 1
     arg = call.children[0]
-    assert type(arg) == Reference
-    assert arg.symbol.name == "field"
+    if type(arg) is Literal:
+        assert arg.value == "0.0"
+    else:
+        assert arg.symbol.name == "field"
 
 
 def check_builtin(call):
@@ -81,8 +83,12 @@ def check_builtin(call):
     assert type(arg0) == Reference
     assert arg0.symbol.name == "field"
     arg1 = call.children[1]
-    assert type(arg1) == Literal
-    assert arg1.value == "0.0"
+
+    assert type(arg1) in (Literal, Reference)
+    if type(arg1) is Literal:
+        assert arg1.value == "0.0"
+    else:
+        assert arg1.symbol.name == "a"
 
 
 @pytest.mark.parametrize("name", [None, "'invoke with kernel'"])
@@ -124,11 +130,13 @@ def test_kern(name):
 
 
 @pytest.mark.parametrize("name", [None, "'invoke with builtin'"])
-def test_builtin(name):
+@pytest.mark.parametrize("only", ["", ", only : setval_c"])
+def test_builtin(name, only):
     '''Test that an invoke containing a builtin within an LFRic algorithm
     layer is transformed into LFRic-specific AlgorithmInvokeCall and
     LfricBuiltinRef classes. Also test that the optional name='xxx'
-    argument is captured correctly.
+    argument is captured correctly and that setval_c is created
+    correctly whether or not it is named in a use statement.
 
     '''
     name_arg = ""
@@ -137,13 +145,13 @@ def test_builtin(name):
     code = (
         "module algorithm_mod\n"
         "use field_mod, only: field_type\n"
-        "use psyclone_builtins, only : setval_c\n"
+        "use psyclone_builtins{0}\n"
         "contains\n"
         "  subroutine alg()\n"
         "    type(field_type) :: field\n"
-        "    call invoke(setval_c(field, 0.0){0})\n"
+        "    call invoke(setval_c(field, 0.0){1})\n"
         "  end subroutine alg\n"
-        "end module algorithm_mod\n".format(name_arg))
+        "end module algorithm_mod\n".format(only, name_arg))
 
     fortran_reader = FortranStringReader(code)
     f2008_parser = ParserFactory().create(std="f2008")
@@ -178,8 +186,9 @@ def test_mixed_multi_invoke():
         "contains\n"
         "  subroutine alg()\n"
         "    type(field_type) :: field\n"
-        "    call invoke(setval_c(field, 0.0), &\n"
-        "                kern_type(field))\n"
+        "    integer :: a\n"
+        "    call invoke(setval_c(field, a), &\n"
+        "                kern_type(0.0))\n"
         "    call invoke(name='named invoke', &\n"
         "                setval_c(field, 0.0), &\n"
         "                kern_type(field))\n"
@@ -202,33 +211,6 @@ def test_mixed_multi_invoke():
         assert len(invoke.children) == 2
         check_builtin(invoke.children[0])
         check_kernel(invoke.children[1])
-
-
-def test_multi_entry_codeblock_error():
-    '''Test that the expected exception is raised if an LFRic invoke call
-    contains a CodeBlock which itself contains more than one
-    entry. This is because a codeblock should only occur in an invoke
-    if there is a named argument and there should only be one named
-    argument. Therefore, more than one named argument with the format
-    'name = "string"'.
-
-    '''
-    code = (
-        "subroutine alg()\n"
-        "  call invoke(name='description1', name='description2')\n"
-        "end subroutine alg\n")
-    fortran_reader = FortranStringReader(code)
-    f2008_parser = ParserFactory().create(std="f2008")
-    parse_tree = f2008_parser(fortran_reader)
-
-    psyir_reader = Fparser2Reader()
-    psyir = psyir_reader.generate_psyir(parse_tree)
-    with pytest.raises(GenerationError) as info:
-        psyir_to_algpsyir(psyir)
-    assert("If the PSyIR contains a CodeBlock as an invoke argument it should "
-           "be a Fortran named argument. There should only be one named "
-           "argument. However, this code block contains multiple nodes."
-           in str(info.value))
 
 
 @pytest.mark.parametrize("named_arg", ["x = 'description'", "name = x"])
@@ -303,3 +285,28 @@ def test_unsupported_arg_error():
         psyir_to_algpsyir(psyir)
     assert("Expecting coded call, builtin call or name='xxx', but found "
            "'Reference[name:'a']'." in str(info.value))
+
+
+def test_codeblock_error():
+    '''Check that the expected exception is raised if a CodeBlock within
+    an invoke contains unexpected content.
+
+    '''
+    code = (
+        "subroutine alg()\n"
+        "  use kern, only : a\n"
+        "  call invoke(a(0.0))\n"
+        "end subroutine alg\n")
+    fortran_reader = FortranStringReader(code)
+    f2008_parser = ParserFactory().create(std="f2008")
+    parse_tree = f2008_parser(fortran_reader)
+
+    psyir_reader = Fparser2Reader()
+    psyir = psyir_reader.generate_psyir(parse_tree)
+    code_block = psyir.children[0].children[0]
+    code_block._fp2_nodes = [None]
+    with pytest.raises(InternalError) as info:
+        psyir_to_algpsyir(psyir)
+    assert("Expecting an algorithm invoke codeblock to contain either "
+           "Structure-Constructor or actual-arg-spec, but found "
+           "'NoneType'." in str(info.value))
