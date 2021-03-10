@@ -1150,12 +1150,10 @@ class GOKern(CodedKern):
             for i in [-1, 0, 1]:
                 depth = arg.stencil.depth(i, j)
                 for current_depth in range(1, depth+1):
-                    i_value = GOKern._format_access("i", i, current_depth)
-                    # The j direction is mirrored: a negative value means
-                    # positive direction
-                    j_value = GOKern._format_access("j", j, current_depth)
+                    i_expr = GOKern._format_access("i", i, current_depth)
+                    j_expr = GOKern._format_access("j", j, current_depth)
                     var_accesses.add_access(var_name, arg.access, self,
-                                            [i_value, j_value])
+                                            [i_expr, j_expr])
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
