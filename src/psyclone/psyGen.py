@@ -4193,6 +4193,13 @@ class TransInfo(object):
             my_object = my_class()
             self._objects.append(my_object)
             self._obj_map[my_object.name] = my_object
+        # Transformations that are in psyir and other subdirectories
+        # are not found by TransInfo, so we add some that are used
+        # tests and examples explicitly:
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.transformations import LoopFuseTrans
+        self._objects.append(LoopFuseTrans())
+        self._obj_map["LoopFuseTrans"] = self._objects[-1]
 
     @property
     def list(self):
