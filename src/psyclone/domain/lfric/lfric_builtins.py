@@ -1266,7 +1266,7 @@ class LFRicSignXKern(LFRicBuiltIn):
         # Return the sign of all the elements of a real-valued field
         # applied to the supplied real scalar.
         field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
-        scalar_name = self._reduction_ref(self._arguments.args[1].name)
+        scalar_name = self._arguments.args[1].name
         field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
         rhs_expr = ("sign(" + scalar_name + ", " + field_name1 + ")")
         parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
