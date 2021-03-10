@@ -789,7 +789,7 @@ def test_single_stencil_cross2d(dist_mem, tmpdir):
 
     '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.25_single_stencil_cross2d.f90"),
+        os.path.join(BASE_PATH, "19.26_single_stencil_cross2d.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
