@@ -42,7 +42,8 @@ applied via the -s option in the psyclone script.
 
 '''
 from __future__ import absolute_import, print_function
-from psyclone.transformations import DynamoLoopFuseTrans, TransformationError
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.transformations import TransformationError
 
 
 def trans(psy):
@@ -51,7 +52,7 @@ def trans(psy):
 
     '''
     total_fused = 0
-    lf_trans = DynamoLoopFuseTrans()
+    lf_trans = LFRicLoopFuseTrans()
     lf_trans.same_space = True
 
     # Loop over all of the Invokes in the PSy object

@@ -41,12 +41,14 @@
     not perform any error checking. It is used by the test system to
     ensure that transformation scripts work correctly.
 '''
+from __future__ import absolute_import
+
+from psyclone.psyir.transformations import LoopFuseTrans
 
 
 def trans(psy):
     ''' A test loop fusion transformation for use with the transformation
     unit tests '''
-    from psyclone.transformations import LoopFuseTrans
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
     loop1 = schedule.children[4]

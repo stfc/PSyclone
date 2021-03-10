@@ -38,8 +38,10 @@
 API to apply loop fusion and then OpenMP parallelisation to an invoke
 with two Kernels. This can be applied via the -s option in the
 generator.py script.'''
-from psyclone.transformations import OMPParallelTrans, DynamoLoopFuseTrans, \
-    Dynamo0p3OMPLoopTrans
+
+from psyclone.configuration import Config
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.transformations import OMPParallelTrans, Dynamo0p3OMPLoopTrans
 
 
 def trans(psy):
@@ -47,12 +49,11 @@ def trans(psy):
     loop fusion and OpenMP for a particular example.'''
     otrans = OMPParallelTrans()
     ltrans = Dynamo0p3OMPLoopTrans()
-    ftrans = DynamoLoopFuseTrans()
+    ftrans = LFRicLoopFuseTrans()
 
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
-    from psyclone.configuration import Config
     config = Config.get()
     if config.api_conf("dynamo0.3").compute_annexed_dofs and \
        config.distributed_memory:
