@@ -115,7 +115,7 @@ Please see the :ref:`algorithm-layer` section for a description of the
 Objects in the LFRic API can be categorised by their functionality
 as data structures and information that specifies supported operations on
 a particular data structure. These data structures are represented by the
-five LFRic (Dynamo0.3) API argument types: :ref:`scalar <lfric-scalar>`,
+five LFRic (Dynamo 0.3) API argument types: :ref:`scalar <lfric-scalar>`,
 :ref:`field <lfric-field>`, :ref:`field vector <lfric-field-vector>`,
 :ref:`operator <lfric-operator>` and :ref:`column-wise operator
 <lfric-cma-operator>`. All of them except the field vector are
@@ -795,9 +795,9 @@ into the halos (see rules for
 :ref:`user-supplied kernels <dynamo0.3-user-kernel-rules>` above).
 The reason for having different names is that a Kernel might be written
 to allow 2 or more arguments to be able to support any function space
-but for a particular call the function spaces may have to be the same as each
-Again, ``<nmax>`` is the :ref:`configurable <lfric-num-any-spaces>` number
-of generalised discontinuous function spaces.
+but for a particular call the function spaces may have to be the same as
+each other. Again, ``<nmax>`` is the :ref:`configurable
+<lfric-num-any-spaces>` number of generalised discontinuous function spaces.
 
 In the example below, the first field entry supports any function space but
 it must be the same as the operator's ``to`` function space. Similarly,
@@ -1015,18 +1015,18 @@ three generic function space metadata descriptors mentioned in
 sections above:
 
 * ``ANY_SPACE_<n>``, *n = 1, 2, ... nmax*, for when the function
-  space of the modified argument(s) cannot be determined and/or for
-  when a Kernel has been written so that it works with fields on any
+  space of the argument(s) cannot be determined and/or for when
+  a Kernel has been written so that it works with fields on any
   of the available spaces (as mentioned in the
   :ref:`meta_args section <dynamo0.3-api-meta-args>`, the number of
   spaces, ``<nmax>``, is :ref:`configurable <lfric-num-any-spaces>`);
 
-* ``ANY_DISCONTINUOUS_SPACE_<n>``, *n = 1, 2, ... nmax*,
-  for when the function space of the modified argument(s) cannot be
-  determined but is known to be discontinuous and/or for when a Kernel
+* ``ANY_DISCONTINUOUS_SPACE_<n>``, *n = 1, 2, ... nmax*, for when
+  the function space of the argument(s) cannot be determined
+  but is known to be discontinuous and/or for when a Kernel
   has been written so that it works with fields on any of the
-  discontinuous spaces (again, the number of spaces, ``<nmax>``, is
-  :ref:`configurable <lfric-num-any-spaces>`);
+  discontinuous spaces (again, the number of spaces, ``<nmax>``,
+  is :ref:`configurable <lfric-num-any-spaces>`);
 
 * ``ANY_W2`` for any type of a vector ``W2*`` function space, i.e. ``W2``,
   ``W2H``, ``W2V`` and ``W2broken`` but not ``W2*trace`` spaces.
@@ -2963,6 +2963,10 @@ set to ``r_def``, ``i_def`` and ``l_def``, respectively, in the
 `default_kind` dictionary in the configuration file. These default
 values are defined in the LFRic infrastructure code.
 
+.. note:: The ``logical`` Fortran primitive (intrinsic) data type is
+          not currently supported, however the support is planned for
+          a future PSyclone release.
+
 .. _lfric-num-any-spaces:
 
 Number of Generalised ``ANY_*_SPACE`` Function Spaces
@@ -2977,8 +2981,9 @@ above, the number of generalised ``ANY_SPACE_<n>`` and
 The relevant parameters are ``NUM_ANY_SPACE`` and
 ``NUM_ANY_DISCONTINUOUS_SPACE``, respectively. Their default values in
 the configuration file are 10 and their allowed values are positive
-integers (PSyclone will raise a ``ConfigurationError`` if 0 or a
-negative number is supplied).
+non-zero integers. PSyclone will raise a ``ConfigurationError`` if
+the supplied values are not integers or if 0 or a negative integer is
+supplied.
 
 .. _dynamo0.3-api-transformations:
 
