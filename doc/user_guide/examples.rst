@@ -130,27 +130,14 @@ imports that symbol from another module) and kernels that call other
 kernels (Issue #342).
 
 
-Example 5: Profiling
-^^^^^^^^^^^^^^^^^^^^
+Example 5: PSyData
+^^^^^^^^^^^^^^^^^^
+This directory contains all examples that use the
+:ref:`PSyData API<psy_Data>`. At this stage there are three
+runnable examples:
 
-This example shows how to use the profiling support in PSyclone.
-It instruments two invoke statements and can link in with any
-of the following profiling wrapper libraries: template,
-simple_timer, apeg-dl_timer, lfric, and DrHook (see
-:ref:`profiling_third_party_tools`). The ``README.md``
-file contains detailed instructions on how to build the
-different executables. By default (i.e. just using ``make``
-without additional parameters) it links in with the
-template profiling library included in PSyclone. This library just
-prints out the name of the module and region before and after each
-invoke is executed. This example can actually be executed to
-test the behaviour of the various profiling wrappers, and is
-also useful if you want to develop your own wrapper libraries.
-
-
-Example 6: Kernel data extraction
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
+Example 5.1: Kernel data extraction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This example shows the use of kernel data extraction in PSyclone.
 It instruments each of the two invokes in the example program
 with the PSyData-based kernel extraction code.
@@ -172,11 +159,27 @@ and then executes the original code.
     At this stage the driver program will not compile
     (see issue #644).
 
-.. _gocean_example_7:
 
-Example 7: Read-only-verification
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example 5.2: Profiling
+~~~~~~~~~~~~~~~~~~~~~~
+This example shows how to use the profiling support in PSyclone.
+It instruments two invoke statements and can link in with any
+of the following profiling wrapper libraries: template,
+simple_timer, dl_timer, and DrHook (see
+:ref:`profiling_third_party_tools`). The ``README.md``
+file contains detailed instructions on how to build the
+different executables. By default (i.e. just using ``make``
+without additional parameters) it links in with the
+template profiling library included in PSyclone. This library just
+prints out the name of the module and region before and after each
+invoke is executed. This example can actually be executed to
+test the behaviour of the various profiling wrappers, and is
+also useful if you want to develop your own wrapper libraries.
 
+.. _gocean_example_readonly:
+
+Example 5.3: Read-only-verification
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This example shows the use of read-only-verification with PSyclone.
 It instruments each of the two invokes in the example program
 with the PSyData-based read-only-verification code.
@@ -212,6 +215,11 @@ read-only variables:
     Original value:    1.0000000000000000     
     New value:         123.00000000000000     
     --------------------------------------
+
+Example 6: PSy-layer Code Creation using PSyIR
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This example informs the development of the code generation of PSy-layer
+code using the PSyIR language backends.
 
 
 .. _examples_lfric:

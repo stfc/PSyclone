@@ -1467,6 +1467,39 @@ class DynStencils(DynCollection):
         unique = DynStencils.stencil_unique_str(arg, "length")
         return symtab.symbol_from_tag(unique, root_name).name
 
+    def _unique_max_branch_length_vars(self):
+        '''
+        :returns: list of all the unique max stencil extent argument names in
+                  this kernel call for cross2d stencils.
+        :rtype: list of str
+        '''
+        names = []
+        for arg in self._kern_args:
+            if arg.descriptor.stencil['type'] == "cross2d":
+                names.append(arg.name + "_max_branch_length")
+
+        return names
+
+    def _declare_unique_max_branch_length_vars(self, parent):
+        '''
+        Declare all unique max branch length arguments as integers with intent
+        in and add the declaration as a child of the parent argument passed
+        in.
+
+        :param parent: the node in the f2pygen AST to which to add the \
+                       declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        if self._unique_max_branch_length_vars():
+            parent.add(DeclGen(
+                parent, datatype="integer",
+                kind=api_config.default_kind["integer"],
+                entity_decls=self._unique_max_branch_length_vars(), intent="in"
+            ))
+
     @staticmethod
     def direction_name(symtab, arg):
         '''
@@ -1521,10 +1554,27 @@ class DynStencils(DynCollection):
         api_config = Config.get().api_conf("dynamo0.3")
 
         if self._unique_extent_vars:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=self._unique_extent_vars,
-                               intent="in"))
+            if self._kernel:
+                for arg in self._kern_args:
+                    if arg.descriptor.stencil['type'] == "cross2d":
+                        parent.add(DeclGen(
+                            parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            dimension="4",
+                            entity_decls=self._unique_extent_vars, intent="in"
+                        ))
+                    else:
+                        parent.add(DeclGen(
+                            parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            entity_decls=self._unique_extent_vars,
+                            intent="in"))
+            elif self._invoke:
+                parent.add(DeclGen(
+                    parent, datatype="integer",
+                    kind=api_config.default_kind["integer"],
+                    entity_decls=self._unique_extent_vars, intent="in"
+                ))
 
     @property
     def _unique_direction_vars(self):
@@ -1592,6 +1642,7 @@ class DynStencils(DynCollection):
         '''
         self._declare_unique_extent_vars(parent)
         self._declare_unique_direction_vars(parent)
+        self._declare_unique_max_branch_length_vars(parent)
         self._declare_maps_stub(parent)
 
     def initialise(self, parent):
@@ -1780,12 +1831,21 @@ class DynStencils(DynCollection):
 
         symtab = self._symbol_table
         for arg in self._kern_args:
-            parent.add(DeclGen(
-                parent, datatype="integer",
-                kind=api_config.default_kind["integer"], intent="in",
-                dimension=",".join([arg.function_space.ndf_name,
-                                    self.dofmap_size_name(symtab, arg)]),
-                entity_decls=[self.dofmap_name(symtab, arg)]))
+            if arg.descriptor.stencil['type'] == "cross2d":
+                parent.add(DeclGen(
+                    parent, datatype="integer",
+                    kind=api_config.default_kind["integer"], intent="in",
+                    dimension=",".join([arg.function_space.ndf_name,
+                                        self.max_branch_length_name(
+                                            symtab, arg), "4"]),
+                    entity_decls=[self.dofmap_name(symtab, arg)]))
+            else:
+                parent.add(DeclGen(
+                    parent, datatype="integer",
+                    kind=api_config.default_kind["integer"], intent="in",
+                    dimension=",".join([arg.function_space.ndf_name,
+                                        self.dofmap_size_name(symtab, arg)]),
+                    entity_decls=[self.dofmap_name(symtab, arg)]))
 
 
 class LFRicMeshProperties(DynCollection):
