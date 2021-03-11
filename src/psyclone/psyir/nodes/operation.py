@@ -227,10 +227,15 @@ class BinaryOperation(Operation):
 
     Casting Operators:
 
-    .. function:: REAL(arg0, nbytes)
+    .. function:: REAL(arg0, precision)
 
-       :returns: `arg0` converted to a floating point number represented by a \
-                 word of `nbytes` of storage.
+       :returns: `arg0` converted to a floating point number in the \
+                 specified precision.
+
+    .. function:: INT(arg0, precision)
+
+       :returns: `arg0` converted to an integer number in the specified \
+                  precision.
 
     Matrix and Vector Operators:
 
@@ -259,11 +264,6 @@ class BinaryOperation(Operation):
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode"
     _text_name = "BinaryOperation"
-
-    def __init__(self, operator, parent=None, annotations=None):
-        super(BinaryOperation, self).__init__(operator, parent=parent)
-        if annotations:
-            self._annotations = annotations
 
     @staticmethod
     def _validate_child(position, child):

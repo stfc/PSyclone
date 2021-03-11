@@ -523,23 +523,6 @@ def _kind_symbol_from_name(name, symbol_table):
     return kind_symbol
 
 
-def _convert_kind_to_bytes(node):
-    '''
-    Converts the supplied PSyIR expression for a KIND value into the
-    corresponding number of bytes required to represent a variable of
-    this KIND.
-    This conversion is not specified by the Fortran standard and therefore
-    depends on the compiler (and compiler flags) being used.
-
-    :param node: root of PSyIR sub-tree representing a KIND value.
-
-    :returns: the number of bytes of storage required for the given KIND.
-    :rtype: :py:class:`psyclone.psyir.nodes.Literal`
-
-    '''
-    return Literal("8", default_integer_type())
-
-
 def default_precision(_):
     '''Returns the default precision specified by the front end. This is
     currently always set to undefined irrespective of the datatype but
@@ -3061,23 +3044,10 @@ class Fparser2Reader(object):
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str)
 
-        if operator == BinaryOperation.Operator.REAL:
-            binary_op = BinaryOperation(
-                operator, parent=parent,
-                annotations=["kind="+str(arg_nodes[1])])
-        else:
-            binary_op = BinaryOperation(operator, parent=parent)
+        binary_op = BinaryOperation(operator, parent=parent)
 
         self.process_nodes(parent=binary_op, nodes=[arg_nodes[0]])
         self.process_nodes(parent=binary_op, nodes=[arg_nodes[1]])
-
-        if operator == BinaryOperation.Operator.REAL:
-            # The second argument to the REAL intrinsic must evaluate to
-            # an integer that specifies the KIND of the result. To make
-            # this language independent, we must convert this to a number
-            # of bytes.
-            nbytes = _convert_kind_to_bytes(binary_op.children[1])
-            binary_op.children[1] = nbytes
 
         return binary_op
 
