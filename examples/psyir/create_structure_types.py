@@ -112,12 +112,12 @@ INDEX_SYMBOL = SYMBOL_TABLE.new_symbol(root_name="i", symbol_type=DataSymbol,
 
 
 # Some predefined scalar literal nodes
-def two():
+def real_two():
     ''' Generate a Literal'''
     return Literal("2.0", SCALAR_TYPE)
 
 
-def one():
+def int_one():
     ''' Generate a Literal'''
     return Literal("1", INTEGER8_TYPE)
 
@@ -131,28 +131,28 @@ DX_REF = StructureReference.create(FIELD_SYMBOL, ["grid", "dx"])
 # Array reference to component of derived type using a range
 LBOUND = BinaryOperation.create(
     BinaryOperation.Operator.LBOUND,
-    StructureReference.create(FIELD_SYMBOL, ["data"]), one())
+    StructureReference.create(FIELD_SYMBOL, ["data"]), int_one())
 UBOUND = BinaryOperation.create(
     BinaryOperation.Operator.UBOUND,
-    StructureReference.create(FIELD_SYMBOL, ["data"]), one())
+    StructureReference.create(FIELD_SYMBOL, ["data"]), int_one())
 MY_RANGE = Range.create(LBOUND, UBOUND)
 
 DATA_REF = StructureReference.create(FIELD_SYMBOL, [("data", [MY_RANGE])])
 
 # Reference to "field%sub_meshes(1)%dx"
-DX_REF2 = StructureReference.create(FIELD_SYMBOL, [("sub_meshes", [one()]),
+DX_REF2 = StructureReference.create(FIELD_SYMBOL, [("sub_meshes", [int_one()]),
                                                    "dx"])
 
 # Reference to "chi(1)%sub_meshes(1)%dx"
-DX_REF3 = ArrayOfStructuresReference.create(FIELD_BUNDLE_SYMBOL, [one()],
-                                            [("sub_meshes", [one()]), "dx"])
+DX_REF3 = ArrayOfStructuresReference.create(
+    FIELD_BUNDLE_SYMBOL, [int_one()], [("sub_meshes", [int_one()]), "dx"])
 
 ASSIGNMENTS = [
-    Assignment.create(DX_REF, two()),
-    Assignment.create(FLAG_REF, two()),
-    Assignment.create(DATA_REF, two()),
-    Assignment.create(DX_REF2, two()),
-    Assignment.create(DX_REF3, two())]
+    Assignment.create(DX_REF, real_two()),
+    Assignment.create(FLAG_REF, int_one()),
+    Assignment.create(DATA_REF, real_two()),
+    Assignment.create(DX_REF2, real_two()),
+    Assignment.create(DX_REF3, real_two())]
 
 # KernelSchedule
 KERNEL_SCHEDULE = KernelSchedule.create("work", SYMBOL_TABLE, ASSIGNMENTS)

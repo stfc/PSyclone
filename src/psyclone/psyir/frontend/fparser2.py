@@ -2411,6 +2411,9 @@ class Fparser2Reader(object):
             clause = node.content[start_idx]
             case = clause.items[0]
 
+            # We add currentparent temporally as the parent to aid in symbol
+            # table resolutions, but it may not be the right parent and it may
+            # have to be modified if it's added to a different parent node.
             ifblock = IfBlock(parent=currentparent, annotations=['was_case'])
             if idx == 0:
                 # If this is the first IfBlock then have it point to
@@ -2441,8 +2444,8 @@ class Fparser2Reader(object):
                 # case in the last else branch.
                 elsebody = Schedule(parent=currentparent)
                 currentparent.addchild(elsebody)
-                # The parent=currentparent if the IfBlock constructor was
-                # wrong, but its needed for symbol table resolutions
+                # The parent=currentparent of the IfBlock constructor was
+                # wrong, but it's needed for symbol table resolutions.
                 ifblock.parent = None
                 elsebody.addchild(ifblock)
                 ifblock.parent = elsebody

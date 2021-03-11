@@ -45,7 +45,7 @@ from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import Symbol, SymbolTable
+from psyclone.psyir.symbols import SymbolTable
 
 
 # =============================================================================

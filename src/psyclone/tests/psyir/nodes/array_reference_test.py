@@ -202,8 +202,7 @@ def test_array_is_lower_bound():
     assert not array.is_lower_bound(0)
 
     # range node does not have a binary operator for its start value
-    one = Literal("1", INTEGER_TYPE)
-    array.children[0] = Range.create(one, one.copy(), one.copy())
+    array.children[0] = Range.create(one.copy(), one.copy(), one.copy())
     assert not array.is_lower_bound(0)
 
     # range node lbound references a different array
@@ -217,17 +216,14 @@ def test_array_is_lower_bound():
 
     # range node lbound references a different index
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, array,
+        BinaryOperation.Operator.LBOUND, array.copy(),
         Literal("2", INTEGER_TYPE))
     array.children[0] = Range.create(operator, one.copy(), one.copy())
     assert not array.is_lower_bound(0)
 
     # all is well
-    array = ArrayReference.create(DataSymbol("test",
-                                             ArrayType(REAL_TYPE, [10])),
-                                  [one.copy()])
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, array, one.copy())
+        BinaryOperation.Operator.LBOUND, array.copy(), one.copy())
     array.children[0] = Range.create(operator, one.copy(), one.copy())
     assert array.is_lower_bound(0)
 
@@ -264,17 +260,14 @@ def test_array_is_upper_bound():
 
     # range node ubound references a different index
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, array,
+        BinaryOperation.Operator.UBOUND, array.copy(),
         Literal("2", INTEGER_TYPE))
     array.children[0] = Range.create(one.copy(), operator, one.copy())
     assert not array.is_upper_bound(0)
 
     # all is well
-    array = ArrayReference.create(DataSymbol("test",
-                                             ArrayType(REAL_TYPE, [10])),
-                                  [one.copy()])
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, array, one.copy())
+        BinaryOperation.Operator.UBOUND, array.copy(), one.copy())
     array.children[0] = Range.create(one.copy(), operator, one.copy())
     assert array.is_upper_bound(0)
 

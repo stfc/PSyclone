@@ -799,12 +799,25 @@ def test_children_is_orphan_validation():
     # It can be added when it has been detached from its previous parent
     schedule2.addchild(statement.detach())
 
-    # The only exception at the moment is if it is already the same
-    # parent. This is because the parent-child is currently set in 2 steps,
-    # and the parent reference may already been provided, but is causes false
-    # negatives like the case below.
-    # TODO: #294 Could solve this issue by making the parent-child set atomic
-    schedule2.addchild(schedule2.children[0])
+
+@pytest.mark.xfail(reason="Adding non-orphan nodes to the same parent where "
+                          "it already belongs to doesn't make it fail at the "
+                          "moment. #294. Could solve this issue by making the"
+                          " parent-child set atomic.")
+def test_children_is_orphan_same_parent():
+    ''' Test children addition operations with a node that is not an orphan
+    but is belongs to the same parent where it is added to.'''
+    # Create 2 schedules and add a child in the first Schedule
+    schedule1 = Schedule()
+    schedule2 = Schedule()
+    statement = Return(parent=schedule1)
+    schedule1.addchild(statement)
+
+    with pytest.raises(GenerationError) as error:
+        schedule2.addchild(schedule2.children[0])
+    assert ("Item 'Return' can't be added as child of 'Schedule' because "
+            "it is not an orphan. It already has a 'Schedule' as a parent."
+            in str(error.value))
 
 
 def test_children_setter():
@@ -955,7 +968,7 @@ def test_pop_all_children():
     # Execute pop_all_children method
     result = parent.pop_all_children()
 
-    # Check the resulting nodes and connections are the expected
+    # Check the resulting nodes and connections are as expected
     assert isinstance(result, list)
     assert len(parent.children) == 0
     assert node1.parent is None
@@ -964,7 +977,7 @@ def test_pop_all_children():
 
 
 def test_detach():
-    ''' Check that the detach method removes oneself from its parent node. '''
+    ''' Check that the detach method removes a node from its parent node. '''
 
     # Create a PSyIR tree
     parent = Schedule()
@@ -976,7 +989,7 @@ def test_detach():
     # Execute the detach method on node 1, it should return itself
     assert node1.detach() is node1
 
-    # Check the resulting nodes and connections are the expected
+    # Check that the resulting nodes and connections are correct
     assert node1.parent is None
     assert len(parent.children) == 1
     assert parent.children[0] is node2

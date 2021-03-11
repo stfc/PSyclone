@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Laboratory
 
 '''Module providing a transformation from a PSyIR MATMUL operator to
 PSyIR code. This could be useful if the MATMUL operator is not

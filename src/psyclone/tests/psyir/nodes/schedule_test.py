@@ -139,9 +139,9 @@ def test_sched_children_validation():
 
 
 def test_schedule_cannot_be_copied():
-    ''' Test that an Schedule cannot be copied yet. '''
+    ''' Test that a Schedule cannot be copied yet. '''
     schedule = Schedule()
 
     with pytest.raises(NotImplementedError) as err:
         _ = schedule.copy()
-    assert ("Schedule copies are currently not supported." in str(err.value))
+    assert "Schedule copies are currently not supported." in str(err.value)

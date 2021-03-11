@@ -41,7 +41,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 from psyclone.configuration import Config
 from psyclone.nemo import NemoInvoke
-from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, Node
+from psyclone.psyir.nodes import PSyDataNode, Schedule, Return
 from psyclone.psyGen import InvokeSchedule, OMPDoDirective, ACCDirective, \
     ACCLoopDirective
 from psyclone.psyir.transformations.region_trans import RegionTrans

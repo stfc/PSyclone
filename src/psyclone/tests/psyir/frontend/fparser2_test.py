@@ -2100,10 +2100,12 @@ def test_handling_if_construct():
     assert len(ifnode.children) == 3
     assert ifnode.condition.children[0].name == 'condition1'
     assert isinstance(ifnode.children[1], Schedule)
+    assert ifnode.children[1].parent is ifnode
     assert ifnode.children[1].ast is fparser2if_construct.content[1]
     assert ifnode.children[1].ast_end is fparser2if_construct.content[2]
     assert ifnode.if_body[0].children[0].name == 'branch1'
     assert isinstance(ifnode.children[2], Schedule)
+    assert ifnode.children[2].parent is ifnode
     assert ifnode.children[2].ast is fparser2if_construct.content[3]
 
     # Second level contains condition2, branch2, elsebody
@@ -2111,8 +2113,10 @@ def test_handling_if_construct():
     assert 'was_elseif' in ifnode.annotations
     assert ifnode.condition.children[0].name == 'condition2'
     assert isinstance(ifnode.children[1], Schedule)
+    assert ifnode.children[1].parent is ifnode
     assert ifnode.if_body[0].children[0].name == 'branch2'
     assert isinstance(ifnode.children[2], Schedule)
+    assert ifnode.children[2].parent is ifnode
 
     # Third level is just branch3
     elsebody = ifnode.else_body[0]

@@ -41,8 +41,8 @@ This module contains the abstract Node implementation.
 
 '''
 import abc
-import six
 import copy
+import six
 from psyclone.psyir.symbols import SymbolError
 from psyclone.errors import GenerationError, InternalError
 
@@ -140,12 +140,12 @@ class ChildrenList(list):
 
     def _check_is_orphan(self, item):
         '''
-        Checks that the provided item is orphan.
+        Checks that the provided item is an orphan (has no parent).
 
         :param item: object that needs to be validated.
         :type item: :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises GenerationError: if the given item is not orpahn.
+        :raises GenerationError: if the given item is not an orphan.
         '''
         # The `item.parent is not self._node_reference` below should ideally be
         # removed as this still allows a single node to be a child of another
@@ -1194,8 +1194,7 @@ class Node(object):
         self.parent = None
 
     def pop_all_children(self):
-        ''' Remove from the children list and return all the children of this
-        node.
+        ''' Remove all children of this node and return them as a list.
 
         :returns: all the children of this node as orphan nodes.
         :rtype: list of :py:class:`psyclone.psyir.node.Node`
@@ -1209,8 +1208,8 @@ class Node(object):
         return free_children
 
     def detach(self):
-        ''' Detach this node from the tree it belongs to. This is necessary to
-        insert it as the child of another node.
+        ''' Detach this node from the tree it belongs to. This is necessary
+        as a precursor to inserting it as the child of another node.
 
         :returns: this node detached from its parent.
         :rtype: :py:class:`psyclone.psyir.node.Node`
@@ -1237,15 +1236,15 @@ class Node(object):
 
     def copy(self):
         ''' Return a copy of this node. This is a bespoke implementation for
-        PSyIR nodes copy operations that will deepcopy some of its recursive
-        data-structure (e.g. the children tree), while not copy other
-        attributes (e.g. top-level parent reference).
+        PSyIR nodes that will deepcopy some of its recursive data-structure 
+        (e.g. the children tree), while not copying other attributes (e.g.
+        top-level parent reference).
 
         :returns: a copy of this node and its children.
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        # Start with a Shallow copy of the object
+        # Start with a shallow copy of the object
         new_instance = copy.copy(self)
         # and then refine the elements that shouldn't be shallow copied
         # pylint: disable=protected-access

@@ -235,17 +235,15 @@ class LoopFuseTrans(LoopTrans):
         # Create a memento of the schedule and the proposed transformation
         keep = Memento(schedule, self, [node1, node2])
 
+        # Remove node2 from the parent
+        node2.detach()
+
         # Add loop contents of node2 to node1
-        for child in node2.loop_body:
-            child.parent = None
-        node1.loop_body.children.extend(node2.loop_body)
+        node1.loop_body.children.extend(node2.loop_body.pop_all_children())
 
         # Change the parent of the loop contents of node2 to node1
-        for child in node2.loop_body:
+        for child in node1.loop_body:
             child.parent = node1.loop_body
-
-        # Remove node2
-        node2.parent.children.remove(node2)
 
         return schedule, keep
 
@@ -1400,12 +1398,11 @@ class ColourTrans(LoopTrans):
         colours_loop.loop_body.addchild(colour_loop)
 
         # add contents of node to colour loop
-        for child in node.loop_body:
-            child.parent = None
-        colour_loop.loop_body.children.extend(node.loop_body)
+        colour_loop.loop_body.children.extend(
+                node.loop_body.pop_all_children())
 
         # change the parent of the node's contents to the colour loop
-        for child in node.loop_body:
+        for child in colour_loop.loop_body:
             child.parent = colour_loop.loop_body
 
         # remove original loop
@@ -1689,31 +1686,18 @@ class ParallelRegionTrans(RegionTrans):
         # Create the parallel directive as a child of the
         # parent of the nodes being enclosed and with those nodes
         # as its children.
-        # We slice the nodes list in order to get a new list object
-        # (although the actual items in the list are still those in the
-        # original). If we don't do this then we get an infinite
-        # recursion in the new schedule.
-        node_list_copy = node_list[:]
-        for node in node_list_copy:
-            node.parent = None
-        directive = self._pdirective(parent=node_parent,
-                                     children=node_list_copy)
+        directive = self._pdirective(
+            parent=node_parent, children=[node.detach() for node in node_list])
 
         # Change all of the affected children so that they have
-        # the region directive's Schedule as their parent. Note
-        # that node_list is a copy, so we can remove children
-        # from the tree without affecting the content of
-        # node_list
+        # the region directive's Schedule as their parent.
         for child in node_list:
-            # Remove child from the parent's list of children
-            node_parent.children.remove(child)
             child.parent = directive.dir_body
 
         # Add the region directive as a child of the parent
         # of the nodes being enclosed and at the original location
         # of the first of these nodes
-        node_parent.addchild(directive,
-                             index=node_position)
+        node_parent.addchild(directive, index=node_position)
 
         return schedule, keep
 
@@ -3263,13 +3247,13 @@ class ACCKernelsTrans(RegionTrans):
         '''
         return "ACCKernelsTrans"
 
-    def apply(self, nodes, options=None):
+    def apply(self, node, options=None):
         '''
         Enclose the supplied list of PSyIR nodes within an OpenACC
         Kernels region.
 
-        :param nodes: a node or list of nodes in the PSyIR to enclose.
-        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
+        :param node: a node or list of nodes in the PSyIR to enclose.
+        :type node: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["default_present"]: whether or not the kernels \
@@ -3283,8 +3267,8 @@ class ACCKernelsTrans(RegionTrans):
 
         '''
         # Ensure we are always working with a list of nodes, even if only
-        # one was supplied via the `nodes` argument.
-        node_list = self.get_node_list(nodes)
+        # one was supplied via the `node` argument.
+        node_list = self.get_node_list(node)
 
         self.validate(node_list, options)
 
@@ -3293,24 +3277,17 @@ class ACCKernelsTrans(RegionTrans):
 
         parent = node_list[0].parent
         schedule = node_list[0].root
+        start_index = parent.children.index(node_list[0])
 
         if not options:
             options = {}
         default_present = options.get("default_present", False)
 
-        # Create the directive and insert it. Take a copy of the list
-        # as it may just be a reference to the parent.children list
-        # that we are about to modify.
+        # Create a directive containing the nodes in node_list and insert it.
         from psyclone.psyGen import ACCKernelsDirective
-        for child in node_list:
-            child.parent = None
-        directive = ACCKernelsDirective(parent=parent,
-                                        children=node_list[:],
-                                        default_present=default_present)
-        start_index = parent.children.index(node_list[0])
-
-        for child in directive.dir_body.children:
-            parent.children.remove(child)
+        directive = ACCKernelsDirective(
+                parent=parent, children=[node.detach() for node in node_list],
+                default_present=default_present)
 
         parent.children.insert(start_index, directive)
 
@@ -3394,12 +3371,12 @@ class ACCDataTrans(RegionTrans):
         '''
         return "ACCDataTrans"
 
-    def apply(self, nodes, options=None):
+    def apply(self, node, options=None):
         '''
         Put the supplied node or list of nodes within an OpenACC data region.
 
-        :param nodes: the PSyIR node(s) to enclose in the data region.
-        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
+        :param node: the PSyIR node(s) to enclose in the data region.
+        :type node: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -3409,8 +3386,8 @@ class ACCDataTrans(RegionTrans):
 
         '''
         # Ensure we are always working with a list of nodes, even if only
-        # one was supplied via the `nodes` argument.
-        node_list = self.get_node_list(nodes)
+        # one was supplied via the `node` argument.
+        node_list = self.get_node_list(node)
 
         self.validate(node_list, options)
 
@@ -3419,18 +3396,14 @@ class ACCDataTrans(RegionTrans):
 
         parent = node_list[0].parent
         schedule = node_list[0].root
-
-        # Create the directive and insert it. Take a copy of the list
-        # as it may just be a reference to the parent.children list
-        # that we are about to modify.
-        from psyclone.psyGen import ACCDataDirective
-        for node in node_list:
-            node.parent = None
-        directive = ACCDataDirective(parent=parent, children=node_list[:])
         start_index = parent.children.index(node_list[0])
 
-        for child in directive.dir_body[:]:
-            parent.children.remove(child)
+        # Create a directive containing the nodes in node_list and insert it.
+        from psyclone.psyGen import ACCDataDirective
+        directive = ACCDataDirective(
+                parent=parent, children=[node.detach() for node in node_list])
+
+        for child in directive.dir_body:
             child.parent = directive.dir_body
 
         parent.children.insert(start_index, directive)

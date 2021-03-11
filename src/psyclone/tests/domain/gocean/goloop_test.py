@@ -75,8 +75,6 @@ def test_goloop_no_children():
     gosched.addchild(gojloop)
     goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
     gojloop.loop_body.addchild(goiloop)
-    gojloop.parent = gosched
-    goiloop.parent = gojloop.loop_body
     # Try and generate the code for this loop even though it
     # has no children
     with pytest.raises(GenerationError):
@@ -93,8 +91,6 @@ def test_goloop_unsupp_offset():
     gosched.addchild(gojloop)
     goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
     gojloop.loop_body.addchild(goiloop)
-    gojloop.parent = gosched
-    goiloop.parent = gojloop.loop_body
     gokern = GOKern()
     # Set the index-offset of this kernel to a value that is not
     # supported when using constant loop bounds
@@ -112,8 +108,6 @@ def test_goloop_unmatched_offsets():
     gosched.addchild(gojloop)
     goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
     gojloop.loop_body.addchild(goiloop)
-    gojloop.parent = gosched
-    goiloop.parent = gojloop.loop_body
     gokern1 = GOKern()
     gokern2 = GOKern()
     # Set the index-offset of this kernel to a value that is not

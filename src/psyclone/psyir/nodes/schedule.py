@@ -96,7 +96,6 @@ class Schedule(Node):
         '''
         raise NotImplementedError(
             "Schedule copies are currently not supported.")
-        # super(Schedule, self)._refine_copy(other)
 
     @property
     def dag_name(self):

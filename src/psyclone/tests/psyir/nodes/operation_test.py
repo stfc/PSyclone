@@ -375,6 +375,7 @@ def test_operations_can_be_copied():
     assert operation1.children[2].symbol.name == "tmp3"
     assert operation1.children[2] is not operands[2]
     assert operation1.children[2].parent is operation1
+    assert len(operation1.children) == 3
     assert len(operation.children) == 3
 
     # Modifying the new operation does not affect the original

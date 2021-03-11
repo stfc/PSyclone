@@ -162,10 +162,10 @@ def test_validate4():
 
     '''
     trans = Matmul2CodeTrans()
-    x_symbol = DataSymbol("x",  ArrayType(REAL_TYPE, [10]))
-    y_symbol = DataSymbol("y", ArrayType(REAL_TYPE, [10, 10]))
-    vector = Reference(x_symbol)
-    array = Reference(y_symbol)
+    vector_type = ArrayType(REAL_TYPE, [10])
+    array_type = ArrayType(REAL_TYPE, [10, 10])
+    vector = Reference(DataSymbol("x", vector_type))
+    array = Reference(DataSymbol("y", array_type))
     matmul = BinaryOperation.create(
         BinaryOperation.Operator.MATMUL, array, vector)
     rhs = BinaryOperation.create(
@@ -185,8 +185,9 @@ def test_validate5():
 
     '''
     trans = Matmul2CodeTrans()
-    x_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
-    array = ArrayReference.create(x_symbol, [Literal("10", INTEGER_TYPE)])
+    array_type = ArrayType(REAL_TYPE, [10])
+    array = ArrayReference.create(DataSymbol("x", array_type),
+                                  [Literal("10", INTEGER_TYPE)])
     mult = BinaryOperation.create(
         BinaryOperation.Operator.MUL, array.copy(), array.copy())
     matmul = BinaryOperation.create(
@@ -207,13 +208,10 @@ def test_validate6():
 
     '''
     trans = Matmul2CodeTrans()
-    x_symbol = DataSymbol("x", REAL_TYPE)
-    scalar = Reference(x_symbol)
-    scalar_1 = Reference(x_symbol)
-    scalar_2 = Reference(x_symbol)
+    scalar = Reference(DataSymbol("x", REAL_TYPE))
     matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, scalar, scalar_1)
-    _ = Assignment.create(scalar_2, matmul)
+        BinaryOperation.Operator.MATMUL, scalar, scalar.copy())
+    _ = Assignment.create(scalar.copy(), matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: Expected children of a MATMUL "
@@ -481,20 +479,21 @@ def test_apply4(tmpdir):
     '''Test that the matmul2code apply method produces the expected
     PSyIR. We use the Fortran backend to help provide the test for
     correctness. This example make the lhs be the same array as the
-    one of the matmul second operand (the vector in this case).
+    one of the second operand of the matmul (the vector in this case).
 
-    Note: Is this equivalent to matmul?
     '''
     trans = Matmul2CodeTrans()
+    one = Literal("1", INTEGER_TYPE)
+    five = Literal("5", INTEGER_TYPE)
     matmul = create_matmul()
     assignment = matmul.parent
     vector = assignment.scope.symbol_table.lookup("y")
     assignment.children[0] = ArrayReference.create(
-        vector, [Literal("1", INTEGER_TYPE), Literal("1", INTEGER_TYPE)])
+            vector, [Range.create(one, five, one.copy()),
+                     Literal("1", INTEGER_TYPE)])
     trans.apply(matmul)
     writer = FortranWriter()
     result = writer(matmul.root)
-    print(result)
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
