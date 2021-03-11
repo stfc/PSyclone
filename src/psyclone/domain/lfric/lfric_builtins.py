@@ -46,6 +46,7 @@ from psyclone.psyGen import BuiltIn
 from psyclone.parse.utils import ParseError
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.f2pygen import AssignGen
+from psyclone.configuration import Config
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -198,6 +199,8 @@ class LFRicBuiltIn(BuiltIn):
         :raises ParseError: if a built-in kernel does not have at least \
                             one field argument.
         :raises ParseError: if all field arguments are not on the same space.
+        :raises ParseError: if all field arguments of a non-conversion \
+                            built-in do not have the same data type.
 
         '''
         # Check that our assumption that we're looping over DoFs is valid
@@ -210,6 +213,8 @@ class LFRicBuiltIn(BuiltIn):
         write_count = 0  # Only one argument must be written to
         field_count = 0  # We must have one or more fields as arguments
         spaces = set()   # All field arguments must be on the same space
+        # Field data types must be the same except for the conversion built-ins
+        data_types = set()
         for arg in self.arg_descriptors:
             # Check valid argument types
             if arg.argument_type not in VALID_BUILTIN_ARG_TYPES:
@@ -226,6 +231,7 @@ class LFRicBuiltIn(BuiltIn):
             if arg.argument_type in LFRicArgDescriptor.VALID_FIELD_NAMES:
                 field_count += 1
                 spaces.add(arg.function_space)
+                data_types.add(arg.data_type)
 
         if write_count != 1:
             raise ParseError("A built-in kernel in the LFRic API must "
@@ -242,6 +248,17 @@ class LFRicBuiltIn(BuiltIn):
                 "All field arguments to a built-in in the LFRic API "
                 "must be on the same space. However, found spaces {0} for "
                 "arguments to '{1}'".format(spaces_str, self.name))
+
+        conversion_builtins = ["int_X", "real_X"]
+        conversion_builtins_lower = [x.lower() for x in conversion_builtins]
+        if len(data_types) != 1 and self.name not in conversion_builtins_lower:
+            data_types_str = [str(x) for x in sorted(data_types)]
+            raise ParseError(
+                "In the LFRic API only the data type conversion built-ins "
+                "{0} are allowed to have field arguments of different "
+                "data types. However, found different data types "
+                "{1} for field arguments to '{2}'.".
+                format(conversion_builtins, data_types_str, self.name))
 
     def array_ref(self, fld_name):
         '''
@@ -382,9 +399,60 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
                              rhs=field_name1 + " + " + field_name2))
 
 
+class LFRicAPlusXKern(LFRicBuiltIn):
+    ''' `Y = a + X` where `a` is a real scalar and `X` and `Y` are
+    real-valued fields (DoF-wise addition of a scalar value).
+
+    '''
+    def __str__(self):
+        return "Built-in: a_plus_X (real-valued fields)"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        a_plus_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # We add a scalar value to each element of f1 and store the
+        # result in f2 (real-valued fields).
+        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
+        scalar_name = self._arguments.args[1].name
+        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        parent.add(AssignGen(parent, lhs=field_name2,
+                             rhs=scalar_name + " + " + field_name1))
+
+
+class LFRicIncAPlusXKern(LFRicBuiltIn):
+    ''' `X = a + X` where `a` is a real scalar and `X` is a real-valued
+    field (DoF-wise addition of a scalar value).
+
+    '''
+    def __str__(self):
+        return "Built-in: inc_a_plus_X (real-valued field)"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        inc_a_plus_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # We add a scalar value to each element of f1 and return the
+        # result in f1 (real-valued fields).
+        field_name = self.array_ref(self._arguments.args[1].proxy_name)
+        scalar_name = self._arguments.args[0].name
+        parent.add(AssignGen(parent, lhs=field_name,
+                             rhs=scalar_name + " + " + field_name))
+
+
 class LFRicAXPlusYKern(LFRicBuiltIn):
-    ''' Z = a.X + Y where 'a' is a real scalar and 'Z', 'X' and
-    'Y' are real-valued fields.
+    ''' `Z = a*X + Y` where `a` is a real scalar and `Z`, `X` and
+    `Y` are real-valued fields.
 
     '''
     def __str__(self):
@@ -412,7 +480,7 @@ class LFRicAXPlusYKern(LFRicBuiltIn):
 
 
 class LFRicIncAXPlusYKern(LFRicBuiltIn):
-    ''' X = a.X + Y where 'a' is a real scalar and 'X' and 'Y' are
+    ''' `X = a*X + Y` where `a` is a real scalar and `X` and `Y` are
     real-valued fields.
 
     '''
@@ -440,7 +508,7 @@ class LFRicIncAXPlusYKern(LFRicBuiltIn):
 
 
 class LFRicIncXPlusBYKern(LFRicBuiltIn):
-    ''' X = X + b.Y where 'b' is a real scalar and 'X' and 'Y' are
+    ''' `X = X + b*Y` where `b` is a real scalar and `X` and `Y` are
     real-valued fields.
 
     '''
@@ -468,8 +536,8 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
 
 
 class LFRicAXPlusBYKern(LFRicBuiltIn):
-    ''' Z = a.X + b.Y where 'a' and 'b' are real scalars and 'Z', 'X' and
-    'Y' are real-valued fields.
+    ''' `Z = a*X + b*Y` where `a` and `b` are real scalars and `Z`, `X` and
+    `Y` are real-valued fields.
 
     '''
     def __str__(self):
@@ -500,7 +568,7 @@ class LFRicAXPlusBYKern(LFRicBuiltIn):
 
 
 class LFRicIncAXPlusBYKern(LFRicBuiltIn):
-    ''' X = a.X + b.Y where 'a' and 'b' are real scalars and 'X' and 'Y'
+    ''' `X = a*X + b*Y` where `a` and `b` are real scalars and `X` and `Y`
     are real-valued fields.
 
     '''
@@ -528,6 +596,36 @@ class LFRicIncAXPlusBYKern(LFRicBuiltIn):
         rhs_expr = (scalar_name1 + "*" + field_name1 + " + " +
                     scalar_name2 + "*" + field_name2)
         parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
+
+
+class LFRicAXPlusAYKern(LFRicBuiltIn):
+    ''' `Z = a*X + a*Y = a*(X + Y)` where `a` is a real scalar and `Z`,
+    `X` and `Y` are real-valued fields.
+
+    '''
+    def __str__(self):
+        return "Built-in: aX_plus_aY (real-valued fields)"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        aX_plus_aY Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # We add each element of field f1 (3rd arg) to the corresponding
+        # element of field f2 (4th arg), multiply the sum by a real
+        # scalar (2nd arg) and write the value to the corresponding
+        # element of field f3 (1st arg) (real-valued fields).
+        field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
+        scalar_name = self._arguments.args[1].name
+        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[3].proxy_name)
+        rhs_expr = (scalar_name + " * (" + field_name1 + " + " +
+                    field_name2 + ")")
+        parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
 
 
 # ------------------------------------------------------------------- #
@@ -588,8 +686,8 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
 
 
 class LFRicAXMinusYKern(LFRicBuiltIn):
-    ''' Z = a.X - Y where 'a' is a real scalar and 'Z', 'X' and
-    'Y' are real-valued fields.
+    ''' `Z = a*X - Y` where `a` is a real scalar and `Z`, `X` and
+    `Y` are real-valued fields.
 
     '''
     def __str__(self):
@@ -617,8 +715,8 @@ class LFRicAXMinusYKern(LFRicBuiltIn):
 
 
 class LFRicXMinusBYKern(LFRicBuiltIn):
-    ''' Z = X - b.Y where 'b' is a real scalar and 'Z', 'X' and
-    'Y' are real-valued fields.
+    ''' `Z = X - b*Y` where `b` is a real scalar and `Z`, `X` and
+    `Y` are real-valued fields.
 
     '''
     def __str__(self):
@@ -646,7 +744,7 @@ class LFRicXMinusBYKern(LFRicBuiltIn):
 
 
 class LFRicIncXMinusBYKern(LFRicBuiltIn):
-    ''' X = X - b.Y where 'b' is a real scalar and 'X' and 'Y' are
+    ''' `X = X - b*Y` where `b` is a real scalar and `X` and `Y` are
     real-valued fields.
 
     '''
@@ -671,6 +769,38 @@ class LFRicIncXMinusBYKern(LFRicBuiltIn):
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
         rhs_expr = field_name1 + " - " + scalar_name + "*" + field_name2
         parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
+
+
+class LFRicAXMinusBYKern(LFRicBuiltIn):
+    ''' `Z = a*X - b*Y` where `a` and `b` are real scalars and `Z`, `X` and
+    `Y` are real-valued fields.
+
+    '''
+    def __str__(self):
+        return "Built-in: aX_minus_bY (real-valued fields)"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        aX_minus_bY Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # We multiply one element of field f2 (5th arg) by the second, real,
+        # scalar (4th arg), subtract it from the product of the corresponding
+        # element of the first field (3rd arg) with the first, real, scalar
+        # (2nd arg) and write the value to the corresponding element of
+        # field f3 (1st arg) (real-valued fields).
+        field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
+        scalar_name1 = self._arguments.args[1].name
+        scalar_name2 = self._arguments.args[3].name
+        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[4].proxy_name)
+        rhs_expr = (scalar_name1 + "*" + field_name1 + " - " +
+                    scalar_name2 + "*" + field_name2)
+        parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
 
 
 # ------------------------------------------------------------------- #
@@ -730,7 +860,7 @@ class LFRicIncXTimesYKern(LFRicBuiltIn):
 
 
 class LFRicIncAXTimesYKern(LFRicBuiltIn):
-    ''' X = a.X.Y where 'a' is a real scalar and 'X' and 'Y' are
+    ''' `X = a*X*Y` where `a` is a real scalar and `X` and `Y` are
     real-valued fields.
 
     '''
@@ -752,7 +882,7 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
         scalar_name = self._arguments.args[0].name
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        rhs_expr = scalar_name + "*" + field_name1 + " * " + field_name2
+        rhs_expr = scalar_name + " * " + field_name1 + " * " + field_name2
         parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
 
 
@@ -763,7 +893,7 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
 
 class LFRicATimesXKern(LFRicBuiltIn):
     ''' Multiply the first, real-valued, field by a real scalar and
-    return the result as a second, real-valued, field (Y = a.X).
+    return the result as a second, real-valued, field (`Y = a*X`).
 
     '''
     def __str__(self):
@@ -808,7 +938,7 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
         field_name = self.array_ref(self._arguments.args[1].proxy_name)
         scalar_name = self._arguments.args[0].name
         parent.add(AssignGen(parent, lhs=field_name,
-                             rhs=scalar_name + "*" + field_name))
+                             rhs=scalar_name + " * " + field_name))
 
 
 # ------------------------------------------------------------------- #
@@ -864,6 +994,64 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
         field_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         parent.add(AssignGen(parent, lhs=field_name1,
                              rhs=field_name1 + " / " + field_name2))
+
+
+# ------------------------------------------------------------------- #
+# ============== Inverse scaling of real fields ===================== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicADividebyXKern(LFRicBuiltIn):
+    ''' DoF-wise division of a scalar value `a` by the elements
+    of a real-valued field, `X`, storing the result in another,
+    real-valued, field, `Y` (`Y = a/X`).
+
+    '''
+    def __str__(self):
+        return "Built-in: Inverse scaling of a real-valued field (Y = a/X)"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        a_divideby_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # We divide the real scalar argument by each element of f1 and
+        # store the result in f2 (real-valued fields).
+        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
+        scalar_name = self._arguments.args[1].name
+        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        parent.add(AssignGen(parent, lhs=field_name2,
+                             rhs=scalar_name + " / " + field_name1))
+
+
+class LFRicIncADividebyXKern(LFRicBuiltIn):
+    ''' DoF-wise division of a scalar value `a` by the elements
+    of a real-valued field, `X`, storing the result in the same
+    field (`X = a/X`).
+
+    '''
+    def __str__(self):
+        return "Built-in: Inverse scaling of a real-valued field (X = a/X)"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        inc_a_divideby_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # We divide the real scalar argument by each element of f1 and
+        # return the result in f1 (real-valued field).
+        field_name = self.array_ref(self._arguments.args[1].proxy_name)
+        scalar_name = self._arguments.args[0].name
+        parent.add(AssignGen(parent, lhs=field_name,
+                             rhs=scalar_name + " / " + field_name))
 
 
 # ------------------------------------------------------------------- #
@@ -977,7 +1165,7 @@ class LFRicSetvalXKern(LFRicBuiltIn):
 
 class LFRicXInnerproductYKern(LFRicBuiltIn):
     ''' Calculates the inner product of two real-valued fields,
-    innprod = SUM( X(:)*Y(:) ).
+    `innprod = SUM( X(:)*Y(:) )`.
 
     '''
     def __str__(self):
@@ -998,13 +1186,13 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
         field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        rhs_expr = innprod_name + "+" + field_name1 + "*" + field_name2
+        rhs_expr = innprod_name + " + " + field_name1 + "*" + field_name2
         parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
 
 
 class LFRicXInnerproductXKern(LFRicBuiltIn):
     ''' Calculates the inner product of one real-valued field by itself,
-    innprod = SUM( X(:)*X(:) ).
+    `innprod = SUM( X(:)*X(:) )`.
 
     '''
     def __str__(self):
@@ -1024,7 +1212,7 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
         # in the PSy layer.
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
         field_name = self.array_ref(self._arguments.args[1].proxy_name)
-        rhs_expr = innprod_name + "+" + field_name + "*" + field_name
+        rhs_expr = innprod_name + " + " + field_name + "*" + field_name
         parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
 
 
@@ -1053,8 +1241,75 @@ class LFRicSumXKern(LFRicBuiltIn):
         # variable holding the sum is initialised to zero in the PSy layer.
         field_name = self.array_ref(self._arguments.args[1].proxy_name)
         sum_name = self._reduction_ref(self._arguments.args[0].name)
-        rhs_expr = sum_name + "+" + field_name
+        rhs_expr = sum_name + " + " + field_name
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
+
+
+# ------------------------------------------------------------------- #
+# ============== Sign of real field elements ======================== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicSignXKern(LFRicBuiltIn):
+    ''' Returns the sign of a real-valued field elements using the
+    Fortran intrinsic `sign` function, `Y = sign(a, X)`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Sign of a real-valued field"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        sign_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        # Return the sign of all the elements of a real-valued field
+        # applied to the supplied real scalar.
+        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
+        scalar_name = self._arguments.args[1].name
+        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        rhs_expr = ("sign(" + scalar_name + ", " + field_name1 + ")")
+        parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
+
+
+# ------------------------------------------------------------------- #
+# ============== Converting real to integer field elements ========== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntXKern(LFRicBuiltIn):
+    ''' Converts real-valued field elements to integer-valued
+    field elements using the Fortran intrinsic `int` function,
+    `Y = int(X, i_def)`. Here `Y` is an integer-valued field and
+    `X` is the real-valued field being converted. The correct `kind`
+    is read from the PSyclone configuration file.
+
+    '''
+    def __str__(self):
+        return "Built-in: Convert a real-valued to an integer-valued field"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        int_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        api_config = Config.get().api_conf("dynamo0.3")
+        # Convert all the elements of a real-valued field to the
+        # corresponding elements of an integer-valued field using
+        # the PSyclone configuration for the correct 'kind'.
+        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        rhs_expr = ("int(" + field_name1 + ", " +
+                    api_config.default_kind["integer"] + ")")
+        parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
 
 
 # ******************************************************************* #
@@ -1086,6 +1341,30 @@ class LFRicIntIncXPlusYKern(LFRicIncXPlusYKern):
     '''
     def __str__(self):
         return "Built-in: Increment an integer-valued field"
+
+
+class LFRicIntAPlusXKern(LFRicAPlusXKern):
+    ''' Add an integer scalar value, `a`, to each element of an
+    integer-valued field, `X`, and return the result as a second,
+    integer-valued, field, `Y`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `LFRicAPlusXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: int_a_plus_X (integer-valued fields)"
+
+
+class LFRicIntIncAPlusXKern(LFRicIncAPlusXKern):
+    ''' Add an integer scalar value, `a`, to each element of an
+    integer-valued field, `X`, and return the result in the
+    same field.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `LFRicIncAPlusXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: int_inc_a_plus_X (integer-valued field)"
 
 
 # ------------------------------------------------------------------- #
@@ -1204,6 +1483,58 @@ class LFRicIntSetvalXKern(LFRicSetvalXKern):
                 "such field")
 
 
+# ------------------------------------------------------------------- #
+# ============== Sign of integer field elements ===================== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntSignXKern(LFRicSignXKern):
+    ''' Returns the sign of an integer-valued field elements using the
+    Fortran intrinsic `sign` function, `Y = sign(a, X)`.
+    Inherits the `gen_code` method from the real-valued built-in
+    equivalent `LFRicSignXKern`.
+
+    '''
+    def __str__(self):
+        return "Built-in: Sign of an integer-valued field"
+
+
+# ------------------------------------------------------------------- #
+# ============== Converting integer to real field elements ========== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicRealXKern(LFRicBuiltIn):
+    ''' Converts integer-valued field elements to real-valued
+    field elements using the Fortran intrinsic `real` function,
+    `Y = real(X, r_def)`. Here `Y` is a real-valued field and `X`
+    is the integer-valued field being converted. The correct `kind`
+    is read from the PSyclone configuration file.
+
+    '''
+    def __str__(self):
+        return "Built-in: Convert an integer-valued to a real-valued field"
+
+    def gen_code(self, parent):
+        '''
+        Generates LFRic API specific PSy code for a call to the
+        real_X Built-in.
+
+        :param parent: Node in f2pygen tree to which to add call.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        api_config = Config.get().api_conf("dynamo0.3")
+        # Convert all the elements of an integer-valued field to
+        # the corresponding elements of a real-valued field using
+        # the PSyclone configuration for the correct 'kind'.
+        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        rhs_expr = ("real(" + field_name1 + ", " +
+                    api_config.default_kind["real"] + ")")
+        parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
+
+
 # The built-in operations that we support for this API. The meta-data
 # describing these kernels is in lfric_builtins_mod.f90. This dictionary
 # can only be defined after all of the necessary 'class' statements have
@@ -1213,17 +1544,21 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Adding (scaled) real fields
     "X_plus_Y": LFRicXPlusYKern,
     "inc_X_plus_Y": LFRicIncXPlusYKern,
+    "a_plus_X": LFRicAPlusXKern,
+    "inc_a_plus_X": LFRicIncAPlusXKern,
     "aX_plus_Y": LFRicAXPlusYKern,
     "inc_aX_plus_Y": LFRicIncAXPlusYKern,
     "inc_X_plus_bY": LFRicIncXPlusBYKern,
     "aX_plus_bY": LFRicAXPlusBYKern,
     "inc_aX_plus_bY": LFRicIncAXPlusBYKern,
+    "aX_plus_aY": LFRicAXPlusAYKern,
     # Subtracting (scaled) real fields
     "X_minus_Y": LFRicXMinusYKern,
     "inc_X_minus_Y": LFRicIncXMinusYKern,
     "aX_minus_Y": LFRicAXMinusYKern,
     "X_minus_bY": LFRicXMinusBYKern,
     "inc_X_minus_bY": LFRicIncXMinusBYKern,
+    "aX_minus_bY": LFRicAXMinusBYKern,
     # Multiplying (scaled) real fields
     "X_times_Y": LFRicXTimesYKern,
     "inc_X_times_Y": LFRicIncXTimesYKern,
@@ -1234,6 +1569,10 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Dividing real fields
     "X_divideby_Y": LFRicXDividebyYKern,
     "inc_X_divideby_Y": LFRicIncXDividebyYKern,
+    # Dividing a real scalar by elements of a real field
+    # (inverse scaling of fields)
+    "a_divideby_X": LFRicADividebyXKern,
+    "inc_a_divideby_X": LFRicIncADividebyXKern,
     # Raising a real field to a scalar
     "inc_X_powreal_a": LFRicIncXPowrealAKern,
     "inc_X_powint_n": LFRicIncXPowintNKern,
@@ -1245,13 +1584,19 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "X_innerproduct_Y": LFRicXInnerproductYKern,
     "X_innerproduct_X": LFRicXInnerproductXKern,
     # Sum values of a real field
-    "sum_X": LFRicSumXKern}
+    "sum_X": LFRicSumXKern,
+    # Sign of real field elements applied to a scalar value
+    "sign_X": LFRicSignXKern,
+    # Converting real to integer field elements
+    "int_X": LFRicIntXKern}
 
 # Built-ins for integer-valued fields
 INT_BUILTIN_MAP_CAPITALISED = {
     # Adding integer fields
     "int_X_plus_Y": LFRicIntXPlusYKern,
     "int_inc_X_plus_Y": LFRicIntIncXPlusYKern,
+    "int_a_plus_X": LFRicIntAPlusXKern,
+    "int_inc_a_plus_X": LFRicIntIncAPlusXKern,
     # Subtracting integer fields
     "int_X_minus_Y": LFRicIntXMinusYKern,
     "int_inc_X_minus_Y": LFRicIntIncXMinusYKern,
@@ -1264,7 +1609,11 @@ INT_BUILTIN_MAP_CAPITALISED = {
     # Setting an integer field elements to an integer scalar
     # or other integer field's values
     "int_setval_c": LFRicIntSetvalCKern,
-    "int_setval_X": LFRicIntSetvalXKern}
+    "int_setval_X": LFRicIntSetvalXKern,
+    # Sign of integer field elements applied to a scalar value
+    "int_sign_X": LFRicIntSignXKern,
+    # Converting integer to real field elements
+    "real_X": LFRicRealXKern}
 
 # Built-in map dictionary for all built-ins
 BUILTIN_MAP_CAPITALISED = REAL_BUILTIN_MAP_CAPITALISED
