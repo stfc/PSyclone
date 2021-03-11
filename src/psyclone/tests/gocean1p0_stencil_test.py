@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
+
 
 '''Stencil tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''

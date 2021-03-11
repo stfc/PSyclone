@@ -1114,7 +1114,8 @@ class GOKern(CodedKern):
         '''This function creates an index-expression: if the value is
         negative, it returns 'varname-depth', if the value is positive,
         it returns 'varname+depth', otherwise it just returns 'varname'.
-        This is used to create artifical stencil accesses for GOKernels.
+        This is used to create artificial stencil accesses for GOKernels.
+        TODO #845: Return a proper PSyIR expression instead of a string.
 
         :param str var_name: name of the variable.
         :param int var_value: value of the variable, which determines the \
@@ -1123,17 +1124,18 @@ class GOKern(CodedKern):
 
         :returns: the index expression for an access in the given direction.
         :rtype: str
-        '''
 
+        '''
         if var_value < 0:
             return var_name + str(-depth)
         if var_value > 0:
             return var_name + "+" + str(depth)
         return var_name
 
-    def _reference_accesses_field(self, var_name, arg, var_accesses):
+    def _record_stencil_accesses(self, var_name, arg, var_accesses):
         '''This function adds accesses to a field depending on the
-        meta-data declaration for this argument.
+        meta-data declaration for this argument (i.e. accounting for
+        any stencil accesses)."
 
         :param str var_name: name of the variable.
         :param arg:  the meta-data information for this argument.
@@ -1142,10 +1144,11 @@ class GOKern(CodedKern):
             information about the field accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-        '''
 
-        # Now we have a valid depth. Query each of the combinations, and add
-        # a variable access for the possible values.
+        '''
+        # Query each possible stencil direction and add a corresponding
+        # variable accesses. Note that if (i,j) is accessed, the depth
+        # returned will be 1, so one access to (i,j) is added.
         for j in [-1, 0, 1]:
             for i in [-1, 0, 1]:
                 depth = arg.stencil.depth(i, j)
@@ -1163,8 +1166,8 @@ class GOKern(CodedKern):
             information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-        '''
 
+        '''
         # Grid properties are accessed using one of the fields. This stores
         # the field used to avoid repeatedly determining the best field:
         field_for_grid_property = None
@@ -1185,7 +1188,7 @@ class GOKern(CodedKern):
                 if arg.argument_type == "field":
                     # Now add 'artificial' accesses to this field depending
                     # on meta-data (access-mode and stencil information):
-                    self._reference_accesses_field(var_name, arg, var_accesses)
+                    self._record_stencil_accesses(var_name, arg, var_accesses)
                 else:
                     # In case of an array for now add an arbitrary array
                     # reference to (i,j) so it is properly recognised as

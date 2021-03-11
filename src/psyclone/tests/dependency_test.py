@@ -244,7 +244,7 @@ def test_nemo_array_range(parser):
 def test_goloop():
     ''' Check the handling of non-NEMO do loops.
     TODO #440: Does not work atm, GOLoops also have start/stop as
-    strings, which are even not defined. Only after genCode is called will
+    strings, which are even not defined. Only after gen_code() is called will
     they be defined.
     '''
 
@@ -284,12 +284,10 @@ def test_goloop_partially():
 
 
 def test_goloop_field_accesses():
-    ''' Check the handling of non-NEMO do loops.
-    TODO #440: Does not work atm, GOLoops also have start/stop as
-    strings, which are even not defined. Only after genCode is called will
-    they be defined.
-    '''
+    ''' Check that for a GOcean kernel appropriate field accesses (based
+    on the meta data) are added to the dependency analysis.
 
+    '''
     _, invoke = get_invoke("large_stencil.f90",
                            "gocean1.0", name="invoke_large_stencil",
                            dist_mem=False)
