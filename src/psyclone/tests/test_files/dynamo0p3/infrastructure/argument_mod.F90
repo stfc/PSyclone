@@ -215,7 +215,7 @@ module argument_mod
   !> @{
   ! Note: `iterates_over = CELLS` changes to `operates_on = CELL_COLUMN` in
   !       PSyclone 2.0.0. Currently both options are supported for uninterrupted
-  !       development, however the `CELLS` option will be removed in #870 or #874).
+  !       development, however the `CELLS` option will be removed in #870).
   integer, public, parameter :: CELL_COLUMN = 396
   integer, public, parameter :: CELLS       = 712
   integer, public, parameter :: DOMAIN      = 945
@@ -226,8 +226,7 @@ module argument_mod
   !! and/or operators are passed to the kernel and in what order they are
   !! passed. We also need to know how these scalars/fields/operators:
   !! - Are accessed (read, write, etc.) within the kernel;
-  !! - What is the type of argument data (to be enabled in #874 when removing
-  !!   support for the old-style `arg_type` metadata for the move to PSyclone 2.0.0);
+  !! - What is the type of argument data;
   !! - What function space the fields and operators are on (w0, w1, etc.).
   !! In the case of operators there are two function spaces (to and from).
   !! Fields may have an optional metadata describing either a stencil access
@@ -238,10 +237,9 @@ module argument_mod
      !! GH_FIELD, GH_OPERATOR, GH_COLUMNWISE_OPERATOR}. One of
      !! {GH_SCALAR, GH_FIELD, GH_OPERATOR, GH_COLUMNWISE_OPERATOR}.
      integer :: argument_type
-     !> @todo in #874: Add Fortran primitive type of a kernel argument data
-     !!                One of {GH_REAL, GH_INTEGER} (note that these values
-     !!                are currently used to denote scalar argument types).
-     ! integer :: data_type ! To be enabled in #874
+     !> Fortran primitive type of a kernel argument data.
+     !! One of {GH_REAL, GH_INTEGER}.
+     integer :: data_type
      !> How the kernel argument data is accessed (e.g.\ read-only, update,
      !! global reduction). One of {GH_READ, GH_WRITE, GH_READWRITE,
      !! GH_INC, GH_SUM, GH_MIN, GH_MAX}.
