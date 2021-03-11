@@ -595,9 +595,9 @@ descendants.
 Detaching PSyIR nodes
 ---------------------
 
-Sometimes we just one to detach a certain PSyIR subtree in order to remove
-it from the root tree but we don't want to delete it alltogher, as it may
-be re-inserted again possibly in another place. To achieve this, all nodes
+Sometimes we just may wish to detach a certain PSyIR subtree in order to remove
+it from the root tree but we don't want to delete it altogether, as it may
+be re-inserted again in another location. To achieve this, all nodes
 provide the detach method:
 
 .. code-block:: python
@@ -607,14 +607,14 @@ provide the detach method:
 Copying nodes
 -------------
 
-Copying a PSyIR node and its children is often useful to avoid repeating the
-creation of similar PSyIR subtrees. The result of the copy allows to modify
-the original or the copied subtrees independently without altering the other
-subtree. Note that this is not equivalent to the Python ``copy`` or
-``deepcopy`` functionality provided in the ``copy`` library. This method
-performs a bespoke copy operation where some components of the tree, like
-children, are recursively copied, while others, like the top-level parent
-reference are not.
+Copying a PSyIR node and its children is often useful in order to avoid
+repeating the creation of similar PSyIR subtrees. The result of the copy
+allows the modification of the original and the copied subtrees independently,
+without altering the other subtree. Note that this is not equivalent to the
+Python ``copy`` or ``deepcopy`` functionality provided in the ``copy`` library.
+This method performs a bespoke copy operation where some components of the
+tree, like children, are recursively copied, while others, like the top-level
+parent reference are not.
 
 
 .. code-block:: python
