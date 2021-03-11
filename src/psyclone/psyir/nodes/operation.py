@@ -184,8 +184,6 @@ class BinaryOperation(Operation):
     Node representing a BinaryOperation expression. As such it has two operands
     as children 0 and 1, and an attribute with the operator type.
 
-    :param: TODO
-
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators. ('REM' is remainder AKA 'MOD' in Fortran.)

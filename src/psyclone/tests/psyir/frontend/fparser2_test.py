@@ -1681,12 +1681,35 @@ def test_handling_part_ref():
     assert len(new_node.children) == 3  # Array dimensions
 
 
+@pytest.fixture(scope="module", name="symbol_table")
+def make_symbol_table():
+    '''
+    pytest fixture to create and populate a symbol table for the
+    'test_handling_intrinsics' test below.
+
+    '''
+    symbol_table = SymbolTable()
+    symbol_table.new_symbol("x", symbol_type=DataSymbol,
+                            datatype=REAL_TYPE)
+    symbol_table.new_symbol("a", symbol_type=DataSymbol,
+                            datatype=REAL_TYPE)
+    symbol_table.new_symbol("b", symbol_type=DataSymbol,
+                            datatype=REAL_TYPE)
+    symbol_table.new_symbol("c", symbol_type=DataSymbol,
+                            datatype=REAL_TYPE)
+    symbol_table.new_symbol("idx", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    symbol_table.new_symbol("mask", symbol_type=DataSymbol,
+                            datatype=ArrayType(INTEGER_TYPE, [10]))
+    return symbol_table
+
+
 @pytest.mark.parametrize(
     "code, expected_type, expected_op",
     [('x = exp(a)', UnaryOperation, UnaryOperation.Operator.EXP),
      ('x = sin(a)', UnaryOperation, UnaryOperation.Operator.SIN),
      ('x = asin(a)', UnaryOperation, UnaryOperation.Operator.ASIN),
-     ('ix = ceiling(a)', UnaryOperation, UnaryOperation.Operator.CEIL),
+     ('idx = ceiling(a)', UnaryOperation, UnaryOperation.Operator.CEIL),
      ('x = abs(a)', UnaryOperation, UnaryOperation.Operator.ABS),
      ('x = cos(a)', UnaryOperation, UnaryOperation.Operator.COS),
      ('x = acos(a)', UnaryOperation, UnaryOperation.Operator.ACOS),
@@ -1707,20 +1730,18 @@ def test_handling_part_ref():
      ('x = min(a, b, c)', NaryOperation, NaryOperation.Operator.MIN),
      ('x = sign(a, b)', BinaryOperation, BinaryOperation.Operator.SIGN),
      ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
-     ('x = sum(a, idim)', BinaryOperation, BinaryOperation.Operator.SUM),
-     ('x = suM(a, idim, mask)', NaryOperation, NaryOperation.Operator.SUM),
+     ('x = sum(a, idx)', BinaryOperation, BinaryOperation.Operator.SUM),
+     ('x = suM(a, idx, mask)', NaryOperation, NaryOperation.Operator.SUM),
      # Check that we get a CodeBlock for an unsupported N-ary operation
      ('x = reshape(a, b, c)', CodeBlock, None)])
-def test_handling_intrinsics(code, expected_type, expected_op, f2008_parser,
-                             disable_declaration_check):
+@pytest.mark.usefixtures("f2008_parser")
+def test_handling_intrinsics(code, expected_type, expected_op, symbol_table):
     ''' Test that fparser2 Intrinsic_Function_Reference nodes are
     handled appropriately.
 
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
     '''
     processor = Fparser2Reader()
-    fake_parent = Schedule()
+    fake_parent = Schedule(symbol_table=symbol_table)
     reader = FortranStringReader(code)
     fp2node = Execution_Part.match(reader)[0][0]
     processor.process_nodes(fake_parent, [fp2node])
