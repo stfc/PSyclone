@@ -162,40 +162,6 @@ def test_arg_descriptor_vector():
     assert field_descriptor.vector_size == 3
 
 
-def test_ad_scalar_old_metadata():
-    ''' Test that the LFRicArgDescriptor argument representation supports
-    old-style scalar arguments' names GH_REAL and GH_INTEGER.
-    TODO: This support and the test will be removed in #874.
-
-    '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    code = CODE.replace("gh_scalar, ", "")
-    ast = fpapi.parse(code, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
-
-    # Check representation of a real scalar (note: "gh_real"
-    # argument type is translated to "gh_scalar")
-    real_scalar_descriptor = metadata.arg_descriptors[0]
-    result = str(real_scalar_descriptor)
-    expected_output = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_scalar'\n"
-        "  data_type[1]='gh_real'\n"
-        "  access_descriptor[2]='gh_read'\n")
-    assert expected_output in result
-
-    # Check representation of an integer scalar (note: "gh_integer"
-    # argument type is translated to "gh_scalar")
-    int_scalar_descriptor = metadata.arg_descriptors[5]
-    result = str(int_scalar_descriptor)
-    expected_output = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_scalar'\n"
-        "  data_type[1]='gh_integer'\n"
-        "  access_descriptor[2]='gh_read'\n")
-    assert expected_output in result
-
-
 def test_ad_scalar_init_wrong_argument_type():
     ''' Test that an error is raised if something other than a scalar
     is passed to the LFRicArgDescriptor._init_scalar() method. '''
@@ -219,9 +185,7 @@ def test_ad_scalar_type_too_few_args():
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    # TODO in #874: Remove support for old-style scalar metadata by removing
-    #               index [0] and restoring the scalar names list
-    for argname in [LFRicArgDescriptor.VALID_SCALAR_NAMES[0]]:
+    for argname in LFRicArgDescriptor.VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ",   gh_real,    gh_read)",
                             "arg_type(" + argname + ",   gh_real)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -237,9 +201,7 @@ def test_ad_scalar_type_too_many_args():
     metadata for a scalar has more than 3 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    # TODO in #874: Remove support for old-style scalar metadata by removing
-    #               index [0] and restoring the scalar names list
-    for argname in [LFRicArgDescriptor.VALID_SCALAR_NAMES[0]]:
+    for argname in LFRicArgDescriptor.VALID_SCALAR_NAMES:
         code = CODE.replace(
             "arg_type(" + argname + ",   gh_integer, gh_read)",
             "arg_type(" + argname + ",   gh_integer, gh_read, w1)", 1)
@@ -258,14 +220,14 @@ def test_ad_scalar_invalid_data_type():
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
     code = CODE.replace("arg_type(gh_scalar,   gh_real,    gh_read)",
-                        "arg_type(gh_scalar,   gh_read)", 1)
+                        "arg_type(gh_scalar, gh_unreal, gh_read)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API the 2nd argument of a 'meta_arg' "
-            "entry should be a valid data type (one of "
-            "['gh_real', 'gh_integer']), but found 'gh_read' in "
-            "'arg_type(gh_scalar, gh_read)'." in str(excinfo.value))
+    assert ("In the LFRic API the 2nd argument of a 'meta_arg' entry should "
+            "be a valid data type (one of ['gh_real', 'gh_integer']), but "
+            "found 'gh_unreal' in 'arg_type(gh_scalar, gh_unreal, gh_read)'."
+            in str(excinfo.value))
 
 
 def test_ad_scalar_init_wrong_data_type(monkeypatch):
@@ -295,9 +257,7 @@ def test_ad_scalar_type_no_write():
     for a real or an integer scalar specifies 'GH_WRITE' access. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    # TODO in #874: Remove support for old-style scalar metadata by removing
-    #               index [0] and restoring the scalar names list
-    for argname in [LFRicArgDescriptor.VALID_SCALAR_NAMES[0]]:
+    for argname in LFRicArgDescriptor.VALID_SCALAR_NAMES:
         code = CODE.replace(
             "arg_type(" + argname + ",   gh_integer, gh_read)",
             "arg_type(" + argname + ",   gh_integer, gh_write)", 1)
@@ -314,9 +274,7 @@ def test_ad_scalar_type_no_inc():
     for a real or an integer scalar specifies 'GH_INC' access. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    # TODO in #874: Remove support for old-style scalar metadata by removing
-    #               index [0] and restoring the scalar names list
-    for argname in [LFRicArgDescriptor.VALID_SCALAR_NAMES[0]]:
+    for argname in LFRicArgDescriptor.VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ",   gh_real,    gh_read)",
                             "arg_type(" + argname + ",   gh_real, gh_inc)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -1570,9 +1528,7 @@ def test_no_vector_scalar():
     specifies a vector scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    # TODO in #874: Remove support for old-style scalar metadata by removing
-    #               index [0] and restoring the scalar names list
-    for argname in [LFRicArgDescriptor.VALID_SCALAR_NAMES[0]]:
+    for argname in LFRicArgDescriptor.VALID_SCALAR_NAMES:
         vectname = argname + " * 3"
         code = CODE.replace("arg_type(" + argname + ",   gh_real,    gh_read)",
                             "arg_type(" + vectname + ", gh_real, gh_read)", 1)
@@ -3125,11 +3081,7 @@ def test_arg_descriptor_init_error(monkeypatch):
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    # TODO in #874: Remove code replacement for the old-syle field metadata
-    code = CODE.replace(
-        "arg_type(gh_field,    gh_real,    gh_inc,  w1)",
-        "arg_type(gh_field, gh_inc, w1)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[1]
     # Extract an arg_type object that we can use to create an
@@ -3144,8 +3096,8 @@ def test_arg_descriptor_init_error(monkeypatch):
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, metadata.iterates_over)
     assert ("Failed argument validation for the 'meta_arg' entry "
-            "'arg_type(GH_INVALID, gh_inc, w1)', should not get to "
-            "here." in str(excinfo.value))
+            "'arg_type(GH_INVALID, gh_real, gh_inc, w1)', should not "
+            "get to here." in str(excinfo.value))
 
 
 def test_func_descriptor_repr():
