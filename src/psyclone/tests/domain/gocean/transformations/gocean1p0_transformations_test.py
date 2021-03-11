@@ -183,6 +183,8 @@ def test_loop_fuse_error(monkeypatch):
     schedule = invoke.schedule
 
     lftrans = GOceanLoopFuseTrans()
+    assert str(lftrans) == "Fuse two adjacent loops together with " \
+                           "GOcean-specific validity checks"
 
     # Apply loop fuse, but the first node is not a loop:
     with pytest.raises(TransformationError) as err:
