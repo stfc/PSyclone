@@ -260,7 +260,7 @@ class Config(object):
                 'DISTRIBUTED_MEMORY')
         except ValueError as err:
             raise ConfigurationError(
-                "error while parsing DISTRIBUTED_MEMORY: {0}".
+                "Error while parsing DISTRIBUTED_MEMORY: {0}".
                 format(str(err)), config=self)
 
         # API for psyclone
@@ -306,7 +306,7 @@ class Config(object):
                 'REPRODUCIBLE_REDUCTIONS')
         except ValueError as err:
             raise ConfigurationError(
-                "error while parsing REPRODUCIBLE_REDUCTIONS: {0}".
+                "Error while parsing REPRODUCIBLE_REDUCTIONS: {0}".
                 format(str(err)), config=self)
 
         try:
@@ -794,20 +794,19 @@ class APISpecificConfig(object):
 # =============================================================================
 class DynConfig(APISpecificConfig):
     '''
-    LFRic-specific (Dynamo0.3) Config sub-class. Holds configuration options
+    LFRic-specific (Dynamo 0.3) Config sub-class. Holds configuration options
     specific to the LFRic (Dynamo 0.3) API and Dynamo 0.1 API.
 
-    :param config: The 'parent' Config object.
+    :param config: the 'parent' Config object.
     :type config: :py:class:`psyclone.configuration.Config`
-    :param section: The entry for the '[dynamo0.3]' section of \
+    :param section: the entry for the '[dynamo0.3]' section of \
                     the configuration file, as produced by ConfigParser.
-    :type section:  :py:class:`configparser.SectionProxy`
+    :type section: :py:class:`configparser.SectionProxy`
 
     :raises ConfigurationError: for a missing mandatory configuration option.
     :raises ConfigurationError: for an invalid option for the redundant \
                                 computation over annexed dofs.
     :raises ConfigurationError: for an invalid run_time_checks flag.
-    :raises ConfigurationError: for an invalid Fortran argument datatype.
     :raises ConfigurationError: if argument datatypes in the 'default_kind' \
                                 mapping do not match the supported datatypes.
     :raises ConfigurationError: for an invalid argument kind.
@@ -867,9 +866,10 @@ class DynConfig(APISpecificConfig):
                     "compute_annexed_dofs")
             except ValueError as err:
                 six.raise_from(ConfigurationError(
-                    "error while parsing COMPUTE_ANNEXED_DOFS in the "
-                    "'[{0}]' section of the configuration file: {1}."
-                    .format(section.name, str(err)), config=self._config), err)
+                    "Error while parsing COMPUTE_ANNEXED_DOFS in the "
+                    "'[{0}]' section of the configuration file '{1}': {2}."
+                    .format(section.name, config.filename, str(err)),
+                    config=self._config), err)
 
             # Parse setting for run_time_checks flag
             try:
@@ -877,24 +877,15 @@ class DynConfig(APISpecificConfig):
                     "run_time_checks")
             except ValueError as err:
                 six.raise_from(ConfigurationError(
-                    "error while parsing RUN_TIME_CHECKS in the "
-                    "'[{0}]' section of the configuration file: {1}."
-                    .format(section.name, str(err)), config=self._config), err)
+                    "Error while parsing RUN_TIME_CHECKS in the '[{0}]' "
+                    "section of the configuration file '{1}': {2}."
+                    .format(section.name, config.filename, str(err)),
+                    config=self._config), err)
 
             # Parse setting for the supported Fortran datatypes
             self._supported_fortran_datatypes = \
                 [dtype.strip() for dtype in
                  section["supported_fortran_datatypes"].split(",")]
-            # Check for the currently supported datatypes ("real",
-            # "integer" and "logical")
-            required_datatypes = ["real", "integer", "logical"]
-            if set(self._supported_fortran_datatypes) != set(
-                    required_datatypes):
-                raise ConfigurationError(
-                    "Invalid Fortran datatype found in the '[{0}]' section "
-                    "'supported_fortran_datatypes' of the configuration "
-                    "file '{1}'. Supported Fortran datatypes are: {2}."
-                    .format(section.name, config.filename, required_datatypes))
 
             # Parse setting for default kinds (precisions)
             all_kinds = self.create_dict_from_string(section["default_kind"])
@@ -925,8 +916,11 @@ class DynConfig(APISpecificConfig):
                 self._num_any_space = section.getint("NUM_ANY_SPACE")
             except ValueError as err:
                 six.raise_from(ConfigurationError(
-                    "error while parsing NUM_ANY_SPACE: {0}".
-                    format(str(err)), config=self._config), err)
+                    "Error while parsing NUM_ANY_SPACE in the '[{0}]' "
+                    "section of the configuration file '{1}': {2}."
+                    .format(section.name, config.filename, str(err)),
+                    config=self._config), err)
+
             if self._num_any_space <= 0:
                 raise ConfigurationError(
                     "The supplied number of ANY_SPACE function spaces "
@@ -942,8 +936,11 @@ class DynConfig(APISpecificConfig):
                     "NUM_ANY_DISCONTINUOUS_SPACE")
             except ValueError as err:
                 six.raise_from(ConfigurationError(
-                    "error while parsing NUM_ANY_DISCONTINUOUS_SPACE: {0}".
-                    format(str(err)), config=self._config), err)
+                    "Error while parsing NUM_ANY_DISCONTINUOUS_SPACE in the "
+                    "'[{0}]' section of the configuration file '{1}': {2}."
+                    .format(section.name, config.filename, str(err)),
+                    config=self._config), err)
+
             if self._num_any_discontinuous_space <= 0:
                 raise ConfigurationError(
                     "The supplied number of ANY_DISCONTINUOUS_SPACE function "
@@ -978,8 +975,7 @@ class DynConfig(APISpecificConfig):
     @property
     def supported_fortran_datatypes(self):
         '''
-        Getter for the supported Fortran argument datatypes in LFRic
-        (real, integer and logical).
+        Getter for the supported Fortran argument datatypes in LFRic.
 
         :returns: supported Fortran datatypes for LFRic arguments.
         :rtype: list of str

@@ -71,25 +71,6 @@ NUM_ANY_DISCONTINUOUS_SPACE = 10
 '''
 
 
-def config(config_file, content):
-    ''' A utility function that creates and populates a temporary
-    PSyclone configuration file for testing purposes.
-
-    :param config_file: local path to the temporary configuration file.
-    :type config: :py:class:`py._path.local.LocalPath`
-    :param content: the entry for the temporary configuration file.
-    :type content: str
-
-    :returns: the created Config object.
-    :rtype: :py:class:`psyclone.configuration.Config`
-
-    '''
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
-        return Config()
-
-
 @pytest.fixture(scope="function", autouse=True)
 def clear_config_instance():
     ''' The tests in this module all assume that there is no pre-existing
@@ -107,6 +88,25 @@ def clear_config_instance():
 
     # Enforce loading of the default config file
     Config._instance = None
+
+
+def config(config_file, content):
+    ''' A utility function that creates and populates a temporary
+    PSyclone configuration file for testing purposes.
+
+    :param config_file: local path to the temporary configuration file.
+    :type config: :py:class:`py._path.local.LocalPath`
+    :param content: the entry for the temporary configuration file.
+    :type content: str
+
+    :returns: a test Config instance.
+    :rtype: :py:class:`psyclone.configuration.Config`
+
+    '''
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        return Config()
 
 
 @pytest.mark.parametrize(
@@ -167,25 +167,6 @@ def test_entry_not_int(tmpdir, option):
     assert "Error while parsing {0}".format(option) in str(err.value)
     assert ("invalid literal for int() with base 10: 'false'"
             in str(err.value))
-
-
-def test_invalid_fortran_datatype(tmpdir):
-    ''' Check that we raise an error if we supply an invalid Fortran
-    datatype in the configuration file.
-
-    '''
-    config_file = tmpdir.join("config_dyn")
-    content = re.sub("real, integer, logical",
-                     "real, integrity, logical",
-                     _CONFIG_CONTENT)
-
-    with pytest.raises(ConfigurationError) as err:
-        config(config_file, content).load(config_file=str(config_file))
-
-    assert ("Invalid Fortran datatype found in the \'[dynamo0.3]\' "
-            "section 'supported_fortran_datatypes'" in str(err.value))
-    assert ("Supported Fortran datatypes are: [\'real\', \'integer\', "
-            "\'logical\']." in str(err.value))
 
 
 def test_invalid_default_kind(tmpdir):
