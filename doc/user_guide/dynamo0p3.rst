@@ -140,7 +140,7 @@ Field
 LFRic API fields, identified with ``GH_FIELD`` metadata, represent
 FEM discretisations of various dynamical core prognostic and diagnostic
 variables. In FEM, variables are discretised by placing them into a
-function space (see :ref:`dynamo0.3-function-space`) from which they
+function space (see :ref:`lfric-function-space`) from which they
 inherit a polynomial expansion via the basis functions of that space.
 Field values at points within a cell are evaluated as the sum of a set
 of basis functions multiplied by coefficients which are the data points.
@@ -159,7 +159,7 @@ Field Vector
 ++++++++++++
 
 Depending on the function space a field lives on, the field data value at
-a point can be a scalar or a vector (see :ref:`dynamo0.3-function-space`
+a point can be a scalar or a vector (see :ref:`lfric-function-space`
 for the list of scalar and vector function spaces). There is an
 additional option, called a *field vector*, to represent a bundle of
 either scalar- or vector-valued fields.
@@ -454,7 +454,7 @@ types.
 
 2) The continuity of the iteration space of the Kernel is determined
    from the function space of the modified argument (see Section
-   :ref:`Supported Function Spaces <dynamo0.3-function-space>` below).
+   :ref:`Supported Function Spaces <lfric-function-space>` below).
    If more than one argument is modified then the iteration space is taken
    to be the largest required by any of those arguments. E.g. if a Kernel
    writes to two fields, the first on ``W3`` (discontinuous) and the
@@ -463,7 +463,7 @@ types.
 
 3) If any of the modified arguments are declared with the generic
    function space metadata (e.g. ``ANY_SPACE_<n>``, see
-   :ref:`Supported Function Spaces <dynamo0.3-function-space>`)
+   :ref:`Supported Function Spaces <lfric-function-space>`)
    and their actual space cannot be determined statically then the
    iteration space is assumed to be
 
@@ -757,7 +757,7 @@ In the case of an operator, the fourth and fifth arguments describe
 the ``to`` and ``from`` function spaces respectively. In the case of a
 field the fourth argument specifies the function space that the field
 lives on. More details about the supported function spaces are in
-subsection :ref:`dynamo0.3-function-space`.
+subsection :ref:`lfric-function-space`.
 
 For example, the metadata for a kernel that applies a Column-wise
 operator to a field might look like::
@@ -771,7 +771,7 @@ operator to a field might look like::
 In some cases a Kernel may be written so that it works for fields and/or
 operators from any type of a vector ``W2*`` space (all ``W2*`` spaces
 except for the ``W2*trace`` spaces, see Section
-:ref:`Supported Function Spaces <dynamo0.3-function-space>` below).
+:ref:`Supported Function Spaces <lfric-function-space>` below).
 In this case the metadata should be specified as being ``ANY_W2``.
 
 .. Warning:: In the current implementation it is assumed that all
@@ -783,7 +783,7 @@ In this case the metadata should be specified as being ``ANY_W2``.
 It may be that a Kernel is written such that a field and/or operators
 may be on/map-between any function space(s). In this case the metadata
 should be specified as being one of ``ANY_SPACE_1``, ..., ``ANY_SPACE_<nmax>``
-(see :ref:`Supported Function Spaces <dynamo0.3-function-space>`), with the
+(see :ref:`Supported Function Spaces <lfric-function-space>`), with the
 number of spaces, ``<nmax>``, being set in the :ref:`PSyclone configuration
 file <configuration>` (see :ref:`here <lfric-num-any-spaces>` for more
 details on this option).
@@ -893,7 +893,7 @@ in Built-ins in the :ref:`section below <lfric-built-ins-dtype-access>`).
 
 Note also that a ``GH_FIELD`` argument that has ``GH_WRITE`` or
 ``GH_READWRITE`` as its access pattern must be on a horizontally-discontinuous
-function space (see :ref:`dynamo0.3-function-space` for the list of
+function space (see :ref:`lfric-function-space` for the list of
 discontinuous function spaces). Parallelisation of the loop over the
 horizontal domain for a kernel that updates such a field will not require
 colouring for either of the above cases (since there are no shared entities).
@@ -931,7 +931,7 @@ checks (when generating the PSy layer) that any kernels which read
 operator values do not do so beyond the level-1 halo. If any such
 accesses are found then PSyclone aborts.
 
-.. _dynamo0.3-function-space:
+.. _lfric-function-space:
 
 Supported Function Spaces
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1574,7 +1574,7 @@ conventions, are:
       Here ``<quadrature_arg_name>`` is the name of the corresponding
       quadrature object being passed to the Invoke.
       ``dimension`` is 1 or 3 and depends upon the function space
-      (see :ref:`dynamo0.3-function-space` above for more information) and
+      (see :ref:`lfric-function-space` above for more information) and
       whether or not it is a basis or a differential basis function (see
       the table below). ``number_of_dofs`` is the number of degrees of
       freedom (DoFs) associated with the function space and ``np_*`` are
@@ -2068,7 +2068,7 @@ As described in the PSy-layer :ref:`Argument Intents
 scalar that has its data modified by a Built-in is marked in **bold**.
 
 .. note:: The field arguments in Built-ins are the derived types that
-          represent the :ref:`LFRic fields <dynamo0.3-field>`, however
+          represent the :ref:`LFRic fields <lfric-field>`, however
           mathematical operations are actually performed on the data of
           the *field proxies* (e.g. ``field1_proxy_data(:)``). PSyclone
           issue #1149 will revisit the representation of declarations
@@ -2794,7 +2794,7 @@ where:
 * ``type(field_type), intent(in) ::`` *field1*
 
 .. note:: The correct ``integer`` kind, ``i_def``, is read from the
-          PSyclone :ref:`configuration file <configuration>`.
+          PSyclone :ref:`configuration file <lfric-datatype-kind>`.
 
 .. _lfric-built-ins-int:
 
@@ -3054,7 +3054,7 @@ where:
 * ``type(integer_field_type), intent(in) ::`` *ifield1*
 
 .. note:: The correct ``real`` kind, ``r_def``, is read from the
-          PSyclone :ref:`configuration file <configuration>`.
+          PSyclone :ref:`configuration file <lfric-datatype-kind>`.
 
 Boundary Conditions
 -------------------
@@ -3218,7 +3218,7 @@ Number of Generalised ``ANY_*_SPACE`` Function Spaces
 +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 As outlined in the :ref:`meta_args <dynamo0.3-api-meta-args>` and the
-:ref:`Supported Function Spaces <dynamo0.3-function-space>` sections
+:ref:`Supported Function Spaces <lfric-function-space>` sections
 above, the number of generalised ``ANY_SPACE_<n>`` and
 ``ANY_DISCONTINUOUS_SPACE_<n>`` function spaces can be set in the
 :ref:`PSyclone configuration file <configuration>`.
@@ -3259,7 +3259,7 @@ raise an error if **same_space** is used when at least one of the function
 spaces is not ``ANY_SPACE_<n>`` or both spaces are not the same. As a general
 PSyclone will not allow loop fusion if it does not know the spaces
 are the same. The exception are loops over discontinuous spaces (see
-:ref:`dynamo0.3-function-space` for list of discontinuous function spaces)
+:ref:`lfric-function-space` for list of discontinuous function spaces)
 for which loop fusion is allowed (unless the loop bounds become different
 due to a prior transformation).
 

@@ -431,7 +431,7 @@ appropriate errors. Two examples are below:
 ``operates_on=CELL_COLUMN`` are supported by the stub generator.
 
 Generic function space metadata ``any_space`` and ``any_discontinuous_space``
-(see Section :ref:`Supported Function Spaces <dynamo0.3-function-space>`
+(see Section :ref:`Supported Function Spaces <lfric-function-space>`
 for function-space identifiers) are currently only supported for
 :ref:`LFRic (Dynamo 0.3) fields <lfric-field>` in the stub generator. Basis
 and differential basis functions on these generic function spaces, required
