@@ -68,59 +68,15 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
 
     The optional argument `same_space` can be set as
 
-    >>> ftrans.same_space = True
+    >>> ftrans.apply(schedule[0], schedule[1], {"same-space": True})
 
-    after the instance of the transformation is created.
+    when applying the transformation.
 
     '''
-    def __init__(self, same_space=False):
-        # Creates the 'same_space' attribute. Its value is set in via
-        # the setter method below.
-        # TODO: Remove when the suport for multiple options in
-        # Transformations is introduced (issue #478)
-        self._same_space = same_space
 
     def __str__(self):
         return ("Fuse two adjacent loops together with Dynamo-specific "
                 "validity checks")
-
-    # TODO: Remove the 'same_space' property and the setter below and
-    # reformulate the relevant tests and documentation when the suport for
-    # multiple options in Transformations is introduced (issue #478)
-    @property
-    def same_space(self):
-        ''' Returns the `same_space` flag that is specified when applying
-        this transformation. The default value is `False`.
-        This optional flag, set to `True`, asserts that an unknown iteration
-        space (i.e. `ANY_SPACE`) matches the other iteration space. This is
-        set at the user's own risk. If both iteration spaces are discontinuous
-        the loops can be fused without having to use the `same_space` flag.'''
-        return self._same_space
-
-    @same_space.setter
-    def same_space(self, value):
-        ''' Sets value of the `same_space` flag and checks that the
-        supplied value is Boolean or None.
-
-        :param value: optional argument to determine whether two unknown \
-                      function spaces are the same. The default value is \
-                      False (also when no value is provided).
-        :type value: Boolean or None
-
-        :raises TransformationError: if the provided value is not Boolean \
-                                     or None.
-        '''
-
-        if not value:
-            self._same_space = False
-        elif isinstance(value, bool):
-            self._same_space = value
-        else:
-            raise TransformationError(
-                "Error in {0} transformation: The value of the 'same_space' "
-                "flag must be either Boolean or None type, but the type of "
-                "flag provided was '{1}'.".
-                format(self.name, type(value).__name__))
 
     def validate(self, node1, node2, options=None):
         ''' Performs various checks to ensure that it is valid to apply
@@ -132,6 +88,11 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
+        :param bool options["same_space"]: this optional flag, set to `True`, \
+            asserts that an unknown iteration space (i.e. `ANY_SPACE`)
+            matches the other iteration space. This is set at the user's own \
+            risk. If both iteration spaces are discontinuous the loops can be \
+            fused without having to use the `same_space` flag.
 
         :raises TransformationError: if either of the supplied loops contains \
                                      an inter-grid kernel.
@@ -158,9 +119,18 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         '''
         # pylint: disable=too-many-locals,too-many-branches
         # Call the parent class validation first
+
+        if not options:
+            options = {}
+        same_space = options.get("same_space", False)
+        if same_space and not isinstance(same_space, bool):
+            raise TransformationError(
+                "Error in {0} transformation: The value of the 'same_space' "
+                "flag must be either Boolean or None type, but the type of "
+                "flag provided was '{1}'.".
+                format(self.name, type(same_space).__name__))
         super(LFRicLoopFuseTrans, self).validate(node1, node2,
                                                  options=options)
-
         # Now test for Dynamo-specific constraints
 
         # 1) Check that we don't have an inter-grid kernel
@@ -185,7 +155,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         # 2.2) If 'same_space' is true check that both function spaces are
         # the same or that at least one of the nodes is on ANY_SPACE. The
         # former case is convenient when loop fusion is applied generically.
-        if self.same_space:
+
+        if same_space:
             if node1_fs_name == node2_fs_name:
                 pass
             elif not node_on_any_space:

@@ -1488,9 +1488,9 @@ def test_call_forward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.same_space = True
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   {"same_space": True})
     read4 = schedule.children[0].loop_body[4]
     # 1: returns none if none found
     # a) check many reads
@@ -1517,9 +1517,9 @@ def test_call_backward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.same_space = True
     for _ in range(6):
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   {"same_space": True})
     # 1: loop no backwards dependence
     call3 = schedule.children[0].loop_body[2]
     assert not call3.backward_dependence()
