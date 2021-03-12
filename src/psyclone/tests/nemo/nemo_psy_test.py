@@ -380,6 +380,8 @@ def test_empty_routine():
     psy.invokes.invoke_list[0].update()
 
 
+@pytest.mark.xfail(reason="Fparser2Reader.generate_psyir() does not yet "
+                   "support a bare function.")
 def test_invoke_function():
     ''' Check that we successfully construct an Invoke if the program
     unit is a function. '''
