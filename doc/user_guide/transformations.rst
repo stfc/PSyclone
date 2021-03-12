@@ -719,7 +719,7 @@ multiple InvokeSchedule and kernel-specific optimization options.
 .. literalinclude:: ../../examples/gocean/eg3/ocl_trans.py
     :language: python
     :linenos:
-    :lines: 51-65
+    :lines: 39-79
 
 
 OpenCL delays the decision of which and where kernels will execute until
