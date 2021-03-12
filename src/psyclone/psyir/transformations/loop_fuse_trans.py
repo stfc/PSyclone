@@ -133,3 +133,7 @@ class LoopFuseTrans(LoopTrans):
         node2.parent.children.remove(node2)
 
         return schedule, keep
+
+
+# For automatic documentation generation
+__all__ = ["LoopFuseTrans"]

@@ -58,7 +58,3 @@ def trans(psy):
     schedule, _ = transform.apply(loop1, loop2)
     invoke.schedule = schedule
     return psy
-
-
-# For automatic documentation generation
-__all__ = ["LoopFuseTrans"]
