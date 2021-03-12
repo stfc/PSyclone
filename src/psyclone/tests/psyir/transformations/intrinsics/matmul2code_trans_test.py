@@ -490,7 +490,7 @@ def test_apply4(tmpdir):
     vector = assignment.scope.symbol_table.lookup("y")
     assignment.children[0] = ArrayReference.create(
             vector, [Range.create(one, five, one.copy()),
-                     Literal("1", INTEGER_TYPE)])
+                     one.copy()])
     trans.apply(matmul)
     writer = FortranWriter()
     result = writer(matmul.root)

@@ -3277,7 +3277,7 @@ class ACCKernelsTrans(RegionTrans):
 
         parent = node_list[0].parent
         schedule = node_list[0].root
-        start_index = parent.children.index(node_list[0])
+        start_index = node_list[0].position
 
         if not options:
             options = {}
@@ -3396,7 +3396,7 @@ class ACCDataTrans(RegionTrans):
 
         parent = node_list[0].parent
         schedule = node_list[0].root
-        start_index = parent.children.index(node_list[0])
+        start_index = node_list[0].position
 
         # Create a directive containing the nodes in node_list and insert it.
         from psyclone.psyGen import ACCDataDirective
