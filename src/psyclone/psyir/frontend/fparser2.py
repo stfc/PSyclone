@@ -1501,7 +1501,7 @@ class Fparser2Reader(object):
             base_type = ScalarType(data_name, precision)
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
             # This is a variable of derived type
-            type_name = str(walk(type_spec, Fortran2003.Type_Name)[0]).lower()
+            type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
             # Do we already have a Symbol for this derived type?
             type_symbol = _find_or_create_imported_symbol(parent, type_name)
             # pylint: disable=unidiomatic-typecheck
