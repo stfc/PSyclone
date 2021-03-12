@@ -806,15 +806,14 @@ def test_children_is_orphan_validation():
                           " parent-child set atomic.")
 def test_children_is_orphan_same_parent():
     ''' Test children addition operations with a node that is not an orphan
-    but is belongs to the same parent where it is added to.'''
+    and already belongs to the parent to which it is being added.'''
     # Create 2 schedules and add a child in the first Schedule
     schedule1 = Schedule()
-    schedule2 = Schedule()
     statement = Return(parent=schedule1)
     schedule1.addchild(statement)
 
     with pytest.raises(GenerationError) as error:
-        schedule2.addchild(schedule2.children[0])
+        schedule1.addchild(statement)
     assert ("Item 'Return' can't be added as child of 'Schedule' because "
             "it is not an orphan. It already has a 'Schedule' as a parent."
             in str(error.value))

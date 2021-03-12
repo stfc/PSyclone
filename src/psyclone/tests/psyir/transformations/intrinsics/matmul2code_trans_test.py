@@ -479,7 +479,7 @@ def test_apply4(tmpdir):
     '''Test that the matmul2code apply method produces the expected
     PSyIR. We use the Fortran backend to help provide the test for
     correctness. This example make the lhs be the same array as the
-    one of the second operand of the matmul (the vector in this case).
+    second operand of the matmul (the vector in this case).
 
     '''
     trans = Matmul2CodeTrans()
