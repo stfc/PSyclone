@@ -1135,7 +1135,7 @@ class GOKern(CodedKern):
     def _record_stencil_accesses(self, var_name, arg, var_accesses):
         '''This function adds accesses to a field depending on the
         meta-data declaration for this argument (i.e. accounting for
-        any stencil accesses)."
+        any stencil accesses).
 
         :param str var_name: name of the variable.
         :param arg:  the meta-data information for this argument.
