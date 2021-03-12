@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
 # Modified: I. Kavcic, Met Office
+# Modified: J. Henrichs, Bureau of Meteorology
 
 '''File containing a PSyclone transformation script for the dynamo0p3
 API to apply loop fusion and then OpenMP parallelisation to an invoke

@@ -138,3 +138,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
             raise TransformationError(
                 "Error in {0} transformation. Unexpected exception: {1}".
                 format(self.name, err))
+
+
+# For automatic documentation generation
+__all__ = ["GOceanLoopFuseTrans"]

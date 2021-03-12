@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 
 '''
@@ -57,3 +58,7 @@ def trans(psy):
     schedule, _ = transform.apply(loop1, loop2)
     invoke.schedule = schedule
     return psy
+
+
+# For automatic documentation generation
+__all__ = ["LoopFuseTrans"]

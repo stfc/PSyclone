@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #        J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module provides the LFRic-specific loop fusion transformation.
 '''
@@ -283,3 +284,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
 
         # Apply fuse method from the parent class
         return super(LFRicLoopFuseTrans, self).apply(node1, node2, options)
+
+
+# For automatic documentation generation
+__all__ = ["LFRicLoopFuseTrans"]

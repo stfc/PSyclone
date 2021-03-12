@@ -4195,13 +4195,15 @@ class TransInfo(object):
             my_object = my_class()
             self._objects.append(my_object)
             self._obj_map[my_object.name] = my_object
+        # TODO #620:
         # Transformations that are in psyir and other subdirectories
-        # are not found by TransInfo, so we add some that are used
+        # are not found by TransInfo, so we add some that are used in
         # tests and examples explicitly. I'm leaving this import here
         # so it is obvious it can be removed.
         from psyclone.psyir.transformations import LoopFuseTrans
         my_object = LoopFuseTrans()
         # Only add the loop-fuse statement if base_class and module
+        # match for the loop fusion transformation.
         if isinstance(my_object, base_class) and module == transformations:
             self._objects.append(LoopFuseTrans())
             self._obj_map["LoopFuseTrans"] = self._objects[-1]

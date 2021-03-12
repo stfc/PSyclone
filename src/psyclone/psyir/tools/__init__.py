@@ -33,8 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 
-'''Transformation module, containing all generic (API independent)
-transformations and base classes.
+'''Tool module, containing all generic (API independent) tools.
 '''
 
 from psyclone.psyir.tools.dependency_tools import DependencyTools
