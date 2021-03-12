@@ -46,10 +46,14 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
 from psyclone.core.access_info import VariablesAccessInfo
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import KernCallAccArgList
-from psyclone.psyGen import PSyFactory
+from psyclone.domain.lfric import KernCallAccArgList, KernStubArgList
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.parse.algorithm import parse
+from psyclone.parse.utils import ParseError
+from psyclone.psyGen import CodedKern, PSyFactory
 from psyclone.psyir.nodes import Assignment, IfBlock, Loop
 from psyclone.tests.utilities import get_invoke, get_ast
+from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
 
 # Constants
 API = "nemo"
@@ -138,7 +142,6 @@ def test_double_variable_lhs(parser):
     indirect_addressing = schedule[0]
     assert isinstance(indirect_addressing, Assignment)
     var_accesses = VariablesAccessInfo()
-    from psyclone.parse.utils import ParseError
     with pytest.raises(ParseError) as err:
         indirect_addressing.reference_accesses(var_accesses)
     assert "The variable 'g' appears more than once on the left-hand side "\
@@ -241,7 +244,7 @@ def test_nemo_array_range(parser):
 def test_goloop():
     ''' Check the handling of non-NEMO do loops.
     TODO #440: Does not work atm, GOLoops also have start/stop as
-    strings, which are even not defined. Only after genCode is called will
+    strings, which are even not defined. Only after gen_code() is called will
     they be defined.
     '''
 
@@ -280,6 +283,43 @@ def test_goloop_partially():
            "ssh_fld%grid%tmask: READ" in str(var_accesses)
 
 
+def test_goloop_field_accesses():
+    ''' Check that for a GOcean kernel appropriate field accesses (based
+    on the meta data) are added to the dependency analysis.
+
+    '''
+    _, invoke = get_invoke("large_stencil.f90",
+                           "gocean1.0", name="invoke_large_stencil",
+                           dist_mem=False)
+    do_loop = invoke.schedule.children[0]
+
+    assert isinstance(do_loop, Loop)
+    var_accesses = VariablesAccessInfo(invoke.schedule)
+
+    # cu_fld has a pointwise write access in the first loop:
+    cu_fld = var_accesses["cu_fld"]
+    assert len(cu_fld.all_accesses) == 1
+    assert cu_fld.all_accesses[0].access_type == AccessType.WRITE
+    assert cu_fld.all_accesses[0].indices == ["i", "j"]
+
+    # The stencil is defined to be GO_STENCIL(123,110,100)) for
+    # p_fld. Make sure that these 9 accesses are indeed reported:
+    p_fld = var_accesses["p_fld"]
+    all_indices = [access.indices for access in p_fld.all_accesses]
+
+    for test_index in [["i-1", "j+1"],
+                       ["i", "j+1"], ["i", "j+2"],
+                       ["i+1", "j+1"], ["i+2", "j+2"], ["i+3", "j+3"],
+                       ["i-1", "j"],
+                       ["i", "j"],
+                       ["i-1", "j-1"]]:
+        assert test_index in all_indices
+
+    # Since we have 9 different indices found (above), the following
+    # test guarantees that we don't get any invalid accesses reported.
+    assert len(p_fld.all_accesses) == 9
+
+
 def test_dynamo():
     ''' Test the handling of an LFRic (Dynamo0.3) loop. Note that the variable
     accesses are reported based on the user's point of view, not the code
@@ -288,7 +328,6 @@ def test_dynamo():
     from the kernel metadata, not the actual kernel usage.
 
     '''
-    from psyclone.parse.algorithm import parse
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
@@ -617,8 +656,6 @@ def test_lfric_stub_args():
     stencils.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "testkern_stencil_multi_mod.f90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -655,8 +692,6 @@ def test_lfric_stub_args2():
     and mesh properties.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "testkern_mesh_prop_face_qr_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -676,8 +711,6 @@ def test_lfric_stub_args3():
     '''Check variable usage detection for cell position, operator
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3",
                   "testkern_any_discontinuous_space_op_1_mod.f90")
     metadata = DynKernMetadata(ast)
@@ -698,8 +731,6 @@ def test_lfric_stub_boundary_dofs():
     '''Check variable usage detection for boundary dofs.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "enforce_bc_kernel_mod.f90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -714,8 +745,6 @@ def test_lfric_stub_field_vector():
     '''Check variable usage detection field vectors.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "testkern_stencil_vector_mod.f90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -737,8 +766,6 @@ def test_lfric_stub_basis():
     '''Check variable usage detection of basis, diff-basis.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "testkern_qr_eval_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -760,8 +787,6 @@ def test_lfric_stub_cma_operators():
     mesh_ncell2d, cma_operator
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "columnwise_op_mul_2scalars_kernel_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -786,8 +811,6 @@ def test_lfric_stub_banded_dofmap():
     '''Check variable usage detection for banded dofmaps.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "columnwise_op_asm_kernel_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -803,8 +826,6 @@ def test_lfric_stub_banded_dofmap():
 def test_lfric_stub_indirection_dofmap():
     '''Check variable usage detection in indirection dofmap.
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "columnwise_op_app_kernel_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -822,8 +843,6 @@ def test_lfric_stub_boundary_dofmap():
     for operators.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "enforce_operator_bc_kernel_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -840,8 +859,6 @@ def test_lfric_acc():
     '''
     # Use the OpenACC transforms to enclose the kernels
     # with OpenACC directives.
-    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
-    from psyclone.psyGen import CodedKern
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
     _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
@@ -875,8 +892,6 @@ def test_lfric_acc_operator():
     '''
     # Use the OpenACC transforms to enclose the kernels
     # with OpenACC directives.
-    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
-    from psyclone.psyGen import CodedKern
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
     _, invoke = get_invoke("20.0_cma_assembly.f90", "dynamo0.3",
@@ -901,8 +916,6 @@ def test_lfric_stencil():
 
     '''
     # Use the OpenACC transforms to create the required kernels
-    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
-    from psyclone.psyGen import CodedKern
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
     _, invoke = get_invoke("14.4_halo_vector.f90", "dynamo0.3",
