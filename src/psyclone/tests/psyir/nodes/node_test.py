@@ -705,7 +705,7 @@ def test_children_validation():
 
     assert isinstance(assignment.children, (ChildrenList, list))
 
-    # Try adding a invalid child (e.g. a return_stmt into an assingment)
+    # Try adding a invalid child (e.g. a return_stmt into an assignment)
     with pytest.raises(GenerationError) as error:
         assignment.addchild(return_stmt)
     assert "Item 'Return' can't be child 0 of 'Assignment'. The valid format" \
@@ -804,3 +804,80 @@ def test_lower_to_language_level(monkeypatch):
         # This member only exists in the monkeypatched version
         # pylint:disable=no-member
         assert child._visited_flag
+
+
+def test_replace_with():
+    '''Check that the replace_with method behaves as expected.'''
+
+    parent_node = Schedule()
+    node1 = Statement()
+    node1.parent = parent_node
+    node2 = Statement()
+    node2.parent = parent_node
+    node3 = Statement()
+    node3.parent = parent_node
+    parent_node.children = [node1, node2, node3]
+    new_node = Assignment()
+
+    node2.replace_with(new_node)
+
+    assert parent_node.children[1] is new_node
+    assert new_node.parent is parent_node
+    assert node2.parent is None
+
+
+def test_replace_with_error1():
+    '''Check that the replace_with method raises the expected exception if
+    the type of node is invalid for the location it is being added
+    to.
+
+    '''
+    iterator = DataSymbol("i", INTEGER_TYPE)
+    start = Literal("0", INTEGER_TYPE)
+    stop = Literal("1", INTEGER_TYPE)
+    step = Literal("1", INTEGER_TYPE)
+    loop = Loop.create(iterator, start, stop, step, [])
+    new_node = Assignment()
+    # The first child of a loop is the loop start value which should
+    # be a DataNode.
+    with pytest.raises(GenerationError) as info:
+        loop.children[0].replace_with(new_node)
+    assert("Item 'Assignment' can't be child 0 of 'Loop'. The valid "
+           "format is: 'DataNode, DataNode, DataNode, Schedule'"
+           in str(info.value))
+
+
+def test_replace_with_error2():
+    '''Check that the replace_with method raises the expected exceptions
+    if either node is invalid.
+
+    '''
+    parent = Schedule()
+    node1 = Statement()
+    node2 = Statement()
+
+    with pytest.raises(TypeError) as info:
+        node1.replace_with("hello")
+    assert("The argument node in method replace_with in the Node class "
+           "should be a Node but found 'str'." in str(info.value))
+
+    with pytest.raises(GenerationError) as info:
+        node1.replace_with(node2)
+    assert("This node should have a parent if its replace_with method "
+           "is called." in str(info.value))
+
+    node1.parent = parent
+    node2.parent = parent
+    parent.children = [node1, node2]
+    with pytest.raises(GenerationError) as info:
+        node1.replace_with(node2)
+    assert("The parent of argument node in method replace_with in the Node "
+           "class should be None but found 'Schedule'." in str(info.value))
+
+    node3 = Container("hello")
+    with pytest.raises(GenerationError) as info:
+        node1.replace_with(node3)
+        assert (
+            "Generation Error: Item 'Container' can't be child 0 of "
+            "'Schedule'. The valid format is: '[Statement]*'." in
+            str(info.value))

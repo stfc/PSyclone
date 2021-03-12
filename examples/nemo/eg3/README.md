@@ -2,17 +2,21 @@
 
 **Authors:** R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-This directory contains two example transformation scripts,
-`kernels_trans.py` and `kernels_managed_mem_trans.py`.  The first of these
-demonstrates the use of PSyclone to add OpenACC Kernel and Data directives for
-NEMO code. The second script is similar but is designed to work with the PGI
-compiler's 'managed memory' (`-ta=tesla:managed`) option and thus no attempt is
-made to control data movement to/from the GPU. Note, the transformations are
+This directory contains a relatively simple example transformation script,
+`kernels_trans.py`.  This demonstrates the use of PSyclone to add OpenACC
+Kernel and Data directives to NEMO code. Note, the transformations are
 indicative of what could be done - no claim is made as to the performance of
 the resulting code.
 
-Once you have installed PSyclone, either of the scripts may be supplied to
-PSyclone via the -s option:
+A more sophisticated `kernels_trans.py` script is provided in the
+`../scripts` directory. This is designed to work with the NVIDIA (PGI)
+compiler's 'managed memory' option (`-ta=tesla:managed`) and therefore makes
+no attempt to control data movement to/from the GPU. It also adds
+profiling instrumentation around those parts of the code that have
+not been enclosed within an OpenACC KERNELS region.
+
+Once you have installed PSyclone, either script may be supplied to
+PSyclone via the -s option, e.g.:
 
 ```sh
 psyclone -api nemo -s ./kernels_trans.py ../code/tra_adv.F90
@@ -27,10 +31,9 @@ directives added. Note that some of the lines in this Fortran code will
 exceed the 132-character limit. This may be remedied by supplying the
 `-l all` flag to PSyclone (as is done in the Makefile).
 
-
-Running PSyclone with the kernels_managed_mem_trans.py script will
-produce similar output but the Schedule will no longer contain Data
-directives.
+Running PSyclone with the `../scripts/kernels_trans.py` script will
+produce similar output but the Schedule will contain `Profile` nodes
+and there will be no Data directives.
 
 `tra_adv.F90` is a stand-alone version of one of the tracer-advection
 routines from the NEMO ocean model. It was originally extracted by
@@ -62,7 +65,7 @@ export LDFLAGS="-acc -ta=tesla,cc70"
 
 The size of domain and number of time-steps are also picked-up from
 environment variables. Some example settings are provided in the
-domain_setup.sh file.
+`domain_setup.sh` file.
 
 ## Licence
 
@@ -70,7 +73,7 @@ domain_setup.sh file.
 
 BSD 3-Clause License
 
-Copyright (c) 2018-2020, Science and Technology Facilities Council.
+Copyright (c) 2018-2021, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

@@ -1056,7 +1056,8 @@ class Node(object):
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
-        raise NotImplementedError("Please implement me")
+        raise NotImplementedError(
+            "Please implement me: {0}".format(type(self)))
 
     def update(self):
         ''' By default we assume there is no need to update the existing
@@ -1125,6 +1126,39 @@ class Node(object):
         raise SymbolError(
             "Unable to find the scope of node '{0}' as none of its ancestors "
             "are Container or Schedule nodes.".format(self))
+
+    def replace_with(self, node):
+        '''Removes self, and its descendants, from the PSyIR tree to which it
+        is connected, and replaces it with the supplied node (and its
+        descendants).
+
+        :param node: the node that will replace self in the PSyIR \
+            tree.
+        :type node: :py:class:`psyclone.psyir.nodes.node`
+
+        :raises TypeError: if the argument 'node' is not a Node.
+        :raises GenerationError: if this node does not have a parent.
+        :raises GenerationError: if the argument 'node' has a parent.
+
+        '''
+        if not isinstance(node, Node):
+            raise TypeError(
+                "The argument node in method replace_with in the Node class "
+                "should be a Node but found '{0}'."
+                "".format(type(node).__name__))
+        if not self.parent:
+            raise GenerationError(
+                "This node should have a parent if its replace_with method "
+                "is called.")
+        if node.parent is not None:
+            raise GenerationError(
+                "The parent of argument node in method replace_with in the "
+                "Node class should be None but found '{0}'."
+                "".format(type(node.parent).__name__))
+
+        node.parent = self.parent
+        self.parent.children[self.position] = node
+        self.parent = None
 
 
 # For automatic documentation generation
