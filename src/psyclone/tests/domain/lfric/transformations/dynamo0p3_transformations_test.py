@@ -38,16 +38,16 @@
 ''' Tests of transformations with the Dynamo 0.3 API '''
 
 from __future__ import absolute_import, print_function
-import pytest
 import inspect
 from importlib import import_module
+import pytest
 from psyclone.core.access_type import AccessType
 from psyclone import psyGen
 from psyclone import psyir
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import LocalInterface, ScalarType, ArrayType, \
     REAL_TYPE, INTEGER_TYPE
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Schedule, Literal
 from psyclone.psyir.transformations import TransformationError, LoopTrans
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
@@ -66,7 +66,6 @@ from psyclone.dynamo0p3 import DynLoop
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyGen import OMPDoDirective, InvokeSchedule, Directive, \
     GlobalSum, BuiltIn
-from psyclone.psyir.nodes import Loop, Schedule, Literal
 
 
 # The version of the API that the tests in this file
@@ -1807,7 +1806,7 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
 
 def test_reduction_real_pdo(tmpdir, dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
-    a real scalar summed in a builtin. We use inner product in this case.
+    a real scalar summed in a built-in. We use inner product in this case.
 
     '''
     psy, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
@@ -1826,7 +1825,7 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -1837,14 +1836,14 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in code
 
 
 def test_reduction_real_do(tmpdir, dist_mem):
     ''' Test that we generate a correct OpenMP DO reduction for a real
-    scalar summed in a builtin. We use inner product in this case.
+    scalar summed in a built-in. We use inner product in this case.
 
     '''
     psy, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
@@ -1866,7 +1865,7 @@ def test_reduction_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -1877,7 +1876,7 @@ def test_reduction_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n") in code
@@ -1885,7 +1884,7 @@ def test_reduction_real_do(tmpdir, dist_mem):
 
 def test_multi_reduction_real_pdo(tmpdir, dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction for a
-    real scalar summed in a builtin. We use inner product in this case.
+    real scalar summed in a built-in. We use inner product in this case.
 
     '''
     psy, invoke = get_invoke("15.15.1_two_same_builtin_reductions.f90",
@@ -1910,7 +1909,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -1923,7 +1922,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -1935,7 +1934,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
@@ -1946,7 +1945,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in code
 
@@ -1954,7 +1953,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
 def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
                                         dist_mem):
     ''' Test that we produce correct code when we have a reduction after
-    a "normal" builtin and we use OpenMP DO loops for parallelisation
+    a "normal" built-in and we use OpenMP DO loops for parallelisation
     with a single parallel region over all calls. Also test with and
     without annexed dofs being computed as this affects the generated
     code.
@@ -1987,7 +1986,7 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !\n"
@@ -2000,7 +1999,7 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      !\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -2018,12 +2017,12 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel")
@@ -2033,7 +2032,7 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
 def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
                                          dist_mem):
     ''' Test that we produce correct code when we have a reproducible
-    reduction after a "normal" builtin and we use OpenMP DO loops for
+    reduction after a "normal" built-in and we use OpenMP DO loops for
     parallelisation with a single parallel region over all calls. Also
     test with and without annexed dofs being computed as this affects
     the generated code.
@@ -2069,7 +2068,7 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !\n"
@@ -2082,7 +2081,7 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      !\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -2110,12 +2109,12 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -2131,7 +2130,7 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
 
 def test_two_reductions_real_do(tmpdir, dist_mem):
     ''' Test that we produce correct code when we have more than one
-    builtin with a reduction, with each reduction using a different
+    built-in with a reduction, with each reduction using a different
     variable, and we use OpenMP DO loops for parallelisation with a
     single parallel region over all calls.
 
@@ -2168,12 +2167,12 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:bsum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        bsum = bsum+f1_proxy%data(df)\n"
+            "        bsum = bsum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -2191,12 +2190,12 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:bsum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        bsum = bsum+f1_proxy%data(df)\n"
+            "        bsum = bsum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel")
@@ -2205,7 +2204,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
 
 def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
     ''' Test that we produce correct code when we have more than one
-    builtin with a reproducible reduction, with each reduction using a
+    built-in with a reproducible reduction, with each reduction using a
     different variable, and we use OpenMP DO loops for parallelisation
     with a single parallel region over all calls.
 
@@ -2247,13 +2246,13 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
             "f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        l_bsum(1,th_idx) = l_bsum(1,th_idx)+f1_proxy%data(df)\n"
+            "        l_bsum(1,th_idx) = l_bsum(1,th_idx) + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -2287,13 +2286,13 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
             "f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        l_bsum(1,th_idx) = l_bsum(1,th_idx)+f1_proxy%data(df)\n"
+            "        l_bsum(1,th_idx) = l_bsum(1,th_idx) + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -2371,7 +2370,7 @@ def test_multi_reduction_real_fuse():
 
 def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction
-    for two different builtins. We use inner product and sum_X.
+    for two different built-ins. We use inner product and sum_X.
 
     '''
     file_name = "15.16.1_two_different_builtin_reductions.f90"
@@ -2396,7 +2395,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -2409,7 +2408,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:bsum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        bsum = bsum+f1_proxy%data(df)\n"
+            "        bsum = bsum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = bsum\n"
@@ -2423,7 +2422,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
@@ -2434,14 +2433,14 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:bsum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        bsum = bsum+f1_proxy%data(df)\n"
+            "        bsum = bsum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in code
 
 
 def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
-    two different builtins, first a reduction then not. Also test with
+    two different built-ins, first a reduction then not. Also test with
     and without annexed dofs being computed as this affects the
     generated code.
 
@@ -2470,7 +2469,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -2478,7 +2477,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
@@ -2498,20 +2497,20 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in result
 
 
 def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
     ''' Test that we generate a correct OpenMP DO reduction for two
-    different builtins, first a reduction then not. Also test with and
+    different built-ins, first a reduction then not. Also test with and
     without annexed dofs being computed as this affects the generated
     code.
 
@@ -2547,12 +2546,12 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !\n"
@@ -2578,12 +2577,12 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n") in result
@@ -2592,7 +2591,7 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
 def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                                           dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
-    two different loop-fused builtins, first a reduction then not. We
+    two different loop-fused built-ins, first a reduction then not. We
     need to specify that the fused loops are on the same iteration
     space. Also test with and without annexed dofs being computed as
     this affects the validity of the transform.
@@ -2637,8 +2636,8 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+                "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      !\n"
@@ -2658,8 +2657,8 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_aspc1_f1\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+                "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end parallel do\n")
         assert code in result
@@ -2670,7 +2669,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
 def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                                          dist_mem):
     ''' Test that we generate a correct OpenMP DO reduction for two
-    different loop-fused builtins, first a reduction then not. We need
+    different loop-fused built-ins, first a reduction then not. We need
     to specify that the fused loops are on the same iteration
     space. Also test with and without annexed dofs being computed as
     this affects the generated code.
@@ -2714,8 +2713,8 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+                "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
                 "      !\n"
@@ -2736,8 +2735,8 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_aspc1_f1\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+                "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n")
@@ -2749,7 +2748,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
 def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
                                            dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
-    two different builtins, first a standard builtin then a
+    two different built-ins, first a standard built-in then a
     reduction. Also test with and without annexed dofs being computed
     as this affects the generated code.
 
@@ -2774,7 +2773,7 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
@@ -2791,7 +2790,7 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        asum = asum+f1_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -2804,7 +2803,7 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
@@ -2815,7 +2814,7 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        asum = asum+f1_proxy%data(df)\n"
+            "        asum = asum + f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in result
 
@@ -2823,7 +2822,7 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
 def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                                           dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
-    two different loop-fused builtins, first a normal builtin then a
+    two different loop-fused built-ins, first a normal built-in then a
     reduction. We need to specify that the fused loops iterate over
     the same space. Also test with and without annexed dofs being
     computed as this affects the generated code.
@@ -2859,8 +2858,8 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "        asum = asum+f1_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
+                "        asum = asum + f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end parallel do\n"
                 "      !\n"
@@ -2880,8 +2879,8 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_aspc1_f1\n"
-                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "        asum = asum+f1_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
+                "        asum = asum + f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end parallel do\n")
         assert code in result
@@ -2892,7 +2891,7 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
 def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                                          dist_mem):
     ''' Test that we generate a correct OpenMP PARALLEL DO reduction for
-    two different loop-fused builtins, first a normal builtin then a
+    two different loop-fused built-ins, first a normal built-in then a
     reduction. We need to specify that the fused loops iterate over
     the same space. Also test with and without annexed dofs being
     computed as this affects the generated code.
@@ -2928,8 +2927,8 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "        asum = asum+f1_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
+                "        asum = asum + f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
                 "      !\n"
@@ -2950,8 +2949,8 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_aspc1_f1\n"
-                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "        asum = asum+f1_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
+                "        asum = asum + f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n")
@@ -3004,7 +3003,7 @@ def test_loop_fuse_error(dist_mem):
 
 def test_reprod_reduction_real_do(tmpdir, dist_mem):
     ''' Test that we generate a correct reproducible OpenMP DO reduction
-    for a real scalar summed in a builtin. We use inner product in
+    for a real scalar summed in a built-in. We use inner product in
     this case.
 
     '''
@@ -3048,7 +3047,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)"
             "*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -3072,7 +3071,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)"
             "*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
@@ -3112,7 +3111,7 @@ def test_no_global_sum_in_parallel_region():
 def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
                                            dist_mem):
     ''' Test that we generate a correct reproducible OpenMP DO reduction
-    for two different builtins, first a reduction then not when we
+    for two different built-ins, first a reduction then not when we
     have reprod set to True. Also test with and without annexed dofs
     being computed as this affects the generated code.
 
@@ -3163,13 +3162,13 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)"
             "*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-            "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !\n"
@@ -3203,13 +3202,13 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_proxy%data(df)"
             "*f2_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
             "      DO df=1,undf_aspc1_f1\n"
-            "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+            "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -3225,7 +3224,7 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
 def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                                             dist_mem):
     ''' Test that we generate a correct reproducible OpenMP DO reduction
-    for two different loop-fused builtins, first a reduction then
+    for two different loop-fused built-ins, first a reduction then
     not. We need to specify that the fused loops are on the same
     iteration space. Also test with and without annexed dofs being
     computed as this affects the generated code.
@@ -3286,9 +3285,9 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+                "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
                 "f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
                 "      !\n"
@@ -3319,9 +3318,9 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,undf_aspc1_f1\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+                "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
                 "f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum * f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
@@ -3339,7 +3338,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
 def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                                             dist_mem):
     ''' Test that we generate a correct OpenMP DO reduction for two
-    different loop-fused builtins, first a normal builtin then a
+    different loop-fused built-ins, first a normal built-in then a
     reduction. We need to specify that the fused loops iterate over
     the same space. Also test with and without annexed dofs being
     computed as this affects the generated code.
@@ -3379,8 +3378,8 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+                "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
+                "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
                 "f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -3412,8 +3411,8 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,undf_aspc1_f1\n"
-                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+                "        f1_proxy%data(df) = bvalue * f1_proxy%data(df)\n"
+                "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
                 "f1_proxy%data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -3431,10 +3430,8 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
 
 def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
     ''' Test that we generate correct reproducible OpenMP DO reductions
-    when we have three different builtins, first a reduction, then a
-    normal builtin then a reduction. '''
-    from psyclone.dynamo0p3 import DynLoop
-    from psyclone.psyGen import OMPDoDirective
+    when we have three different built-ins, first a reduction, then a
+    normal built-in then a reduction. '''
     file_name = "15.19.1_three_builtins_two_reductions.f90"
     psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
@@ -3470,7 +3467,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 "      !$omp do schedule(static)\n"
                 "      DO df=1," + names["bounds"] + "\n"
                 "        " + names["lvar"] + "(1,th_idx) = " +
-                names["lvar"] + "(1,th_idx)+" + names["rhs"] + "\n"
+                names["lvar"] + "(1,th_idx) + " + names["rhs"] + "\n"
                 "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
@@ -3503,7 +3500,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 "      !$omp do schedule(static)\n"
                 "      DO df=1," + names["bounds"] + "\n"
                 "        " + names["lvar"] + "(1,th_idx) = " +
-                names["lvar"] + "(1,th_idx)+" + names["rhs"] + "\n"
+                names["lvar"] + "(1,th_idx) + " + names["rhs"] + "\n"
                 "      END DO\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
@@ -6479,7 +6476,6 @@ def test_async_hex_wrong_node():
     exchange.
 
     '''
-    from psyclone.psyGen import Loop
     node = Loop()
     ahex = Dynamo0p3AsyncHaloExchangeTrans()
     with pytest.raises(TransformationError) as err:
@@ -6902,7 +6898,7 @@ def test_vector_halo_exchange_remove():
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[3], {"depth": 2})
     assert len(schedule.children) == 5
-    from psyclone.dynamo0p3 import DynHaloExchange, DynLoop
+    from psyclone.dynamo0p3 import DynHaloExchange
     for index in [0, 1, 2]:
         assert isinstance(schedule.children[index], DynHaloExchange)
     assert isinstance(schedule.children[3], DynLoop)
@@ -6962,7 +6958,7 @@ def test_vector_async_halo_exchange(tmpdir):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[6], {"depth": 2})
     schedule.view()
-    from psyclone.dynamo0p3 import DynLoop, DynHaloExchangeStart, \
+    from psyclone.dynamo0p3 import DynHaloExchangeStart, \
         DynHaloExchangeEnd
     assert len(schedule.children) == 8
     for index in [0, 2, 4]:
