@@ -434,9 +434,21 @@ different Kernel types; general purpose, CMA, inter-grid, domain and
 :ref:`lfric-built-ins`. In the case of built-ins, PSyclone generates
 the source of the kernels.  This section explains the rules for the
 other four, user-supplied kernel types and then goes on to describe
-their metadata and subroutine arguments. Domain kernels are distinct
-from the other three user-supplied kernel types in that they must be
-passed data for the whole domain rather than a single cell-column.
+their metadata and subroutine arguments.
+
+Domain kernels are distinct from the other three, user-supplied kernel
+types in that they must be passed data for the whole domain rather
+than a single cell-column.  The reason for this is that they are
+intended to allow existing, "i-first" physics code to be called from
+the PSy layer. Since those routines currently contain their own,
+i-first looping structure (and associated OpenMP parallelisation), the
+most efficient way to use them is to avoid enclosing them within a
+loop in the PSy layer. This is a temporary measure and these
+kernels will ultimately be replaced once the LFRic infrastructure has
+support for i-first kernels
+(https://code.metoffice.gov.uk/trac/lfric/ticket/2154). At that
+point the looping (and associated parallelisation) will be put
+back into the PSy layer.
 
 .. _dynamo0.3-user-kernel-rules:
 
