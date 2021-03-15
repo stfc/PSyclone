@@ -290,6 +290,10 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
     gen_code = str(psy.gen).lower()
 
+    # A domain kernel needs the number of columns in the mesh
+    assert "integer(kind=i_def) ncell_2d" in gen_code
+    assert "ncell_2d = f1_proxy%ncell_2d" in gen_code
+
     # Kernel call should include whole dofmap and not be within a loop
     if dist_mem:
         expected = "      ! call kernels and communication routines\n"
@@ -297,8 +301,8 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir):
         expected = "      ! call our kernels\n"
     assert (expected + "      !\n"
             "      !\n"
-            "      call testkern_domain_code(nlayers, b, f1_proxy%data, "
-            "ndf_w3, undf_w3, map_w3)" in gen_code)
+            "      call testkern_domain_code(ncell_2d, nlayers, b, "
+            "f1_proxy%data, ndf_w3, undf_w3, map_w3)" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -323,7 +327,7 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
             "      !\n"
             "      !\n")
     expected += (
-        "      CALL testkern_domain_code(nlayers, b, f1_proxy%data, "
+        "      CALL testkern_domain_code(ncell_2d, nlayers, b, f1_proxy%data, "
         "ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
@@ -344,10 +348,14 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
     gen_code = str(psy.gen).lower()
+
+    # Check that we only have one ncell_2d assignment
+    assert gen_code.count("ncell_2d = ") == 1
+
     expected = ("      !\n"
                 "      !\n"
-                "      call testkern_domain_code(nlayers, b, f1_proxy%data, "
-                "ndf_w3, undf_w3, map_w3)\n")
+                "      call testkern_domain_code(ncell_2d, nlayers, b, "
+                "f1_proxy%data, ndf_w3, undf_w3, map_w3)\n")
     if dist_mem:
         expected += ("      !\n"
                      "      ! set halos dirty/clean for fields modified in "
@@ -386,7 +394,7 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
             "      !\n"
             "      !\n")
     expected += (
-        "      call testkern_domain_code(nlayers, c, f1_proxy%data, "
+        "      call testkern_domain_code(ncell_2d, nlayers, c, f1_proxy%data, "
         "ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
