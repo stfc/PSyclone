@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -82,15 +82,17 @@ def test_explicit(parser):
     schedule = psy.invokes.get('explicit_do').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
-    gen_code = str(psy.gen)
+    gen_code = str(psy.gen).lower()
 
-    assert ("  REAL, DIMENSION(jpi, jpj, jpk) :: umask\n"
-            "  !$ACC DATA COPYOUT(umask)\n"
-            "  DO jk = 1, jpk") in gen_code
+    assert ("  real, dimension(jpi,jpj,jpk) :: umask\n"
+            "\n"
+            "!$acc data copyout(umask)\n"
+            "    do jk = 1, jpk") in gen_code
 
-    assert ("  END DO\n"
-            "  !$ACC END DATA\n"
-            "END PROGRAM explicit_do") in gen_code
+    assert ("    enddo\n"
+            "!$acc end data\n"
+            "\n"
+            "end program explicit_do") in gen_code
 
 
 def test_data_single_node(parser):
@@ -116,57 +118,6 @@ def test_data_no_gen_code():
         schedule.children[0].gen_code(schedule)
     assert ("ACCDataDirective.gen_code should not have "
             "been called" in str(err.value))
-
-
-def test_add_region_invalid_data_move():
-    ''' Check that _add_region() raises the expected error if an invalid
-    value for data_movement is supplied. '''
-    _, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children)
-    datadir = schedule.children[0]
-    with pytest.raises(InternalError) as err:
-        datadir._add_region("DATA", "END DATA", data_movement="invalid")
-    assert ("optional data_movement argument must be one of ['present', "
-            "'analyse'] but got 'invalid'" in str(err.value))
-
-
-def test_add_region(parser):
-    ''' Check that add_region works as expected. '''
-    from fparser.two import Fortran2003
-    reader = FortranStringReader(EXPLICIT_DO)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.get('explicit_do').schedule
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children)
-    datadir = schedule.children[0]
-    datadir._add_region("data", "end data")
-    assert isinstance(datadir._ast, Fortran2003.Comment)
-    assert str(datadir._ast).lower() == "!$acc data"
-    assert isinstance(datadir._ast_end, Fortran2003.Comment)
-    assert str(datadir._ast_end).lower() == "!$acc end data"
-
-
-def test_add_region_comment_err(parser):
-    ''' Check that _add_region rejects begin and end strings that contain
-    comments that are not directives. '''
-    reader = FortranStringReader(EXPLICIT_DO)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.get('explicit_do').schedule
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children)
-    datadir = schedule.children[0]
-    with pytest.raises(InternalError) as err:
-        datadir._add_region("!data", "!end data")
-    assert ("start_text must be a plain label without directive or comment "
-            "characters but got: '!data'" in str(err.value))
-    with pytest.raises(InternalError) as err:
-        datadir._add_region("data", "!end data")
-    assert ("end_text must be a plain label without directive or comment "
-            "characters but got: '!end data'" in str(err.value))
 
 
 def test_data_view(parser, capsys):
@@ -196,17 +147,19 @@ def test_explicit_directive(parser):
     schedule, _ = acc_trans.apply(schedule.children, {"default_present": True})
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
-    gen_code = str(psy.gen)
+    gen_code = str(psy.gen).lower()
 
-    assert ("  REAL, DIMENSION(jpi, jpj, jpk) :: umask\n"
-            "  !$ACC DATA COPYOUT(umask)\n"
-            "  !$ACC KERNELS DEFAULT(PRESENT)\n"
-            "  DO jk = 1, jpk") in gen_code
+    assert ("  real, dimension(jpi,jpj,jpk) :: umask\n"
+            "\n"
+            "!$acc data copyout(umask)\n"
+            "!$acc kernels default(present)\n"
+            "      do jk = 1, jpk, 1") in gen_code
 
-    assert ("  END DO\n"
-            "  !$ACC END KERNELS\n"
-            "  !$ACC END DATA\n"
-            "END PROGRAM explicit_do") in gen_code
+    assert ("      enddo\n"
+            "!$acc end kernels\n"
+            "!$acc end data\n"
+            "\n"
+            "end program explicit_do") in gen_code
 
 
 def test_array_syntax():
@@ -218,17 +171,18 @@ def test_array_syntax():
     # regions so just put two of the loops into regions.
     schedule, _ = acc_trans.apply([schedule.children[0]])
     schedule, _ = acc_trans.apply([schedule.children[-1]])
-    gen_code = str(psy.gen)
+    gen_code = str(psy.gen).lower()
 
-    assert ("  REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zdit, zdjt, "
-            "zftu, zftv, ztfw\n"
-            "  !$ACC DATA COPYOUT(zftv)\n"
-            "  zftv(:, :, :) = 0.0D0" in gen_code)
+    assert ("  real(kind=wp), dimension(jpi,jpj,jpk) :: ztfw\n"
+            "\n"
+            "!$acc data copyout(zftv)\n"
+            "    zftv(:,:,:) = 0.0e0" in gen_code)
 
-    assert ("  !$ACC DATA COPYOUT(tmask)\n"
-            "  tmask(:, :) = jpi\n"
-            "  !$ACC END DATA\n"
-            "END SUBROUTINE tra_ldf_iso" in gen_code)
+    assert ("!$acc data copyout(tmask)\n"
+            "    tmask(:,:) = jpi\n"
+            "!$acc end data\n"
+            "\n"
+            "end subroutine tra_ldf_iso" in gen_code)
 
 
 def test_multi_data():
@@ -240,20 +194,20 @@ def test_multi_data():
     schedule, _ = acc_trans.apply(schedule.children[0].loop_body[1:3])
     gen_code = str(psy.gen)
 
-    assert ("  DO jk = 1, jpkm1\n"
-            "    !$ACC DATA COPYIN(ptb,wmask) "
-            "COPYOUT(zdk1t,zdkt)\n"
-            "    DO jj = 1, jpj, 1") in gen_code
+    assert ("  do jk = 1, jpkm1, 1\n"
+            "!$acc data copyin(ptb,wmask) "
+            "copyout(zdk1t,zdkt)\n"
+            "      do jj = 1, jpj, 1") in gen_code
 
-    assert ("    END IF\n"
-            "    !$ACC END DATA\n"
-            "    !$ACC DATA COPYIN(e2_e1u,e2u,e3t_n,e3u_n,pahu,r1_e1e2t,"
-            "umask,uslp,wmask,zdit,zdk1t,zdkt,zftv) COPYOUT(zftu) COPY(pta)\n"
-            "    DO jj = 1, jpjm1") in gen_code
+    assert ("    end if\n"
+            "!$acc end data\n"
+            "!$acc data copyin(e2_e1u,e2u,e3t_n,e3u_n,pahu,r1_e1e2t,"
+            "umask,uslp,wmask,zdit,zdk1t,zdkt,zftv) copyout(zftu) copy(pta)\n"
+            "      do jj = 1, jpjm1, 1") in gen_code
 
-    assert ("    END DO\n"
-            "    !$ACC END DATA\n"
-            "  END DO") in gen_code
+    assert ("      enddo\n"
+            "!$acc end data\n"
+            "  enddo") in gen_code
 
 
 def test_replicated_loop(parser, tmpdir):
@@ -275,15 +229,17 @@ def test_replicated_loop(parser, tmpdir):
     schedule, _ = acc_trans.apply(schedule.children[1:2])
     gen_code = str(psy.gen)
 
-    assert ("  !$ACC DATA COPYOUT(zwx)\n"
-            "  zwx(:, :) = 0.E0\n"
-            "  !$ACC END DATA\n"
-            "  !$ACC DATA COPYOUT(zwx)\n"
-            "  zwx(:, :) = 0.E0\n"
-            "  !$ACC END DATA" in gen_code)
+    assert ("!$acc data copyout(zwx)\n"
+            "    zwx(:,:) = 0.e0\n"
+            "!$acc end data\n"
+            "!$acc data copyout(zwx)\n"
+            "    zwx(:,:) = 0.e0\n"
+            "!$acc end data" in gen_code)
     assert Compile(tmpdir).string_compiles(gen_code)
 
 
+@pytest.mark.xfail(reason="Dependence analysis does not support derived"
+                   " types.")
 def test_data_ref(parser):
     '''Check code generation with an array accessed via a derived type.
 
@@ -305,7 +261,7 @@ END subroutine data_ref
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
-    assert "!$ACC DATA COPYIN(a) COPYOUT(prof,prof%npind)" in gen_code
+    assert "!$acc data copyin(a) copyout(prof,prof%npind)" in gen_code
 
 
 def test_no_data_ref_read(parser):
@@ -328,7 +284,7 @@ def test_no_data_ref_read(parser):
     schedule, _ = acc_trans.apply(schedule.children)
     with pytest.raises(NotImplementedError) as err:
         _ = str(psy.gen)
-    assert ("derived-type references on the RHS of assignments are not yet "
+    assert ("Derived-type references are not yet "
             "supported" in str(err.value))
 
 

@@ -1244,7 +1244,8 @@ class FortranWriter(PSyIRVisitor):
             result += self._visit(child)
         return result
 
-    def ompdirective_node(self, node):
+    #def ompdirective_node(self, node):
+    def directive_node(self, node):
         '''This method is called when an OMPDirective instance is found in
         the PSyIR tree. It returns the opening and closing directives, and
         the statements in between as a string (depending on the language).

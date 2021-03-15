@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 
 from __future__ import print_function, absolute_import
 import os
-import fparser
+import six
 
 # Constants
 API = "nemo"
@@ -54,7 +54,8 @@ def test_api_no_alg():
     alg, psy = generate(os.path.join(BASE_PATH, "explicit_do.f90"),
                         api="nemo")
     assert alg is None
-    assert isinstance(psy, fparser.two.Fortran2003.Program)
+    assert isinstance(psy, six.string_types)
+    assert psy.startswith("program")
 
 
 def test_utf_char(tmpdir):

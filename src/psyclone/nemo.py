@@ -138,7 +138,8 @@ def raise_psyir(psyir):
     '''
     if isinstance(psyir, Routine):
         root = NemoInvokeSchedule.create(psyir.name, psyir.symbol_table,
-                                         psyir.children)
+                                         psyir.children,
+                                         is_program=psyir.is_program)
         # TODO use detach()
         root.parent = psyir.parent
     else:
@@ -283,7 +284,7 @@ class NemoPSy(PSy):
         '''
         from psyclone.psyir.backend.fortran import FortranWriter
         fwriter = FortranWriter()
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         return fwriter(self._invokes.container)
 
 
