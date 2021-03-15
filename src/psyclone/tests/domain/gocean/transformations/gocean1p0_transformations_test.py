@@ -888,7 +888,7 @@ def test_go_omp_loop_applied_to_non_loop():
     # to the first node in the schedule (which is now itself an
     # OMPDoDirective).
     with pytest.raises(TransformationError) as err:
-        _, _ = ompl.validate(omp_schedule.children[0])
+        ompl.validate(omp_schedule.children[0])
     assert ("Target of GOceanOMPLoopTrans transformation must be a sub-class "
             "of Loop but got 'OMPDoDirective'" in str(err.value))
     with pytest.raises(TransformationError) as err:
@@ -915,7 +915,7 @@ def test_go_omp_loop_applied_to_wrong_loop_type():
     # Attempt to apply the transformation to the loop that has been
     # given an incorrect type
     with pytest.raises(TransformationError) as err:
-        _, _ = ompl.validate(schedule.children[0])
+        ompl.validate(schedule.children[0])
     assert ("The requested loop is not of type inner or outer" in
             str(err.value))
     with pytest.raises(TransformationError) as err:
