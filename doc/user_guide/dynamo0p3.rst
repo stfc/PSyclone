@@ -1988,11 +1988,14 @@ arguments to inter-grid kernels are as follows:
 Rules for Domain Kernels
 ########################
 
-The rules for kernels that have ``operates_on = DOMAIN`` are identical
-to those for general-purpose kernels (described :ref:`above
+The rules for kernels that have ``operates_on = DOMAIN`` are almost
+identical to those for general-purpose kernels (described :ref:`above
 <dynamo0.3-stub-generation-rules>`), allowing for the fact that they
 are not permitted any type of operator argument or any argument with a
-stencil access.
+stencil access. The only difference is that, since the kernel operates
+on the whole domain, the number of columns in the mesh (``ncells_2d``)
+must be passed in as the first argument. ``ncells_2d`` is an integer
+of kind ``i_def`` with intent ``in``.
 
 .. _dynamo0.3-kernel-arg-intents:
 
