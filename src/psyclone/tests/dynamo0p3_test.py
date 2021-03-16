@@ -58,11 +58,11 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, \
     KernCallArgList, DynACCEnterDataDirective, VALID_INTRINSIC_TYPES
 
-from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.transformations import LoopFuseTrans
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -5318,7 +5318,7 @@ def test_dynkernelarguments_acc_args_4():
 
     '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "19.25_single_stencil_cross2d.f90"))
+                                 "19.26_single_stencil_cross2d.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_stencil_cross2d_type').schedule
     kern = sched.kernels()[0]

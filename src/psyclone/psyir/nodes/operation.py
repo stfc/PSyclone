@@ -183,6 +183,7 @@ class BinaryOperation(Operation):
     '''
     Node representing a BinaryOperation expression. As such it has two operands
     as children 0 and 1, and an attribute with the operator type.
+
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators. ('REM' is remainder AKA 'MOD' in Fortran.)
@@ -193,6 +194,8 @@ class BinaryOperation(Operation):
         'AND', 'OR',
         # Other Maths Operators
         'SIGN', 'MIN', 'MAX',
+        # Casting operators with precise type specified by second argument
+        'REAL', 'INT',
         # Query Operators
         'SIZE', 'LBOUND', 'UBOUND',
         # Matrix and Vector Operators
@@ -221,6 +224,18 @@ class BinaryOperation(Operation):
 
        :returns: the value of the upper bound of the `index` dimension of \
                  `array`.
+
+    Casting Operators:
+
+    .. function:: REAL(arg0, precision)
+
+       :returns: `arg0` converted to a floating point number of the \
+                 specified precision.
+
+    .. function:: INT(arg0, precision)
+
+       :returns: `arg0` converted to an integer number of the specified \
+                  precision.
 
     Matrix and Vector Operators:
 

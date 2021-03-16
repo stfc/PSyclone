@@ -1111,6 +1111,55 @@ class GOKern(CodedKern):
         self._name = ""
         self._index_offset = ""
 
+    @staticmethod
+    def _format_access(var_name, var_value, depth):
+        '''This function creates an index-expression: if the value is
+        negative, it returns 'varname-depth', if the value is positive,
+        it returns 'varname+depth', otherwise it just returns 'varname'.
+        This is used to create artificial stencil accesses for GOKernels.
+        TODO #845: Return a proper PSyIR expression instead of a string.
+
+        :param str var_name: name of the variable.
+        :param int var_value: value of the variable, which determines the \
+            direction (adding or subtracting depth).
+        :param int depth: the depth of the access (>0).
+
+        :returns: the index expression for an access in the given direction.
+        :rtype: str
+
+        '''
+        if var_value < 0:
+            return var_name + str(-depth)
+        if var_value > 0:
+            return var_name + "+" + str(depth)
+        return var_name
+
+    def _record_stencil_accesses(self, var_name, arg, var_accesses):
+        '''This function adds accesses to a field depending on the
+        meta-data declaration for this argument (i.e. accounting for
+        any stencil accesses).
+
+        :param str var_name: name of the variable.
+        :param arg:  the meta-data information for this argument.
+        :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
+        :param var_accesses: VariablesAccessInfo instance that stores the\
+            information about the field accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+
+        '''
+        # Query each possible stencil direction and add a corresponding
+        # variable accesses. Note that if (i,j) is accessed, the depth
+        # returned will be 1, so one access to (i,j) is added.
+        for j in [-1, 0, 1]:
+            for i in [-1, 0, 1]:
+                depth = arg.stencil.depth(i, j)
+                for current_depth in range(1, depth+1):
+                    i_expr = GOKern._format_access("i", i, current_depth)
+                    j_expr = GOKern._format_access("j", j, current_depth)
+                    var_accesses.add_access(var_name, arg.access, self,
+                                            [i_expr, j_expr])
+
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
         according to the kernel metadata.
@@ -1119,8 +1168,8 @@ class GOKern(CodedKern):
             information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-        '''
 
+        '''
         # Grid properties are accessed using one of the fields. This stores
         # the field used to avoid repeatedly determining the best field:
         field_for_grid_property = None
@@ -1138,9 +1187,16 @@ class GOKern(CodedKern):
                 if not arg.is_literal:
                     var_accesses.add_access(var_name, arg.access, self)
             else:
-                # In case of an array for now add an arbitrary array
-                # reference so it is properly recognised as an array access
-                var_accesses.add_access(var_name, arg.access, self, [1])
+                if arg.argument_type == "field":
+                    # Now add 'artificial' accesses to this field depending
+                    # on meta-data (access-mode and stencil information):
+                    self._record_stencil_accesses(var_name, arg, var_accesses)
+                else:
+                    # In case of an array for now add an arbitrary array
+                    # reference to (i,j) so it is properly recognised as
+                    # an array access.
+                    var_accesses.add_access(var_name, arg.access, self,
+                                            ["i", "j"])
         super(GOKern, self).reference_accesses(var_accesses)
         var_accesses.next_location()
 
@@ -2518,7 +2574,12 @@ class GOStencil():
             # order
             for idx0 in range(3):
                 for idx1 in range(3):
-                    self._stencil[idx0][idx1] = int(args[idx1][idx0])
+                    # The j coordincate needs to be 'reversed': the first
+                    # row (index 0 in args) is 'top', which should be
+                    # accessed using '+1', and the last row (index 2 in args)
+                    # needs to be accessed using '-1' (see depth()). Using
+                    # 2-idx1 mirrors the rows appropriately.
+                    self._stencil[idx0][2-idx1] = int(args[idx1][idx0])
         else:
             # stencil info is of the form 'name' so should be one of
             # our valid names
