@@ -1847,13 +1847,13 @@ def test_acckernelsdirective_update(parser, default_present):
     kernels_trans = ACCKernelsTrans()
     schedule, _ = kernels_trans.apply(schedule.children[0:1],
                                       {"default_present": default_present})
-    gen_code = str(psy.gen)
+    gen_code = str(psy.gen).lower()
     string = ""
     if default_present:
-        string = " DEFAULT(PRESENT)"
-    assert ("  !$ACC KERNELS{0}\n"
-            "  sto_tmp(:, :) = 0.0_wp\n"
-            "  !$ACC END KERNELS\n".format(string) in gen_code)
+        string = " default(present)"
+    assert ("  !$acc kernels{0}\n"
+            "  sto_tmp(:,:) = 0.0_wp\n"
+            "  !$acc end kernels\n".format(string) in gen_code)
 
 # Class ACCKernelsDirective end
 
