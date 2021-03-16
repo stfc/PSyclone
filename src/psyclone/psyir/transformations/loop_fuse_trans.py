@@ -122,15 +122,15 @@ class LoopFuseTrans(LoopTrans):
         # Create a memento of the schedule and the proposed transformation
         keep = Memento(schedule, self, [node1, node2])
 
+        # Remove node2 from the parent
+        node2.detach()
+
         # Add loop contents of node2 to node1
-        node1.loop_body.children.extend(node2.loop_body)
+        node1.loop_body.children.extend(node2.loop_body.pop_all_children())
 
-        # Change the parent of the loop contents of node2 to node1
-        for child in node2.loop_body:
+        # Change the parent of the loop contents to node1
+        for child in node1.loop_body:
             child.parent = node1.loop_body
-
-        # Remove node2
-        node2.parent.children.remove(node2)
 
         return schedule, keep
 
