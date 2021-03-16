@@ -47,7 +47,7 @@ GENERATED_FILES = main_psy.f90 main_alg.f90 *.o *.mod $(EXEC)
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
-OBJ = main_psy.o main_alg.o testkern_w0_mod.o
+OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 
 EXEC = example
 LFRIC_PATH = ../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
@@ -68,9 +68,9 @@ $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
-main_psy.o:	testkern_w0_mod.o
+main_psy.o:	testkern_w0_kernel_mod.o
 main_alg.o:	main_psy.o
-testkern_w0_mod.o: $(LFRIC_LIB)
+testkern_w0_kernel_mod.o: $(LFRIC_LIB)
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<

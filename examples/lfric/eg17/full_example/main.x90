@@ -40,7 +40,7 @@ program main
     use function_space_mod,     only: function_space_type
     use fs_continuity_mod,      only: W0, W1, W2, W2V, W2H
     use field_mod,              only: field_type
-    use testkern_w0_mod,        only: testkern_w0_type
+    use testkern_w0_kernel_mod, only: testkern_w0_kernel_type
     use constants_mod,          only: r_def, i_def
     use log_mod,                only: LOG_LEVEL_ALWAYS
 
@@ -92,7 +92,7 @@ program main
                  setval_c( field1,     0.0_r_def ), &
                  setval_c( field2,     1.0_r_def )  &
                  )
-    call invoke( name = 'testkern_w0', testkern_w0_type(field1, field2) )
+    call invoke( name = 'testkern_w0', testkern_w0_kernel_type(field1, field2) )
 
     call field1%log_minmax(LOG_LEVEL_ALWAYS, "minmax of field1")
 

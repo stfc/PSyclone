@@ -48,7 +48,7 @@ GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90 main-update.nc
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
 
-OBJ = main_psy.o main_alg.o testkern_w0_mod.o
+OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 
 EXEC = extract
 EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/lfric
@@ -78,7 +78,7 @@ $(EXTRACT_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(EXTRACT_DIR)
 
 # Dependencies
-main_psy.o:	testkern_w0_mod.o
+main_psy.o:	testkern_w0_kernel_mod.o
 main_alg.o:	main_psy.o
 
 %.o: %.F90
