@@ -128,22 +128,34 @@ class NemoFparser2Reader(Fparser2Reader):
 def raise_psyir(psyir):
     '''
     Takes generic PSyIR and replaces recognised structures with
-    NEMO-specific PSyIR.
+    NEMO-specific PSyIR (in-place). Note that this may mean replacing
+    the top-level node itself and therefore this routine returns the
+    root of the modified tree.
 
-    :param psyir: TODO
+    :param psyir: the root node of the PSyIR tree to process.
 
-    :returns: modified PSyIR.
+    :returns: root of the modified PSyIR tree.
     :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    if isinstance(psyir, Routine):
-        root = NemoInvokeSchedule.create(psyir.name, psyir.symbol_table,
-                                         psyir.children,
-                                         is_program=psyir.is_program)
-        # TODO use detach()
-        root.parent = psyir.parent
-    else:
-        root = psyir
+    # Deal with Routines first. Have to take care of the case where the
+    # supplied top-level node is itself a Routine and must therefore be
+    # replaced.
+    root = psyir
+
+    for routine in psyir.walk(Routine):
+        new_node = NemoInvokeSchedule.create(routine.name,
+                                             routine.symbol_table,
+                                             routine.children,
+                                             is_program=routine.is_program)
+        if routine is not psyir:
+            routine.replace_with(new_node)
+        else:
+            # We need to replace the top node in the (possibly sub-) PSyIR
+            # tree that we've been passsed.
+            if psyir.parent:
+                psyir.replace_with(new_node)
+            root = new_node
 
     # Reverse the result of the walk() so that we process loops depth-first.
     # This permits the correct identification of NemoKern's.
