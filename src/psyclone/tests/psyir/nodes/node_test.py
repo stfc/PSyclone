@@ -52,7 +52,7 @@ from psyclone.psyir.symbols import DataSymbol, SymbolError, \
 from psyclone.psyGen import PSyFactory, OMPDoDirective, Kern
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
-from psyclone.transformations import DynamoLoopFuseTrans
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.tests.utilities import get_invoke
 # pylint: disable=redefined-outer-name
 from psyclone.psyir.nodes.node import colored
@@ -251,7 +251,7 @@ def test_node_args():
     for idx, arg in enumerate(kern2.arguments.args):
         assert arg == loop2_args[idx]
     # 4) Loop fuse
-    ftrans = DynamoLoopFuseTrans()
+    ftrans = LFRicLoopFuseTrans()
     ftrans.same_space = True
     schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
     loop = schedule.children[0]

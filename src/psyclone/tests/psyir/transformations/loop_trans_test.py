@@ -39,11 +39,12 @@ have to test it using various sub-classes. '''
 from __future__ import absolute_import
 import inspect
 import pytest
-from psyclone.psyir.transformations import TransformationError, LoopTrans
+from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
+    TransformationError
 from psyclone.psyir.nodes import Loop
 from psyclone.psyGen import CodedKern
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import OMPParallelLoopTrans, LoopFuseTrans
+from psyclone.transformations import OMPParallelLoopTrans
 from psyclone import transformations, psyir
 
 
