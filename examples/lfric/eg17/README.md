@@ -7,7 +7,7 @@ on a subset of the LFRic infrastructure library, that has been slightly
 modified to make it easier to create stand-alone, non-MPI LFRic codes.
 The examples here show:
 - A [full_example](./full_example) of a stand-alone LFRic-based code. It
-  uses PSyclone for a very simple kernel.
+  uses PSyclone to process a simple kernel invoke.
 - [Extraction](./full_example_extract) of input- and output-parameter
   of a kernel to NetCDF files.
 - A stand-alone example using [NetCDF](./full_example_netcdf) to read
@@ -19,6 +19,7 @@ Detailed instructions are in the various subdirectories.
 
 -----------------------------------------------------------------------------
 
+<!--
 BSD 3-Clause License
 
 Copyright (c) 2021, Science and Technology Facilities Council.
@@ -52,3 +53,4 @@ ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------
+-->

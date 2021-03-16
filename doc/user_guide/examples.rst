@@ -409,27 +409,39 @@ modified to make it easier to create stand-alone, non-MPI LFRic codes.
 Example 17.1: Very Simple Runnable Example
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The subdirectory ``full_example`` contains a very simple example code
-that uses PSyclone to create two single kernels. It uses unit-testing
+that uses PSyclone to process two invokes. It uses unit-testing
 code from various classes to create the required data structures like
-initial grid etc.
+initial grid etc. You can compile the code with ``make compile``, and
+execute the binary with either ``make run`` or ``./example``
 
 Example 17.2: Very Simple Runnable Example With NetCDF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The subdirectory ``fulf_example_netcdf`` contains code very similar
-to the previous example, but uses NetCDF to read the initial grid.
+to the previous example, but uses NetCDF to read the initial grid
+from the NetCDF file ``mesh_BiP128x16-400x400.nc``.
+Installation of NetCDF is described in
+``tutorial/practicals/README.md#netcdf-library-lfric-examples``.
+You can compile the code with ``make compile``, and
+execute the binary with either ``make run`` or ``./example``
 
 Example 17.3: Kernel Parameter Extraction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This example in the subdirectory ``full_example_extract`` shows the
-use of kernel extraction. It requires the installation of a NetCDF
-development environment. When running the compiled binary it will
-create two NetCDF files, each one containing the input- and
-output-parameters for the corresponding kernel call. For example:
+use of :ref:`kernel extraction <psyke>`. It requires the
+installation of a NetCDF development environment (see
+``tutorial/practicals/README.md#netcdf-library-lfric-examples``
+for installing NetCDF).
+You can compile the code with ``make compile``, and
+execute the binary with either ``make run`` or ``./extract``
+When running the
+compiled binary it will create one NetCDF file ``main-update.nc``
+containing the input- and output-parameters for the ``testkern_w0``
+kernel call. For example:
 
 .. code-block:: bash
 
     cd full_example_extraction
-    make
+    make compile
     ./extract
     ncdump ./main-update.nc | less
 

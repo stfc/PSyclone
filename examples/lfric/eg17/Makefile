@@ -33,6 +33,9 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
+# This makefile triggers the corresponding make targets in all
+# subdirectories.
+
 EXAMPLES=$(wildcard full_example*)
 
 include ../../top_level.mk
