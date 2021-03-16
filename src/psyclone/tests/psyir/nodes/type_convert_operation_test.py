@@ -57,7 +57,7 @@ def test_type_convert_binaryop_create(operation, op_str):
     '''
     sym = DataSymbol("tmp1", REAL_SINGLE_TYPE)
     lhs = Reference(sym)
-    wp_sym = DataSymbol("wp", REAL_SINGLE_TYPE)
+    wp_sym = DataSymbol("wp", INTEGER_SINGLE_TYPE)
     # Reference to a kind parameter
     rhs = Reference(wp_sym)
     binaryoperation = BinaryOperation.create(operation, lhs, rhs)
@@ -95,3 +95,10 @@ def test_real_binaryop_invalid():
     assert ("Precision argument to REAL operation must be specified using a "
             "DataSymbol, ScalarType.PRECISION or integer Literal but got "
             "xxxx" in str(err.value))
+    # A Symbol of REAL type cannot be used to specify a precision
+    wrong_kind = DataSymbol("not_wp", REAL_SINGLE_TYPE)
+    with pytest.raises(TypeError) as err:
+        _ = BinaryOperation.create(oper, Reference(sym), Reference(wrong_kind))
+    assert ("If the precision argument to a REAL operation is a Reference "
+            "then it must be to a symbol of integer type but got: 'yyyy'" in
+            str(err.value))

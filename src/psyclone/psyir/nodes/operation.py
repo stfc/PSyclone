@@ -227,12 +227,12 @@ class BinaryOperation(Operation):
 
     .. function:: REAL(arg0, precision)
 
-       :returns: `arg0` converted to a floating point number in the \
+       :returns: `arg0` converted to a floating point number of the \
                  specified precision.
 
     .. function:: INT(arg0, precision)
 
-       :returns: `arg0` converted to an integer number in the specified \
+       :returns: `arg0` converted to an integer number of the specified \
                   precision.
 
     Matrix and Vector Operators:
