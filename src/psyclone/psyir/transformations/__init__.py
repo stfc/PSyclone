@@ -42,6 +42,7 @@ transformations and base classes.
 
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
+from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
 from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
@@ -74,6 +75,7 @@ __all__ = ['ExtractTrans',
            'RegionTrans',
            'Abs2CodeTrans',
            'LoopTrans',
+           'LoopFuseTrans',
            'Matmul2CodeTrans',
            'Min2CodeTrans',
            'Sign2CodeTrans',
