@@ -690,6 +690,7 @@ class Config(object):
 
 
 # =============================================================================
+# TODO (issue #1163): Add support for lists in the configuration file
 class APISpecificConfig(object):
     '''A base class for functions that each API-specific class must provide.
     At the moment this is just the function 'access_mapping' that maps between

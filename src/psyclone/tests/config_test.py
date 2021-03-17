@@ -143,10 +143,14 @@ def config(config_file, content):
     :rtype: :py:class:`psyclone.configuration.Config`
 
     '''
+    # Create and populate a temporary config file
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
-        return Config()
+    # Create and populate a test Config object
+    config_obj = Config()
+    config_obj.load(config_file=str(config_file))
+    return config_obj
 
 
 def test_get_repo_config_file():
@@ -334,7 +338,7 @@ def test_api_not_in_list(tmpdir):
     config_file = tmpdir.join("config")
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content).load(config_file=str(config_file))
+        config(config_file, content)
 
     assert ("The API (invalid) is not in the list of "
             "supported APIs" in str(err.value))
@@ -352,7 +356,7 @@ def test_default_stubapi_invalid(tmpdir):
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content).load(config_file=str(config_file))
+        config(config_file, content)
 
     assert ("The default stub API (invalid) is not in the list of "
             "supported stub APIs" in str(err.value))
@@ -370,7 +374,6 @@ def test_default_stubapi_missing(tmpdir):
                      flags=re.MULTILINE)
 
     test_config = config(config_file, content)
-    test_config.load(config_file=str(config_file))
 
     assert test_config.default_stub_api == test_config.default_api
 
@@ -387,7 +390,7 @@ def test_not_bool(bool_entry, tmpdir):
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content).load(config_file=str(config_file))
+        config(config_file, content)
 
     assert "configuration error (file=" in str(err.value)
     assert ": Error while parsing {0}".format(bool_entry) in str(err.value)
@@ -406,7 +409,7 @@ def test_not_int(int_entry, tmpdir):
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content).load(config_file=str(config_file))
+        config(config_file, content)
 
     assert "configuration error (file=" in str(err.value)
     assert (": error while parsing {0}: invalid literal".format(int_entry)
@@ -424,7 +427,7 @@ def test_broken_fmt(tmpdir):
     content = "COMPUTE_ANNEXED_DOFS = false\n"
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content).load(config_file=str(config_file))
+        config(config_file, content)
     assert ("ConfigParser failed to read the configuration file. Is it "
             "formatted correctly? (Error was: File contains no section "
             "headers" in str(err.value))
@@ -436,7 +439,7 @@ def test_broken_fmt(tmpdir):
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content).load(config_file=str(config_file))
+        config(config_file, content)
     assert "Error was: Source contains parsing errors" in str(err.value)
 
 
@@ -452,7 +455,7 @@ COMPUTE_ANNEXED_DOFS = false
 '''
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content).load(config_file=str(config_file))
+        config(config_file, content)
 
     assert "configuration error (file=" in str(err.value)
     assert "Configuration file has no [DEFAULT] section" in str(err.value)
@@ -493,7 +496,7 @@ def test_api_unimplemented(tmpdir, monkeypatch):
                      flags=re.MULTILINE)
 
     with pytest.raises(NotImplementedError) as err:
-        config(config_file, content).load(str(config_file))
+        config(config_file, content)
     assert ("file contains a UNIMPLEMENTED section but no Config "
             "sub-class has been implemented for this API" in str(err.value))
 
@@ -511,7 +514,6 @@ def test_default_api(tmpdir):
                      flags=re.MULTILINE)
 
     default_config = config(config_file, content)
-    default_config.load(str(config_file))
     assert default_config.api == "dynamo0.3"
 
 
@@ -538,7 +540,6 @@ def test_root_name_load(tmpdir, content, result):
     config_file = tmpdir.join("config")
 
     test_config = config(config_file, content)
-    test_config.load(str(config_file))
 
     assert test_config._psyir_root_name == result
     assert test_config.psyir_root_name == result
@@ -602,7 +603,7 @@ def test_invalid_access_mapping(tmpdir):
     content = re.sub(r"gh_read: read", "gh_read: invalid", _CONFIG_CONTENT)
 
     with pytest.raises(ConfigurationError) as cerr:
-        config(config_file, content).load(str(config_file))
+        config(config_file, content)
     assert "Unknown access type 'invalid' found for key 'gh_read'" \
         in str(cerr.value)
 
@@ -620,7 +621,6 @@ def test_default_access_mapping(tmpdir):
     config_file = tmpdir.join("config")
 
     test_config = config(config_file, _CONFIG_CONTENT)
-    test_config.load(str(config_file))
 
     api_config = test_config.api_conf("dynamo0.3")
     for access_mode in api_config.get_access_mapping().values():
@@ -639,9 +639,8 @@ def test_access_mapping_order(tmpdir):
     content = re.sub(r"gh_inc: inc, gh_sum: sum",
                      "gh_sum: sum, gh_inc: inc", content)
 
-    config(config_file, content).load(str(config_file))
+    api_config = config(config_file, content).get().api_conf("dynamo0.3")
 
-    api_config = Config.get().api_conf("dynamo0.3")
     for access_mode in api_config.get_access_mapping().values():
         assert isinstance(access_mode, AccessType)
 
@@ -651,7 +650,6 @@ def test_psy_data_prefix(tmpdir):
     config_file = tmpdir.join("config.correct")
 
     test_config = config(config_file, _CONFIG_CONTENT)
-    test_config.load(str(config_file))
 
     assert "profile" in test_config.valid_psy_data_prefixes
     assert "extract" in test_config.valid_psy_data_prefixes
@@ -664,7 +662,6 @@ def test_psy_data_prefix(tmpdir):
                      _CONFIG_CONTENT)
 
     test_config = config(config_file, content)
-    test_config.load(str(config_file))
 
     assert not test_config.valid_psy_data_prefixes
 
@@ -681,7 +678,7 @@ def test_invalid_prefix(tmpdir):
                          _CONFIG_CONTENT, flags=re.MULTILINE)
 
         with pytest.raises(ConfigurationError) as err:
-            config(config_file, content).load(config_file=str(config_file))
+            config(config_file, content)
         # When there is a '"' in the invalid prefix, the "'" in the
         # error message is escaped with a '\'. So in order to test the
         # invalid 'cd"' prefix, we need to have two tests in the assert:

@@ -3208,9 +3208,10 @@ set to ``r_def``, ``i_def`` and ``l_def``, respectively, in the
 `default_kind` dictionary in the configuration file. These default
 values are defined in the LFRic infrastructure code.
 
-.. note:: The ``logical`` Fortran primitive (intrinsic) data type is
-          not currently supported, however the support is planned for
-          a future PSyclone release.
+.. note:: Whilst the ``logical`` Fortran primitive (intrinsic) data
+          type is supported in the LFRic API, it is not yet available
+          as a scalar, field or operator. This will be added as
+          required in future releases.
 
 .. _lfric-num-any-spaces:
 
@@ -3226,9 +3227,8 @@ above, the number of generalised ``ANY_SPACE_<n>`` and
 The relevant parameters are ``NUM_ANY_SPACE`` and
 ``NUM_ANY_DISCONTINUOUS_SPACE``, respectively. Their default values in
 the configuration file are 10 and their allowed values are positive
-non-zero integers. PSyclone will raise a ``ConfigurationError`` if
-the supplied values are not integers or if 0 or a negative integer is
-supplied.
+non-zero integers. PSyclone will raise a ``ConfigurationError`` if a
+supplied value is invalid.
 
 .. _dynamo0.3-api-transformations:
 
@@ -3256,7 +3256,7 @@ function space is specified in the Kernel metadata. Setting
 ``ftrans.same_space = True`` allows the user to specify that the spaces are
 the same. This option should therefore be used with caution. PSyclone will
 raise an error if **same_space** is used when at least one of the function
-spaces is not ``ANY_SPACE_<n>`` or both spaces are not the same. As a general
+spaces is not ``ANY_SPACE_<n>`` or both spaces are not the same. In general,
 PSyclone will not allow loop fusion if it does not know the spaces
 are the same. The exception are loops over discontinuous spaces (see
 :ref:`lfric-function-space` for list of discontinuous function spaces)

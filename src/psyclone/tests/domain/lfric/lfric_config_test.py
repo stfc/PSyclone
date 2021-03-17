@@ -103,10 +103,14 @@ def config(config_file, content):
     :rtype: :py:class:`psyclone.configuration.Config`
 
     '''
+    # Create and populate a temporary config file
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
-        return Config()
+    # Create and populate a test Config object
+    config_obj = Config()
+    config_obj.load(config_file=str(config_file))
+    return config_obj
 
 
 @pytest.mark.parametrize(
@@ -123,7 +127,7 @@ def test_no_mandatory_option(tmpdir, option):
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content).load(config_file=str(config_file))
+        config(config_file, content)
 
     assert ("Missing mandatory configuration option in the "
             "\'[dynamo0.3]\' section " in str(err.value))
@@ -144,7 +148,7 @@ def test_entry_not_bool(tmpdir, option):
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content).load(config_file=str(config_file))
+        config(config_file, content)
 
     assert "Error while parsing {0}".format(option) in str(err.value)
     assert "Not a boolean: tree" in str(err.value)
@@ -162,7 +166,7 @@ def test_entry_not_int(tmpdir, option):
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content).load(config_file=str(config_file))
+        config(config_file, content)
 
     assert "Error while parsing {0}".format(option) in str(err.value)
     assert ("invalid literal for int() with base 10: 'false'"
@@ -183,7 +187,7 @@ def test_invalid_default_kind(tmpdir):
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content).load(config_file=str(config_file))
+        config(config_file, content)
 
     test_str = str(err.value)
     if six.PY2:
@@ -197,7 +201,7 @@ def test_invalid_default_kind(tmpdir):
     content = re.sub("integer: i_def,", "integer: ,", _CONFIG_CONTENT)
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content).load(config_file=str(config_file))
+        config(config_file, content)
 
     test_str = str(err.value)
     if six.PY2:
@@ -222,7 +226,7 @@ def test_invalid_num_any_anyd_spaces(tmpdir):
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content).load(config_file=str(config_file))
+        config(config_file, content)
 
     assert ("The supplied number of ANY_SPACE function spaces in "
             "the \'[dynamo0.3]\' section " in str(err.value))
@@ -236,7 +240,7 @@ def test_invalid_num_any_anyd_spaces(tmpdir):
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content).load(config_file=str(config_file))
+        config(config_file, content)
 
     assert ("The supplied number of ANY_DISCONTINUOUS_SPACE function "
             "spaces in the \'[dynamo0.3]\' section " in str(err.value))
