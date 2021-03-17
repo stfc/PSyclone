@@ -723,6 +723,8 @@ class Fparser2Reader(object):
         ('.gt.', BinaryOperation.Operator.GT),
         ('.and.', BinaryOperation.Operator.AND),
         ('.or.', BinaryOperation.Operator.OR),
+        ('int', BinaryOperation.Operator.INT),
+        ('real', BinaryOperation.Operator.REAL),
         ('sign', BinaryOperation.Operator.SIGN),
         ('size', BinaryOperation.Operator.SIZE),
         ('sum', BinaryOperation.Operator.SUM),
@@ -3043,6 +3045,7 @@ class Fparser2Reader(object):
             raise NotImplementedError(operator_str)
 
         binary_op = BinaryOperation(operator, parent=parent)
+
         self.process_nodes(parent=binary_op, nodes=[arg_nodes[0]])
         self.process_nodes(parent=binary_op, nodes=[arg_nodes[1]])
 

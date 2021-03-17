@@ -424,6 +424,12 @@
         populate the field access information (dependency analysis) for a
         GOcean kernel.
 
+        138) PR #1154 for #1153. Work towards improving usability of
+        loop fusion transformation. Moves transformations into separate
+        files in the appropriate directories.
+
+	139) PR #1155 for #529. Adds PSyIR support for REAL and INT BinaryOperations.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
