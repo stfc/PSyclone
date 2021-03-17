@@ -364,6 +364,17 @@ class RefElementMetaData(object):
                                  "found: '{0}'.".format(prop))
 
 
+class MeshProperty(Enum):
+    '''
+    Enumeration of the various properties of the mesh that a kernel may
+    require (either named in metadata or implicitly, depending on the type
+    of kernel).
+
+    '''
+    ADJACENT_FACE = 1
+    NCELL_2D = 2
+
+
 class MeshPropertiesMetaData(object):
     '''
     Parses any mesh-property kernel metadata and stores the properties that
@@ -378,16 +389,9 @@ class MeshPropertiesMetaData(object):
     :raises ParseError: if a duplicate mesh property is found.
 
     '''
-    # pylint: disable=too-few-public-methods
-    class Property(Enum):
-        '''
-        Enumeration of the various properties of the mesh that a kernel may
-        request. The names of each of these corresponds to the names that must
-        be used in kernel metadata.
-
-        '''
-        ADJACENT_FACE = 1
-        NCELL_2D = 2
+    # The properties that may be specified in kernel meta-data are a subset
+    # of the MeshProperty enumeration values.
+    supported_properties = [MeshProperty.ADJACENT_FACE]
 
     def __init__(self, kernel_name, type_declns):
         # The list of mesh properties requested in the meta-data.
@@ -416,22 +420,24 @@ class MeshPropertiesMetaData(object):
             # argument to which gives a mesh property.
             for prop in mesh_props:
                 for arg in prop.args:
-                    self.properties.append(
-                        self.Property[str(arg).upper()])
-        except KeyError:
-            # We found a reference-element property that we don't recognise.
-            # Sort for consistency when testing.
-            sorted_names = sorted([prop.name for prop in self.Property])
-            raise ParseError(
-                "Unsupported mesh property: '{0}'. Supported "
-                "values are: {1}".format(arg, sorted_names))
+                    mesh_prop = MeshProperty[str(arg).upper()]
+                    if mesh_prop not in self.supported_properties:
+                        raise KeyError()
+                    self.properties.append(mesh_prop)
+        except KeyError as err:
+            # We found a mesh property that we don't recognise or that
+            # is not supported.
+            six.raise_from(
+                ParseError("Unsupported mesh property in metadata: '{0}'. "
+                           "Supported values are: {1}".format(
+                               arg, [prop.name for prop in
+                                     self.supported_properties])), err)
 
         # Check for duplicate properties
         for prop in self.properties:
             if self.properties.count(prop) > 1:
                 raise ParseError("Duplicate mesh property "
                                  "found: '{0}'.".format(prop))
-
 
 class DynKernMetadata(KernelType):
     ''' Captures the Kernel subroutine code and metadata describing
@@ -1876,8 +1882,7 @@ class LFRicMeshProperties(DynCollection):
                                      if prop not in self._properties]
             if call.iterates_over == "domain" and not need_ncell_2d:
                 need_ncell_2d = True
-                self._properties.append(
-                    MeshPropertiesMetaData.Property.NCELL_2D)
+                self._properties.append(MeshProperty.NCELL_2D)
 
         # Store properties in symbol table
         for prop in self._properties:
@@ -1913,7 +1918,7 @@ class LFRicMeshProperties(DynCollection):
         arg_list = []
 
         for prop in self._properties:
-            if prop == MeshPropertiesMetaData.Property.ADJACENT_FACE:
+            if prop == MeshProperty.ADJACENT_FACE:
                 # Is this kernel already being passed the number of horizontal
                 # faces of the reference element?
                 has_nfaces = (
@@ -1947,7 +1952,7 @@ class LFRicMeshProperties(DynCollection):
                         adj_face += "(:,{0})".format(cell_name)
                 arg_list.append(adj_face)
 
-            elif prop == MeshPropertiesMetaData.Property.NCELL_2D:
+            elif prop == MeshProperty.NCELL_2D:
                 # This kernel needs ncell_2d
                 name = self._symbol_table.symbol_from_tag("ncell_2d").name
                 arg_list.append(name)
@@ -1958,10 +1963,9 @@ class LFRicMeshProperties(DynCollection):
                 raise InternalError(
                     "kern_args: found unsupported mesh property '{0}' when "
                     "generating arguments for kernel '{1}'. Only members of "
-                    "the MeshPropertiesMetaData.Property Enum are permitted "
+                    "the MeshProperty Enum are permitted "
                     "({2}).".format(
-                        str(prop), self._kernel.name,
-                        list(MeshPropertiesMetaData.Property)))
+                        str(prop), self._kernel.name, list(MeshProperty)))
 
         return arg_list
 
@@ -1989,13 +1993,13 @@ class LFRicMeshProperties(DynCollection):
         for prop in self._properties:
             # The DynMeshes class will have created a mesh object so we
             # don't need to do that here.
-            if prop == MeshPropertiesMetaData.Property.ADJACENT_FACE:
+            if prop == MeshProperty.ADJACENT_FACE:
                 adj_face = self._symbol_table.symbol_from_tag(
                     "adjacent_face").name + "(:,:) => null()"
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    pointer=True, entity_decls=[adj_face]))
-            elif prop == MeshPropertiesMetaData.Property.NCELL_2D:
+            elif prop == MeshProperty.NCELL_2D:
                 name = self._symbol_table.symbol_from_tag("ncell_2d").name
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
@@ -2004,9 +2008,8 @@ class LFRicMeshProperties(DynCollection):
                 raise InternalError(
                     "Found unsupported mesh property '{0}' when "
                     "generating invoke declarations. Only members of "
-                    "the MeshPropertiesMetaData.Property Enum are permitted "
-                    "({1}).".format(
-                        str(prop), list(MeshPropertiesMetaData.Property)))
+                    "the MeshProperty Enum are permitted "
+                    "({1}).".format(str(prop), list(MeshProperty)))
 
     def _stub_declarations(self, parent):
         '''
@@ -2030,7 +2033,7 @@ class LFRicMeshProperties(DynCollection):
                 "not a kernel.")
 
         for prop in self._properties:
-            if prop == MeshPropertiesMetaData.Property.ADJACENT_FACE:
+            if prop == MeshProperty.ADJACENT_FACE:
                 adj_face = self._symbol_table.symbol_from_tag(
                     "adjacent_face").name
                 # 'nfaces_re_h' will have been declared by the
@@ -2046,9 +2049,8 @@ class LFRicMeshProperties(DynCollection):
                 raise InternalError(
                     "Found unsupported mesh property '{0}' when generating "
                     "declarations for kernel stub. Only members of the "
-                    "MeshPropertiesMetaData.Property Enum are permitted "
-                    "({1})".format(str(prop),
-                                   list(MeshPropertiesMetaData.Property)))
+                    "MeshProperty Enum are permitted "
+                    "({1})".format(str(prop), list(MeshProperty)))
 
     def initialise(self, parent):
         '''
@@ -2071,13 +2073,13 @@ class LFRicMeshProperties(DynCollection):
         mesh = self._symbol_table.symbol_from_tag("mesh").name
 
         for prop in self._properties:
-            if prop == MeshPropertiesMetaData.Property.ADJACENT_FACE:
+            if prop == MeshProperty.ADJACENT_FACE:
                 adj_face = self._symbol_table.symbol_from_tag(
                     "adjacent_face").name
                 parent.add(AssignGen(parent, pointer=True, lhs=adj_face,
                                      rhs=mesh+"%get_adjacent_face()"))
 
-            elif prop == MeshPropertiesMetaData.Property.NCELL_2D:
+            elif prop == MeshProperty.NCELL_2D:
                 name = self._symbol_table.symbol_from_tag("ncell_2d").name
                 parent.add(AssignGen(parent, lhs=name,
                                      rhs=mesh+"%get_ncells_2d()"))
@@ -2085,9 +2087,8 @@ class LFRicMeshProperties(DynCollection):
                 raise InternalError(
                     "Found unsupported mesh property '{0}' when generating "
                     "initialisation code. Only members of the "
-                    "MeshPropertiesMetaData.Property Enum are permitted "
-                    "({1})".format(str(prop),
-                                   list(MeshPropertiesMetaData.Property)))
+                    "MeshProperty Enum are permitted "
+                    "({1})".format(str(prop), list(MeshProperty)))
 
 
 class DynReferenceElement(DynCollection):
