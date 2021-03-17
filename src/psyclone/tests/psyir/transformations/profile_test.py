@@ -841,7 +841,7 @@ def test_auto_invoke_return_last_stmt(parser):
     assert isinstance(kschedule[1], Return)
 
 
-def test_auto_invoke_no_return(parser, capsys):
+def test_auto_invoke_no_return(capsys):
     ''' Check that using the auto-invoke profiling option does not add any
     profiling if the invoke contains a Return anywhere other than as the
     last statement. '''
@@ -851,7 +851,7 @@ def test_auto_invoke_no_return(parser, capsys):
         symbol_type=DataSymbol, datatype=REAL_TYPE)
     zero = Literal("0.0", REAL_TYPE)
     assign1 = Assignment.create(Reference(arg1), zero)
-    assign2 = Assignment.create(Reference(arg1), zero)
+    assign2 = Assignment.create(Reference(arg1), zero.copy())
 
     # Create Schedule with Return at the start.
     kschedule = KernelSchedule.create(

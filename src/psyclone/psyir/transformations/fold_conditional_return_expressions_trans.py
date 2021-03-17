@@ -137,7 +137,7 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
                 # Reverse condition adding a NOT operator
                 new_condition = UnaryOperation.create(
                     UnaryOperation.Operator.NOT,
-                    statement.condition)
+                    statement.condition.copy())
                 statement.children[0] = new_condition
                 new_condition.parent = statement
 
@@ -147,6 +147,7 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
                 # statement inside the loop body
                 while len(statement.parent.children) > statement.position + 1:
                     move = statement.parent.children.pop()
+                    move.parent = None
                     statement.if_body.children.insert(0, move)
                     move.parent = statement.if_body
 
