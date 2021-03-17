@@ -221,10 +221,9 @@ def test_omp_parallel_loop(tmpdir):
 
     omp = GOceanOMPParallelLoopTrans()
     cbtrans = GOConstLoopBoundsTrans()
-    omp_sched, _ = omp.apply(schedule.children[0])
-    newsched, _ = cbtrans.apply(omp_sched, {"const_bounds": True})
+    omp.apply(schedule.children[0])
+    cbtrans.apply(schedule, {"const_bounds": True})
 
-    invoke.schedule = omp_sched
     gen = str(psy.gen)
     gen = gen.lower()
     expected = ("!$omp parallel do default(shared), private(i,j), "
@@ -238,8 +237,7 @@ def test_omp_parallel_loop(tmpdir):
                 "      !$omp end parallel do")
     assert expected in gen
 
-    newsched, _ = cbtrans.apply(omp_sched, {"const_bounds": False})
-    invoke.schedule = newsched
+    cbtrans.apply(schedule, {"const_bounds": False})
     gen = str(psy.gen)
     gen = gen.lower()
     expected = (
@@ -556,13 +554,11 @@ def test_omp_region_retains_kernel_order3(tmpdir):
     ompl = GOceanOMPLoopTrans()
 
     # Put an OMP Do around the 2nd loop of the schedule
-    omp_schedule, _ = ompl.apply(schedule.children[1])
+    ompl.apply(schedule.children[1])
 
     # Put an OMP Parallel around that single OMP Do
-    schedule, _ = ompr.apply([omp_schedule.children[1]])
+    ompr.apply([schedule.children[1]])
 
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
     # Store the results of applying this code transformation as
     # a string
     gen = str(psy.gen)

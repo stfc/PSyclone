@@ -1243,7 +1243,7 @@ class GOKern(CodedKern):
 
         '''
 
-        if self.root.opencl:
+        if self.ancestor(InvokeSchedule).opencl:
             # OpenCL is completely different so has its own gen method and
             # has to call the rename_and_write to generate to OpenCL files.
             self.rename_and_write()

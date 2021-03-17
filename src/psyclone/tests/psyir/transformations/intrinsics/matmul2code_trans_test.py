@@ -373,9 +373,9 @@ def test_apply1(tmpdir):
     '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
-    trans.apply(matmul)
+    root = trans.apply(matmul)
     writer = FortranWriter()
-    result = writer(matmul.root)
+    result = writer(root)
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
@@ -407,9 +407,9 @@ def test_apply2(tmpdir):
     matmul = create_matmul()
     matmul.children[0].children[2] = Literal("1", INTEGER_TYPE)
     matmul.children[1].children[1] = Literal("2", INTEGER_TYPE)
-    trans.apply(matmul)
+    root = trans.apply(matmul)
     writer = FortranWriter()
-    result = writer(matmul.root)
+    result = writer(root)
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
@@ -452,9 +452,9 @@ def test_apply3(tmpdir):
     lhs_vector_symbol = lhs_vector.symbol
     lhs_vector_symbol._shape = [Literal("10", INTEGER_TYPE)]
     matrix.parent.parent.children[0] = Reference(lhs_vector_symbol)
-    trans.apply(matmul)
+    root = trans.apply(matmul)
     writer = FortranWriter()
-    result = writer(matmul.root)
+    result = writer(root)
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"
@@ -491,9 +491,9 @@ def test_apply4(tmpdir):
     assignment.children[0] = ArrayReference.create(
             vector, [Range.create(one, five, one.copy()),
                      one.copy()])
-    trans.apply(matmul)
+    root = trans.apply(matmul)
     writer = FortranWriter()
-    result = writer(matmul.root)
+    result = writer(root)
     assert (
         "subroutine my_kern()\n"
         "  integer, parameter :: idx = 3\n"

@@ -299,21 +299,22 @@ class PSyDataNode(Statement):
             be added to each variable name in the post_var_list.
 
         '''
+        from psyclone.psyGen import Kern, InvokeSchedule
         # TODO: #415 Support different classes of PSyData calls.
+        invoke = self.ancestor(InvokeSchedule).invoke
         module_name = self._module_name
         if module_name is None:
             # The user has not supplied a module (location) name so
             # return the psy-layer module name as this will be unique
             # for each PSyclone algorithm file.
-            module_name = self.root.invoke.invokes.psy.name
+            module_name = invoke.invokes.psy.name
 
         region_name = self._region_name
         if region_name is None:
             # The user has not supplied a region name (to identify
             # this particular invoke region). Use the invoke name as a
             # starting point.
-            region_name = self.root.invoke.name
-            from psyclone.psyGen import Kern
+            region_name = invoke.name
             kerns = self.walk(Kern)
             if len(kerns) == 1:
                 # This PSyData region only has one kernel within it,

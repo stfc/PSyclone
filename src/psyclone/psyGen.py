@@ -561,8 +561,8 @@ class Invoke(object):
         # create the schedule
         self._schedule = schedule_class(self._name, alg_invocation.kcalls,
                                         reserved_names)
-        if self.invokes:
-            self.invokes.psy.container.addchild(self._schedule)
+        #if self.invokes:
+        #    self.invokes.psy.container.addchild(self._schedule)
 
         # let the schedule have access to me
         self._schedule.invoke = self
@@ -3092,7 +3092,7 @@ class CodedKern(Kern):
         from psyclone.line_length import FortLineLength
 
         # If this kernel has not been transformed we do nothing
-        if not self.modified and not self.root.opencl:
+        if not self.modified and not self.ancestor(InvokeSchedule).opencl:
             return
 
         # Remove any "_mod" if the file follows the PSyclone naming convention
@@ -3119,7 +3119,7 @@ class CodedKern(Kern):
             # TODO: Issue 499, this works as an OpenCL quickfix but it needs
             # to be generalized and be consistent with the '--kernel-renaming'
             # conventions.
-            if self.root.opencl:
+            if self.ancestor(InvokeSchedule).opencl:
                 if self.name.lower().endswith("_code"):
                     new_suffix += "_" + self.name[:-5]
                 else:
@@ -3128,7 +3128,7 @@ class CodedKern(Kern):
             new_suffix += "_{0}".format(name_idx)
 
             # Choose file extension
-            if self.root.opencl:
+            if self.ancestor(InvokeSchedule).opencl:
                 new_name = old_base_name + new_suffix + ".cl"
             else:
                 new_name = old_base_name + new_suffix + "_mod.f90"
@@ -3154,7 +3154,7 @@ class CodedKern(Kern):
         # have already been generated. The link to an specific kernel
         # implementation is delayed to run-time in OpenCL. (e.g. FortCL has
         # the  FORTCL_KERNELS_FILE environment variable)
-        if not self.root.opencl:
+        if not self.ancestor(InvokeSchedule).opencl:
             if self._kern_schedule:
                 # A PSyIR kernel schedule has been created. This means
                 # that the PSyIR has been modified and will be used to
@@ -3181,7 +3181,7 @@ class CodedKern(Kern):
             os.close(fdesc)
             return
 
-        if self.root.opencl:
+        if self.ancestor(InvokeSchedule).opencl:
             from psyclone.psyir.backend.opencl import OpenCLWriter
             ocl_writer = OpenCLWriter(
                 kernels_local_size=self._opencl_options['local_size'])

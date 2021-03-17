@@ -60,9 +60,8 @@ def test_accloop():
     assert trans.name == "ACCLoopTrans"
     assert str(trans) == "Adds an 'OpenACC loop' directive to a loop"
 
-    pnode = Node()
     cnode = Statement()
-    tdir = trans._directive(pnode, [cnode])
+    tdir = trans._directive([cnode])
     assert isinstance(tdir, ACCLoopDirective)
 
 
@@ -95,10 +94,9 @@ def test_omploop_no_collapse():
     ''' Check that the OMPLoopTrans.directive() method rejects the
     collapse argument '''
     trans = OMPLoopTrans()
-    pnode = Node()
     cnode = Node()
     with pytest.raises(NotImplementedError) as err:
-        _ = trans._directive(pnode, cnode, collapse=2)
+        _ = trans._directive(cnode, collapse=2)
     assert ("The COLLAPSE clause is not yet supported for '!$omp do' "
             "directives" in str(err.value))
 

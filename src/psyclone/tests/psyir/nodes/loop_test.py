@@ -236,15 +236,15 @@ def test_loop_create_invalid():
     '''
     zero = Literal("0", INTEGER_SINGLE_TYPE)
     one = Literal("1", INTEGER_SINGLE_TYPE)
-    children = [Assignment.create(
+    children = Assignment.create(
         Reference(DataSymbol("x", INTEGER_SINGLE_TYPE)),
-        one.copy())]
+        one.copy())
 
     # invalid variable (test_check_variable tests check all ways a
     # variable could be invalid. Here we just check that the
     # _check_variable() method is called correctly)
     with pytest.raises(GenerationError) as excinfo:
-        _ = Loop.create(1, zero, one, one, children)
+        _ = Loop.create(1, zero, one, one, [children.copy()])
     assert ("variable property in Loop class should be a DataSymbol but "
             "found 'int'.") in str(excinfo.value)
 
@@ -252,19 +252,19 @@ def test_loop_create_invalid():
 
     # start not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = Loop.create(variable, "invalid", one, one, children)
+        _ = Loop.create(variable, "invalid", one, one, [children.copy()])
     assert ("Item 'str' can't be child 0 of 'Loop'. The valid format is: "
             "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
 
     # stop not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = Loop.create(variable, zero, "invalid", one, children)
+        _ = Loop.create(variable, zero, "invalid", one, [children.copy()])
     assert ("Item 'str' can't be child 1 of 'Loop'. The valid format is: "
             "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
 
     # step not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = Loop.create(variable, zero, one, "invalid", children)
+        _ = Loop.create(variable, zero, one, "invalid", [children.copy()])
     assert ("Item 'str' can't be child 2 of 'Loop'. The valid format is: "
             "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
 

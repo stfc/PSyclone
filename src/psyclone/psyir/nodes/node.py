@@ -165,6 +165,14 @@ class ChildrenList(list):
                     self._node_reference.coloured_name(False),
                     item.parent.coloured_name(False)))
 
+    def _set_parent_link(self, item):
+        item._parent = self._node_reference
+        pass
+
+    def _del_parent_link(self, item):
+        item._parent = None
+        pass
+
     def append(self, item):
         ''' Extends list append method with children node validation.
 
@@ -175,6 +183,7 @@ class ChildrenList(list):
         self._validate_item(len(self), item)
         self._check_is_orphan(item)
         super(ChildrenList, self).append(item)
+        self._set_parent_link(item)
 
     def __setitem__(self, index, item):
         ''' Extends list __setitem__ method with children node validation.
@@ -187,6 +196,7 @@ class ChildrenList(list):
         self._validate_item(index, item)
         self._check_is_orphan(item)
         super(ChildrenList, self).__setitem__(index, item)
+        self._set_parent_link(item)
 
     def insert(self, index, item):
         ''' Extends list insert method with children node validation.
@@ -203,6 +213,7 @@ class ChildrenList(list):
         for position in range(positiveindex, len(self)):
             self._validate_item(position + 1, self[position])
         super(ChildrenList, self).insert(index, item)
+        self._set_parent_link(item)
 
     def extend(self, items):
         ''' Extends list extend method with children node validation.
@@ -215,6 +226,8 @@ class ChildrenList(list):
             self._validate_item(len(self) + index, item)
             self._check_is_orphan(item)
         super(ChildrenList, self).extend(items)
+        for item in items:
+            self._set_parent_link(item)
 
     # Methods below don't insert elements but have the potential to displace
     # or change the order of the items in-place.
@@ -227,6 +240,7 @@ class ChildrenList(list):
         positiveindex = index if index >= 0 else len(self) - index
         for position in range(positiveindex + 1, len(self)):
             self._validate_item(position - 1, self[position])
+        self._del_parent_link(self[index])
         super(ChildrenList, self).__delitem__(index)
 
     def remove(self, item):
@@ -238,6 +252,7 @@ class ChildrenList(list):
         '''
         for position in range(self.index(item) + 1, len(self)):
             self._validate_item(position - 1, self[position])
+        self._del_parent_link(item)
         super(ChildrenList, self).remove(item)
 
     def pop(self, index=-1):
@@ -254,6 +269,7 @@ class ChildrenList(list):
         # Check if displaced items after 'positiveindex' will still be valid
         for position in range(positiveindex + 1, len(self)):
             self._validate_item(position - 1, self[position])
+        self._del_parent_link(self[index])
         return super(ChildrenList, self).pop(index)
 
     def reverse(self):

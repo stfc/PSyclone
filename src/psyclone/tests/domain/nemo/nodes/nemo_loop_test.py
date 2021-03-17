@@ -132,23 +132,23 @@ def test_create_errors():
     stop = Literal("10", INTEGER_TYPE)
     step = Literal("1", INTEGER_TYPE)
     x_var = DataSymbol("X", REAL_TYPE)
-    children = [Assignment.create(Reference(x_var), Literal("3.0", REAL_TYPE))]
+    children = Assignment.create(Reference(x_var), Literal("3.0", REAL_TYPE))
     with pytest.raises(GenerationError) as info:
-        _ = NemoLoop.create(None, start, stop, step, children)
+        _ = NemoLoop.create(None, start, stop, step, [children.copy()])
     assert ("Generation Error: variable property in Loop class should be a "
             "DataSymbol but found 'NoneType'" in str(info.value))
     with pytest.raises(GenerationError) as info:
-        _ = NemoLoop.create(variable, None, stop, step, children)
+        _ = NemoLoop.create(variable, None, stop, step, [children.copy()])
     assert ("Generation Error: Item 'NoneType' can't be child 0 of 'Loop'. "
             "The valid format is: 'DataNode, DataNode, DataNode, Schedule'."
             in str(info.value))
     with pytest.raises(GenerationError) as info:
-        _ = NemoLoop.create(variable, start, None, step, children)
+        _ = NemoLoop.create(variable, start, None, step, [children.copy()])
     assert ("Generation Error: Item 'NoneType' can't be child 1 of 'Loop'. "
             "The valid format is: 'DataNode, DataNode, DataNode, Schedule'."
             in str(info.value))
     with pytest.raises(GenerationError) as info:
-        _ = NemoLoop.create(variable, start, stop, None, children)
+        _ = NemoLoop.create(variable, start, stop, None, [children.copy()])
     assert ("Generation Error: Item 'NoneType' can't be child 2 of 'Loop'. "
             "The valid format is: 'DataNode, DataNode, DataNode, Schedule'."
             in str(info.value))

@@ -531,13 +531,13 @@ class Loop(Statement):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        from psyclone.psyGen import zero_reduction_variables
+        from psyclone.psyGen import zero_reduction_variables, InvokeSchedule
 
         def is_unit_literal(expr):
             ''' Check if the given expression is equal to the literal '1'.
 
             :param expr: a PSyIR expression.
-            :type expr: :py:class:`psyclone.psyir.nodes.Node`
+                :type expr: :py:class:`psyclone.psyir.nodes.Node`
 
             :returns: True if it is equal to the literal '1', false otherwise.
             '''
@@ -547,8 +547,9 @@ class Loop(Statement):
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
 
-        if self.root.opencl or (is_unit_literal(self.start_expr) and
-                                is_unit_literal(self.stop_expr)):
+        invoke = self.ancestor(InvokeSchedule)
+        if invoke.opencl or (is_unit_literal(self.start_expr) and
+                             is_unit_literal(self.stop_expr)):
             # no need for a loop
             for child in self.loop_body:
                 child.gen_code(parent)
