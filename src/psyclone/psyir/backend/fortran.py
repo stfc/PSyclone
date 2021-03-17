@@ -755,7 +755,7 @@ class FortranWriter(PSyIRVisitor):
         # variables at the routine level scope. For this reason, at this
         # point we have to unify all declarations and resolve possible name
         # clashes that appear when merging the scopes.
-        whole_routine_scope = SymbolTable()
+        whole_routine_scope = SymbolTable(node)
         for schedule in node.walk(Schedule):
             for symbol in schedule.symbol_table.symbols:
                 try:
