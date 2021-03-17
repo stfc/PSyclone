@@ -601,10 +601,10 @@ class FortranWriter(PSyIRVisitor):
             which does not have a GlobalInterface or LocalInterface as this \
             is not supported by this backend.
         :raises VisitorError: if args_allowed is False and one or more \
-                              argument declarations exist in symbol_table.
-        :raises VisitorError: if any symbols representing variables (i.e. \
-            not kind parameters) without an explicit declaration or 'use' \
-            are encountered.
+            argument declarations exist in symbol_table.
+        :raises VisitorError: if any symbols representing variables without \
+            a (local) explicit declaration or 'use' are encountered and there \
+            are no wildcard imports.
 
         '''
         declarations = ""
@@ -618,17 +618,26 @@ class FortranWriter(PSyIRVisitor):
                 "supported by the Fortran back-end.")
 
         # Does the symbol table contain any symbols with a deferred
-        # interface (i.e. we don't know how they are brought into scope) that
-        # are not KIND parameters?
-        unresolved_datasymbols = symbol_table.get_unresolved_datasymbols(
-            ignore_precision=True)
+        # interface (i.e. we don't know how they are brought into scope)
+        unresolved_datasymbols = symbol_table.get_unresolved_datasymbols()
+
         if unresolved_datasymbols:
-            symbols_txt = ", ".join(
-                ["'" + sym + "'" for sym in unresolved_datasymbols])
-            raise VisitorError(
-                "The following symbols are not explicitly declared or imported"
-                " from a module (in the local scope) and are not KIND "
-                "parameters: {0}".format(symbols_txt))
+            # We do have unresolved symbols. Is there at least one wildcard
+            # import which could be bringing them into scope?
+            current_table = symbol_table
+            while current_table:
+                container_symbols = current_table.containersymbols
+                if any(sym.wildcard_import for sym in container_symbols):
+                    break
+                current_table = current_table.parent_symbol_table()
+            else:
+                symbols_txt = ", ".join(
+                    ["'" + sym + "'" for sym in unresolved_datasymbols])
+                raise VisitorError(
+                    "The following symbols are not explicitly declared or "
+                    "imported from a module (in the local scope) and there "
+                    "are no wildcard imports which could be bringing them "
+                    "into scope: {0}".format(symbols_txt))
 
         # Fortran requires use statements to be specified before
         # variable declarations. As a convention, this method also

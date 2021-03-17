@@ -49,7 +49,7 @@ from psyclone.psyir.backend.fortran import gen_intent, FortranWriter, \
 from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
     UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
     KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
-    StructureReference, Schedule
+    StructureReference, Schedule, Routine, Return
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     GlobalInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -684,8 +684,44 @@ def test_gen_decls(fort_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_decls(symbol_table)
     assert ("The following symbols are not explicitly declared or imported "
-            "from a module (in the local scope) and are not KIND parameters: "
+            "from a module (in the local scope) and there are no wildcard "
+            "imports which could be bringing them into scope: "
             "'unknown'" in str(excinfo.value))
+
+
+def test_gen_decls_nested_scope(fort_writer):
+    ''' Test that gen_decls() correctly checks for potential wildcard imports
+    of an unresolved symbol in an outer scope.
+
+    '''
+    inner_table = SymbolTable()
+    inner_table.add(DataSymbol("unknown1", INTEGER_TYPE,
+                               interface=UnresolvedInterface()))
+    routine = Routine.create("my_func", inner_table, [Return()])
+    cont_table = SymbolTable()
+    _ = Container.create("my_mod", cont_table, [routine])
+
+    cont_table.add(ContainerSymbol("my_module"))
+    # Innermost symbol table contains "unknown1" and there's no way it can
+    # be brought into scope
+    with pytest.raises(VisitorError) as err:
+        fort_writer.gen_decls(inner_table)
+    assert ("symbols are not explicitly declared or imported from a module "
+            "(in the local scope) and there are no wildcard imports which "
+            "could be bringing them into scope: 'unknown1'" in str(err.value))
+    # Add a ContainerSymbol with a wildcard import in the outermost scope
+    csym = ContainerSymbol("other_mod")
+    csym.wildcard_import = True
+    cont_table.add(csym)
+    # The inner symbol table contains a symbol with an unresolved interface
+    # but nothing that requires an actual declaration
+    result = fort_writer.gen_decls(inner_table)
+    assert result == ""
+    # Move the wildcard import into the innermost table
+    cont_table.remove(csym)
+    inner_table.add(csym)
+    result = fort_writer.gen_decls(inner_table)
+    assert result == ""
 
 
 def test_gen_decls_routine(fort_writer):
