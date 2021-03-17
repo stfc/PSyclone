@@ -64,7 +64,7 @@ class Operation(DataNode):
     '''
     # Must be overridden in sub-class to hold an Enumeration of the Operators
     # that it can represent.
-    Operator = None
+    Operator = object
     # Textual description of the node.
     _text_name = "Operation"
     _colour = "blue"

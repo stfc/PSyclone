@@ -110,9 +110,17 @@ print(str(SYMBOL_TABLE))
 INDEX_SYMBOL = SYMBOL_TABLE.new_symbol(root_name="i", symbol_type=DataSymbol,
                                        datatype=INTEGER4_TYPE)
 
-# Some predefined scalar datatypes
-TWO = Literal("2.0", SCALAR_TYPE)
-INT_ONE = Literal("1", INTEGER8_TYPE)
+
+# Some predefined scalar literal nodes
+def real_two():
+    ''' Generate a Literal'''
+    return Literal("2.0", SCALAR_TYPE)
+
+
+def int_one():
+    ''' Generate a Literal'''
+    return Literal("1", INTEGER8_TYPE)
+
 
 # Reference to the "flag" scalar component of FIELD_SYMBOL, "field%flag"
 FLAG_REF = StructureReference.create(FIELD_SYMBOL, ["flag"])
@@ -123,28 +131,28 @@ DX_REF = StructureReference.create(FIELD_SYMBOL, ["grid", "dx"])
 # Array reference to component of derived type using a range
 LBOUND = BinaryOperation.create(
     BinaryOperation.Operator.LBOUND,
-    StructureReference.create(FIELD_SYMBOL, ["data"]), INT_ONE)
+    StructureReference.create(FIELD_SYMBOL, ["data"]), int_one())
 UBOUND = BinaryOperation.create(
     BinaryOperation.Operator.UBOUND,
-    StructureReference.create(FIELD_SYMBOL, ["data"]), INT_ONE)
+    StructureReference.create(FIELD_SYMBOL, ["data"]), int_one())
 MY_RANGE = Range.create(LBOUND, UBOUND)
 
 DATA_REF = StructureReference.create(FIELD_SYMBOL, [("data", [MY_RANGE])])
 
 # Reference to "field%sub_meshes(1)%dx"
-DX_REF2 = StructureReference.create(FIELD_SYMBOL, [("sub_meshes", [INT_ONE]),
+DX_REF2 = StructureReference.create(FIELD_SYMBOL, [("sub_meshes", [int_one()]),
                                                    "dx"])
 
 # Reference to "chi(1)%sub_meshes(1)%dx"
-DX_REF3 = ArrayOfStructuresReference.create(FIELD_BUNDLE_SYMBOL, [INT_ONE],
-                                            [("sub_meshes", [INT_ONE]), "dx"])
+DX_REF3 = ArrayOfStructuresReference.create(
+    FIELD_BUNDLE_SYMBOL, [int_one()], [("sub_meshes", [int_one()]), "dx"])
 
 ASSIGNMENTS = [
-    Assignment.create(DX_REF, TWO),
-    Assignment.create(FLAG_REF, INT_ONE),
-    Assignment.create(DATA_REF, TWO),
-    Assignment.create(DX_REF2, TWO),
-    Assignment.create(DX_REF3, TWO)]
+    Assignment.create(DX_REF, real_two()),
+    Assignment.create(FLAG_REF, int_one()),
+    Assignment.create(DATA_REF, real_two()),
+    Assignment.create(DX_REF2, real_two()),
+    Assignment.create(DX_REF3, real_two())]
 
 # KernelSchedule
 KERNEL_SCHEDULE = KernelSchedule.create("work", SYMBOL_TABLE, ASSIGNMENTS)

@@ -45,7 +45,7 @@ from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import Symbol, SymbolTable
+from psyclone.psyir.symbols import SymbolTable
 
 
 # =============================================================================
@@ -120,11 +120,6 @@ class PSyDataNode(Statement):
             ", ".join(self.add_psydata_class_prefix(symbol) for symbol in
                       PSyDataNode.symbols)
 
-        if children:
-            # We need to store the position of the original children,
-            # i.e. before they are added to a schedule
-            node_position = children[0].position
-
         # A PSyData node always contains a Schedule
         sched = self._insert_schedule(children)
         super(PSyDataNode, self).__init__(ast=ast, children=[sched],
@@ -144,22 +139,6 @@ class PSyDataNode(Statement):
         # being changed every time gen() is called).
         self._var_name = symtab.new_symbol(
             self._psy_data_symbol_with_prefix).name
-
-        if children and parent:
-            # Correct the parent's list of children. Use a slice of the list
-            # of nodes so that we're looping over a local copy of the list.
-            # Otherwise things get confused when we remove children from
-            # the list.
-            for child in children[:]:
-                # Remove child from the parent's list of children
-                parent.children.remove(child)
-
-            # Add this node as a child of the parent
-            # of the nodes being enclosed and at the original location
-            # of the first of these nodes
-            parent.addchild(self, index=node_position)
-        elif parent:
-            parent.addchild(self)
 
         # Name of the region. In general at constructor time we might
         # not have a parent subroutine or any child nodes, so

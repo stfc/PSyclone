@@ -170,8 +170,7 @@ def test_kernel():
     assert not nemo_loop.kernel
 
     schedule = nemo_loop.loop_body
-    loop_content = schedule.children
-    nemo_kern = NemoKern(loop_content, None)
+    nemo_kern = NemoKern(schedule.pop_all_children(), None)
     nemo_kern.parent = schedule
     schedule.children = [nemo_kern]
     assert nemo_loop.kernel

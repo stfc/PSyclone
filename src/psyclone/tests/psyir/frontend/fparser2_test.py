@@ -161,7 +161,7 @@ def test_is_bound_full_extent():
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
     symbol = DataSymbol('a', array_type)
-    my_range = Range.create(one, one)
+    my_range = Range.create(one.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     with pytest.raises(TypeError) as excinfo:
@@ -174,8 +174,8 @@ def test_is_bound_full_extent():
                                      BinaryOperation.Operator.UBOUND)
 
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, one, one)
-    my_range = Range.create(operator, one)
+        BinaryOperation.Operator.UBOUND, one.copy(), one.copy())
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting operator to be Operator.LBOUND, but found
@@ -184,8 +184,8 @@ def test_is_bound_full_extent():
                                      BinaryOperation.Operator.LBOUND)
 
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, one, one)
-    my_range = Range.create(operator, one)
+        BinaryOperation.Operator.LBOUND, one.copy(), one.copy())
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference but found Literal
@@ -194,8 +194,8 @@ def test_is_bound_full_extent():
 
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
-        Reference(DataSymbol("x", INTEGER_TYPE)), one)
-    my_range = Range.create(operator, one)
+        Reference(DataSymbol("x", INTEGER_TYPE)), one.copy())
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference symbol x to be the same as array symbol a
@@ -205,7 +205,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1.0", REAL_TYPE))
-    my_range = Range.create(operator, one)
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting integer but found real
@@ -215,7 +215,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("2", INTEGER_TYPE))
-    my_range = Range.create(operator, one)
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting literal value 2 to be the same as the current array
@@ -226,7 +226,7 @@ def test_is_bound_full_extent():
     operator = BinaryOperation.create(
         BinaryOperation.Operator.LBOUND,
         Reference(symbol), Literal("1", INTEGER_TYPE))
-    my_range = Range.create(operator, one)
+    my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # valid
@@ -279,7 +279,7 @@ def test_is_array_range_literal():
     # 1st dimension, first argument to range is an operator, not a literal
     assert not _is_array_range_literal(array_reference, 1, 0, 1)
 
-    my_range = Range.create(operator, one)
+    my_range = Range.create(operator.copy(), one.copy())
 
     # Range.create checks for valid datatype. Therefore change to
     # invalid after creation.
@@ -290,7 +290,7 @@ def test_is_array_range_literal():
     # not an integer literal.
     assert not _is_array_range_literal(array_reference, 1, 1, 1)
 
-    my_range = Range.create(operator, one)
+    my_range = Range.create(operator.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     # 1st dimension, second argument to range has an unexpected
     # value.
@@ -315,17 +315,18 @@ def test_is_range_full_extent():
     _is_range_full_extent(my_range)
 
     # Invalid start (as 1st argument should be lower bound)
-    my_range = Range.create(ubound_op, ubound_op, one)
+    my_range = Range.create(ubound_op.copy(), ubound_op.copy(), one.copy())
     _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
     # Invalid stop (as 2nd argument should be upper bound)
-    my_range = Range.create(lbound_op, lbound_op, one)
+    my_range = Range.create(lbound_op.copy(), lbound_op.copy(), one.copy())
     _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
     # Invalid step (as 3rd argument should be Literal)
-    my_range = Range.create(lbound_op, ubound_op, ubound_op)
+    my_range = Range.create(lbound_op.copy(), ubound_op.copy(),
+                            ubound_op.copy())
     _ = ArrayReference.create(symbol, [my_range])
     assert not _is_range_full_extent(my_range)
 
@@ -395,14 +396,15 @@ def test_array_notation_rank():
     range1 = Range.create(lbound_op1, ubound_op1)
     range2 = Range.create(lbound_op3, ubound_op3)
     one = Literal("1", INTEGER_TYPE)
-    array = ArrayReference.create(symbol, [range1, one, range2])
+    array = ArrayReference.create(symbol, [range1, one.copy(), range2])
     result = Fparser2Reader._array_notation_rank(array)
     # Two array dimensions use array notation.
     assert result == 2
 
     # Make one of the array notation dimensions differ from what is required.
-    range2 = Range.create(lbound_op3, one)
-    array = ArrayReference.create(symbol, [range1, one, range2])
+    range1.parent = None
+    range2 = Range.create(lbound_op3.copy(), one.copy())
+    array = ArrayReference.create(symbol, [range1, one.copy(), range2])
     with pytest.raises(NotImplementedError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
     assert ("Only array notation of the form my_array(:, :, ...) is "
@@ -2117,10 +2119,12 @@ def test_handling_if_construct():
     assert len(ifnode.children) == 3
     assert ifnode.condition.children[0].name == 'condition1'
     assert isinstance(ifnode.children[1], Schedule)
+    assert ifnode.children[1].parent is ifnode
     assert ifnode.children[1].ast is fparser2if_construct.content[1]
     assert ifnode.children[1].ast_end is fparser2if_construct.content[2]
     assert ifnode.if_body[0].children[0].name == 'branch1'
     assert isinstance(ifnode.children[2], Schedule)
+    assert ifnode.children[2].parent is ifnode
     assert ifnode.children[2].ast is fparser2if_construct.content[3]
 
     # Second level contains condition2, branch2, elsebody
@@ -2128,8 +2132,10 @@ def test_handling_if_construct():
     assert 'was_elseif' in ifnode.annotations
     assert ifnode.condition.children[0].name == 'condition2'
     assert isinstance(ifnode.children[1], Schedule)
+    assert ifnode.children[1].parent is ifnode
     assert ifnode.if_body[0].children[0].name == 'branch2'
     assert isinstance(ifnode.children[2], Schedule)
+    assert ifnode.children[2].parent is ifnode
 
     # Third level is just branch3
     elsebody = ifnode.else_body[0]
