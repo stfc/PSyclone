@@ -141,6 +141,7 @@ def test_correct_expr(tmpdir):
             BinaryOperation.Operator.MUL, arg,
             Literal("3.14", REAL_TYPE)))
     assignment = operation.parent
+    operation.parent = None
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  Literal("1.0", REAL_TYPE), operation)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
@@ -190,6 +191,7 @@ def test_correct_2abs(tmpdir):
     assignment = operation.parent
     abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS,
                                    Literal("1.0", REAL_TYPE))
+    operation.parent = None
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  operation, abs_op)
     op1.parent = assignment

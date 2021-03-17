@@ -45,6 +45,7 @@ from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
 from psyclone.psyGen import OMPDoDirective
+from psyclone.psyir.nodes import Statement
 
 # Constants
 API = "nemo"
@@ -244,7 +245,7 @@ wmask(ji, jj, jk)
     directive.ast = None
     # Make the schedule invalid by adding a second child to the
     # OMPParallelDoDirective
-    directive.dir_body.children.append(new_sched[0].loop_body[3])
+    directive.dir_body.children.append(Statement())
 
     with pytest.raises(GenerationError) as err:
         _ = directive.update()
@@ -285,7 +286,7 @@ def test_omp_do_children_err():
     assert isinstance(directive, OMPParallelDoDirective)
     # Make the schedule invalid by adding a second child to the
     # OMPParallelDoDirective
-    directive.dir_body.children.append(new_sched[0].loop_body[3])
+    directive.dir_body.children.append(Statement())
     with pytest.raises(GenerationError) as err:
         _ = psy.gen
     assert ("An OpenMP PARALLEL DO can only be applied to a single loop but "

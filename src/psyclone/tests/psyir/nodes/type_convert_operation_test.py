@@ -65,10 +65,9 @@ def test_type_convert_binaryop_create(operation, op_str):
     check_links(binaryoperation, [lhs, rhs])
     result = FortranWriter().binaryoperation_node(binaryoperation)
     assert op_str + "(tmp1, wp)" in result.lower()
-    lhs = Reference(sym)
     # Kind specified with an integer literal
     rhs = Literal("4", INTEGER_SINGLE_TYPE)
-    binaryoperation = BinaryOperation.create(operation, lhs, rhs)
+    binaryoperation = BinaryOperation.create(operation, lhs.detach(), rhs)
     check_links(binaryoperation, [lhs, rhs])
     result = FortranWriter().binaryoperation_node(binaryoperation)
     assert op_str + "(tmp1, 4)" in result.lower()
@@ -76,7 +75,7 @@ def test_type_convert_binaryop_create(operation, op_str):
     rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  Reference(wp_sym),
                                  Literal("2", INTEGER_SINGLE_TYPE))
-    binaryoperation = BinaryOperation.create(operation, lhs, rhs)
+    binaryoperation = BinaryOperation.create(operation, lhs.detach(), rhs)
     check_links(binaryoperation, [lhs, rhs])
     result = FortranWriter().binaryoperation_node(binaryoperation)
     assert op_str + "(tmp1, wp + 2)" in result.lower()
