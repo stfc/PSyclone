@@ -387,6 +387,7 @@ class MeshPropertiesMetaData(object):
 
         '''
         ADJACENT_FACE = 1
+        NCELL_2D = 2
 
     def __init__(self, kernel_name, type_declns):
         # The list of mesh properties requested in the meta-data.
@@ -1867,11 +1868,16 @@ class LFRicMeshProperties(DynCollection):
         # The (ordered) list of mesh properties required by this invoke or
         # kernel stub.
         self._properties = []
+        need_ncell_2d = False
 
         for call in self._calls:
             if call.mesh:
                 self._properties += [prop for prop in call.mesh.properties
                                      if prop not in self._properties]
+            if call.iterates_over == "domain" and not need_ncell_2d:
+                need_ncell_2d = True
+                self._properties.append(
+                    MeshPropertiesMetaData.Property.NCELL_2D)
 
         # Store properties in symbol table
         for prop in self._properties:
@@ -1940,6 +1946,14 @@ class LFRicMeshProperties(DynCollection):
                     else:
                         adj_face += "(:,{0})".format(cell_name)
                 arg_list.append(adj_face)
+
+            elif prop == MeshPropertiesMetaData.Property.NCELL_2D:
+                # This kernel needs ncell_2d
+                name = self._symbol_table.symbol_from_tag("ncell_2d").name
+                arg_list.append(name)
+                if var_accesses is not None:
+                    var_accesses.add_access(name, AccessType.READ,
+                                            self._kernel)
             else:
                 raise InternalError(
                     "kern_args: found unsupported mesh property '{0}' when "
@@ -1981,6 +1995,11 @@ class LFRicMeshProperties(DynCollection):
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind=api_config.default_kind["integer"],
                                    pointer=True, entity_decls=[adj_face]))
+            elif prop == MeshPropertiesMetaData.Property.NCELL_2D:
+                name = self._symbol_table.symbol_from_tag("ncell_2d").name
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind=api_config.default_kind["integer"],
+                                   entity_decls=[name]))
             else:
                 raise InternalError(
                     "Found unsupported mesh property '{0}' when "
@@ -2039,6 +2058,8 @@ class LFRicMeshProperties(DynCollection):
         :param parent: node in the f2pygen tree to which to add statements.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises InternalError: if an unsupported mesh property is encountered.
+
         '''
         if not self._properties:
             return
@@ -2047,11 +2068,26 @@ class LFRicMeshProperties(DynCollection):
         parent.add(CommentGen(parent, " Initialise mesh properties"))
         parent.add(CommentGen(parent, ""))
 
-        adj_face = self._symbol_table.symbol_from_tag("adjacent_face").name
         mesh = self._symbol_table.symbol_from_tag("mesh").name
 
-        parent.add(AssignGen(parent, pointer=True, lhs=adj_face,
-                             rhs=mesh+"%get_adjacent_face()"))
+        for prop in self._properties:
+            if prop == MeshPropertiesMetaData.Property.ADJACENT_FACE:
+                adj_face = self._symbol_table.symbol_from_tag(
+                    "adjacent_face").name
+                parent.add(AssignGen(parent, pointer=True, lhs=adj_face,
+                                     rhs=mesh+"%get_adjacent_face()"))
+
+            elif prop == MeshPropertiesMetaData.Property.NCELL_2D:
+                name = self._symbol_table.symbol_from_tag("ncell_2d").name
+                parent.add(AssignGen(parent, lhs=name,
+                                     rhs=mesh+"%get_ncells_2d()"))
+            else:
+                raise InternalError(
+                    "Found unsupported mesh property '{0}' when generating "
+                    "initialisation code. Only members of the "
+                    "MeshPropertiesMetaData.Property Enum are permitted "
+                    "({1})".format(str(prop),
+                                   list(MeshPropertiesMetaData.Property)))
 
 
 class DynReferenceElement(DynCollection):
@@ -3640,10 +3676,10 @@ class DynMeshes(object):
     '''
     Holds all mesh-related information (including colour maps if
     required).  If there are no inter-grid kernels then there is only
-    one mesh object required (when colouring, doing distributed memory or
-    querying the reference element). However, kernels performing inter-grid
-    operations require multiple mesh objects as well as mesh maps and other
-    quantities.
+    one mesh object required (when calling kernels with operates_on==domain,
+    colouring, doing distributed memory or querying the reference element).
+    However, kernels performing inter-grid operations require multiple mesh
+    objects as well as mesh maps and other quantities.
 
     There are two types of inter-grid operation; the first is "prolongation"
     where a field on a coarse mesh is mapped onto a fine mesh. The second
@@ -3670,7 +3706,6 @@ class DynMeshes(object):
         # Keep a reference to the InvokeSchedule so we can check for colouring
         # later
         self._schedule = invoke.schedule
-
         # Set used to generate a list of the unique mesh objects
         _name_set = set()
 
@@ -3690,7 +3725,8 @@ class DynMeshes(object):
         requires_mesh = False
         for call in self._schedule.coded_kernels():
 
-            if (call.reference_element.properties or call.mesh.properties):
+            if (call.reference_element.properties or
+                    call.mesh.properties or call.iterates_over == "domain"):
                 requires_mesh = True
 
             if not call.is_intergrid:

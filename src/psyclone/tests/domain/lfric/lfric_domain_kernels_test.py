@@ -290,9 +290,12 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
     gen_code = str(psy.gen).lower()
 
-    # A domain kernel needs the number of columns in the mesh
+    # A domain kernel needs the number of columns in the mesh. Therefore
+    # we require a mesh object.
+    assert "type(mesh_type), pointer :: mesh => null()" in gen_code
+    assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code
     assert "integer(kind=i_def) ncell_2d" in gen_code
-    assert "ncell_2d = f1_proxy%ncell_2d" in gen_code
+    assert "ncell_2d = mesh%get_ncells_2d()" in gen_code
 
     # Kernel call should include whole dofmap and not be within a loop
     if dist_mem:
@@ -301,7 +304,7 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir):
         expected = "      ! call our kernels\n"
     assert (expected + "      !\n"
             "      !\n"
-            "      call testkern_domain_code(ncell_2d, nlayers, b, "
+            "      call testkern_domain_code(nlayers, ncell_2d, b, "
             "f1_proxy%data, ndf_w3, undf_w3, map_w3)" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -314,27 +317,31 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
     _, info = parse(os.path.join(BASE_PATH, "25.1_2kern_domain.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-    gen_code = str(psy.gen)
+    gen_code = str(psy.gen).lower()
+
+    assert "mesh => f2_proxy%vspace%get_mesh()" in gen_code
+    assert "integer(kind=i_def) ncell_2d" in gen_code
+
     expected = (
-        "      END DO\n"
+        "      end do\n"
         "      !\n")
     if dist_mem:
         expected += (
-            "      ! Set halos dirty/clean for fields modified in the above "
+            "      ! set halos dirty/clean for fields modified in the above "
             "loop\n"
             "      !\n"
-            "      CALL f2_proxy%set_dirty()\n"
+            "      call f2_proxy%set_dirty()\n"
             "      !\n"
             "      !\n")
     expected += (
-        "      CALL testkern_domain_code(ncell_2d, nlayers, b, f1_proxy%data, "
+        "      call testkern_domain_code(nlayers, ncell_2d, b, f1_proxy%data, "
         "ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
-        assert ("      ! Set halos dirty/clean for fields modified in the "
+        assert ("      ! set halos dirty/clean for fields modified in the "
                 "above kernel\n"
                 "      !\n"
-                "      CALL f1_proxy%set_dirty()\n" in gen_code)
+                "      call f1_proxy%set_dirty()\n" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -350,11 +357,11 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     gen_code = str(psy.gen).lower()
 
     # Check that we only have one ncell_2d assignment
-    assert gen_code.count("ncell_2d = ") == 1
+    assert gen_code.count("ncell_2d = mesh%get_ncells_2d()") == 1
 
     expected = ("      !\n"
                 "      !\n"
-                "      call testkern_domain_code(ncell_2d, nlayers, b, "
+                "      call testkern_domain_code(nlayers, ncell_2d, b, "
                 "f1_proxy%data, ndf_w3, undf_w3, map_w3)\n")
     if dist_mem:
         expected += ("      !\n"
@@ -394,14 +401,14 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
             "      !\n"
             "      !\n")
     expected += (
-        "      call testkern_domain_code(ncell_2d, nlayers, c, f1_proxy%data, "
+        "      call testkern_domain_code(nlayers, ncell_2d, c, f1_proxy%data, "
         "ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
         assert ("      ! set halos dirty/clean for fields modified in the "
                 "above kernel\n"
                 "      !\n"
-                "      call f1_proxy%set_dirty()\n"
+                "      call f5_proxy%set_dirty()\n"
                 "      !\n"
                 "      !\n"
                 "    end subroutine invoke_0" in gen_code)

@@ -52,15 +52,15 @@ module testkern_domain_mod
 
 contains
 
-  subroutine testkern_domain_code(ncells, nlayers, ascalar,        &
+  subroutine testkern_domain_code(nlayers, ncell_2d, ascalar,     &
                                   fld1, ndf_w3, undf_w3, map_w3)
     implicit none
 
-    integer(kind=i_def), intent(in) :: ncells
+    integer(kind=i_def), intent(in) :: ncell_2d
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: undf_w3
-    integer(kind=i_def), intent(in), dimension(ndf_w3, ncells) :: map_w3
+    integer(kind=i_def), intent(in), dimension(ndf_w3, ncell_2d) :: map_w3
     real(kind=r_def), intent(in) :: ascalar
     real(kind=r_def), intent(inout), dimension(undf_w3) :: fld1
 
