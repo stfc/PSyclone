@@ -42,14 +42,15 @@ Examples
 
 Various examples of the use of PSyclone are provided under the
 ``examples`` directory in the git repository. If you have installed
-PSyclone using pip then the examples may be found in
+PSyclone using ``pip`` then the examples may be found in
 ``share/psyclone/examples`` under your Python installation
 (e.g. ``~/.local`` for a user-local installation).
 
 Running any of these examples requires that PSyclone be installed on
 the host system, see :ref:`getting-going`. This section is intended
 to provide an overview of the various examples so that a user can find
-one that is appropriate to them. For details of how to run each
+one that is appropriate to them. For details of what each example does
+and how to run each
 example please see the ``README.md`` files in the associated directories.
 
 Alternatively, some of the examples have associated Jupyter notebooks
@@ -65,17 +66,107 @@ example. For those examples that support it, the ``compile`` target
 also requests that the generated code be compiled. The ``notebook``
 target checks the various Jupyter notebooks using ``nbconvert``.
 
-.. note:: if you have copied the examples directory to some other
+.. note:: If you have copied the examples directory to some other
 	  location but still wish to use ``make`` then you will also
 	  have to set the ``PSYCLONE_CONFIG`` environment variable to
 	  the full path to the PSyclone configuration file, e.g.
 	  ``$ PSYCLONE_CONFIG=/some/path/psyclone.cfg make``
 
-Each of the Makefiles also provides the ``clean`` and ``allclean``
-targets.  The former simply removes all generated files while the
-latter also cleans each of the infrastructure libraries used when
-compiling the examples (``dl_timer``, ``dl_esm_inf`` and the various
-PSyData wrapper libraries).
+
+Compilation
+-----------
+Some of the examples support compilation (and some even execution of
+a compiled binary). Consult the ``README.md`` to check which ones
+can be compiled and executed.
+
+As mentioned above, by default each example will execute the
+``transform`` target, which performs the PSyclone code transformation
+steps. In order to compile the sources, use the target ``compile``:
+
+.. code-block:: bash
+
+    make compile
+
+which will first perform the transformation steps before compiling
+any created Fortan source files. If the example also supports running
+a compiled and linked binary, use the target:
+
+.. code-block:: bash
+
+    make run
+
+This will first trigger compilation using the ``compile`` target, and
+then execute the program with any parameters that might be required
+(check corresponding ``README.md`` for details).
+
+All makefiles support the variables ``F90`` and ``F90FLAGS`` to specify
+the compiler and compilation flags to use. By default, the Gnu Fortran
+compiler (``gfortran``) is used, and the compilation flags will be set
+to debugging. If you want to change the compiler or flags, just define
+these as environment variables:
+
+.. code-block:: bash
+
+    F90=ifort F90FLAGS="-g -check bounds" make compile
+
+If you want to clean all compiled files (and potentially output
+files form a run), use:
+
+.. code-block:: bash
+
+    make clean
+
+This will clean up the example directory.
+
+Supported Compilers
+^^^^^^^^^^^^^^^^^^^
+All examples have been tested with the following compilers.
+Please let the developers know if you have problems using a
+different compiler, or if a different compilers works, so we can
+add it to this table.
+
+.. tabularcolumns:: |l|L|
+
+======================= =======================================================
+Compiler                Version
+======================= =======================================================
+Gnu Fortran compiler    9.3
+Intel Fortran compiler  17, 21
+======================= =======================================================
+
+
+Dependencies
+^^^^^^^^^^^^
+
+Any required library that is included in PSyclone (typically
+the infrastructure libraries for the APIs, or PSyData wrapper
+libraries) will automatically be compiled with the same compiler
+and compilation flags as the example.
+
+.. note::
+    Once you have compiled a dependent library, changing the
+    compilation flag for an example will not trigger a recompilation
+    of this library. For example, if you first compile an example with
+    debug options, and later compile the same or a different
+    example with optimisations, the dependent library will not
+    automatically be recompiled!
+
+All makefiles support a ``allclean`` target, which will not only
+clean the current directory, but also all libraries the current
+example depends on.
+
+.. important::
+    Using ``make allclean`` is especially important if you change
+    the compiler. Typically different compilers cannot read
+    module information, so compilation will fail.
+
+
+NetCDF
+~~~~~~
+Some examples require NetCDF for compilation. Installation of NetCDF
+is described in details in
+``tutorial/practicals/README.md#netcdf-library-lfric-examples``.
+
 
 GOcean
 ------
