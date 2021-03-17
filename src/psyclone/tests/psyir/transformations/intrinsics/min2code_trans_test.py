@@ -181,6 +181,7 @@ def test_correct_expr(tmpdir):
     Config.get().api = "nemo"
     operation = example_psyir_binary(lambda arg: arg)
     assignment = operation.parent
+    operation.parent = None
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  Literal("1.0", REAL_TYPE), operation)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
@@ -227,6 +228,7 @@ def test_correct_2min(tmpdir):
     Config.get().api = "nemo"
     operation = example_psyir_binary(lambda arg: arg)
     assignment = operation.parent
+    operation.parent = None
     min_op = BinaryOperation.create(BinaryOperation.Operator.MIN,
                                     Literal("1.0", REAL_TYPE),
                                     Literal("2.0", REAL_TYPE))

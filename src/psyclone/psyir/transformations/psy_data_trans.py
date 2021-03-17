@@ -209,9 +209,13 @@ class PSyDataTrans(RegionTrans):
         # Perform validation checks
         self.validate(node_list, options)
 
+        # Get useful references
+        parent = node_list[0].parent
+        position = node_list[0].position
+        schedule = node_list[0].root
+
         # create a memento of the schedule and the proposed
         # transformation
-        schedule = node_list[0].root
         keep = Memento(schedule, self)
 
         # Create an instance of the required class that implements
@@ -225,7 +229,10 @@ class PSyDataTrans(RegionTrans):
         # An example use case of this is the 'create_driver' flag, where
         # the calling program can control if a stand-alone driver program
         # should be created or not.
-        self._node_class(parent=node_list[0].parent, children=node_list[:],
-                         options=options)
+        for node in node_list:
+            node.detach()
+        psy_data_node = self._node_class(parent=parent, children=node_list,
+                                         options=options)
+        parent.addchild(psy_data_node, position)
 
         return schedule, keep
