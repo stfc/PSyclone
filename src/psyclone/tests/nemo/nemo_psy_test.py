@@ -136,9 +136,9 @@ def test_multi_kern():
     _, invoke_info = get_invoke("two_explicit_do.f90", api=API, idx=0)
     sched = invoke_info.schedule
     loops = sched.walk(nemo.NemoLoop)
-    kerns = sched.coded_kernels()
-    # Add the second kernel as a child of the first loop
-    loops[0].loop_body.children.append(kerns[1])
+    # Create and add a second kernel as a child of the first loop
+    kern = nemo.NemoKern([], None)
+    loops[0].loop_body.children.append(kern)
     with pytest.raises(NotImplementedError) as err:
         _ = loops[0].kernel
     assert ("getter method does not yet support a loop containing more than "

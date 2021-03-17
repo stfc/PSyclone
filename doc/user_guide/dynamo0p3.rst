@@ -3247,7 +3247,7 @@ checks then call the generic ones internally.
 
 The use of the Dynamo0.3-API-specific transformations is exactly the
 same as the equivalent generic ones in all cases excepting
-**DynamoLoopFuseTrans**. In this case an additional optional argument
+**LFRicLoopFuseTrans**. In this case an additional optional argument
 **same_space** can be set after creating an instance of the transformation.
 The reason for this is to allow loop fusion when one or more of the
 iteration spaces is determined by a function space that is unknown by
@@ -3289,7 +3289,7 @@ all versions of the Dynamo API.
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.DynamoLoopFuseTrans
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicLoopFuseTrans
     :members:
     :noindex:
 
