@@ -1993,9 +1993,9 @@ identical to those for general-purpose kernels (described :ref:`above
 <dynamo0.3-stub-generation-rules>`), allowing for the fact that they
 are not permitted any type of operator argument or any argument with a
 stencil access. The only difference is that, since the kernel operates
-on the whole domain, the number of columns in the mesh (``ncells_2d``)
-must be passed in as the first argument. ``ncells_2d`` is an integer
-of kind ``i_def`` with intent ``in``.
+on the whole domain, the number of columns in the mesh (``ncell_2d``)
+must be passed in as the second argument (after ``nlayers``). ``ncell_2d``
+is an integer of kind ``i_def`` with intent ``in``.
 
 .. _dynamo0.3-kernel-arg-intents:
 

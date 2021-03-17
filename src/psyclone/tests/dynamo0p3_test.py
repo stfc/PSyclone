@@ -61,7 +61,6 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
 from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.transformations import LoopFuseTrans
 
 # constants

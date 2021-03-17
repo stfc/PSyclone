@@ -72,7 +72,8 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
     Literal, Node, Schedule, KernelSchedule, Call, Loop, colored
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
-    GlobalInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType
+    GlobalInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
+    SymbolTable
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
@@ -80,7 +81,8 @@ from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPParallelLoopTrans, \
     Dynamo0p3RedundantComputationTrans, Dynamo0p3KernelConstTrans, \
     ACCEnterDataTrans, ACCParallelTrans, ACCLoopTrans, ACCKernelsTrans, \
-    Dynamo0p3OMPLoopTrans, OMPParallelTrans, DynamoOMPParallelLoopTrans
+    Dynamo0p3OMPLoopTrans, OMPParallelTrans, DynamoOMPParallelLoopTrans, \
+    Dynamo0p3ColourTrans
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
