@@ -7255,8 +7255,9 @@ class DynKern(CodedKern):
     ''' Stores information about Dynamo Kernels as specified by the
     Kernel metadata and associated algorithm call. Uses this
     information to generate appropriate PSy layer code for the Kernel
-    instance or to generate a Kernel stub'''
+    instance or to generate a Kernel stub.
 
+    '''
     # An instance of this `namedtuple` is used to store information on each of
     # the quadrature rules required by a kernel.
     #
@@ -7268,9 +7269,12 @@ class DynKern(CodedKern):
                         ["alg_name", "psy_name", "kernel_args"])
 
     def __init__(self):
+        # The super-init is called from the _setup() method which in turn
+        # is called from load().
         # pylint: disable=super-init-not-called
         if False:  # pylint: disable=using-constant-test
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
+        self._parent = None
         self._base_name = ""
         self._func_descriptors = None
         self._fs_descriptors = None
