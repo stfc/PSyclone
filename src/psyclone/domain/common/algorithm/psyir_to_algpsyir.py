@@ -46,9 +46,9 @@ from psyclone.errors import InternalError
 
 def psyir_to_algpsyir(psyir):
     '''Takes a generic PSyIR tree and translates it to a
-    PSyclone algorithm-specific PSyIR representation
+    PSyclone algorithm-specific PSyIR representation.
 
-    :param psyir: generic PSyIR tree
+    :param psyir: generic PSyIR tree.
     :type psyir: subclass of :py:class:`psyclone.psyir.nodes.node`
 
     :raises InternalError: if an unexpected argument type is found.
@@ -60,6 +60,9 @@ def psyir_to_algpsyir(psyir):
             for call_arg in call.children:
                 # Children should reference kernel metadata
                 if isinstance(call_arg, ArrayReference):
+                    # Note, fparser has mis-parsed this argument as an
+                    # array reference when it should have been a
+                    # structure constructor.
                     routine_symbol = call_arg.symbol
                     # pylint: disable=unidiomatic-typecheck
                     if type(routine_symbol) is Symbol:

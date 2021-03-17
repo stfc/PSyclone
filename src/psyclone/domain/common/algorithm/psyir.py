@@ -36,7 +36,7 @@
 '''This module contains PSyclone Algorithm-layer-specific PSyIR classes.
 
 '''
-from psyclone.psyir.nodes import Call, Node, DataNode
+from psyclone.psyir.nodes import Call, Reference, DataNode
 from psyclone.psyir.symbols import TypeSymbol
 from psyclone.errors import GenerationError
 
@@ -62,26 +62,23 @@ class AlgorithmInvokeCall(Call):
         return isinstance(child, KernelLayerRef)
 
 
-class KernelLayerRef(Node):
-    '''Reference to a kernels metadata from an invoke call in a PSyclone
+class KernelLayerRef(Reference):
+    '''Reference to a kernel's metadata from an invoke call in a PSyclone
     Algorithm layer and provides the arguments that will be passed
     into the PSy layer.
 
     '''
     _children_valid_format = "[DataNode]*"
     _text_name = "KernelLayerRef"
-    _colour = "green"
 
     def __init__(self, symbol, parent=None):
         # pylint: disable=super-with-arguments
-        super(KernelLayerRef, self).__init__(parent=parent)
+        super(KernelLayerRef, self).__init__(symbol, parent=parent)
 
         if not isinstance(symbol, TypeSymbol):
             raise TypeError(
                 "KernelLayerRef symbol argument should be a TypeSymbol but "
                 "found '{0}'.".format(type(symbol).__name__))
-
-        self._symbol = symbol
 
     @classmethod
     def create(cls, symbol, arguments):
@@ -128,14 +125,6 @@ class KernelLayerRef(Node):
         '''
         return isinstance(child, DataNode)
 
-    @property
-    def symbol(self):
-        '''
-        :returns: the symbol that this call calls.
-        :rtype: py:class:`psyclone.psyir.symbols.TypeSymbol`
-        '''
-        return self._symbol
-
     def node_str(self, colour=True):
         '''
         Construct a text representation of this node, optionally containing
@@ -149,9 +138,6 @@ class KernelLayerRef(Node):
         '''
         return "{0}[name='{1}']".format(
             self.coloured_name(colour), self.symbol.name)
-
-    def __str__(self):
-        return self.node_str(False)
 
 
 __all__ = [

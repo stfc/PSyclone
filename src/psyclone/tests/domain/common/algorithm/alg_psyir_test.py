@@ -83,7 +83,7 @@ def test_kernellayerref():
     klr = KernelLayerRef(symbol)
     assert klr._symbol == symbol
     assert klr.symbol == symbol
-    assert klr._colour == "green"
+    assert klr._colour == "yellow"
     assert klr._text_name == "KernelLayerRef"
     assert klr.parent is None
 
@@ -105,9 +105,9 @@ def test_kernellayerref_invalid_symbol():
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = KernelLayerRef("hello")
+        _ = KernelLayerRef(Symbol("hello"))
     assert ("KernelLayerRef symbol argument should be a TypeSymbol but "
-            "found 'str'." in str(info.value))
+            "found 'Symbol'." in str(info.value))
 
 
 class SubClass(KernelLayerRef):
