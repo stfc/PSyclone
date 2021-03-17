@@ -195,6 +195,10 @@ def test_mesh_properties():
         invoke.mesh_properties._invoke_declarations(ModuleGen("test_mod"))
     assert ("Found unsupported mesh property 'not-a-property' when "
             "generating invoke declarations. Only " in str(err.value))
+    with pytest.raises(InternalError) as err:
+        invoke.mesh_properties.initialise(ModuleGen("test_mod"))
+    assert ("Found unsupported mesh property 'not-a-property' when generating"
+            " initialisation code" in str(err.value))
     sched = invoke.schedule
     # Get hold of the Kernel object
     kernel = sched.walk(Kern)[0]

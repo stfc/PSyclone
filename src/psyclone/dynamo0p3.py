@@ -1952,13 +1952,6 @@ class LFRicMeshProperties(DynCollection):
                         adj_face += "(:,{0})".format(cell_name)
                 arg_list.append(adj_face)
 
-            elif prop == MeshProperty.NCELL_2D:
-                # This kernel needs ncell_2d
-                name = self._symbol_table.symbol_from_tag("ncell_2d").name
-                arg_list.append(name)
-                if var_accesses is not None:
-                    var_accesses.add_access(name, AccessType.READ,
-                                            self._kernel)
             else:
                 raise InternalError(
                     "kern_args: found unsupported mesh property '{0}' when "
