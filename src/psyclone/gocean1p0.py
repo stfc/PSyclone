@@ -787,7 +787,7 @@ class GOLoop(Loop):
                 "not begin with '{{0}}': '{0}'".format(grid_property))
 
         fld_sym = self.scope.symbol_table.lookup(self.field_name)
-        return StructureReference.create(fld_sym, members[1:], parent=self)
+        return StructureReference.create(fld_sym, members[1:])
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
@@ -961,7 +961,9 @@ class GOLoop(Loop):
         '''
         # Generate the upper and lower loop bounds
         self.start_expr = self.lower_bound()
+        self.start_expr.parent = self
         self.stop_expr = self.upper_bound()
+        self.stop_expr.parent = self
 
         return super(GOLoop, self).lower_to_language_level()
 
@@ -976,7 +978,9 @@ class GOLoop(Loop):
         '''
         # Generate the upper and lower loop bounds
         self.start_expr = self.lower_bound()
+        self.start_expr.parent = self
         self.stop_expr = self.upper_bound()
+        self.stop_expr.parent = self
 
         return super(GOLoop, self).node_str(colour)
 
@@ -985,7 +989,9 @@ class GOLoop(Loop):
 
         # Generate the upper and lower loop bounds
         self.start_expr = self.lower_bound()
+        self.start_expr.parent = self
         self.stop_expr = self.upper_bound()
+        self.stop_expr.parent = self
 
         return super(GOLoop, self).__str__()
 
@@ -1038,7 +1044,9 @@ class GOLoop(Loop):
 
         # Generate the upper and lower loop bounds
         self.start_expr = self.lower_bound()
+        self.start_expr.parent = self
         self.stop_expr = self.upper_bound()
+        self.stop_expr.parent = self
 
         Loop.gen_code(self, parent)
 

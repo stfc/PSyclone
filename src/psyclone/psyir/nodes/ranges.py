@@ -214,7 +214,7 @@ class Range(Node):
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
         self._check_completeness()
-        return self._children[1]
+        return self.children[1]
 
     @stop.setter
     def stop(self, value):
@@ -231,7 +231,7 @@ class Range(Node):
         if len(self.children) == 1:
             self.children.append(value)
         else:
-            self._children[1] = value
+            self.children[1] = value
 
     @property
     def step(self):
@@ -243,7 +243,7 @@ class Range(Node):
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
         self._check_completeness()
-        return self._children[2]
+        return self.children[2]
 
     @step.setter
     def step(self, value):

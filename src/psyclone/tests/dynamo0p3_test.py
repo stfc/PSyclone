@@ -2845,10 +2845,10 @@ def test_no_arg_on_space(monkeypatch):
     fspace = arg.function_space
     arg = kernel_args.get_arg_on_space(fspace)
     assert arg.name == "f2"
-    # Take a deep copy of the function space object so that we get a new
-    # one whose state we can monkeypatch
+    # Copy of the function space object so that we get a new one whose state
+    # we can monkeypatch
     import copy
-    fspace = copy.deepcopy(arg.function_space)
+    fspace = copy.copy(arg.function_space)
     monkeypatch.setattr(fspace, "_mangled_name", "not_a_space_name")
     with pytest.raises(FieldNotFoundError) as excinfo:
         _ = kernel_args.get_arg_on_space(fspace)
