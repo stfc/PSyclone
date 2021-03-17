@@ -58,11 +58,11 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, \
     KernCallArgList, DynACCEnterDataDirective, VALID_INTRINSIC_TYPES
 
-from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.transformations import LoopFuseTrans
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -2802,10 +2802,10 @@ def test_no_arg_on_space(monkeypatch):
     fspace = arg.function_space
     arg = kernel_args.get_arg_on_space(fspace)
     assert arg.name == "f2"
-    # Take a deep copy of the function space object so that we get a new
-    # one whose state we can monkeypatch
+    # Copy of the function space object so that we get a new one whose state
+    # we can monkeypatch
     import copy
-    fspace = copy.deepcopy(arg.function_space)
+    fspace = copy.copy(arg.function_space)
     monkeypatch.setattr(fspace, "_mangled_name", "not_a_space_name")
     with pytest.raises(FieldNotFoundError) as excinfo:
         _ = kernel_args.get_arg_on_space(fspace)

@@ -158,436 +158,6 @@ class KernelTrans(Transformation):
                     "kernel.".format(kern.name, var.name)), err)
 
 
-class LoopFuseTrans(LoopTrans):
-    ''' Provides a generic loop-fuse transformation to two Nodes in the
-    PSyIR of a Schedule after performing validity checks for the supplied
-    Nodes. Examples are given in the descriptions of any children classes.
-
-    '''
-    def __str__(self):
-        return "Fuse two adjacent loops together"
-
-    def validate(self, node1, node2, options=None):
-        # pylint: disable=arguments-differ
-        ''' Performs various checks to ensure that it is valid to apply
-        the LoopFuseTrans transformation to the supplied Nodes.
-
-        :param node1: the first Node that is being checked.
-        :type node1: :py:class:`psyclone.psyir.nodes.Node`
-        :param node2: the second Node that is being checked.
-        :type node2: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :raises TransformationError: if one or both of the Nodes is/are not \
-                                     a :py:class:`psyclone.psyir.nodes.Loop`.
-        :raises TransformationError: if one or both Nodes are not fully-formed.
-        :raises TransformationError: if the Nodes do not have the same parent.
-        :raises TransformationError: if the Nodes are not next to each \
-                                     other in the tree.
-        :raises TransformationError: if the two Loops do not have the same \
-                                     iteration space.
-        '''
-        # Check that the supplied Nodes are Loops
-        super(LoopFuseTrans, self).validate(node1, options=options)
-        super(LoopFuseTrans, self).validate(node2, options=options)
-
-        # Check loop1 and loop2 have the same parent
-        if not node1.sameParent(node2):
-            raise TransformationError(
-                "Error in {0} transformation. Loops do not have "
-                "the same parent.".format(self.name))
-
-        # Check node1 and node2 are next to each other
-        if abs(node1.position-node2.position) != 1:
-            raise TransformationError(
-                "Error in {0} transformation. Nodes are not siblings "
-                "who are next to each other.".format(self.name))
-        # Check that the iteration space is the same
-        if node1.iteration_space != node2.iteration_space:
-            raise TransformationError(
-                "Error in {0} transformation. Loops do not have the "
-                "same iteration space.".format(self.name))
-
-    def apply(self, node1, node2, options=None):
-        # pylint: disable=arguments-differ
-        ''' Fuses two loops represented by `psyclone.psyir.nodes.Node` objects
-        after performing validity checks.
-
-        :param node1: the first Node that is being checked.
-        :type node1: :py:class:`psyclone.psyir.nodes.Node`
-        :param node2: the second Node that is being checked.
-        :type node2: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :returns: two-tuple of the modified Schedule and a record of \
-                  the transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                 :py:class:`psyclone.undoredo.Memento`).
-
-        '''
-        # Validity checks for the supplied nodes
-        self.validate(node1, node2, options=options)
-
-        schedule = node1.root
-
-        # Create a memento of the schedule and the proposed transformation
-        keep = Memento(schedule, self, [node1, node2])
-
-        # Add loop contents of node2 to node1
-        node1.loop_body.children.extend(node2.loop_body)
-
-        # Change the parent of the loop contents of node2 to node1
-        for child in node2.loop_body:
-            child.parent = node1.loop_body
-
-        # Remove node2
-        node2.parent.children.remove(node2)
-
-        return schedule, keep
-
-
-class GOceanLoopFuseTrans(LoopFuseTrans):
-    ''' GOcean API specialisation of the :py:class:`base class <LoopFuseTrans>`
-    in order to fuse two GOcean loops after performing validity checks (e.g.
-    that the loops are over the same grid-point type). For example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> ast, invokeInfo = parse("shallow_alg.f90")
-    >>> psy = PSyFactory("gocean1.0").create(invokeInfo)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
-    >>>
-    >>> from psyclone.transformations import GOceanLoopFuseTrans
-    >>> ftrans = GOceanLoopFuseTrans()
-    >>> new_schedule, memento = ftrans.apply(schedule[0], schedule[1])
-    >>> new_schedule.view()
-
-    '''
-    def __str__(self):
-        return ("Fuse two adjacent loops together with GOcean-specific "
-                "validity checks")
-
-    def validate(self, node1, node2, options=None):
-        '''Checks if it is valid to apply the GOceanLoopFuseTrans
-        transform. It ensures that the fused loops are over
-        the same grid-point types, before calling the normal
-        LoopFuseTrans validation function.
-
-        :param node1: the first Node representing a GOLoop.
-        :type node1: :py:class:`psyclone.gocean1p0.GOLoop`
-        :param node2: the second Node representing a GOLoop.
-        :type node2: :py:class:`psyclone.gocean1p0.GOLoop`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :raises TransformationError: if the supplied loops are over \
-                                     different grid-point types.
-
-        :raises TransformationError: if invalid parameters are passed in.
-
-        '''
-        import psyclone.gocean1p0
-        import psyclone.gocean0p1
-        # Either both nodes are gocean1.0 loop nodes, or both
-        # nodes are gocean0.1 loop nodes, otherwise raise an exception:
-        if not ((isinstance(node1, psyclone.gocean0p1.GOLoop) and
-                 isinstance(node2, psyclone.gocean0p1.GOLoop)) or
-                (isinstance(node1, psyclone.gocean1p0.GOLoop) and
-                 isinstance(node2, psyclone.gocean1p0.GOLoop))):
-            raise TransformationError("Error in {0} transformation. "
-                                      "Both nodes must be of the same "
-                                      "GOLoop class.".format(self.name))
-
-        super(GOceanLoopFuseTrans, self).validate(node1, node2,
-                                                  options=options)
-
-        if node1.field_space != node2.field_space:
-            raise TransformationError(
-                "Error in {0} transformation. Cannot "
-                "fuse loops that are over different grid-point types: "
-                "{1} {2}".format(self.name, node1.field_space,
-                                 node2.field_space))
-
-    def apply(self, node1, node2, options=None):
-        ''' Fuses two `psyclone.gocean1p0.GOLoop` loops after performing
-        validity checks by calling :py:meth:`LoopFuseTrans.apply` method
-        of the base class.
-
-        :param node1: the first Node representing a GOLoop.
-        :type node1: :py:class:`psyclone.gocean1p0.GOLoop`
-        :param node2: the second Node representing a GOLoop.
-        :type node2: :py:class:`psyclone.gocean1p0.GOLoop`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :returns: two-tuple of the modified Schedule and a record of \
-                  the transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-
-        :raises TransformationError: if the supplied loops are over \
-                                     different grid-point types.
-        :raises TransformationError: if there is an unexpected exception.
-        '''
-
-        # Validate first
-        self.validate(node1, node2, options=options)
-
-        # Now check for GOcean-specific constraints before applying
-        # the transformation
-        try:
-            return LoopFuseTrans.apply(self, node1, node2, options)
-        except Exception as err:
-            raise TransformationError(
-                "Error in {0} transformation. Unexpected exception: {1}".
-                format(self.name, err))
-
-
-class DynamoLoopFuseTrans(LoopFuseTrans):
-    ''' Dynamo0.3 API specialisation of the
-    :py:class:`base class <LoopFuseTrans>` in order to fuse two Dynamo
-    loops after performing validity checks. For example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>>
-    >>> API = "dynamo0.3"
-    >>> FILENAME = "alg.x90"
-    >>> ast, invokeInfo = parse(FILENAME, api=API)
-    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>>
-    >>> from psyclone.transformations import DynamoLoopFuseTrans
-    >>> ftrans =  DynamoLoopFuseTrans()
-    >>>
-    >>> new_schedule, memento = ftrans.apply(schedule[0], schedule[1])
-    >>> new_schedule.view()
-
-    The optional argument `same_space` can be set as
-
-    >>> ftrans.same_space = True
-
-    after the instance of the transformation is created.
-
-    '''
-    def __init__(self, same_space=False):
-        # Creates the 'same_space' attribute. Its value is set in via
-        # the setter method below.
-        # TODO: Remove when the suport for multiple options in
-        # Transformations is introduced (issue #478)
-        self._same_space = same_space
-
-    def __str__(self):
-        return ("Fuse two adjacent loops together with Dynamo-specific "
-                "validity checks")
-
-    # TODO: Remove the 'same_space' property and the setter below and
-    # reformulate the relevant tests and documentation when the suport for
-    # multiple options in Transformations is introduced (issue #478)
-    @property
-    def same_space(self):
-        ''' Returns the `same_space` flag that is specified when applying
-        this transformation. The default value is `False`.
-        This optional flag, set to `True`, asserts that an unknown iteration
-        space (i.e. `ANY_SPACE`) matches the other iteration space. This is
-        set at the user's own risk. If both iteration spaces are discontinuous
-        the loops can be fused without having to use the `same_space` flag.'''
-        return self._same_space
-
-    @same_space.setter
-    def same_space(self, value):
-        ''' Sets value of the `same_space` flag and checks that the
-        supplied value is Boolean or None.
-
-        :param value: optional argument to determine whether two unknown \
-                      function spaces are the same. The default value is \
-                      False (also when no value is provided).
-        :type value: Boolean or None
-
-        :raises TransformationError: if the provided value is not Boolean \
-                                     or None.
-        '''
-
-        if not value:
-            self._same_space = False
-        elif isinstance(value, bool):
-            self._same_space = value
-        else:
-            raise TransformationError(
-                "Error in {0} transformation: The value of the 'same_space' "
-                "flag must be either Boolean or None type, but the type of "
-                "flag provided was '{1}'.".
-                format(self.name, type(value).__name__))
-
-    def validate(self, node1, node2, options=None):
-        ''' Performs various checks to ensure that it is valid to apply
-        the DynamoLoopFuseTrans transformation to the supplied loops.
-
-        :param node1: the first Loop to fuse.
-        :type node1: :py:class:`psyclone.dynamo0p3.DynLoop`
-        :param node2: the second Loop to fuse.
-        :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :raises TransformationError: if either of the supplied loops contains \
-                                     an inter-grid kernel.
-        :raises TransformationError: if one or both function spaces have \
-                                     invalid names.
-        :raises TransformationError: if the `same_space` flag was set, but \
-                                     does not apply because neither field \
-                                     is on `ANY_SPACE` or the spaces are not \
-                                     the same.
-        :raises TransformationError: if one or more of the iteration spaces \
-                                     is unknown (`ANY_SPACE`) and the \
-                                     `same_space` flag is not set to `True`.
-        :raises TransformationError: if the loops are over different spaces \
-                                     that are not both discontinuous and \
-                                     the loops both iterate over cells.
-        :raises TransformationError: if the loops' upper bound names are \
-                                     not the same.
-        :raises TransformationError: if the halo-depth indices of two loops \
-                                     are not the same.
-        :raises TransformationError: if each loop already contains a reduction.
-        :raises TransformationError: if the first loop has a reduction and \
-                                     the second loop reads the result of \
-                                     the reduction.
-        '''
-        # pylint: disable=too-many-locals,too-many-branches
-        # Call the parent class validation first
-        super(DynamoLoopFuseTrans, self).validate(node1, node2,
-                                                  options=options)
-
-        # Now test for Dynamo-specific constraints
-
-        # 1) Check that we don't have an inter-grid kernel
-        check_intergrid(node1)
-        check_intergrid(node2)
-
-        # 2) Check function space names
-        node1_fs_name = node1.field_space.orig_name
-        node2_fs_name = node2.field_space.orig_name
-        # 2.1) Check that both function spaces are valid
-        if not (node1_fs_name in FunctionSpace.VALID_FUNCTION_SPACE_NAMES and
-                node2_fs_name in FunctionSpace.VALID_FUNCTION_SPACE_NAMES):
-            raise TransformationError(
-                "Error in {0} transformation: One or both function "
-                "spaces '{1}' and '{2}' have invalid names.".
-                format(self.name, node1_fs_name, node2_fs_name))
-        # Check whether any of the spaces is ANY_SPACE. Loop fusion over
-        # ANY_SPACE is allowed only when the 'same_space' flag is set
-        node_on_any_space = node1_fs_name in \
-            FunctionSpace.VALID_ANY_SPACE_NAMES or \
-            node2_fs_name in FunctionSpace.VALID_ANY_SPACE_NAMES
-        # 2.2) If 'same_space' is true check that both function spaces are
-        # the same or that at least one of the nodes is on ANY_SPACE. The
-        # former case is convenient when loop fusion is applied generically.
-        if self.same_space:
-            if node1_fs_name == node2_fs_name:
-                pass
-            elif not node_on_any_space:
-                raise TransformationError(
-                    "Error in {0} transformation: The 'same_space' "
-                    "flag was set, but does not apply because "
-                    "neither field is on 'ANY_SPACE'.".format(self))
-        # 2.3) If 'same_space' is not True then make further checks
-        else:
-            # 2.3.1) Check whether one or more of the function spaces
-            # is ANY_SPACE without the 'same_space' flag
-            if node_on_any_space:
-                raise TransformationError(
-                    "Error in {0} transformation: One or more of the "
-                    "iteration spaces is unknown ('ANY_SPACE') so loop "
-                    "fusion might be invalid. If you know the spaces "
-                    "are the same then please set the 'same_space' "
-                    "optional argument to 'True'.".format(self.name))
-            # 2.3.2) Check whether specific function spaces are the
-            # same. If they are not, the loop fusion is still possible
-            # but only when both function spaces are discontinuous
-            # (w3, w2v, wtheta or any_discontinuous_space) and the upper
-            # loop bounds are the same (checked further below).
-            if node1_fs_name != node2_fs_name:
-                if not (node1_fs_name in
-                        FunctionSpace.VALID_DISCONTINUOUS_NAMES and
-                        node2_fs_name in
-                        FunctionSpace.VALID_DISCONTINUOUS_NAMES):
-                    raise TransformationError(
-                        "Error in {0} transformation: Cannot fuse loops "
-                        "that are over different spaces '{1}' and '{2}' "
-                        "unless they are both discontinuous.".
-                        format(self.name, node1_fs_name,
-                               node2_fs_name))
-
-        # 3) Check upper loop bounds
-        if node1.upper_bound_name != node2.upper_bound_name:
-            raise TransformationError(
-                "Error in {0} transformation: The upper bound names "
-                "are not the same. Found '{1}' and '{2}'.".
-                format(self.name, node1.upper_bound_name,
-                       node2.upper_bound_name))
-
-        # 4) Check halo depths
-        if node1.upper_bound_halo_depth != node2.upper_bound_halo_depth:
-            raise TransformationError(
-                "Error in {0} transformation: The halo-depth indices "
-                "are not the same. Found '{1}' and '{2}'.".
-                format(self.name, node1.upper_bound_halo_depth,
-                       node2.upper_bound_halo_depth))
-
-        # 5) Check for reductions
-        from psyclone.psyGen import VALID_SCALAR_NAMES
-        from psyclone.core.access_type import AccessType
-        arg_types = VALID_SCALAR_NAMES
-        all_reductions = AccessType.get_valid_reduction_modes()
-        node1_red_args = node1.args_filter(arg_types=arg_types,
-                                           arg_accesses=all_reductions)
-        node2_red_args = node2.args_filter(arg_types=arg_types,
-                                           arg_accesses=all_reductions)
-
-        if node1_red_args and node2_red_args:
-            raise TransformationError(
-                "Error in {0} transformation: Cannot fuse loops "
-                "when each loop already contains a reduction.".
-                format(self.name))
-        if node1_red_args:
-            for reduction_arg in node1_red_args:
-                other_args = node2.args_filter()
-                for arg in other_args:
-                    if reduction_arg.name == arg.name:
-                        raise TransformationError(
-                            "Error in {0} transformation: Cannot fuse "
-                            "loops as the first loop has a reduction "
-                            "and the second loop reads the result of "
-                            "the reduction.".format(self.name))
-
-    def apply(self, node1, node2, options=None):
-        ''' Fuses two `psyclone.dynamo0p3.DynLoop` loops after performing
-        validity checks by calling :py:meth:`LoopFuseTrans.apply` method
-        of the base class.
-
-        :param node1: the first Loop to fuse.
-        :type node1: :py:class:`psyclone.dynamo0p3.DynLoop`
-        :param node2: the second Loop to fuse.
-        :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
-        :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
-
-        :returns: two-tuple of the modified Schedule and a record of \
-                  the transformation.
-        :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
-        '''
-
-        # Validity checks for the supplied nodes
-        self.validate(node1, node2, options=options)
-
-        # Apply fuse method from the parent class
-        return super(DynamoLoopFuseTrans, self).apply(node1, node2, options)
-
-
 @six.add_metaclass(abc.ABCMeta)
 class ParallelLoopTrans(LoopTrans):
     '''
@@ -731,6 +301,7 @@ class ParallelLoopTrans(LoopTrans):
         # Add our orphan loop directive setting its parent to the node's
         # parent and its children to the node. This calls down to the sub-class
         # to get the type of directive we require.
+        node.parent = None
         directive = self._directive(node_parent, [node], collapse)
 
         # Add the loop directive as a child of the node's parent
@@ -1128,6 +699,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         # add our OpenMP loop directive setting its parent to the node's
         # parent and its children to the node
         from psyclone.psyGen import OMPParallelDoDirective
+        node.parent = None
         directive = OMPParallelDoDirective(parent=node_parent,
                                            children=[node],
                                            omp_schedule=self.omp_schedule)
@@ -1396,10 +968,11 @@ class ColourTrans(LoopTrans):
         colours_loop.loop_body.addchild(colour_loop)
 
         # add contents of node to colour loop
-        colour_loop.loop_body.children.extend(node.loop_body)
+        colour_loop.loop_body.children.extend(
+                node.loop_body.pop_all_children())
 
         # change the parent of the node's contents to the colour loop
-        for child in node.loop_body:
+        for child in colour_loop.loop_body:
             child.parent = colour_loop.loop_body
 
         # remove original loop
@@ -1683,28 +1256,18 @@ class ParallelRegionTrans(RegionTrans):
         # Create the parallel directive as a child of the
         # parent of the nodes being enclosed and with those nodes
         # as its children.
-        # We slice the nodes list in order to get a new list object
-        # (although the actual items in the list are still those in the
-        # original). If we don't do this then we get an infinite
-        # recursion in the new schedule.
-        directive = self._pdirective(parent=node_parent,
-                                     children=node_list[:])
+        directive = self._pdirective(
+            parent=node_parent, children=[node.detach() for node in node_list])
 
         # Change all of the affected children so that they have
-        # the region directive's Schedule as their parent. Note
-        # that node_list is a copy, so we can remove children
-        # from the tree without affecting the content of
-        # node_list
+        # the region directive's Schedule as their parent.
         for child in node_list:
-            # Remove child from the parent's list of children
-            node_parent.children.remove(child)
             child.parent = directive.dir_body
 
         # Add the region directive as a child of the parent
         # of the nodes being enclosed and at the original location
         # of the first of these nodes
-        node_parent.addchild(directive,
-                             index=node_position)
+        node_parent.addchild(directive, index=node_position)
 
         return schedule, keep
 
@@ -2412,12 +1975,11 @@ class GOLoopSwapTrans(LoopTrans):
         outer.loop_body.children.remove(inner)
 
         # Move inner's schedule to outer
-        outer.children[3] = inner.loop_body
-        for child in outer.loop_body:
-            child.parent = outer.loop_body
+        outer.children[3] = inner.loop_body.detach()
+        outer.loop_body.parent = outer
 
         # Move outer under inner (create new Schedule to remove old entries)
-        inner.children[3] = nodes.Schedule()
+        inner.children.append(nodes.Schedule())
         inner.loop_body.parent = inner
         inner.loop_body.children.append(outer)
         outer.parent = inner.loop_body
@@ -3255,13 +2817,13 @@ class ACCKernelsTrans(RegionTrans):
         '''
         return "ACCKernelsTrans"
 
-    def apply(self, nodes, options=None):
+    def apply(self, node, options=None):
         '''
         Enclose the supplied list of PSyIR nodes within an OpenACC
         Kernels region.
 
-        :param nodes: a node or list of nodes in the PSyIR to enclose.
-        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
+        :param node: a node or list of nodes in the PSyIR to enclose.
+        :type node: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
         :param bool options["default_present"]: whether or not the kernels \
@@ -3275,8 +2837,8 @@ class ACCKernelsTrans(RegionTrans):
 
         '''
         # Ensure we are always working with a list of nodes, even if only
-        # one was supplied via the `nodes` argument.
-        node_list = self.get_node_list(nodes)
+        # one was supplied via the `node` argument.
+        node_list = self.get_node_list(node)
 
         self.validate(node_list, options)
 
@@ -3285,22 +2847,17 @@ class ACCKernelsTrans(RegionTrans):
 
         parent = node_list[0].parent
         schedule = node_list[0].root
+        start_index = node_list[0].position
 
         if not options:
             options = {}
         default_present = options.get("default_present", False)
 
-        # Create the directive and insert it. Take a copy of the list
-        # as it may just be a reference to the parent.children list
-        # that we are about to modify.
+        # Create a directive containing the nodes in node_list and insert it.
         from psyclone.psyGen import ACCKernelsDirective
-        directive = ACCKernelsDirective(parent=parent,
-                                        children=node_list[:],
-                                        default_present=default_present)
-        start_index = parent.children.index(node_list[0])
-
-        for child in directive.dir_body.children:
-            parent.children.remove(child)
+        directive = ACCKernelsDirective(
+                parent=parent, children=[node.detach() for node in node_list],
+                default_present=default_present)
 
         parent.children.insert(start_index, directive)
 
@@ -3384,12 +2941,12 @@ class ACCDataTrans(RegionTrans):
         '''
         return "ACCDataTrans"
 
-    def apply(self, nodes, options=None):
+    def apply(self, node, options=None):
         '''
         Put the supplied node or list of nodes within an OpenACC data region.
 
-        :param nodes: the PSyIR node(s) to enclose in the data region.
-        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
+        :param node: the PSyIR node(s) to enclose in the data region.
+        :type node: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: dictionary of string:values or None
 
@@ -3399,8 +2956,8 @@ class ACCDataTrans(RegionTrans):
 
         '''
         # Ensure we are always working with a list of nodes, even if only
-        # one was supplied via the `nodes` argument.
-        node_list = self.get_node_list(nodes)
+        # one was supplied via the `node` argument.
+        node_list = self.get_node_list(node)
 
         self.validate(node_list, options)
 
@@ -3409,16 +2966,14 @@ class ACCDataTrans(RegionTrans):
 
         parent = node_list[0].parent
         schedule = node_list[0].root
+        start_index = node_list[0].position
 
-        # Create the directive and insert it. Take a copy of the list
-        # as it may just be a reference to the parent.children list
-        # that we are about to modify.
+        # Create a directive containing the nodes in node_list and insert it.
         from psyclone.psyGen import ACCDataDirective
-        directive = ACCDataDirective(parent=parent, children=node_list[:])
-        start_index = parent.children.index(node_list[0])
+        directive = ACCDataDirective(
+                parent=parent, children=[node.detach() for node in node_list])
 
-        for child in directive.dir_body[:]:
-            parent.children.remove(child)
+        for child in directive.dir_body:
             child.parent = directive.dir_body
 
         parent.children.insert(start_index, directive)
@@ -3623,9 +3178,6 @@ class KernelGlobalsToArguments(Transformation):
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ["KernelTrans",
-           "LoopFuseTrans",
-           "GOceanLoopFuseTrans",
-           "DynamoLoopFuseTrans",
            "ParallelLoopTrans",
            "OMPLoopTrans",
            "ACCLoopTrans",
