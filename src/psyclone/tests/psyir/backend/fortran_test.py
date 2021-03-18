@@ -726,7 +726,8 @@ def test_gen_decls_nested_scope(fort_writer):
 
 def test_gen_decls_routine(fort_writer):
     '''Test that the gen_decls method raises an exception if the interface
-    of a routine symbol is not a GlobalInterface.
+    of a routine symbol is not a GlobalInterface, unless there's a wildcard
+    import from a Container.
 
     '''
     symbol_table = SymbolTable()
@@ -736,6 +737,12 @@ def test_gen_decls_routine(fort_writer):
     assert (
         "Routine symbols without a global or local interface are not supported"
         " by the Fortran back-end." in str(info.value))
+    # Now add a wildcard import
+    csym = ContainerSymbol("some_mod")
+    csym.wildcard_import = True
+    symbol_table.add(csym)
+    result = fort_writer.gen_decls(symbol_table)
+    assert result == ""
 
 
 def test_gen_routine_access_stmts(fort_writer):

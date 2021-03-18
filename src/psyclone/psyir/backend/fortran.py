@@ -608,14 +608,19 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         declarations = ""
+        wildcard_imports_checked = False
+        first_wildcard_import = None
 
         if not all([isinstance(symbol.interface, (LocalInterface,
                                                   GlobalInterface))
                     for symbol in symbol_table.symbols
                     if isinstance(symbol, RoutineSymbol)]):
-            raise VisitorError(
-                "Routine symbols without a global or local interface are not "
-                "supported by the Fortran back-end.")
+            first_wildcard_import = symbol_table.get_first_wildcard_import()
+            wildcard_imports_checked = True
+            if not first_wildcard_import:
+                raise VisitorError(
+                    "Routine symbols without a global or local interface are "
+                    "not supported by the Fortran back-end.")
 
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope)
@@ -624,13 +629,10 @@ class FortranWriter(PSyIRVisitor):
         if unresolved_datasymbols:
             # We do have unresolved symbols. Is there at least one wildcard
             # import which could be bringing them into scope?
-            current_table = symbol_table
-            while current_table:
-                container_symbols = current_table.containersymbols
-                if any(sym.wildcard_import for sym in container_symbols):
-                    break
-                current_table = current_table.parent_symbol_table()
-            else:
+            if not wildcard_imports_checked:
+                first_wildcard_import = \
+                    symbol_table.get_first_wildcard_import()
+            if not first_wildcard_import:
                 symbols_txt = ", ".join(
                     ["'" + sym + "'" for sym in unresolved_datasymbols])
                 raise VisitorError(

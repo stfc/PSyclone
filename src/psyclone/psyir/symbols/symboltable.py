@@ -1011,6 +1011,23 @@ class SymbolTable(object):
         # Re-insert modified symbol
         self.add(symbol)
 
+    def get_first_wildcard_import(self):
+        '''
+        Searches this symbol table and then up through any parent symbol
+        tables for the most local ContainerSymbol that has a wildcard import.
+
+        :returns: the ContainerSymbol with a wildcard import or None.
+        :rtype: :py:class:`psyclone.psyir.symbols.ContainerSymbol` or NoneType
+
+        '''
+        current_table = self
+        while current_table:
+            for sym in current_table.containersymbols:
+                if sym.wildcard_import:
+                    return sym
+            current_table = current_table.parent_symbol_table()
+        return None
+
     def view(self):
         '''
         Print a representation of this Symbol Table to stdout.
