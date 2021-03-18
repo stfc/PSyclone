@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -121,7 +121,7 @@ if __name__ == '__main__':
                                      files))
         return examples
 
-    # We have all of the example and tutorial files listed in
+    # We have all of the example, tutorial and libs files listed in
     # MANIFEST.in but unless we specify them in the data_files
     # argument of setup() they don't seem to get installed.
     # Since the data_files argument doesn't accept wildcards we have to
@@ -137,6 +137,12 @@ if __name__ == '__main__':
     INSTALL_PATH = os.path.join("share", "psyclone", "tutorial")
     VALID_SUFFIXES = [".ipynb"]
     TUTORIAL = get_files(TUTORIAL_DIR, INSTALL_PATH, VALID_SUFFIXES)
+
+    LIBS_DIR = os.path.join(BASE_PATH, "lib")
+    INSTALL_PATH = os.path.join("share", "psyclone", "libs")
+    VALID_SUFFIXES = ["90", "sh", "py", "md", "Makefile", ".mk",
+                      ".jinja", "doxyfile"]
+    LIBS = get_files(LIBS_DIR, INSTALL_PATH, VALID_SUFFIXES)
 
     setup(
         name=NAME,
@@ -162,4 +168,4 @@ if __name__ == '__main__':
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/genkernelstub'],
         data_files=[
-            ('share/psyclone', ['config/psyclone.cfg'])]+EXAMPLES+TUTORIAL,)
+            ('share/psyclone', ['config/psyclone.cfg'])]+EXAMPLES+TUTORIAL+LIBS,)
