@@ -86,11 +86,11 @@ def test_explicit(parser):
 
     assert ("  real, dimension(jpi,jpj,jpk) :: umask\n"
             "\n"
-            "!$acc data copyout(umask)\n"
-            "    do jk = 1, jpk") in gen_code
+            "  !$acc data copyout(umask)\n"
+            "  do jk = 1, jpk") in gen_code
 
-    assert ("    enddo\n"
-            "!$acc end data\n"
+    assert ("  enddo\n"
+            "  !$acc end data\n"
             "\n"
             "end program explicit_do") in gen_code
 
@@ -151,13 +151,13 @@ def test_explicit_directive(parser):
 
     assert ("  real, dimension(jpi,jpj,jpk) :: umask\n"
             "\n"
-            "!$acc data copyout(umask)\n"
-            "!$acc kernels default(present)\n"
-            "      do jk = 1, jpk, 1") in gen_code
+            "  !$acc data copyout(umask)\n"
+            "  !$acc kernels default(present)\n"
+            "  do jk = 1, jpk, 1") in gen_code
 
-    assert ("      enddo\n"
-            "!$acc end kernels\n"
-            "!$acc end data\n"
+    assert ("  enddo\n"
+            "  !$acc end kernels\n"
+            "  !$acc end data\n"
             "\n"
             "end program explicit_do") in gen_code
 
@@ -175,12 +175,12 @@ def test_array_syntax():
 
     assert ("  real(kind=wp), dimension(jpi,jpj,jpk) :: ztfw\n"
             "\n"
-            "!$acc data copyout(zftv)\n"
-            "    zftv(:,:,:) = 0.0e0" in gen_code)
+            "  !$acc data copyout(zftv)\n"
+            "  zftv(:,:,:) = 0.0e0" in gen_code)
 
-    assert ("!$acc data copyout(tmask)\n"
-            "    tmask(:,:) = jpi\n"
-            "!$acc end data\n"
+    assert ("  !$acc data copyout(tmask)\n"
+            "  tmask(:,:) = jpi\n"
+            "  !$acc end data\n"
             "\n"
             "end subroutine tra_ldf_iso" in gen_code)
 
@@ -195,18 +195,17 @@ def test_multi_data():
     gen_code = str(psy.gen)
 
     assert ("  do jk = 1, jpkm1, 1\n"
-            "!$acc data copyin(ptb,wmask) "
-            "copyout(zdk1t,zdkt)\n"
-            "      do jj = 1, jpj, 1") in gen_code
+            "    !$acc data copyin(ptb,wmask) copyout(zdk1t,zdkt)\n"
+            "    do jj = 1, jpj, 1") in gen_code
 
     assert ("    end if\n"
-            "!$acc end data\n"
-            "!$acc data copyin(e2_e1u,e2u,e3t_n,e3u_n,pahu,r1_e1e2t,"
+            "    !$acc end data\n"
+            "    !$acc data copyin(e2_e1u,e2u,e3t_n,e3u_n,pahu,r1_e1e2t,"
             "umask,uslp,wmask,zdit,zdk1t,zdkt,zftv) copyout(zftu) copy(pta)\n"
-            "      do jj = 1, jpjm1, 1") in gen_code
+            "    do jj = 1, jpjm1, 1") in gen_code
 
-    assert ("      enddo\n"
-            "!$acc end data\n"
+    assert ("    enddo\n"
+            "    !$acc end data\n"
             "  enddo") in gen_code
 
 
@@ -229,12 +228,12 @@ def test_replicated_loop(parser, tmpdir):
     schedule, _ = acc_trans.apply(schedule.children[1:2])
     gen_code = str(psy.gen)
 
-    assert ("!$acc data copyout(zwx)\n"
-            "    zwx(:,:) = 0.e0\n"
-            "!$acc end data\n"
-            "!$acc data copyout(zwx)\n"
-            "    zwx(:,:) = 0.e0\n"
-            "!$acc end data" in gen_code)
+    assert ("  !$acc data copyout(zwx)\n"
+            "  zwx(:,:) = 0.e0\n"
+            "  !$acc end data\n"
+            "  !$acc data copyout(zwx)\n"
+            "  zwx(:,:) = 0.e0\n"
+            "  !$acc end data" in gen_code)
     assert Compile(tmpdir).string_compiles(gen_code)
 
 
@@ -296,8 +295,8 @@ def test_array_section():
     schedule = invoke_info.schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
-    gen_code = str(psy.gen)
-    assert "!$ACC DATA COPYIN(b,c) COPYOUT(a)" in gen_code
+    gen_code = str(psy.gen).lower()
+    assert "!$acc data copyin(b,c) copyout(a)" in gen_code
 
 
 def test_kind_parameter(parser):
@@ -388,14 +387,15 @@ def test_kernels_in_data_region(parser):
     schedule, _ = acc_ktrans.apply(schedule.children[:],
                                    {"default_present": True})
     schedule, _ = acc_dtrans.apply(schedule.children[:])
-    new_code = str(psy.gen)
-    assert ("  !$ACC DATA COPYOUT(sto_tmp)\n"
-            "  !$ACC KERNELS DEFAULT(PRESENT)\n"
-            "  DO ji = 1, jpj\n" in new_code)
-    assert ("  END DO\n"
-            "  !$ACC END KERNELS\n"
-            "  !$ACC END DATA\n"
-            "END PROGRAM one_loop" in new_code)
+    new_code = str(psy.gen).lower()
+    assert ("  !$acc data copyout(sto_tmp)\n"
+            "  !$acc kernels default(present)\n"
+            "  do ji = 1, jpj, 1\n" in new_code)
+    assert ("  enddo\n"
+            "  !$acc end kernels\n"
+            "  !$acc end data\n"
+            "\n"
+            "end program one_loop" in new_code)
 
 
 def test_no_enter_data(parser):

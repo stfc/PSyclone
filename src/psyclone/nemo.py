@@ -147,7 +147,7 @@ def raise_psyir(psyir):
     for routine in psyir.walk(Routine):
         new_node = NemoInvokeSchedule.create(routine.name,
                                              routine.symbol_table,
-                                             routine.children,
+                                             routine.pop_all_children(),
                                              is_program=routine.is_program)
         if routine is not psyir:
             routine.replace_with(new_node)
@@ -163,15 +163,13 @@ def raise_psyir(psyir):
     for loop in reversed(root.walk(Loop)):
         # Convert a generic loop into a NEMO Loop by creating a new
         # NemoLoop object and inserting it into the PSyIR.
-        new_loop = NemoLoop.create(loop.variable, loop.children[0],
-                                   loop.children[1],
-                                   loop.children[2], loop.loop_body.children)
+        nodes = loop.pop_all_children()
+        new_loop = NemoLoop.create(loop.variable, nodes[0], nodes[1], nodes[2],
+                                   nodes[3].pop_all_children())
         loop.replace_with(new_loop)
         if NemoKern.match(new_loop.loop_body):
-            nemokern = NemoKern(new_loop.loop_body[:], None,
+            nemokern = NemoKern(new_loop.loop_body.pop_all_children(), None,
                                 parent=new_loop.loop_body)
-            # TODO use new detach() method on original children of loop body
-            new_loop.loop_body.children = []
             new_loop.loop_body.addchild(nemokern)
 
     return root
