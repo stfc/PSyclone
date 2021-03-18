@@ -4175,14 +4175,16 @@ class TransInfo(object):
             self._0_to_n = DummyTransformation()  # only here for pyreverse!
 
         # TODO #620: This need to be improved to support the new
-        # layout, where transformations are in different directories and files
+        # layout, where transformations are in different directories and files.
+        # Leaving local imports so they will be removed once TransInfo is
+        # replaced.
+        # pylint: disable=import-outside-toplevel
+        from psyclone import transformations
         if module is None:
             # default to the transformation module
-            from psyclone import transformations
             module = transformations
         if base_class is None:
-            from psyclone import psyGen
-            base_class = psyGen.Transformation
+            base_class = Transformation
         # find our transformations
         self._classes = self._find_subclasses(module, base_class)
 
@@ -4193,6 +4195,18 @@ class TransInfo(object):
             my_object = my_class()
             self._objects.append(my_object)
             self._obj_map[my_object.name] = my_object
+        # TODO #620:
+        # Transformations that are in psyir and other subdirectories
+        # are not found by TransInfo, so we add some that are used in
+        # tests and examples explicitly. I'm leaving this import here
+        # so it is obvious it can be removed.
+        from psyclone.psyir.transformations import LoopFuseTrans
+        my_object = LoopFuseTrans()
+        # Only add the loop-fuse statement if base_class and module
+        # match for the loop fusion transformation.
+        if isinstance(my_object, base_class) and module == transformations:
+            self._objects.append(LoopFuseTrans())
+            self._obj_map["LoopFuseTrans"] = self._objects[-1]
 
     @property
     def list(self):

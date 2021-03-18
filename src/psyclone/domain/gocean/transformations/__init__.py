@@ -42,9 +42,12 @@ from psyclone.domain.gocean.transformations.gocean_extract_trans \
 from psyclone.domain.gocean.transformations. \
     gocean_move_iteration_boundaries_inside_kernel_trans import \
     GOMoveIterationBoundariesInsideKernelTrans
+from psyclone.domain.gocean.transformations.gocean_loop_fuse_trans \
+    import GOceanLoopFuseTrans
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.domain.gocean.transformations import GOceanExtractTrans
 
-__all__ = ['GOceanExtractTrans', 'GOMoveIterationBoundariesInsideKernelTrans']
+__all__ = ['GOceanExtractTrans', 'GOMoveIterationBoundariesInsideKernelTrans',
+           'GOceanLoopFuseTrans']

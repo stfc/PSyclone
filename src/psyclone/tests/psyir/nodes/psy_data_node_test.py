@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -93,6 +93,7 @@ def test_psy_data_node_tree_correct():
     # ===========================
     parent = Schedule()
     psy_node = PSyDataNode(parent=parent)
+    parent.addchild(psy_node)
 
     # We must have a single node connected to the parent, and an
     # empty schedule for the ExtractNode:
@@ -124,15 +125,18 @@ def test_psy_data_node_tree_correct():
     # =======================
     parent = Schedule()
     # The children must be added to the parent before creating the ExtractNode
-    parent.addchild(Statement())
-    parent.addchild(Statement())
+    parent.addchild(Statement(parent=parent))
+    parent.addchild(Statement(parent=parent))
     # Add another child that must stay with the parent node
     third_child = Statement(parent=parent)
     parent.addchild(third_child)
     assert parent.children[2] is third_child
     # Only move the first two children, leave the third where it is
     children = [parent.children[0], parent.children[1]]
+    for child in children:
+        child.detach()
     psy_node = PSyDataNode(parent=parent, children=children)
+    parent.addchild(psy_node, 0)
 
     # Check all connections
     assert psy_node.parent is parent

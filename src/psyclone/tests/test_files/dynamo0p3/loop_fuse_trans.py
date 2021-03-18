@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 
 '''
@@ -41,12 +42,14 @@
     not perform any error checking. It is used by the test system to
     ensure that transformation scripts work correctly.
 '''
+from __future__ import absolute_import
+
+from psyclone.psyir.transformations import LoopFuseTrans
 
 
 def trans(psy):
     ''' A test loop fusion transformation for use with the transformation
     unit tests '''
-    from psyclone.transformations import LoopFuseTrans
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
     loop1 = schedule.children[4]
