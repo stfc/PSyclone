@@ -434,6 +434,9 @@
         140) PR #1144 for #1136. Add checks that PSyIR nodes are only children
         of one parent.
 
+	141) PR #1150 for #1146. Fixed bug in PSyIR, making the name
+	matching in the Node swap method case insensitive.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
