@@ -39,6 +39,8 @@
 ''' This module contains the Assignment node implementation.'''
 
 import re
+from psyclone.psyir.nodes.array_reference import ArrayReference
+from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
@@ -188,16 +190,16 @@ class Assignment(Statement):
     @property
     def is_array_range(self):
         '''
-        returns: True if the lhs of the assignment is an array with at \
-            least one of its dimensions being a range and False \
-            otherwise.
+        returns: True if the lhs of the assignment is an array access with at \
+            least one of its dimensions being a range and False otherwise.
         rtype: bool
 
         '''
-        from psyclone.psyir.nodes import ArrayReference, Range
-        if not isinstance(self.lhs, ArrayReference):
-            return False
-        return any(dim for dim in self.lhs.children if isinstance(dim, Range))
+        if isinstance(self.lhs, (ArrayReference, StructureReference)):
+            ranges = self.lhs.walk(Range)
+            return ranges != []
+
+        return False
 
     def gen_code(self, parent):
         '''F2pygen code generation of an Assignment.

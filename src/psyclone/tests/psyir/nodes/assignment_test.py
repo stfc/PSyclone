@@ -41,9 +41,11 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Assignment, Reference, Literal, \
-    ArrayReference, Range
-from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
-    INTEGER_SINGLE_TYPE, REAL_TYPE, ArrayType, INTEGER_TYPE
+    ArrayReference, Range, BinaryOperation, StructureReference, \
+    ArrayOfStructuresReference
+from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, Symbol, \
+    INTEGER_SINGLE_TYPE, REAL_TYPE, ArrayType, INTEGER_TYPE, StructureType, \
+    TypeSymbol
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -158,3 +160,46 @@ def test_is_array_range():
     array_ref = ArrayReference.create(symbol, [my_range, int_one.copy()])
     assignment = Assignment.create(array_ref, one.copy())
     assert assignment.is_array_range
+
+    # Check when lhs consists of various forms of structure access
+    grid_type = StructureType.create([
+        ("dx", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC),
+        ("dy", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC)])
+    grid_type_symbol = TypeSymbol("grid_type", grid_type)
+    # Create the definition of the 'field_type', contains array of grid_types
+    field_type_def = StructureType.create(
+        [("data", ArrayType(REAL_SINGLE_TYPE, [10]), Symbol.Visibility.PUBLIC),
+         ("sub_meshes", ArrayType(grid_type_symbol, [3]),
+          Symbol.Visibility.PUBLIC)])
+    field_type_symbol = TypeSymbol("field_type", field_type_def)
+    field_symbol = DataSymbol("wind", field_type_symbol)
+
+    # Array reference to component of derived type using a range
+    lbound = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        StructureReference.create(field_symbol, ["data"]), int_one.copy())
+    ubound = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        StructureReference.create(field_symbol, ["data"]), int_one.copy())
+    my_range = Range.create(lbound, ubound)
+
+    data_ref = StructureReference.create(field_symbol, [("data", [my_range])])
+    assign = Assignment.create(data_ref, one.copy())
+    assert assign.is_array_range is True
+
+    # Access to slice of 'sub_meshes': wind%sub_meshes(1:3)%dx = 1.0
+    sub_range = Range.create(int_one.copy(), Literal("3", INTEGER_TYPE))
+    dx_ref = StructureReference.create(field_symbol, [("sub_meshes",
+                                                       [sub_range]), "dx"])
+    sub_assign = Assignment.create(dx_ref, one.copy())
+    assert sub_assign.is_array_range is True
+
+    # Create an array of these derived types and assign to a slice:
+    # chi(1:10)%data(1) = 1.0
+    field_bundle_symbol = DataSymbol("chi", ArrayType(field_type_symbol, [3]))
+    fld_range = Range.create(int_one.copy(), Literal("10", INTEGER_TYPE))
+    fld_ref = ArrayOfStructuresReference.create(field_bundle_symbol,
+                                                [fld_range],
+                                                [("data", [int_one.copy()])])
+    fld_assign = Assignment.create(fld_ref, one.copy())
+    assert fld_assign.is_array_range is True
