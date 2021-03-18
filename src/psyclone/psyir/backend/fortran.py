@@ -608,19 +608,28 @@ class FortranWriter(PSyIRVisitor):
 
         '''
         declarations = ""
+        # Keep a record of whether we've already checked for any wildcard
+        # imports to save doing so repeatedly
         wildcard_imports_checked = False
         first_wildcard_import = None
 
-        if not all([isinstance(symbol.interface, (LocalInterface,
-                                                  GlobalInterface))
-                    for symbol in symbol_table.symbols
-                    if isinstance(symbol, RoutineSymbol)]):
-            first_wildcard_import = symbol_table.get_first_wildcard_import()
-            wildcard_imports_checked = True
-            if not first_wildcard_import:
-                raise VisitorError(
-                    "Routine symbols without a global or local interface are "
-                    "not supported by the Fortran back-end.")
+        routine_symbols = [symbol for symbol in symbol_table.symbols
+                           if isinstance(symbol, RoutineSymbol)]
+        for sym in routine_symbols:
+            if (not isinstance(sym.interface, (LocalInterface,
+                                               GlobalInterface)) and
+                    sym.name.upper() not in FORTRAN_INTRINSICS):
+                if not wildcard_imports_checked:
+                    first_wildcard_import = \
+                        symbol_table.get_first_wildcard_import()
+                    wildcard_imports_checked = True
+                if not first_wildcard_import:
+                    raise VisitorError(
+                        "Routine symbol '{0}' does not have a global or local"
+                        "interface, is not a Fortran intrinsic and there is no"
+                        " wildcard import which could bring it into scope. "
+                        "This is not supported by the Fortran back-end.".
+                        format(sym.name))
 
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope)

@@ -731,13 +731,20 @@ def test_gen_decls_routine(fort_writer):
 
     '''
     symbol_table = SymbolTable()
+    # Check that a RoutineSymbol representing an intrinsic is OK
+    symbol_table.add(RoutineSymbol("nint", interface=UnresolvedInterface()))
+    result = fort_writer.gen_decls(symbol_table)
+    assert result == ""
+    # Now add a user-defined routine symbol
     symbol_table.add(RoutineSymbol("arg_sub", interface=ArgumentInterface()))
     with pytest.raises(VisitorError) as info:
         _ = fort_writer.gen_decls(symbol_table)
     assert (
-        "Routine symbols without a global or local interface are not supported"
-        " by the Fortran back-end." in str(info.value))
-    # Now add a wildcard import
+        "Routine symbol 'arg_sub' does not have a global or localinterface, is"
+        " not a Fortran intrinsic and there is no wildcard import which could "
+        "bring it into scope. This is not supported by the Fortran back-end."
+        in str(info.value))
+    # Now add a wildcard import from a ContainerSymbol
     csym = ContainerSymbol("some_mod")
     csym.wildcard_import = True
     symbol_table.add(csym)
