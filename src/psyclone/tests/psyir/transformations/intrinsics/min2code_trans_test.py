@@ -188,7 +188,6 @@ def test_correct_expr(tmpdir):
                                  Literal("1.0", REAL_TYPE), operation)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  op1, Literal("2.0", REAL_TYPE))
-    op2.parent = assignment
     assignment.addchild(op2)
 
     writer = FortranWriter()
@@ -237,7 +236,6 @@ def test_correct_2min(tmpdir):
                                     Literal("2.0", REAL_TYPE))
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  min_op, operation)
-    op1.parent = assignment
     assignment.addchild(op1)
 
     writer = FortranWriter()

@@ -138,7 +138,6 @@ class LFRicBuiltInCallFactory(object):
         # As it is the innermost loop it has the kernel as a loop_body
         # child.
         dofloop.loop_body.addchild(builtin)
-        builtin.parent = dofloop.loop_body
 
         # Return the outermost loop
         return dofloop

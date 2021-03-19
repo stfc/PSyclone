@@ -838,11 +838,6 @@ class Node(object):
     def parent(self):
         return self._parent
 
-    @parent.setter
-    def parent(self, my_parent):
-        pass
-        # self._parent = my_parent
-
     @property
     def position(self):
         '''
@@ -1147,8 +1142,6 @@ class Node(object):
             # If we have children then set the Schedule's AST pointer to
             # point to the AST associated with them.
             sched.ast = children[0].ast
-            for child in children:
-                child.parent = sched
         else:
             sched.ast = ast
         return sched
@@ -1216,9 +1209,7 @@ class Node(object):
         '''
         free_children = []
         while self.children:
-            child = self.children.pop()
-            child.parent = None
-            free_children.insert(0, child)
+            free_children.insert(0, self.children.pop())
         return free_children
 
     def detach(self):
@@ -1231,7 +1222,6 @@ class Node(object):
         '''
         if self.parent:
             self.parent.children.remove(self)
-            self.parent = None
         return self
 
     def _refine_copy(self, other):
@@ -1245,8 +1235,6 @@ class Node(object):
         self._parent = None
         self._annotations = other.annotations[:]
         self.children = [child.copy() for child in other.children]
-        for child in self.children:
-            child.parent = self
 
     def copy(self):
         ''' Return a copy of this node. This is a bespoke implementation for

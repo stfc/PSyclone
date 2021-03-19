@@ -122,8 +122,6 @@ class NemoFparser2Reader(Fparser2Reader):
         else:
             # Otherwise just connect the new children into the tree.
             loop_body.children.extend(fakeparent.pop_all_children())
-            for child in loop_body.children:
-                child.parent = loop_body
 
 
 class NemoInvoke(Invoke):
@@ -530,12 +528,6 @@ class NemoLoop(Loop):
         loop = NemoLoop(variable=variable)
         schedule = Schedule(children=children)
         loop.children = [start, stop, step, schedule]
-        for child in children:
-            child.parent = schedule
-        start.parent = loop
-        stop.parent = loop
-        step.parent = loop
-        schedule.parent = loop
 
         # Indicate the type of loop
         loop_type_mapping = Config.get().api_conf("nemo") \

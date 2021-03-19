@@ -149,7 +149,6 @@ class Min2CodeTrans(Operator2CodeTrans):
         # res_var=A
         lhs = Reference(res_var_symbol)
         new_assignment = Assignment.create(lhs, node.children[0].detach())
-        new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # For each of the remaining min arguments (B,C...)
@@ -158,7 +157,6 @@ class Min2CodeTrans(Operator2CodeTrans):
             # tmp_var=(B or C or ...)
             lhs = Reference(tmp_var_symbol)
             new_assignment = Assignment.create(lhs, expression)
-            new_assignment.parent = assignment.parent
             assignment.parent.children.insert(assignment.position,
                                               new_assignment)
 
@@ -175,5 +173,4 @@ class Min2CodeTrans(Operator2CodeTrans):
 
             # if [if_condition] then [then_body]
             if_stmt = IfBlock.create(if_condition, then_body)
-            if_stmt.parent = assignment.parent
             assignment.parent.children.insert(assignment.position, if_stmt)

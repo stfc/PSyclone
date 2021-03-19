@@ -182,7 +182,6 @@ def test_cw_array():
     arr.addchild(Literal('1', INTEGER_TYPE, parent=arr))
     uop = UnaryOperation.create(UnaryOperation.Operator.MINUS,
                                 Literal('2', INTEGER_TYPE))
-    uop.parent = arr
     arr.addchild(uop)
 
     result = cwriter(assignment)
@@ -222,7 +221,6 @@ def test_cw_ifblock():
     then_content = [Return()]
     else_content = [Return()]
     ifblock2 = IfBlock.create(condition, then_content, else_content)
-    ifblock2.parent = ifblock.else_body
     ifblock.else_body.addchild(ifblock2)
 
     result = cwriter(ifblock)

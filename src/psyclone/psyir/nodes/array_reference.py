@@ -95,7 +95,6 @@ class ArrayReference(ArrayMixin, Reference):
         array = ArrayReference(symbol)
         for child in indices:
             array.addchild(child)
-            child.parent = array
         return array
 
     def __str__(self):

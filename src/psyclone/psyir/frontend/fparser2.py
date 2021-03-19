@@ -1078,7 +1078,6 @@ class Fparser2Reader(object):
                     break
                 current = current.parent
         if container:
-            new_schedule.parent = container
             container.children.append(new_schedule)
 
         # Set pointer from schedule into fparser2 tree
@@ -2450,7 +2449,6 @@ class Fparser2Reader(object):
                 # wrong, but it's needed for symbol table resolutions.
                 ifblock._parent = None
                 elsebody.addchild(ifblock)
-                ifblock.parent = elsebody
                 elsebody.ast = node.content[start_idx + 1]
                 elsebody.ast_end = node.content[end_idx - 1]
             else:
@@ -3237,7 +3235,6 @@ class Fparser2Reader(object):
             lbound = BinaryOperation.create(
                 BinaryOperation.Operator.LBOUND, Reference(parent.symbol),
                 Literal(dimension, integer_type))
-            lbound.parent = my_range
             my_range.children.append(lbound)
         if node.children[1]:
             self.process_nodes(parent=my_range, nodes=[node.children[1]])
@@ -3249,7 +3246,6 @@ class Fparser2Reader(object):
             ubound = BinaryOperation.create(
                 BinaryOperation.Operator.UBOUND, Reference(parent.symbol),
                 Literal(dimension, integer_type))
-            ubound.parent = my_range
             my_range.children.append(ubound)
         if node.children[2]:
             self.process_nodes(parent=my_range, nodes=[node.children[2]])
@@ -3260,7 +3256,6 @@ class Fparser2Reader(object):
             # a(...:...:) becomes a(...:...:1)
             literal = Literal("1", integer_type)
             my_range.children.append(literal)
-            literal.parent = my_range
         return my_range
 
     def _number_handler(self, node, parent):

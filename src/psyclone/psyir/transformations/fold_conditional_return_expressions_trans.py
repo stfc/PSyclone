@@ -139,7 +139,6 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
                     UnaryOperation.Operator.NOT,
                     statement.condition.copy())
                 statement.children[0] = new_condition
-                new_condition.parent = statement
 
                 # Remove return statement (and any dead code inside the loop)
                 statement.if_body.children = []
@@ -147,9 +146,7 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
                 # statement inside the loop body
                 while len(statement.parent.children) > statement.position + 1:
                     move = statement.parent.children.pop()
-                    move.parent = None
                     statement.if_body.children.insert(0, move)
-                    move.parent = statement.if_body
 
 
 # For Sphinx AutoAPI documentation generation

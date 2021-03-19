@@ -200,11 +200,6 @@ class Loop(Statement):
         loop = Loop(variable=variable)
         schedule = Schedule(parent=loop, children=children)
         loop.children = [start, stop, step, schedule]
-        for child in children:
-            child.parent = schedule
-        start.parent = loop
-        stop.parent = loop
-        step.parent = loop
         return loop
 
     def _check_completeness(self):

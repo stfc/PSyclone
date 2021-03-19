@@ -342,7 +342,6 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         iloop = Loop.create(i_loop_symbol, lower_bound, upper_bound, step,
                             [assign, jloop])
         # Add the new code to the PSyIR
-        iloop.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, iloop)
         # remove the original matmul
         assignment.parent.children.remove(assignment)

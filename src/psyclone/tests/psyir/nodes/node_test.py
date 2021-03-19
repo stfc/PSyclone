@@ -871,11 +871,8 @@ def test_replace_with():
 
     parent_node = Schedule()
     node1 = Statement()
-    node1.parent = parent_node
     node2 = Statement()
-    node2.parent = parent_node
     node3 = Statement()
-    node3.parent = parent_node
     parent_node.children = [node1, node2, node3]
     new_node = Assignment()
 
@@ -926,8 +923,6 @@ def test_replace_with_error2():
     assert("This node should have a parent if its replace_with method "
            "is called." in str(info.value))
 
-    node1.parent = parent
-    node2.parent = parent
     parent.children = [node1, node2]
     with pytest.raises(GenerationError) as info:
         node1.replace_with(node2)

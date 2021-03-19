@@ -127,12 +127,9 @@ class Range(Node):
         '''
         erange = Range(parent=parent)
         erange.start = start
-        start.parent = erange
         erange.stop = stop
-        stop.parent = erange
         if step:
             erange.step = step
-            step.parent = erange
         else:
             # No step supplied so default to a value of 1
             erange.step = Literal("1", INTEGER_TYPE, parent=erange)

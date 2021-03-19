@@ -954,10 +954,6 @@ class ColourTrans(LoopTrans):
         colour_loop.loop_body.children.extend(
                 node.loop_body.pop_all_children())
 
-        # change the parent of the node's contents to the colour loop
-        for child in colour_loop.loop_body:
-            child.parent = colour_loop.loop_body
-
         # remove original loop
         node_parent.children.remove(node)
 
@@ -2942,9 +2938,6 @@ class ACCDataTrans(RegionTrans):
         from psyclone.psyGen import ACCDataDirective
         directive = ACCDataDirective(
                 parent=parent, children=[node.detach() for node in node_list])
-
-        for child in directive.dir_body:
-            child.parent = directive.dir_body
 
         parent.children.insert(start_index, directive)
 

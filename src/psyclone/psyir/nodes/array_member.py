@@ -88,7 +88,6 @@ class ArrayMember(ArrayMixin, Member):
         # Add any array-index expressions as children
         for child in indices:
             obj.addchild(child)
-            child.parent = obj
         return obj
 
 

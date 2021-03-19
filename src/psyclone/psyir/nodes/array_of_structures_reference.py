@@ -124,7 +124,6 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
         # as that is handled in _validate_child.
         for child in indices:
             ref.addchild(child)
-            child.parent = ref
         return ref
 
 

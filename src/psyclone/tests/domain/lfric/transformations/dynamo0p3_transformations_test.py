@@ -6179,7 +6179,6 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     kern = loops[3].loop_body[0].detach()
     monkeypatch.setattr(kern, "is_coloured", lambda: True)
     loop.loop_body.children.append(kern)
-    kern.parent = loop.loop_body
     with pytest.raises(InternalError) as err:
         _ = loops[1]._upper_bound_fortran()
     assert ("All kernels within a loop over colours must have been coloured "

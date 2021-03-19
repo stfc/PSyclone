@@ -234,7 +234,6 @@ class NemoArrayRange2LoopTrans(Transformation):
         loop = NemoLoop.create(loop_variable_symbol, lower_bound,
                                upper_bound, step, [assignment.detach()])
         parent.children.insert(position, loop)
-        loop.parent = parent
 
         try:
             _ = get_outer_index(array_reference)
@@ -248,7 +247,6 @@ class NemoArrayRange2LoopTrans(Transformation):
             # outputting nemo api code
             inlined_kernel = NemoKern([assignment.detach()], None)
             parent.children = [inlined_kernel]
-            inlined_kernel.parent = parent
 
     def __str__(self):
         return (

@@ -3387,9 +3387,6 @@ class InlinedKern(Kern):
         Node.__init__(self)
         schedule = Schedule(children=psyir_nodes, parent=self)
         self.children = [schedule]
-        # Update the parent info for each node we've moved
-        for node in schedule.children:
-            node.parent = schedule
 
     @staticmethod
     def _validate_child(position, child):

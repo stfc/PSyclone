@@ -137,7 +137,6 @@ class Abs2CodeTrans(Operator2CodeTrans):
         lhs = Reference(symbol_tmp_var)
         rhs = node.children[0].detach()
         new_assignment = Assignment.create(lhs, rhs)
-        new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # if condition: tmp_var>0.0
@@ -161,5 +160,4 @@ class Abs2CodeTrans(Operator2CodeTrans):
 
         # if [if_condition] then [then_body] else [else_body]
         if_stmt = IfBlock.create(if_condition, then_body, else_body)
-        if_stmt.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, if_stmt)
