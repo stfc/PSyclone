@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -154,10 +154,10 @@ def test_implicit_loop(parser):
     acc_trans = ACCKernelsTrans()
     schedule, _ = acc_trans.apply(schedule.children[0:1],
                                   {"default_present": True})
-    gen_code = str(psy.gen)
-    assert ("  !$ACC KERNELS DEFAULT(PRESENT)\n"
-            "  sto_tmp(:, :) = 0.0_wp\n"
-            "  !$ACC END KERNELS\n" in gen_code)
+    gen_code = str(psy.gen).lower()
+    assert ("  !$acc kernels default(present)\n"
+            "  sto_tmp(:,:) = 0.0_wp\n"
+            "  !$acc end kernels\n" in gen_code)
 
 
 def test_multikern_if(parser):
@@ -184,12 +184,13 @@ def test_multikern_if(parser):
     schedule, _ = acc_trans.apply(schedule.children[0:1],
                                   {"default_present": True})
     gen_code = str(psy.gen).lower()
-    assert ("!$acc kernels default(present)\n"
+    assert ("  !$acc kernels default(present)\n"
             "  if (do_this) then\n"
-            "    do jk = 1, 3\n" in gen_code)
-    assert ("    end do\n"
+            "    do jk = 1, 3, 1\n" in gen_code)
+    assert ("    enddo\n"
             "  end if\n"
             "  !$acc end kernels\n"
+            "\n"
             "end program implicit_loop" in gen_code)
 
 
@@ -216,17 +217,17 @@ def test_kernels_within_if(parser):
                                   {"default_present": True})
     schedule, _ = acc_trans.apply(schedule.children[0].else_body,
                                   {"default_present": True})
-    new_code = str(psy.gen)
-    assert ("  IF (do_this) THEN\n"
-            "    !$ACC KERNELS DEFAULT(PRESENT)\n"
-            "    DO ji = 1, jpi\n" in new_code)
-    assert ("    END DO\n"
-            "    !$ACC END KERNELS\n"
-            "  ELSE\n"
-            "    !$ACC KERNELS DEFAULT(PRESENT)\n"
-            "    fld2d(:, :) = 0.0\n"
-            "    !$ACC END KERNELS\n"
-            "  END IF\n" in new_code)
+    new_code = str(psy.gen).lower()
+    assert ("  if (do_this) then\n"
+            "    !$acc kernels default(present)\n"
+            "    do ji = 1, jpi, 1\n" in new_code)
+    assert ("    enddo\n"
+            "    !$acc end kernels\n"
+            "  else\n"
+            "    !$acc kernels default(present)\n"
+            "    fld2d(:,:) = 0.0\n"
+            "    !$acc end kernels\n"
+            "  end if\n" in new_code)
 
 
 def test_no_code_block_kernels(parser):
@@ -260,7 +261,7 @@ def test_no_default_present(parser):
     acc_trans = ACCKernelsTrans()
     _, _ = acc_trans.apply(schedule.children, {"default_present": False})
     gen_code = str(psy.gen)
-    assert "!$ACC KERNELS\n" in gen_code
+    assert "!$acc kernels\n" in gen_code
 
 
 def test_kernels_around_where_construct(parser):
@@ -280,10 +281,15 @@ def test_kernels_around_where_construct(parser):
     assert isinstance(sched[0], ACCKernelsDirective)
     assert isinstance(sched[0].dir_body[0], Loop)
     new_code = str(psy.gen)
-    assert ("  !$ACC KERNELS\n"
-            "  WHERE (a(:, :) < flag)" in new_code)
-    assert ("  END WHERE\n"
-            "  !$ACC END KERNELS\n" in new_code)
+    assert ("  !$acc kernels\n"
+            "  do widx2 = 1, SIZE(a, 2), 1\n"
+            "    do widx1 = 1, SIZE(a, 1), 1\n"
+            "      if (a(widx1,widx2) < flag) then\n"
+            "        b(widx1,widx2) = 0.0\n"
+            "      end if\n"
+            "    enddo\n"
+            "  enddo\n"
+            "  !$acc end kernels\n" in new_code)
 
 
 def test_kernels_around_where_stmt(parser):
@@ -301,11 +307,17 @@ def test_kernels_around_where_stmt(parser):
     acc_trans = ACCKernelsTrans()
     acc_trans.apply([schedule[1]])
     new_code = str(psy.gen)
-    assert ("  a(:, :) = 1.0\n"
-            "  !$ACC KERNELS\n"
-            "  WHERE (a(:, :) < flag) b(:, :) = 0.0\n"
-            "  !$ACC END KERNELS\n"
-            "  c(:, :) = 1.0\n" in new_code)
+    assert ("  a(:,:) = 1.0\n"
+            "  !$acc kernels\n"
+            "  do widx2 = 1, SIZE(a, 2), 1\n"
+            "    do widx1 = 1, SIZE(a, 1), 1\n"
+            "      if (a(widx1,widx2) < flag) then\n"
+            "        b(widx1,widx2) = 0.0\n"
+            "      end if\n"
+            "    enddo\n"
+            "  enddo\n"
+            "  !$acc end kernels\n"
+            "  c(:,:) = 1.0\n" in new_code)
 
 
 def test_loop_inside_kernels(parser):
@@ -321,7 +333,7 @@ def test_loop_inside_kernels(parser):
     output = str(psy.gen).lower()
     assert ("  !$acc kernels\n"
             "  !$acc loop independent\n"
-            "  do ji = 1, jpj\n" in output)
+            "  do ji = 1, jpj, 1\n" in output)
     assert ("  end do\n"
             "  !$acc end kernels\n" in output)
 
@@ -351,15 +363,15 @@ def test_two_loops_inside_kernels(parser):
     output = str(psy.gen).lower()
     assert ("  !$acc kernels\n"
             "  !$acc loop independent\n"
-            "  do ji = 1, 10\n" in output)
-    assert ("  end do\n"
+            "  do ji = 1, 10, 1\n" in output)
+    assert ("  enddo\n"
             "  !$acc end kernels\n"
             "end program" in output)
     loop_trans.apply(schedule[0].dir_body[1])
     output = str(psy.gen).lower()
     assert ("  !$acc loop independent\n"
-            "  do ji = 1, 5\n" in output)
-    assert ("  end do\n"
+            "  do ji = 1, 5, 1\n" in output)
+    assert ("  enddo\n"
             "  !$acc end kernels\n"
             "end program" in output)
 
@@ -384,10 +396,10 @@ def test_loop_after_implicit_kernels(parser):
     loop_trans.apply(schedule[0].dir_body[1])
     output = str(psy.gen).lower()
     assert ("  !$acc kernels\n"
-            "  array(:, :) = - 1.0\n"
+            "  array(:,:) = - 1.0\n"
             "  !$acc loop independent\n"
-            "  do ji = 1, 5\n" in output)
-    assert ("  end do\n"
+            "  do ji = 1, 5, 1\n" in output)
+    assert ("  enddo\n"
             "  !$acc end kernels\n"
             "end program" in output)
 

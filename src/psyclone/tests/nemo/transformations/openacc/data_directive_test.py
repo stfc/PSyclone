@@ -445,8 +445,6 @@ def test_array_access_in_ifblock(parser):
     assert " copyin(zmask)" in gen_code
 
 
-@pytest.mark.xfail(reason="Fail to identify array accesses in loop bounds, "
-                   "issue #309")
 def test_array_access_loop_bounds(parser):
     ''' Check that we raise the expected error if our code that identifies
     read and write accesses misses an array access. '''
@@ -468,35 +466,3 @@ def test_array_access_loop_bounds(parser):
     acc_trans.apply(schedule.children)
     gen_code = str(psy.gen).lower()
     assert "copyin(trim_width)" in gen_code
-
-
-def test_missed_array_case(parser):
-    ''' Check that we raise the expected InternalError if our internal
-    sanity check spots that we've missed an array access.
-    TODO #309 - remove this test. '''
-    code = ("program do_bound\n"
-            "  integer :: ice_mask(8,8)\n"
-            "  real(kind=wp) :: trim_width(8), zdta(8,8)\n"
-            "  integer :: ji, jj, dom\n"
-            "  do jj = 1, trim_width(dom)\n"
-            "    do ji = 1, 8\n"
-            "      select case(ice_mask(ji,jj))\n"
-            "      case(0)\n"
-            "        zdta(ji,jj) = 1.0\n"
-            "      case(1)\n"
-            "        zdta(ji,jj) = 0.0\n"
-            "      end select\n"
-            "    end do\n"
-            "  end do\n"
-            "end program do_bound\n")
-    reader = FortranStringReader(code)
-    ptree = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(ptree)
-    schedule = psy.invokes.get('do_bound').schedule
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    # Put the second loop nest inside a data region
-    acc_trans.apply(schedule.children)
-    with pytest.raises(InternalError) as err:
-        _ = str(psy.gen)
-    assert ("ArrayReference 'ice_mask' present in source code ("
-            "'ice_mask(ji, jj)') but not identified" in str(err.value))
