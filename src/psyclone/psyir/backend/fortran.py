@@ -602,16 +602,16 @@ class FortranWriter(PSyIRVisitor):
             is not supported by this backend.
         :raises VisitorError: if args_allowed is False and one or more \
             argument declarations exist in symbol_table.
-        :raises VisitorError: if any symbols representing variables without \
-            a (local) explicit declaration or 'use' are encountered and there \
-            are no wildcard imports.
+        :raises VisitorError: if there are any symbols in the supplied table \
+            that do not have an explicit declaration and there are no \
+            wildcard imports.
 
         '''
         declarations = ""
         # Keep a record of whether we've already checked for any wildcard
         # imports to save doing so repeatedly
         wildcard_imports_checked = False
-        first_wildcard_import = None
+        has_wildcard_import = False
 
         routine_symbols = [symbol for symbol in symbol_table.symbols
                            if isinstance(symbol, RoutineSymbol)]
@@ -620,10 +620,9 @@ class FortranWriter(PSyIRVisitor):
                                                GlobalInterface)) and
                     sym.name.upper() not in FORTRAN_INTRINSICS):
                 if not wildcard_imports_checked:
-                    first_wildcard_import = \
-                        symbol_table.get_first_wildcard_import()
+                    has_wildcard_import = symbol_table.has_wildcard_imports()
                     wildcard_imports_checked = True
-                if not first_wildcard_import:
+                if not has_wildcard_import:
                     raise VisitorError(
                         "Routine symbol '{0}' does not have a global or local"
                         "interface, is not a Fortran intrinsic and there is no"
@@ -639,16 +638,16 @@ class FortranWriter(PSyIRVisitor):
             # We do have unresolved symbols. Is there at least one wildcard
             # import which could be bringing them into scope?
             if not wildcard_imports_checked:
-                first_wildcard_import = \
-                    symbol_table.get_first_wildcard_import()
-            if not first_wildcard_import:
+                has_wildcard_import = symbol_table.has_wildcard_imports()
+                wildcard_imports_checked = True
+            if not has_wildcard_import:
                 symbols_txt = ", ".join(
                     ["'" + sym + "'" for sym in unresolved_datasymbols])
                 raise VisitorError(
                     "The following symbols are not explicitly declared or "
-                    "imported from a module (in the local scope) and there "
-                    "are no wildcard imports which could be bringing them "
-                    "into scope: {0}".format(symbols_txt))
+                    "imported from a module and there are no wildcard imports "
+                    "which could be bringing them into scope: {0}".format(
+                        symbols_txt))
 
         # Fortran requires use statements to be specified before
         # variable declarations. As a convention, this method also

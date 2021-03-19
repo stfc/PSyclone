@@ -684,7 +684,7 @@ def test_gen_decls(fort_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fort_writer.gen_decls(symbol_table)
     assert ("The following symbols are not explicitly declared or imported "
-            "from a module (in the local scope) and there are no wildcard "
+            "from a module and there are no wildcard "
             "imports which could be bringing them into scope: "
             "'unknown'" in str(excinfo.value))
 
@@ -707,7 +707,7 @@ def test_gen_decls_nested_scope(fort_writer):
     with pytest.raises(VisitorError) as err:
         fort_writer.gen_decls(inner_table)
     assert ("symbols are not explicitly declared or imported from a module "
-            "(in the local scope) and there are no wildcard imports which "
+            "and there are no wildcard imports which "
             "could be bringing them into scope: 'unknown1'" in str(err.value))
     # Add a ContainerSymbol with a wildcard import in the outermost scope
     csym = ContainerSymbol("other_mod")
