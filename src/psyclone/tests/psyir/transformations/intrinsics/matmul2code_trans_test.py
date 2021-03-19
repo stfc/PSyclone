@@ -308,7 +308,7 @@ def test_validate11():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     matrix = matmul.children[0]
-    my_range = matrix.children[0]
+    my_range = matrix.children[0].copy()
     matrix.children[2] = my_range
     with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)
@@ -344,7 +344,7 @@ def test_validate13():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     vector = matmul.children[1]
-    my_range = vector.children[0]
+    my_range = vector.children[0].copy()
     vector.children[1] = my_range
     with pytest.raises(NotImplementedError) as excinfo:
         trans.validate(matmul)

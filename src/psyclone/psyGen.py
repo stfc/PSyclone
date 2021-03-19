@@ -2471,8 +2471,7 @@ class Kern(Statement):
     _children_valid_format = "<LeafNode>"
 
     def __init__(self, parent, call, name, arguments):
-        super(Kern, self).__init__(self)
-        self._parent = parent
+        super(Kern, self).__init__(self, parent=parent)
         self._arguments = arguments
         self._name = name
         self._iterates_over = call.ktype.iterates_over
@@ -3382,9 +3381,9 @@ class InlinedKern(Kern):
     _text_name = "InlinedKern"
     _colour = "magenta"
 
-    def __init__(self, psyir_nodes):
+    def __init__(self, psyir_nodes, parent=None):
         # pylint: disable=non-parent-init-called, super-init-not-called
-        Node.__init__(self)
+        Node.__init__(self, parent=parent)
         schedule = Schedule(children=psyir_nodes, parent=self)
         self.children = [schedule]
 

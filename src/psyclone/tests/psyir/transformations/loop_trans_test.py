@@ -71,7 +71,7 @@ def test_loop_trans_validate():
     loop = invoke.schedule.walk(Loop)[0]
     trans.validate(loop)
     # Break the loop
-    loop.children = loop.children[0:1]
+    loop.children = loop.pop_all_children()[0:1]
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
     assert ("Error in OMPParallelLoopTrans transformation. The target loop "

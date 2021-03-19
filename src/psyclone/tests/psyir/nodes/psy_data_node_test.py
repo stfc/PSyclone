@@ -48,13 +48,13 @@ from psyclone.tests.utilities import get_invoke
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_node_basics(monkeypatch):
+def test_psy_data_node_basics():
     '''Tests some elementary functions.'''
     psy_node = PSyDataNode()
     assert "PSyDataStart[var=psy_data]\n"\
         "PSyDataEnd[var=psy_data]" in str(psy_node)
 
-    monkeypatch.setattr(psy_node, "children", [])
+    psy_node.children = []
     with pytest.raises(InternalError) as error:
         _ = psy_node.psy_data_body
     assert "PSyData node malformed or incomplete" in str(error.value)

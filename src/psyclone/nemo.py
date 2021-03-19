@@ -369,9 +369,8 @@ class NemoKern(InlinedKern):
     '''
     # pylint: disable=too-many-instance-attributes
     def __init__(self, psyir_nodes, parse_tree, parent=None):
-        super(NemoKern, self).__init__(psyir_nodes)
+        super(NemoKern, self).__init__(psyir_nodes, parent=parent)
         self._name = ""
-        self._parent = parent
         # The corresponding set of nodes in the fparser2 parse tree
         self._ast = parse_tree
 

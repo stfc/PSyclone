@@ -800,10 +800,6 @@ def test_children_is_orphan_validation():
     schedule2.addchild(statement.detach())
 
 
-@pytest.mark.xfail(reason="Adding non-orphan nodes to the same parent where "
-                          "it already belongs to doesn't make it fail at the "
-                          "moment. #294. Could solve this issue by making the"
-                          " parent-child set atomic.")
 def test_children_is_orphan_same_parent():
     ''' Test children addition operations with a node that is not an orphan
     and already belongs to the parent to which it is being added.'''

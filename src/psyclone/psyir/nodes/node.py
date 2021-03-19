@@ -147,17 +147,7 @@ class ChildrenList(list):
 
         :raises GenerationError: if the given item is not an orphan.
         '''
-        # The `item.parent is not self._node_reference` below should ideally be
-        # removed as this still allows a single node to be a child of another
-        # one multiple times.
-        # However expressions like:
-        #   > node = NodeClass(parent=node2)
-        #   > node2.addchild(node)
-        # are used extensively. So this condition is left for the moment to
-        # support these 2-step parent-child construction operations.
-        # TODO #294 could solve this issue by making the parent-child
-        # connection an atomic (and transparent) operation.
-        if item.parent and item.parent is not self._node_reference:
+        if item.parent and not item._orphan_regardless_parent:
             raise GenerationError(
                 "Item '{0}' can't be added as child of '{1}' because it is not"
                 " an orphan. It already has a '{2}' as a parent.".format(
@@ -166,10 +156,13 @@ class ChildrenList(list):
                     item.parent.coloured_name(False)))
 
     def _set_parent_link(self, item):
+        # if  item._orphan_regardless_parent: check parents match!
         item._parent = self._node_reference
+        item._orphan_regardless_parent = False
 
     def _del_parent_link(self, item):
         item._parent = None
+        item._orphan_regardless_parent = False
 
     def append(self, item):
         ''' Extends list append method with children node validation.
@@ -319,6 +312,9 @@ class Node(object):
                                       self._children_valid_format)
         if children:
             self._children.extend(children)
+        self._orphan_regardless_parent = False
+        if parent is not None:
+            self._orphan_regardless_parent = True
         self._parent = parent
         # Reference into fparser2 AST (if any)
         self._ast = ast

@@ -70,7 +70,6 @@ def test_range_init(parser):
     assert erange.annotations == []
     assert erange.ast is None
     # When arguments are provided
-    parent = Node()
     reader = FortranStringReader("program hello\nend program hello\n")
     prog = parser(reader)
     erange2 = Range(ast=prog)
@@ -82,7 +81,6 @@ def test_range_init(parser):
 
 def test_range_create():
     ''' Check that the Range.create() method behaves as intended. '''
-    parent = Node()
     start = Literal("1", INTEGER_SINGLE_TYPE)
     stop = Literal("10", INTEGER_SINGLE_TYPE)
     # No step
@@ -184,12 +182,12 @@ def test_range_out_of_order_setter():
             "provided." in str(excinfo.value))
     # Once start is added, setting it up again just replaces it
     erange.start = datanode1
-    erange.start = datanode1
+    erange.start = datanode1.copy()
     assert len(erange.children) == 1
     # Now Stop can be accepted
     erange.stop = datanode2
     # Once added, setting it up again just replaces it
-    erange.stop = datanode2
+    erange.stop = datanode2.copy()
     assert len(erange.children) == 2
 
     # Step before Step
@@ -202,7 +200,7 @@ def test_range_out_of_order_setter():
     erange.stop = datanode2
     erange.step = datanode3
     # Once added, setting it up again just replaces it
-    erange.step = datanode3
+    erange.step = datanode3.copy()
     assert len(erange.children) == 3
 
 
