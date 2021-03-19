@@ -138,11 +138,11 @@ if __name__ == '__main__':
     VALID_SUFFIXES = [".ipynb"]
     TUTORIAL = get_files(TUTORIAL_DIR, INSTALL_PATH, VALID_SUFFIXES)
 
-    PSYDATA_DIR = os.path.join(BASE_PATH, "lib")
-    INSTALL_PATH = os.path.join("share", "psyclone", "psydata")
+    LIBS_DIR = os.path.join(BASE_PATH, "lib")
+    INSTALL_PATH = os.path.join("share", "psyclone", "lib")
     VALID_SUFFIXES = ["90", "sh", "py", "md", "Makefile", ".mk",
                       ".jinja", "doxyfile"]
-    PSYDATA = get_files(PSYDATA_DIR, INSTALL_PATH, VALID_SUFFIXES)
+    LIBS = get_files(LIBS_DIR, INSTALL_PATH, VALID_SUFFIXES)
 
     setup(
         name=NAME,
@@ -170,4 +170,4 @@ if __name__ == '__main__':
         scripts=['bin/psyclone', 'bin/genkernelstub'],
         data_files=[
             ('share/psyclone',
-             ['config/psyclone.cfg'])]+EXAMPLES+TUTORIAL+PSYDATA,)
+             ['config/psyclone.cfg'])]+EXAMPLES+TUTORIAL+LIBS,)
