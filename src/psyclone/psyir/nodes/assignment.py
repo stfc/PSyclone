@@ -44,6 +44,7 @@ from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
+from psyclone.psyir.nodes.operation import Operation, REDUCTION_OPERATORS
 from psyclone.core.access_info import VariablesAccessInfo, AccessType
 from psyclone.errors import InternalError
 from psyclone.f2pygen import PSyIRGen
@@ -195,10 +196,25 @@ class Assignment(Statement):
         rtype: bool
 
         '''
+        # It's not sufficient simply to check for a Range node as that may be
+        # part of an argument to an Operator or function that performs a
+        # reduction and thus returns a scalar result, e.g. a(SUM(b(:))) = 1.0
+        # TODO #658 this check for reductions needs extending to also support
+        # user-implemented functions.
         if isinstance(self.lhs, (ArrayReference, StructureReference)):
             ranges = self.lhs.walk(Range)
-            return ranges != []
-
+            for array_range in ranges:
+                opn = array_range.ancestor(Operation)
+                while opn:
+                    if opn.operator in REDUCTION_OPERATORS:
+                        # The current array range is in an argument to a
+                        # reduction operation
+                        break
+                    opn = opn.ancestor(Operation)
+                else:
+                    # We didn't find a reduction operation so there is an
+                    # array range on the LHS
+                    return True
         return False
 
     def gen_code(self, parent):

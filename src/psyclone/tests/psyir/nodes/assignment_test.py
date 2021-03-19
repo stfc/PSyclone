@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Assignment, Reference, Literal, \
     ArrayReference, Range, BinaryOperation, StructureReference, \
-    ArrayOfStructuresReference
+    ArrayOfStructuresReference, UnaryOperation
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, Symbol, \
     INTEGER_SINGLE_TYPE, REAL_TYPE, ArrayType, INTEGER_TYPE, StructureType, \
     TypeSymbol
@@ -135,27 +135,15 @@ def test_assignment_children_validation():
 
 def test_is_array_range():
     '''test that the is_array_range method behaves as expected, returning
-    true if the LHS of the assignment is an array range access and
-    false otherwise.
+    true if the LHS of the assignment is an array range access.
 
     '''
     one = Literal("1.0", REAL_TYPE)
     int_one = Literal("1", INTEGER_TYPE)
-    var = DataSymbol("x", REAL_TYPE)
-    reference = Reference(var)
-
-    # lhs is not an array
-    assignment = Assignment.create(reference, one)
-    assert not assignment.is_array_range
-
-    # lhs is an array reference but has no range
-    array_type = ArrayType(REAL_TYPE, [10, 10])
-    symbol = DataSymbol("x", array_type)
-    array_ref = Reference(symbol)
-    assignment = Assignment.create(array_ref, one.copy())
-    assert not assignment.is_array_range
 
     # lhs is an array reference with a range
+    array_type = ArrayType(REAL_TYPE, [10, 10])
+    symbol = DataSymbol("x", array_type)
     my_range = Range.create(int_one, int_one.copy(), int_one.copy())
     array_ref = ArrayReference.create(symbol, [my_range, int_one.copy()])
     assignment = Assignment.create(array_ref, one.copy())
@@ -203,3 +191,52 @@ def test_is_array_range():
                                                 [("data", [int_one.copy()])])
     fld_assign = Assignment.create(fld_ref, one.copy())
     assert fld_assign.is_array_range is True
+
+
+def test_is_not_array_range():
+    ''' Test that is_array_range correctly rejects things that aren't
+    an assignment to an array range.
+
+    '''
+    int_one = Literal("1", INTEGER_SINGLE_TYPE)
+    one = Literal("1.0", REAL_TYPE)
+    var = DataSymbol("x", REAL_TYPE)
+    reference = Reference(var)
+
+    # lhs is not an array
+    assignment = Assignment.create(reference, one)
+    assert assignment.is_array_range is False
+
+    # lhs is an array reference but has no range
+    array_type = ArrayType(REAL_TYPE, [10, 10])
+    symbol = DataSymbol("y", array_type)
+    array_ref = Reference(symbol)
+    assignment = Assignment.create(array_ref, one.copy())
+    assert assignment.is_array_range is False
+
+    # lhs is an array reference but the single index value is obtained
+    # using an array range, y(1, SUM(map(:), 1)) = 1.0
+    int_array_type = ArrayType(INTEGER_SINGLE_TYPE, [10])
+    map_sym = DataSymbol("map", int_array_type)
+    start = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                   Reference(map_sym), int_one.copy())
+    stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                  Reference(map_sym), int_one.copy())
+    my_range = Range.create(start, stop)
+    min_op = BinaryOperation.create(BinaryOperation.Operator.SUM,
+                                    ArrayReference.create(map_sym, [my_range]),
+                                    int_one.copy())
+    assignment = Assignment.create(
+        ArrayReference.create(symbol, [int_one.copy(), min_op]),
+        one.copy())
+    assert assignment.is_array_range is False
+
+    # lhs is a scalar member of a structure
+    grid_type = StructureType.create([
+        ("dx", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC),
+        ("dy", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC)])
+    grid_type_symbol = TypeSymbol("grid_type", grid_type)
+    grid_sym = DataSymbol("grid", grid_type_symbol)
+    assignment = Assignment.create(StructureReference.create(grid_sym, ["dx"]),
+                                   one.copy())
+    assert assignment.is_array_range is False
