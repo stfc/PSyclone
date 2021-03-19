@@ -54,7 +54,7 @@ class ArrayMember(ArrayMixin, Member):
     _text_name = "ArrayMember"
 
     @staticmethod
-    def create(member_name, indices, parent=None):
+    def create(member_name, indices):
         '''
         Construct an ArrayMember instance describing an array access to a
         member of a structure.
@@ -84,7 +84,7 @@ class ArrayMember(ArrayMixin, Member):
                 "should be a list but found '{0}'."
                 "".format(type(indices).__name__))
 
-        obj = ArrayMember(member_name, parent=parent)
+        obj = ArrayMember(member_name)
         # Add any array-index expressions as children
         for child in indices:
             obj.addchild(child)

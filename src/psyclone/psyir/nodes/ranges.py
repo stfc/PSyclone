@@ -107,7 +107,7 @@ class Range(Node):
         return position < 3 and isinstance(child, DataNode)
 
     @staticmethod
-    def create(start, stop, step=None, parent=None):
+    def create(start, stop, step=None):
         '''
         Create an internally-consistent Range object. If no step
         is provided then it defaults to an integer Literal with value 1.
@@ -125,14 +125,14 @@ class Range(Node):
         :rtype: :py:class:`psyclone.psyir.nodes.ranges.Range`
 
         '''
-        erange = Range(parent=parent)
+        erange = Range()
         erange.start = start
         erange.stop = stop
         if step:
             erange.step = step
         else:
             # No step supplied so default to a value of 1
-            erange.step = Literal("1", INTEGER_TYPE, parent=erange)
+            erange.step = Literal("1", INTEGER_TYPE)
         return erange
 
     @staticmethod

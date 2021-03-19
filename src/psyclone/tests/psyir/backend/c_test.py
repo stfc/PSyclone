@@ -178,8 +178,8 @@ def test_cw_array():
         in str(excinfo.value)
 
     # Dimensions can be references, literals or operations
-    arr.addchild(Reference(DataSymbol('b', INTEGER_TYPE), parent=arr))
-    arr.addchild(Literal('1', INTEGER_TYPE, parent=arr))
+    arr.addchild(Reference(DataSymbol('b', INTEGER_TYPE)))
+    arr.addchild(Literal('1', INTEGER_TYPE))
     uop = UnaryOperation.create(UnaryOperation.Operator.MINUS,
                                 Literal('2', INTEGER_TYPE))
     arr.addchild(uop)
@@ -206,7 +206,7 @@ def test_cw_ifblock():
            "at least 2 children, but found 0." in str(err.value))
 
     # Add the if condition
-    ifblock.addchild(Reference(DataSymbol('a', REAL_TYPE), parent=ifblock))
+    ifblock.addchild(Reference(DataSymbol('a', REAL_TYPE)))
     with pytest.raises(VisitorError) as err:
         _ = cwriter(ifblock)
     assert("IfBlock malformed or incomplete. It should have "

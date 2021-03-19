@@ -954,9 +954,9 @@ def test_pop_all_children():
 
     # Create a PSyIR tree
     parent = Schedule()
-    node1 = Statement(parent=parent)
+    node1 = Statement()
     parent.addchild(node1)
-    node2 = Statement(parent=parent)
+    node2 = Statement()
     parent.addchild(node2)
 
     # Execute pop_all_children method
@@ -975,9 +975,9 @@ def test_detach():
 
     # Create a PSyIR tree
     parent = Schedule()
-    node1 = Statement(parent=parent)
+    node1 = Statement()
     parent.addchild(node1)
-    node2 = Statement(parent=parent)
+    node2 = Statement()
     parent.addchild(node2)
 
     # Execute the detach method on node 1, it should return itself

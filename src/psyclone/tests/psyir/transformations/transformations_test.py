@@ -126,8 +126,8 @@ def test_ifblock_children_region():
 def test_fusetrans_error_incomplete():
     ''' Check that we reject attempts to fuse loops which are incomplete. '''
     sch = Schedule()
-    loop1 = Loop(variable=DataSymbol("i", INTEGER_TYPE), parent=sch)
-    loop2 = Loop(variable=DataSymbol("j", INTEGER_TYPE), parent=sch)
+    loop1 = Loop(variable=DataSymbol("i", INTEGER_TYPE))
+    loop2 = Loop(variable=DataSymbol("j", INTEGER_TYPE))
     sch.addchild(loop1)
     sch.addchild(loop2)
 
@@ -139,11 +139,11 @@ def test_fusetrans_error_incomplete():
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
             "four children but found: []" in str(err.value))
 
-    loop1.addchild(Literal("start", INTEGER_TYPE, parent=loop1))
-    loop1.addchild(Literal("stop", INTEGER_TYPE, parent=loop1))
-    loop1.addchild(Literal("step", INTEGER_TYPE, parent=loop1))
-    loop1.addchild(Schedule(parent=loop1))
-    loop1.loop_body.addchild(Return(parent=loop1.loop_body))
+    loop1.addchild(Literal("start", INTEGER_TYPE))
+    loop1.addchild(Literal("stop", INTEGER_TYPE))
+    loop1.addchild(Literal("step", INTEGER_TYPE))
+    loop1.addchild(Schedule())
+    loop1.loop_body.addchild(Return())
 
     # Check second loop
     with pytest.raises(TransformationError) as err:
@@ -151,11 +151,11 @@ def test_fusetrans_error_incomplete():
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
             "four children but found: []" in str(err.value))
 
-    loop2.addchild(Literal("start", INTEGER_TYPE, parent=loop2))
-    loop2.addchild(Literal("stop", INTEGER_TYPE, parent=loop2))
-    loop2.addchild(Literal("step", INTEGER_TYPE, parent=loop2))
-    loop2.addchild(Schedule(parent=loop2))
-    loop2.loop_body.addchild(Return(parent=loop2.loop_body))
+    loop2.addchild(Literal("start", INTEGER_TYPE))
+    loop2.addchild(Literal("stop", INTEGER_TYPE))
+    loop2.addchild(Literal("step", INTEGER_TYPE))
+    loop2.addchild(Schedule())
+    loop2.loop_body.addchild(Return())
 
     # Validation should now pass
     fuse.validate(loop1, loop2)
@@ -167,20 +167,20 @@ def test_fusetrans_error_not_same_parent():
 
     sch1 = Schedule()
     sch2 = Schedule()
-    loop1 = Loop(variable=DataSymbol("i", INTEGER_TYPE), parent=sch1)
-    loop2 = Loop(variable=DataSymbol("j", INTEGER_TYPE), parent=sch2)
+    loop1 = Loop(variable=DataSymbol("i", INTEGER_TYPE))
+    loop2 = Loop(variable=DataSymbol("j", INTEGER_TYPE))
     sch1.addchild(loop1)
     sch2.addchild(loop2)
 
-    loop1.addchild(Literal("1", INTEGER_TYPE, parent=loop1))  # start
-    loop1.addchild(Literal("10", INTEGER_TYPE, parent=loop1))  # stop
-    loop1.addchild(Literal("1", INTEGER_TYPE, parent=loop1))  # step
-    loop1.addchild(Schedule(parent=loop1))  # loop body
+    loop1.addchild(Literal("1", INTEGER_TYPE))  # start
+    loop1.addchild(Literal("10", INTEGER_TYPE))  # stop
+    loop1.addchild(Literal("1", INTEGER_TYPE))  # step
+    loop1.addchild(Schedule())  # loop body
 
-    loop2.addchild(Literal("1", INTEGER_TYPE, parent=loop2))  # start
-    loop2.addchild(Literal("10", INTEGER_TYPE, parent=loop2))  # stop
-    loop2.addchild(Literal("1", INTEGER_TYPE, parent=loop2))  # step
-    loop2.addchild(Schedule(parent=loop2))  # loop body
+    loop2.addchild(Literal("1", INTEGER_TYPE))  # start
+    loop2.addchild(Literal("10", INTEGER_TYPE))  # stop
+    loop2.addchild(Literal("1", INTEGER_TYPE))  # step
+    loop2.addchild(Schedule())  # loop body
 
     fuse = LoopFuseTrans()
 
@@ -198,11 +198,11 @@ def test_regiontrans_wrong_children():
     # RegionTrans is abstract so use a concrete sub-class
     rtrans = ACCParallelTrans()
     # Construct a valid Loop in the PSyIR
-    parent = Loop(parent=None)
-    parent.addchild(Literal("1", INTEGER_TYPE, parent))
-    parent.addchild(Literal("10", INTEGER_TYPE, parent))
-    parent.addchild(Literal("1", INTEGER_TYPE, parent))
-    parent.addchild(Schedule(parent=parent))
+    parent = Loop()
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Literal("10", INTEGER_TYPE))
+    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Schedule())
     with pytest.raises(TransformationError) as err:
         RegionTrans.validate(rtrans, parent.children)
     assert ("Cannot apply a transformation to multiple nodes when one or more "

@@ -229,7 +229,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                     "assignment are not equal. This is invalid PSyIR and "
                     "should never happen.")
             idx = get_outer_index(array)
-            array.children[idx] = Reference(loop_variable_symbol, parent=array)
+            array.children[idx] = Reference(loop_variable_symbol)
         position = assignment.position
         loop = NemoLoop.create(loop_variable_symbol, lower_bound,
                                upper_bound, step, [assignment.detach()])

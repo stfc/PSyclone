@@ -73,8 +73,7 @@ def test_range_init(parser):
     parent = Node()
     reader = FortranStringReader("program hello\nend program hello\n")
     prog = parser(reader)
-    erange2 = Range(ast=prog, parent=parent)
-    assert erange2.parent is parent
+    erange2 = Range(ast=prog)
     assert erange2.ast is prog
     with pytest.raises(InternalError) as err:
         _ = Range(annotations=["was-where"])
@@ -86,20 +85,14 @@ def test_range_create():
     parent = Node()
     start = Literal("1", INTEGER_SINGLE_TYPE)
     stop = Literal("10", INTEGER_SINGLE_TYPE)
-    # No parent and no step
+    # No step
     erange = Range.create(start, stop)
     assert erange.children[0] is start
     assert erange.children[1] is stop
-    assert erange.parent is None
-    # Parent but no step
-    erange2 = Range.create(start.copy(), stop.copy(), parent=parent)
-    assert erange2.parent is parent
-    assert erange2.children[2].value == "1"
-    # Parent and step supplied
+    assert erange.children[2].value == "1"
+    # Step supplied
     erange3 = Range.create(start.copy(), stop.copy(),
-                           Literal("5", INTEGER_SINGLE_TYPE),
-                           parent=parent)
-    assert erange3.parent is parent
+                           Literal("5", INTEGER_SINGLE_TYPE),)
     assert erange3.children[2].value == "5"
 
 

@@ -70,9 +70,7 @@ def test_instance_args():
 
     '''
     variable = DataSymbol("nemo_symbol", INTEGER_TYPE)
-    parent = Node()
-    nemo_loop = NemoLoop(parent=parent, variable=variable)
-    assert nemo_loop.parent is parent
+    nemo_loop = NemoLoop(variable=variable)
     assert nemo_loop._variable is variable
 
 

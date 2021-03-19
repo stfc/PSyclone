@@ -62,13 +62,6 @@ def test_call_init():
     assert call.parent is None
     assert call.children == []
 
-    # optional parent argument
-    parent = Schedule()
-    call = Call(routine, parent=parent)
-    assert call.routine is routine
-    assert call.parent is parent
-    assert call.children == []
-
 
 def test_call_init_error():
     '''Test that the appropriate exception is raised if the routine
