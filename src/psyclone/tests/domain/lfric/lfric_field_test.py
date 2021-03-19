@@ -42,6 +42,7 @@ functionality for the LFRic fields.
 from __future__ import absolute_import, print_function
 import os
 import pytest
+import six
 import fparser
 from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicArgDescriptor, FunctionSpace
@@ -197,9 +198,12 @@ def test_lfricfields_call_err():
     fld_arg._intrinsic_type = "triple-type"
     with pytest.raises(InternalError) as err:
         LFRicFields(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
+    test_str = str(err.value)
+    if six.PY2:
+        test_str = test_str.replace("u'", "'")
     assert ("Found unsupported intrinsic types for the field arguments "
             "['f1'] to Invoke 'invoke_0_testkern_fs_type'. Supported "
-            "types are ['real', 'integer']." in str(err.value))
+            "types are ['real', 'integer']." in test_str)
 
 
 def test_field_invoke_uniq_declns_valid_intrinsic():
