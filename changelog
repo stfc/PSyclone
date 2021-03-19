@@ -440,6 +440,9 @@
 	142) PR #1166 for #1152. Adds support for the unary sum operator
 	in the PSyIR and the fparser2psyir reader.
 
+	143 PR #1131 for #1116. Make the number of any*space function
+	spaces (and basis supported datatypes) configurable.
+
 release 1.9.0 20th May 2020
 
 	1) #602 for #597. Modify Node.ancestor() to optionally include
