@@ -136,8 +136,7 @@ def config(config_file, content):
 
     :param config_file: local path to the temporary configuration file.
     :type config: :py:class:`py._path.local.LocalPath`
-    :param content: the entry for the temporary configuration file.
-    :type content: str
+    :param str content: the entry for the temporary configuration file.
 
     :returns: a test Config instance.
     :rtype: :py:class:`psyclone.configuration.Config`
