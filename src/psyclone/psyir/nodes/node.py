@@ -167,11 +167,9 @@ class ChildrenList(list):
 
     def _set_parent_link(self, item):
         item._parent = self._node_reference
-        pass
 
     def _del_parent_link(self, item):
         item._parent = None
-        pass
 
     def append(self, item):
         ''' Extends list append method with children node validation.
@@ -195,6 +193,7 @@ class ChildrenList(list):
         '''
         self._validate_item(index, item)
         self._check_is_orphan(item)
+        self._del_parent_link(self[index])
         super(ChildrenList, self).__setitem__(index, item)
         self._set_parent_link(item)
 
@@ -841,7 +840,8 @@ class Node(object):
 
     @parent.setter
     def parent(self, my_parent):
-        self._parent = my_parent
+        pass
+        # self._parent = my_parent
 
     @property
     def position(self):
@@ -1205,9 +1205,7 @@ class Node(object):
                 "Node class should be None but found '{0}'."
                 "".format(type(node.parent).__name__))
 
-        node.parent = self.parent
         self.parent.children[self.position] = node
-        self.parent = None
 
     def pop_all_children(self):
         ''' Remove all children of this node and return them as a list.

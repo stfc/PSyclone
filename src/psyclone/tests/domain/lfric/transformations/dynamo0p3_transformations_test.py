@@ -5236,7 +5236,7 @@ def test_rc_wrong_parent(monkeypatch):
     schedule = invoke.schedule
 
     # Make the parent of the loop a halo exchange
-    monkeypatch.setattr(schedule.children[4], "parent", schedule.children[0])
+    monkeypatch.setattr(schedule.children[4], "_parent", schedule.children[0])
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # Apply redundant computation to the loop
@@ -5275,7 +5275,7 @@ def test_rc_parent_loop_colour(monkeypatch):
 
     # Make the parent of the outermost loop something other than
     # InvokeSchedule (we use halo exchange in this case)
-    monkeypatch.setattr(schedule.children[4], "parent", schedule.children[0])
+    monkeypatch.setattr(schedule.children[4], "_parent", schedule.children[0])
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # Apply redundant computation to the loop

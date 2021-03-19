@@ -402,9 +402,9 @@ def test_array_notation_rank():
     assert result == 2
 
     # Make one of the array notation dimensions differ from what is required.
-    range1.parent = None
     range2 = Range.create(lbound_op3.copy(), one.copy())
-    array = ArrayReference.create(symbol, [range1, one.copy(), range2])
+    array = ArrayReference.create(symbol, [range1.copy(), one.copy(),
+                                           range2.copy()])
     with pytest.raises(NotImplementedError) as excinfo:
         Fparser2Reader._array_notation_rank(array)
     assert ("Only array notation of the form my_array(:, :, ...) is "

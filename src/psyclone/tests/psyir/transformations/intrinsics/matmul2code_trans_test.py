@@ -440,6 +440,7 @@ def test_apply3(tmpdir):
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     matrix = matmul.children[0]
+    lhs_vector = matrix.parent.parent.lhs
     matrix_symbol = matrix.symbol
     matmul.children[0] = Reference(matrix_symbol)
     matrix_symbol.datatype._shape = [Literal("10", INTEGER_TYPE),
@@ -448,10 +449,9 @@ def test_apply3(tmpdir):
     rhs_vector_symbol = rhs_vector.symbol
     rhs_vector_symbol.datatype._shape = [Literal("20", INTEGER_TYPE)]
     matmul.children[1] = Reference(rhs_vector_symbol)
-    lhs_vector = matrix.parent.parent.lhs
     lhs_vector_symbol = lhs_vector.symbol
     lhs_vector_symbol._shape = [Literal("10", INTEGER_TYPE)]
-    matrix.parent.parent.children[0] = Reference(lhs_vector_symbol)
+    lhs_vector.replace_with(Reference(lhs_vector_symbol))
     root = trans.apply(matmul)
     writer = FortranWriter()
     result = writer(root)

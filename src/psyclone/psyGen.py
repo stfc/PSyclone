@@ -2471,7 +2471,8 @@ class Kern(Statement):
     _children_valid_format = "<LeafNode>"
 
     def __init__(self, parent, call, name, arguments):
-        super(Kern, self).__init__(self, parent=parent)
+        super(Kern, self).__init__(self)
+        self._parent = parent
         self._arguments = arguments
         self._name = name
         self._iterates_over = call.ktype.iterates_over
@@ -2914,13 +2915,12 @@ class CodedKern(Kern):
         symtab.add(rsymbol)
         call_node = Call(rsymbol)
 
-        # Swap itself with the appropriate Call node
-        self.parent.children[self.position] = call_node
-        call_node.parent = self.parent
-
+        # Create argument expressions as children of the new node
         for argument in self.arguments.psyir_expressions():
             call_node.addchild(argument)
-            argument.parent = call_node
+
+        # Swap itself with the appropriate Call node
+        self.parent.children[self.position] = call_node
 
         if not self.module_inline:
             # Import subroutine symbol
