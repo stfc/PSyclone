@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@ from psyclone.psyir.symbols import ScalarType, ArrayType, DataSymbol, \
 from psyclone.psyir.nodes import Range, Literal, Reference, Node, \
     ArrayReference
 from psyclone.errors import InternalError, GenerationError
+from psyclone.psyir.nodes.node import colored
 
 
 @pytest.mark.parametrize("prop", ["start", "stop", "step"])
@@ -91,11 +92,12 @@ def test_range_create():
     assert erange.children[1] is stop
     assert erange.parent is None
     # Parent but no step
-    erange2 = Range.create(start, stop, parent=parent)
+    erange2 = Range.create(start.copy(), stop.copy(), parent=parent)
     assert erange2.parent is parent
     assert erange2.children[2].value == "1"
     # Parent and step supplied
-    erange3 = Range.create(start, stop, step=Literal("5", INTEGER_SINGLE_TYPE),
+    erange3 = Range.create(start.copy(), stop.copy(),
+                           Literal("5", INTEGER_SINGLE_TYPE),
                            parent=parent)
     assert erange3.parent is parent
     assert erange3.children[2].value == "5"
@@ -135,6 +137,8 @@ def test_range_literals_props():
             ScalarType.Precision.UNDEFINED)
     assert erange.children[2].value == "1"
     # Create another one with a specified step
+    start = Literal("10", INTEGER_SINGLE_TYPE)
+    stop = Literal("20", INTEGER_SINGLE_TYPE)
     erange2 = Range.create(start, stop, Literal("5", INTEGER_SINGLE_TYPE))
     assert erange2.children[0] is start
     assert erange2.children[1] is stop
@@ -220,7 +224,6 @@ def test_range_str():
 def test_range_view(capsys):
     ''' Check that calling view() on an array with a child Range works
     as expected. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     # Create the PSyIR for 'my_array(1, 1:10)'
     erange = Range.create(Literal("1", INTEGER_SINGLE_TYPE),
                           Literal("10", INTEGER_SINGLE_TYPE))
@@ -230,11 +233,9 @@ def test_range_view(capsys):
                                    erange])
     array.view()
     stdout, _ = capsys.readouterr()
-    arrayref = colored("ArrayReference",
-                       SCHEDULE_COLOUR_MAP[array._colour_key])
-    literal = colored("Literal",
-                      SCHEDULE_COLOUR_MAP[array.children[0]._colour_key])
-    rangestr = colored("Range", SCHEDULE_COLOUR_MAP[erange._colour_key])
+    arrayref = colored("ArrayReference", ArrayReference._colour)
+    literal = colored("Literal", Literal._colour)
+    rangestr = colored("Range", Range._colour)
     indent = "    "
     assert (arrayref + "[name:'my_array']\n" +
             indent + literal +

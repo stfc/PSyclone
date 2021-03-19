@@ -52,17 +52,17 @@ from psyclone.domain.lfric import FunctionSpace
 from psyclone.domain.lfric import LFRicArgDescriptor
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, \
     KernCallArgList, DynACCEnterDataDirective, VALID_INTRINSIC_TYPES
 
-from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.transformations import LoopFuseTrans
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1368,8 +1368,9 @@ def test_dynkernelargument_intent_invalid(dist_mem):
     arg._access = "invalid"
     with pytest.raises(GenerationError) as excinfo:
         _ = arg.intent
-    assert "Expecting argument access to be one of 'gh_read," in \
-        str(excinfo.value)
+    assert ("In the LFRic API the argument access must be one of "
+            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_sum'], "
+            "but found 'invalid'." in str(excinfo.value))
 
 
 def test_arg_ref_name_method_error1():
@@ -1422,9 +1423,9 @@ def test_arg_intent_error():
     first_argument._access = "gh_not_an_intent"
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.intent()
-    assert ("Expecting argument access to be one of 'gh_read, gh_write, "
-            "gh_inc', 'gh_readwrite' or one of ['gh_sum'], but found "
-            "'gh_not_an_intent'" in str(excinfo.value))
+    assert ("In the LFRic API the argument access must be one of "
+            "['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', 'gh_sum'], "
+            "but found 'gh_not_an_intent'." in str(excinfo.value))
 
 
 def test_arg_intrinsic_type_error():
@@ -1479,10 +1480,10 @@ def test_no_arg_on_space(monkeypatch):
     fspace = arg.function_space
     arg = kernel_args.get_arg_on_space(fspace)
     assert arg.name == "f2"
-    # Take a deep copy of the function space object so that we get a new
-    # one whose state we can monkeypatch
+    # Copy of the function space object so that we get a new one whose state
+    # we can monkeypatch
     import copy
-    fspace = copy.deepcopy(arg.function_space)
+    fspace = copy.copy(arg.function_space)
     monkeypatch.setattr(fspace, "_mangled_name", "not_a_space_name")
     with pytest.raises(FieldNotFoundError) as excinfo:
         _ = kernel_args.get_arg_on_space(fspace)
@@ -2091,7 +2092,7 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
 
 def test_halo_exchange_view(capsys):
     ''' Test that the halo exchange view method returns what we expect. '''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyir.nodes.node import colored
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -2100,8 +2101,8 @@ def test_halo_exchange_view(capsys):
     result, _ = capsys.readouterr()
 
     # Ensure we test for text containing the correct (colour) control codes
-    sched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    exch = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
+    sched = colored("InvokeSchedule", InvokeSchedule._colour)
+    exch = colored("HaloExchange", HaloExchange._colour)
 
     expected = (
         sched + "[invoke='invoke_0_testkern_stencil_type', dm=True]\n"
@@ -3610,7 +3611,7 @@ def test_dynkernelarguments_acc_args_4():
 
     '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "19.25_single_stencil_cross2d.f90"))
+                                 "19.26_single_stencil_cross2d.f90"))
     psy = PSyFactory(distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_stencil_cross2d_type').schedule
     kern = sched.kernels()[0]

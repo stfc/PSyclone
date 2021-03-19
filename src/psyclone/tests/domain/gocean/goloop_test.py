@@ -41,7 +41,8 @@
 from __future__ import absolute_import, print_function
 import pytest
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
-from psyclone.psyir.nodes import Schedule, Reference, StructureReference
+from psyclone.psyir.nodes import Schedule, Reference, StructureReference, \
+    Literal
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.errors import GenerationError
 from psyclone.tests.utilities import get_invoke
@@ -71,8 +72,8 @@ def test_goloop_no_children():
     kernel calls '''
     gosched = GOInvokeSchedule('name', [])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
+    goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
     gojloop.loop_body.addchild(goiloop)
     # Try and generate the code for this loop even though it
     # has no children
@@ -87,8 +88,8 @@ def test_goloop_unsupp_offset():
     # This test expects constant loop bounds
     gosched._const_loop_bounds = True
     gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
+    goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
     gojloop.loop_body.addchild(goiloop)
     gokern = GOKern()
     # Set the index-offset of this kernel to a value that is not
@@ -104,8 +105,8 @@ def test_goloop_unmatched_offsets():
     two different index offsets '''
     gosched = GOInvokeSchedule('name', [])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
-    goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
+    goiloop = GOLoop(parent=gojloop.loop_body, loop_type="inner")
     gojloop.loop_body.addchild(goiloop)
     gokern1 = GOKern()
     gokern2 = GOKern()
@@ -133,10 +134,10 @@ def test_goloop_bounds_invalid_iteration_space():
     # Set the iteration space to something invalid
     gojloop._iteration_space = "broken"
     with pytest.raises(GenerationError) as err:
-        gojloop._upper_bound()
+        gojloop.upper_bound()
     assert "Unrecognised iteration space, 'broken'." in str(err.value)
     with pytest.raises(GenerationError) as err:
-        gojloop._lower_bound()
+        gojloop.lower_bound()
     assert "Unrecognised iteration space, 'broken'." in str(err.value)
 
 
@@ -162,5 +163,22 @@ def test_goloop_grid_property_psyir_expression():
             "not begin with '{0}': 'wrong%one'" in str(err.value))
     gref = loop._grid_property_psyir_expression("{0}%grid%xstart")
     assert isinstance(gref, StructureReference)
-    assert gref.parent is loop
+    assert gref.parent is None
     assert gref.symbol.name == "cv_fld"
+
+
+def test_goloop_lower_to_language_level(monkeypatch):
+    ''' Tests that the GOLoop lower_to_language_level method provides the start
+    and stop expressions for the loops using the upper/lower_bound methods. '''
+    schedule = Schedule()
+    goloop = GOLoop(loop_type="inner", parent=schedule)
+    assert goloop.start_expr.value == 'NOT_INITIALISED'
+    assert goloop.stop_expr.value == 'NOT_INITIALISED'
+    monkeypatch.setattr(GOLoop, "lower_bound",
+                        lambda x: Literal("1", INTEGER_TYPE))
+    monkeypatch.setattr(GOLoop, "upper_bound",
+                        lambda x: Literal("1", INTEGER_TYPE))
+
+    goloop.lower_to_language_level()
+    assert goloop.start_expr.value == '1'
+    assert goloop.stop_expr.value == '1'

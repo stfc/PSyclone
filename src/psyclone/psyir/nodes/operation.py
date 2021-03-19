@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,10 +64,10 @@ class Operation(DataNode):
     '''
     # Must be overridden in sub-class to hold an Enumeration of the Operators
     # that it can represent.
-    Operator = None
+    Operator = object
     # Textual description of the node.
     _text_name = "Operation"
-    _colour_key = "Operation"
+    _colour = "blue"
 
     def __init__(self, operator, parent=None):
         super(Operation, self).__init__(parent=parent)
@@ -127,7 +127,7 @@ class UnaryOperation(Operation):
 
     Operator = Enum('Operator', [
         # Arithmetic Operators
-        'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG', 'LOG10',
+        'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG', 'LOG10', 'SUM',
         # Logical Operators
         'NOT',
         # Trigonometric Operators
@@ -183,6 +183,7 @@ class BinaryOperation(Operation):
     '''
     Node representing a BinaryOperation expression. As such it has two operands
     as children 0 and 1, and an attribute with the operator type.
+
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators. ('REM' is remainder AKA 'MOD' in Fortran.)
@@ -193,6 +194,8 @@ class BinaryOperation(Operation):
         'AND', 'OR',
         # Other Maths Operators
         'SIGN', 'MIN', 'MAX',
+        # Casting operators with precise type specified by second argument
+        'REAL', 'INT',
         # Query Operators
         'SIZE', 'LBOUND', 'UBOUND',
         # Matrix and Vector Operators
@@ -219,6 +222,18 @@ class BinaryOperation(Operation):
 
        :returns: the value of the upper bound of the `index` dimension of \
                  `array`.
+
+    Casting Operators:
+
+    .. function:: REAL(arg0, precision)
+
+       :returns: `arg0` converted to a floating point number of the \
+                 specified precision.
+
+    .. function:: INT(arg0, precision)
+
+       :returns: `arg0` converted to an integer number of the specified \
+                  precision.
 
     Matrix and Vector Operators:
 

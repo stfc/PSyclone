@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,7 @@ class Schedule(Node):
     # Textual description of the node.
     _children_valid_format = "[Statement]*"
     _text_name = "Schedule"
-    _colour_key = "Schedule"
+    _colour = "white"
 
     # Polymorphic parameter to initialize the Symbol Table of the Schedule
     _symbol_table_class = SymbolTable
@@ -84,6 +84,18 @@ class Schedule(Node):
             self._symbol_table = symbol_table
         else:
             self._symbol_table = self._symbol_table_class(self)
+
+    def _refine_copy(self, other):
+        ''' Refine the object attributes when a shallow copy is not the most
+        appropriate operation during a call to the copy() method.
+
+        :param other: object we are copying from.
+        :type other: :py:class:`psyclone.psyir.node.Node`
+
+        :raises NotImplementedError: Schedule copy is not supported yet.
+        '''
+        raise NotImplementedError(
+            "Schedule copies are currently not supported.")
 
     @property
     def dag_name(self):

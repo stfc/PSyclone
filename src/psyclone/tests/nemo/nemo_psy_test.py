@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,12 +41,14 @@ from __future__ import print_function, absolute_import
 import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, InlinedKern
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
-from psyclone.psyir.nodes import Assignment, CodeBlock, IfBlock
-from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.nodes import Assignment, CodeBlock, IfBlock, Loop, \
+    Schedule, Literal, Reference
+from psyclone.psyir.nodes.node import colored
+
 
 # Constants
 API = "nemo"
@@ -134,9 +136,9 @@ def test_multi_kern():
     _, invoke_info = get_invoke("two_explicit_do.f90", api=API, idx=0)
     sched = invoke_info.schedule
     loops = sched.walk(nemo.NemoLoop)
-    kerns = sched.coded_kernels()
-    # Add the second kernel as a child of the first loop
-    loops[0].loop_body.children.append(kerns[1])
+    # Create and add a second kernel as a child of the first loop
+    kern = nemo.NemoKern([], None)
+    loops[0].loop_body.children.append(kern)
     with pytest.raises(NotImplementedError) as err:
         _ = loops[0].kernel
     assert ("getter method does not yet support a loop containing more than "
@@ -277,12 +279,12 @@ def test_schedule_view(capsys):
     output, _ = capsys.readouterr()
 
     # Have to allow for colouring of output text
-    loop_str = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-    kern_str = colored("InlinedKern", SCHEDULE_COLOUR_MAP["InlinedKern"])
-    isched_str = colored("NemoInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    sched_str = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    lit_str = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
-    ref_str = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
+    loop_str = colored("Loop", Loop._colour)
+    kern_str = colored("InlinedKern", InlinedKern._colour)
+    isched_str = colored("NemoInvokeSchedule", nemo.NemoInvokeSchedule._colour)
+    sched_str = colored("Schedule", Schedule._colour)
+    lit_str = colored("Literal", Literal._colour)
+    ref_str = colored("Reference", Reference._colour)
     indent = "    "
 
     expected_sched = (

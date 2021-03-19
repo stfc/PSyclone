@@ -87,16 +87,16 @@ def test_asr_create(component_symbol):
     # Reference to member of structure member of structure in array of
     # structures
     asref = nodes.ArrayOfStructuresReference.create(
-        component_symbol, [int_one], ["region", "startx"])
+        component_symbol, [int_one.copy()], ["region", "startx"])
     assert isinstance(asref.children[0], nodes.StructureMember)
     assert isinstance(asref.children[0].children[0], nodes.Member)
     # Reference to range of structures
     lbound = nodes.BinaryOperation.create(
         nodes.BinaryOperation.Operator.LBOUND,
-        nodes.Reference(component_symbol), int_one)
+        nodes.Reference(component_symbol), int_one.copy())
     ubound = nodes.BinaryOperation.create(
         nodes.BinaryOperation.Operator.UBOUND,
-        nodes.Reference(component_symbol), int_one)
+        nodes.Reference(component_symbol), int_one.copy())
     my_range = nodes.Range.create(lbound, ubound)
     asref = nodes.ArrayOfStructuresReference.create(component_symbol,
                                                     [my_range], ["nx"])
@@ -107,7 +107,7 @@ def test_asr_create(component_symbol):
     # Reference to a symbol of DeferredType
     ssym = symbols.DataSymbol("grid", symbols.DeferredType())
     asref = nodes.ArrayOfStructuresReference.create(
-        ssym, [int_one], ["region", "startx"])
+        ssym, [int_one.copy()], ["region", "startx"])
     assert isinstance(asref.symbol.datatype, symbols.DeferredType)
     assert isinstance(asref.children[0], nodes.StructureMember)
     assert isinstance(asref.children[0].children[0], nodes.Member)

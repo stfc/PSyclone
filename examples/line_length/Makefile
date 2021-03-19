@@ -41,4 +41,6 @@ transform:
 compile:
 	@echo "No compilation supported for line-length example"
 
-all: transform compile
+run: compile
+	@echo "No run targets for line-length example"
+

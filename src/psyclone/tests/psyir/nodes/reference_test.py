@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@ from psyclone.psyir.symbols import DataSymbol, ArrayType, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE
 from psyclone.psyGen import GenerationError
 from psyclone.core.access_info import VariablesAccessInfo
+from psyclone.psyir.nodes.node import colored
 
 
 def test_reference_bad_init():
@@ -62,13 +63,12 @@ def test_reference_bad_init():
 
 def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
     symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment(parent=kschedule)
     ref = Reference(symbol, assignment)
-    coloredtext = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
+    coloredtext = colored("Reference", Reference._colour)
     assert coloredtext+"[name:'rname']" in ref.node_str()
 
 
@@ -138,10 +138,28 @@ def test_reference_accesses_bounds(operator_type):
     # test when first or second argument to LBOUND or UBOUND is an
     # array reference
     operator = BinaryOperation.create(operator_type, array_ref1, array_ref2)
-    array_access.children[0] = Range.create(operator, one, one)
+    array_access.children[0] = Range.create(operator, one.copy(), one.copy())
     var_access_info = VariablesAccessInfo()
     array_ref1.reference_accesses(var_access_info)
     assert str(var_access_info) == ""
     var_access_info = VariablesAccessInfo()
     array_ref2.reference_accesses(var_access_info)
     assert str(var_access_info) == "test: READ"
+
+
+def test_reference_can_be_copied():
+    ''' Test that a reference can be copied. '''
+
+    array_symbol = DataSymbol("symbol", ArrayType(REAL_TYPE, [10]))
+    scalar_symbol = DataSymbol("other", REAL_TYPE)
+
+    ref = Reference(array_symbol)
+
+    ref1 = ref.copy()
+    assert isinstance(ref1, Reference)
+    assert ref1 is not ref
+    assert ref1.symbol is array_symbol
+
+    # Modifying the new reference does not affect the original
+    ref1._symbol = scalar_symbol
+    assert ref.symbol is array_symbol

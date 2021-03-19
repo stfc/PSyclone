@@ -46,14 +46,15 @@ import pytest
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler
 from psyclone.psyir.nodes import (colored, Node, ProfileNode, Loop, Literal,
-                                  SCHEDULE_COLOUR_MAP, Assignment, Return,
-                                  Reference, KernelSchedule)
+                                  Assignment, Return, Reference,
+                                  KernelSchedule, Schedule)
 from psyclone.psyir.symbols import (SymbolTable, REAL_TYPE, DataSymbol)
 from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import ProfileTrans
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
+from psyclone.gocean1p0 import GOInvokeSchedule
 
 
 # -----------------------------------------------------------------------------
@@ -108,8 +109,8 @@ def test_profile_basic(capsys):
     invoke.schedule.view()
     out, _ = capsys.readouterr()
 
-    gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    gsched = colored("GOInvokeSchedule", GOInvokeSchedule._colour)
+    sched = colored("Schedule", Schedule._colour)
     loop = Loop().coloured_name(True)
     profile = invoke.schedule[0].coloured_name(True)
 
@@ -646,10 +647,10 @@ End Schedule""")
     sched3.view()
     out, _ = capsys.readouterr()
 
-    gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    prof = colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+    gsched = colored("GOInvokeSchedule", GOInvokeSchedule._colour)
+    prof = colored("Profile", ProfileNode._colour)
+    sched = colored("Schedule", Schedule._colour)
+    loop = colored("Loop", Loop._colour)
 
     indent = 4*" "
     correct = (gsched+"[invoke='invoke_loop1', Constant loop bounds=True]\n" +
@@ -840,7 +841,7 @@ def test_auto_invoke_return_last_stmt(parser):
     assert isinstance(kschedule[1], Return)
 
 
-def test_auto_invoke_no_return(parser, capsys):
+def test_auto_invoke_no_return(capsys):
     ''' Check that using the auto-invoke profiling option does not add any
     profiling if the invoke contains a Return anywhere other than as the
     last statement. '''
@@ -850,7 +851,7 @@ def test_auto_invoke_no_return(parser, capsys):
         symbol_type=DataSymbol, datatype=REAL_TYPE)
     zero = Literal("0.0", REAL_TYPE)
     assign1 = Assignment.create(Reference(arg1), zero)
-    assign2 = Assignment.create(Reference(arg1), zero)
+    assign2 = Assignment.create(Reference(arg1), zero.copy())
 
     # Create Schedule with Return at the start.
     kschedule = KernelSchedule.create(

@@ -534,7 +534,7 @@ The rest of this section introduces examples of the available direct PSyIR
 modification methods.
 
 Renaming symbols
------------------
+----------------
 The symbol table provides the method ``rename_symbol()`` that given a symbol
 and an unused name will rename the symbol. The symbol renaming will affect
 all the references in the PSyIR AST to that symbol. For example, the PSyIR
@@ -562,3 +562,61 @@ which would result in the following Fortran output code:
         real, intent(inout) :: new_variable
         new_variable=0.0
     end subroutine
+
+Specialising symbols
+--------------------
+
+The Symbol class provides the method ``specialise()`` that given a
+subclass of Symbol will change the Symbol instance to the specified
+subclass. If the subclass has any additional properties then these
+would need to be set explicitly.
+
+.. code-block:: python
+
+    symbol = Symbol("name")
+    symbol.specialise(RoutineSymbol)
+    # Symbol is now a RoutineSymbol
+
+This method is useful as it allows the class of a symbol to be changed
+without affecting any references to it.
+
+Replacing PSyIR nodes
+---------------------
+
+In certain cases one might want to replace a node in a PSyIR tree with
+another node. All nodes provide the `replace_with()` method to replace
+the node and its descendants with another given node and its
+descendants.
+
+.. code-block:: python
+
+    node.replace_with(new_node)
+
+Detaching PSyIR nodes
+---------------------
+
+Sometimes we just may wish to detach a certain PSyIR subtree in order to remove
+it from the root tree but we don't want to delete it altogether, as it may
+be re-inserted again in another location. To achieve this, all nodes
+provide the detach method:
+
+.. code-block:: python
+
+    tmp = node.detach()
+
+Copying nodes
+-------------
+
+Copying a PSyIR node and its children is often useful in order to avoid
+repeating the creation of similar PSyIR subtrees. The result of the copy
+allows the modification of the original and the copied subtrees independently,
+without altering the other subtree. Note that this is not equivalent to the
+Python ``copy`` or ``deepcopy`` functionality provided in the ``copy`` library.
+This method performs a bespoke copy operation where some components of the
+tree, like children, are recursively copied, while others, like the top-level
+parent reference are not.
+
+
+.. code-block:: python
+
+    new_node = node.copy()

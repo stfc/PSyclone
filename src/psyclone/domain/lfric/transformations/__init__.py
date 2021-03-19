@@ -38,9 +38,12 @@
 
 from psyclone.domain.lfric.transformations.lfric_extract_trans \
     import LFRicExtractTrans
+from psyclone.domain.lfric.transformations.lfric_loop_fuse_trans \
+    import LFRicLoopFuseTrans
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g.:
 # from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
-__all__ = ['LFRicExtractTrans']
+__all__ = ['LFRicExtractTrans',
+           'LFRicLoopFuseTrans']

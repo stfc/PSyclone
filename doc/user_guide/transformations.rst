@@ -205,25 +205,13 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.KernelGlobalsToArguments
-    :members: apply
-    :noindex:
-
-.. note:: This transformation modifies the PSyIR of both: the Invoke
-          Schedule where the transformed CodedKernel is located and its
-          associated Kernel Schedule.
-
-.. note:: This transformation is only supported by the GOcean 1.0 API.
-
-####
-
 .. autoclass:: psyclone.transformations.KernelModuleInlineTrans
     :members: apply
     :noindex:
 
 ####
 
-.. autoclass:: psyclone.transformations.LoopFuseTrans
+.. autoclass:: psyclone.psyir.transformations.LoopFuseTrans
     :members: apply
     :noindex:
 
@@ -425,13 +413,35 @@ variable that is available to it from the enclosing module scope.
 Available Kernel Transformations
 ++++++++++++++++++++++++++++++++
 
-PSyclone currently provides just one kernel-specific transformation
-(although there are a number that can be applied to either or both the
-PSy-layer and Kernel-layer PSyIR):
+The transformations listed below have to be applied specifically to a PSyclone
+kernel. There are a number of transformations not listed here that can be
+applied to either or both the PSy-layer and Kernel-layer PSyIR.
+
+.. note:: Some of these transformations modify the PSyIR tree of both the
+          InvokeSchedule where the transformed CodedKernel is located and its
+          associated KernelSchedule.
+
+####
 
 .. autoclass:: psyclone.transformations.ACCRoutineTrans
    :noindex:
    :members:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.FoldConditionalReturnExpressionsTrans
+   :noindex:
+   :members:
+
+####
+
+.. autoclass:: psyclone.transformations.KernelGlobalsToArguments
+    :members: apply
+    :noindex:
+
+
+.. note:: This transformation is only supported by the GOcean 1.0 API.
+
 
 Applying
 --------
@@ -709,7 +719,7 @@ multiple InvokeSchedule and kernel-specific optimization options.
 .. literalinclude:: ../../examples/gocean/eg3/ocl_trans.py
     :language: python
     :linenos:
-    :lines: 51-65
+    :lines: 39-79
 
 
 OpenCL delays the decision of which and where kernels will execute until

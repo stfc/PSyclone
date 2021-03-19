@@ -55,8 +55,9 @@ from psyclone.parse.utils import ParseError
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.dynamo0p3_builtins import (BUILTIN_ITERATION_SPACES,
-                                         DynBuiltInCallFactory)
+from psyclone.domain.lfric.lfric_builtins import (
+    BUILTIN_ITERATION_SPACES, LFRicBuiltInCallFactory,
+    LFRicBuiltIn, BUILTIN_MAP)
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface)
@@ -76,7 +77,7 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 # ========== First section : Parser specialisations and classes ============= #
 # --------------------------------------------------------------------------- #
 #
-# ---------- Evaluators ---------------------------------------------------- #
+# ---------- Evaluators ----------------------------------------------------- #
 # Evaluators: quadrature
 VALID_QUADRATURE_SHAPES = ["gh_quadrature_xyoz", "gh_quadrature_face",
                            "gh_quadrature_edge"]
@@ -95,7 +96,8 @@ QUADRATURE_TYPE_MAP = {
                            "proxy_type": "quadrature_edge_proxy_type"}}
 
 # ---------- Fortran datatypes ---------------------------------------------- #
-SUPPORTED_FORTRAN_DATATYPES = ["real", "integer", "logical"]
+SUPPORTED_FORTRAN_DATATYPES = Config.get().api_conf(
+    "dynamo0.3").supported_fortran_datatypes
 
 # ---------- Mapping from metadata data_type to Fortran intrinsic type ------ #
 MAPPING_DATA_TYPES = OrderedDict(zip(LFRicArgDescriptor.VALID_ARG_DATA_TYPES,
@@ -607,7 +609,6 @@ class DynKernMetadata(KernelType):
                             data type (other than 'gh_real').
 
         '''
-        from psyclone.dynamo0p3_builtins import BUILTIN_MAP
         # We must have at least one argument that is written to
         write_count = 0
         for arg in self._arg_descriptors:
@@ -1466,6 +1467,39 @@ class DynStencils(DynCollection):
         unique = DynStencils.stencil_unique_str(arg, "length")
         return symtab.symbol_from_tag(unique, root_name).name
 
+    def _unique_max_branch_length_vars(self):
+        '''
+        :returns: list of all the unique max stencil extent argument names in
+                  this kernel call for cross2d stencils.
+        :rtype: list of str
+        '''
+        names = []
+        for arg in self._kern_args:
+            if arg.descriptor.stencil['type'] == "cross2d":
+                names.append(arg.name + "_max_branch_length")
+
+        return names
+
+    def _declare_unique_max_branch_length_vars(self, parent):
+        '''
+        Declare all unique max branch length arguments as integers with intent
+        in and add the declaration as a child of the parent argument passed
+        in.
+
+        :param parent: the node in the f2pygen AST to which to add the \
+                       declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        if self._unique_max_branch_length_vars():
+            parent.add(DeclGen(
+                parent, datatype="integer",
+                kind=api_config.default_kind["integer"],
+                entity_decls=self._unique_max_branch_length_vars(), intent="in"
+            ))
+
     @staticmethod
     def direction_name(symtab, arg):
         '''
@@ -1520,10 +1554,27 @@ class DynStencils(DynCollection):
         api_config = Config.get().api_conf("dynamo0.3")
 
         if self._unique_extent_vars:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=self._unique_extent_vars,
-                               intent="in"))
+            if self._kernel:
+                for arg in self._kern_args:
+                    if arg.descriptor.stencil['type'] == "cross2d":
+                        parent.add(DeclGen(
+                            parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            dimension="4",
+                            entity_decls=self._unique_extent_vars, intent="in"
+                        ))
+                    else:
+                        parent.add(DeclGen(
+                            parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            entity_decls=self._unique_extent_vars,
+                            intent="in"))
+            elif self._invoke:
+                parent.add(DeclGen(
+                    parent, datatype="integer",
+                    kind=api_config.default_kind["integer"],
+                    entity_decls=self._unique_extent_vars, intent="in"
+                ))
 
     @property
     def _unique_direction_vars(self):
@@ -1591,6 +1642,7 @@ class DynStencils(DynCollection):
         '''
         self._declare_unique_extent_vars(parent)
         self._declare_unique_direction_vars(parent)
+        self._declare_unique_max_branch_length_vars(parent)
         self._declare_maps_stub(parent)
 
     def initialise(self, parent):
@@ -1779,12 +1831,21 @@ class DynStencils(DynCollection):
 
         symtab = self._symbol_table
         for arg in self._kern_args:
-            parent.add(DeclGen(
-                parent, datatype="integer",
-                kind=api_config.default_kind["integer"], intent="in",
-                dimension=",".join([arg.function_space.ndf_name,
-                                    self.dofmap_size_name(symtab, arg)]),
-                entity_decls=[self.dofmap_name(symtab, arg)]))
+            if arg.descriptor.stencil['type'] == "cross2d":
+                parent.add(DeclGen(
+                    parent, datatype="integer",
+                    kind=api_config.default_kind["integer"], intent="in",
+                    dimension=",".join([arg.function_space.ndf_name,
+                                        self.max_branch_length_name(
+                                            symtab, arg), "4"]),
+                    entity_decls=[self.dofmap_name(symtab, arg)]))
+            else:
+                parent.add(DeclGen(
+                    parent, datatype="integer",
+                    kind=api_config.default_kind["integer"], intent="in",
+                    dimension=",".join([arg.function_space.ndf_name,
+                                        self.dofmap_size_name(symtab, arg)]),
+                    entity_decls=[self.dofmap_name(symtab, arg)]))
 
 
 class LFRicMeshProperties(DynCollection):
@@ -3989,7 +4050,6 @@ class DynBasisFunctions(DynCollection):
                       "face": ["weights_xyz"]}
 
     def __init__(self, node):
-        from psyclone.dynamo0p3_builtins import DynBuiltIn
 
         super(DynBasisFunctions, self).__init__(node)
 
@@ -4010,7 +4070,7 @@ class DynBasisFunctions(DynCollection):
 
         for call in self._calls:
 
-            if isinstance(call, DynBuiltIn) or not call.eval_shapes:
+            if isinstance(call, LFRicBuiltIn) or not call.eval_shapes:
                 # Skip this kernel if it doesn't require basis/diff basis fns
                 continue
 
@@ -5247,7 +5307,7 @@ class DynInvokeSchedule(InvokeSchedule):
 
     def __init__(self, name, arg, reserved_names=None):
         InvokeSchedule.__init__(self, name, DynKernCallFactory,
-                                DynBuiltInCallFactory, arg, reserved_names)
+                                LFRicBuiltInCallFactory, arg, reserved_names)
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this node.
@@ -5865,6 +5925,7 @@ class DynHaloExchangeStart(DynHaloExchange):
     '''
     # Textual description of the node.
     _text_name = "HaloExchangeStart"
+    _colour = "yellow"
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
@@ -5977,6 +6038,7 @@ class DynHaloExchangeEnd(DynHaloExchange):
     '''
     # Textual description of the node.
     _text_name = "HaloExchangeEnd"
+    _colour = "yellow"
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
@@ -6151,7 +6213,7 @@ def halo_check_arg(field, access_types):
 
     '''
     try:
-        # get the kernel/builtin call associated with this field
+        # Get the kernel/built-in call associated with this field
         call = field.call
     except AttributeError:
         raise GenerationError(
@@ -6165,8 +6227,7 @@ def halo_check_arg(field, access_types):
             "In HaloInfo class, field '{0}' should be one of {1}, but found "
             "'{2}'".format(field.name, api_strings,
                            field.access.api_specific_name()))
-    from psyclone.dynamo0p3_builtins import DynBuiltIn
-    if not isinstance(call, (DynBuiltIn, DynKern)):
+    if not isinstance(call, (LFRicBuiltIn, DynKern)):
         raise GenerationError(
             "In HaloInfo class, field '{0}' should be from a call but "
             "found {1}".format(field.name, type(call)))
@@ -6516,8 +6577,7 @@ class DynLoop(Loop):
         # Loop bounds
         self.set_lower_bound("start")
 
-        from psyclone.dynamo0p3_builtins import DynBuiltIn
-        if isinstance(kern, DynBuiltIn):
+        if isinstance(kern, LFRicBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
             if Config.get().api_conf("dynamo0.3").compute_annexed_dofs \
@@ -8640,21 +8700,18 @@ class DynKernelArgument(KernelArgument):
         :rtype: str
 
         '''
+        write_accesses = AccessType.all_write_accesses()
         if self.access == AccessType.READ:
             return "in"
-        elif self.access == AccessType.WRITE:
-            return "out"
-        elif self.access == AccessType.READWRITE:
+        if self.access in write_accesses:
             return "inout"
-        elif self.access in [AccessType.INC] + \
-                AccessType.get_valid_reduction_modes():
-            return "inout"
-        else:
-            valid_reductions = AccessType.get_valid_reduction_names()
-            raise GenerationError(
-                "Expecting argument access to be one of 'gh_read, gh_write, "
-                "gh_inc', 'gh_readwrite' or one of {0}, but found '{1}'".
-                format(valid_reductions, self.access))
+        # An argument access other than the pure "read" or one of
+        # the "write" accesses is invalid
+        valid_accesses = [AccessType.READ.api_specific_name()] + \
+            [access.api_specific_name() for access in write_accesses]
+        raise GenerationError(
+            "In the LFRic API the argument access must be one of {0}, "
+            "but found '{1}'.".format(valid_accesses, self.access))
 
     @property
     def discontinuous(self):

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,41 +40,11 @@
 This module contains the abstract Node implementation.
 
 '''
-
 import abc
+import copy
+import six
 from psyclone.psyir.symbols import SymbolError
 from psyclone.errors import GenerationError, InternalError
-
-
-#: Colour map to use when writing Invoke schedule to terminal. (Requires
-#: that the termcolor package be installed. If it isn't then output is not
-#: coloured.) See https://pypi.python.org/pypi/termcolor for details.
-SCHEDULE_COLOUR_MAP = {"Schedule": "white",
-                       "Loop": "red",
-                       "GlobalSum": "cyan",
-                       "Directive": "green",
-                       "HaloExchange": "blue",
-                       "HaloExchangeStart": "yellow",
-                       "HaloExchangeEnd": "yellow",
-                       "BuiltIn": "magenta",
-                       "CodedKern": "magenta",
-                       "InlinedKern": "magenta",
-                       "PSyData": "green",
-                       "Profile": "green",
-                       "Extract": "green",
-                       "ReadOnlyVerify": "green",
-                       "NanTest": "green",
-                       "If": "red",
-                       "Assignment": "blue",
-                       "Range": "white",
-                       "Reference": "yellow",
-                       "Member": "yellow",
-                       "Operation": "blue",
-                       "Literal": "yellow",
-                       "Return": "yellow",
-                       "CodeBlock": "red",
-                       "Container": "green",
-                       "Call": "cyan"}
 
 # Default indentation string
 INDENTATION_STRING = "    "
@@ -168,6 +138,33 @@ class ChildrenList(list):
 
             raise GenerationError(errmsg)
 
+    def _check_is_orphan(self, item):
+        '''
+        Checks that the provided item is an orphan (has no parent).
+
+        :param item: object that needs to be validated.
+        :type item: :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises GenerationError: if the given item is not an orphan.
+        '''
+        # The `item.parent is not self._node_reference` below should ideally be
+        # removed as this still allows a single node to be a child of another
+        # one multiple times.
+        # However expressions like:
+        #   > node = NodeClass(parent=node2)
+        #   > node2.addchild(node)
+        # are used extensively. So this condition is left for the moment to
+        # support these 2-step parent-child construction operations.
+        # TODO #294 could solve this issue by making the parent-child
+        # connection an atomic (and transparent) operation.
+        if item.parent and item.parent is not self._node_reference:
+            raise GenerationError(
+                "Item '{0}' can't be added as child of '{1}' because it is not"
+                " an orphan. It already has a '{2}' as a parent.".format(
+                    item.coloured_name(False),
+                    self._node_reference.coloured_name(False),
+                    item.parent.coloured_name(False)))
+
     def append(self, item):
         ''' Extends list append method with children node validation.
 
@@ -176,6 +173,7 @@ class ChildrenList(list):
 
         '''
         self._validate_item(len(self), item)
+        self._check_is_orphan(item)
         super(ChildrenList, self).append(item)
 
     def __setitem__(self, index, item):
@@ -187,6 +185,7 @@ class ChildrenList(list):
 
         '''
         self._validate_item(index, item)
+        self._check_is_orphan(item)
         super(ChildrenList, self).__setitem__(index, item)
 
     def insert(self, index, item):
@@ -199,6 +198,7 @@ class ChildrenList(list):
         '''
         positiveindex = index if index >= 0 else len(self) - index
         self._validate_item(positiveindex, item)
+        self._check_is_orphan(item)
         # Check that all displaced items will still in valid positions
         for position in range(positiveindex, len(self)):
             self._validate_item(position + 1, self[position])
@@ -213,6 +213,7 @@ class ChildrenList(list):
         '''
         for index, item in enumerate(items):
             self._validate_item(len(self) + index, item)
+            self._check_is_orphan(item)
         super(ChildrenList, self).extend(items)
 
     # Methods below don't insert elements but have the potential to displace
@@ -250,7 +251,8 @@ class ChildrenList(list):
 
         '''
         positiveindex = index if index >= 0 else len(self) - index
-        for position in range(positiveindex, len(self)):
+        # Check if displaced items after 'positiveindex' will still be valid
+        for position in range(positiveindex + 1, len(self)):
             self._validate_item(position - 1, self[position])
         return super(ChildrenList, self).pop(index)
 
@@ -295,7 +297,7 @@ class Node(object):
     # properties for each of them and chain the ABC @abstractmethod annotation.
     _children_valid_format = None
     _text_name = None
-    _colour_key = None
+    _colour = None
 
     def __init__(self, ast=None, children=None, parent=None, annotations=None):
         self._children = ChildrenList(self, self._validate_child,
@@ -361,11 +363,19 @@ class Node(object):
                 "given a string value in the concrete class '{0}'."
                 "".format(type(self).__name__))
         if colour:
+            if self._colour is None:
+                raise NotImplementedError(
+                    "The _colour attribute is abstract so needs to be given "
+                    "a string value in the concrete class '{0}'."
+                    "".format(type(self).__name__))
             try:
-                return colored(self._text_name,
-                               SCHEDULE_COLOUR_MAP[self._colour_key])
-            except KeyError:
-                pass
+                return colored(self._text_name, self._colour)
+            except KeyError as info:
+                message = (
+                    "The _colour attribute in class '{0}' has been set to a "
+                    "colour ('{1}') that is not supported by the termcolor "
+                    "package.".format(type(self).__name__, self._colour))
+                six.raise_from(InternalError(message), info)
         return self._text_name
 
     def node_str(self, colour=True):
@@ -1079,7 +1089,8 @@ class Node(object):
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         '''
-        raise NotImplementedError("Please implement me")
+        raise NotImplementedError(
+            "Please implement me: {0}".format(type(self)))
 
     def update(self):
         ''' By default we assume there is no need to update the existing
@@ -1149,10 +1160,100 @@ class Node(object):
             "Unable to find the scope of node '{0}' as none of its ancestors "
             "are Container or Schedule nodes.".format(self))
 
+    def replace_with(self, node):
+        '''Removes self, and its descendants, from the PSyIR tree to which it
+        is connected, and replaces it with the supplied node (and its
+        descendants).
+
+        :param node: the node that will replace self in the PSyIR \
+            tree.
+        :type node: :py:class:`psyclone.psyir.nodes.node`
+
+        :raises TypeError: if the argument 'node' is not a Node.
+        :raises GenerationError: if this node does not have a parent.
+        :raises GenerationError: if the argument 'node' has a parent.
+
+        '''
+        if not isinstance(node, Node):
+            raise TypeError(
+                "The argument node in method replace_with in the Node class "
+                "should be a Node but found '{0}'."
+                "".format(type(node).__name__))
+        if not self.parent:
+            raise GenerationError(
+                "This node should have a parent if its replace_with method "
+                "is called.")
+        if node.parent is not None:
+            raise GenerationError(
+                "The parent of argument node in method replace_with in the "
+                "Node class should be None but found '{0}'."
+                "".format(type(node.parent).__name__))
+
+        node.parent = self.parent
+        self.parent.children[self.position] = node
+        self.parent = None
+
+    def pop_all_children(self):
+        ''' Remove all children of this node and return them as a list.
+
+        :returns: all the children of this node as orphan nodes.
+        :rtype: list of :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        free_children = []
+        while self.children:
+            child = self.children.pop()
+            child.parent = None
+            free_children.insert(0, child)
+        return free_children
+
+    def detach(self):
+        ''' Detach this node from the tree it belongs to. This is necessary
+        as a precursor to inserting it as the child of another node.
+
+        :returns: this node detached from its parent.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        if self.parent:
+            self.parent.children.remove(self)
+            self.parent = None
+        return self
+
+    def _refine_copy(self, other):
+        ''' Refine the object attributes when a shallow copy is not the most
+        appropriate operation during a call to the copy() method.
+
+        :param other: object we are copying from.
+        :type other: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        self._parent = None
+        self._annotations = other.annotations[:]
+        self.children = [child.copy() for child in other.children]
+        for child in self.children:
+            child.parent = self
+
+    def copy(self):
+        ''' Return a copy of this node. This is a bespoke implementation for
+        PSyIR nodes that will deepcopy some of its recursive data-structure 
+        (e.g. the children tree), while not copying other attributes (e.g.
+        top-level parent reference).
+
+        :returns: a copy of this node and its children.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Start with a shallow copy of the object
+        new_instance = copy.copy(self)
+        # and then refine the elements that shouldn't be shallow copied
+        # pylint: disable=protected-access
+        new_instance._refine_copy(self)
+        return new_instance
+
 
 # For automatic documentation generation
 # TODO #913 the 'colored' routine shouldn't be in this module.
 __all__ = ["colored",
-           "SCHEDULE_COLOUR_MAP",
            "ChildrenList",
            "Node"]

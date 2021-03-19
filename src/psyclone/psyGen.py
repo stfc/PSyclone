@@ -879,7 +879,7 @@ class InvokeSchedule(Routine):
      creating Kernels. e.g. :py:class:`psyclone.dynamo0p3.DynKernCallFactory`.
     :param type BuiltInFactory: class instance of the factory to use when \
      creating built-ins. e.g. \
-     :py:class:`psyclone.dynamo0p3_builtins.DynBuiltInCallFactory`.
+     :py:class:`psyclone.domain.lfric.lfric_builtins.LFRicBuiltInCallFactory`.
     :param alg_calls: list of Kernel calls in the schedule.
     :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
 
@@ -1160,7 +1160,7 @@ class Directive(Statement):
     # Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "Directive"
-    _colour_key = "Directive"
+    _colour = "green"
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
@@ -2240,7 +2240,7 @@ class GlobalSum(Statement):
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "GlobalSum"
-    _colour_key = "GlobalSum"
+    _colour = "cyan"
 
     def __init__(self, scalar, parent=None):
         Node.__init__(self, children=[], parent=parent)
@@ -2308,7 +2308,7 @@ class HaloExchange(Statement):
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "HaloExchange"
-    _colour_key = "HaloExchange"
+    _colour = "blue"
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
@@ -2628,8 +2628,17 @@ class Kern(Statement):
                                  rhs=zero), position=position)
 
     def reduction_sum_loop(self, parent):
-        '''generate the appropriate code to place after the end parallel
-        region'''
+        '''
+        Generate the appropriate code to place after the end parallel
+        region.
+
+        :param parent: the Node in the f2pygen AST to which to add new code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises GenerationError: for an unsupported reduction access in \
+                                 LFRicBuiltIn.
+
+        '''
         from psyclone.f2pygen import DoGen, AssignGen, DeallocateGen
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
@@ -2637,13 +2646,14 @@ class Kern(Statement):
         reduction_access = self._reduction_arg.access
         try:
             reduction_operator = REDUCTION_OPERATOR_MAPPING[reduction_access]
-        except KeyError:
+        except KeyError as err:
             api_strings = [access.api_specific_name()
                            for access in REDUCTION_OPERATOR_MAPPING]
-            raise GenerationError(
-                "unsupported reduction access '{0}' found in DynBuiltin:"
-                "reduction_sum_loop(). Expected one of '{1}'".
-                format(reduction_access.api_specific_name(), api_strings))
+            six.raise_from(GenerationError(
+                "Unsupported reduction access '{0}' found in LFRicBuiltIn:"
+                "reduction_sum_loop(). Expected one of {1}.".
+                format(reduction_access.api_specific_name(),
+                       api_strings)), err)
         symtab = self.root.symbol_table
         thread_idx = symtab.lookup_with_tag("omp_thread_index").name
         nthreads = symtab.lookup_with_tag("omp_num_threads").name
@@ -2752,7 +2762,7 @@ class CodedKern(Kern):
     '''
     # Textual description of the node.
     _text_name = "CodedKern"
-    _colour_key = "CodedKern"
+    _colour = "magenta"
 
     def __init__(self, KernelArguments, call, parent=None, check=True):
         self._parent = parent
@@ -3175,7 +3185,6 @@ class CodedKern(Kern):
             from psyclone.psyir.backend.opencl import OpenCLWriter
             ocl_writer = OpenCLWriter(
                 kernels_local_size=self._opencl_options['local_size'])
-            self._prepare_opencl_kernel_schedule()
             new_kern_code = ocl_writer(self.get_kernel_schedule())
         elif self._kern_schedule:
             # A PSyIR kernel schedule has been created. This means
@@ -3276,12 +3285,6 @@ class CodedKern(Kern):
                 sym.datatype.declaration = orig_declaration.replace(
                     orig_kern_name, new_kern_name)
 
-    def _prepare_opencl_kernel_schedule(self):
-        ''' Generic method to introduce kernel modifications when generating
-        OpenCL kernels. By default this does nothing, but it can be
-        sub-classed by the APIs to introduce kernel modifications.
-        '''
-
     def _rename_ast(self, suffix):
         '''
         Renames all quantities (module, kernel routine, kernel derived type)
@@ -3377,7 +3380,7 @@ class InlinedKern(Kern):
     # Textual description of the node.
     _children_valid_format = "Schedule"
     _text_name = "InlinedKern"
-    _colour_key = "InlinedKern"
+    _colour = "magenta"
 
     def __init__(self, psyir_nodes):
         # pylint: disable=non-parent-init-called, super-init-not-called
@@ -3432,7 +3435,7 @@ class BuiltIn(Kern):
     '''
     # Textual description of the node.
     _text_name = "BuiltIn"
-    _colour_key = "BuiltIn"
+    _colour = "magenta"
 
     def __init__(self):
         # We cannot call Kern.__init__ as don't have necessary information
@@ -4172,14 +4175,16 @@ class TransInfo(object):
             self._0_to_n = DummyTransformation()  # only here for pyreverse!
 
         # TODO #620: This need to be improved to support the new
-        # layout, where transformations are in different directories and files
+        # layout, where transformations are in different directories and files.
+        # Leaving local imports so they will be removed once TransInfo is
+        # replaced.
+        # pylint: disable=import-outside-toplevel
+        from psyclone import transformations
         if module is None:
             # default to the transformation module
-            from psyclone import transformations
             module = transformations
         if base_class is None:
-            from psyclone import psyGen
-            base_class = psyGen.Transformation
+            base_class = Transformation
         # find our transformations
         self._classes = self._find_subclasses(module, base_class)
 
@@ -4190,6 +4195,18 @@ class TransInfo(object):
             my_object = my_class()
             self._objects.append(my_object)
             self._obj_map[my_object.name] = my_object
+        # TODO #620:
+        # Transformations that are in psyir and other subdirectories
+        # are not found by TransInfo, so we add some that are used in
+        # tests and examples explicitly. I'm leaving this import here
+        # so it is obvious it can be removed.
+        from psyclone.psyir.transformations import LoopFuseTrans
+        my_object = LoopFuseTrans()
+        # Only add the loop-fuse statement if base_class and module
+        # match for the loop fusion transformation.
+        if isinstance(my_object, base_class) and module == transformations:
+            self._objects.append(LoopFuseTrans())
+            self._obj_map["LoopFuseTrans"] = self._objects[-1]
 
     @property
     def list(self):
