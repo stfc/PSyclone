@@ -192,6 +192,19 @@ def test_is_array_range():
     fld_assign = Assignment.create(fld_ref, one.copy())
     assert fld_assign.is_array_range is True
 
+    # When the slice has two operator ancestors, none of which are a reduction
+    # e.g y(1, INT(ABS(map(:)))) = 1.0
+    int_array_type = ArrayType(INTEGER_SINGLE_TYPE, [10])
+    map_sym = DataSymbol("map", int_array_type)
+    abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS,
+                                   ArrayReference.create(map_sym,
+                                                         [my_range.copy()]))
+    int_op = UnaryOperation.create(UnaryOperation.Operator.INT, abs_op)
+    assignment = Assignment.create(
+        ArrayReference.create(symbol, [int_one.copy(), int_op]),
+        one.copy())
+    assert assignment.is_array_range is True
+
 
 def test_is_not_array_range():
     ''' Test that is_array_range correctly rejects things that aren't
@@ -223,11 +236,23 @@ def test_is_not_array_range():
     stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
                                   Reference(map_sym), int_one.copy())
     my_range = Range.create(start, stop)
-    min_op = BinaryOperation.create(BinaryOperation.Operator.SUM,
+    sum_op = BinaryOperation.create(BinaryOperation.Operator.SUM,
                                     ArrayReference.create(map_sym, [my_range]),
                                     int_one.copy())
     assignment = Assignment.create(
-        ArrayReference.create(symbol, [int_one.copy(), min_op]),
+        ArrayReference.create(symbol, [int_one.copy(), sum_op]),
+        one.copy())
+    assert assignment.is_array_range is False
+
+    # When the slice has two operator ancestors, one of which is a reduction
+    # e.g y(1, SUM(ABS(map(:)), 1)) = 1.0
+    abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS,
+                                   ArrayReference.create(map_sym,
+                                                         [my_range.copy()]))
+    sum_op2 = BinaryOperation.create(BinaryOperation.Operator.SUM,
+                                     abs_op, int_one.copy())
+    assignment = Assignment.create(
+        ArrayReference.create(symbol, [int_one.copy(), sum_op2]),
         one.copy())
     assert assignment.is_array_range is False
 
