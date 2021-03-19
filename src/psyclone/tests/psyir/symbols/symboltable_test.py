@@ -772,7 +772,7 @@ def test_has_wildcard_imports():
     # Now give it a wildcard import
     csym.wildcard_import = True
     assert container_table.has_wildcard_imports() is True
-    assert sched_table.get_first_wildcard_import() is True
+    assert sched_table.has_wildcard_imports() is True
 
 
 def test_view(capsys):
