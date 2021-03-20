@@ -699,6 +699,7 @@ class Fparser2Reader(object):
         ('tan', UnaryOperation.Operator.TAN),
         ('atan', UnaryOperation.Operator.ATAN),
         ('sqrt', UnaryOperation.Operator.SQRT),
+        ('sum', UnaryOperation.Operator.SUM),
         ('real', UnaryOperation.Operator.REAL),
         ('nint', UnaryOperation.Operator.NINT),
         ('int', UnaryOperation.Operator.INT)])
@@ -966,8 +967,7 @@ class Fparser2Reader(object):
         node = Container("dummy")
         self.process_nodes(node, [parse_tree])
         result = node.children[0]
-        result.parent = None
-        return result
+        return result.detach()
 
     def generate_container(self, module_ast):
         '''
@@ -2300,7 +2300,7 @@ class Fparser2Reader(object):
                                    nodes=[clause.items[0]])
 
                 # Create if-body as second child
-                ifbody = Schedule(parent=ifblock)
+                ifbody = Schedule(parent=newifblock)
                 ifbody.ast = node.content[start_idx + 1]
                 ifbody.ast_end = node.content[end_idx - 1]
                 newifblock.addchild(ifbody)
@@ -2415,8 +2415,10 @@ class Fparser2Reader(object):
             clause = node.content[start_idx]
             case = clause.items[0]
 
-            ifblock = IfBlock(parent=currentparent,
-                              annotations=['was_case'])
+            # We add currentparent temporally as the parent to aid in symbol
+            # table resolutions, but it may not be the right parent and it may
+            # have to be modified if it's added to a different parent node.
+            ifblock = IfBlock(parent=currentparent, annotations=['was_case'])
             if idx == 0:
                 # If this is the first IfBlock then have it point to
                 # the original SELECT CASE in the parse tree
@@ -2446,6 +2448,9 @@ class Fparser2Reader(object):
                 # case in the last else branch.
                 elsebody = Schedule(parent=currentparent)
                 currentparent.addchild(elsebody)
+                # The parent=currentparent of the IfBlock constructor was
+                # wrong, but it's needed for symbol table resolutions.
+                ifblock.parent = None
                 elsebody.addchild(ifblock)
                 ifblock.parent = elsebody
                 elsebody.ast = node.content[start_idx + 1]
@@ -2920,7 +2925,7 @@ class Fparser2Reader(object):
                 array_name = child.children[0].string
                 subscript_list = child.children[1].children
                 self.process_nodes(parent=fake_parent, nodes=subscript_list)
-                members.append((array_name, fake_parent.children))
+                members.append((array_name, fake_parent.pop_all_children()))
             else:
                 # Found an unsupported entry in the parse tree. This will
                 # result in a CodeBlock.
@@ -2953,7 +2958,7 @@ class Fparser2Reader(object):
             self.process_nodes(parent=fake_parent,
                                nodes=part_ref.children[1].children)
             ref = ArrayOfStructuresReference.create(
-                sym, fake_parent.children, members, parent=parent)
+                sym, fake_parent.pop_all_children(), members, parent=parent)
             return ref
 
         # Not a Part_Ref or a Name so this will result in a CodeBlock.

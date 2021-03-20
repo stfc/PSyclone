@@ -64,7 +64,7 @@ class Operation(DataNode):
     '''
     # Must be overridden in sub-class to hold an Enumeration of the Operators
     # that it can represent.
-    Operator = None
+    Operator = object
     # Textual description of the node.
     _text_name = "Operation"
     _colour = "blue"
@@ -127,7 +127,7 @@ class UnaryOperation(Operation):
 
     Operator = Enum('Operator', [
         # Arithmetic Operators
-        'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG', 'LOG10',
+        'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG', 'LOG10', 'SUM',
         # Logical Operators
         'NOT',
         # Trigonometric Operators

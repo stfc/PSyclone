@@ -328,7 +328,7 @@ class DynKern(CodedKern):
         if False:
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
 
-    def load(self, call, parent=None):
+    def load(self, call, parent):
         '''
         Load this DynKern object with state pulled from the call object.
 
@@ -339,6 +339,10 @@ class DynKern(CodedKern):
 
         '''
         super(DynKern, self).__init__(DynKernelArguments, call, parent)
+        # parent was needed for DynKernelArguments but is never added as a
+        # children of another node during the load(), so the link must be
+        # reverted
+        self._parent = None
 
     def local_vars(self):
         return ["cell", "map"]
