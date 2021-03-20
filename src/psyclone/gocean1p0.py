@@ -1596,7 +1596,7 @@ class GOKern(CodedKern):
                 dest = Reference(symbol)
                 bop = BinaryOperation.create(BinaryOperation.Operator.CAST,
                                              source, dest)
-                assig = Assignment.create(dest, bop)
+                assig = Assignment.create(dest.copy(), bop)
                 parent.add(PSyIRGen(parent, assig))
 
             elif arg.argument_type == "grid_property" and not arg.is_scalar:
