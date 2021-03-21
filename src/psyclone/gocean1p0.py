@@ -1750,7 +1750,6 @@ class GOKern(CodedKern):
             IF (.NOT. field%data_on_device) THEN
                 size_in_bytes = int({0}*{1}, 8) * &
                                     c_sizeof({2}(1,1))
-                write(*,*) "Init", size_in_bytes
                 ! Create buffer on device
                 field%device_ptr = transfer( &
                     create_rw_buffer(size_in_bytes), &
@@ -1883,7 +1882,7 @@ class GOKern(CodedKern):
 
         # x is contiguous
         code = '''
-        subroutine read_sub(from, to, startx, starty, nx, ny)
+        subroutine read_sub(from, to, startx, starty, nx, ny, blocking)
             USE iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
             USE ocl_utils_mod, ONLY: check_status
             use kind_params_mod, only: go_wp
@@ -1892,20 +1891,43 @@ class GOKern(CodedKern):
             type(c_ptr), intent(in) :: from
             real(go_wp), intent(inout), dimension(:,:), target :: to
             integer, intent(in) :: startx, starty, nx, ny
+            logical, intent(in) :: blocking
             INTEGER(c_size_t) :: size_in_bytes, offset_in_bytes
             integer(c_intptr_t) :: cl_mem
             INTEGER(c_intptr_t), pointer :: cmd_queues(:)
-            integer :: ierr
-            !write(*,*) startx, starty, nx, ny
-            size_in_bytes = int(size(to), 8) * c_sizeof(to(1,1))
-            offset_in_bytes = 0_8 !int(size(to,1)*(starty-1), 8) * c_sizeof(to(1,1))
-            !write(*,*) offset_in_bytes, size_in_bytes
+            integer :: ierr, i
+
             cl_mem = transfer(from, cl_mem)
             cmd_queues => get_cmd_queues()
-            ierr = clEnqueueReadBuffer(cmd_queues(1), cl_mem, &
-                CL_TRUE, offset_in_bytes, size_in_bytes, C_LOC(to), 0, &
-                C_NULL_PTR, C_NULL_PTR)
-            CALL check_status("clEnqueueReadBuffer", ierr)
+
+            ! Two copy strategies depending on how much of the total length
+            ! nx covers.
+            if (nx < size(to, 1) / 2) then
+                ! Dispatch asynchronous copies of just the contiguous data.
+                do i = starty, starty+ny
+                    size_in_bytes = int(nx, 8) * c_sizeof(to(1,1))
+                    offset_in_bytes = int(size(to, 1) * (i-1) + (startx-1)) &
+                                      * c_sizeof(to(1,1))
+                    ierr = clEnqueueReadBuffer(cmd_queues(1), cl_mem, &
+                        CL_FALSE, offset_in_bytes, size_in_bytes, &
+                        C_LOC(to(startx, i)), 0, C_NULL_PTR, C_NULL_PTR)
+                    CALL check_status("clEnqueueReadBuffer", ierr)
+                enddo
+                if (blocking) then
+                    CALL check_status("clFinish on read", &
+                        clFinish(cmd_queues(1)))
+                endif
+            else
+                ! Copy across the whole starty:starty+ny rows in a single
+                ! copy operation.
+                size_in_bytes = int(size(to, 1) * ny, 8) * c_sizeof(to(1,1))
+                offset_in_bytes = int(size(to,1)*(starty-1), 8) &
+                                  * c_sizeof(to(1,1))
+                ierr = clEnqueueReadBuffer(cmd_queues(1), cl_mem, &
+                    CL_TRUE, offset_in_bytes, size_in_bytes, &
+                    C_LOC(to(1,starty)), 0, C_NULL_PTR, C_NULL_PTR)
+                CALL check_status("clEnqueueReadBuffer", ierr)
+            endif
         end subroutine read_sub
         '''
 
@@ -1929,7 +1951,7 @@ class GOKern(CodedKern):
             tag="ocl_write_func").name
 
         code = '''
-        subroutine write_sub(from, to, startx, starty, nx, ny)
+        subroutine write_sub(from, to, startx, starty, nx, ny, blocking)
             USE iso_c_binding, only: c_ptr, c_intptr_t, c_size_t, c_sizeof
             USE ocl_utils_mod, ONLY: check_status
             use kind_params_mod, only: go_wp
@@ -1938,23 +1960,43 @@ class GOKern(CodedKern):
             real(go_wp), intent(in), dimension(:,:), target :: from
             type(c_ptr), intent(in) :: to
             integer, intent(in) :: startx, starty, nx, ny
+            logical, intent(in) :: blocking
             integer(c_intptr_t) :: cl_mem
             INTEGER(c_size_t) :: size_in_bytes, offset_in_bytes
             INTEGER(c_intptr_t), pointer :: cmd_queues(:)
-            integer :: ierr
+            integer :: ierr, i
 
-            !if (nx < size(from,1) / 2) then
-
-
-            size_in_bytes = int(size(from), 8) * c_sizeof(from(1,1))
-            offset_in_bytes = 0_8 ! int(size(from,1)*(starty-1)) * c_sizeof(from(1,1))
             cl_mem = transfer(to, cl_mem)
             cmd_queues => get_cmd_queues()
-            !write(*,*) offset_in_bytes, size_in_bytes
-            ierr = clEnqueueWriteBuffer(cmd_queues(1), cl_mem, &
-                CL_TRUE, offset_in_bytes, size_in_bytes, C_LOC(from), 0, &
-                C_NULL_PTR, C_NULL_PTR)
-            CALL check_status("clEnqueueWriteBuffer", ierr)
+
+            ! Two copy strategies depending on how much of the total length
+            ! nx covers.
+            if (nx < size(from,1) / 2) then
+                ! Dispatch asynchronous copies of just the contiguous data.
+                do i=starty, starty+ny
+                    size_in_bytes = int(nx, 8) * c_sizeof(from(1,1))
+                    offset_in_bytes = int(size(from, 1) * (i-1) + (startx-1)) &
+                                      * c_sizeof(from(1,1))
+                    ierr = clEnqueueWriteBuffer(cmd_queues(1), cl_mem, &
+                        CL_FALSE, offset_in_bytes, size_in_bytes, &
+                        C_LOC(from(startx, i)), 0, C_NULL_PTR, C_NULL_PTR)
+                    CALL check_status("clEnqueueWriteBuffer", ierr)
+                enddo
+                if (blocking) then
+                    CALL check_status("clFinish on write", &
+                        clFinish(cmd_queues(1)))
+                endif
+            else
+                ! Copy across the whole starty:starty+ny rows in a single
+                ! copy operation.
+                size_in_bytes = int(size(from,1) * ny, 8) * c_sizeof(from(1,1))
+                offset_in_bytes = int(size(from,1) * (starty-1)) &
+                                  * c_sizeof(from(1,1))
+                ierr = clEnqueueWriteBuffer(cmd_queues(1), cl_mem, &
+                    CL_TRUE, offset_in_bytes, size_in_bytes, &
+                    C_LOC(from(1, starty)), 0, C_NULL_PTR, C_NULL_PTR)
+                CALL check_status("clEnqueueWriteBuffer", ierr)
+            endif
         end subroutine write_sub
         '''
 
