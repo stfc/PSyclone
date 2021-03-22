@@ -43,14 +43,9 @@ or profiling.'''
 from __future__ import absolute_import, print_function
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
-from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.call import Call
-from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.symbols import SymbolTable, ContainerSymbol, DataSymbol, \
-    INTEGER_TYPE, GlobalInterface, TypeSymbol, CHARACTER_TYPE, DeferredType
+from psyclone.psyir.symbols import SymbolTable
 
 
 # =============================================================================
@@ -419,67 +414,6 @@ class PSyDataNode(Statement):
                                   "for PSyDataNode.")
 
     # -------------------------------------------------------------------------
-
-    def lower_to_language_level(self):
-        '''
-        '''
-        if self._module_name:
-            name = self._module_name
-        else:
-            name = self.ancestor(Routine).name
-        routine_name = Literal(name, CHARACTER_TYPE)
-
-        symbol_table = self.scope.symbol_table
-        # Ensure that we have a container symbol for the API access
-        fortran_module = self.add_psydata_class_prefix(self.fortran_module)
-        try:
-            csym = symbol_table.lookup(fortran_module)
-        except KeyError:
-            csym = ContainerSymbol(fortran_module)
-            symbol_table.add(csym)
-
-        for symbol in self.symbols:
-            try:
-                sym = symbol_table.lookup(symbol)
-                # assert sym.interface = 
-            except KeyError:
-                sym = DataSymbol(symbol, INTEGER_TYPE,
-                                 interface=GlobalInterface(csym))
-                symbol_table.add(sym)
-
-        # The type symbol for PSyData variables
-        var_name = self.add_psydata_class_prefix("PSyDataType")
-        try:
-            type_sym = symbol_table.lookup(var_name)
-        except KeyError:
-            type_sym = TypeSymbol(var_name, DeferredType(),
-                                  interface=GlobalInterface(csym))
-
-        # Create a name for this region
-        if self._region_name:
-            name = self._region_name
-        else:
-            name = "rTODO"
-        region_name = Literal(name, CHARACTER_TYPE)
-
-        var_name = self.add_psydata_class_prefix("psy_data")
-
-        # Create a symbol for this PSyData region
-        # TODO This symbol needs the 'save' and 'target' attributes in Fortran
-        dsym = symbol_table.new_symbol(var_name, symbol_type=DataSymbol,
-                                       datatype=type_sym)
-
-        # PSyData end call
-        sref = StructureReference.create(dsym, ["PostEnd"])
-        end_call = Call.create(sref, [])
-        self.parent.children.insert(self.position+1, end_call)
-
-        # PSyData start call (replaces existing PSyDataNode)
-        zero = Literal("0", INTEGER_TYPE)
-        sref = StructureReference.create(dsym, ["PreStart"])
-        start_call = Call.create(sref,
-                                 [routine_name, region_name, zero, zero.copy()])
-        self.replace_with(start_call)
 
     # -------------------------------------------------------------------------
 
